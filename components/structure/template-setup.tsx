@@ -5,22 +5,23 @@ import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createCategory } from "@/lib/db/queries";
+import { CategoryIcon } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
 
-const PRESETS = [
-  { name: "Uyku", color: "#6366f1" },
-  { name: "Spor & Fitness", color: "#22c55e" },
-  { name: "Beslenme", color: "#f97316" },
-  { name: "Harcamalar", color: "#f59e0b" },
-  { name: "Ruh Hali", color: "#ec4899" },
-  { name: "Sağlık", color: "#ef4444" },
-  { name: "Sosyal Hayat", color: "#f43f5e" },
-  { name: "Çalışma", color: "#3b82f6" },
-  { name: "Öğrenme", color: "#84cc16" },
-  { name: "Eğlence", color: "#a855f7" },
-  { name: "Seyahat", color: "#06b6d4" },
-  { name: "Hobiler", color: "#eab308" },
-  { name: "Kişisel Bakım", color: "#14b8a6" },
+const PRESETS: { name: string; color: string; icon: string }[] = [
+  { name: "Uyku",          color: "#6366f1", icon: "Moon" },
+  { name: "Spor & Fitness",color: "#22c55e", icon: "Dumbbell" },
+  { name: "Beslenme",      color: "#f97316", icon: "Utensils" },
+  { name: "Harcamalar",    color: "#f59e0b", icon: "Wallet" },
+  { name: "Ruh Hali",      color: "#ec4899", icon: "Smile" },
+  { name: "Sağlık",        color: "#ef4444", icon: "Heart" },
+  { name: "Sosyal Hayat",  color: "#f43f5e", icon: "Users" },
+  { name: "Çalışma",       color: "#3b82f6", icon: "Briefcase" },
+  { name: "Öğrenme",       color: "#84cc16", icon: "GraduationCap" },
+  { name: "Eğlence",       color: "#a855f7", icon: "Tv" },
+  { name: "Seyahat",       color: "#06b6d4", icon: "Plane" },
+  { name: "Hobiler",       color: "#eab308", icon: "Star" },
+  { name: "Kişisel Bakım", color: "#14b8a6", icon: "Sparkles" },
 ];
 
 const PALETTE = [
@@ -51,11 +52,11 @@ export function TemplateSetup() {
     setLoading(true);
     try {
       const toAdd = PRESETS.filter((p) => selected.has(p.name));
-      if (customName.trim()) {
-        toAdd.push({ name: customName.trim(), color: customColor });
-      }
       for (const cat of toAdd) {
-        await createCategory({ name: cat.name, color: cat.color });
+        await createCategory({ name: cat.name, color: cat.color, icon: cat.icon });
+      }
+      if (customName.trim()) {
+        await createCategory({ name: customName.trim(), color: customColor });
       }
     } finally {
       setLoading(false);
@@ -83,7 +84,13 @@ export function TemplateSetup() {
               )}
               style={isSelected ? { backgroundColor: p.color } : undefined}
             >
-              {isSelected && <Check className="h-3.5 w-3.5 shrink-0" />}
+              <CategoryIcon
+                name={p.icon}
+                className={cn(
+                  "h-3.5 w-3.5 shrink-0",
+                  !isSelected && "opacity-60"
+                )}
+              />
               {p.name}
             </button>
           );
