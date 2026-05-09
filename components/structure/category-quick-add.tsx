@@ -5,22 +5,23 @@ import { Plus, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createCategory } from "@/lib/db/queries";
+import { CategoryIcon, CATEGORY_ICON_MAP } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
 
-const PRESETS = [
-  { name: "Uyku", color: "#6366f1" },
-  { name: "Spor & Fitness", color: "#22c55e" },
-  { name: "Beslenme", color: "#f97316" },
-  { name: "Harcamalar", color: "#f59e0b" },
-  { name: "Ruh Hali", color: "#ec4899" },
-  { name: "Sağlık", color: "#ef4444" },
-  { name: "Sosyal Hayat", color: "#f43f5e" },
-  { name: "Çalışma", color: "#3b82f6" },
-  { name: "Öğrenme", color: "#84cc16" },
-  { name: "Eğlence", color: "#a855f7" },
-  { name: "Seyahat", color: "#06b6d4" },
-  { name: "Hobiler", color: "#eab308" },
-  { name: "Kişisel Bakım", color: "#14b8a6" },
+const PRESETS: { name: string; color: string; icon: string }[] = [
+  { name: "Uyku",          color: "#6366f1", icon: "Moon" },
+  { name: "Spor & Fitness",color: "#22c55e", icon: "Dumbbell" },
+  { name: "Beslenme",      color: "#f97316", icon: "Utensils" },
+  { name: "Harcamalar",    color: "#f59e0b", icon: "Wallet" },
+  { name: "Ruh Hali",      color: "#ec4899", icon: "Smile" },
+  { name: "Sağlık",        color: "#ef4444", icon: "Heart" },
+  { name: "Sosyal Hayat",  color: "#f43f5e", icon: "Users" },
+  { name: "Çalışma",       color: "#3b82f6", icon: "Briefcase" },
+  { name: "Öğrenme",       color: "#84cc16", icon: "GraduationCap" },
+  { name: "Eğlence",       color: "#a855f7", icon: "Tv" },
+  { name: "Seyahat",       color: "#06b6d4", icon: "Plane" },
+  { name: "Hobiler",       color: "#eab308", icon: "Star" },
+  { name: "Kişisel Bakım", color: "#14b8a6", icon: "Sparkles" },
 ];
 
 const PALETTE = [
@@ -49,10 +50,10 @@ export function CategoryQuickAdd({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, []);
 
-  async function addPreset(preset: { name: string; color: string }) {
+  async function addPreset(preset: { name: string; color: string; icon: string }) {
     if (existingNames.has(preset.name)) return;
     setAdding(preset.name);
-    await createCategory({ name: preset.name, color: preset.color });
+    await createCategory({ name: preset.name, color: preset.color, icon: preset.icon });
     setAdding(null);
   }
 
@@ -77,44 +78,41 @@ export function CategoryQuickAdd({
 
       {open && (
         <div className="absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
-          {/* Preset list */}
           <div className="max-h-64 overflow-y-auto">
             {PRESETS.map((p) => {
               const exists = existingNames.has(p.name);
-              const isAdding = adding === p.name;
               return (
                 <button
                   key={p.name}
                   onClick={() => addPreset(p)}
-                  disabled={exists || isAdding}
+                  disabled={exists || adding === p.name}
                   className={cn(
                     "flex w-full items-center gap-2.5 px-3 py-2.5 text-sm transition-colors",
                     exists
-                      ? "text-muted-foreground/40 cursor-default"
+                      ? "cursor-default opacity-35"
                       : "hover:bg-muted active:bg-muted/80"
                   )}
                 >
                   <div
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
                     style={{ backgroundColor: p.color }}
-                  />
+                  >
+                    <CategoryIcon name={p.icon} className="h-4 w-4 text-white" />
+                  </div>
                   <span className="flex-1 text-left">{p.name}</span>
-                  {exists && <Check className="h-3.5 w-3.5 text-muted-foreground/40" />}
+                  {exists && <Check className="h-3.5 w-3.5 text-muted-foreground/50" />}
                 </button>
               );
             })}
           </div>
 
-          {/* Custom input */}
           <div className="border-t border-border bg-muted/30 p-3">
             <div className="flex gap-2">
               <Input
                 placeholder="Kendin yaz..."
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") addCustom();
-                }}
+                onKeyDown={(e) => { if (e.key === "Enter") addCustom(); }}
                 className="h-8 flex-1 text-sm"
               />
               <Button

@@ -43,6 +43,7 @@ export interface Category {
 export interface SubCategory {
   id: string;
   categoryId: string;
+  parentId?: string;
   name: string;
   icon?: string;
   order: number;

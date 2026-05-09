@@ -95,6 +95,13 @@ export async function listSubCategoriesByCategory(
   catId: string
 ): Promise<SubCategory[]> {
   const all = await db.subcategories.where("categoryId").equals(catId).toArray();
+  return all.filter((s) => !s.parentId).sort((a, b) => a.order - b.order);
+}
+
+export async function listSubCategoriesByParent(
+  parentId: string
+): Promise<SubCategory[]> {
+  const all = await db.subcategories.where("parentId").equals(parentId).toArray();
   return all.sort((a, b) => a.order - b.order);
 }
 
@@ -106,6 +113,7 @@ export async function getSubCategory(
 
 export async function createSubCategory(input: {
   categoryId: string;
+  parentId?: string;
   name: string;
   icon?: string;
 }): Promise<SubCategory> {
@@ -116,6 +124,7 @@ export async function createSubCategory(input: {
   const sub: SubCategory = {
     id: id(),
     categoryId: input.categoryId,
+    ...(input.parentId ? { parentId: input.parentId } : {}),
     name: input.name,
     icon: input.icon,
     order: siblings + 1,
@@ -134,6 +143,10 @@ export async function updateSubCategory(
 }
 
 export async function deleteSubCategory(subId: string): Promise<void> {
+  // Recursively delete children first
+  const children = await db.subcategories.where("parentId").equals(subId).toArray();
+  for (const child of children) await deleteSubCategory(child.id);
+
   const fields = await db.fields.where("subcategoryId").equals(subId).toArray();
   const fieldIds = fields.map((f) => f.id);
   const entries = await db.entries.where("subcategoryId").equals(subId).toArray();

@@ -27,13 +27,14 @@ import {
   type GlobalDimensionConfig,
   type MoneyClassification,
 } from "@/types";
-import { createField, updateField, listDimensions } from "@/lib/db/queries";
+import { createField, updateField, listDimensions, listSubCategoriesByCategory } from "@/lib/db/queries";
 import { db } from "@/lib/db";
 
 interface FieldFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  subcategoryId: string;
+  subcategoryId?: string;
+  categoryId?: string;
   field?: Field;
   onSaved?: () => void;
 }
@@ -53,12 +54,14 @@ export function FieldForm({
   open,
   onOpenChange,
   subcategoryId,
+  categoryId,
   field,
   onSaved,
 }: FieldFormProps) {
   const isEdit = !!field;
   const [name, setName] = useState(field?.name ?? "");
   const [type, setType] = useState<FieldType>(field?.type ?? "number");
+  const [selectedSubId, setSelectedSubId] = useState("");
   const [unit, setUnit] = useState(field?.options?.unit ?? "");
   const [currency, setCurrency] = useState(field?.options?.currency ?? "TL");
   const [choicesText, setChoicesText] = useState(
@@ -78,6 +81,13 @@ export function FieldForm({
   const moneyDim = dimensions?.find((d) => d.type === "money");
   const timeDim = dimensions?.find((d) => d.type === "time");
 
+  const subcategories = useLiveQuery(
+    () => (!subcategoryId && categoryId) ? listSubCategoriesByCategory(categoryId) : Promise.resolve(undefined),
+    [categoryId, subcategoryId]
+  );
+
+  const effectiveSubId = subcategoryId ?? selectedSubId;
+
   // Reset form when opening for new field
   useEffect(() => {
     if (open && !isEdit) {
@@ -90,6 +100,7 @@ export function FieldForm({
       setLinkToDimension(false);
       setClassification("expense");
       setLabel("");
+      setSelectedSubId("");
     }
   }, [open, isEdit]);
 
@@ -99,16 +110,15 @@ export function FieldForm({
 
   // Auto-fill label from subcategory context if empty
   useEffect(() => {
-    if (linkToDimension && !label) {
-      // We'll fetch context lazily
+    if (linkToDimension && !label && effectiveSubId) {
       (async () => {
-        const sub = await db.subcategories.get(subcategoryId);
+        const sub = await db.subcategories.get(effectiveSubId);
         if (!sub) return;
         const cat = await db.categories.get(sub.categoryId);
         if (cat) setLabel(`${cat.name} / ${sub.name}`);
       })();
     }
-  }, [linkToDimension, label, subcategoryId]);
+  }, [linkToDimension, label, effectiveSubId]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -143,8 +153,9 @@ export function FieldForm({
           globalDimension,
         });
       } else {
+        if (!effectiveSubId) return;
         await createField({
-          subcategoryId,
+          subcategoryId: effectiveSubId,
           name: name.trim(),
           type,
           options,
@@ -168,6 +179,22 @@ export function FieldForm({
           <DialogTitle>{isEdit ? "Alanı düzenle" : "Yeni alan"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="flex flex-col gap-5">
+          {!subcategoryId && subcategories && subcategories.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <Label>Alt Kategori</Label>
+              <Select value={selectedSubId} onValueChange={setSelectedSubId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seç..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {subcategories.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="flex flex-col gap-2">
             <Label htmlFor="field-name">İsim</Label>
             <Input
@@ -302,7 +329,7 @@ export function FieldForm({
             >
               İptal
             </Button>
-            <Button type="submit" disabled={!name.trim() || saving}>
+            <Button type="submit" disabled={!name.trim() || saving || (!isEdit && !effectiveSubId)}>
               {isEdit ? "Kaydet" : "Oluştur"}
             </Button>
           </DialogFooter>

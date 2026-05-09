@@ -26,6 +26,9 @@ export class RoutineDB extends Dexie {
       entries: "id, subcategoryId, occurredAt, createdAt",
       entryValues: "id, entryId, fieldId",
     });
+    this.version(2).stores({
+      subcategories: "id, categoryId, parentId, name, order, createdAt",
+    });
   }
 }
 
