@@ -3,13 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plus, Layers, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { ChevronRight, Layers, Pencil, Trash2 } from "lucide-react";
 import { db } from "@/lib/db";
 import { listCategories, deleteCategory } from "@/lib/db/queries";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CategoryForm } from "@/components/structure/category-form";
+import { CategoryQuickAdd } from "@/components/structure/category-quick-add";
 import type { Category } from "@/types";
 
 export default function StructurePage() {
@@ -27,11 +28,6 @@ export default function StructurePage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Category | undefined>();
 
-  function openNew() {
-    setEditing(undefined);
-    setFormOpen(true);
-  }
-
   function openEdit(cat: Category) {
     setEditing(cat);
     setFormOpen(true);
@@ -47,29 +43,21 @@ export default function StructurePage() {
     await deleteCategory(cat.id);
   }
 
+  const existingNames = new Set(categories?.map((c) => c.name) ?? []);
+
   return (
     <>
       <PageHeader
         title="Yapı"
         description="Kategori, alt kategori ve alanları yönet"
-        action={
-          <Button size="icon" onClick={openNew} aria-label="Yeni kategori">
-            <Plus className="h-5 w-5" />
-          </Button>
-        }
+        action={<CategoryQuickAdd existingNames={existingNames} />}
       />
 
       {categories === undefined ? null : categories.length === 0 ? (
         <EmptyState
           icon={Layers}
           title="Henüz kategori yok"
-          description="Takip etmek istediğin alanları ekleyerek başla. Örn. Alkol, Uyku, Spor."
-          action={
-            <Button onClick={openNew}>
-              <Plus className="h-4 w-4" />
-              İlk kategoriyi oluştur
-            </Button>
-          }
+          description="+ butonuna bas, listeden seç ya da kendin yaz."
         />
       ) : (
         <div className="flex flex-col gap-2">
