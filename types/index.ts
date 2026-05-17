@@ -8,6 +8,26 @@ export type FieldType =
   | "select"
   | "boolean";
 
+export type EntryValueType = "number" | "text" | "boolean" | "select";
+
+export const ENTRY_VALUE_TYPE_LABELS: Record<EntryValueType, string> = {
+  number: "Sayı",
+  text: "Metin",
+  boolean: "Evet / Hayır",
+  select: "Seçenek",
+};
+
+export interface EntryType {
+  id: string;
+  name: string;
+  unit: string;
+  valueType?: EntryValueType;
+  choices?: string[];
+  isBuiltIn: boolean;
+  order: number;
+  createdAt: number;
+}
+
 export type GlobalDimensionType = "money" | "time";
 
 export type MoneyClassification = "expense" | "income" | "investment";
@@ -75,6 +95,7 @@ export interface GlobalDimension {
 export interface Entry {
   id: string;
   subcategoryId: string;
+  title?: string;
   notes?: string;
   occurredAt: number;
   createdAt: number;
@@ -84,12 +105,15 @@ export interface Entry {
 export interface EntryValue {
   id: string;
   entryId: string;
-  fieldId: string;
+  fieldId?: string;
+  entryTypeId?: string;
   value: string;
 }
 
+export type EntryValueWithType = EntryValue & { entryType?: EntryType };
+
 export interface EntryWithContext extends Entry {
-  values: EntryValue[];
+  values: EntryValueWithType[];
   subcategory: SubCategory;
   category: Category;
   fields: Field[];

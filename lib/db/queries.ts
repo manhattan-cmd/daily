@@ -6,12 +6,83 @@ import type {
   Field,
   Entry,
   EntryValue,
+  EntryValueWithType,
+  EntryType,
   GlobalDimension,
   EntryWithContext,
 } from "@/types";
 
 const now = () => Date.now();
 const id = () => nanoid(12);
+
+// ============ Entry Types ============
+
+const BUILT_IN_ENTRY_TYPES: Omit<EntryType, "id" | "createdAt">[] = [
+  { name: "Para", unit: "₺", valueType: "number", isBuiltIn: true, order: 1 },
+  { name: "Miktar", unit: "adet", valueType: "number", isBuiltIn: true, order: 2 },
+  { name: "Süre", unit: "dk", valueType: "number", isBuiltIn: true, order: 3 },
+  { name: "Ağırlık", unit: "kg", valueType: "number", isBuiltIn: true, order: 4 },
+  { name: "Mesafe", unit: "km", valueType: "number", isBuiltIn: true, order: 5 },
+];
+
+export async function ensureBuiltInEntryTypes(): Promise<void> {
+  const existing = await db.entryTypes.toArray();
+
+  // Deduplicate: keep oldest of each name, delete the rest
+  const byName = new Map<string, EntryType[]>();
+  for (const t of existing) {
+    const arr = byName.get(t.name) ?? [];
+    arr.push(t);
+    byName.set(t.name, arr);
+  }
+  const toDelete: string[] = [];
+  for (const [, types] of byName) {
+    if (types.length > 1) {
+      types.sort((a, b) => a.createdAt - b.createdAt);
+      toDelete.push(...types.slice(1).map((t) => t.id));
+    }
+  }
+  if (toDelete.length) await db.entryTypes.bulkDelete(toDelete);
+
+  // Add any missing built-in types (check by name)
+  const survivingNames = new Set(
+    existing.filter((t) => !toDelete.includes(t.id)).map((t) => t.name)
+  );
+  const toAdd = BUILT_IN_ENTRY_TYPES.filter(
+    (t) => !survivingNames.has(t.name)
+  ).map((t) => ({ ...t, id: id(), createdAt: now() } satisfies EntryType));
+  if (toAdd.length) await db.entryTypes.bulkAdd(toAdd);
+}
+
+export async function listEntryTypes(): Promise<EntryType[]> {
+  const all = await db.entryTypes.toArray();
+  return all.sort((a, b) => a.order - b.order);
+}
+
+export async function createEntryType(input: {
+  name: string;
+  unit: string;
+  valueType?: import("@/types").EntryValueType;
+  choices?: string[];
+}): Promise<EntryType> {
+  const count = await db.entryTypes.count();
+  const entryType: EntryType = {
+    id: id(),
+    name: input.name,
+    unit: input.unit,
+    valueType: input.valueType ?? "number",
+    ...(input.choices?.length ? { choices: input.choices } : {}),
+    isBuiltIn: false,
+    order: count + 1,
+    createdAt: now(),
+  };
+  await db.entryTypes.add(entryType);
+  return entryType;
+}
+
+export async function deleteEntryType(entryTypeId: string): Promise<void> {
+  await db.entryTypes.delete(entryTypeId);
+}
 
 // ============ Global Dimensions ============
 
@@ -213,22 +284,24 @@ export async function deleteField(fieldId: string): Promise<void> {
 
 export async function createEntry(input: {
   subcategoryId: string;
+  title?: string;
+  typeValues?: { entryTypeId: string; value: string }[];
   occurredAt?: number;
   notes?: string;
-  values: { fieldId: string; value: string }[];
 }): Promise<Entry> {
   const entry: Entry = {
     id: id(),
     subcategoryId: input.subcategoryId,
+    title: input.title,
     notes: input.notes,
     occurredAt: input.occurredAt ?? now(),
     createdAt: now(),
     updatedAt: now(),
   };
-  const values: EntryValue[] = input.values.map((v) => ({
+  const values: EntryValue[] = (input.typeValues ?? []).map((v) => ({
     id: id(),
     entryId: entry.id,
-    fieldId: v.fieldId,
+    entryTypeId: v.entryTypeId,
     value: v.value,
   }));
 
@@ -237,6 +310,36 @@ export async function createEntry(input: {
     if (values.length) await db.entryValues.bulkAdd(values);
   });
   return entry;
+}
+
+export async function updateEntry(
+  entryId: string,
+  input: {
+    title?: string;
+    typeValues?: { entryTypeId: string; value: string }[];
+    occurredAt?: number;
+    notes?: string;
+  }
+): Promise<void> {
+  await db.transaction("rw", [db.entries, db.entryValues], async () => {
+    await db.entries.update(entryId, {
+      title: input.title,
+      notes: input.notes,
+      occurredAt: input.occurredAt,
+      updatedAt: now(),
+    });
+    // Replace entryType-based values only (keep legacy field-based ones)
+    const existing = await db.entryValues.where("entryId").equals(entryId).toArray();
+    const typeValueIds = existing.filter((v) => v.entryTypeId).map((v) => v.id);
+    if (typeValueIds.length) await db.entryValues.bulkDelete(typeValueIds);
+    const newValues: EntryValue[] = (input.typeValues ?? []).map((v) => ({
+      id: id(),
+      entryId,
+      entryTypeId: v.entryTypeId,
+      value: v.value,
+    }));
+    if (newValues.length) await db.entryValues.bulkAdd(newValues);
+  });
 }
 
 export async function deleteEntry(entryId: string): Promise<void> {
@@ -256,14 +359,30 @@ export async function listRecentEntries(limit = 20): Promise<EntryWithContext[]>
 }
 
 export async function listEntriesBySubCategory(
-  subId: string
+  subId: string,
+  limit?: number
 ): Promise<EntryWithContext[]> {
   const entries = await db.entries
     .where("subcategoryId")
     .equals(subId)
     .reverse()
     .sortBy("occurredAt");
-  return hydrateEntries(entries);
+  return hydrateEntries(limit ? entries.slice(0, limit) : entries);
+}
+
+export async function listEntriesByCategory(
+  catId: string,
+  limit = 20
+): Promise<EntryWithContext[]> {
+  const subs = await db.subcategories.where("categoryId").equals(catId).toArray();
+  if (!subs.length) return [];
+  const subIds = subs.map((s) => s.id);
+  const entries = await db.entries
+    .where("subcategoryId")
+    .anyOf(subIds)
+    .reverse()
+    .sortBy("occurredAt");
+  return hydrateEntries(entries.slice(0, limit));
 }
 
 async function hydrateEntries(entries: Entry[]): Promise<EntryWithContext[]> {
@@ -290,22 +409,38 @@ async function hydrateEntries(entries: Entry[]): Promise<EntryWithContext[]> {
     valuesByEntry.set(v.entryId, arr);
   }
 
-  return entries
-    .map((e) => {
-      const sub = subMap.get(e.subcategoryId);
-      if (!sub) return null;
-      const cat = catMap.get(sub.categoryId);
-      if (!cat) return null;
-      const fields = (fieldsBySub.get(sub.id) ?? []).sort(
-        (a, b) => a.order - b.order
-      );
-      return {
-        ...e,
-        subcategory: sub,
-        category: cat,
-        fields,
-        values: valuesByEntry.get(e.id) ?? [],
-      } satisfies EntryWithContext;
-    })
-    .filter((x): x is EntryWithContext => x !== null);
+  // Collect all entryTypeIds referenced from EntryValues
+  const valueTypeIds = [
+    ...new Set(allValues.map((v) => v.entryTypeId).filter((x): x is string => !!x)),
+  ];
+  const entryTypesRaw = valueTypeIds.length
+    ? await db.entryTypes.bulkGet(valueTypeIds)
+    : [];
+  const entryTypeMap = new Map(
+    entryTypesRaw.filter(Boolean).map((t) => [t!.id, t!])
+  );
+
+  const results: EntryWithContext[] = [];
+  for (const e of entries) {
+    const sub = subMap.get(e.subcategoryId);
+    if (!sub) continue;
+    const cat = catMap.get(sub.categoryId);
+    if (!cat) continue;
+    const fields = (fieldsBySub.get(sub.id) ?? []).sort(
+      (a, b) => a.order - b.order
+    );
+    const rawValues = valuesByEntry.get(e.id) ?? [];
+    const valuesWithType: EntryValueWithType[] = rawValues.map((v) => ({
+      ...v,
+      entryType: v.entryTypeId ? entryTypeMap.get(v.entryTypeId) : undefined,
+    }));
+    results.push({
+      ...e,
+      subcategory: sub,
+      category: cat,
+      fields,
+      values: valuesWithType,
+    });
+  }
+  return results;
 }

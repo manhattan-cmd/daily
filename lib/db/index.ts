@@ -5,6 +5,7 @@ import type {
   Field,
   Entry,
   EntryValue,
+  EntryType,
   GlobalDimension,
 } from "@/types";
 
@@ -15,6 +16,7 @@ export class RoutineDB extends Dexie {
   globalDimensions!: Table<GlobalDimension, string>;
   entries!: Table<Entry, string>;
   entryValues!: Table<EntryValue, string>;
+  entryTypes!: Table<EntryType, string>;
 
   constructor() {
     super("RoutineDB");
@@ -28,6 +30,14 @@ export class RoutineDB extends Dexie {
     });
     this.version(2).stores({
       subcategories: "id, categoryId, parentId, name, order, createdAt",
+    });
+    this.version(3).stores({
+      entries: "id, subcategoryId, occurredAt, createdAt, entryTypeId",
+      entryTypes: "id, name, isBuiltIn, order, createdAt",
+    });
+    this.version(4).stores({
+      entries: "id, subcategoryId, occurredAt, createdAt, title",
+      entryValues: "id, entryId, fieldId, entryTypeId",
     });
   }
 }

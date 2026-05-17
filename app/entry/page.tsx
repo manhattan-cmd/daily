@@ -2,35 +2,34 @@
 
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronRight, Sparkles, Folder } from "lucide-react";
+import { ChevronRight, Sparkles, FolderOpen, Folder } from "lucide-react";
 import { db } from "@/lib/db";
 import { listCategories } from "@/lib/db/queries";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
+import type { SubCategory } from "@/types";
 
 export default function EntryIndexPage() {
   const data = useLiveQuery(async () => {
     const cats = await listCategories();
-    const result = await Promise.all(
-      cats.map(async (cat) => {
-        const subs = await db.subcategories
-          .where("categoryId")
-          .equals(cat.id)
-          .toArray();
-        const sortedSubs = subs.sort((a, b) => a.order - b.order);
-        return { category: cat, subcategories: sortedSubs };
-      })
-    );
-    return result.filter((g) => g.subcategories.length > 0);
+    const allSubs = await db.subcategories.toArray();
+
+    return cats.map((cat) => {
+      const topSubs = allSubs
+        .filter((s) => s.categoryId === cat.id && !s.parentId)
+        .sort((a, b) => a.order - b.order);
+      const withChildren = topSubs.map((sub) => ({
+        sub,
+        hasChildren: allSubs.some((s) => s.parentId === sub.id),
+      }));
+      return { category: cat, subcategories: withChildren };
+    }).filter((g) => g.subcategories.length > 0);
   }, []);
 
   return (
     <>
-      <PageHeader
-        title="Yeni girdi"
-        description="Bir alt kategori seç"
-      />
+      <PageHeader title="Girdi ekle" description="Bir kategori seç" />
 
       {data === undefined ? null : data.length === 0 ? (
         <EmptyState
@@ -57,26 +56,13 @@ export default function EntryIndexPage() {
                 </h2>
               </div>
               <div className="flex flex-col gap-2">
-                {subcategories.map((sub) => (
-                  <Link
+                {subcategories.map(({ sub, hasChildren }) => (
+                  <SubCategoryRow
                     key={sub.id}
-                    href={`/entry/${sub.id}`}
-                    className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 transition-colors hover:bg-card/80 active:scale-[0.99]"
-                  >
-                    <div
-                      className="h-10 w-10 shrink-0 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: `${category.color}22` }}
-                    >
-                      <Folder
-                        className="h-5 w-5"
-                        style={{ color: category.color }}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="truncate font-medium">{sub.name}</div>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                  </Link>
+                    sub={sub}
+                    hasChildren={hasChildren}
+                    categoryColor={category.color}
+                  />
                 ))}
               </div>
             </section>
@@ -84,5 +70,37 @@ export default function EntryIndexPage() {
         </div>
       )}
     </>
+  );
+}
+
+function SubCategoryRow({
+  sub,
+  hasChildren,
+  categoryColor,
+}: {
+  sub: SubCategory;
+  hasChildren: boolean;
+  categoryColor: string;
+}) {
+  const Icon = hasChildren ? FolderOpen : Folder;
+  return (
+    <Link
+      href={`/entry/${sub.id}`}
+      className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 transition-colors hover:bg-card/80 active:scale-[0.99]"
+    >
+      <div
+        className="h-10 w-10 shrink-0 rounded-lg flex items-center justify-center"
+        style={{ backgroundColor: `${categoryColor}22` }}
+      >
+        <Icon className="h-5 w-5" style={{ color: categoryColor }} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="truncate font-medium">{sub.name}</div>
+        {hasChildren && (
+          <div className="text-xs text-muted-foreground">Alt kategoriler var</div>
+        )}
+      </div>
+      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+    </Link>
   );
 }
