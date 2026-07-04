@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { Check } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { type SubCategory } from "@/types";
 import { createSubCategory, updateSubCategory } from "@/lib/db/queries";
+import { EmojiPicker } from "@/components/structure/icon-picker";
 
 const SUBCATEGORY_PRESETS: Record<string, string[]> = {
   "Uyku":          ["Gece Uykusu", "Şekerleme", "Uyku Kalitesi", "Gece Rutini", "Uyanış"],
@@ -50,7 +50,15 @@ export function SubCategoryForm({
 }: SubCategoryFormProps) {
   const isEdit = !!subcategory;
   const [name, setName] = useState(subcategory?.name ?? "");
+  const [icon, setIcon] = useState<string | undefined>(subcategory?.icon);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setName(subcategory?.name ?? "");
+      setIcon(subcategory?.icon);
+    }
+  }, [open, subcategory]);
 
   const presets = categoryName ? (SUBCATEGORY_PRESETS[categoryName] ?? []) : [];
 
@@ -59,14 +67,22 @@ export function SubCategoryForm({
     setSaving(true);
     try {
       if (isEdit && subcategory) {
-        await updateSubCategory(subcategory.id, { name: nameToSave.trim() });
+        await updateSubCategory(subcategory.id, { name: nameToSave.trim(), icon });
         onSaved?.();
       } else {
-        const sub = await createSubCategory({ categoryId, parentId: parentSubcategoryId, name: nameToSave.trim() });
+        const sub = await createSubCategory({
+          categoryId,
+          parentId: parentSubcategoryId,
+          name: nameToSave.trim(),
+          icon,
+        });
         onSaved?.(sub);
       }
       onOpenChange(false);
-      if (!isEdit) setName("");
+      if (!isEdit) {
+        setName("");
+        setIcon(undefined);
+      }
     } finally {
       setSaving(false);
     }
@@ -76,6 +92,13 @@ export function SubCategoryForm({
     e.preventDefault();
     await save(name);
   }
+
+  const iconSection = (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs text-muted-foreground">Sembol (isteğe bağlı)</p>
+      <EmojiPicker value={icon} onChange={setIcon} />
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -95,6 +118,7 @@ export function SubCategoryForm({
               placeholder="Alt kategori adı"
               autoFocus
             />
+            {iconSection}
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                 İptal
@@ -133,6 +157,7 @@ export function SubCategoryForm({
                 autoFocus={presets.length === 0}
                 className="h-12 text-base"
               />
+              {iconSection}
               <Button
                 type="submit"
                 className="w-full"

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Layers, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { ChevronRight, Layers, MoreHorizontal, Pencil, Sliders, Trash2, Waypoints } from "lucide-react";
 import { db } from "@/lib/db";
 import { listCategories, deleteCategory } from "@/lib/db/queries";
 import { Button } from "@/components/ui/button";
@@ -49,9 +49,44 @@ export default function StructurePage() {
     <>
       <PageHeader
         title="Yapı"
-        description="Kategori, alt kategori ve alanları yönet"
+        description="Kategori ve modları yönet"
         action={<CategoryQuickAdd existingNames={existingNames} />}
       />
+
+      {/* Kısayollar */}
+      <div className="flex flex-col gap-2 mb-5">
+        <Link
+          href="/structure/mods"
+          className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 transition-colors hover:bg-card/80 active:scale-[0.99]"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+            <Sliders className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium">Modlar</div>
+            <div className="text-xs text-muted-foreground">
+              Mod türlerini oluştur ve düzenle
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        </Link>
+
+        <Link
+          href="/structure/galaxy"
+          className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 transition-colors hover:bg-card/80 active:scale-[0.99]"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/10">
+            <Waypoints className="h-5 w-5 text-violet-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium">Bağlantı Haritası</div>
+            <div className="text-xs text-muted-foreground">
+              Kategori, alt kategori ve mod bağlantılarını gör
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        </Link>
+      </div>
 
       {/* Backdrop — closes open menu on outside click */}
       {openMenuId && (
@@ -60,6 +95,12 @@ export default function StructurePage() {
           onClick={() => setOpenMenuId(null)}
         />
       )}
+
+      <div className="px-1 mb-3">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Kategoriler
+        </h2>
+      </div>
 
       {categories === undefined ? null : categories.length === 0 ? (
         <EmptyState

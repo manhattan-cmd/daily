@@ -56,9 +56,9 @@ export default function HomePage() {
           }
           action={
             <Button asChild>
-              <Link href={stats?.catCount ? "/entry" : "/structure"}>
+              <Link href={stats?.catCount ? "/calendar" : "/structure"}>
                 <Plus className="h-4 w-4" />
-                {stats?.catCount ? "Girdi yap" : "Yapı oluştur"}
+                {stats?.catCount ? "Takvime git" : "Yapı oluştur"}
               </Link>
             </Button>
           }

@@ -37,6 +37,7 @@ export function CategoryQuickAdd({
   const [open, setOpen] = useState(false);
   const [customName, setCustomName] = useState("");
   const [customColor, setCustomColor] = useState(PALETTE[0]);
+  const [customIcon, setCustomIcon] = useState<string | undefined>();
   const [adding, setAdding] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -61,8 +62,9 @@ export function CategoryQuickAdd({
     const name = customName.trim();
     if (!name) return;
     setAdding("__custom__");
-    await createCategory({ name, color: customColor });
+    await createCategory({ name, color: customColor, icon: customIcon });
     setCustomName("");
+    setCustomIcon(undefined);
     setAdding(null);
   }
 
@@ -137,6 +139,33 @@ export function CategoryQuickAdd({
                   )}
                 </button>
               ))}
+            </div>
+            <div className="mt-2 flex gap-1 overflow-x-auto pb-1">
+              {Object.keys(CATEGORY_ICON_MAP).map((iconName) => {
+                const selected = customIcon === iconName;
+                return (
+                  <button
+                    key={iconName}
+                    onClick={() => setCustomIcon(selected ? undefined : iconName)}
+                    className={cn(
+                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-all",
+                      selected
+                        ? "border-foreground"
+                        : "border-transparent hover:bg-muted"
+                    )}
+                    style={selected ? { backgroundColor: customColor } : undefined}
+                    aria-label={`Sembol ${iconName}`}
+                  >
+                    <CategoryIcon
+                      name={iconName}
+                      className={cn(
+                        "h-4 w-4",
+                        selected ? "text-white" : "text-muted-foreground"
+                      )}
+                    />
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

@@ -1,18 +1,23 @@
 "use client";
 
 import { useEffect } from "react";
-import { ensureBuiltInDimensions, ensureBuiltInEntryTypes } from "@/lib/db/queries";
+import {
+  ensureBuiltInDimensions,
+  ensureBuiltInEntryTypes,
+  ensureBuiltInCategories,
+  ensureDefaultModifiers,
+} from "@/lib/db/queries";
 import { BottomNav } from "./bottom-nav";
 import { StatusBar } from "./status-bar";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    ensureBuiltInDimensions().catch((err) =>
-      console.error("Failed to seed dimensions", err)
-    );
-    ensureBuiltInEntryTypes().catch((err) =>
-      console.error("Failed to seed entry types", err)
-    );
+    (async () => {
+      await ensureBuiltInDimensions();
+      await ensureBuiltInEntryTypes();
+      await ensureBuiltInCategories();
+      await ensureDefaultModifiers();
+    })().catch((err) => console.error("Init error", err));
   }, []);
 
   return (

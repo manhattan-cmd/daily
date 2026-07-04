@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { CATEGORY_COLORS, type Category } from "@/types";
 import { createCategory, updateCategory } from "@/lib/db/queries";
+import { IconPicker } from "@/components/structure/icon-picker";
 import { cn } from "@/lib/utils";
 
 interface CategoryFormProps {
@@ -31,7 +32,16 @@ export function CategoryForm({
   const isEdit = !!category;
   const [name, setName] = useState(category?.name ?? "");
   const [color, setColor] = useState(category?.color ?? CATEGORY_COLORS[0]);
+  const [icon, setIcon] = useState<string | undefined>(category?.icon);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setName(category?.name ?? "");
+      setColor(category?.color ?? CATEGORY_COLORS[0]);
+      setIcon(category?.icon);
+    }
+  }, [open, category]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,15 +49,16 @@ export function CategoryForm({
     setSaving(true);
     try {
       if (isEdit && category) {
-        await updateCategory(category.id, { name: name.trim(), color });
+        await updateCategory(category.id, { name: name.trim(), color, icon });
       } else {
-        await createCategory({ name: name.trim(), color });
+        await createCategory({ name: name.trim(), color, icon });
       }
       onSaved?.();
       onOpenChange(false);
       if (!isEdit) {
         setName("");
         setColor(CATEGORY_COLORS[0]);
+        setIcon(undefined);
       }
     } finally {
       setSaving(false);
@@ -92,6 +103,10 @@ export function CategoryForm({
                 />
               ))}
             </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Sembol (isteğe bağlı)</Label>
+            <IconPicker value={icon} onChange={setIcon} color={color} />
           </div>
           <DialogFooter>
             <Button

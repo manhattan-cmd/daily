@@ -7,6 +7,8 @@ import type {
   EntryValue,
   EntryType,
   GlobalDimension,
+  CategoryModifier,
+  Goal,
 } from "@/types";
 
 export class RoutineDB extends Dexie {
@@ -17,6 +19,8 @@ export class RoutineDB extends Dexie {
   entries!: Table<Entry, string>;
   entryValues!: Table<EntryValue, string>;
   entryTypes!: Table<EntryType, string>;
+  categoryModifiers!: Table<CategoryModifier, string>;
+  goals!: Table<Goal, string>;
 
   constructor() {
     super("RoutineDB");
@@ -38,6 +42,15 @@ export class RoutineDB extends Dexie {
     this.version(4).stores({
       entries: "id, subcategoryId, occurredAt, createdAt, title",
       entryValues: "id, entryId, fieldId, entryTypeId",
+    });
+    this.version(5).stores({
+      categoryModifiers: "id, targetType, targetId, entryTypeId, createdAt",
+    });
+    this.version(6).stores({
+      entries: "id, subcategoryId, occurredAt, createdAt, title, linkedGroupId",
+    });
+    this.version(7).stores({
+      goals: "id, date, subcategoryId, createdAt",
     });
   }
 }

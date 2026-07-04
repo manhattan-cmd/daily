@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, BarChart3, Layers } from "lucide-react";
+import { Home, CalendarDays, BarChart3, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { href: "/", label: "Ana Sayfa", icon: Home },
+  { href: "/calendar", label: "Takvim", icon: CalendarDays },
   { href: "/analytics", label: "Analiz", icon: BarChart3 },
   { href: "/structure", label: "Yapı", icon: Layers },
 ] as const;

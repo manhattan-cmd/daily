@@ -8,13 +8,14 @@ export type FieldType =
   | "select"
   | "boolean";
 
-export type EntryValueType = "number" | "text" | "boolean" | "select";
+export type EntryValueType = "number" | "text" | "boolean" | "select" | "datetime-range";
 
 export const ENTRY_VALUE_TYPE_LABELS: Record<EntryValueType, string> = {
   number: "Sayı",
   text: "Metin",
   boolean: "Evet / Hayır",
   select: "Seçenek",
+  "datetime-range": "Tarih-Saat Aralığı",
 };
 
 export interface EntryType {
@@ -92,6 +93,15 @@ export interface GlobalDimension {
   createdAt: number;
 }
 
+export interface CategoryModifier {
+  id: string;
+  targetType: "category" | "subcategory";
+  targetId: string;
+  entryTypeId: string;
+  order: number;
+  createdAt: number;
+}
+
 export interface Entry {
   id: string;
   subcategoryId: string;
@@ -100,6 +110,7 @@ export interface Entry {
   occurredAt: number;
   createdAt: number;
   updatedAt: number;
+  linkedGroupId?: string;
 }
 
 export interface EntryValue {
@@ -129,6 +140,31 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   select: "Seçenek",
   boolean: "Evet / Hayır",
 };
+
+export interface GoalTarget {
+  entryTypeId: string;
+  targetValue: string;
+}
+
+export interface GoalTargetWithContext extends GoalTarget {
+  entryType: EntryType;
+}
+
+export interface Goal {
+  id: string;
+  date: string;
+  subcategoryId: string;
+  targets: GoalTarget[];
+  note?: string;
+  completedEntryId?: string;
+  createdAt: number;
+}
+
+export interface GoalWithContext extends Omit<Goal, "targets"> {
+  subcategory: SubCategory;
+  category: Category;
+  targets: GoalTargetWithContext[];
+}
 
 export const CATEGORY_COLORS = [
   "#6366f1", // indigo

@@ -2,15 +2,12 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   Folder,
   FolderOpen,
-  Layers,
   MoreHorizontal,
   Pencil,
-  PenLine,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -18,15 +15,14 @@ import {
   getSubCategory,
   getCategory,
   listSubCategoriesByParent,
-  listEntriesBySubCategory,
   deleteSubCategory,
 } from "@/lib/db/queries";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
-import { AddTypeModal } from "@/components/structure/add-type-modal";
-import { EntryCard } from "@/components/dashboard/entry-card";
+import { ModifierSection } from "@/components/structure/modifier-section";
+import { CategoryIcon, CATEGORY_ICON_MAP } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
 import type { SubCategory } from "@/types";
 
@@ -36,7 +32,6 @@ export default function SubCategoryDetailPage({
   params: Promise<{ categoryId: string; subcategoryId: string }>;
 }) {
   const { categoryId, subcategoryId } = use(params);
-  const router = useRouter();
 
   const category = useLiveQuery(() => getCategory(categoryId), [categoryId]);
   const subcategory = useLiveQuery(
@@ -51,12 +46,7 @@ export default function SubCategoryDetailPage({
     () => db.subcategories.where("categoryId").equals(categoryId).toArray(),
     [categoryId]
   );
-  const entries = useLiveQuery(
-    () => listEntriesBySubCategory(subcategoryId),
-    [subcategoryId]
-  );
 
-  const [choiceOpen, setChoiceOpen] = useState(false);
   const [subFormOpen, setSubFormOpen] = useState(false);
   const [editingSub, setEditingSub] = useState<SubCategory | undefined>();
   const [openSubMenuId, setOpenSubMenuId] = useState<string | null>(null);
@@ -85,32 +75,6 @@ export default function SubCategoryDetailPage({
   const hasSubChildren = (subId: string) =>
     allSubs?.some((s) => s.parentId === subId) ?? false;
 
-  const addOptions = [
-    {
-      label: "Alt Kategori",
-      description: "Yeni bir gruplama ya da bölüm oluştur",
-      icon: (
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-          <Layers className="h-6 w-6 text-primary" />
-        </div>
-      ),
-      onClick: () => {
-        setEditingSub(undefined);
-        setSubFormOpen(true);
-      },
-    },
-    {
-      label: "Girdi",
-      description: "Bu kategoriye ait bir değer kaydet",
-      icon: (
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
-          <PenLine className="h-6 w-6 text-emerald-500" />
-        </div>
-      ),
-      onClick: () => router.push(`/entry/${subcategoryId}`),
-    },
-  ];
-
   return (
     <>
       <PageHeader
@@ -126,6 +90,11 @@ export default function SubCategoryDetailPage({
         />
       )}
 
+      {/* Modlar */}
+      {subcategory && (
+        <ModifierSection targetType="subcategory" targetId={subcategoryId} />
+      )}
+
       {/* Alt kategoriler */}
       {children && children.length > 0 && (
         <section className="flex flex-col gap-2 mb-6">
@@ -135,6 +104,7 @@ export default function SubCategoryDetailPage({
           {children.map((child) => {
             const hasChildren = hasSubChildren(child.id);
             const Icon = hasChildren ? FolderOpen : Folder;
+            const isLucideIcon = child.icon && child.icon in CATEGORY_ICON_MAP;
             return (
               <div
                 key={child.id}
@@ -150,10 +120,22 @@ export default function SubCategoryDetailPage({
                       backgroundColor: `${category?.color ?? "#6366f1"}22`,
                     }}
                   >
-                    <Icon
-                      className="h-5 w-5"
-                      style={{ color: category?.color ?? "#6366f1" }}
-                    />
+                    {isLucideIcon ? (
+                      <CategoryIcon
+                        name={child.icon}
+                        className="h-5 w-5"
+                        style={{ color: category?.color ?? "#6366f1" }}
+                      />
+                    ) : child.icon ? (
+                      <span className="text-xl leading-none select-none">
+                        {child.icon}
+                      </span>
+                    ) : (
+                      <Icon
+                        className="h-5 w-5"
+                        style={{ color: category?.color ?? "#6366f1" }}
+                      />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="truncate font-medium">{child.name}</div>
@@ -210,34 +192,19 @@ export default function SubCategoryDetailPage({
         </section>
       )}
 
-      {/* Girdiler */}
-      {entries && entries.length > 0 && (
-        <section className="flex flex-col gap-2 mb-6">
-          <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Girdiler
-          </h2>
-          {entries.map((e) => (
-            <EntryCard key={e.id} entry={e} />
-          ))}
-        </section>
-      )}
-
       <div className="flex justify-center mt-2">
         <Button
           size="icon"
-          onClick={() => setChoiceOpen(true)}
-          aria-label="Ekle"
+          onClick={() => {
+            setEditingSub(undefined);
+            setSubFormOpen(true);
+          }}
+          aria-label="Alt kategori ekle"
           className="bg-blue-500 hover:bg-blue-400 text-white shadow-lg shadow-blue-500/30 transition-all"
         >
           <Plus className="h-5 w-5" />
         </Button>
       </div>
-
-      <AddTypeModal
-        open={choiceOpen}
-        onOpenChange={setChoiceOpen}
-        options={addOptions}
-      />
 
       <SubCategoryForm
         open={subFormOpen}
