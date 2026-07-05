@@ -17,6 +17,14 @@ export const metadata: Metadata = {
   title: "Routine — Personal Data Engine",
   description: "Kendi yaşam verilerinizi tanımlayın ve içgörüler üretin.",
   manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Routine",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {

@@ -22,6 +22,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     })().catch((err) => console.error("Init error", err));
   }, []);
 
+  // Service worker yalnızca production'da — dev'de Turbopack'in HMR'ıyla çakışır
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production") return;
+    if (!("serviceWorker" in navigator)) return;
+    const register = () => {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    };
+    // 'load' zaten geçmiş olabilir (effect, mount sonrası tetiklenir) — o zaman hemen kaydet
+    if (document.readyState === "complete") {
+      register();
+      return;
+    }
+    window.addEventListener("load", register);
+    return () => window.removeEventListener("load", register);
+  }, []);
+
   return (
     /* Desktop: dış alan */
     <div className="min-h-screen bg-[#050507] md:flex md:items-center md:justify-center md:p-8">
