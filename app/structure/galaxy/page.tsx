@@ -13,25 +13,26 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 export default function GalaxyPage() {
   const data = useLiveQuery(async () => {
-    const [cats, allSubs, allMods, allTypes] = await Promise.all([
+    const [cats, allSubs, attachments, poolMods] = await Promise.all([
       db.categories.orderBy("order").toArray(),
       db.subcategories.toArray(),
       db.categoryModifiers.toArray(),
-      db.entryTypes.toArray(),
+      db.mods.toArray(),
     ]);
-    const typeName = new Map(allTypes.map((t) => [t.id, t.name]));
+    const modName = new Map(poolMods.map((m) => [m.id, m.name]));
     const subById = new Map(allSubs.map((s) => [s.id, s]));
 
-    // Kategori başına mod türleri: kategori seviyesi + alt kategorilerinin modları
+    // Kategori başına paylaşılan atomlar: kategori + alt kategorilerinin modları
     const modsByCat = new Map<string, Set<string>>();
-    for (const mod of allMods) {
+    for (const a of attachments) {
+      if (!a.modId) continue;
       const catId =
-        mod.targetType === "category"
-          ? mod.targetId
-          : subById.get(mod.targetId)?.categoryId;
+        a.targetType === "category"
+          ? a.targetId
+          : subById.get(a.targetId)?.categoryId;
       if (!catId) continue;
       if (!modsByCat.has(catId)) modsByCat.set(catId, new Set());
-      modsByCat.get(catId)!.add(mod.entryTypeId);
+      modsByCat.get(catId)!.add(a.modId);
     }
 
     const categories: MapCategory[] = cats.map((cat) => ({
@@ -40,7 +41,7 @@ export default function GalaxyPage() {
       color: cat.color,
       icon: cat.icon,
       subs: allSubs
-        .filter((s) => s.categoryId === cat.id && !s.parentId)
+        .filter((s) => s.categoryId === cat.id && !s.parentId && !s.isCategoryRoot)
         .sort((a, b) => a.order - b.order)
         .map((s) => ({ id: s.id, name: s.name, icon: s.icon })),
     }));
@@ -57,7 +58,7 @@ export default function GalaxyPage() {
           connections.push({
             a: categories[i].id,
             b: categories[j].id,
-            labels: shared.map((id) => typeName.get(id) ?? "?"),
+            labels: shared.map((id) => modName.get(id) ?? "?"),
           });
         }
       }

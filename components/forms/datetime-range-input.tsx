@@ -138,9 +138,12 @@ function DateTimePanel({
   const [datePart = "", timePart = ""] = value.split("T");
 
   function offsetDate(offset: number): string {
+    // Yerel takvim gününü koru — toISOString UTC'ye çevirip günü kaydırır
     const d = new Date(entryDate + "T00:00:00");
     d.setDate(d.getDate() + offset);
-    return d.toISOString().split("T")[0];
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${d.getFullYear()}-${mm}-${dd}`;
   }
 
   const chips = [

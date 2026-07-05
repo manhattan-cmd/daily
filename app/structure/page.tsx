@@ -21,7 +21,11 @@ export default function StructurePage() {
     const cats = await listCategories();
     const counts = new Map<string, number>();
     for (const cat of cats) {
-      const c = await db.subcategories.where("categoryId").equals(cat.id).count();
+      const c = await db.subcategories
+        .where("categoryId")
+        .equals(cat.id)
+        .filter((s) => !s.isCategoryRoot)
+        .count();
       counts.set(cat.id, c);
     }
     return counts;
@@ -65,7 +69,7 @@ export default function StructurePage() {
           <div className="flex-1 min-w-0">
             <div className="font-medium">Modlar</div>
             <div className="text-xs text-muted-foreground">
-              Mod türlerini oluştur ve düzenle
+              Tüm modları gör, yönet — ölçüler de burada
             </div>
           </div>
           <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />

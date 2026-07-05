@@ -1,13 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Pencil, Plus, Trash2 } from "lucide-react";
 import {
+  Boxes,
+  ChevronRight,
+  MoonStar,
+  Pencil,
+  Plus,
+  Route,
+  Ruler,
+  SlidersHorizontal,
+  Star,
+  Timer,
+  Trash2,
+  Wallet,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { db } from "@/lib/db";
+import {
+  listMods,
+  createMod,
+  renameMod,
+  deleteMod,
+  findModByName,
   listEntryTypes,
-  createEntryType,
-  updateEntryType,
-  deleteEntryType,
+  type ModWithType,
 } from "@/lib/db/queries";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -18,366 +37,361 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  ENTRY_VALUE_TYPE_LABELS,
-  type EntryType,
-  type EntryValueType,
-} from "@/types";
+import { MEASURE_KIND_META, measureSummary } from "@/lib/measure-kinds";
 import { cn } from "@/lib/utils";
 
-const VALUE_TYPES: EntryValueType[] = ["number", "select", "boolean", "text", "datetime-range"];
+type Usage = { count: number; places: string[]; valueCount: number };
 
-const VALUE_TYPE_META: Record<
-  EntryValueType,
-  { icon: string; hint: string }
-> = {
-  number: { icon: "123", hint: "Sayısal değer ve birim" },
-  select: { icon: "☰", hint: "Önceden tanımlı seçenekler" },
-  boolean: { icon: "✓/✗", hint: "Evet ya da Hayır" },
-  text: { icon: "Aa", hint: "Serbest metin" },
-  "datetime-range": { icon: "⏱", hint: "Başlangıç ve bitiş tarih-saati" },
+/** Yerleşik atomların simgeleri */
+const BUILT_IN_MOD_ICONS: Record<string, LucideIcon> = {
+  "Para": Wallet,
+  "Süre": Timer,
+  "Mesafe": Route,
+  "Miktar": Boxes,
+  "Uyku Süresi": MoonStar,
+  "Uyku Kalitesi": Star,
 };
 
-interface FormState {
-  name: string;
-  valueType: EntryValueType;
-  unit: string;
-  choices: string;
-}
-
-const EMPTY_FORM: FormState = {
-  name: "",
-  valueType: "number",
-  unit: "",
-  choices: "",
-};
-
-export default function ModsPage() {
-  const types = useLiveQuery(() => listEntryTypes(), []);
-
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+export default function ModsHomePage() {
+  const [createOpen, setCreateOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [measureId, setMeasureId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<ModWithType | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameError, setRenameError] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  function openCreate() {
-    setEditingId(null);
-    setForm(EMPTY_FORM);
-    setDialogOpen(true);
-  }
+  const mods = useLiveQuery(() => listMods(), []);
+  const measures = useLiveQuery(() => listEntryTypes(), []);
 
-  function openEdit(t: EntryType) {
-    setEditingId(t.id);
-    setForm({
-      name: t.name,
-      valueType: t.valueType ?? "number",
-      unit: t.unit ?? "",
-      choices: t.choices?.join(", ") ?? "",
-    });
-    setDialogOpen(true);
-  }
+  const usage = useLiveQuery(async () => {
+    const [attachments, cats, subs, values] = await Promise.all([
+      db.categoryModifiers.toArray(),
+      db.categories.toArray(),
+      db.subcategories.toArray(),
+      db.entryValues.toArray(),
+    ]);
+    const catName = new Map(cats.map((c) => [c.id, c.name]));
+    const subName = new Map(subs.map((s) => [s.id, s.name]));
+    const map = new Map<string, Usage>();
+    for (const a of attachments) {
+      if (!a.modId) continue;
+      const u = map.get(a.modId) ?? { count: 0, places: [], valueCount: 0 };
+      u.count++;
+      const place =
+        a.targetType === "category"
+          ? catName.get(a.targetId)
+          : subName.get(a.targetId);
+      if (place && u.places.length < 4) u.places.push(place);
+      map.set(a.modId, u);
+    }
+    for (const v of values) {
+      if (!v.modId) continue;
+      const u = map.get(v.modId) ?? { count: 0, places: [], valueCount: 0 };
+      u.valueCount++;
+      map.set(v.modId, u);
+    }
+    return map;
+  }, []);
 
-  async function handleSave() {
-    if (!form.name.trim()) return;
+  async function handleCreate() {
+    if (!name.trim() || !measureId) return;
     setSaving(true);
+    setError(null);
     try {
-      const choices =
-        form.valueType === "select"
-          ? form.choices
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : undefined;
-
-      if (editingId) {
-        await updateEntryType(editingId, {
-          name: form.name.trim(),
-          unit: form.valueType === "number" ? form.unit.trim() : "",
-          ...(choices ? { choices } : {}),
-        });
-      } else {
-        await createEntryType({
-          name: form.name.trim(),
-          unit: form.valueType === "number" ? form.unit.trim() : "",
-          valueType: form.valueType,
-          choices,
-        });
+      const clash = await findModByName(name);
+      if (clash) {
+        setError(`"${clash.name}" adında bir mod zaten var — mod adları tekildir.`);
+        return;
       }
-      setDialogOpen(false);
+      await createMod(name, measureId);
+      setCreateOpen(false);
+      setName("");
+      setMeasureId(null);
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleDelete(t: EntryType) {
-    if (
-      !confirm(
-        `"${t.name}" modunu silmek istediğinden emin misin? Bu modu kullanan atamalar etkilenmez.`
-      )
-    )
+  async function handleRename() {
+    if (!renaming || !renameValue.trim()) return;
+    const ok = await renameMod(renaming.id, renameValue);
+    if (!ok) {
+      setRenameError(true);
       return;
-    await deleteEntryType(t.id);
+    }
+    setRenaming(null);
   }
 
-  const isValid =
-    form.name.trim() &&
-    (form.valueType !== "number" || form.unit.trim()) &&
-    (form.valueType !== "select" || form.choices.trim());
-
-  const builtIns = types?.filter((t) => t.isBuiltIn) ?? [];
-  const customs = types?.filter((t) => !t.isBuiltIn) ?? [];
+  async function handleDelete(mod: ModWithType) {
+    const u = usage?.get(mod.id);
+    const detail =
+      u && (u.count > 0 || u.valueCount > 0)
+        ? ` ${u.count} yerden kaldırılacak; ${u.valueCount} kayıt değeri ölçü adıyla kalacak.`
+        : "";
+    if (!confirm(`"${mod.name}" modu havuzdan silinsin mi?${detail}`)) return;
+    await deleteMod(mod.id);
+  }
 
   return (
     <>
       <PageHeader
         title="Modlar"
-        description="Mod türlerini yönet"
+        description="Ölçülebilir en küçük birimler — her ad tekildir"
         back="/structure"
         action={
-          <Button size="sm" onClick={openCreate} className="gap-1.5">
+          <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-1.5">
             <Plus className="h-3.5 w-3.5" />
             Yeni Mod
           </Button>
         }
       />
 
-      {/* Özel modlar */}
-      <section className="mb-6">
-        <div className="flex items-center justify-between px-1 mb-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Özel Modlar
-          </h2>
+      {/* Ölçüler alt sayfası */}
+      <Link
+        href="/structure/mods/olculer"
+        className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 mb-6 transition-colors hover:bg-card/80 active:scale-[0.99]"
+      >
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+          <Ruler className="h-5 w-5 text-primary" />
         </div>
-
-        {customs.length === 0 ? (
-          <button
-            onClick={openCreate}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-card/40 px-4 py-5 text-sm text-muted-foreground hover:bg-card/70 transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            İlk özel modunu oluştur
-          </button>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {customs.map((t) => (
-              <ModRow
-                key={t.id}
-                type={t}
-                onEdit={() => openEdit(t)}
-                onDelete={() => handleDelete(t)}
-              />
-            ))}
+        <div className="flex-1 min-w-0">
+          <div className="font-medium">Ölçüler</div>
+          <div className="text-xs text-muted-foreground">
+            Modların kullandığı ölçü türleri (Süre, Mesafe, Para...)
           </div>
-        )}
-      </section>
-
-      {/* Yerleşik modlar */}
-      <section className="mb-6">
-        <div className="px-1 mb-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Yerleşik Modlar
-          </h2>
         </div>
-        <div className="flex flex-col gap-2">
-          {builtIns.map((t) => (
-            <ModRow key={t.id} type={t} />
-          ))}
-        </div>
-      </section>
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+      </Link>
 
-      {/* Dialog: oluştur / düzenle */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="gap-5 max-h-[90dvh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingId ? "Modu düzenle" : "Yeni mod"}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="flex flex-col gap-5">
-            {/* Ad */}
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="mod-name">Ad</Label>
-              <Input
-                id="mod-name"
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="örn. Kalori"
-                autoFocus
-              />
-            </div>
-
-            {/* Tür — düzenlemede değiştirilemez */}
-            <div className="flex flex-col gap-2">
-              <Label>Değer türü</Label>
-              {editingId ? (
-                <div className="rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
-                  {ENTRY_VALUE_TYPE_LABELS[form.valueType]}
-                  <span className="ml-2 text-xs opacity-60">(düzenlenemez)</span>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  {VALUE_TYPES.map((vt) => (
-                    <button
-                      key={vt}
-                      type="button"
-                      onClick={() => setForm((f) => ({ ...f, valueType: vt }))}
-                      className={cn(
-                        "flex flex-col items-start rounded-xl border p-3 text-left transition-colors",
-                        form.valueType === vt
-                          ? "border-primary bg-primary/10"
-                          : "border-border bg-card hover:bg-muted"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "mb-1 font-mono text-xs font-bold",
-                          form.valueType === vt
-                            ? "text-primary"
-                            : "text-muted-foreground"
-                        )}
+      {mods === undefined ? null : (
+        <>
+          {/* Yerleşik modlar — kutucuk ızgarası */}
+          {mods.some((m) => m.isBuiltIn) && (
+            <section className="mb-6">
+              <h2 className="px-1 mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Yerleşik Modlar
+              </h2>
+              <div className="grid grid-cols-2 gap-2">
+                {mods
+                  .filter((m) => m.isBuiltIn)
+                  .map((mod) => {
+                    const Icon = BUILT_IN_MOD_ICONS[mod.name] ?? SlidersHorizontal;
+                    const u = usage?.get(mod.id);
+                    return (
+                      <div
+                        key={mod.id}
+                        className="flex flex-col gap-2.5 rounded-2xl border border-border bg-card p-3.5"
                       >
-                        {VALUE_TYPE_META[vt].icon}
-                      </span>
-                      <span
-                        className={cn(
-                          "text-sm font-medium",
-                          form.valueType === vt
-                            ? "text-primary"
-                            : "text-foreground"
-                        )}
-                      >
-                        {ENTRY_VALUE_TYPE_LABELS[vt]}
-                      </span>
-                      <span className="mt-0.5 text-[11px] text-muted-foreground">
-                        {VALUE_TYPE_META[vt].hint}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Birim (sadece sayı) */}
-            {form.valueType === "number" && (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="mod-unit">Birim</Label>
-                <Input
-                  id="mod-unit"
-                  value={form.unit}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, unit: e.target.value }))
-                  }
-                  placeholder="örn. km, dk, kcal, adet"
-                />
-              </div>
-            )}
-
-            {/* Seçenekler (sadece select) */}
-            {form.valueType === "select" && (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="mod-choices">
-                  Seçenekler
-                  <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                    virgülle ayır
-                  </span>
-                </Label>
-                <Input
-                  id="mod-choices"
-                  value={form.choices}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, choices: e.target.value }))
-                  }
-                  placeholder="İyi, Orta, Kötü"
-                />
-                {form.choices.trim() && (
-                  <div className="flex flex-wrap gap-1.5 mt-1">
-                    {form.choices
-                      .split(",")
-                      .map((c) => c.trim())
-                      .filter(Boolean)
-                      .map((c) => (
-                        <span
-                          key={c}
-                          className="rounded-full border border-border bg-card px-2.5 py-0.5 text-xs"
-                        >
-                          {c}
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
+                          <Icon className="h-4.5 w-4.5 text-primary" />
                         </span>
-                      ))}
-                  </div>
-                )}
+                        <div className="min-w-0">
+                          <div className="font-medium text-sm truncate">
+                            {mod.name}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground truncate">
+                            {measureSummary(mod.entryType)}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground/50 truncate">
+                            {u && (u.count > 0 || u.valueCount > 0)
+                              ? `${u.count} yerde · ${u.valueCount} kayıt`
+                              : "henüz kullanılmadı"}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </section>
+          )}
+
+          {/* Kullanıcı modları */}
+          <section className="mb-6">
+            <h2 className="px-1 mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Senin Modların
+            </h2>
+            {mods.filter((m) => !m.isBuiltIn).length === 0 ? (
+              <button
+                onClick={() => setCreateOpen(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-card/40 px-4 py-5 text-sm text-muted-foreground hover:bg-card/70 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                İlk modunu yarat — isim ver, ölçü seç
+              </button>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {mods
+                  .filter((m) => !m.isBuiltIn)
+                  .map((mod) => {
+                    const u = usage?.get(mod.id);
+                    const kind = mod.entryType.valueType ?? "number";
+                    const KindIcon = MEASURE_KIND_META[kind].icon;
+                    return (
+                      <div
+                        key={mod.id}
+                        className="group flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5 transition-colors hover:bg-card/80"
+                      >
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                          <KindIcon className="h-4 w-4 text-primary" />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">
+                            {mod.name}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground truncate">
+                            {measureSummary(mod.entryType)}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground/50 truncate">
+                            {u && (u.count > 0 || u.valueCount > 0) ? (
+                              <>
+                                {u.places.join(", ")}
+                                {u.count > u.places.length &&
+                                  ` +${u.count - u.places.length}`}
+                                {" · "}
+                                {u.valueCount} kayıt
+                              </>
+                            ) : (
+                              "henüz kullanılmadı"
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-0.5 shrink-0">
+                          <button
+                            onClick={() => {
+                              setRenaming(mod);
+                              setRenameValue(mod.name);
+                              setRenameError(false);
+                            }}
+                            className="rounded-lg p-1.5 text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
+                            aria-label={`${mod.name} modunu yeniden adlandır`}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(mod)}
+                            className="rounded-lg p-1.5 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            aria-label={`${mod.name} modunu sil`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
             )}
-          </div>
+          </section>
+        </>
+      )}
 
+      {/* Yeni mod */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="gap-4 max-h-[80dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base">Yeni mod yarat</DialogTitle>
+            <DialogDescription>
+              Havuza eklenir; kategorilere Yapı sayfasından ya da girdi
+              formundan bağlanır
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="pool-mod-name">Mod adı</Label>
+            <Input
+              id="pool-mod-name"
+              value={name}
+              onChange={(e) => { setName(e.target.value); setError(null); }}
+              placeholder="örn. Yürüyüş süresi"
+              autoFocus
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Ölçüsü</Label>
+            <div className="flex flex-wrap gap-2">
+              {(measures ?? []).map((t) => {
+                const KindIcon = MEASURE_KIND_META[t.valueType ?? "number"].icon;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setMeasureId(t.id)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm transition-colors",
+                      measureId === t.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-card text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <KindIcon className="h-3.5 w-3.5 opacity-60" />
+                    {t.name}
+                    {t.unit && (
+                      <span className="text-xs opacity-60">({t.unit})</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          {error && (
+            <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200/90">
+              {error}
+            </p>
+          )}
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setDialogOpen(false)}
+              onClick={() => setCreateOpen(false)}
               disabled={saving}
             >
               İptal
             </Button>
-            <Button onClick={handleSave} disabled={saving || !isValid}>
-              {editingId ? "Kaydet" : "Oluştur"}
+            <Button
+              onClick={handleCreate}
+              disabled={saving || !name.trim() || !measureId}
+            >
+              Yarat
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Yeniden adlandırma */}
+      <Dialog
+        open={renaming !== null}
+        onOpenChange={(o) => { if (!o) setRenaming(null); }}
+      >
+        <DialogContent className="max-w-[340px] gap-4">
+          <DialogHeader>
+            <DialogTitle className="text-base">Modu yeniden adlandır</DialogTitle>
+            <DialogDescription>
+              Ad her yerde değişir — mod tektir
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={renameValue}
+            onChange={(e) => { setRenameValue(e.target.value); setRenameError(false); }}
+            autoFocus
+            onKeyDown={(e) => { if (e.key === "Enter") handleRename(); }}
+          />
+          {renameError && (
+            <p className="text-xs text-amber-300/90">
+              Bu adda başka bir mod var — mod adları tekildir.
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenaming(null)}>
+              İptal
+            </Button>
+            <Button onClick={handleRename} disabled={!renameValue.trim()}>
+              Kaydet
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
-  );
-}
-
-function ModRow({
-  type,
-  onEdit,
-  onDelete,
-}: {
-  type: EntryType;
-  onEdit?: () => void;
-  onDelete?: () => void;
-}) {
-  const vt = type.valueType ?? "number";
-  let detail = ENTRY_VALUE_TYPE_LABELS[vt];
-  if (vt === "number" && type.unit) detail += ` · ${type.unit}`;
-  if (vt === "select" && type.choices?.length)
-    detail += ` · ${type.choices.join(", ")}`;
-
-  return (
-    <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-3 py-3">
-      <div className="flex-1 min-w-0">
-        <div className="font-medium text-sm">{type.name}</div>
-        <div className="text-xs text-muted-foreground mt-0.5">{detail}</div>
-      </div>
-
-      {type.isBuiltIn ? (
-        <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
-          Yerleşik
-        </span>
-      ) : (
-        <div className="flex items-center gap-0.5 shrink-0">
-          {onEdit && (
-            <button
-              onClick={onEdit}
-              className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              aria-label="Düzenle"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {onDelete && (
-            <button
-              onClick={onDelete}
-              className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-              aria-label="Sil"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-      )}
-    </div>
   );
 }

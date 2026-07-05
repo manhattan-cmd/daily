@@ -79,7 +79,12 @@ export function LinkedEntryCard({ entries }: { entries: EntryWithContext[] }) {
             <div className="h-px bg-border/40 mx-4" />
             <div className="px-4 py-2.5 flex flex-wrap gap-1.5">
               {sharedValues.map((v) => (
-                <ValueChip key={v.id} value={v.value} entryType={v.entryType!} />
+                <ValueChip
+                  key={v.id}
+                  value={v.value}
+                  label={v.mod?.name ?? v.entryType!.name}
+                  entryType={v.entryType!}
+                />
               ))}
             </div>
           </>
@@ -102,7 +107,12 @@ export function LinkedEntryCard({ entries }: { entries: EntryWithContext[] }) {
                   {ownValues.length > 0 && (
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       {ownValues.map((v) => (
-                        <ValueChip key={v.id} value={v.value} entryType={v.entryType!} />
+                        <ValueChip
+                          key={v.id}
+                          value={v.value}
+                          label={v.mod?.name ?? v.entryType!.name}
+                          entryType={v.entryType!}
+                        />
                       ))}
                     </div>
                   )}
@@ -136,7 +146,15 @@ export function LinkedEntryCard({ entries }: { entries: EntryWithContext[] }) {
   );
 }
 
-function ValueChip({ value, entryType }: { value: string; entryType: EntryType }) {
+function ValueChip({
+  value,
+  label,
+  entryType,
+}: {
+  value: string;
+  label: string;
+  entryType: EntryType;
+}) {
   const vt = entryType.valueType ?? "number";
   let display = value;
   if (vt === "boolean") display = value === "true" ? "Evet" : "Hayır";
@@ -147,7 +165,7 @@ function ValueChip({ value, entryType }: { value: string; entryType: EntryType }
       {vt === "number" && entryType.unit && (
         <span className="text-xs text-muted-foreground">{entryType.unit}</span>
       )}
-      <span className="ml-1 text-xs text-muted-foreground">{entryType.name}</span>
+      <span className="ml-1 text-xs text-muted-foreground">{label}</span>
     </div>
   );
 }

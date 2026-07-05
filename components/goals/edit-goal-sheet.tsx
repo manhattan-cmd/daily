@@ -89,10 +89,14 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
     setSaving(true);
     try {
       await updateGoal(goal.id, {
-        targets: selectedTypeIds.map((typeId) => ({
-          entryTypeId: typeId,
-          targetValue: targetValues[typeId] ?? "",
-        })),
+        targets: selectedTypeIds.map((typeId) => {
+          const mod = mods.find((m) => m.entryTypeId === typeId);
+          return {
+            entryTypeId: typeId,
+            ...(mod?.modId ? { modId: mod.modId } : {}),
+            targetValue: targetValues[typeId] ?? "",
+          };
+        }),
       });
       onClose();
     } finally {
@@ -146,7 +150,9 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
                 style={{ backgroundColor: goal.category.color }}
               />
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 truncate">
-                {goal.category.name} · {goal.subcategory.name}
+                {goal.subcategory.isCategoryRoot
+                  ? goal.category.name
+                  : `${goal.category.name} · ${goal.subcategory.name}`}
               </span>
             </div>
             <h2 className="text-base font-semibold tracking-tight">
@@ -184,7 +190,7 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
                       )}
                     >
                       {selected && <Check className="h-3 w-3 shrink-0" />}
-                      {mod.entryType.name}
+                      {mod.name ?? mod.entryType.name}
                       {mod.entryType.unit && (
                         <span
                           className={cn(

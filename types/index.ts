@@ -56,6 +56,8 @@ export interface Category {
   name: string;
   icon?: string;
   color: string;
+  /** Uygulamayla gelen şablon kategori (Uyku) — girdi seçiciden gizlenir, özel akışı vardır */
+  isBuiltIn?: boolean;
   order: number;
   createdAt: number;
   updatedAt: number;
@@ -67,6 +69,8 @@ export interface SubCategory {
   parentId?: string;
   name: string;
   icon?: string;
+  /** Kategorinin kendisini temsil eden gizli kök — girdi/hedef doğrudan kategoriye eklenirken kullanılır, listelerde görünmez */
+  isCategoryRoot?: boolean;
   order: number;
   createdAt: number;
   updatedAt: number;
@@ -93,10 +97,32 @@ export interface GlobalDimension {
   createdAt: number;
 }
 
+/**
+ * Mod — hiyerarşinin atomu. Global havuzda yaşar, adı tekildir.
+ * "Para", "Uyku Aralığı" (yerleşik) ya da "Yürüyüş süresi" (kullanıcı).
+ * Bir ölçü türüyle (entryType) ölçülür; kategorilere/alt kategorilere atanarak paylaşılır.
+ */
+export interface Mod {
+  id: string;
+  name: string;
+  entryTypeId: string;
+  isBuiltIn?: boolean;
+  createdAt: number;
+}
+
+/**
+ * Atama — havuzdaki bir modun bir kategori/alt kategoriye bağlanması.
+ * (Tarihî sebeple tablo adı categoryModifiers.)
+ */
 export interface CategoryModifier {
   id: string;
+  /** Global mod havuzundaki atom */
+  modId?: string;
+  /** @deprecated v8 kalıntısı — artık ad havuzdaki moddan gelir */
+  name?: string;
   targetType: "category" | "subcategory";
   targetId: string;
+  /** Modun ölçüsü (denormalize; mod.entryTypeId ile aynı) */
   entryTypeId: string;
   order: number;
   createdAt: number;
@@ -118,10 +144,15 @@ export interface EntryValue {
   entryId: string;
   fieldId?: string;
   entryTypeId?: string;
+  /** Değerin bağlı olduğu isimli mod; girdiye özel eklenen ölçülerde boş olabilir */
+  modId?: string;
   value: string;
 }
 
-export type EntryValueWithType = EntryValue & { entryType?: EntryType };
+export type EntryValueWithType = EntryValue & {
+  entryType?: EntryType;
+  mod?: Mod;
+};
 
 export interface EntryWithContext extends Entry {
   values: EntryValueWithType[];
@@ -143,11 +174,14 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
 
 export interface GoalTarget {
   entryTypeId: string;
+  /** Hedefin bağlı olduğu global mod (yeni kayıtlarda dolu) */
+  modId?: string;
   targetValue: string;
 }
 
 export interface GoalTargetWithContext extends GoalTarget {
   entryType: EntryType;
+  mod?: Mod;
 }
 
 export interface Goal {

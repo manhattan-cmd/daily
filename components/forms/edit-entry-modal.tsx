@@ -15,8 +15,10 @@ import { Input } from "@/components/ui/input";
 import {
   listModifiersForTarget,
   updateEntry,
-  getLinkedSiblingTypeIds,
+  getLinkedSiblingModIds,
   listEntryTypes,
+  listMods,
+  type ModWithType,
 } from "@/lib/db/queries";
 import { DateTimeRangeInput } from "@/components/forms/datetime-range-input";
 import { cn } from "@/lib/utils";
@@ -38,25 +40,32 @@ export function EditEntryModal({
     () => listModifiersForTarget("subcategory", entry.subcategoryId),
     [entry.subcategoryId]
   );
-  const siblingTypeIds =
-    (useLiveQuery(() => getLinkedSiblingTypeIds(entry.id), [entry.id]) ??
+  const siblingModIds =
+    (useLiveQuery(() => getLinkedSiblingModIds(entry.id), [entry.id]) ??
       new Set<string>());
   const allEntryTypes = useLiveQuery(() => listEntryTypes(), []);
+  const poolMods = useLiveQuery(() => listMods(), []);
 
+  // Satır anahtarı: isimli mod değerleri için modId, girdiye özel ölçüler için "t:<typeId>"
   const [values, setValues] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
     for (const v of entry.values) {
-      if (v.entryTypeId) init[v.entryTypeId] = v.value;
+      if (v.entryTypeId) init[v.modId ?? `t:${v.entryTypeId}`] = v.value;
     }
     return init;
   });
 
-  // Types the user removed from this entry (not from the category)
-  const [removedTypeIds, setRemovedTypeIds] = useState<Set<string>>(new Set());
+  // Bu girdiden çıkarılan satırlar (kategoriden değil)
+  const [removedKeys, setRemovedKeys] = useState<Set<string>>(new Set());
 
-  // Extra type IDs added just for this entry (pre-seeded with existing entry values)
-  const [extraTypeIds, setExtraTypeIds] = useState<string[]>(() =>
-    entry.values.filter((v) => v.entryTypeId && v.value).map((v) => v.entryTypeId!)
+  // Girdiye özel eklenen havuz modları (bu oturumda)
+  const [extraModIds, setExtraModIds] = useState<string[]>([]);
+
+  // Modsuz eski değerler (migrasyon öncesi kalıntı) — ölçüyle gösterilir
+  const [extraTypeIds] = useState<string[]>(() =>
+    entry.values
+      .filter((v) => v.entryTypeId && !v.modId && v.value)
+      .map((v) => v.entryTypeId!)
   );
 
   const [addModOpen, setAddModOpen] = useState(false);
@@ -75,47 +84,97 @@ export function EditEntryModal({
     return map;
   }, [allEntryTypes]);
 
-  // Deduplicated ordered list: subcategory mods first, then extra types
-  const visibleTypeIds = useMemo(() => {
+  // Sıralı satır listesi: alt kategorinin isimli modları, sonra girdiye özel ölçüler
+  type Row = {
+    key: string;
+    modId?: string;
+    entryTypeId: string;
+    label: string;
+    entryType: EntryType;
+  };
+  const poolModMap = useMemo(() => {
+    const map = new Map<string, ModWithType>();
+    for (const m of poolMods ?? []) map.set(m.id, m);
+    return map;
+  }, [poolMods]);
+
+  const rows = useMemo<Row[]>(() => {
     const seen = new Set<string>();
-    const result: string[] = [];
-    for (const mod of mods ?? []) {
-      if (!removedTypeIds.has(mod.entryTypeId) && !seen.has(mod.entryTypeId)) {
-        result.push(mod.entryTypeId);
-        seen.add(mod.entryTypeId);
-      }
+    const result: Row[] = [];
+    // Alt kategoriye atanmış modlar
+    for (const a of mods ?? []) {
+      const key = a.modId ?? a.id;
+      if (removedKeys.has(key) || seen.has(key)) continue;
+      result.push({
+        key,
+        modId: a.modId,
+        entryTypeId: a.entryTypeId,
+        label: a.name ?? a.entryType.name,
+        entryType: a.entryType,
+      });
+      seen.add(key);
     }
+    // Atanmamış ama bu girdide değeri olan havuz modları
+    for (const v of entry.values) {
+      if (!v.modId || !v.entryTypeId) continue;
+      if (removedKeys.has(v.modId) || seen.has(v.modId)) continue;
+      const t = v.entryType ?? entryTypeMap.get(v.entryTypeId);
+      if (!t) continue;
+      result.push({
+        key: v.modId,
+        modId: v.modId,
+        entryTypeId: v.entryTypeId,
+        label: v.mod?.name ?? poolModMap.get(v.modId)?.name ?? t.name,
+        entryType: t,
+      });
+      seen.add(v.modId);
+    }
+    // Bu oturumda girdiye özel eklenen havuz modları
+    for (const modId of extraModIds) {
+      if (removedKeys.has(modId) || seen.has(modId)) continue;
+      const m = poolModMap.get(modId);
+      if (!m) continue;
+      result.push({
+        key: modId,
+        modId,
+        entryTypeId: m.entryTypeId,
+        label: m.name,
+        entryType: m.entryType,
+      });
+      seen.add(modId);
+    }
+    // Migrasyon öncesi modsuz değerler
     for (const typeId of extraTypeIds) {
-      if (!removedTypeIds.has(typeId) && !seen.has(typeId)) {
-        result.push(typeId);
-        seen.add(typeId);
-      }
+      const key = `t:${typeId}`;
+      if (removedKeys.has(key) || seen.has(key)) continue;
+      const t = entryTypeMap.get(typeId);
+      if (!t) continue;
+      result.push({ key, entryTypeId: typeId, label: t.name, entryType: t });
+      seen.add(key);
     }
     return result;
-  }, [mods, extraTypeIds, removedTypeIds]);
+  }, [mods, extraModIds, extraTypeIds, removedKeys, entry.values, entryTypeMap, poolModMap]);
 
-  // Types not yet shown — available to add to this entry only
+  // Girdiye özel eklenebilecek havuz modları
   const availableToAdd = useMemo(() => {
-    const visible = new Set(visibleTypeIds);
-    return (allEntryTypes ?? []).filter((t) => !visible.has(t.id));
-  }, [allEntryTypes, visibleTypeIds]);
+    const visibleModIds = new Set(rows.map((r) => r.modId).filter(Boolean));
+    return (poolMods ?? []).filter((m) => !visibleModIds.has(m.id));
+  }, [poolMods, rows]);
 
   const entryDate = new Date(entry.occurredAt).toISOString().split("T")[0];
 
-  function handleRemove(typeId: string) {
-    setRemovedTypeIds((prev) => new Set([...prev, typeId]));
+  function handleRemove(key: string) {
+    setRemovedKeys((prev) => new Set([...prev, key]));
   }
 
-  function handleAddType(typeId: string) {
-    // Un-remove if it was previously removed
-    setRemovedTypeIds((prev) => {
+  function handleAddMod(modId: string) {
+    setRemovedKeys((prev) => {
       const next = new Set(prev);
-      next.delete(typeId);
+      next.delete(modId);
       return next;
     });
-    // Add to extras only if not already tracked
-    setExtraTypeIds((prev) =>
-      prev.includes(typeId) ? prev : [...prev, typeId]
+    setExtraModIds((prev) =>
+      prev.includes(modId) ? prev : [...prev, modId]
     );
     setAddModOpen(false);
   }
@@ -123,10 +182,13 @@ export function EditEntryModal({
   async function handleSave() {
     setSaving(true);
     try {
-      const visibleSet = new Set(visibleTypeIds);
-      const typeValues = Object.entries(values)
-        .filter(([id, v]) => v !== "" && visibleSet.has(id))
-        .map(([entryTypeId, value]) => ({ entryTypeId, value }));
+      const typeValues = rows
+        .filter((r) => (values[r.key] ?? "") !== "")
+        .map((r) => ({
+          entryTypeId: r.entryTypeId,
+          modId: r.modId,
+          value: values[r.key],
+        }));
       await updateEntry(entry.id, {
         typeValues,
         occurredAt: new Date(occurredAt).getTime(),
@@ -148,23 +210,20 @@ export function EditEntryModal({
 
           <div className="flex flex-col gap-4">
             {/* Mod inputs */}
-            {visibleTypeIds.map((typeId) => {
-              const entryType = entryTypeMap.get(typeId);
-              if (!entryType) return null;
-              return (
-                <ModInput
-                  key={typeId}
-                  entryType={entryType}
-                  value={values[typeId] ?? ""}
-                  onChange={(v) =>
-                    setValues((prev) => ({ ...prev, [typeId]: v }))
-                  }
-                  onRemove={() => handleRemove(typeId)}
-                  isShared={siblingTypeIds.has(typeId)}
-                  entryDate={entryDate}
-                />
-              );
-            })}
+            {rows.map((row) => (
+              <ModInput
+                key={row.key}
+                label={row.label}
+                entryType={row.entryType}
+                value={values[row.key] ?? ""}
+                onChange={(v) =>
+                  setValues((prev) => ({ ...prev, [row.key]: v }))
+                }
+                onRemove={() => handleRemove(row.key)}
+                isShared={!!row.modId && siblingModIds.has(row.modId)}
+                entryDate={entryDate}
+              />
+            ))}
 
             {/* Add mod to this entry only */}
             {availableToAdd.length > 0 && (
@@ -247,20 +306,21 @@ export function EditEntryModal({
             </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2">
-            {availableToAdd.map((t) => (
+            {availableToAdd.map((m) => (
               <button
-                key={t.id}
-                onClick={() => handleAddType(t.id)}
+                key={m.id}
+                onClick={() => handleAddMod(m.id)}
                 className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-3 text-left transition-colors hover:bg-muted active:scale-[0.99]"
               >
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm">{t.name}</div>
+                  <div className="font-medium text-sm">{m.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    {ENTRY_VALUE_TYPE_LABELS[t.valueType ?? "number"]}
-                    {t.unit
-                      ? ` · ${t.unit}`
-                      : t.choices?.length
-                      ? ` · ${t.choices.join(", ")}`
+                    {m.entryType.name !== m.name && `${m.entryType.name} · `}
+                    {ENTRY_VALUE_TYPE_LABELS[m.entryType.valueType ?? "number"]}
+                    {m.entryType.unit
+                      ? ` · ${m.entryType.unit}`
+                      : m.entryType.choices?.length
+                      ? ` · ${m.entryType.choices.join(", ")}`
                       : null}
                   </div>
                 </div>
@@ -275,6 +335,7 @@ export function EditEntryModal({
 }
 
 function ModInput({
+  label,
   entryType,
   value,
   onChange,
@@ -282,6 +343,7 @@ function ModInput({
   isShared = false,
   entryDate,
 }: {
+  label: string;
   entryType: EntryType;
   value: string;
   onChange: (v: string) => void;
@@ -296,12 +358,11 @@ function ModInput({
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium">
-          {entryType.name}
-          {entryType.unit && (
-            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-              ({entryType.unit})
-            </span>
-          )}
+          {label}
+          <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+            {label !== entryType.name && `${entryType.name} `}
+            {entryType.unit && `(${entryType.unit})`}
+          </span>
         </label>
         <div className="flex items-center gap-2">
           {isShared && (

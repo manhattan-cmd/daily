@@ -8,6 +8,7 @@ import {
   listModifiersForTarget,
   listEntryTypes,
   createGoal,
+  getOrCreateCategoryRootSub,
 } from "@/lib/db/queries";
 import { CategoryForm } from "@/components/structure/category-form";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
@@ -68,7 +69,9 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
       .where("categoryId")
       .equals(step.category.id)
       .toArray();
-    return all.filter((s) => !s.parentId).sort((a, b) => a.order - b.order);
+    return all
+      .filter((s) => !s.parentId && !s.isCategoryRoot)
+      .sort((a, b) => a.order - b.order);
   }, [step]);
 
   const subcategoryId = step.type === "mod" ? step.sub.id : "";
@@ -141,10 +144,14 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
       await createGoal({
         date,
         subcategoryId: step.sub.id,
-        targets: selectedTypeIds.map((typeId) => ({
-          entryTypeId: typeId,
-          targetValue: targetValues[typeId] ?? "",
-        })),
+        targets: selectedTypeIds.map((typeId) => {
+          const mod = mods.find((m) => m.entryTypeId === typeId);
+          return {
+            entryTypeId: typeId,
+            ...(mod?.modId ? { modId: mod.modId } : {}),
+            targetValue: targetValues[typeId] ?? "",
+          };
+        }),
       });
       onClose();
     } finally {
@@ -217,7 +224,9 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 truncate">
                   {step.type === "sub" && step.category.name}
                   {step.type === "mod" &&
-                    `${step.category.name} · ${step.sub.name}`}
+                    (step.sub.isCategoryRoot
+                      ? step.category.name
+                      : `${step.category.name} · ${step.sub.name}`)}
                 </span>
               </div>
             )}
@@ -266,6 +275,37 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
           {/* Step 2: Subcategory */}
           {step.type === "sub" && (
             <div className="flex flex-col gap-1.5">
+              {/* Alt kategori seçmeden doğrudan kategoriye hedef ekle */}
+              <button
+                onClick={async () => {
+                  const rootSub = await getOrCreateCategoryRootSub(
+                    step.category.id
+                  );
+                  setStep({ type: "mod", category: step.category, sub: rootSub });
+                }}
+                className="flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition-colors hover:bg-muted active:scale-[0.99]"
+                style={{
+                  borderColor: `${step.category.color}50`,
+                  backgroundColor: `${step.category.color}10`,
+                }}
+              >
+                <div
+                  className="h-7 w-7 rounded-full flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: `${step.category.color}25` }}
+                >
+                  <Plus
+                    className="h-4 w-4"
+                    style={{ color: step.category.color }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{step.category.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Doğrudan kategoriye ekle
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+              </button>
               {(subcategories ?? []).length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-6">
                   Bu kategoride alt kategori yok.
@@ -337,7 +377,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
                         )}
                       >
                         {selected && <Check className="h-3 w-3 shrink-0" />}
-                        {mod.entryType.name}
+                        {mod.name ?? mod.entryType.name}
                         {mod.entryType.unit && (
                           <span
                             className={cn(

@@ -8,15 +8,15 @@ import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
 import {
   listModifiersForTarget,
-  listEntryTypes,
-  assignModifier,
   removeModifier,
   createEntry,
   deleteCategory,
   deleteSubCategory,
+  getOrCreateCategoryRootSub,
   type CategoryModifierWithType,
   type ParallelSub,
 } from "@/lib/db/queries";
+import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { CATEGORY_ICON_MAP, CategoryIcon } from "@/lib/category-icons";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { DateTimeRangeInput, formatDTRDisplay } from "@/components/forms/datetime-range-input";
@@ -31,8 +31,12 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { ENTRY_VALUE_TYPE_LABELS } from "@/types";
-import type { Category, SubCategory, EntryType } from "@/types";
+import type { Category, SubCategory } from "@/types";
+
+/** Değer state anahtarı: global mod id (legacy atamalarda atama id'si) */
+const valueKey = (m: CategoryModifierWithType) => m.modId ?? m.id;
+/** Paralel perspektifler arası taşıma anahtarı: aynı atom = aynı anahtar */
+const sharedKey = (m: CategoryModifierWithType) => m.modId ?? m.entryTypeId;
 
 interface DayEntrySheetProps {
   date: string;
@@ -73,13 +77,15 @@ export function DayEntrySheet({ date, open, onClose }: DayEntrySheetProps) {
   const groups = useLiveQuery(async () => {
     const cats = await db.categories.orderBy("order").toArray();
     const subs = await db.subcategories.toArray();
-    return cats.map((cat) => ({
-      category: cat,
-      topSubs: subs
-        .filter((s) => s.categoryId === cat.id && !s.parentId)
-        .sort((a, b) => a.order - b.order),
-      allSubs: subs.filter((s) => s.categoryId === cat.id),
-    }));
+    return cats
+      .filter((cat) => !cat.isBuiltIn) // Uyku'nun kendi akışı var (Ekle → Uyku)
+      .map((cat) => ({
+        category: cat,
+        topSubs: subs
+          .filter((s) => s.categoryId === cat.id && !s.parentId && !s.isCategoryRoot)
+          .sort((a, b) => a.order - b.order),
+        allSubs: subs.filter((s) => s.categoryId === cat.id),
+      }));
   }, []);
 
   const currentSubId = step.type !== "pick" ? step.sub.id : "";
@@ -93,15 +99,15 @@ export function DayEntrySheet({ date, open, onClose }: DayEntrySheetProps) {
     [currentSubId]
   ) ?? [];
 
-  // Yeni modifier eklendiğinde values'a ilk değerini otomatik ekle
+  // Yeni mod eklendiğinde values'a ilk değerini otomatik ekle
   useEffect(() => {
     if (!currentSubId || !formMods.length) return;
     setValues((prev) => {
       const next = { ...prev };
       let changed = false;
       for (const m of formMods) {
-        if (!(m.entryTypeId in next)) {
-          next[m.entryTypeId] = m.entryType.valueType === "boolean" ? "false" : "";
+        if (!(valueKey(m) in next)) {
+          next[valueKey(m)] = m.entryType.valueType === "boolean" ? "false" : "";
           changed = true;
         }
       }
@@ -116,6 +122,12 @@ export function DayEntrySheet({ date, open, onClose }: DayEntrySheetProps) {
     setStep({ type: "form", sub });
   }
 
+  // Üst kategoriyi doğrudan seç — gizli kök alt kategorisi üzerinden forma geç
+  async function handleCategorySelect(category: Category) {
+    const rootSub = await getOrCreateCategoryRootSub(category.id);
+    handleSubSelect(rootSub);
+  }
+
   function makeOccurredAt(): number {
     const [y, mo, d] = date.split("-").map(Number);
     const dt = new Date(y, mo - 1, d);
@@ -124,10 +136,21 @@ export function DayEntrySheet({ date, open, onClose }: DayEntrySheetProps) {
     return dt.getTime();
   }
 
-  async function persistEntry(subId: string, vals: Record<string, string>, groupId?: string, entryNotes?: string) {
-    const typeValues = Object.entries(vals)
-      .filter(([, v]) => v !== "")
-      .map(([entryTypeId, value]) => ({ entryTypeId, value }));
+  // vals: valueKey(mod) → değer. Değerler havuzdaki atoma (modId) bağlanır.
+  async function persistEntry(
+    subId: string,
+    mods: CategoryModifierWithType[],
+    vals: Record<string, string>,
+    groupId?: string,
+    entryNotes?: string
+  ) {
+    const typeValues = mods
+      .filter((m) => (vals[valueKey(m)] ?? "") !== "")
+      .map((m) => ({
+        entryTypeId: m.entryTypeId,
+        modId: m.modId,
+        value: vals[valueKey(m)],
+      }));
     await createEntry({
       subcategoryId: subId,
       typeValues,
@@ -135,6 +158,19 @@ export function DayEntrySheet({ date, open, onClose }: DayEntrySheetProps) {
       notes: (entryNotes ?? notes).trim() || undefined,
       linkedGroupId: groupId,
     });
+  }
+
+  // Paralel perspektifler arası taşıma: aynı atom (mod) aynı anahtar
+  function toSharedKeyed(
+    mods: CategoryModifierWithType[],
+    vals: Record<string, string>
+  ): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const m of mods) {
+      const v = vals[valueKey(m)];
+      if (v !== undefined && v !== "") out[sharedKey(m)] = v;
+    }
+    return out;
   }
 
   async function advanceToNextParallel(
@@ -154,12 +190,12 @@ export function DayEntrySheet({ date, open, onClose }: DayEntrySheetProps) {
     const initial: Record<string, string> = {};
     const newLocked = new Set<string>();
     for (const m of nextMods) {
-      const carried = carryover[m.entryTypeId];
+      const carried = carryover[sharedKey(m)];
       if (carried !== undefined && carried !== "") {
-        initial[m.entryTypeId] = carried;
-        newLocked.add(m.entryTypeId);
+        initial[valueKey(m)] = carried;
+        newLocked.add(sharedKey(m));
       } else {
-        initial[m.entryTypeId] = m.entryType.valueType === "boolean" ? "false" : "";
+        initial[valueKey(m)] = m.entryType.valueType === "boolean" ? "false" : "";
       }
     }
     setValues(initial);
@@ -183,17 +219,20 @@ export function DayEntrySheet({ date, open, onClose }: DayEntrySheetProps) {
     try {
       if (step.type === "form") {
         const groupId = selectedParallels.length > 0 ? nanoid(12) : undefined;
-        await persistEntry(step.sub.id, values, groupId);
+        await persistEntry(step.sub.id, formMods, values, groupId);
         if (selectedParallels.length > 0) {
           setSelectedParallels([]);
-          await advanceToNextParallel(selectedParallels, groupId!, 0, selectedParallels.length, { ...values });
+          await advanceToNextParallel(
+            selectedParallels, groupId!, 0, selectedParallels.length,
+            toSharedKeyed(formMods, values)
+          );
         } else {
           onClose();
           router.push(`/calendar/${date}`);
         }
       } else if (step.type === "parallel-form") {
-        await persistEntry(step.sub.id, values, step.groupId, notes);
-        const accumulated = { ...step.carryover, ...values };
+        await persistEntry(step.sub.id, formMods, values, step.groupId, notes);
+        const accumulated = { ...step.carryover, ...toSharedKeyed(formMods, values) };
         await advanceToNextParallel(parallelQueue, step.groupId, step.queueIndex, step.queueTotal, accumulated);
       }
     } finally {
@@ -246,6 +285,7 @@ export function DayEntrySheet({ date, open, onClose }: DayEntrySheetProps) {
           <PickStep
             groups={groups}
             onSubSelect={handleSubSelect}
+            onCategorySelect={handleCategorySelect}
             onClose={onClose}
           />
         ) : (
@@ -286,12 +326,14 @@ export function DayEntrySheet({ date, open, onClose }: DayEntrySheetProps) {
 function PickStep({
   groups,
   onSubSelect,
+  onCategorySelect,
   onClose,
 }: {
   groups:
     | { category: Category; topSubs: SubCategory[]; allSubs: SubCategory[] }[]
     | undefined;
   onSubSelect: (sub: SubCategory) => void;
+  onCategorySelect: (category: Category) => void;
   onClose: () => void;
 }) {
   return (
@@ -325,6 +367,7 @@ function PickStep({
                 topSubs={topSubs}
                 allSubs={allSubs}
                 onSubSelect={onSubSelect}
+                onCategorySelect={onCategorySelect}
               />
             ))}
           </div>
@@ -345,11 +388,13 @@ function CategoryGroup({
   topSubs,
   allSubs,
   onSubSelect,
+  onCategorySelect,
 }: {
   category: Category;
   topSubs: SubCategory[];
   allSubs: SubCategory[];
   onSubSelect: (sub: SubCategory) => void;
+  onCategorySelect: (category: Category) => void;
 }) {
   // expansionPath[0] = expanded topSub id, expansionPath[1] = expanded child id, …
   const [expansionPath, setExpansionPath] = useState<string[]>([]);
@@ -457,15 +502,25 @@ function CategoryGroup({
 
   return (
     <div>
-      {/* Section header */}
+      {/* Section header — ada tıklayınca kategori doğrudan girdi olarak eklenir */}
       <div className="flex items-center gap-2 mb-4">
-        <div
-          className="h-2 w-2 rounded-full shrink-0"
-          style={{ backgroundColor: category.color }}
-        />
-        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70 flex-1">
-          {category.name}
-        </span>
+        <button
+          onClick={() => onCategorySelect(category)}
+          className="flex items-center gap-2 flex-1 min-w-0 rounded-lg -mx-1 px-1 py-0.5 hover:bg-white/5 active:scale-[0.98] transition-all text-left"
+          aria-label={`${category.name} kategorisine doğrudan girdi ekle`}
+        >
+          <div
+            className="h-2 w-2 rounded-full shrink-0"
+            style={{ backgroundColor: category.color }}
+          />
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70 truncate">
+            {category.name}
+          </span>
+          <Plus
+            className="h-3 w-3 shrink-0"
+            style={{ color: `${category.color}90` }}
+          />
+        </button>
         <button
           onClick={() => setDeleteTarget({ type: "category" })}
           className="h-6 w-6 rounded-full border border-border/40 flex items-center justify-center hover:border-red-500/50 hover:bg-red-500/10 active:scale-95 transition-all"
@@ -734,21 +789,17 @@ function FormStep({
 
   const selectedIds = new Set(selectedParallels.map((p) => p.id));
 
-  const allTypes = useLiveQuery(() => listEntryTypes(), []);
-  const assignedIds = new Set(mods.map((m) => m.entryTypeId));
-  const availableTypes = (allTypes ?? []).filter((t) => !assignedIds.has(t.id));
-
   const allGroupsForPicker = useLiveQuery(
     async () => {
       if (parallelContext !== null) return [];
       const cats = await db.categories.orderBy("order").toArray();
       const subs = await db.subcategories.toArray();
       return cats
-        .filter((c) => c.id !== currentCategoryId)
+        .filter((c) => c.id !== currentCategoryId && !c.isBuiltIn)
         .map((cat) => ({
           category: cat,
           subs: subs
-            .filter((s) => s.categoryId === cat.id && !s.parentId)
+            .filter((s) => s.categoryId === cat.id && !s.parentId && !s.isCategoryRoot)
             .sort((a, b) => a.order - b.order),
         }))
         .filter((g) => g.subs.length > 0);
@@ -758,12 +809,7 @@ function FormStep({
 
   async function handleRemoveMod(mod: CategoryModifierWithType) {
     await removeModifier(mod.id);
-    onValueChange(mod.entryTypeId, "");
-  }
-
-  async function handleAssignMod(type: EntryType) {
-    await assignModifier("subcategory", sub.id, type.id);
-    setModPickerOpen(false);
+    onValueChange(valueKey(mod), "");
   }
 
   const hasParallelSelected = selectedParallels.length > 0;
@@ -806,18 +852,16 @@ function FormStep({
           {mods.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border/50 bg-muted/20 px-4 py-5 flex flex-col items-center gap-2.5 text-center">
               <p className="text-sm text-muted-foreground">
-                Bu kategoride henüz mod yok
+                Detay eklemek istersen mod aç — istemezsen doğrudan kaydet
               </p>
-              {availableTypes.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setModPickerOpen(true)}
-                  className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Mod ekle
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setModPickerOpen(true)}
+                className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Mod ekle
+              </button>
             </div>
           ) : (
             <>
@@ -825,23 +869,21 @@ function FormStep({
                 <ModInput
                   key={mod.id}
                   mod={mod}
-                  value={values[mod.entryTypeId] ?? ""}
-                  onChange={(v) => onValueChange(mod.entryTypeId, v)}
-                  onRemove={lockedTypeIds.has(mod.entryTypeId) ? undefined : () => handleRemoveMod(mod)}
-                  isLocked={lockedTypeIds.has(mod.entryTypeId)}
+                  value={values[valueKey(mod)] ?? ""}
+                  onChange={(v) => onValueChange(valueKey(mod), v)}
+                  onRemove={lockedTypeIds.has(sharedKey(mod)) ? undefined : () => handleRemoveMod(mod)}
+                  isLocked={lockedTypeIds.has(sharedKey(mod))}
                   entryDate={entryDate}
                 />
               ))}
-              {availableTypes.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setModPickerOpen(true)}
-                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors self-start"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Mod ekle
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setModPickerOpen(true)}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors self-start"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Mod ekle
+              </button>
             </>
           )}
 
@@ -991,46 +1033,14 @@ function FormStep({
         </DialogContent>
       </Dialog>
 
-      {/* Mod seçici */}
-      <Dialog open={modPickerOpen} onOpenChange={setModPickerOpen}>
-        <DialogContent className="max-h-[70dvh] overflow-y-auto gap-4">
-          <DialogHeader>
-            <DialogTitle>Mod ekle</DialogTitle>
-            <DialogDescription>
-              {sub.name} için bir mod seç — bu kategoriyi kaydederken sorulacak
-            </DialogDescription>
-          </DialogHeader>
-
-          {availableTypes.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Eklenebilecek mod kalmadı.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {availableTypes.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => handleAssignMod(t)}
-                  className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-3 text-left transition-colors hover:bg-muted active:scale-[0.99]"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{t.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {ENTRY_VALUE_TYPE_LABELS[t.valueType ?? "number"]}
-                      {t.unit
-                        ? ` · ${t.unit}`
-                        : t.choices?.length
-                        ? ` · ${t.choices.join(", ")}`
-                        : null}
-                    </div>
-                  </div>
-                  <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
-                </button>
-              ))}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Mod ekleyici — havuzdan seç ya da yeni yarat */}
+      <ModPickDialog
+        open={modPickerOpen}
+        onOpenChange={setModPickerOpen}
+        targetType="subcategory"
+        targetId={sub.id}
+        targetName={sub.name}
+      />
     </>
   );
 }
@@ -1055,15 +1065,15 @@ function ModInput({
   const vt = mod.entryType.valueType ?? "number";
   const today = new Date().toISOString().split("T")[0];
 
+  const modLabel = mod.name ?? mod.entryType.name;
   const labelRow = (
     <div className="flex items-center justify-between">
       <label className="text-sm font-medium">
-        {mod.entryType.name}
-        {mod.entryType.unit && (
-          <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-            ({mod.entryType.unit})
-          </span>
-        )}
+        {modLabel}
+        <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+          {modLabel !== mod.entryType.name && `${mod.entryType.name} `}
+          {mod.entryType.unit && `(${mod.entryType.unit})`}
+        </span>
       </label>
       {isLocked ? (
         <span className="flex items-center gap-1 text-[10px] font-medium text-violet-400/70">

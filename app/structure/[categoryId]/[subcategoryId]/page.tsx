@@ -92,7 +92,11 @@ export default function SubCategoryDetailPage({
 
       {/* Modlar */}
       {subcategory && (
-        <ModifierSection targetType="subcategory" targetId={subcategoryId} />
+        <ModifierSection
+          targetType="subcategory"
+          targetId={subcategoryId}
+          targetName={subcategory.name}
+        />
       )}
 
       {/* Alt kategoriler */}

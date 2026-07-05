@@ -83,7 +83,11 @@ export default function CategoryDetailPage({
 
       {/* Modlar */}
       {category && (
-        <ModifierSection targetType="category" targetId={categoryId} />
+        <ModifierSection
+          targetType="category"
+          targetId={categoryId}
+          targetName={category.name}
+        />
       )}
 
       {/* Alt kategoriler */}

@@ -3,7 +3,8 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Plus, CalendarDays, Target } from "lucide-react";
+import { ArrowLeft, CalendarDays, MoonStar, Target, PenLine } from "lucide-react";
+import { db } from "@/lib/db";
 import { listEntriesByDate, listGoalsByDate } from "@/lib/db/queries";
 import { EntryCard } from "@/components/dashboard/entry-card";
 import { LinkedEntryCard } from "@/components/dashboard/linked-entry-card";
@@ -11,8 +12,10 @@ import { GoalCard } from "@/components/goals/goal-card";
 import { AddGoalSheet } from "@/components/goals/add-goal-sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { EntryWithContext } from "@/types";
-import { Button } from "@/components/ui/button";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
+import { AddMenu, type AddMenuItem } from "@/components/calendar/add-menu";
+import { SleepSheet } from "@/components/calendar/sleep-sheet";
+import { SleepCard } from "@/components/calendar/sleep-card";
 
 type EntryItem =
   | { type: "single"; entry: EntryWithContext }
@@ -58,12 +61,21 @@ export default function CalendarDayPage({
   const { date } = use(params);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [goalSheetOpen, setGoalSheetOpen] = useState(false);
+  const [sleepSheetOpen, setSleepSheetOpen] = useState(false);
 
   const [yearN, monthN, dayN] = date.split("-").map(Number);
   const d = new Date(yearN, monthN - 1, dayN);
 
   const entries = useLiveQuery(() => listEntriesByDate(date), [date]);
   const goals = useLiveQuery(() => listGoalsByDate(date), [date]);
+  const hasSleepCategory = useLiveQuery(
+    async () => !!(await db.categories.filter((c) => !!c.isBuiltIn).first()),
+    []
+  );
+
+  // Yerleşik Uyku girdileri kendi zarif yuvasında gösterilir
+  const sleepEntries = (entries ?? []).filter((e) => e.category.isBuiltIn);
+  const otherEntries = (entries ?? []).filter((e) => !e.category.isBuiltIn);
 
   const todayFlat = (() => {
     const t = new Date();
@@ -100,86 +112,90 @@ export default function CalendarDayPage({
             </div>
           </div>
 
-          <Button
-            size="sm"
-            className="shrink-0 rounded-xl"
-            onClick={() => setSheetOpen(true)}
-          >
-            <Plus className="h-4 w-4" />
-            Girdi ekle
-          </Button>
+          <AddMenu
+            items={[
+              {
+                key: "entry",
+                label: "Girdi",
+                icon: PenLine,
+                iconClass: "text-primary",
+                onSelect: () => setSheetOpen(true),
+              },
+              {
+                key: "goal",
+                label: "Hedef",
+                icon: Target,
+                iconClass: "text-amber-400",
+                onSelect: () => setGoalSheetOpen(true),
+              },
+              ...(hasSleepCategory
+                ? ([
+                    {
+                      key: "sleep",
+                      label: "Uyku",
+                      icon: MoonStar,
+                      iconClass: "text-violet-400",
+                      onSelect: () => setSleepSheetOpen(true),
+                    },
+                  ] satisfies AddMenuItem[])
+                : []),
+            ]}
+          />
         </div>
       </div>
 
       {/* Divider */}
       <div className="h-px bg-border mb-5" />
 
-      {/* Goals section */}
-      <div className="mb-5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-1.5">
-            <Target className="h-3.5 w-3.5 text-muted-foreground" />
+      {/* Uyku yuvası — yalnızca kayıt varsa */}
+      {sleepEntries.length > 0 && (
+        <div className="mb-5 flex flex-col gap-2">
+          {sleepEntries.map((e) => (
+            <SleepCard key={e.id} entry={e} />
+          ))}
+        </div>
+      )}
+
+      {/* Hedef yuvası — yalnızca hedef varsa */}
+      {goals && goals.length > 0 && (
+        <div className="mb-5">
+          <div className="flex items-center gap-1.5 mb-2.5 px-1">
+            <Target className="h-3.5 w-3.5 text-amber-400/80" />
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Hedefler
             </h2>
-            {goals && goals.length > 0 && (
-              <span className="text-xs text-muted-foreground/60">
-                · {goals.filter((g) => g.completedEntryId).length}/{goals.length}
-              </span>
-            )}
+            <span className="text-xs text-muted-foreground/60">
+              · {goals.filter((g) => g.completedEntryId).length}/{goals.length}
+            </span>
           </div>
-          <button
-            onClick={() => setGoalSheetOpen(true)}
-            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Hedef ekle
-          </button>
-        </div>
-
-        {goals === undefined ? null : goals.length === 0 ? (
-          <button
-            onClick={() => setGoalSheetOpen(true)}
-            className="w-full rounded-2xl border border-dashed border-border/50 py-4 text-sm text-muted-foreground hover:text-foreground hover:border-border transition-colors flex items-center justify-center gap-2"
-          >
-            <Target className="h-4 w-4" />
-            Bugüne hedef ekle
-          </button>
-        ) : (
           <div className="flex flex-col gap-2">
             {goals.map((goal) => (
               <GoalCard key={goal.id} goal={goal} />
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      <div className="h-px bg-border/50 mb-5" />
-
-      {/* Entries */}
-      {entries === undefined ? null : entries.length === 0 ? (
-        <EmptyState
-          icon={CalendarDays}
-          title="Bu gün boş"
-          description={
-            isToday
-              ? "Bugüne ait henüz bir girdi yok."
-              : "Bu güne ait girdi bulunmuyor."
-          }
-          action={
-            <Button onClick={() => setSheetOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Girdi ekle
-            </Button>
-          }
-        />
+      {/* Girdiler */}
+      {entries === undefined ? null : otherEntries.length === 0 ? (
+        sleepEntries.length === 0 && (!goals || goals.length === 0) ? (
+          <EmptyState
+            icon={CalendarDays}
+            title="Bu gün boş"
+            description={
+              isToday
+                ? "Henüz girdi yok — sağ üstteki Ekle ile başla."
+                : "Bu güne ait girdi yok — Ekle ile ekleyebilirsin."
+            }
+          />
+        ) : null
       ) : (
         <div className="flex flex-col gap-2">
           {(() => {
-            const items = groupEntries(entries);
+            const items = groupEntries(otherEntries);
             return (
               <>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                <p className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                   {items.length} girdi
                 </p>
                 {items.map((item) =>
@@ -208,6 +224,12 @@ export default function CalendarDayPage({
         date={date}
         open={goalSheetOpen}
         onClose={() => setGoalSheetOpen(false)}
+      />
+
+      <SleepSheet
+        date={date}
+        open={sleepSheetOpen}
+        onClose={() => setSleepSheetOpen(false)}
       />
     </>
   );
