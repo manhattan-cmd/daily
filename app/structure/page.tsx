@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronRight, Layers, MoreHorizontal, Pencil, Sliders, Trash2, Waypoints } from "lucide-react";
+import { ChevronRight, Download, Layers, MoreHorizontal, Pencil, Sliders, Trash2, Waypoints } from "lucide-react";
 import { db } from "@/lib/db";
 import { listCategories, deleteCategory } from "@/lib/db/queries";
 import { Button } from "@/components/ui/button";
@@ -86,6 +86,22 @@ export default function StructurePage() {
             <div className="font-medium">Bağlantı Haritası</div>
             <div className="text-xs text-muted-foreground">
               Kategori, alt kategori ve mod bağlantılarını gör
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        </Link>
+
+        <Link
+          href="/structure/backup"
+          className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 transition-colors hover:bg-card/80 active:scale-[0.99]"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
+            <Download className="h-5 w-5 text-emerald-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium">Yedekleme</div>
+            <div className="text-xs text-muted-foreground">
+              Verilerini dışa aktar veya geri yükle
             </div>
           </div>
           <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
