@@ -6,7 +6,9 @@ import { db } from "@/lib/db";
 import {
   buildDayBuckets,
   dayKey,
+  dtrDurationHours,
   fmtNum,
+  isNumericChoiceSet,
   monthStartMs,
   parseNumeric,
   startOfDayMs,
@@ -20,10 +22,18 @@ import { ShareBars, type ShareRow } from "./share-bars";
 import { cn } from "@/lib/utils";
 import type { Category, Entry, EntryValue, SubCategory } from "@/types";
 
-type NumericMod = { id: string; name: string; unit: string };
+/** number → toplam; duration (tarih-saat aralığı) → saat toplamı; scale (sayısal skala) → ortalama */
+type ModKind = "number" | "duration" | "scale";
+type NumericMod = { id: string; name: string; unit: string; kind: ModKind };
 
-/** Seçili metrik: girdi sayısı ya da sayısal bir modun toplamı */
+/** Seçili metrik: girdi sayısı ya da sayısal bir modun toplamı/ortalaması */
 type Metric = { type: "count" } | { type: "mod"; mod: NumericMod };
+
+function sumOrAvg(values: number[], kind: ModKind): number {
+  if (!values.length) return 0;
+  const total = values.reduce((a, b) => a + b, 0);
+  return kind === "scale" ? total / values.length : total;
+}
 
 export function CategoryPanel({
   category,
@@ -70,27 +80,35 @@ export function CategoryPanel({
           (a.targetType === "subcategory" && subIds.includes(a.targetId))
       )
       .toArray();
-    const modIds = [
-      ...new Set([
-        ...attachments.map((a) => a.modId).filter((x): x is string => !!x),
-        ...values.map((v) => v.modId).filter((x): x is string => !!x),
-      ]),
-    ];
-    const mods = modIds.length ? await db.mods.bulkGet(modIds) : [];
-    const typeIds = [
-      ...new Set(mods.filter(Boolean).map((m) => m!.entryTypeId)),
-    ];
-    const types = typeIds.length ? await db.entryTypes.bulkGet(typeIds) : [];
-    const typeMap = new Map(types.filter(Boolean).map((t) => [t!.id, t!]));
+    const modIds = new Set([
+      ...attachments.map((a) => a.modId).filter((x): x is string => !!x),
+      ...values.map((v) => v.modId).filter((x): x is string => !!x),
+    ]);
+    // bulkGet yerine tam tablo taraması — küçük tablolar (havuzdaki mod/ölçü sayısı sınırlı),
+    // bulkGet'in ardışık yazımlardan hemen sonra bazı anahtarlar için null dönebildiği gözlendi
+    const [allMods, allTypes] = await Promise.all([
+      db.mods.toArray(),
+      db.entryTypes.toArray(),
+    ]);
+    const mods = allMods.filter((m) => modIds.has(m.id));
+    const typeMap = new Map(allTypes.map((t) => [t.id, t]));
 
     const numericMods: NumericMod[] = mods
-      .filter((m): m is NonNullable<typeof m> => !!m)
-      .filter((m) => (typeMap.get(m.entryTypeId)?.valueType ?? "number") === "number")
-      .map((m) => ({
-        id: m.id,
-        name: m.name,
-        unit: typeMap.get(m.entryTypeId)?.unit ?? "",
-      }))
+      .map((m): NumericMod | null => {
+        const type = typeMap.get(m.entryTypeId);
+        const vt = type?.valueType ?? "number";
+        if (vt === "number") {
+          return { id: m.id, name: m.name, unit: type?.unit ?? "", kind: "number" };
+        }
+        if (vt === "datetime-range") {
+          return { id: m.id, name: m.name, unit: "sa", kind: "duration" };
+        }
+        if (vt === "select" && isNumericChoiceSet(type?.choices)) {
+          return { id: m.id, name: m.name, unit: "", kind: "scale" };
+        }
+        return null;
+      })
+      .filter((m): m is NumericMod => !!m)
       .sort((a, b) => a.name.localeCompare(b.name, "tr"));
 
     return { subs, entries, values, numericMods };
@@ -104,34 +122,44 @@ export function CategoryPanel({
     const weekStart = weekStartMs(now);
     const monthStart = monthStartMs(now);
 
-    // Girdi başına metrik değeri: sayı modu → o girdideki mod değerlerinin toplamı; count → 1
+    // Girdi başına metrik değeri: sadece bu modun değerine sahip girdiler dahil edilir
+    // (skala modlarında ortalama, yalnızca değeri olan girdiler üzerinden hesaplanmalı)
     const valueByEntry = new Map<string, number>();
     if (metric.type === "mod") {
       for (const v of values) {
         if (v.modId !== metric.mod.id) continue;
-        valueByEntry.set(
-          v.entryId,
-          (valueByEntry.get(v.entryId) ?? 0) + parseNumeric(v.value)
-        );
+        const amount =
+          metric.mod.kind === "duration"
+            ? dtrDurationHours(v.value)
+            : parseNumeric(v.value);
+        valueByEntry.set(v.entryId, (valueByEntry.get(v.entryId) ?? 0) + amount);
       }
     }
-    const entryMetric = (e: Entry): number =>
-      metric.type === "count" ? 1 : valueByEntry.get(e.id) ?? 0;
+
+    const kind: ModKind = metric.type === "mod" ? metric.mod.kind : "number";
+    const aggregate = (subset: Entry[]): number => {
+      if (metric.type === "count") return subset.length;
+      const vals = subset
+        .map((e) => valueByEntry.get(e.id))
+        .filter((v): v is number => v !== undefined);
+      return sumOrAvg(vals, kind);
+    };
 
     const sumSince = (start: number) =>
-      entries.reduce(
-        (s, e) => (e.occurredAt >= start ? s + entryMetric(e) : s),
-        0
-      );
+      aggregate(entries.filter((e) => e.occurredAt >= start));
 
     // Günlük seri (seçili aralık)
     const buckets = buildDayBuckets(rangeStart, now);
     const bucketIdx = new Map(buckets.map((b, i) => [b.key, i]));
+    const bucketEntries: Entry[][] = buckets.map(() => []);
     for (const e of entries) {
       if (e.occurredAt < rangeStart) continue;
       const i = bucketIdx.get(dayKey(e.occurredAt));
-      if (i !== undefined) buckets[i].value += entryMetric(e);
+      if (i !== undefined) bucketEntries[i].push(e);
     }
+    buckets.forEach((b, i) => {
+      b.value = aggregate(bucketEntries[i]);
+    });
 
     // Alt kategori kırılımı (seçili aralık) — iç içe altlar en üst ataya toplanır
     const subById = new Map(subs.map((s) => [s.id, s]));
@@ -146,12 +174,18 @@ export function CategoryPanel({
       }
       return cur;
     };
-    const bySub = new Map<string, number>();
+    const bySubEntries = new Map<string, Entry[]>();
     for (const e of entries) {
       if (e.occurredAt < rangeStart) continue;
       const top = topAncestor(e.subcategoryId);
       if (!top) continue;
-      bySub.set(top.id, (bySub.get(top.id) ?? 0) + entryMetric(e));
+      const list = bySubEntries.get(top.id) ?? [];
+      list.push(e);
+      bySubEntries.set(top.id, list);
+    }
+    const bySub = new Map<string, number>();
+    for (const [id, list] of bySubEntries) {
+      bySub.set(id, aggregate(list));
     }
     const unit = metric.type === "mod" ? metric.mod.unit : "";
     const shareRows: ShareRow[] = [...bySub.entries()]

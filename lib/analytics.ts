@@ -50,10 +50,17 @@ export function dayKey(t: number): string {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
+export const SHORT_MONTHS = [
+  "Oca", "Şub", "Mar", "Nis", "May", "Haz",
+  "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara",
+];
+
 export type DayBucket = {
   key: string;
-  /** Kısa eksen etiketi: 29.6 */
+  /** Kısa eksen etiketi: 6 Tem */
   label: string;
+  /** Ayın ilk günü / aralığın ilk kovası için ay adı da eklenir, diğerleri sade gün numarası */
+  axisLabel: string;
   /** Tooltip'teki uzun etiket: 29 Haziran Pzt */
   full: string;
   value: number;
@@ -63,15 +70,21 @@ export type DayBucket = {
 export function buildDayBuckets(startMs: number, now: Date): DayBucket[] {
   const out: DayBucket[] = [];
   const end = startOfDayMs(now);
+  let lastMonth = -1;
   for (let t = startMs; t <= end; t += 86400000) {
     // DST kaymalarına karşı günü normalize et
     const d = new Date(t);
     d.setHours(0, 0, 0, 0);
     const key = dayKey(d.getTime());
     if (out.length && out[out.length - 1].key === key) continue;
+    const label = `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]}`;
+    // Ay değiştiğinde eksende ay adını göster, aynı ay içinde sade gün numarası (kalabalığı azaltır)
+    const axisLabel = d.getMonth() !== lastMonth ? label : `${d.getDate()}`;
+    lastMonth = d.getMonth();
     out.push({
       key,
-      label: `${d.getDate()}.${d.getMonth() + 1}`,
+      label,
+      axisLabel,
       full: d.toLocaleDateString("tr-TR", {
         day: "numeric",
         month: "long",
@@ -100,4 +113,25 @@ export function fmtNum(n: number): string {
 export function parseNumeric(value: string): number {
   const n = parseFloat(value);
   return Number.isFinite(n) ? n : 0;
+}
+
+/** "datetime-range" moduna ait JSON değerinden süreyi saat cinsinden çıkarır */
+export function dtrDurationHours(raw: string): number {
+  if (!raw) return 0;
+  try {
+    const { start, end } = JSON.parse(raw) as { start?: string; end?: string };
+    if (!start || !end) return 0;
+    const diff = new Date(end).getTime() - new Date(start).getTime();
+    return diff > 0 ? diff / 3600000 : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** Seçeneklerin tamamı sayısal mı (1–5 Skala gibi) — ortalama alınabilir modlar */
+export function isNumericChoiceSet(choices?: string[]): boolean {
+  return (
+    !!choices?.length &&
+    choices.every((c) => c.trim() !== "" && Number.isFinite(parseFloat(c)))
+  );
 }

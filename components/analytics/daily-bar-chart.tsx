@@ -25,6 +25,8 @@ export function DailyBarChart({
   unit?: string;
 }) {
   const allZero = data.every((d) => d.value === 0);
+  // Çok sayıda gün olduğunda eksende sabit aralıklarla ~6 etiket göster (kalabalığı önler)
+  const tickInterval = data.length > 8 ? Math.ceil(data.length / 6) - 1 : 0;
 
   return (
     <div className="relative h-[170px] w-full">
@@ -47,12 +49,11 @@ export function DailyBarChart({
             strokeWidth={1}
           />
           <XAxis
-            dataKey="label"
+            dataKey="axisLabel"
             tickLine={false}
             axisLine={{ stroke: "var(--border)" }}
             tick={{ fill: "#a1a1aa", fontSize: 10 }}
-            minTickGap={18}
-            interval="preserveStartEnd"
+            interval={tickInterval}
           />
           <YAxis
             tickLine={false}

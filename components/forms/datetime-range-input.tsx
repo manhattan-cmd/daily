@@ -3,11 +3,7 @@
 import { useMemo } from "react";
 import { Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const SHORT_MONTHS = [
-  "Oca", "Şub", "Mar", "Nis", "May", "Haz",
-  "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara",
-];
+import { SHORT_MONTHS } from "@/lib/analytics";
 
 function shortDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");

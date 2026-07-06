@@ -5,10 +5,37 @@ import { Check, Pencil, Trash2 } from "lucide-react";
 import type { GoalWithContext, GoalTargetWithContext } from "@/types";
 import { completeGoal, uncompleteGoal, deleteGoal } from "@/lib/db/queries";
 import { EditGoalSheet } from "./edit-goal-sheet";
+import {
+  formatDTRDisplay,
+  calcDTRDuration,
+  parseDTR,
+} from "@/components/forms/datetime-range-input";
 import { cn } from "@/lib/utils";
 
 function TargetChip({ target, completed }: { target: GoalTargetWithContext; completed: boolean }) {
   const vt = target.entryType.valueType ?? "number";
+
+  if (vt === "datetime-range") {
+    const { start, end } = parseDTR(target.targetValue);
+    const duration = calcDTRDuration(start, end);
+    return (
+      <div className="flex items-baseline gap-1">
+        <span
+          className={cn(
+            "text-sm font-semibold tabular-nums",
+            completed ? "text-emerald-400" : "text-foreground"
+          )}
+        >
+          {formatDTRDisplay(target.targetValue)}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {duration ? `· ${duration} · ` : ""}
+          {target.mod?.name ?? target.entryType.name}
+        </span>
+      </div>
+    );
+  }
+
   let display = target.targetValue;
   if (vt === "boolean") display = target.targetValue === "true" ? "Evet" : "Hayır";
 
