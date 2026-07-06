@@ -22,17 +22,39 @@ import { ShareBars, type ShareRow } from "./share-bars";
 import { cn } from "@/lib/utils";
 import type { Category, Entry, EntryValue, SubCategory } from "@/types";
 
-/** number → toplam; duration (tarih-saat aralığı) → saat toplamı; scale (sayısal skala) → ortalama */
+/** number (para, miktar...) ve duration (tarih-saat aralığı) → toplam + ortalama;
+ * scale (sayısal skala, örn. 1–5 puanlama) → yalnızca ortalama, toplamak anlamsız */
 type ModKind = "number" | "duration" | "scale";
 type NumericMod = { id: string; name: string; unit: string; kind: ModKind };
 
 /** Seçili metrik: girdi sayısı ya da sayısal bir modun toplamı/ortalaması */
 type Metric = { type: "count" } | { type: "mod"; mod: NumericMod };
 
+/** scale modlarda toplamın hiç anlamı yok (örn. 5 günün puanları toplanmaz); diğerlerinde ikisi de faydalı */
+type DisplayMode = "avg" | "both";
+const displayModeOf = (kind: ModKind): DisplayMode => (kind === "scale" ? "avg" : "both");
+
 function sumOrAvg(values: number[], kind: ModKind): number {
   if (!values.length) return 0;
   const total = values.reduce((a, b) => a + b, 0);
   return kind === "scale" ? total / values.length : total;
+}
+
+function average(values: number[]): number {
+  return values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+}
+
+/** KPI kutucuklarında ikinci satırda gösterilecek etiket — hangi rakamın ne olduğunu netleştirir */
+function statSub(
+  displayMode: DisplayMode,
+  avgValue: number | undefined,
+  unit: string
+): string | undefined {
+  if (displayMode === "avg") return "Ortalama";
+  if (avgValue !== undefined) {
+    return `Ort. ${fmtNum(avgValue)}${unit ? ` ${unit}` : ""}`;
+  }
+  return undefined;
 }
 
 export function CategoryPanel({
@@ -145,8 +167,20 @@ export function CategoryPanel({
       return sumOrAvg(vals, kind);
     };
 
-    const sumSince = (start: number) =>
-      aggregate(entries.filter((e) => e.occurredAt >= start));
+    // "both" modunda (süre, miktar vb.) KPI kutucuklarında toplamın yanına ortalama da eklenir
+    const statSince = (start: number) => {
+      const subset = entries.filter((e) => e.occurredAt >= start);
+      const value = aggregate(subset);
+      const avg =
+        metric.type === "mod" && displayModeOf(metric.mod.kind) === "both"
+          ? average(
+              subset
+                .map((e) => valueByEntry.get(e.id))
+                .filter((v): v is number => v !== undefined)
+            )
+          : undefined;
+      return { value, avg };
+    };
 
     // Günlük seri (seçili aralık)
     const buckets = buildDayBuckets(rangeStart, now);
@@ -202,12 +236,14 @@ export function CategoryPanel({
       });
 
     return {
-      today: sumSince(todayStart),
-      week: sumSince(weekStart),
-      month: sumSince(monthStart),
+      today: statSince(todayStart),
+      week: statSince(weekStart),
+      month: statSince(monthStart),
       buckets,
       shareRows,
       unit,
+      displayMode: metric.type === "mod" ? displayModeOf(metric.mod.kind) : undefined,
+      bucketIsAvg: kind === "scale",
     };
   }, [data, metric, rangeStart, category.color]);
 
@@ -241,26 +277,44 @@ export function CategoryPanel({
       <div className="grid grid-cols-3 gap-2">
         <StatTile
           label="Bugün"
-          value={fmtNum(computed.today)}
+          value={fmtNum(computed.today.value)}
           unit={metricLabel}
+          sub={
+            computed.displayMode &&
+            statSub(computed.displayMode, computed.today.avg, computed.unit)
+          }
         />
         <StatTile
           label="Bu Hafta"
-          value={fmtNum(computed.week)}
+          value={fmtNum(computed.week.value)}
           unit={metricLabel}
+          sub={
+            computed.displayMode &&
+            statSub(computed.displayMode, computed.week.avg, computed.unit)
+          }
         />
         <StatTile
           label="Bu Ay"
-          value={fmtNum(computed.month)}
+          value={fmtNum(computed.month.value)}
           unit={metricLabel}
+          sub={
+            computed.displayMode &&
+            statSub(computed.displayMode, computed.month.avg, computed.unit)
+          }
         />
       </div>
 
       {/* Günlük seri — seçili aralık */}
       <div className="rounded-2xl border border-border bg-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-          Günlük {metric.type === "count" ? "girdi" : metric.mod.name} ·{" "}
-          {RANGE_LABELS[range]}
+          Günlük {metric.type === "count" ? "girdi" : metric.mod.name}
+          {metric.type === "mod" && (
+            <span className="normal-case font-normal text-muted-foreground/60">
+              {" "}
+              ({computed.bucketIsAvg ? "ortalama" : "toplam"})
+            </span>
+          )}{" "}
+          · {RANGE_LABELS[range]}
         </h3>
         <DailyBarChart
           data={computed.buckets}
@@ -272,7 +326,14 @@ export function CategoryPanel({
       {/* Alt kategori kırılımı — seçili aralık */}
       <div className="rounded-2xl border border-border bg-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-          Alt Kategori Dağılımı · {RANGE_LABELS[range]}
+          Alt Kategori Dağılımı
+          {metric.type === "mod" && (
+            <span className="normal-case font-normal text-muted-foreground/60">
+              {" "}
+              ({computed.bucketIsAvg ? "ortalama" : "toplam"})
+            </span>
+          )}{" "}
+          · {RANGE_LABELS[range]}
         </h3>
         <ShareBars
           rows={computed.shareRows}
