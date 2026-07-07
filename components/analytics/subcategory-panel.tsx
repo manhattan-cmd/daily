@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/db";
@@ -32,21 +32,31 @@ import { ShareBars, type ShareRow } from "./share-bars";
 import { RangePicker } from "./range-picker";
 import { EntryList, type EntryListRow } from "./entry-list";
 import { cn } from "@/lib/utils";
-import type { Category, Entry, EntryValue } from "@/types";
+import type { Category, Entry, EntryValue, SubCategory } from "@/types";
 
-export function CategoryPanel({
+/**
+ * Bir alt kategori düğümünün analiz paneli — CategoryPanel ile aynı mantık,
+ * ama tüm kategori yerine bu düğümün alt ağacına (kendisi + tüm torunları) odaklanır.
+ * Alt kategori dağılımı yalnızca bir kademe altını (immediate children) gruplar;
+ * satıra basınca kendi rotasına (aynı component) tekrar bağlanarak derinlemesine iner.
+ */
+export function SubcategoryPanel({
   category,
+  subcategory,
   range,
   rangeStart,
+  initialMetricId,
 }: {
   category: Category;
+  subcategory: SubCategory;
   range: RangeKey;
   rangeStart: number;
+  /** URL'den gelen başlangıç metriği: "count" ya da bir mod id'si — üst sayfadaki seçimi devam ettirir */
+  initialMetricId?: string;
 }) {
   const router = useRouter();
-  // Kategori değişiminde sıfırlama parent'taki key={category.id} ile olur
   const [metric, setMetric] = useState<Metric>({ type: "count" });
-  // Alt kategori dağılımı + girdi listesi kendi bağımsız aralığını seçebilir
+  const [metricApplied, setMetricApplied] = useState(false);
   const [shareRange, setShareRange] = useState<RangeKey>(range);
   const shareRangeStart = useMemo(
     () => rangeStartMs(shareRange, new Date()),
@@ -54,16 +64,32 @@ export function CategoryPanel({
   );
 
   const data = useLiveQuery(async () => {
-    const subs = await db.subcategories
+    const allSubs = await db.subcategories
       .where("categoryId")
       .equals(category.id)
       .toArray();
-    const subIds = subs.map((s) => s.id);
-    if (!subIds.length) {
-      return { subs, entries: [] as Entry[], values: [] as EntryValue[], numericMods: [] as NumericMod[] };
-    }
+    const subById = new Map(allSubs.map((s) => [s.id, s]));
 
-    // KPI üçlüsü (bugün/hafta/ay) + alt kırılım aralığı, aralık filtresinden bağımsız — en erken pencereden beri çek
+    // Bu düğümün alt ağacı (kendisi dahil) — torunlar da kapsanır
+    const subtreeIds = new Set<string>([subcategory.id]);
+    let frontier = [subcategory.id];
+    while (frontier.length) {
+      const next = allSubs.filter(
+        (s) => s.parentId && frontier.includes(s.parentId)
+      );
+      frontier = [];
+      for (const s of next) {
+        if (!subtreeIds.has(s.id)) {
+          subtreeIds.add(s.id);
+          frontier.push(s.id);
+        }
+      }
+    }
+    const subIds = [...subtreeIds];
+    const children = allSubs
+      .filter((s) => s.parentId === subcategory.id)
+      .sort((a, b) => a.order - b.order);
+
     const now = new Date();
     const earliest = Math.min(
       rangeStart,
@@ -83,45 +109,45 @@ export function CategoryPanel({
           .toArray()
       : [];
 
-    // Sayısal modlar: kategoriye/altlarına atananlar + girdilerde kullanılanlar
     const attachments = await db.categoryModifiers
-      .filter(
-        (a) =>
-          (a.targetType === "category" && a.targetId === category.id) ||
-          (a.targetType === "subcategory" && subIds.includes(a.targetId))
-      )
+      .filter((a) => a.targetType === "subcategory" && subIds.includes(a.targetId))
       .toArray();
     const modIds = new Set([
       ...attachments.map((a) => a.modId).filter((x): x is string => !!x),
       ...values.map((v) => v.modId).filter((x): x is string => !!x),
     ]);
-    // bulkGet yerine tam tablo taraması — küçük tablolar (havuzdaki mod/ölçü sayısı sınırlı),
-    // bulkGet'in ardışık yazımlardan hemen sonra bazı anahtarlar için null dönebildiği gözlendi
     const [allMods, allTypes] = await Promise.all([
       db.mods.toArray(),
       db.entryTypes.toArray(),
     ]);
     const mods = allMods.filter((m) => modIds.has(m.id));
     const typeMap = new Map(allTypes.map((t) => [t.id, t]));
-
     const numericMods: NumericMod[] = mods
       .map((m) => classifyNumericMod(m, typeMap.get(m.entryTypeId)))
       .filter((m): m is NumericMod => !!m)
       .sort((a, b) => a.name.localeCompare(b.name, "tr"));
 
-    return { subs, entries, values, numericMods };
-  }, [category.id, rangeStart, shareRangeStart]);
+    return { subById, children, entries, values, numericMods };
+  }, [category.id, subcategory.id, rangeStart, shareRangeStart]);
+
+  // URL'den gelen metriği bir kez uygula (mod listesi yüklendikten sonra)
+  useEffect(() => {
+    if (!data || metricApplied) return;
+    if (initialMetricId && initialMetricId !== "count") {
+      const found = data.numericMods.find((m) => m.id === initialMetricId);
+      if (found) setMetric({ type: "mod", mod: found });
+    }
+    setMetricApplied(true);
+  }, [data, metricApplied, initialMetricId]);
 
   const computed = useMemo(() => {
     if (!data) return null;
-    const { subs, entries, values } = data;
+    const { subById, entries, values } = data;
     const now = new Date();
     const todayStart = startOfDayMs(now);
     const weekStart = weekStartMs(now);
     const monthStart = monthStartMs(now);
 
-    // Girdi başına metrik değeri: sadece bu modun değerine sahip girdiler dahil edilir
-    // (skala modlarında ortalama, yalnızca değeri olan girdiler üzerinden hesaplanmalı)
     const valueByEntry = new Map<string, number>();
     if (metric.type === "mod") {
       for (const v of values) {
@@ -143,7 +169,6 @@ export function CategoryPanel({
       return sumOrAvg(vals, kind);
     };
 
-    // "both" modunda (süre, miktar vb.) KPI kutucuklarında toplamın yanına ortalama da eklenir
     const statSince = (start: number) => {
       const subset = entries.filter((e) => e.occurredAt >= start);
       const value = aggregate(subset);
@@ -158,7 +183,6 @@ export function CategoryPanel({
       return { value, avg };
     };
 
-    // Günlük seri (seçili aralık)
     const buckets = buildDayBuckets(rangeStart, now);
     const bucketIdx = new Map(buckets.map((b, i) => [b.key, i]));
     const bucketEntries: Entry[][] = buckets.map(() => []);
@@ -173,35 +197,34 @@ export function CategoryPanel({
 
     const unit = metric.type === "mod" ? metric.mod.unit : "";
 
-    // Alt kategori kırılımı + girdi listesi — bağımsız seçilen aralık, iç içe altlar en üst ataya toplanır
-    const subById = new Map(subs.map((s) => [s.id, s]));
+    // Alt kategori kırılımı — yalnızca bir kademe altı (immediate children); kendi üzerine düşen
+    // girdiler "Genel" adıyla ayrı bir satırda toplanır
     const shareEntries = entries.filter((e) => e.occurredAt >= shareRangeStart);
     const bySubEntries = new Map<string, Entry[]>();
     for (const e of shareEntries) {
-      const topId = bucketAncestorId(e.subcategoryId, subById);
-      if (!topId) continue;
-      const list = bySubEntries.get(topId) ?? [];
+      const bucketId = bucketAncestorId(e.subcategoryId, subById, subcategory.id);
+      if (!bucketId) continue;
+      const list = bySubEntries.get(bucketId) ?? [];
       list.push(e);
-      bySubEntries.set(topId, list);
+      bySubEntries.set(bucketId, list);
     }
     const bySub = new Map<string, number>();
-    for (const [id, list] of bySubEntries) {
-      bySub.set(id, aggregate(list));
-    }
+    for (const [id, list] of bySubEntries) bySub.set(id, aggregate(list));
     const shareRows: ShareRow[] = [...bySub.entries()]
       .filter(([, v]) => v > 0)
       .map(([id, v]) => {
-        const s = subById.get(id)!;
+        const isSelf = id === subcategory.id;
+        const s = isSelf ? subcategory : subById.get(id);
         return {
           id,
-          name: s.isCategoryRoot ? "Genel" : s.name,
+          name: isSelf ? "Genel" : s?.name ?? "—",
           color: category.color,
           value: v,
           display: unit ? `${fmtNum(v)} ${unit}` : fmtNum(v),
         };
       });
 
-    // Girdi listesi — metrik bir mod ise yalnızca o modun değeri olan girdiler gösterilir
+    // Girdi listesi — bu düğümün tüm alt ağacı, metrik bir mod ise yalnızca değeri olan girdiler
     const listEntries =
       metric.type === "mod"
         ? shareEntries.filter((e) => valueByEntry.has(e.id))
@@ -209,13 +232,14 @@ export function CategoryPanel({
     const entryRows: EntryListRow[] = [...listEntries]
       .sort((a, b) => b.occurredAt - a.occurredAt)
       .map((e) => {
-        const sub = subById.get(e.subcategoryId);
+        const owner =
+          e.subcategoryId === subcategory.id ? undefined : subById.get(e.subcategoryId);
         return {
           id: e.id,
           occurredAt: e.occurredAt,
           title: e.title,
           notes: e.notes,
-          subLabel: sub ? (sub.isCategoryRoot ? "Genel" : sub.name) : undefined,
+          subLabel: owner?.name,
           valueLabel:
             metric.type === "mod"
               ? `${fmtNum(valueByEntry.get(e.id) ?? 0)}${unit ? ` ${unit}` : ""}`
@@ -234,17 +258,25 @@ export function CategoryPanel({
       displayMode: metric.type === "mod" ? displayModeOf(metric.mod.kind) : undefined,
       bucketIsAvg: kind === "scale",
     };
-  }, [data, metric, rangeStart, shareRangeStart, category.color]);
+  }, [data, metric, rangeStart, shareRangeStart, category.color, subcategory]);
 
   if (!data || !computed) return null;
 
   const metricLabel =
     metric.type === "count" ? "girdi" : computed.unit || undefined;
   const metricParam = metric.type === "count" ? "count" : metric.mod.id;
+  const hasChildren = data.children.length > 0;
+
+  const goTo = (subId: string) => {
+    if (subId === subcategory.id) return;
+    router.push(
+      `/analytics/${category.id}/${subId}?range=${shareRange}&metric=${metricParam}`
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Metrik seçici — girdi sayısı + kategorinin sayısal modları */}
+      {/* Metrik seçici — girdi sayısı + bu ağacın sayısal modları */}
       <div className="flex flex-wrap gap-2">
         <MetricChip
           label="Girdi"
@@ -263,7 +295,6 @@ export function CategoryPanel({
         ))}
       </div>
 
-      {/* Bugün / Bu Hafta / Bu Ay — sabit dönemler, aralık filtresinden bağımsız */}
       <div className="grid grid-cols-3 gap-2">
         <StatTile
           label="Bugün"
@@ -294,7 +325,6 @@ export function CategoryPanel({
         />
       </div>
 
-      {/* Günlük seri — seçili aralık */}
       <div className="rounded-2xl border border-border bg-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
           Günlük {metric.type === "count" ? "girdi" : metric.mod.name}
@@ -313,40 +343,47 @@ export function CategoryPanel({
         />
       </div>
 
-      {/* Alt kategori kırılımı — bağımsız seçilebilir aralık, satıra basınca detay sayfasına gider */}
+      {/* Alt kategori kırılımı — yalnızca alt kategorisi olan düğümlerde gösterilir */}
+      {hasChildren && (
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Alt Kategori Dağılımı
+              {metric.type === "mod" && (
+                <span className="normal-case font-normal text-muted-foreground/60">
+                  {" "}
+                  ({computed.bucketIsAvg ? "ortalama" : "toplam"})
+                </span>
+              )}
+            </h3>
+            <RangePicker value={shareRange} onChange={setShareRange} />
+          </div>
+          <ShareBars
+            rows={computed.shareRows}
+            emptyText={
+              metric.type === "mod"
+                ? `Bu aralıkta ${metric.mod.name} verisi yok`
+                : "Bu aralıkta girdi yok"
+            }
+            onSelect={goTo}
+          />
+        </div>
+      )}
+
       <div className="rounded-2xl border border-border bg-card p-4">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Alt Kategori Dağılımı
-            {metric.type === "mod" && (
-              <span className="normal-case font-normal text-muted-foreground/60">
-                {" "}
-                ({computed.bucketIsAvg ? "ortalama" : "toplam"})
-              </span>
-            )}
+            Girdi Listesi
           </h3>
-          <RangePicker value={shareRange} onChange={setShareRange} />
+          {!hasChildren && (
+            <RangePicker value={shareRange} onChange={setShareRange} />
+          )}
+          {hasChildren && (
+            <span className="text-[10px] text-muted-foreground">
+              {RANGE_LABELS[shareRange]}
+            </span>
+          )}
         </div>
-        <ShareBars
-          rows={computed.shareRows}
-          emptyText={
-            metric.type === "mod"
-              ? `Bu aralıkta ${metric.mod.name} verisi yok`
-              : "Bu aralıkta girdi yok"
-          }
-          onSelect={(subId) =>
-            router.push(
-              `/analytics/${category.id}/${subId}?range=${shareRange}&metric=${metricParam}`
-            )
-          }
-        />
-      </div>
-
-      {/* Girdi listesi — alt kategori dağılımıyla aynı aralık, kalem kalem */}
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-          Girdi Listesi · {RANGE_LABELS[shareRange]}
-        </h3>
         <EntryList
           rows={computed.entryRows}
           emptyText={

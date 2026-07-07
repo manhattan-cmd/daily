@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { BarChart3 } from "lucide-react";
 import { db } from "@/lib/db";
@@ -23,8 +24,23 @@ import { cn } from "@/lib/utils";
 const RANGES: RangeKey[] = ["7", "30", "ay"];
 
 export default function AnalyticsPage() {
-  const [range, setRange] = useState<RangeKey>("7");
-  const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
+  return (
+    <Suspense fallback={null}>
+      <AnalyticsPageContent />
+    </Suspense>
+  );
+}
+
+function AnalyticsPageContent() {
+  const searchParams = useSearchParams();
+  // Alt kategori detayından geri dönüşte seçili kategori/aralık korunur
+  const [range, setRange] = useState<RangeKey>(() => {
+    const r = searchParams.get("range");
+    return (RANGES as string[]).includes(r ?? "") ? (r as RangeKey) : "7";
+  });
+  const [selectedCatId, setSelectedCatId] = useState<string | null>(
+    () => searchParams.get("cat")
+  );
 
   // Aralık başlangıcı — dakikalık oynamalar yeniden sorgu tetiklemesin diye memo
   const rangeStart = useMemo(() => rangeStartMs(range, new Date()), [range]);

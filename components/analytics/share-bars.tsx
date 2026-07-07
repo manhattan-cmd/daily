@@ -1,6 +1,7 @@
 "use client";
 
 import { fmtNum } from "@/lib/analytics";
+import { cn } from "@/lib/utils";
 
 export type ShareRow = {
   id: string;
@@ -18,9 +19,12 @@ export type ShareRow = {
 export function ShareBars({
   rows,
   emptyText = "Bu aralıkta veri yok",
+  onSelect,
 }: {
   rows: ShareRow[];
   emptyText?: string;
+  /** Verilirse satırlar tıklanabilir olur (örn. alt kategoriye drill-down) */
+  onSelect?: (id: string) => void;
 }) {
   const total = rows.reduce((s, r) => s + r.value, 0);
   if (!rows.length || total <= 0) {
@@ -37,7 +41,15 @@ export function ShareBars({
       {sorted.map((r) => {
         const pct = (r.value / total) * 100;
         return (
-          <div key={r.id} className="min-w-0">
+          <button
+            key={r.id}
+            type="button"
+            onClick={onSelect ? () => onSelect(r.id) : undefined}
+            className={cn(
+              "min-w-0 text-left",
+              onSelect ? "cursor-pointer transition-opacity hover:opacity-70" : "cursor-default"
+            )}
+          >
             <div className="flex items-baseline gap-1.5 mb-1">
               <span
                 className="h-1.5 w-1.5 rounded-full shrink-0 self-center"
@@ -62,7 +74,7 @@ export function ShareBars({
                 }}
               />
             </div>
-          </div>
+          </button>
         );
       })}
     </div>
