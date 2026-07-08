@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/db";
@@ -46,6 +46,7 @@ export function CategoryPanel({
   const router = useRouter();
   // Kategori değişiminde sıfırlama parent'taki key={category.id} ile olur
   const [metric, setMetric] = useState<Metric>({ type: "count" });
+  const [defaultMetricApplied, setDefaultMetricApplied] = useState(false);
   // Alt kategori dağılımı + girdi listesi kendi bağımsız aralığını seçebilir
   const [shareRange, setShareRange] = useState<RangeKey>(range);
   const shareRangeStart = useMemo(
@@ -111,6 +112,15 @@ export function CategoryPanel({
 
     return { subs, entries, values, numericMods };
   }, [category.id, rangeStart, shareRangeStart]);
+
+  // İlk yüklemede varsayılan metrik: listedeki ilk mod (varsa) — "Girdi" yalnızca hiç mod yoksa varsayılan kalır
+  useEffect(() => {
+    if (!data || defaultMetricApplied) return;
+    if (data.numericMods.length > 0) {
+      setMetric({ type: "mod", mod: data.numericMods[0] });
+    }
+    setDefaultMetricApplied(true);
+  }, [data, defaultMetricApplied]);
 
   const computed = useMemo(() => {
     if (!data) return null;

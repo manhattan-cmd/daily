@@ -130,12 +130,20 @@ export function SubcategoryPanel({
     return { subById, children, entries, values, numericMods };
   }, [category.id, subcategory.id, rangeStart, shareRangeStart]);
 
-  // URL'den gelen metriği bir kez uygula (mod listesi yüklendikten sonra)
+  // URL'den gelen metriği bir kez uygula (mod listesi yüklendikten sonra); yoksa
+  // varsayılan olarak listedeki ilk mod seçilir ("Girdi" yalnızca hiç mod yoksa varsayılan kalır)
   useEffect(() => {
     if (!data || metricApplied) return;
     if (initialMetricId && initialMetricId !== "count") {
       const found = data.numericMods.find((m) => m.id === initialMetricId);
-      if (found) setMetric({ type: "mod", mod: found });
+      if (found) {
+        setMetric({ type: "mod", mod: found });
+        setMetricApplied(true);
+        return;
+      }
+    }
+    if (initialMetricId === undefined && data.numericMods.length > 0) {
+      setMetric({ type: "mod", mod: data.numericMods[0] });
     }
     setMetricApplied(true);
   }, [data, metricApplied, initialMetricId]);
