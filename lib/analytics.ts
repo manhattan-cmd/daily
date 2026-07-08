@@ -5,13 +5,20 @@
 
 import type { EntryType, Mod } from "@/types";
 
-export type RangeKey = "7" | "30" | "ay";
+export type RangeKey = "bugun" | "hafta" | "7" | "30" | "ay" | "yil" | "tum";
 
 export const RANGE_LABELS: Record<RangeKey, string> = {
+  bugun: "Bugün",
+  hafta: "Bu Hafta",
   "7": "7 Gün",
   "30": "30 Gün",
   ay: "Bu Ay",
+  yil: "Bu Yıl",
+  tum: "Tümü",
 };
+
+export const isRangeKey = (s: string | null | undefined): s is RangeKey =>
+  !!s && s in RANGE_LABELS;
 
 export function startOfDayMs(d: Date): number {
   const x = new Date(d);
@@ -40,9 +47,23 @@ export function lastNDaysStartMs(n: number, now: Date): number {
   return x.getTime();
 }
 
+/** Aralığın başlangıcı; "tum" için 0 döner — çağıran, seriyi ilk girdiye kıstırmalı
+ * (bkz. resolveSeriesWindow) */
 export function rangeStartMs(range: RangeKey, now: Date): number {
-  if (range === "ay") return monthStartMs(now);
-  return lastNDaysStartMs(Number(range), now);
+  switch (range) {
+    case "bugun":
+      return startOfDayMs(now);
+    case "hafta":
+      return weekStartMs(now);
+    case "ay":
+      return monthStartMs(now);
+    case "yil":
+      return new Date(now.getFullYear(), 0, 1).getTime();
+    case "tum":
+      return 0;
+    default:
+      return lastNDaysStartMs(Number(range), now);
+  }
 }
 
 export function dayKey(t: number): string {
@@ -66,36 +87,129 @@ export type DayBucket = {
   /** Tooltip'teki uzun etiket: 29 Haziran Pzt */
   full: string;
   value: number;
+  /** Kovanın dönem sayfası anahtarı (d-/w-/m-) — bar tıklamasıyla o dönemin analizine gidilir */
+  periodKey?: string;
 };
 
-/** startMs'ten bugüne (dahil) boş gün kovaları */
-export function buildDayBuckets(startMs: number, now: Date): DayBucket[] {
+/** Seri grafiğinin kova granülerliği — pencere büyüdükçe kovalar kabalaşır */
+export type Granularity = "day" | "week" | "month";
+
+export const GRANULARITY_TITLES: Record<Granularity, string> = {
+  day: "Günlük",
+  week: "Haftalık",
+  month: "Aylık",
+};
+
+export function chooseGranularity(startMs: number, endMs: number): Granularity {
+  const days = (endMs - startMs) / 86400000;
+  if (days <= 35) return "day";
+  if (days <= 200) return "week";
+  return "month";
+}
+
+/** Bir anın ait olduğu kovanın anahtarı — buildSeriesBuckets'ın key'leriyle eşleşir */
+export function bucketKeyOf(t: number, g: Granularity): string {
+  if (g === "day") return dayKey(t);
+  if (g === "week") return dayKey(weekStartMs(new Date(t)));
+  const d = new Date(t);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** [startMs, endMs) penceresini granülerliğe göre boş kovalara böler; her kova
+ * kendi dönem sayfası anahtarını (periodKey) taşır */
+export function buildSeriesBuckets(
+  startMs: number,
+  endMs: number,
+  g: Granularity
+): DayBucket[] {
   const out: DayBucket[] = [];
-  const end = startOfDayMs(now);
+  const first = new Date(startMs);
+  let cur =
+    g === "day"
+      ? startOfDayMs(first)
+      : g === "week"
+        ? weekStartMs(first)
+        : new Date(first.getFullYear(), first.getMonth(), 1).getTime();
   let lastMonth = -1;
-  for (let t = startMs; t <= end; t += 86400000) {
-    // DST kaymalarına karşı günü normalize et
-    const d = new Date(t);
-    d.setHours(0, 0, 0, 0);
-    const key = dayKey(d.getTime());
-    if (out.length && out[out.length - 1].key === key) continue;
-    const label = `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]}`;
-    // Ay değiştiğinde eksende ay adını göster, aynı ay içinde sade gün numarası (kalabalığı azaltır)
-    const axisLabel = d.getMonth() !== lastMonth ? label : `${d.getDate()}`;
-    lastMonth = d.getMonth();
-    out.push({
-      key,
-      label,
-      axisLabel,
-      full: d.toLocaleDateString("tr-TR", {
-        day: "numeric",
-        month: "long",
-        weekday: "short",
-      }),
-      value: 0,
-    });
+  let lastYear = -1;
+  let guard = 0;
+  while (cur < endMs && guard++ < 1000) {
+    const d = new Date(cur);
+    let next: number;
+    if (g === "month") {
+      next = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
+    } else {
+      // DST kaymalarına karşı günü normalize et
+      const nd = new Date(cur);
+      nd.setDate(nd.getDate() + (g === "week" ? 7 : 1));
+      nd.setHours(0, 0, 0, 0);
+      next = nd.getTime();
+    }
+    const key = bucketKeyOf(cur, g);
+
+    if (g === "month") {
+      // Yıl değiştiğinde eksene kısa yıl eklenir: Oca 26
+      const axisLabel =
+        d.getFullYear() !== lastYear
+          ? `${SHORT_MONTHS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`
+          : SHORT_MONTHS[d.getMonth()];
+      lastYear = d.getFullYear();
+      out.push({
+        key,
+        label: `${SHORT_MONTHS[d.getMonth()]} ${d.getFullYear()}`,
+        axisLabel,
+        full: d.toLocaleDateString("tr-TR", { month: "long", year: "numeric" }),
+        value: 0,
+        periodKey: `m-${key}`,
+      });
+    } else {
+      const label = `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]}`;
+      // Ay değiştiğinde eksende ay adı, aynı ay içinde sade gün numarası (kalabalığı azaltır)
+      const axisLabel = d.getMonth() !== lastMonth ? label : `${d.getDate()}`;
+      lastMonth = d.getMonth();
+      if (g === "week") {
+        const lastDay = new Date(cur);
+        lastDay.setDate(lastDay.getDate() + 6);
+        out.push({
+          key,
+          label,
+          axisLabel,
+          full: `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]} – ${lastDay.getDate()} ${SHORT_MONTHS[lastDay.getMonth()]}`,
+          value: 0,
+          periodKey: `w-${key}`,
+        });
+      } else {
+        out.push({
+          key,
+          label,
+          axisLabel,
+          full: d.toLocaleDateString("tr-TR", {
+            day: "numeric",
+            month: "long",
+            weekday: "short",
+          }),
+          value: 0,
+          periodKey: `d-${key}`,
+        });
+      }
+    }
+    cur = next;
   }
   return out;
+}
+
+/** Seri penceresini çöz: rangeStart=0 (Tümü) ilk girdiye kıstırılır, granülerlik pencereden seçilir */
+export function resolveSeriesWindow(
+  rangeStart: number,
+  minOccurred: number | undefined,
+  now: Date
+): { startMs: number; endMs: number; granularity: Granularity } {
+  const endMs = now.getTime() + 1;
+  const startMs =
+    rangeStart > 0
+      ? rangeStart
+      : startOfDayMs(new Date(minOccurred ?? now.getTime()));
+  return { startMs, endMs, granularity: chooseGranularity(startMs, endMs) };
 }
 
 /** tr-TR sayı biçimi; büyük sayılar kompakt (12,9 B) */

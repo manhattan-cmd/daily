@@ -6,9 +6,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { getCategory, getSubCategory } from "@/lib/db/queries";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubcategoryPanel } from "@/components/analytics/subcategory-panel";
-import { rangeStartMs, type RangeKey } from "@/lib/analytics";
-
-const VALID_RANGES: RangeKey[] = ["7", "30", "ay"];
+import { isRangeKey, rangeStartMs, type RangeKey } from "@/lib/analytics";
 
 export default function SubcategoryAnalyticsPage({
   params,
@@ -31,9 +29,7 @@ function SubcategoryAnalyticsPageContent({
   const searchParams = useSearchParams();
 
   const rangeParam = searchParams.get("range");
-  const range: RangeKey = (VALID_RANGES as string[]).includes(rangeParam ?? "")
-    ? (rangeParam as RangeKey)
-    : "7";
+  const range: RangeKey = isRangeKey(rangeParam) ? rangeParam : "7";
   const metricParam = searchParams.get("metric") ?? undefined;
 
   // Aralık başlangıcı — dakikalık oynamalar yeniden sorgu tetiklemesin diye memo

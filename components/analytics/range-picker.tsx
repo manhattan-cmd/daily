@@ -5,8 +5,16 @@ import { ChevronDown } from "lucide-react";
 import { RANGE_LABELS, type RangeKey } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
-const RANGES: RangeKey[] = ["7", "30", "ay"];
-const SHORT_LABELS: Record<RangeKey, string> = { "7": "7g", "30": "30g", ay: "Ay" };
+const RANGES: RangeKey[] = ["bugun", "hafta", "7", "30", "ay", "yil", "tum"];
+const SHORT_LABELS: Record<RangeKey, string> = {
+  bugun: "Bugün",
+  hafta: "Hafta",
+  "7": "7g",
+  "30": "30g",
+  ay: "Ay",
+  yil: "Yıl",
+  tum: "Tümü",
+};
 
 /** Kart başlığının köşesine gömülen küçük süre seçici — kartın kendi bağımsız aralığı için */
 export function RangePicker({

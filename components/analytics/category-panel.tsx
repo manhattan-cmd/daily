@@ -7,15 +7,17 @@ import { db } from "@/lib/db";
 import {
   average,
   bucketAncestorId,
-  buildDayBuckets,
+  bucketKeyOf,
+  buildSeriesBuckets,
   classifyNumericMod,
-  dayKey,
   displayModeOf,
   dtrDurationHours,
   fmtNum,
+  GRANULARITY_TITLES,
   monthStartMs,
   parseNumeric,
   rangeStartMs,
+  resolveSeriesWindow,
   startOfDayMs,
   statSub,
   sumOrAvg,
@@ -178,13 +180,20 @@ export function CategoryPanel({
       return { value, avg };
     };
 
-    // Günlük seri (seçili aralık)
-    const buckets = buildDayBuckets(rangeStart, now);
+    // Seri (seçili aralık) — pencere büyüdükçe kovalar kabalaşır (gün → hafta → ay);
+    // "Tümü"nde pencere kategorinin ilk girdisine kıstırılır
+    let minOccurred: number | undefined;
+    for (const e of entries) {
+      if (minOccurred === undefined || e.occurredAt < minOccurred)
+        minOccurred = e.occurredAt;
+    }
+    const win = resolveSeriesWindow(rangeStart, minOccurred, now);
+    const buckets = buildSeriesBuckets(win.startMs, win.endMs, win.granularity);
     const bucketIdx = new Map(buckets.map((b, i) => [b.key, i]));
     const bucketEntries: Entry[][] = buckets.map(() => []);
     for (const e of entries) {
-      if (e.occurredAt < rangeStart) continue;
-      const i = bucketIdx.get(dayKey(e.occurredAt));
+      if (e.occurredAt < win.startMs) continue;
+      const i = bucketIdx.get(bucketKeyOf(e.occurredAt, win.granularity));
       if (i !== undefined) bucketEntries[i].push(e);
     }
     buckets.forEach((b, i) => {
@@ -248,6 +257,7 @@ export function CategoryPanel({
       week: statSince(weekStart),
       month: statSince(monthStart),
       buckets,
+      granularity: win.granularity,
       shareRows,
       entryRows,
       unit,
@@ -314,10 +324,11 @@ export function CategoryPanel({
         />
       </div>
 
-      {/* Günlük seri — seçili aralık */}
+      {/* Seri — seçili aralık; pencere büyüdükçe kova granülerliği kabalaşır */}
       <div className="rounded-2xl border border-border bg-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-          Günlük {metric.type === "count" ? "girdi" : metric.mod.name}
+          {GRANULARITY_TITLES[computed.granularity]}{" "}
+          {metric.type === "count" ? "girdi" : metric.mod.name}
           {metric.type === "mod" && (
             <span className="normal-case font-normal text-muted-foreground/60">
               {" "}

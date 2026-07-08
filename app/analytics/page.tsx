@@ -1,15 +1,18 @@
 "use client";
 
 import { Suspense, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { BarChart3 } from "lucide-react";
 import { db } from "@/lib/db";
 import {
-  buildDayBuckets,
-  dayKey,
+  bucketKeyOf,
+  buildSeriesBuckets,
   fmtNum,
+  GRANULARITY_TITLES,
+  isRangeKey,
   rangeStartMs,
+  resolveSeriesWindow,
   RANGE_LABELS,
   type RangeKey,
 } from "@/lib/analytics";
@@ -19,9 +22,11 @@ import { StatTile } from "@/components/analytics/stat-tile";
 import { DailyBarChart } from "@/components/analytics/daily-bar-chart";
 import { ShareBars, type ShareRow } from "@/components/analytics/share-bars";
 import { CategoryPanel } from "@/components/analytics/category-panel";
+import { PeriodJump } from "@/components/analytics/period-jump";
 import { cn } from "@/lib/utils";
 
-const RANGES: RangeKey[] = ["7", "30", "ay"];
+/** Ana sayfadaki hızlı aralık çipleri — diğer RangeKey'ler (7/30) URL üzerinden hâlâ geçerli */
+const RANGES: RangeKey[] = ["bugun", "hafta", "ay", "yil", "tum"];
 
 export default function AnalyticsPage() {
   return (
@@ -32,11 +37,12 @@ export default function AnalyticsPage() {
 }
 
 function AnalyticsPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   // Alt kategori detayından geri dönüşte seçili kategori/aralık korunur
   const [range, setRange] = useState<RangeKey>(() => {
     const r = searchParams.get("range");
-    return (RANGES as string[]).includes(r ?? "") ? (r as RangeKey) : "7";
+    return isRangeKey(r) ? r : "hafta";
   });
   const [selectedCatId, setSelectedCatId] = useState<string | null>(
     () => searchParams.get("cat")
@@ -56,11 +62,19 @@ function AnalyticsPageContent() {
       .aboveOrEqual(rangeStart)
       .toArray();
 
-    // Günlük girdi sayısı
-    const buckets = buildDayBuckets(rangeStart, new Date());
+    // Girdi serisi — pencere büyüdükçe kovalar kabalaşır (gün → hafta → ay);
+    // "Tümü"nde pencere ilk girdiye kıstırılır
+    let minOccurred: number | undefined;
+    for (const e of entries) {
+      if (minOccurred === undefined || e.occurredAt < minOccurred)
+        minOccurred = e.occurredAt;
+    }
+    const win = resolveSeriesWindow(rangeStart, minOccurred, new Date());
+    const buckets = buildSeriesBuckets(win.startMs, win.endMs, win.granularity);
     const bucketIdx = new Map(buckets.map((b, i) => [b.key, i]));
     for (const e of entries) {
-      const i = bucketIdx.get(dayKey(e.occurredAt));
+      if (e.occurredAt < win.startMs) continue;
+      const i = bucketIdx.get(bucketKeyOf(e.occurredAt, win.granularity));
       if (i !== undefined) buckets[i].value += 1;
     }
 
@@ -88,6 +102,7 @@ function AnalyticsPageContent() {
       subCount: subs.filter((s) => !s.isCategoryRoot).length,
       modCount: mods.length,
       buckets,
+      granularity: win.granularity,
       catShare,
     };
   }, [rangeStart]);
@@ -108,8 +123,9 @@ function AnalyticsPageContent() {
         />
       ) : (
         <div className="flex flex-col gap-4 pb-6">
-          {/* Aralık filtresi — alttaki her şeyi kapsar */}
-          <div className="flex gap-2">
+          {/* Aralık filtresi — alttaki her şeyi kapsar; "Özel" herhangi bir tarih
+              aralığının dönem analiz sayfasına götürür */}
+          <div className="flex flex-wrap gap-2">
             {RANGES.map((r) => (
               <button
                 key={r}
@@ -124,6 +140,7 @@ function AnalyticsPageContent() {
                 {RANGE_LABELS[r]}
               </button>
             ))}
+            <PeriodJump />
           </div>
 
           {/* Genel sayılar */}
@@ -150,15 +167,19 @@ function AnalyticsPageContent() {
             />
           </div>
 
-          {/* Günlük aktivite */}
+          {/* Girdi serisi — bara basınca o dönemin (gün/hafta/ay) analiz sayfası açılır */}
           <div className="rounded-2xl border border-border bg-card p-4">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-              Günlük Girdi · {RANGE_LABELS[range]}
+              {GRANULARITY_TITLES[overview?.granularity ?? "day"]} Girdi ·{" "}
+              {RANGE_LABELS[range]}
             </h3>
             <DailyBarChart
               data={overview?.buckets ?? []}
               color="#6366f1"
               unit="girdi"
+              onSelect={(periodKey) =>
+                router.push(`/analytics/period/${periodKey}`)
+              }
             />
           </div>
 
