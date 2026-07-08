@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/db";
@@ -44,9 +44,10 @@ export function CategoryPanel({
   rangeStart: number;
 }) {
   const router = useRouter();
-  // Kategori değişiminde sıfırlama parent'taki key={category.id} ile olur
-  const [metric, setMetric] = useState<Metric>({ type: "count" });
-  const [defaultMetricApplied, setDefaultMetricApplied] = useState(false);
+  // Kategori değişiminde sıfırlama parent'taki key={category.id} ile olur.
+  // null = kullanıcı henüz seçmedi → varsayılan (ilk mod) render sırasında senkron türetilir,
+  // effect'le sonradan set edilirse "Girdi" bir an seçili görünüp titreme yaratıyor.
+  const [metricChoice, setMetricChoice] = useState<Metric | null>(null);
   // Alt kategori dağılımı + girdi listesi kendi bağımsız aralığını seçebilir
   const [shareRange, setShareRange] = useState<RangeKey>(range);
   const shareRangeStart = useMemo(
@@ -113,14 +114,14 @@ export function CategoryPanel({
     return { subs, entries, values, numericMods };
   }, [category.id, rangeStart, shareRangeStart]);
 
-  // İlk yüklemede varsayılan metrik: listedeki ilk mod (varsa) — "Girdi" yalnızca hiç mod yoksa varsayılan kalır
-  useEffect(() => {
-    if (!data || defaultMetricApplied) return;
-    if (data.numericMods.length > 0) {
-      setMetric({ type: "mod", mod: data.numericMods[0] });
+  // Varsayılan metrik: listedeki ilk mod (varsa) — "Girdi" yalnızca hiç mod yoksa varsayılan kalır
+  const metric = useMemo<Metric>(() => {
+    if (metricChoice) return metricChoice;
+    if (data && data.numericMods.length > 0) {
+      return { type: "mod", mod: data.numericMods[0] };
     }
-    setDefaultMetricApplied(true);
-  }, [data, defaultMetricApplied]);
+    return { type: "count" };
+  }, [metricChoice, data]);
 
   const computed = useMemo(() => {
     if (!data) return null;
@@ -262,14 +263,14 @@ export function CategoryPanel({
             label={m.unit ? `${m.name} (${m.unit})` : m.name}
             active={metric.type === "mod" && metric.mod.id === m.id}
             color={category.color}
-            onTap={() => setMetric({ type: "mod", mod: m })}
+            onTap={() => setMetricChoice({ type: "mod", mod: m })}
           />
         ))}
         <MetricChip
           label="Girdi"
           active={metric.type === "count"}
           color={category.color}
-          onTap={() => setMetric({ type: "count" })}
+          onTap={() => setMetricChoice({ type: "count" })}
         />
       </div>
 

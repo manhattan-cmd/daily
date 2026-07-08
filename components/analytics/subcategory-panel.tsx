@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/db";
@@ -55,8 +55,9 @@ export function SubcategoryPanel({
   initialMetricId?: string;
 }) {
   const router = useRouter();
-  const [metric, setMetric] = useState<Metric>({ type: "count" });
-  const [metricApplied, setMetricApplied] = useState(false);
+  // null = kullanıcı henüz seçmedi → varsayılan (URL'deki metrik ya da ilk mod) render
+  // sırasında senkron türetilir; effect'le sonradan set etmek "Girdi" titremesi yaratıyor
+  const [metricChoice, setMetricChoice] = useState<Metric | null>(null);
   const [shareRange, setShareRange] = useState<RangeKey>(range);
   const shareRangeStart = useMemo(
     () => rangeStartMs(shareRange, new Date()),
@@ -130,23 +131,21 @@ export function SubcategoryPanel({
     return { subById, children, entries, values, numericMods };
   }, [category.id, subcategory.id, rangeStart, shareRangeStart]);
 
-  // URL'den gelen metriği bir kez uygula (mod listesi yüklendikten sonra); yoksa
-  // varsayılan olarak listedeki ilk mod seçilir ("Girdi" yalnızca hiç mod yoksa varsayılan kalır)
-  useEffect(() => {
-    if (!data || metricApplied) return;
-    if (initialMetricId && initialMetricId !== "count") {
-      const found = data.numericMods.find((m) => m.id === initialMetricId);
-      if (found) {
-        setMetric({ type: "mod", mod: found });
-        setMetricApplied(true);
-        return;
+  // Varsayılan metrik: URL'den gelen mod (üst sayfadaki seçimi devam ettirir); yoksa
+  // listedeki ilk mod ("Girdi" yalnızca URL "count" derse ya da hiç mod yoksa varsayılan)
+  const metric = useMemo<Metric>(() => {
+    if (metricChoice) return metricChoice;
+    if (data) {
+      if (initialMetricId && initialMetricId !== "count") {
+        const found = data.numericMods.find((m) => m.id === initialMetricId);
+        if (found) return { type: "mod", mod: found };
+      }
+      if (initialMetricId === undefined && data.numericMods.length > 0) {
+        return { type: "mod", mod: data.numericMods[0] };
       }
     }
-    if (initialMetricId === undefined && data.numericMods.length > 0) {
-      setMetric({ type: "mod", mod: data.numericMods[0] });
-    }
-    setMetricApplied(true);
-  }, [data, metricApplied, initialMetricId]);
+    return { type: "count" };
+  }, [metricChoice, data, initialMetricId]);
 
   const computed = useMemo(() => {
     if (!data) return null;
@@ -292,14 +291,14 @@ export function SubcategoryPanel({
             label={m.unit ? `${m.name} (${m.unit})` : m.name}
             active={metric.type === "mod" && metric.mod.id === m.id}
             color={category.color}
-            onTap={() => setMetric({ type: "mod", mod: m })}
+            onTap={() => setMetricChoice({ type: "mod", mod: m })}
           />
         ))}
         <MetricChip
           label="Girdi"
           active={metric.type === "count"}
           color={category.color}
-          onTap={() => setMetric({ type: "count" })}
+          onTap={() => setMetricChoice({ type: "count" })}
         />
       </div>
 
