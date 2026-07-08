@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import {
   ensureBuiltInDimensions,
   ensureBuiltInEntryTypes,
@@ -12,6 +13,16 @@ import { BottomNav } from "./bottom-nav";
 import { StatusBar } from "./status-bar";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const mainRef = useRef<HTMLElement>(null);
+  const pathname = usePathname();
+
+  // Kaydırma document'te değil bu container'da — Next'in sayfa geçişindeki
+  // otomatik başa alması burada işlemez, rota değişince kendimiz başa alırız
+  // (yoksa yeni sayfa önceki sayfanın kaydırma konumunda, başlığı görünmeden açılır)
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [pathname]);
+
   useEffect(() => {
     (async () => {
       await ensureBuiltInDimensions();
@@ -56,7 +67,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <StatusBar />
 
         {/* İçerik — kaydırılabilir */}
-        <main className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
+        <main
+          ref={mainRef}
+          className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4"
+        >
           {children}
         </main>
 

@@ -1,10 +1,11 @@
 "use client";
 
-import { use, useMemo } from "react";
+import { use, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { CalendarX, ChevronLeft, ChevronRight } from "lucide-react";
 import { db } from "@/lib/db";
+import { cn } from "@/lib/utils";
 import {
   bucketKeyOf,
   buildSeriesBuckets,
@@ -22,6 +23,7 @@ import { DailyBarChart } from "@/components/analytics/daily-bar-chart";
 import { ShareBars, type ShareRow } from "@/components/analytics/share-bars";
 import { EntryList, type EntryListRow } from "@/components/analytics/entry-list";
 import { PeriodJump } from "@/components/analytics/period-jump";
+import { PeriodCategoryPanel } from "@/components/analytics/period-category-panel";
 
 /**
  * Dönem analiz sayfası — herhangi bir zaman penceresinin (gün/hafta/ay/yıl/özel/tümü)
@@ -35,6 +37,7 @@ export default function PeriodAnalyticsPage({
 }) {
   const { periodKey } = use(params);
   const router = useRouter();
+  const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
 
   const period = useMemo(
     () => parsePeriodKey(decodeURIComponent(periodKey)),
@@ -44,7 +47,7 @@ export default function PeriodAnalyticsPage({
   const data = useLiveQuery(async () => {
     if (!period) return null;
     const [cats, subs, entries] = await Promise.all([
-      db.categories.toArray(),
+      db.categories.orderBy("order").toArray(),
       db.subcategories.toArray(),
       db.entries
         .where("occurredAt")
@@ -159,6 +162,9 @@ export default function PeriodAnalyticsPage({
   // Tamamen gelecekte kalan döneme gitmek anlamsız
   const nextDisabled = !nextP || nextP.start > Date.now();
 
+  const selectedCat =
+    data?.cats.find((c) => c.id === selectedCatId) ?? data?.cats[0] ?? null;
+
   return (
     <>
       <PageHeader
@@ -227,7 +233,7 @@ export default function PeriodAnalyticsPage({
           </div>
         )}
 
-        {/* Kategori dağılımı */}
+        {/* Kategori dağılımı — satıra basınca alttaki Kategori Detayı o kategoriye geçer */}
         <div className="rounded-2xl border border-border bg-card p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
             Kategori Dağılımı
@@ -235,13 +241,56 @@ export default function PeriodAnalyticsPage({
           <ShareBars
             rows={computed?.catShare ?? []}
             emptyText="Bu dönemde girdi yok"
+            onSelect={setSelectedCatId}
           />
         </div>
 
-        {/* Girdi listesi */}
+        {/* Kategori detayı — bu dönem penceresine kısıtlı mod bazlı analiz */}
+        {data && data.cats.length > 0 && selectedCat && (
+          <section className="flex flex-col gap-3 mt-2">
+            <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Kategori Detayı
+            </h2>
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
+              {data.cats.map((c) => {
+                const active = selectedCat.id === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => setSelectedCatId(c.id)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0",
+                      active
+                        ? "text-foreground"
+                        : "border-border bg-card text-muted-foreground hover:text-foreground"
+                    )}
+                    style={
+                      active
+                        ? {
+                            borderColor: `${c.color}70`,
+                            backgroundColor: `${c.color}18`,
+                          }
+                        : undefined
+                    }
+                  >
+                    <span
+                      className="h-1.5 w-1.5 rounded-full"
+                      style={{ backgroundColor: c.color }}
+                    />
+                    {c.name}
+                  </button>
+                );
+              })}
+            </div>
+
+            <PeriodCategoryPanel category={selectedCat} period={period} />
+          </section>
+        )}
+
+        {/* Tüm kategorilerin girdileri */}
         <div className="rounded-2xl border border-border bg-card p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-            Girdi Listesi
+            Tüm Girdiler
           </h3>
           <EntryList
             rows={computed?.entryRows ?? []}

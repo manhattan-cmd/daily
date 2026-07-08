@@ -25,8 +25,9 @@ import { CategoryPanel } from "@/components/analytics/category-panel";
 import { PeriodJump } from "@/components/analytics/period-jump";
 import { cn } from "@/lib/utils";
 
-/** Ana sayfadaki hızlı aralık çipleri — diğer RangeKey'ler (7/30) URL üzerinden hâlâ geçerli */
-const RANGES: RangeKey[] = ["bugun", "hafta", "ay", "yil", "tum"];
+/** Ana sayfadaki hızlı aralık çipleri — diğer RangeKey'ler URL üzerinden hâlâ geçerli;
+ * daha uzun pencereler "Özel" seçicisiyle dönem sayfalarından incelenir */
+const RANGES: RangeKey[] = ["bugun", "hafta", "ay"];
 
 export default function AnalyticsPage() {
   return (
@@ -52,10 +53,9 @@ function AnalyticsPageContent() {
   const rangeStart = useMemo(() => rangeStartMs(range, new Date()), [range]);
 
   const overview = useLiveQuery(async () => {
-    const [cats, subs, mods] = await Promise.all([
+    const [cats, subs] = await Promise.all([
       db.categories.orderBy("order").toArray(),
       db.subcategories.toArray(),
-      db.mods.toArray(),
     ]);
     const entries = await db.entries
       .where("occurredAt")
@@ -99,8 +99,6 @@ function AnalyticsPageContent() {
       cats,
       entryCount: entries.length,
       catCount: cats.length,
-      subCount: subs.filter((s) => !s.isCategoryRoot).length,
-      modCount: mods.length,
       buckets,
       granularity: win.granularity,
       catShare,
@@ -143,29 +141,12 @@ function AnalyticsPageContent() {
             <PeriodJump />
           </div>
 
-          {/* Genel sayılar */}
-          <div className="grid grid-cols-2 gap-2">
-            <StatTile
-              label="Girdi"
-              value={fmtNum(overview?.entryCount ?? 0)}
-              sub={RANGE_LABELS[range]}
-            />
-            <StatTile
-              label="Kategori"
-              value={fmtNum(overview?.catCount ?? 0)}
-              sub="toplam"
-            />
-            <StatTile
-              label="Alt Kategori"
-              value={fmtNum(overview?.subCount ?? 0)}
-              sub="toplam"
-            />
-            <StatTile
-              label="Mod"
-              value={fmtNum(overview?.modCount ?? 0)}
-              sub="havuzda"
-            />
-          </div>
+          {/* Genel sayı — girdi toplamı */}
+          <StatTile
+            label="Girdi"
+            value={fmtNum(overview?.entryCount ?? 0)}
+            sub={RANGE_LABELS[range]}
+          />
 
           {/* Girdi serisi — bara basınca o dönemin (gün/hafta/ay) analiz sayfası açılır */}
           <div className="rounded-2xl border border-border bg-card p-4">

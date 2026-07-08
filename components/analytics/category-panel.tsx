@@ -1,30 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/db";
 import {
-  average,
   bucketAncestorId,
   bucketKeyOf,
   buildSeriesBuckets,
-  classifyNumericMod,
-  displayModeOf,
-  dtrDurationHours,
   fmtNum,
   GRANULARITY_TITLES,
   monthStartMs,
-  parseNumeric,
   rangeStartMs,
   resolveSeriesWindow,
   startOfDayMs,
   statSub,
-  sumOrAvg,
   weekStartMs,
-  type Metric,
-  type ModKind,
-  type NumericMod,
   type RangeKey,
   RANGE_LABELS,
 } from "@/lib/analytics";
@@ -33,8 +22,9 @@ import { DailyBarChart } from "./daily-bar-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
 import { RangePicker } from "./range-picker";
 import { EntryList, type EntryListRow } from "./entry-list";
-import { cn } from "@/lib/utils";
-import type { Category, Entry, EntryValue } from "@/types";
+import { MetricChips } from "./metric-chips";
+import { useCategoryMetrics } from "./use-category-metrics";
+import type { Category, Entry } from "@/types";
 
 export function CategoryPanel({
   category,
@@ -46,18 +36,15 @@ export function CategoryPanel({
   rangeStart: number;
 }) {
   const router = useRouter();
-  // null = kullanıcı henüz seçmedi → varsayılan (ilk mod) render sırasında senkron türetilir,
-  // effect'le sonradan set edilirse "Girdi" bir an seçili görünüp titreme yaratıyor.
-  const [metricChoice, setMetricChoice] = useState<Metric | null>(null);
   // Alt kategori dağılımı + girdi listesi kendi bağımsız aralığını seçebilir
   const [shareRange, setShareRange] = useState<RangeKey>(range);
 
-  // Kategori değişiminde seçimleri render sırasında sıfırla (parent'ta key remount YOK —
-  // remount, liveQuery yeniden yüklenene dek paneli null'a düşürüp ekranda titreme yaratıyor)
+  // Kategori değişiminde aralığı render sırasında sıfırla (parent'ta key remount YOK —
+  // remount, liveQuery yeniden yüklenene dek paneli null'a düşürüp ekranda titreme yaratıyor;
+  // metrik seçimi hook'un resetKey'iyle sıfırlanır)
   const [prevCatId, setPrevCatId] = useState(category.id);
   if (prevCatId !== category.id) {
     setPrevCatId(category.id);
-    setMetricChoice(null);
     setShareRange(range);
   }
 
@@ -66,118 +53,31 @@ export function CategoryPanel({
     [shareRange]
   );
 
-  const data = useLiveQuery(async () => {
-    const subs = await db.subcategories
-      .where("categoryId")
-      .equals(category.id)
-      .toArray();
-    const subIds = subs.map((s) => s.id);
-    if (!subIds.length) {
-      return { subs, entries: [] as Entry[], values: [] as EntryValue[], numericMods: [] as NumericMod[] };
-    }
-
-    // KPI üçlüsü (bugün/hafta/ay) + alt kırılım aralığı, aralık filtresinden bağımsız — en erken pencereden beri çek
+  // KPI üçlüsü (bugün/hafta/ay) aralık filtresinden bağımsız — en erken pencereden beri çek
+  const fetchStart = useMemo(() => {
     const now = new Date();
-    const earliest = Math.min(
-      rangeStart,
-      weekStartMs(now),
-      monthStartMs(now),
-      shareRangeStart
-    );
-    const entries = await db.entries
-      .where("subcategoryId")
-      .anyOf(subIds)
-      .filter((e) => e.occurredAt >= earliest)
-      .toArray();
-    const values = entries.length
-      ? await db.entryValues
-          .where("entryId")
-          .anyOf(entries.map((e) => e.id))
-          .toArray()
-      : [];
+    return Math.min(rangeStart, weekStartMs(now), monthStartMs(now), shareRangeStart);
+  }, [rangeStart, shareRangeStart]);
 
-    // Sayısal modlar: kategoriye/altlarına atananlar + girdilerde kullanılanlar
-    const attachments = await db.categoryModifiers
-      .filter(
-        (a) =>
-          (a.targetType === "category" && a.targetId === category.id) ||
-          (a.targetType === "subcategory" && subIds.includes(a.targetId))
-      )
-      .toArray();
-    const modIds = new Set([
-      ...attachments.map((a) => a.modId).filter((x): x is string => !!x),
-      ...values.map((v) => v.modId).filter((x): x is string => !!x),
-    ]);
-    // bulkGet yerine tam tablo taraması — küçük tablolar (havuzdaki mod/ölçü sayısı sınırlı),
-    // bulkGet'in ardışık yazımlardan hemen sonra bazı anahtarlar için null dönebildiği gözlendi
-    const [allMods, allTypes] = await Promise.all([
-      db.mods.toArray(),
-      db.entryTypes.toArray(),
-    ]);
-    const mods = allMods.filter((m) => modIds.has(m.id));
-    const typeMap = new Map(allTypes.map((t) => [t.id, t]));
-
-    const numericMods: NumericMod[] = mods
-      .map((m) => classifyNumericMod(m, typeMap.get(m.entryTypeId)))
-      .filter((m): m is NumericMod => !!m)
-      .sort((a, b) => a.name.localeCompare(b.name, "tr"));
-
-    return { subs, entries, values, numericMods };
-  }, [category.id, rangeStart, shareRangeStart]);
-
-  // Varsayılan metrik: listedeki ilk mod (varsa) — "Girdi" yalnızca hiç mod yoksa varsayılan kalır
-  const metric = useMemo<Metric>(() => {
-    if (metricChoice) return metricChoice;
-    if (data && data.numericMods.length > 0) {
-      return { type: "mod", mod: data.numericMods[0] };
-    }
-    return { type: "count" };
-  }, [metricChoice, data]);
+  const { data, metric, setMetricChoice, compute } = useCategoryMetrics({
+    category,
+    fetchStart,
+    resetKey: category.id,
+  });
 
   const computed = useMemo(() => {
-    if (!data) return null;
-    const { subs, entries, values } = data;
+    if (!data || !compute) return null;
+    const { subById, entries } = data;
+    const { aggregate, averageOf, valueByEntry, displayMode, unit } = compute;
     const now = new Date();
-    const todayStart = startOfDayMs(now);
-    const weekStart = weekStartMs(now);
-    const monthStart = monthStartMs(now);
-
-    // Girdi başına metrik değeri: sadece bu modun değerine sahip girdiler dahil edilir
-    // (skala modlarında ortalama, yalnızca değeri olan girdiler üzerinden hesaplanmalı)
-    const valueByEntry = new Map<string, number>();
-    if (metric.type === "mod") {
-      for (const v of values) {
-        if (v.modId !== metric.mod.id) continue;
-        const amount =
-          metric.mod.kind === "duration"
-            ? dtrDurationHours(v.value)
-            : parseNumeric(v.value);
-        valueByEntry.set(v.entryId, (valueByEntry.get(v.entryId) ?? 0) + amount);
-      }
-    }
-
-    const kind: ModKind = metric.type === "mod" ? metric.mod.kind : "number";
-    const aggregate = (subset: Entry[]): number => {
-      if (metric.type === "count") return subset.length;
-      const vals = subset
-        .map((e) => valueByEntry.get(e.id))
-        .filter((v): v is number => v !== undefined);
-      return sumOrAvg(vals, kind);
-    };
 
     // "both" modunda (süre, miktar vb.) KPI kutucuklarında toplamın yanına ortalama da eklenir
     const statSince = (start: number) => {
       const subset = entries.filter((e) => e.occurredAt >= start);
-      const value = aggregate(subset);
-      const avg =
-        metric.type === "mod" && displayModeOf(metric.mod.kind) === "both"
-          ? average(
-              subset
-                .map((e) => valueByEntry.get(e.id))
-                .filter((v): v is number => v !== undefined)
-            )
-          : undefined;
-      return { value, avg };
+      return {
+        value: aggregate(subset),
+        avg: displayMode === "both" ? averageOf(subset) : undefined,
+      };
     };
 
     // Seri (seçili aralık) — pencere büyüdükçe kovalar kabalaşır (gün → hafta → ay);
@@ -200,10 +100,7 @@ export function CategoryPanel({
       b.value = aggregate(bucketEntries[i]);
     });
 
-    const unit = metric.type === "mod" ? metric.mod.unit : "";
-
     // Alt kategori kırılımı + girdi listesi — bağımsız seçilen aralık, iç içe altlar en üst ataya toplanır
-    const subById = new Map(subs.map((s) => [s.id, s]));
     const shareEntries = entries.filter((e) => e.occurredAt >= shareRangeStart);
     const bySubEntries = new Map<string, Entry[]>();
     for (const e of shareEntries) {
@@ -213,20 +110,17 @@ export function CategoryPanel({
       list.push(e);
       bySubEntries.set(topId, list);
     }
-    const bySub = new Map<string, number>();
-    for (const [id, list] of bySubEntries) {
-      bySub.set(id, aggregate(list));
-    }
-    const shareRows: ShareRow[] = [...bySub.entries()]
-      .filter(([, v]) => v > 0)
-      .map(([id, v]) => {
+    const shareRows: ShareRow[] = [...bySubEntries.entries()]
+      .map(([id, list]) => ({ id, value: aggregate(list) }))
+      .filter((r) => r.value > 0)
+      .map(({ id, value }) => {
         const s = subById.get(id)!;
         return {
           id,
           name: s.isCategoryRoot ? "Genel" : s.name,
           color: category.color,
-          value: v,
-          display: unit ? `${fmtNum(v)} ${unit}` : fmtNum(v),
+          value,
+          display: unit ? `${fmtNum(value)} ${unit}` : fmtNum(value),
         };
       });
 
@@ -253,45 +147,30 @@ export function CategoryPanel({
       });
 
     return {
-      today: statSince(todayStart),
-      week: statSince(weekStart),
-      month: statSince(monthStart),
+      today: statSince(startOfDayMs(now)),
+      week: statSince(weekStartMs(now)),
+      month: statSince(monthStartMs(now)),
       buckets,
       granularity: win.granularity,
       shareRows,
       entryRows,
-      unit,
-      displayMode: metric.type === "mod" ? displayModeOf(metric.mod.kind) : undefined,
-      bucketIsAvg: kind === "scale",
     };
-  }, [data, metric, rangeStart, shareRangeStart, category.color]);
+  }, [data, compute, metric.type, rangeStart, shareRangeStart, category.color]);
 
-  if (!data || !computed) return null;
+  if (!data || !compute || !computed) return null;
 
-  const metricLabel =
-    metric.type === "count" ? "girdi" : computed.unit || undefined;
+  const metricLabel = metric.type === "count" ? "girdi" : compute.unit || undefined;
   const metricParam = metric.type === "count" ? "count" : metric.mod.id;
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Metrik seçici — girdi sayısı + kategorinin sayısal modları */}
-      <div className="flex flex-wrap gap-2">
-        {data.numericMods.map((m) => (
-          <MetricChip
-            key={m.id}
-            label={m.unit ? `${m.name} (${m.unit})` : m.name}
-            active={metric.type === "mod" && metric.mod.id === m.id}
-            color={category.color}
-            onTap={() => setMetricChoice({ type: "mod", mod: m })}
-          />
-        ))}
-        <MetricChip
-          label="Girdi"
-          active={metric.type === "count"}
-          color={category.color}
-          onTap={() => setMetricChoice({ type: "count" })}
-        />
-      </div>
+      {/* Metrik seçici — kategorinin sayısal modları + girdi sayısı */}
+      <MetricChips
+        numericMods={data.numericMods}
+        metric={metric}
+        color={category.color}
+        onChange={setMetricChoice}
+      />
 
       {/* Bugün / Bu Hafta / Bu Ay — sabit dönemler, aralık filtresinden bağımsız */}
       <div className="grid grid-cols-3 gap-2">
@@ -300,8 +179,8 @@ export function CategoryPanel({
           value={fmtNum(computed.today.value)}
           unit={metricLabel}
           sub={
-            computed.displayMode &&
-            statSub(computed.displayMode, computed.today.avg, computed.unit)
+            compute.displayMode &&
+            statSub(compute.displayMode, computed.today.avg, compute.unit)
           }
         />
         <StatTile
@@ -309,8 +188,8 @@ export function CategoryPanel({
           value={fmtNum(computed.week.value)}
           unit={metricLabel}
           sub={
-            computed.displayMode &&
-            statSub(computed.displayMode, computed.week.avg, computed.unit)
+            compute.displayMode &&
+            statSub(compute.displayMode, computed.week.avg, compute.unit)
           }
         />
         <StatTile
@@ -318,8 +197,8 @@ export function CategoryPanel({
           value={fmtNum(computed.month.value)}
           unit={metricLabel}
           sub={
-            computed.displayMode &&
-            statSub(computed.displayMode, computed.month.avg, computed.unit)
+            compute.displayMode &&
+            statSub(compute.displayMode, computed.month.avg, compute.unit)
           }
         />
       </div>
@@ -332,7 +211,7 @@ export function CategoryPanel({
           {metric.type === "mod" && (
             <span className="normal-case font-normal text-muted-foreground/60">
               {" "}
-              ({computed.bucketIsAvg ? "ortalama" : "toplam"})
+              ({compute.bucketIsAvg ? "ortalama" : "toplam"})
             </span>
           )}{" "}
           · {RANGE_LABELS[range]}
@@ -352,7 +231,7 @@ export function CategoryPanel({
             {metric.type === "mod" && (
               <span className="normal-case font-normal text-muted-foreground/60">
                 {" "}
-                ({computed.bucketIsAvg ? "ortalama" : "toplam"})
+                ({compute.bucketIsAvg ? "ortalama" : "toplam"})
               </span>
             )}
           </h3>
@@ -388,36 +267,5 @@ export function CategoryPanel({
         />
       </div>
     </div>
-  );
-}
-
-function MetricChip({
-  label,
-  active,
-  color,
-  onTap,
-}: {
-  label: string;
-  active: boolean;
-  color: string;
-  onTap: () => void;
-}) {
-  return (
-    <button
-      onClick={onTap}
-      className={cn(
-        "rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors",
-        active
-          ? "text-foreground"
-          : "border-border bg-card text-muted-foreground hover:text-foreground"
-      )}
-      style={
-        active
-          ? { borderColor: `${color}70`, backgroundColor: `${color}18` }
-          : undefined
-      }
-    >
-      {label}
-    </button>
   );
 }
