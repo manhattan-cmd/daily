@@ -211,9 +211,10 @@ function AnalyticsPageContent() {
                 })}
               </div>
 
+              {/* key ile remount YOK — remount panel null'a düşüp titreme yaratıyor;
+                  kategori değişimi panelin içinde render sırasında ele alınır */}
               {selectedCat && (
                 <CategoryPanel
-                  key={selectedCat.id}
                   category={selectedCat}
                   range={range}
                   rangeStart={rangeStart}

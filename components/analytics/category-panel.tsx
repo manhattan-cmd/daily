@@ -44,12 +44,21 @@ export function CategoryPanel({
   rangeStart: number;
 }) {
   const router = useRouter();
-  // Kategori değişiminde sıfırlama parent'taki key={category.id} ile olur.
   // null = kullanıcı henüz seçmedi → varsayılan (ilk mod) render sırasında senkron türetilir,
   // effect'le sonradan set edilirse "Girdi" bir an seçili görünüp titreme yaratıyor.
   const [metricChoice, setMetricChoice] = useState<Metric | null>(null);
   // Alt kategori dağılımı + girdi listesi kendi bağımsız aralığını seçebilir
   const [shareRange, setShareRange] = useState<RangeKey>(range);
+
+  // Kategori değişiminde seçimleri render sırasında sıfırla (parent'ta key remount YOK —
+  // remount, liveQuery yeniden yüklenene dek paneli null'a düşürüp ekranda titreme yaratıyor)
+  const [prevCatId, setPrevCatId] = useState(category.id);
+  if (prevCatId !== category.id) {
+    setPrevCatId(category.id);
+    setMetricChoice(null);
+    setShareRange(range);
+  }
+
   const shareRangeStart = useMemo(
     () => rangeStartMs(shareRange, new Date()),
     [shareRange]
