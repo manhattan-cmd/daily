@@ -278,12 +278,6 @@ export function SubcategoryPanel({
     <div className="flex flex-col gap-4">
       {/* Metrik seçici — girdi sayısı + bu ağacın sayısal modları */}
       <div className="flex flex-wrap gap-2">
-        <MetricChip
-          label="Girdi"
-          active={metric.type === "count"}
-          color={category.color}
-          onTap={() => setMetric({ type: "count" })}
-        />
         {data.numericMods.map((m) => (
           <MetricChip
             key={m.id}
@@ -293,6 +287,12 @@ export function SubcategoryPanel({
             onTap={() => setMetric({ type: "mod", mod: m })}
           />
         ))}
+        <MetricChip
+          label="Girdi"
+          active={metric.type === "count"}
+          color={category.color}
+          onTap={() => setMetric({ type: "count" })}
+        />
       </div>
 
       <div className="grid grid-cols-3 gap-2">

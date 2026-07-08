@@ -246,12 +246,6 @@ export function CategoryPanel({
     <div className="flex flex-col gap-4">
       {/* Metrik seçici — girdi sayısı + kategorinin sayısal modları */}
       <div className="flex flex-wrap gap-2">
-        <MetricChip
-          label="Girdi"
-          active={metric.type === "count"}
-          color={category.color}
-          onTap={() => setMetric({ type: "count" })}
-        />
         {data.numericMods.map((m) => (
           <MetricChip
             key={m.id}
@@ -261,6 +255,12 @@ export function CategoryPanel({
             onTap={() => setMetric({ type: "mod", mod: m })}
           />
         ))}
+        <MetricChip
+          label="Girdi"
+          active={metric.type === "count"}
+          color={category.color}
+          onTap={() => setMetric({ type: "count" })}
+        />
       </div>
 
       {/* Bugün / Bu Hafta / Bu Ay — sabit dönemler, aralık filtresinden bağımsız */}
