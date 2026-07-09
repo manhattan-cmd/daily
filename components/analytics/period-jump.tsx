@@ -23,8 +23,10 @@ function parseInputDate(v: string): Date | null {
 /**
  * Özel dönem seçici — hızlı kısayollar (dün, geçen hafta...) ya da serbest
  * tarih aralığıyla /analytics/period/[key] dönem analiz sayfasına gider.
+ * align: panelin butona göre hizası — buton ekranın ortasındaysa (dönem
+ * sayfası gezinti satırı) "center" verilmeli, yoksa panel soldan taşar.
  */
-export function PeriodJump() {
+export function PeriodJump({ align = "right" }: { align?: "right" | "center" }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -85,7 +87,11 @@ export function PeriodJump() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-64 rounded-2xl border border-border bg-card p-3 shadow-xl">
+        <div
+          className={`absolute top-full z-30 mt-1 w-64 rounded-2xl border border-border bg-card p-3 shadow-xl ${
+            align === "center" ? "left-1/2 -translate-x-1/2" : "right-0"
+          }`}
+        >
           <div className="mb-2 flex flex-wrap gap-1.5">
             {quick.map((q) => (
               <button

@@ -185,7 +185,7 @@ export default function PeriodAnalyticsPage({
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <PeriodJump />
+          <PeriodJump align="center" />
           <button
             type="button"
             disabled={nextDisabled}
