@@ -212,6 +212,47 @@ export function resolveSeriesWindow(
   return { startMs, endMs, granularity: chooseGranularity(startMs, endMs) };
 }
 
+/**
+ * Aktif günlerden seri hesabı — güncel seri bugün ya da dünden geriye kesintisiz
+ * gün sayısı (bugün henüz girdi yoksa dünkü seri "sürüyor" sayılır), rekor seri
+ * en uzun ardışık blok. Gün anahtarları YYYY-MM-DD (yerel).
+ */
+export function computeStreaks(
+  activeDayKeys: Iterable<string>,
+  now: Date = new Date()
+): { current: number; best: number } {
+  // Yerel gece yarısı ms → gün indeksi; DST kaymaları (±1 saat) yuvarlamayla emilir
+  const toIdx = (key: string): number | null => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+    if (!m) return null;
+    return Math.round(new Date(+m[1], +m[2] - 1, +m[3]).getTime() / 86400000);
+  };
+  const days = [...new Set(activeDayKeys)]
+    .map(toIdx)
+    .filter((d): d is number => d !== null)
+    .sort((a, b) => a - b);
+  if (!days.length) return { current: 0, best: 0 };
+
+  let best = 1;
+  let run = 1;
+  for (let i = 1; i < days.length; i++) {
+    run = days[i] === days[i - 1] + 1 ? run + 1 : 1;
+    if (run > best) best = run;
+  }
+
+  const todayIdx = Math.round(startOfDayMs(now) / 86400000);
+  const lastIdx = days[days.length - 1];
+  let current = 0;
+  if (lastIdx === todayIdx || lastIdx === todayIdx - 1) {
+    current = 1;
+    for (let i = days.length - 2; i >= 0; i--) {
+      if (days[i] === days[i + 1] - 1) current++;
+      else break;
+    }
+  }
+  return { current, best };
+}
+
 /** tr-TR sayı biçimi; büyük sayılar kompakt (12,9 B) */
 export function fmtNum(n: number): string {
   const abs = Math.abs(n);

@@ -162,6 +162,38 @@ export function parsePeriodKey(
   return null;
 }
 
+export interface PeriodProgress {
+  /** Dönemin başından bugüne (bugün dahil) geçen takvim günü — perşembe günü hafta → 4 */
+  elapsedDays: number;
+  /** Pencerenin toplam gün sayısı */
+  totalDays: number;
+  /** Dönem hâlâ sürüyor mu (bugün pencerenin içinde) */
+  inProgress: boolean;
+}
+
+/**
+ * Dönemin "şu ana kadar" durumu — devam eden pencerelerde günlük ortalamanın
+ * paydası elapsedDays'tir. "all" gibi başlangıcı belirsiz dönemlerde
+ * effectiveStart (örn. ilk girdinin günü) verilmeli; verilmezse start kullanılır.
+ */
+export function periodProgress(
+  p: Period,
+  now: Date = new Date(),
+  effectiveStart?: number
+): PeriodProgress {
+  const start = startOfDayMs(new Date(effectiveStart ?? p.start));
+  const totalDays = Math.max(1, Math.round((p.end - start) / DAY_MS));
+  const today = startOfDayMs(now);
+  const nowMs = now.getTime();
+  if (nowMs >= p.end) return { elapsedDays: totalDays, totalDays, inProgress: false };
+  if (nowMs < start) return { elapsedDays: 0, totalDays, inProgress: false };
+  const elapsedDays = Math.min(
+    totalDays,
+    Math.round((today - start) / DAY_MS) + 1
+  );
+  return { elapsedDays, totalDays, inProgress: true };
+}
+
 /** Önceki/sonraki dönem — custom'da aynı uzunlukta kaydırır; all'da yön yok (null) */
 export function shiftPeriod(p: Period, dir: 1 | -1): Period | null {
   switch (p.kind) {

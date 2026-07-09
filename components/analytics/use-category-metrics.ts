@@ -45,8 +45,8 @@ export interface MetricCompute {
 }
 
 /**
- * Kategori kapsamlı metrik analizi — CategoryPanel, SubcategoryPanel ve dönem
- * sayfası kategori bölümünün ortak çekirdeği. Veriyi çeker (alt kategoriler,
+ * Kategori kapsamlı metrik analizi — PeriodCategoryPanel, SubcategoryPanel ve
+ * CategoryOverviewPanel'in ortak çekirdeği. Veriyi çeker (alt kategoriler,
  * girdiler, değerler, sayısal modlar), metrik seçimini yönetir (varsayılan:
  * ilk mod; URL'den initialMetricId gelirse o) ve girdi kümeleri üzerinde
  * toplama fonksiyonlarını sunar. Panellere kalan: pencere/kova kurgusu ve yerleşim.

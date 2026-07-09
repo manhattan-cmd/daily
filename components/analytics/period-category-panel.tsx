@@ -9,8 +9,10 @@ import {
   fmtNum,
   GRANULARITY_TITLES,
   startOfDayMs,
+  statSub,
+  type Granularity,
 } from "@/lib/analytics";
-import type { Period } from "@/lib/period";
+import { periodProgress, weekPeriod, type Period } from "@/lib/period";
 import { StatTile } from "./stat-tile";
 import { DailyBarChart } from "./daily-bar-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
@@ -20,9 +22,10 @@ import { useCategoryMetrics } from "./use-category-metrics";
 import type { Category, Entry } from "@/types";
 
 /**
- * Dönem sayfasındaki kategori detayı — CategoryPanel'in donmuş bir zaman
- * penceresine ([period.start, period.end)) kısıtlı hâli. KPI'lar göreli dönemler
- * (bugün/hafta/ay) yerine pencerenin kendisine aittir: toplam / ortalama / girdi.
+ * Dönem sayfasındaki kategori detayı — kategori metriklerinin donmuş bir zaman
+ * penceresine ([period.start, period.end)) kısıtlı analizi. Devam eden dönemlerde
+ * günlük ortalama geçen gün sayısına bölünür ("perşembe günü 4 güne böl");
+ * gün dönemlerinde o günü kapsayan haftanın günlük ortalamasıyla karşılaştırılır.
  */
 export function PeriodCategoryPanel({
   category,
@@ -31,17 +34,32 @@ export function PeriodCategoryPanel({
   category: Category;
   period: Period;
 }) {
+  // Gün dönemlerinde hafta bağlamı gerekir — o günü kapsayan haftanın tamamı çekilir,
+  // günün kendi rakamları pencere filtresiyle hesaplanır
+  const containingWeek = useMemo(
+    () => (period.kind === "day" ? weekPeriod(period.start) : null),
+    [period.kind, period.start]
+  );
+
   const { data, metric, setMetricChoice, compute } = useCategoryMetrics({
     category,
-    fetchStart: period.start,
-    fetchEnd: period.end,
+    fetchStart: containingWeek ? containingWeek.start : period.start,
+    fetchEnd: containingWeek ? containingWeek.end : period.end,
     resetKey: `${category.id}|${period.key}`,
   });
 
   const computed = useMemo(() => {
     if (!data || !compute) return null;
-    const { subById, entries } = data;
-    const { aggregate, averageOf, valueByEntry, unit } = compute;
+    const { subById } = data;
+    const { aggregate, averageOf, valueByEntry, unit, kind } = compute;
+    const now = new Date();
+
+    // Dönem penceresine düşen girdiler (hafta bağlamı için geniş çekildiyse filtrele)
+    const entries = containingWeek
+      ? data.entries.filter(
+          (e) => e.occurredAt >= period.start && e.occurredAt < period.end
+        )
+      : data.entries;
 
     const total = aggregate(entries);
     const avg = averageOf(entries);
@@ -50,22 +68,59 @@ export function PeriodCategoryPanel({
         ? entries.filter((e) => valueByEntry.has(e.id)).length
         : entries.length;
 
-    // Seri — tek günlük dönemde grafik yok; "Tümü"nde pencere ilk girdiye kıstırılır
+    // Günlük ortalama — devam eden dönemde payda geçen gün sayısı;
+    // "Tümü"nde başlangıç kategorinin ilk girdisine kıstırılır
+    let minOcc: number | undefined;
+    for (const e of entries) {
+      if (minOcc === undefined || e.occurredAt < minOcc) minOcc = e.occurredAt;
+    }
+    const progress = periodProgress(
+      period,
+      now,
+      period.kind === "all" ? (minOcc ?? now.getTime()) : undefined
+    );
+    const dailyAvg =
+      progress.elapsedDays > 0 ? total / progress.elapsedDays : 0;
+
+    // Hafta bağlamı (yalnız gün dönemleri) — haftanın şu ana kadarki günlük
+    // ortalamasına göre bu gün nerede; scale metrikte gün ort. vs hafta ort.
+    let weekContext: { ref: number; deltaPct: number; perDay: boolean } | null =
+      null;
+    if (containingWeek) {
+      const weekProgress = periodProgress(containingWeek, now);
+      const dayValue = aggregate(entries);
+      let ref = 0;
+      if (kind === "scale") {
+        ref = averageOf(data.entries);
+      } else if (weekProgress.elapsedDays > 0) {
+        ref = aggregate(data.entries) / weekProgress.elapsedDays;
+      }
+      if (ref > 0 && (metric.type === "count" || withValueCount > 0)) {
+        weekContext = {
+          ref,
+          deltaPct: ((dayValue - ref) / ref) * 100,
+          perDay: kind !== "scale",
+        };
+      }
+    }
+
+    // Seri — tek günlük dönemde grafik yok; devam eden dönemde bugünde kırpılır;
+    // ay serisi haftalardan oluşur; "Tümü"nde pencere ilk girdiye kıstırılır
     const spanDays = (period.end - period.start) / 86400000;
     let buckets: ReturnType<typeof buildSeriesBuckets> = [];
-    let granularity: ReturnType<typeof chooseGranularity> = "day";
+    let granularity: Granularity = "day";
     const hasSeries = spanDays > 1.5;
     if (hasSeries) {
-      let effStart = period.start;
-      if (period.kind === "all") {
-        let minOcc: number | undefined;
-        for (const e of entries) {
-          if (minOcc === undefined || e.occurredAt < minOcc) minOcc = e.occurredAt;
-        }
-        effStart = startOfDayMs(new Date(minOcc ?? Date.now()));
-      }
-      granularity = chooseGranularity(effStart, period.end);
-      buckets = buildSeriesBuckets(effStart, period.end, granularity);
+      const effStart =
+        period.kind === "all"
+          ? startOfDayMs(new Date(minOcc ?? now.getTime()))
+          : period.start;
+      const effEnd = progress.inProgress
+        ? Math.min(period.end, startOfDayMs(now) + 86400000)
+        : period.end;
+      granularity =
+        period.kind === "month" ? "week" : chooseGranularity(effStart, effEnd);
+      buckets = buildSeriesBuckets(effStart, effEnd, granularity);
       const idx = new Map(buckets.map((b, i) => [b.key, i]));
       const bucketEntries: Entry[][] = buckets.map(() => []);
       for (const e of entries) {
@@ -125,17 +180,23 @@ export function PeriodCategoryPanel({
       total,
       avg,
       withValueCount,
+      progress,
+      dailyAvg,
+      weekContext,
       buckets,
       granularity,
       hasSeries,
       shareRows,
       entryRows,
     };
-  }, [data, compute, metric.type, period, category.color]);
+  }, [data, compute, metric.type, period, containingWeek, category.color]);
 
   if (!data || !compute || !computed) return null;
 
   const unit = compute.unit || undefined;
+  const { progress, weekContext } = computed;
+  const isDay = period.kind === "day";
+  const metricLabel = metric.type === "count" ? "girdi" : unit;
 
   return (
     <div className="flex flex-col gap-4">
@@ -146,13 +207,29 @@ export function PeriodCategoryPanel({
         onChange={setMetricChoice}
       />
 
-      {/* Dönem KPI'ları — pencere donuk olduğundan bugün/hafta/ay yerine toplam/ortalama */}
+      {/* Dönem KPI'ları — gün dışındaki pencerelerde günlük ortalama geçen güne bölünür */}
       {metric.type === "count" ? (
-        <StatTile
-          label="Girdi"
-          value={fmtNum(computed.withValueCount)}
-          sub={period.label}
-        />
+        isDay ? (
+          <StatTile
+            label="Girdi"
+            value={fmtNum(computed.withValueCount)}
+            sub={period.label}
+          />
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <StatTile
+              label="Girdi"
+              value={fmtNum(computed.withValueCount)}
+              sub="toplam"
+            />
+            <StatTile
+              label="Günlük Ort."
+              value={fmtNum(computed.dailyAvg)}
+              unit="girdi"
+              sub={`${progress.elapsedDays} gün üzerinden`}
+            />
+          </div>
+        )
       ) : (
         <div className="grid grid-cols-3 gap-2">
           {compute.displayMode === "both" && (
@@ -160,19 +237,52 @@ export function PeriodCategoryPanel({
               label="Toplam"
               value={fmtNum(computed.total)}
               unit={unit}
+              sub={
+                compute.displayMode &&
+                statSub(compute.displayMode, computed.avg, compute.unit)
+              }
             />
           )}
-          <StatTile
-            label="Ortalama"
-            value={fmtNum(computed.avg)}
-            unit={unit}
-            sub="girdi başına"
-          />
+          {compute.displayMode === "both" && !isDay ? (
+            <StatTile
+              label="Günlük Ort."
+              value={fmtNum(computed.dailyAvg)}
+              unit={unit}
+              sub={`${progress.elapsedDays} gün üzerinden`}
+            />
+          ) : (
+            <StatTile
+              label="Ortalama"
+              value={fmtNum(computed.avg)}
+              unit={unit}
+              sub="girdi başına"
+            />
+          )}
           <StatTile
             label="Girdi"
             value={fmtNum(computed.withValueCount)}
             sub="değerli"
           />
+        </div>
+      )}
+
+      {/* Gün dönemlerinde hafta bağlamı — bu gün haftalık ortalamaya göre nerede */}
+      {isDay && weekContext && (
+        <div className="rounded-2xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
+          Hafta ort.{" "}
+          <span className="font-semibold text-foreground">
+            {fmtNum(weekContext.ref)}
+            {metricLabel ? ` ${metricLabel}` : ""}
+            {weekContext.perDay ? "/gün" : ""}
+          </span>{" "}
+          · bu gün{" "}
+          <span
+            className="font-semibold"
+            style={{ color: category.color }}
+          >
+            %{fmtNum(Math.abs(weekContext.deltaPct))}{" "}
+            {weekContext.deltaPct >= 0 ? "üzerinde" : "altında"}
+          </span>
         </div>
       )}
 
