@@ -78,12 +78,19 @@ export const SHORT_MONTHS = [
   "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara",
 ];
 
+export const FULL_MONTHS = [
+  "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+  "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
+];
+
 export type DayBucket = {
   key: string;
   /** Kısa eksen etiketi: 6 Tem */
   label: string;
   /** Ayın ilk günü / aralığın ilk kovası için ay adı da eklenir, diğerleri sade gün numarası */
   axisLabel: string;
+  /** Eksen etiketinin altındaki ikinci satır (örn. haftanın tarih aralığı) */
+  axisSub?: string;
   /** Tooltip'teki uzun etiket: 29 Haziran Pzt */
   full: string;
   value: number;
@@ -196,6 +203,54 @@ export function buildSeriesBuckets(
     cur = next;
   }
   return out;
+}
+
+/**
+ * Hafta/ay/yıl dönemlerinde seri tüm dönemi kapsayınca (gelecek kovalar 0'la yer
+ * tutar) ekseni sadeleştirir ve grafiğin altına dönem bağlamını veren başlığı üretir:
+ * hafta → sade gün numaraları + altta ay adı; ay → "1. Hafta" + altında tarih aralığı
+ * + altta ay adı; yıl → 12 ay adı + altta yıl. Kovaları yerinde günceller.
+ */
+export function framePeriodSeries(
+  kind: "week" | "month" | "year",
+  periodStart: number,
+  buckets: DayBucket[]
+): { caption: string; showAllTicks: boolean } {
+  if (kind === "week") {
+    // Hafta iki aya yayılabilir: "Haziran – Temmuz"
+    const months: string[] = [];
+    for (const b of buckets) {
+      const [, m, d] = b.key.split("-").map(Number);
+      b.axisLabel = String(d);
+      const name = FULL_MONTHS[m - 1];
+      if (!months.includes(name)) months.push(name);
+    }
+    return { caption: months.join(" – "), showAllTicks: true };
+  }
+  if (kind === "month") {
+    buckets.forEach((b, i) => {
+      const [y, m, d] = b.key.split("-").map(Number);
+      const s = new Date(y, m - 1, d);
+      const e = new Date(y, m - 1, d + 6);
+      b.axisLabel = `${i + 1}. Hafta`;
+      b.axisSub =
+        s.getMonth() === e.getMonth()
+          ? `${s.getDate()}–${e.getDate()} ${SHORT_MONTHS[e.getMonth()]}`
+          : `${s.getDate()} ${SHORT_MONTHS[s.getMonth()]}–${e.getDate()} ${SHORT_MONTHS[e.getMonth()]}`;
+    });
+    return {
+      caption: FULL_MONTHS[new Date(periodStart).getMonth()],
+      showAllTicks: true,
+    };
+  }
+  for (const b of buckets) {
+    const [, m] = b.key.split("-").map(Number);
+    b.axisLabel = SHORT_MONTHS[m - 1];
+  }
+  return {
+    caption: String(new Date(periodStart).getFullYear()),
+    showAllTicks: true,
+  };
 }
 
 /** Seri penceresini çöz: rangeStart=0 (Tümü) ilk girdiye kıstırılır, granülerlik pencereden seçilir */

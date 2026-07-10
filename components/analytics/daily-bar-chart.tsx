@@ -27,15 +27,23 @@ export function DailyBarChart({
   color,
   unit,
   onSelect,
+  caption,
+  showAllTicks,
 }: {
   data: DayBucket[];
   color: string;
   unit?: string;
   onSelect?: (periodKey: string) => void;
+  /** Grafiğin altında ortalanmış dönem bağlamı (örn. "Temmuz", "2026") */
+  caption?: string;
+  /** Eksende her kovanın etiketini göster (dönem serilerinde yer hep ayrılır) */
+  showAllTicks?: boolean;
 }) {
   const allZero = data.every((d) => d.value === 0);
   // Çok sayıda gün olduğunda eksende sabit aralıklarla ~6 etiket göster (kalabalığı önler)
-  const tickInterval = data.length > 8 ? Math.ceil(data.length / 6) - 1 : 0;
+  const tickInterval =
+    !showAllTicks && data.length > 8 ? Math.ceil(data.length / 6) - 1 : 0;
+  const hasSub = data.some((d) => d.axisSub);
 
   // Tıklanan kova, X konumundan hesaplanır — recharts'ın tooltip/hover state'ine
   // güvenilmez. Ayrıca "click" olayı da kullanılamaz: hover, bar'ı activeBar ve
@@ -63,6 +71,7 @@ export function DailyBarChart({
   };
 
   return (
+    <>
     <div
       className={`relative h-[170px] w-full${onSelect ? " cursor-pointer" : ""}`}
       onPointerDown={
@@ -96,7 +105,10 @@ export function DailyBarChart({
             dataKey="axisLabel"
             tickLine={false}
             axisLine={{ stroke: "var(--border)" }}
-            tick={{ fill: "#a1a1aa", fontSize: 10 }}
+            tick={
+              hasSub ? <TwoLineTick data={data} /> : { fill: "#a1a1aa", fontSize: 10 }
+            }
+            height={hasSub ? 34 : undefined}
             interval={tickInterval}
           />
           <YAxis
@@ -124,6 +136,40 @@ export function DailyBarChart({
         </BarChart>
       </ResponsiveContainer>
     </div>
+    {caption && (
+      <div className="mt-1 text-center text-[10px] font-medium text-muted-foreground">
+        {caption}
+      </div>
+    )}
+    </>
+  );
+}
+
+/** İki satırlı eksen etiketi: üstte axisLabel (recharts payload), altta axisSub */
+function TwoLineTick({
+  x,
+  y,
+  payload,
+  data,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value: string; index: number };
+  data: DayBucket[];
+}) {
+  if (x === undefined || y === undefined || !payload) return null;
+  const sub = data[payload.index]?.axisSub;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text dy={10} textAnchor="middle" fill="#a1a1aa" fontSize={10}>
+        {payload.value}
+      </text>
+      {sub && (
+        <text dy={22} textAnchor="middle" fill="#71717a" fontSize={8.5}>
+          {sub}
+        </text>
+      )}
+    </g>
   );
 }
 

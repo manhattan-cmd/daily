@@ -7,6 +7,7 @@ import {
   buildSeriesBuckets,
   chooseGranularity,
   fmtNum,
+  framePeriodSeries,
   GRANULARITY_TITLES,
   startOfDayMs,
   statSub,
@@ -104,20 +105,27 @@ export function PeriodCategoryPanel({
       }
     }
 
-    // Seri — tek günlük dönemde grafik yok; devam eden dönemde bugünde kırpılır;
-    // ay serisi haftalardan oluşur; "Tümü"nde pencere ilk girdiye kıstırılır
+    // Seri — tek günlük dönemde grafik yok; hafta/ay/yıl dönemlerinde seri tüm
+    // dönemi kapsar (gelecek kovalar 0'la yer tutar); özel/tümü'nde devam eden
+    // dönem bugünde kırpılır; "Tümü"nde pencere ilk girdiye kıstırılır
     const spanDays = (period.end - period.start) / 86400000;
+    const fullFrame =
+      period.kind === "week" ||
+      period.kind === "month" ||
+      period.kind === "year";
     let buckets: ReturnType<typeof buildSeriesBuckets> = [];
     let granularity: Granularity = "day";
+    let seriesFrame: { caption: string; showAllTicks: boolean } | null = null;
     const hasSeries = spanDays > 1.5;
     if (hasSeries) {
       const effStart =
         period.kind === "all"
           ? startOfDayMs(new Date(minOcc ?? now.getTime()))
           : period.start;
-      const effEnd = progress.inProgress
-        ? Math.min(period.end, startOfDayMs(now) + 86400000)
-        : period.end;
+      const effEnd =
+        progress.inProgress && !fullFrame
+          ? Math.min(period.end, startOfDayMs(now) + 86400000)
+          : period.end;
       granularity =
         period.kind === "month" ? "week" : chooseGranularity(effStart, effEnd);
       buckets = buildSeriesBuckets(effStart, effEnd, granularity);
@@ -130,6 +138,13 @@ export function PeriodCategoryPanel({
       buckets.forEach((b, i) => {
         b.value = aggregate(bucketEntries[i]);
       });
+      if (
+        period.kind === "week" ||
+        period.kind === "month" ||
+        period.kind === "year"
+      ) {
+        seriesFrame = framePeriodSeries(period.kind, period.start, buckets);
+      }
     }
 
     // Alt kategori kırılımı — iç içe altlar en üst ataya toplanır
@@ -185,6 +200,7 @@ export function PeriodCategoryPanel({
       weekContext,
       buckets,
       granularity,
+      seriesFrame,
       hasSeries,
       shareRows,
       entryRows,
@@ -303,6 +319,8 @@ export function PeriodCategoryPanel({
             data={computed.buckets}
             color={category.color}
             unit={metric.type === "count" ? "girdi" : unit}
+            caption={computed.seriesFrame?.caption}
+            showAllTicks={computed.seriesFrame?.showAllTicks}
           />
         </div>
       )}

@@ -13,6 +13,7 @@ import {
   chooseGranularity,
   dayKey,
   fmtNum,
+  framePeriodSeries,
   GRANULARITY_TITLES,
   startOfDayMs,
   type Granularity,
@@ -91,19 +92,26 @@ export function PeriodView({
       period.kind === "all" ? (minOcc ?? now.getTime()) : undefined
     );
 
-    // Seri — tek günlük dönemde grafik yok; devam eden dönemde bugünde kırpılır
-    // (gelecek boş günler grafiği ezmesin); ay serisi haftalardan oluşur
+    // Seri — tek günlük dönemde grafik yok; hafta/ay/yıl dönemlerinde seri tüm
+    // dönemi kapsar (gelecek kovalar 0'la yer tutar, eksen framePeriodSeries ile
+    // sadeleşir); özel/tümü'nde devam eden dönem bugünde kırpılır
     const spanDays = (period.end - period.start) / 86400000;
+    const fullFrame =
+      period.kind === "week" ||
+      period.kind === "month" ||
+      period.kind === "year";
     let buckets: ReturnType<typeof buildSeriesBuckets> = [];
     let granularity: Granularity = "day";
+    let seriesFrame: { caption: string; showAllTicks: boolean } | null = null;
     if (spanDays > 1.5) {
       const effStart =
         period.kind === "all"
           ? startOfDayMs(new Date(minOcc ?? now.getTime()))
           : period.start;
-      const effEnd = progress.inProgress
-        ? Math.min(period.end, startOfDayMs(now) + 86400000)
-        : period.end;
+      const effEnd =
+        progress.inProgress && !fullFrame
+          ? Math.min(period.end, startOfDayMs(now) + 86400000)
+          : period.end;
       granularity =
         period.kind === "month" ? "week" : chooseGranularity(effStart, effEnd);
       buckets = buildSeriesBuckets(effStart, effEnd, granularity);
@@ -111,6 +119,13 @@ export function PeriodView({
       for (const e of entries) {
         const i = idx.get(bucketKeyOf(e.occurredAt, granularity));
         if (i !== undefined) buckets[i].value += 1;
+      }
+      if (
+        period.kind === "week" ||
+        period.kind === "month" ||
+        period.kind === "year"
+      ) {
+        seriesFrame = framePeriodSeries(period.kind, period.start, buckets);
       }
     }
 
@@ -160,6 +175,7 @@ export function PeriodView({
       progress,
       buckets,
       granularity,
+      seriesFrame,
       hasSeries: spanDays > 1.5,
       catShare,
       entryRows,
@@ -273,6 +289,8 @@ export function PeriodView({
               data={computed.buckets}
               color="#6366f1"
               unit="girdi"
+              caption={computed.seriesFrame?.caption}
+              showAllTicks={computed.seriesFrame?.showAllTicks}
               onSelect={(k) => router.push(`/analytics/period/${k}`)}
             />
           </div>
