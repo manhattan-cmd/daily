@@ -57,6 +57,13 @@ body {
   font-variation-settings: "opsz" 32;
 }
 
+/* Recharts katmanları tabindex="-1" <g> öğeleri — dokununca odak alıp
+   tarayıcının turuncu "auto" focus çerçevesini çiziyorlar. Klavyeyle
+   erişilemedikleri (tabindex=-1) için outline'ı kapatmak a11y kaybı değil. */
+.recharts-wrapper :focus {
+  outline: none;
+}
+
 /* Hide number input arrows */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {

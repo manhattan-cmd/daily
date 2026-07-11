@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -52,7 +52,24 @@ export function DailyBarChart({
   // çifti DOM değişiminden etkilenmez; hareket eşiği kaydırmayı dokunuştan ayırır.
   const pointerDown = useRef<{ x: number; y: number } | null>(null);
 
+  // Dokunuşta tarayıcının emüle hover'ı tooltip'i grafikte takılı bırakıyor —
+  // parmak kalktıktan kısa süre sonra gizlenir (true → Tooltip'e active={false});
+  // böylece dokunulan değer görünüp kendiliğinden kaybolur. Yeni basış ya da
+  // gerçek fare hareketi serbest bırakır; masaüstü hover akışı etkilenmez.
+  const [tipDismissed, setTipDismissed] = useState(false);
+  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (dismissTimer.current) clearTimeout(dismissTimer.current);
+    },
+    []
+  );
+
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== "mouse") {
+      if (dismissTimer.current) clearTimeout(dismissTimer.current);
+      dismissTimer.current = setTimeout(() => setTipDismissed(true), 1500);
+    }
     const down = pointerDown.current;
     pointerDown.current = null;
     if (!onSelect || !data.length || !down) return;
@@ -74,14 +91,15 @@ export function DailyBarChart({
     <>
     <div
       className={`relative h-[170px] w-full select-none [-webkit-tap-highlight-color:transparent]${onSelect ? " cursor-pointer" : ""}`}
-      onPointerDown={
-        onSelect
-          ? (e) => {
-              pointerDown.current = { x: e.clientX, y: e.clientY };
-            }
-          : undefined
-      }
-      onPointerUp={onSelect ? handlePointerUp : undefined}
+      onPointerDown={(e) => {
+        pointerDown.current = { x: e.clientX, y: e.clientY };
+        if (dismissTimer.current) clearTimeout(dismissTimer.current);
+        setTipDismissed(false);
+      }}
+      onPointerUp={handlePointerUp}
+      onPointerMove={(e) => {
+        if (e.pointerType === "mouse" && tipDismissed) setTipDismissed(false);
+      }}
     >
       {allZero && (
         <div className="absolute inset-0 flex items-center justify-center pb-6">
@@ -124,8 +142,11 @@ export function DailyBarChart({
             width={Y_AXIS_WIDTH}
             className="tabular-nums"
           />
+          {/* cursor kapalı: kolon boyu gri dikdörtgen bandı "çerçeve" gibi
+              algılanıyordu — vurgu activeBar'ın parlamasına bırakıldı */}
           <Tooltip
-            cursor={{ fill: "rgba(255,255,255,0.05)", radius: 4 }}
+            cursor={false}
+            active={tipDismissed ? false : undefined}
             content={<ChartTip unit={unit} />}
           />
           <Bar
