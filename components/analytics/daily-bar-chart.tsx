@@ -73,7 +73,7 @@ export function DailyBarChart({
   return (
     <>
     <div
-      className={`relative h-[170px] w-full${onSelect ? " cursor-pointer" : ""}`}
+      className={`relative h-[170px] w-full select-none [-webkit-tap-highlight-color:transparent]${onSelect ? " cursor-pointer" : ""}`}
       onPointerDown={
         onSelect
           ? (e) => {
@@ -95,6 +95,9 @@ export function DailyBarChart({
           data={data}
           margin={{ top: 8, right: MARGIN_RIGHT, bottom: 0, left: MARGIN_LEFT }}
           barCategoryGap="30%"
+          // Recharts 3'te varsayılan açık — grafiği odaklanabilir yapıp tıklamada
+          // dikdörtgen focus çerçevesi çiziyor; dokunmatik akışta gereksiz
+          accessibilityLayer={false}
         >
           <CartesianGrid
             vertical={false}
@@ -122,7 +125,7 @@ export function DailyBarChart({
             className="tabular-nums"
           />
           <Tooltip
-            cursor={{ fill: "rgba(255,255,255,0.05)" }}
+            cursor={{ fill: "rgba(255,255,255,0.05)", radius: 4 }}
             content={<ChartTip unit={unit} />}
           />
           <Bar
