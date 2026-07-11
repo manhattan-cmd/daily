@@ -211,21 +211,32 @@ export function buildSeriesBuckets(
  * hafta → sade gün numaraları + altta ay adı; ay → "1. Hafta" + altında tarih aralığı
  * + altta ay adı; yıl → 12 ay adı + altta yıl. Kovaları yerinde günceller.
  */
+/** Seri grafiğinin eksen/caption çerçevesi — DailyBarChart'a aynen geçirilir */
+export type SeriesFrame = { caption: string; showAllTicks?: boolean };
+
+/**
+ * Gün kovalı serilerde ekseni sadeleştirir: kovalara sade gün numarası yazılır,
+ * ay bağlamı grafiğin altındaki caption'a taşınır ("Temmuz", "Haziran – Temmuz").
+ * Kovaları yerinde günceller.
+ */
+export function frameDailySeries(buckets: DayBucket[]): SeriesFrame {
+  const months: string[] = [];
+  for (const b of buckets) {
+    const [, m, d] = b.key.split("-").map(Number);
+    b.axisLabel = String(d);
+    const name = FULL_MONTHS[m - 1];
+    if (!months.includes(name)) months.push(name);
+  }
+  return { caption: months.join(" – ") };
+}
+
 export function framePeriodSeries(
   kind: "week" | "month" | "year",
   periodStart: number,
   buckets: DayBucket[]
-): { caption: string; showAllTicks: boolean } {
+): SeriesFrame {
   if (kind === "week") {
-    // Hafta iki aya yayılabilir: "Haziran – Temmuz"
-    const months: string[] = [];
-    for (const b of buckets) {
-      const [, m, d] = b.key.split("-").map(Number);
-      b.axisLabel = String(d);
-      const name = FULL_MONTHS[m - 1];
-      if (!months.includes(name)) months.push(name);
-    }
-    return { caption: months.join(" – "), showAllTicks: true };
+    return { ...frameDailySeries(buckets), showAllTicks: true };
   }
   if (kind === "month") {
     buckets.forEach((b, i) => {

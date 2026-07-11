@@ -9,6 +9,7 @@ import {
   computeStreaks,
   dayKey,
   fmtNum,
+  frameDailySeries,
   GRANULARITY_TITLES,
   resolveSeriesWindow,
   startOfDayMs,
@@ -95,6 +96,9 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
     buckets.forEach((b, i) => {
       b.value = aggregate(bucketEntries[i]);
     });
+    // Kısa geçmişli (gün kovalı) serilerde eksen sadeleşir: gün numaraları + ay caption'ı
+    const seriesFrame =
+      win.granularity === "day" ? frameDailySeries(buckets) : null;
 
     // Alt kategori kırılımı (tüm zamanlar) — iç içe altlar en üst ataya toplanır
     const bySubEntries = new Map<string, Entry[]>();
@@ -157,6 +161,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       isAvgMetric: kind === "scale",
       buckets,
       granularity: win.granularity,
+      seriesFrame,
       shareRows,
       entryRows,
     };
@@ -309,6 +314,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
           data={computed.buckets}
           color={category.color}
           unit={metric.type === "count" ? "girdi" : unit}
+          caption={computed.seriesFrame?.caption}
         />
       </div>
 

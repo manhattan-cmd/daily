@@ -13,6 +13,7 @@ import {
   startOfDayMs,
   statSub,
   type Granularity,
+  type SeriesFrame,
 } from "@/lib/analytics";
 import {
   periodProgress,
@@ -122,7 +123,7 @@ export function PeriodCategoryPanel({
       period.kind === "year";
     let buckets: ReturnType<typeof buildSeriesBuckets> = [];
     let granularity: Granularity = "day";
-    let seriesFrame: { caption: string; showAllTicks: boolean } | null = null;
+    let seriesFrame: SeriesFrame | null = null;
     const hasSeries = spanDays > 1.5;
     if (hasSeries) {
       const effStart =

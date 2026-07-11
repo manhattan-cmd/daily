@@ -6,7 +6,10 @@ import {
   bucketAncestorId,
   bucketKeyOf,
   buildSeriesBuckets,
+  chooseGranularity,
   fmtNum,
+  frameDailySeries,
+  framePeriodSeries,
   GRANULARITY_TITLES,
   monthStartMs,
   rangeStartMs,
@@ -14,9 +17,12 @@ import {
   startOfDayMs,
   statSub,
   weekStartMs,
+  type Granularity,
   type RangeKey,
+  type SeriesFrame,
   RANGE_LABELS,
 } from "@/lib/analytics";
+import { monthPeriod, weekPeriod, yearPeriod } from "@/lib/period";
 import { StatTile } from "./stat-tile";
 import { DailyBarChart } from "./daily-bar-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
@@ -80,24 +86,60 @@ export function SubcategoryPanel({
       };
     };
 
-    // Pencere büyüdükçe kovalar kabalaşır; "Tümü"nde pencere ilk girdiye kıstırılır
+    // Seri penceresi — bu hafta/ay/yıl aralıklarında dönem sayfalarıyla aynı
+    // görünüm: tüm dönem baştan yer tutar (gelecek kovalar 0), eksen
+    // framePeriodSeries ile sadeleşir; ay serisi haftalardan oluşur. Diğer
+    // aralıklarda pencere büyüdükçe kovalar kabalaşır, "Tümü"nde pencere ilk
+    // girdiye kıstırılır; gün kovalı serilerde eksen yine sadeleştirilir.
     let minOccurred: number | undefined;
     for (const e of entries) {
       if (minOccurred === undefined || e.occurredAt < minOccurred)
         minOccurred = e.occurredAt;
     }
-    const win = resolveSeriesWindow(rangeStart, minOccurred, now);
-    const buckets = buildSeriesBuckets(win.startMs, win.endMs, win.granularity);
+    const periodKind =
+      range === "hafta"
+        ? ("week" as const)
+        : range === "ay"
+          ? ("month" as const)
+          : range === "yil"
+            ? ("year" as const)
+            : null;
+    let granularity: Granularity;
+    let seriesStart: number;
+    let seriesEnd: number;
+    if (periodKind) {
+      const p =
+        periodKind === "week"
+          ? weekPeriod(now.getTime())
+          : periodKind === "month"
+            ? monthPeriod(now.getTime())
+            : yearPeriod(now.getTime());
+      granularity =
+        periodKind === "month" ? "week" : chooseGranularity(p.start, p.end);
+      seriesStart = p.start;
+      seriesEnd = p.end;
+    } else {
+      const win = resolveSeriesWindow(rangeStart, minOccurred, now);
+      granularity = win.granularity;
+      seriesStart = win.startMs;
+      seriesEnd = win.endMs;
+    }
+    const buckets = buildSeriesBuckets(seriesStart, seriesEnd, granularity);
     const bucketIdx = new Map(buckets.map((b, i) => [b.key, i]));
     const bucketEntries: Entry[][] = buckets.map(() => []);
     for (const e of entries) {
-      if (e.occurredAt < win.startMs) continue;
-      const i = bucketIdx.get(bucketKeyOf(e.occurredAt, win.granularity));
+      if (e.occurredAt < seriesStart) continue;
+      const i = bucketIdx.get(bucketKeyOf(e.occurredAt, granularity));
       if (i !== undefined) bucketEntries[i].push(e);
     }
     buckets.forEach((b, i) => {
       b.value = aggregate(bucketEntries[i]);
     });
+    const seriesFrame: SeriesFrame | null = periodKind
+      ? framePeriodSeries(periodKind, seriesStart, buckets)
+      : granularity === "day"
+        ? frameDailySeries(buckets)
+        : null;
 
     // Alt kategori kırılımı — yalnızca bir kademe altı (immediate children); kendi üzerine düşen
     // girdiler "Genel" adıyla ayrı bir satırda toplanır
@@ -155,7 +197,8 @@ export function SubcategoryPanel({
       week: statSince(weekStartMs(now)),
       month: statSince(monthStartMs(now)),
       buckets,
-      granularity: win.granularity,
+      granularity,
+      seriesFrame,
       shareRows,
       entryRows,
     };
@@ -230,6 +273,8 @@ export function SubcategoryPanel({
           data={computed.buckets}
           color={category.color}
           unit={metricLabel}
+          caption={computed.seriesFrame?.caption}
+          showAllTicks={computed.seriesFrame?.showAllTicks}
         />
       </div>
 

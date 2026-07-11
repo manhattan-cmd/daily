@@ -17,6 +17,7 @@ import {
   GRANULARITY_TITLES,
   startOfDayMs,
   type Granularity,
+  type SeriesFrame,
 } from "@/lib/analytics";
 import { periodProgress, shiftPeriod, type Period } from "@/lib/period";
 import { PageHeader } from "@/components/layout/page-header";
@@ -102,7 +103,7 @@ export function PeriodView({
       period.kind === "year";
     let buckets: ReturnType<typeof buildSeriesBuckets> = [];
     let granularity: Granularity = "day";
-    let seriesFrame: { caption: string; showAllTicks: boolean } | null = null;
+    let seriesFrame: SeriesFrame | null = null;
     if (spanDays > 1.5) {
       const effStart =
         period.kind === "all"
@@ -296,7 +297,8 @@ export function PeriodView({
           </div>
         )}
 
-        {/* Kategori dağılımı — satıra basınca alttaki Kategori Detayı o kategoriye geçer */}
+        {/* Kategori dağılımı — satıra basınca kategorinin analiz sayfasına gidilir
+            (dönem içi detay için alttaki Kategori Detayı çipleri kullanılır) */}
         <div className="rounded-2xl border border-border bg-card p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
             Kategori Dağılımı
@@ -304,7 +306,7 @@ export function PeriodView({
           <ShareBars
             rows={computed?.catShare ?? []}
             emptyText="Bu dönemde girdi yok"
-            onSelect={setSelectedCatId}
+            onSelect={(id) => router.push(`/analytics/${id}`)}
           />
         </div>
 
