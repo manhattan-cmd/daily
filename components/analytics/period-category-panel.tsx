@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   bucketAncestorId,
   bucketKeyOf,
@@ -13,7 +14,12 @@ import {
   statSub,
   type Granularity,
 } from "@/lib/analytics";
-import { periodProgress, weekPeriod, type Period } from "@/lib/period";
+import {
+  periodProgress,
+  rangeKeyForPeriod,
+  weekPeriod,
+  type Period,
+} from "@/lib/period";
 import { StatTile } from "./stat-tile";
 import { DailyBarChart } from "./daily-bar-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
@@ -35,6 +41,7 @@ export function PeriodCategoryPanel({
   category: Category;
   period: Period;
 }) {
+  const router = useRouter();
   // Gün dönemlerinde hafta bağlamı gerekir — o günü kapsayan haftanın tamamı çekilir,
   // günün kendi rakamları pencere filtresiyle hesaplanır
   const containingWeek = useMemo(
@@ -325,7 +332,8 @@ export function PeriodCategoryPanel({
         </div>
       )}
 
-      {/* Alt kategori kırılımı */}
+      {/* Alt kategori kırılımı — satıra basınca alt kategori detayına inilir;
+          içinde bulunulan gün/hafta/ay/yıl aynı pencereyle, diğerleri tüm zamanlarla */}
       <div className="rounded-2xl border border-border bg-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
           Alt Kategori Dağılımı
@@ -342,6 +350,13 @@ export function PeriodCategoryPanel({
             metric.type === "mod"
               ? `Bu dönemde ${metric.mod.name} verisi yok`
               : "Bu dönemde girdi yok"
+          }
+          onSelect={(subId) =>
+            router.push(
+              `/analytics/${category.id}/${subId}?range=${rangeKeyForPeriod(
+                period
+              )}&metric=${metric.type === "count" ? "count" : metric.mod.id}`
+            )
           }
         />
       </div>

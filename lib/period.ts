@@ -4,7 +4,7 @@
  * m-2026-07 (ay), y-2026 (yıl), c-2026-06-01_2026-07-08 (özel; bitiş dahil), all (tüm zamanlar).
  */
 
-import { dayKey, startOfDayMs, weekStartMs } from "./analytics";
+import { dayKey, startOfDayMs, weekStartMs, type RangeKey } from "./analytics";
 
 export type PeriodKind = "day" | "week" | "month" | "year" | "custom" | "all";
 
@@ -192,6 +192,20 @@ export function periodProgress(
     Math.round((today - start) / DAY_MS) + 1
   );
   return { elapsedDays, totalDays, inProgress: true };
+}
+
+/**
+ * Dönemin, aralık (RangeKey) tabanlı kategori/alt kategori sayfalarındaki karşılığı —
+ * yalnız içinde bulunulan gün/hafta/ay/yıl eşlenir; geçmiş ve özel pencerelerin
+ * o sayfalarda karşılığı olmadığından "tum"a düşülür.
+ */
+export function rangeKeyForPeriod(p: Period, now: Date = new Date()): RangeKey {
+  const t = now.getTime();
+  if (p.kind === "day" && p.key === dayPeriod(t).key) return "bugun";
+  if (p.kind === "week" && p.key === weekPeriod(t).key) return "hafta";
+  if (p.kind === "month" && p.key === monthPeriod(t).key) return "ay";
+  if (p.kind === "year" && p.key === yearPeriod(t).key) return "yil";
+  return "tum";
 }
 
 /** Önceki/sonraki dönem — custom'da aynı uzunlukta kaydırır; all'da yön yok (null) */
