@@ -356,6 +356,81 @@ export async function deleteSubCategory(subId: string): Promise<void> {
   );
 }
 
+/**
+ * Alt kategoriyi başka bir üstün altına taşır — target.parentId verilirse o alt
+ * kategorinin, verilmezse target.categoryId kategorisinin ana seviyesine.
+ * Alt ağacı (torunları) ve girdileri birlikte gelir: girdiler subcategoryId ile
+ * bağlı olduğundan dokunulmaz; kategori değişiyorsa tüm alt ağacın denormalize
+ * categoryId'si güncellenir. Analizler parentId zincirini canlı okuduğundan yeni
+ * hiyerarşiye kendiliğinden uyar. Döngü koruması: kendi alt ağacına taşınamaz.
+ */
+export async function moveSubCategory(
+  subId: string,
+  target: { categoryId: string; parentId?: string }
+): Promise<boolean> {
+  const sub = await db.subcategories.get(subId);
+  if (!sub || sub.isCategoryRoot) return false;
+  const all = await db.subcategories.toArray();
+
+  let destCategoryId = target.categoryId;
+  const destParentId = target.parentId;
+  if (destParentId !== undefined) {
+    if (destParentId === subId) return false;
+    const parent = all.find((s) => s.id === destParentId);
+    if (!parent || parent.isCategoryRoot) return false;
+    // Hedef üstün kategorisi esas alınır (çağıran eski bilgi geçirmiş olabilir)
+    destCategoryId = parent.categoryId;
+    // Döngü koruması: hedef üst, taşınanın torunu olamaz
+    let cur: SubCategory | undefined = parent;
+    let hops = 0;
+    while (cur && hops++ < 50) {
+      if (cur.id === subId) return false;
+      cur = cur.parentId ? all.find((s) => s.id === cur!.parentId) : undefined;
+    }
+  }
+  // Yerinde bırakma — no-op
+  if (
+    sub.categoryId === destCategoryId &&
+    (sub.parentId ?? undefined) === destParentId
+  )
+    return false;
+
+  // Alt ağaç (kendisi dahil)
+  const subtreeIds = [subId];
+  for (let i = 0; i < subtreeIds.length; i++) {
+    for (const s of all)
+      if (s.parentId === subtreeIds[i]) subtreeIds.push(s.id);
+  }
+
+  const order =
+    all.filter(
+      (s) =>
+        s.categoryId === destCategoryId &&
+        !s.isCategoryRoot &&
+        (s.parentId ?? undefined) === destParentId &&
+        s.id !== subId
+    ).length + 1;
+
+  await db.transaction("rw", db.subcategories, async () => {
+    // Dexie update semantiği: undefined verilen alan kayıttan silinir (ana seviye)
+    await db.subcategories.update(subId, {
+      categoryId: destCategoryId,
+      parentId: destParentId,
+      order,
+      updatedAt: now(),
+    });
+    if (sub.categoryId !== destCategoryId) {
+      for (const descId of subtreeIds.slice(1)) {
+        await db.subcategories.update(descId, {
+          categoryId: destCategoryId,
+          updatedAt: now(),
+        });
+      }
+    }
+  });
+  return true;
+}
+
 // ============ Mod Havuzu (global atomlar) ============
 
 const normModName = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
