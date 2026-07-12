@@ -29,6 +29,7 @@ import { ShareBars, type ShareRow } from "./share-bars";
 import { RangePicker } from "./range-picker";
 import { EntryList, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
+import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
 import type { Category, Entry, SubCategory } from "@/types";
 
@@ -64,12 +65,14 @@ export function SubcategoryPanel({
     return Math.min(rangeStart, weekStartMs(now), monthStartMs(now), shareRangeStart);
   }, [rangeStart, shareRangeStart]);
 
+  const [excludeRegular, setExcludeRegular] = useExcludeRegular();
   const { data, metric, setMetricChoice, compute } = useCategoryMetrics({
     category,
     rootSubId: subcategory.id,
     fetchStart,
     initialMetricId,
     resetKey: subcategory.id,
+    excludeRegular,
   });
 
   const computed = useMemo(() => {
@@ -226,6 +229,16 @@ export function SubcategoryPanel({
         color={category.color}
         onChange={setMetricChoice}
       />
+
+      {data.hasRegular && (
+        <RegularToggle
+          active={excludeRegular}
+          onChange={setExcludeRegular}
+          color={category.color}
+          regularSubNames={data.regularSubNames}
+          excludedEntryCount={data.excludedEntryCount}
+        />
+      )}
 
       <div className="grid grid-cols-3 gap-2">
         <StatTile

@@ -20,6 +20,7 @@ import { DailyBarChart } from "./daily-bar-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
 import { EntryList, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
+import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
 import type { Category, Entry } from "@/types";
 
@@ -36,10 +37,12 @@ const ENTRY_LIST_LIMIT = 50;
  */
 export function CategoryOverviewPanel({ category }: { category: Category }) {
   const router = useRouter();
+  const [excludeRegular, setExcludeRegular] = useExcludeRegular();
   const { data, metric, setMetricChoice, compute } = useCategoryMetrics({
     category,
     fetchStart: 0,
     resetKey: category.id,
+    excludeRegular,
   });
 
   const computed = useMemo(() => {
@@ -188,6 +191,16 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         color={category.color}
         onChange={setMetricChoice}
       />
+
+      {data.hasRegular && (
+        <RegularToggle
+          active={excludeRegular}
+          onChange={setExcludeRegular}
+          color={category.color}
+          regularSubNames={data.regularSubNames}
+          excludedEntryCount={data.excludedEntryCount}
+        />
+      )}
 
       {/* Tüm zamanlar KPI'ları */}
       {metric.type === "count" ? (

@@ -324,7 +324,7 @@ export async function createSubCategory(input: {
 
 export async function updateSubCategory(
   subId: string,
-  patch: Partial<Pick<SubCategory, "name" | "icon">>
+  patch: Partial<Pick<SubCategory, "name" | "icon" | "isRegular">>
 ): Promise<void> {
   await db.subcategories.update(subId, { ...patch, updatedAt: now() });
 }

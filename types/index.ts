@@ -71,6 +71,9 @@ export interface SubCategory {
   icon?: string;
   /** Kategorinin kendisini temsil eden gizli kök — girdi/hedef doğrudan kategoriye eklenirken kullanılır, listelerde görünmez */
   isCategoryRoot?: boolean;
+  /** Düzenli/sabit kalem (kira, fatura gibi) — analizlerde tek dokunuşla hariç
+   * tutulabilir; işaret alt ağaca miras iner. İndekssiz opsiyonel alan (migration yok). */
+  isRegular?: boolean;
   order: number;
   createdAt: number;
   updatedAt: number;

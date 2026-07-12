@@ -24,10 +24,19 @@ export interface CategoryMetricsData {
   scopeSubIds: string[];
   /** rootSubId verilmişse onun doğrudan çocukları (order sıralı) */
   children: SubCategory[];
-  /** Kapsam + [fetchStart, fetchEnd) penceresindeki girdiler */
+  /** Kapsam + [fetchStart, fetchEnd) penceresindeki girdiler
+   * (excludeRegular açıksa düzenli/sabit alt ağaçların girdileri çıkarılmış) */
   entries: Entry[];
   values: EntryValue[];
   numericMods: NumericMod[];
+  /** Kapsamda düzenli/sabit işaretli alt kategori var mı ("hariç tut" anahtarı
+   * yalnızca varsa gösterilir; kök alt kategorinin kendisi düzenliyse false —
+   * onu doğrudan analiz eden sayfayı boşaltmak anlamsız) */
+  hasRegular: boolean;
+  /** Kapsamdaki, kendisi doğrudan işaretli alt kategorilerin adları (şeffaflık satırı) */
+  regularSubNames: string[];
+  /** excludeRegular açıkken pencereden çıkarılan girdi sayısı */
+  excludedEntryCount: number;
 }
 
 export interface MetricCompute {
@@ -58,6 +67,7 @@ export function useCategoryMetrics({
   fetchEnd,
   initialMetricId,
   resetKey,
+  excludeRegular = false,
 }: {
   category: Category;
   /** Verilirse kapsam bu alt kategorinin alt ağacı; yoksa tüm kategori */
@@ -70,6 +80,8 @@ export function useCategoryMetrics({
   initialMetricId?: string;
   /** Değiştiğinde metrik seçimi sıfırlanır (örn. kategori değişimi) */
   resetKey: string;
+  /** Düzenli/sabit işaretli alt ağaçların girdilerini pencereden çıkar */
+  excludeRegular?: boolean;
 }) {
   // null = kullanıcı henüz seçmedi → varsayılan render sırasında senkron türetilir,
   // effect'le sonradan set edilirse "Girdi" bir an seçili görünüp titreme yaratıyor
@@ -115,6 +127,30 @@ export function useCategoryMetrics({
       scopeSubIds = allSubs.map((s) => s.id);
     }
 
+    // Düzenli/sabit kapsama: kendisi ya da bir atası isRegular olan alt kategoriler
+    const regularIds = new Set<string>();
+    for (const s of allSubs) {
+      let cur: SubCategory | undefined = s;
+      let hops = 0;
+      while (cur && hops++ < 20) {
+        if (cur.isRegular) {
+          regularIds.add(s.id);
+          break;
+        }
+        cur = cur.parentId ? subById.get(cur.parentId) : undefined;
+      }
+    }
+    // Kökün kendisi düzenliyse anahtar sunulmaz — sayfayı boşaltmak anlamsız
+    const rootIsRegular = rootSubId ? regularIds.has(rootSubId) : false;
+    const hasRegular =
+      !rootIsRegular && scopeSubIds.some((id) => regularIds.has(id));
+    const regularSubNames = hasRegular
+      ? allSubs
+          .filter((s) => s.isRegular && scopeSubIds.includes(s.id))
+          .map((s) => s.name)
+      : [];
+    const applyExclude = hasRegular && excludeRegular;
+
     if (!scopeSubIds.length) {
       return {
         subById,
@@ -123,10 +159,13 @@ export function useCategoryMetrics({
         entries: [],
         values: [],
         numericMods: [],
+        hasRegular,
+        regularSubNames,
+        excludedEntryCount: 0,
       };
     }
 
-    const entries = await db.entries
+    const fetched = await db.entries
       .where("subcategoryId")
       .anyOf(scopeSubIds)
       .filter(
@@ -135,6 +174,10 @@ export function useCategoryMetrics({
           (fetchEnd === undefined || e.occurredAt < fetchEnd)
       )
       .toArray();
+    const entries = applyExclude
+      ? fetched.filter((e) => !regularIds.has(e.subcategoryId))
+      : fetched;
+    const excludedEntryCount = fetched.length - entries.length;
     const values = entries.length
       ? await db.entryValues
           .where("entryId")
@@ -169,8 +212,18 @@ export function useCategoryMetrics({
       .filter((m): m is NumericMod => !!m)
       .sort((a, b) => a.name.localeCompare(b.name, "tr"));
 
-    return { subById, scopeSubIds, children, entries, values, numericMods };
-  }, [category.id, rootSubId, fetchStart, fetchEnd]);
+    return {
+      subById,
+      scopeSubIds,
+      children,
+      entries,
+      values,
+      numericMods,
+      hasRegular,
+      regularSubNames,
+      excludedEntryCount,
+    };
+  }, [category.id, rootSubId, fetchStart, fetchEnd, excludeRegular]);
 
   // Varsayılan metrik: URL'den gelen mod; yoksa listedeki ilk mod
   // ("Girdi" yalnızca URL "count" derse ya da hiç mod yoksa varsayılan)

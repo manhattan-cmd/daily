@@ -26,6 +26,7 @@ import { DailyBarChart } from "./daily-bar-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
 import { EntryList, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
+import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
 import type { Category, Entry } from "@/types";
 
@@ -50,11 +51,13 @@ export function PeriodCategoryPanel({
     [period.kind, period.start]
   );
 
+  const [excludeRegular, setExcludeRegular] = useExcludeRegular();
   const { data, metric, setMetricChoice, compute } = useCategoryMetrics({
     category,
     fetchStart: containingWeek ? containingWeek.start : period.start,
     fetchEnd: containingWeek ? containingWeek.end : period.end,
     resetKey: `${category.id}|${period.key}`,
+    excludeRegular,
   });
 
   const computed = useMemo(() => {
@@ -230,6 +233,16 @@ export function PeriodCategoryPanel({
         color={category.color}
         onChange={setMetricChoice}
       />
+
+      {data.hasRegular && (
+        <RegularToggle
+          active={excludeRegular}
+          onChange={setExcludeRegular}
+          color={category.color}
+          regularSubNames={data.regularSubNames}
+          excludedEntryCount={data.excludedEntryCount}
+        />
+      )}
 
       {/* Dönem KPI'ları — gün dışındaki pencerelerde günlük ortalama geçen güne bölünür */}
       {metric.type === "count" ? (

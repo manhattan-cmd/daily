@@ -5,6 +5,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { Check, ChevronDown, CornerDownRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -59,6 +60,7 @@ export function SubCategoryForm({
   const isEdit = !!subcategory;
   const [name, setName] = useState(subcategory?.name ?? "");
   const [icon, setIcon] = useState<string | undefined>(subcategory?.icon);
+  const [isRegular, setIsRegular] = useState(!!subcategory?.isRegular);
   const [saving, setSaving] = useState(false);
   // Konum (yalnız düzenlemede): hedef üst — kategori ana seviyesi ya da bir alt kategori
   const [location, setLocation] = useState<{
@@ -71,6 +73,7 @@ export function SubCategoryForm({
     if (open) {
       setName(subcategory?.name ?? "");
       setIcon(subcategory?.icon);
+      setIsRegular(!!subcategory?.isRegular);
       setLocation(
         subcategory
           ? { categoryId: subcategory.categoryId, parentId: subcategory.parentId }
@@ -116,7 +119,11 @@ export function SubCategoryForm({
     setSaving(true);
     try {
       if (isEdit && subcategory) {
-        await updateSubCategory(subcategory.id, { name: nameToSave.trim(), icon });
+        await updateSubCategory(subcategory.id, {
+          name: nameToSave.trim(),
+          icon,
+          isRegular,
+        });
         if (locationChanged && location) {
           await moveSubCategory(subcategory.id, location);
         }
@@ -171,6 +178,18 @@ export function SubCategoryForm({
               autoFocus
             />
             {iconSection}
+
+            {/* Düzenli/sabit işareti — analizlerde tek dokunuşla hariç tutulabilir */}
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-input px-3 py-2.5">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Düzenli / sabit</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Kira, fatura gibi düzenli kalemler — analizlerde tek dokunuşla
+                  hariç tutulabilir
+                </p>
+              </div>
+              <Switch checked={isRegular} onCheckedChange={setIsRegular} />
+            </div>
 
             {/* Konum — başka bir kategorinin/alt kategorinin altına taşı */}
             {location && tree && (
