@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, CalendarDays, MoonStar, Target, PenLine } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, MoonStar, Target, PenLine } from "lucide-react";
 import { db } from "@/lib/db";
 import { listEntriesByDate, listGoalsByDate } from "@/lib/db/queries";
 import { EntryCard } from "@/components/dashboard/entry-card";
@@ -103,12 +103,21 @@ export default function CalendarDayPage({
             <h1 className="text-3xl font-bold tracking-tight leading-none">
               {d.getDate()} {MONTHS_TR[d.getMonth()]}
             </h1>
-            <div className="mt-1.5">
+            <div className="mt-1.5 flex items-center gap-2">
               {isToday ? (
                 <span className="text-xs font-semibold text-primary">Bugün</span>
               ) : (
                 <span className="text-xs text-muted-foreground">{d.getFullYear()}</span>
               )}
+              <span className="text-muted-foreground/30">·</span>
+              {/* Bu günün dönem analizi (d-YYYY-MM-DD) */}
+              <Link
+                href={`/analytics/period/d-${date}`}
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Gün Analizi
+                <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
           </div>
 
