@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import type { EntryWithContext, EntryType } from "@/types";
-import { Button } from "@/components/ui/button";
 import { deleteEntry } from "@/lib/db/queries";
 import { formatDateTime } from "@/lib/utils";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
@@ -11,10 +10,18 @@ import { EntryIcon } from "@/components/dashboard/entry-icon";
 import { QuickModAdd } from "@/components/forms/quick-mod-add";
 import { calcDTRDuration, parseDTR } from "@/components/forms/datetime-range-input";
 
+/**
+ * Gün/ana sayfa girdi kartı — uyku kartıyla aynı dil: kategori renginde degrade
+ * zemin, karta dokununca düzenleme açılır, silme köşedeki hover ikonu.
+ * İç içe buton olmaması için kart div[role=button] (QuickModAdd gerçek buton).
+ */
 export function EntryCard({ entry }: { entry: EntryWithContext }) {
   const [editOpen, setEditOpen] = useState(false);
+  const color = entry.category.color;
+  const isRoot = !!entry.subcategory.isCategoryRoot;
 
-  async function onDelete() {
+  async function onDelete(e: React.MouseEvent) {
+    e.stopPropagation();
     if (!confirm("Bu girdiyi silmek istediğinden emin misin?")) return;
     await deleteEntry(entry.id);
   }
@@ -23,48 +30,51 @@ export function EntryCard({ entry }: { entry: EntryWithContext }) {
 
   return (
     <>
-      <div className="group rounded-2xl border border-border bg-card p-4 transition-colors">
-        <div className="flex items-start gap-3">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setEditOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") setEditOpen(true);
+        }}
+        className="group relative w-full cursor-pointer overflow-hidden rounded-2xl border p-3 text-left transition-transform active:scale-[0.99]"
+        style={{
+          borderColor: `${color}28`,
+          background: `linear-gradient(135deg, ${color}1f, ${color}08 45%, transparent)`,
+        }}
+        aria-label={`${entry.subcategory.name} girdisini düzenle`}
+      >
+        <div className="flex items-start gap-2.5">
           <EntryIcon
             category={entry.category}
             subcategory={entry.subcategory}
+            className="h-9 w-9 rounded-xl"
           />
           <div className="flex-1 min-w-0">
-            {/* Başlık + aksiyonlar */}
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1 min-w-0">
-                <div className="font-medium truncate">{entry.subcategory.name}</div>
-                {!entry.subcategory.isCategoryRoot && (
-                  <div className="text-xs text-muted-foreground">
+            {/* Üst satır: kategori etiketi (kök girdide gizli) + saat */}
+            <div className="flex items-center gap-1.5 text-[10px] leading-none">
+              {!isRoot && (
+                <>
+                  <span
+                    className="font-semibold uppercase tracking-[0.14em] truncate"
+                    style={{ color: `${color}cc` }}
+                  >
                     {entry.category.name}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                  onClick={() => setEditOpen(true)}
-                  aria-label="Düzenle"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={onDelete}
-                  aria-label="Sil"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
+                  </span>
+                  <span className="text-muted-foreground/40">·</span>
+                </>
+              )}
+              <span className="text-muted-foreground/70 shrink-0">
+                {formatDateTime(entry.occurredAt)}
+              </span>
+            </div>
+            <div className="mt-1 text-sm font-semibold truncate">
+              {isRoot ? entry.category.name : entry.subcategory.name}
             </div>
 
-            {/* Değer chipleri + hızlı mod ekle */}
-            <div className="mt-2 flex flex-wrap items-center gap-2">
+            {/* Değer chipleri + hızlı mod ekle — karta tıklama düzenleme
+                açtığından iç etkileşimler kabarcıklanmadan durdurulur */}
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               {typedValues.map((v) => (
                 <ValueChip
                   key={v.id}
@@ -73,22 +83,39 @@ export function EntryCard({ entry }: { entry: EntryWithContext }) {
                   entryType={v.entryType!}
                 />
               ))}
-              <QuickModAdd
-                subcategoryId={entry.subcategoryId}
-                subcategoryName={entry.subcategory.name}
-                categoryId={entry.category.id}
-              />
+              <span
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
+                <QuickModAdd
+                  subcategoryId={entry.subcategoryId}
+                  subcategoryName={entry.subcategory.name}
+                  categoryId={entry.category.id}
+                />
+              </span>
             </div>
 
             {entry.notes && (
-              <p className="mt-2 text-sm text-muted-foreground">{entry.notes}</p>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {entry.notes}
+              </p>
             )}
-
-            <div className="mt-2 text-xs text-muted-foreground">
-              {formatDateTime(entry.occurredAt)}
-            </div>
           </div>
         </div>
+
+        {/* Sil — uyku kartındaki desen: köşede, hover'da belirir */}
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={onDelete}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onDelete(e as unknown as React.MouseEvent);
+          }}
+          className="absolute right-2 top-2 rounded-lg p-1.5 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground/60 hover:!text-destructive hover:bg-destructive/10"
+          aria-label="Girdiyi sil"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </span>
       </div>
 
       <EditEntryModal
@@ -124,15 +151,15 @@ function ValueChip({
       : null;
 
     return (
-      <div className="flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1">
+      <div className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2 py-1">
         {startTime && (
-          <span className="text-sm font-semibold tabular-nums">{startTime}</span>
+          <span className="text-[13px] font-semibold tabular-nums">{startTime}</span>
         )}
         {startTime && endTime && (
           <span className="text-xs text-muted-foreground">→</span>
         )}
         {endTime && (
-          <span className="text-sm font-semibold tabular-nums">{endTime}</span>
+          <span className="text-[13px] font-semibold tabular-nums">{endTime}</span>
         )}
         {shortDuration && (
           <span className="text-xs text-muted-foreground ml-0.5">
@@ -150,12 +177,12 @@ function ValueChip({
   if (vt === "boolean") display = value === "true" ? "Evet" : "Hayır";
 
   return (
-    <div className="flex items-baseline gap-1 rounded-lg bg-muted px-2.5 py-1">
-      <span className="text-sm font-semibold tabular-nums">{display}</span>
+    <div className="flex items-baseline gap-1 rounded-md bg-muted/80 px-2 py-1">
+      <span className="text-[13px] font-semibold tabular-nums">{display}</span>
       {vt === "number" && entryType.unit && (
         <span className="text-xs text-muted-foreground">{entryType.unit}</span>
       )}
-      <span className="ml-1 text-xs text-muted-foreground">{label}</span>
+      <span className="ml-0.5 text-xs text-muted-foreground">{label}</span>
     </div>
   );
 }

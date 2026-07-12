@@ -193,11 +193,29 @@ export default function CalendarDayPage({
         <div className="flex flex-col gap-2">
           {(() => {
             const items = groupEntries(otherEntries);
+            // Renk özeti: günün girdilerinin benzersiz kategorileri (görülme sırasıyla)
+            const dayCats = [
+              ...new Map(
+                otherEntries.map((e) => [e.category.id, e.category])
+              ).values(),
+            ];
             return (
               <>
-                <p className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                  {items.length} girdi
-                </p>
+                <div className="mb-1 flex items-center gap-2 px-1">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {items.length} girdi
+                  </p>
+                  <span className="flex items-center gap-1">
+                    {dayCats.map((c) => (
+                      <span
+                        key={c.id}
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ backgroundColor: c.color }}
+                        title={c.name}
+                      />
+                    ))}
+                  </span>
+                </div>
                 {items.map((item) =>
                   item.type === "single" ? (
                     <EntryCard key={item.entry.id} entry={item.entry} />
