@@ -875,58 +875,23 @@ export async function updateEntry(
 }
 
 /**
- * Var olan girdiye paralel perspektifler ekler — girdi bir gruba bağlı değilse
- * grup o an yaratılır. Her hedef alt kategori için aynı anda (occurredAt) yeni
- * girdi açılır ve kaynağın değerlerinden hedefin modlarıyla eşleşenler (aynı
- * atom, yoksa aynı ölçü) kopyalanır — ekleme akışındaki "önceki perspektiften
- * taşı" davranışının eşleniği.
+ * Girdiyi verilen gruba bağlar; zaten bir grubu varsa dokunmaz. Etkin grup
+ * id'sini döner. Düzenlemede paralel perspektif akışının SONUNDA çağrılır —
+ * erken bağlamak gün sayfasında kartı LinkedEntryCard'a çevirip açık
+ * düzenleme modalını unmount ederdi.
  */
-export async function addParallelPerspectives(
+export async function linkEntryToGroup(
   entryId: string,
-  targetSubIds: string[]
-): Promise<void> {
-  if (!targetSubIds.length) return;
+  groupId: string
+): Promise<string> {
   const entry = await db.entries.get(entryId);
-  if (!entry) return;
-  let groupId = entry.linkedGroupId;
-  if (!groupId) {
-    groupId = id();
-    await db.entries.update(entryId, {
-      linkedGroupId: groupId,
-      updatedAt: now(),
-    });
-  }
-  const sourceVals = await db.entryValues
-    .where("entryId")
-    .equals(entryId)
-    .toArray();
-  for (const subId of targetSubIds) {
-    const mods = await listModifiersForTarget("subcategory", subId);
-    const typeValues: { entryTypeId: string; value: string; modId?: string }[] =
-      [];
-    const used = new Set<string>();
-    for (const m of mods) {
-      const key = m.modId ?? m.entryTypeId;
-      if (used.has(key)) continue;
-      const match = sourceVals.find((v) =>
-        m.modId ? v.modId === m.modId : v.entryTypeId === m.entryTypeId
-      );
-      if (match && match.value !== "") {
-        typeValues.push({
-          entryTypeId: m.entryTypeId,
-          modId: m.modId,
-          value: match.value,
-        });
-        used.add(key);
-      }
-    }
-    await createEntry({
-      subcategoryId: subId,
-      typeValues,
-      occurredAt: entry.occurredAt,
-      linkedGroupId: groupId,
-    });
-  }
+  if (!entry) throw new Error("Girdi bulunamadı");
+  if (entry.linkedGroupId) return entry.linkedGroupId;
+  await db.entries.update(entryId, {
+    linkedGroupId: groupId,
+    updatedAt: now(),
+  });
+  return groupId;
 }
 
 // Aynı linkedGroup'taki kardeş girdilerde geçen mod id'leri (paylaşılan atomlar).

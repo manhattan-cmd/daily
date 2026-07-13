@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { nanoid } from "nanoid";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Plus, Link2, X } from "lucide-react";
 import {
@@ -14,17 +15,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { db } from "@/lib/db";
 import {
-  addParallelPerspectives,
+  createEntry,
   deleteEntry,
+  linkEntryToGroup,
   listModifiersForTarget,
   updateEntry,
   getLinkedSiblingModIds,
   listEntryTypes,
   listMods,
+  type CategoryModifierWithType,
   type ModWithType,
   type ParallelSub,
 } from "@/lib/db/queries";
-import { DateTimeRangeInput } from "@/components/forms/datetime-range-input";
+import {
+  DateTimeRangeInput,
+  formatDTRDisplay,
+} from "@/components/forms/datetime-range-input";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { cn } from "@/lib/utils";
 import { ENTRY_VALUE_TYPE_LABELS } from "@/types";
@@ -76,6 +82,104 @@ export function EditEntryModal({
   // Paralel perspektifler: mevcut kardeşler (linkedGroup) + bu oturumda eklenenler
   const [newParallels, setNewParallels] = useState<ParallelSub[]>([]);
   const [parallelPickerOpen, setParallelPickerOpen] = useState(false);
+
+  // Kaydet sonrası adım adım perspektif formu — ekleme akışıyla aynı davranış:
+  // her yeni perspektifin kendi modları sorulur, ana girdiden taşınan ortak
+  // atomlar kilitli gösterilir
+  const [pStep, setPStep] = useState<{
+    sub: ParallelSub;
+    index: number;
+    total: number;
+    groupId: string;
+    carry: Record<string, string>;
+  } | null>(null);
+  const [pQueue, setPQueue] = useState<ParallelSub[]>([]);
+  const [pValues, setPValues] = useState<Record<string, string>>({});
+  const [pSaving, setPSaving] = useState(false);
+  // Akışta en az bir perspektif girdisi yaratıldı mı — ana girdi ancak o zaman
+  // (ve akışın SONUNDA) gruba bağlanır; erken bağlamak kartı LinkedEntryCard'a
+  // çevirip bu modalı unmount ediyor
+  const pCreated = useRef(false);
+  const pStepSubId = pStep?.sub.id ?? "";
+  const stepMods =
+    useLiveQuery(
+      async () =>
+        pStepSubId
+          ? listModifiersForTarget("subcategory", pStepSubId)
+          : ([] as CategoryModifierWithType[]),
+      [pStepSubId]
+    ) ?? [];
+
+  // Modal kapanınca adım akışı sıfırlanır (component EntryCard'da hep mount)
+  useEffect(() => {
+    if (!open) {
+      setPStep(null);
+      setPQueue([]);
+      setPValues({});
+      setNewParallels([]);
+    }
+  }, [open]);
+
+  const pValueKey = (m: CategoryModifierWithType) => m.modId ?? m.id;
+  const pSharedKey = (m: CategoryModifierWithType) => m.modId ?? m.entryTypeId;
+
+  async function advanceParallel(
+    queue: ParallelSub[],
+    groupId: string,
+    index: number,
+    total: number,
+    carry: Record<string, string>
+  ) {
+    if (!queue.length) {
+      setPStep(null);
+      setPQueue([]);
+      setPValues({});
+      onOpenChange(false);
+      // Ana girdi en son bağlanır (yalnızca gerçekten perspektif yaratıldıysa)
+      if (pCreated.current && !entry.linkedGroupId) {
+        await linkEntryToGroup(entry.id, groupId);
+      }
+      return;
+    }
+    setPQueue(queue.slice(1));
+    setPValues({});
+    setPStep({ sub: queue[0], index: index + 1, total, groupId, carry });
+  }
+
+  async function handleParallelStepSave() {
+    if (!pStep) return;
+    setPSaving(true);
+    try {
+      const typeValues: { entryTypeId: string; value: string; modId?: string }[] = [];
+      const carryNext = { ...pStep.carry };
+      const used = new Set<string>();
+      for (const m of stepMods) {
+        const key = pSharedKey(m);
+        if (used.has(key)) continue;
+        const v = pStep.carry[key] ?? pValues[pValueKey(m)] ?? "";
+        if (v === "") continue;
+        typeValues.push({ entryTypeId: m.entryTypeId, modId: m.modId, value: v });
+        carryNext[key] = v;
+        used.add(key);
+      }
+      await createEntry({
+        subcategoryId: pStep.sub.id,
+        typeValues,
+        occurredAt: new Date(occurredAt).getTime(),
+        linkedGroupId: pStep.groupId,
+      });
+      pCreated.current = true;
+      await advanceParallel(
+        pQueue,
+        pStep.groupId,
+        pStep.index,
+        pStep.total,
+        carryNext
+      );
+    } finally {
+      setPSaving(false);
+    }
+  }
   const siblings =
     useLiveQuery(async () => {
       if (!entry.linkedGroupId) return [];
@@ -235,13 +339,26 @@ export function EditEntryModal({
         occurredAt: new Date(occurredAt).getTime(),
         notes: notes.trim() || undefined,
       });
-      // Yeni perspektifler — güncellenen değerlerden eşleşenler kopyalanır
+      // Yeni perspektifler — ekleme akışındaki gibi her biri için form açılır;
+      // güncellenen değerler ortak atomlara kilitli taşınır. Grup id'si bellekte
+      // üretilir, ana girdiye akışın sonunda yazılır (advanceParallel).
       if (newParallels.length) {
-        await addParallelPerspectives(
-          entry.id,
-          newParallels.map((p) => p.id)
-        );
+        const groupId = entry.linkedGroupId ?? nanoid(12);
+        pCreated.current = false;
+        const carry: Record<string, string> = {};
+        for (const tv of typeValues) carry[tv.modId ?? tv.entryTypeId] = tv.value;
+        const queue = [...newParallels];
         setNewParallels([]);
+        setPQueue(queue.slice(1));
+        setPValues({});
+        setPStep({
+          sub: queue[0],
+          index: 1,
+          total: queue.length,
+          groupId,
+          carry,
+        });
+        return; // modal açık kalır, perspektif adımına geçilir
       }
       onOpenChange(false);
     } finally {
@@ -253,6 +370,115 @@ export function EditEntryModal({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto gap-5">
+          {pStep ? (
+            /* Perspektif adımı — ekleme akışındaki "Kaydet ve devam" davranışı */
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-1.5">
+                  <Link2 className="h-3 w-3 text-violet-400" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/80">
+                    {pStep.sub.categoryName}
+                    {pStep.total > 1 && ` · ${pStep.index}/${pStep.total}`}
+                  </span>
+                </div>
+                <DialogTitle>
+                  {pStep.sub.isCategoryRoot
+                    ? pStep.sub.categoryName
+                    : pStep.sub.name}
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="flex flex-col gap-4">
+                {stepMods.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-border/50 bg-muted/20 px-4 py-4 text-center text-sm text-muted-foreground">
+                    Bu perspektifte mod yok — doğrudan kaydedebilirsin
+                  </p>
+                ) : (
+                  stepMods.map((m) => {
+                    const carried = pStep.carry[pSharedKey(m)];
+                    const label = m.name ?? m.entryType.name;
+                    if (carried !== undefined && carried !== "") {
+                      const vt = m.entryType.valueType ?? "number";
+                      const display =
+                        vt === "boolean"
+                          ? carried === "true"
+                            ? "Evet"
+                            : "Hayır"
+                          : vt === "datetime-range"
+                            ? formatDTRDisplay(carried)
+                            : carried;
+                      return (
+                        <div key={m.id} className="flex flex-col gap-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-sm font-medium">
+                              {label}
+                              {m.entryType.unit && (
+                                <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                                  ({m.entryType.unit})
+                                </span>
+                              )}
+                            </label>
+                            <span className="flex items-center gap-1 text-[10px] font-medium text-violet-400/70">
+                              <Link2 className="h-3 w-3" />
+                              ana girdiden
+                            </span>
+                          </div>
+                          <div className="flex h-10 items-center rounded-xl border border-violet-500/30 bg-violet-500/8 px-3 text-sm text-muted-foreground/80 select-none">
+                            {display}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <ModInput
+                        key={m.id}
+                        label={label}
+                        entryType={m.entryType}
+                        value={pValues[pValueKey(m)] ?? ""}
+                        onChange={(v) =>
+                          setPValues((prev) => ({
+                            ...prev,
+                            [pValueKey(m)]: v,
+                          }))
+                        }
+                        entryDate={entryDate}
+                      />
+                    );
+                  })
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  disabled={pSaving}
+                  onClick={() =>
+                    advanceParallel(
+                      pQueue,
+                      pStep.groupId,
+                      pStep.index,
+                      pStep.total,
+                      pStep.carry
+                    )
+                  }
+                >
+                  Geç
+                </Button>
+                <Button
+                  onClick={handleParallelStepSave}
+                  disabled={pSaving}
+                  className="bg-violet-600 hover:bg-violet-700"
+                >
+                  {pSaving
+                    ? "Kaydediliyor..."
+                    : pStep.index < pStep.total
+                      ? "Kaydet ve devam →"
+                      : "Kaydet"}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
           <DialogHeader>
             <DialogTitle>{entry.subcategory.name}</DialogTitle>
           </DialogHeader>
@@ -330,7 +556,7 @@ export function EditEntryModal({
                       {ps.isCategoryRoot ? ps.categoryName : ps.name}
                     </span>
                     <span className="ml-1.5 text-[10px] text-violet-300/60">
-                      kaydedince eklenecek
+                      kaydedince detayları sorulacak
                     </span>
                   </div>
                   <button
@@ -410,9 +636,15 @@ export function EditEntryModal({
               İptal
             </Button>
             <Button onClick={handleSave} disabled={saving}>
-              Kaydet
+              {saving
+                ? "Kaydediliyor..."
+                : newParallels.length > 0
+                  ? "Kaydet ve devam →"
+                  : "Kaydet"}
             </Button>
           </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
