@@ -21,13 +21,19 @@ export type AddMenuItem = {
 export function AddMenu({ items }: { items: AddMenuItem[] }) {
   const [open, setOpen] = useState(false);
 
-  const R = 84; // yay yarıçapı (px)
-  // Yay: soldan (180°) aşağıya (90°) doğru; eleman sayısına göre eşit dağıt
+  // Düzgün çeyrek yay: ilk daire tam solda (180°), son daire tam aşağıda (90°);
+  // aradakiler eşit açıyla dağılır. Yarıçap, komşu daire merkezleri arasında en
+  // az minChord boşluk kalacak şekilde eleman sayısıyla birlikte büyür —
+  // 4 elemanda daireler sıkışmaz.
   const n = items.length;
-  const spread = Math.min(90, Math.max(50, (n - 1) * 62));
-  const start = 175;
-  const angleFor = (i: number) =>
-    n === 1 ? 135 : start - (i * spread) / (n - 1);
+  const start = 180;
+  const step = n > 1 ? 90 / (n - 1) : 0;
+  const minChord = 68; // 48px daire + ~20px nefes payı
+  const R =
+    n > 1
+      ? Math.max(100, minChord / (2 * Math.sin((step * Math.PI) / 360)))
+      : 100;
+  const angleFor = (i: number) => (n === 1 ? 135 : start - i * step);
 
   function pick(item: AddMenuItem) {
     setOpen(false);
