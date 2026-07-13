@@ -78,6 +78,11 @@ export default function CalendarDayPage({
   const { date } = use(params);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetActivityMode, setSheetActivityMode] = useState(false);
+  // Var olan aktiviteye girdi eklerken sheet isim adımını atlayıp bu aktiviteyle açılır
+  const [presetActivity, setPresetActivity] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [goalSheetOpen, setGoalSheetOpen] = useState(false);
   const [sleepSheetOpen, setSleepSheetOpen] = useState(false);
 
@@ -151,6 +156,7 @@ export default function CalendarDayPage({
                 iconClass: "text-primary",
                 onSelect: () => {
                   setSheetActivityMode(false);
+                  setPresetActivity(null);
                   setSheetOpen(true);
                 },
               },
@@ -161,6 +167,7 @@ export default function CalendarDayPage({
                 iconClass: "text-cyan-400",
                 onSelect: () => {
                   setSheetActivityMode(true);
+                  setPresetActivity(null);
                   setSheetOpen(true);
                 },
               },
@@ -267,6 +274,11 @@ export default function CalendarDayPage({
                       key={item.activityId}
                       activity={activityById.get(item.activityId)}
                       entries={item.entries}
+                      onAddEntries={(a) => {
+                        setPresetActivity({ id: a.id, name: a.name });
+                        setSheetActivityMode(false);
+                        setSheetOpen(true);
+                      }}
                     />
                   ) : (
                     <LinkedEntryCard
@@ -286,6 +298,7 @@ export default function CalendarDayPage({
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
         activityMode={sheetActivityMode}
+        presetActivity={presetActivity}
       />
 
       <AddGoalSheet

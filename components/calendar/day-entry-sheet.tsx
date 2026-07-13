@@ -49,6 +49,8 @@ interface DayEntrySheetProps {
   onClose: () => void;
   /** true: sheet aktivite akışıyla açılır — önce isim, sonra seri girdi ekleme */
   activityMode?: boolean;
+  /** Var olan aktiviteye girdi eklerken: isim adımı atlanır, doğrudan seri giriş */
+  presetActivity?: { id: string; name: string } | null;
 }
 
 type Step =
@@ -57,7 +59,13 @@ type Step =
   | { type: "form"; sub: SubCategory }
   | { type: "parallel-form"; sub: SubCategory; catName: string; queueIndex: number; queueTotal: number; groupId: string; carryover: Record<string, string> };
 
-export function DayEntrySheet({ date, open, onClose, activityMode }: DayEntrySheetProps) {
+export function DayEntrySheet({
+  date,
+  open,
+  onClose,
+  activityMode,
+  presetActivity,
+}: DayEntrySheetProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>({ type: "pick" });
   const [values, setValues] = useState<Record<string, string>>({});
@@ -87,10 +95,17 @@ export function DayEntrySheet({ date, open, onClose, activityMode }: DayEntryShe
     }
   }, [open]);
 
-  // Aktivite modunda açılış isim adımından başlar
+  // Aktivite modunda açılış isim adımından başlar; var olan aktiviteye
+  // eklerken isim adımı atlanıp doğrudan seçim adımına geçilir
   useEffect(() => {
-    if (open && activityMode) setStep({ type: "activity-name" });
-  }, [open, activityMode]);
+    if (!open) return;
+    if (presetActivity) {
+      setActivity(presetActivity);
+      setStep({ type: "pick" });
+    } else if (activityMode) {
+      setStep({ type: "activity-name" });
+    }
+  }, [open, activityMode, presetActivity]);
 
   const groups = useLiveQuery(async () => {
     const cats = await db.categories.orderBy("order").toArray();

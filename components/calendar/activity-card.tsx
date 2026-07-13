@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Boxes, ChevronDown, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Boxes, ChevronDown, Plus, Trash2 } from "lucide-react";
 import type { Activity, EntryWithContext } from "@/types";
 import { deleteActivity } from "@/lib/db/queries";
 import {
@@ -34,9 +35,12 @@ import { cn } from "@/lib/utils";
 export function ActivityCard({
   activity,
   entries,
+  onAddEntries,
 }: {
   activity?: Activity;
   entries: EntryWithContext[];
+  /** "Girdi ekle" — sheet'i bu aktiviteyle (isim adımı atlanarak) açar */
+  onAddEntries?: (activity: Activity) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState<EntryWithContext | null>(null);
@@ -172,6 +176,28 @@ export function ActivityCard({
         {/* Girdiler — satıra dokununca düzenleme */}
         {expanded && (
           <div className="border-t border-cyan-500/15 px-3 py-2 flex flex-col">
+            {/* Aksiyon satırı: girdi ekle + analiz */}
+            <div className="flex items-center justify-between gap-2 px-1.5 pb-1.5">
+              {activity && onAddEntries ? (
+                <button
+                  type="button"
+                  onClick={() => onAddEntries(activity)}
+                  className="flex items-center gap-1 text-xs font-medium text-cyan-300/80 hover:text-cyan-200 transition-colors"
+                >
+                  <Plus className="h-3 w-3" />
+                  Girdi ekle
+                </button>
+              ) : (
+                <span />
+              )}
+              <Link
+                href={`/analytics/activity/${encodeURIComponent(name)}`}
+                className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Aktivite Analizi
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
             {entries.map((e) => {
               const valueChips = e.values
                 .filter((v) => v.entryTypeId && v.entryType)
