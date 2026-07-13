@@ -50,7 +50,18 @@ export function LinkedEntryCard({ entries }: { entries: EntryWithContext[] }) {
 
   return (
     <>
-      <div className="group rounded-2xl border border-violet-500/25 bg-card overflow-hidden transition-colors">
+      {/* Karta dokunmak ana perspektifi düzenler (EntryCard ile aynı davranış);
+          iç kontroller (kalem, sil) kabarcıklanmayı durdurur */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setEditingEntry(shared)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") setEditingEntry(shared);
+        }}
+        aria-label={`${shared.subcategory.name} girdisini düzenle`}
+        className="group cursor-pointer rounded-2xl border border-violet-500/25 bg-card overflow-hidden transition-transform active:scale-[0.99]"
+      >
         {/* Header */}
         <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-2.5">
           <EntryIcon
@@ -65,7 +76,10 @@ export function LinkedEntryCard({ entries }: { entries: EntryWithContext[] }) {
             size="icon"
             variant="ghost"
             className="h-7 w-7 ml-1 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-            onClick={onDeleteAll}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteAll();
+            }}
             disabled={deleting}
             aria-label="Tüm perspektiflerle sil"
           >
@@ -124,7 +138,10 @@ export function LinkedEntryCard({ entries }: { entries: EntryWithContext[] }) {
                   size="icon"
                   variant="ghost"
                   className="h-6 w-6 text-muted-foreground hover:text-foreground opacity-0 group-hover/row:opacity-100 transition-opacity shrink-0 mt-0.5"
-                  onClick={() => setEditingEntry(entry)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingEntry(entry);
+                  }}
                   aria-label={`${entry.category.name} perspektifini düzenle`}
                 >
                   <Pencil className="h-3 w-3" />

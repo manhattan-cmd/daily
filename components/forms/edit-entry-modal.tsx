@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,7 @@ import {
   DateTimeRangeInput,
   formatDTRDisplay,
 } from "@/components/forms/datetime-range-input";
-import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
+import { ParallelPickList } from "@/components/forms/parallel-pick-dialog";
 import { cn } from "@/lib/utils";
 import { ENTRY_VALUE_TYPE_LABELS } from "@/types";
 import type { EntryWithContext, EntryType } from "@/types";
@@ -79,9 +80,11 @@ export function EditEntryModal({
       .map((v) => v.entryTypeId!)
   );
 
-  // Paralel perspektifler: mevcut kardeşler (linkedGroup) + bu oturumda eklenenler
+  // Paralel perspektifler: mevcut kardeşler (linkedGroup) + bu oturumda eklenenler.
+  // Seçici ayrı bir dialog DEĞİL, bu dialog'un içinde bir görünüm — üst üste iki
+  // Radix dialog'u kırılgandı (alttaki kendini kapatıp akışı limboda bırakıyordu)
   const [newParallels, setNewParallels] = useState<ParallelSub[]>([]);
-  const [parallelPickerOpen, setParallelPickerOpen] = useState(false);
+  const [pickerView, setPickerView] = useState(false);
 
   // Kaydet sonrası adım adım perspektif formu — ekleme akışıyla aynı davranış:
   // her yeni perspektifin kendi modları sorulur, ana girdiden taşınan ortak
@@ -117,6 +120,7 @@ export function EditEntryModal({
       setPQueue([]);
       setPValues({});
       setNewParallels([]);
+      setPickerView(false);
     }
   }, [open]);
 
@@ -477,6 +481,51 @@ export function EditEntryModal({
                 </Button>
               </DialogFooter>
             </>
+          ) : pickerView ? (
+            /* Perspektif seçici görünümü — aynı dialog içinde, üst üste dialog yok */
+            <>
+              <DialogHeader>
+                <DialogTitle>Paralel perspektif seç</DialogTitle>
+                <DialogDescription>
+                  Bu girdiyi hangi kategoride de takip etmek istersin?
+                </DialogDescription>
+              </DialogHeader>
+
+              <ParallelPickList
+                excludeCategoryId={entry.category.id}
+                hiddenSubIds={hiddenSubIds}
+                selected={newParallels}
+                onAdd={(ps) => setNewParallels((prev) => [...prev, ps])}
+                onRemove={(id) =>
+                  setNewParallels((prev) => prev.filter((p) => p.id !== id))
+                }
+              />
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setPickerView(false)}
+                  disabled={saving}
+                >
+                  Geri
+                </Button>
+                <Button
+                  disabled={saving}
+                  onClick={() => {
+                    setPickerView(false);
+                    // Seçim varsa akış hemen başlar: düzenlemeler kaydedilir,
+                    // her perspektif için adım formu açılır
+                    if (newParallels.length) void handleSave();
+                  }}
+                >
+                  {saving
+                    ? "Kaydediliyor..."
+                    : newParallels.length
+                      ? "Devam →"
+                      : "Tamam"}
+                </Button>
+              </DialogFooter>
+            </>
           ) : (
             <>
           <DialogHeader>
@@ -575,7 +624,7 @@ export function EditEntryModal({
               ))}
               <button
                 type="button"
-                onClick={() => setParallelPickerOpen(true)}
+                onClick={() => setPickerView(true)}
                 className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors self-start"
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -647,25 +696,6 @@ export function EditEntryModal({
           )}
         </DialogContent>
       </Dialog>
-
-      {/* Paralel perspektif seçici — girdi ekleme akışıyla ortak bileşen.
-          Tamam'a basılınca akış hemen başlar (düzenlemeler kaydedilir, her
-          perspektif için adım formu açılır) — ikinci bir Kaydet beklemek
-          "hiçbir şey olmadı" hissi veriyordu */}
-      <ParallelPickDialog
-        open={parallelPickerOpen}
-        onOpenChange={setParallelPickerOpen}
-        excludeCategoryId={entry.category.id}
-        hiddenSubIds={hiddenSubIds}
-        selected={newParallels}
-        onAdd={(ps) => setNewParallels((prev) => [...prev, ps])}
-        onRemove={(id) =>
-          setNewParallels((prev) => prev.filter((p) => p.id !== id))
-        }
-        onConfirm={() => {
-          if (newParallels.length) void handleSave();
-        }}
-      />
 
       {/* Add-mod picker — sibling dialog to avoid nesting issues */}
       <Dialog open={addModOpen} onOpenChange={setAddModOpen}>
