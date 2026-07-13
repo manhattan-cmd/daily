@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Plus, X, ChevronDown, Trash2, Link2, Check } from "lucide-react";
+import { ArrowLeft, Plus, X, ChevronDown, Trash2, Link2 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
 import {
@@ -19,6 +19,7 @@ import {
   type ParallelSub,
 } from "@/lib/db/queries";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
+import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { CATEGORY_ICON_MAP, CategoryIcon } from "@/lib/category-icons";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { DateTimeRangeInput, formatDTRDisplay } from "@/components/forms/datetime-range-input";
@@ -1066,39 +1067,6 @@ function FormStep({
   const [modPickerOpen, setModPickerOpen] = useState(false);
   const [parallelPickerOpen, setParallelPickerOpen] = useState(false);
 
-  const selectedIds = new Set(selectedParallels.map((p) => p.id));
-
-  // Diğer kategorilerin TÜM alt kategori ağacı (iç içe olanlar yol etiketiyle:
-  // "Yemek › Midye") + kategorinin kendisi ("Genel", gizli kök üzerinden)
-  const allGroupsForPicker = useLiveQuery(
-    async () => {
-      if (parallelContext !== null) return [];
-      const cats = await db.categories.orderBy("order").toArray();
-      const subs = await db.subcategories.toArray();
-      return cats
-        .filter((c) => c.id !== currentCategoryId && !c.isBuiltIn)
-        .map((cat) => {
-          const catSubs = subs.filter(
-            (s) => s.categoryId === cat.id && !s.isCategoryRoot
-          );
-          const list: { sub: SubCategory; label: string }[] = [];
-          const walk = (parentId: string | undefined, prefix: string) => {
-            catSubs
-              .filter((s) => (s.parentId ?? undefined) === parentId)
-              .sort((a, b) => a.order - b.order)
-              .forEach((s) => {
-                const label = prefix ? `${prefix} › ${s.name}` : s.name;
-                list.push({ sub: s, label });
-                walk(s.id, label);
-              });
-          };
-          walk(undefined, "");
-          return { category: cat, subs: list };
-        });
-    },
-    [currentCategoryId, parallelContext]
-  ) ?? [];
-
   async function handleRemoveMod(mod: CategoryModifierWithType) {
     await removeModifier(mod.id);
     onValueChange(valueKey(mod), "");
@@ -1262,103 +1230,17 @@ function FormStep({
         </Button>
       </div>
 
-      {/* Paralel perspektif seçici */}
-      <Dialog open={parallelPickerOpen} onOpenChange={setParallelPickerOpen}>
-        <DialogContent className="max-h-[70dvh] overflow-y-auto gap-4">
-          <DialogHeader>
-            <DialogTitle>Paralel perspektif seç</DialogTitle>
-            <DialogDescription>
-              Bu girdiyi hangi kategoride de takip etmek istersin?
-            </DialogDescription>
-          </DialogHeader>
-
-          {allGroupsForPicker.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Başka kategori yok.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-5">
-              {allGroupsForPicker.map(({ category, subs }) => {
-                // Kategorinin kendisi de perspektif olabilir — gizli kök üzerinden;
-                // kök daha önce yaratılmadıysa seçim anında yaratılır
-                const rootSel = selectedParallels.find(
-                  (p) => p.isCategoryRoot && p.categoryId === category.id
-                );
-                return (
-                  <div key={category.id}>
-                    <div className="flex items-center gap-2 mb-2.5">
-                      <div
-                        className="h-2 w-2 rounded-full"
-                        style={{ backgroundColor: category.color }}
-                      />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                        {category.name}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (rootSel) {
-                            onRemoveParallel(rootSel.id);
-                          } else {
-                            const root = await getOrCreateCategoryRootSub(
-                              category.id
-                            );
-                            onAddParallel({
-                              ...root,
-                              categoryName: category.name,
-                            });
-                          }
-                        }}
-                        className={cn(
-                          "flex items-center gap-1.5 rounded-xl border border-dashed px-3 py-1.5 text-sm transition-colors",
-                          rootSel
-                            ? "border-violet-500/50 bg-violet-500/10 text-violet-300"
-                            : "border-border bg-muted/10 text-muted-foreground hover:bg-muted/30 hover:text-foreground"
-                        )}
-                      >
-                        {rootSel && <Check className="h-3 w-3 shrink-0" />}
-                        Genel
-                      </button>
-                      {subs.map(({ sub: s, label }) => {
-                        const isSel = selectedIds.has(s.id);
-                        return (
-                          <button
-                            key={s.id}
-                            type="button"
-                            onClick={() =>
-                              isSel
-                                ? onRemoveParallel(s.id)
-                                : onAddParallel({
-                                    ...s,
-                                    categoryName: category.name,
-                                  })
-                            }
-                            className={cn(
-                              "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm transition-colors",
-                              isSel
-                                ? "border-violet-500/50 bg-violet-500/10 text-violet-300"
-                                : "border-border bg-muted/20 text-foreground hover:bg-muted/40"
-                            )}
-                          >
-                            {isSel && <Check className="h-3 w-3 shrink-0" />}
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button onClick={() => setParallelPickerOpen(false)}>Tamam</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Paralel perspektif seçici — düzenleme modalıyla ortak bileşen */}
+      {!parallelContext && (
+        <ParallelPickDialog
+          open={parallelPickerOpen}
+          onOpenChange={setParallelPickerOpen}
+          excludeCategoryId={currentCategoryId}
+          selected={selectedParallels}
+          onAdd={onAddParallel}
+          onRemove={onRemoveParallel}
+        />
+      )}
 
       {/* Mod ekleyici — havuzdan seç ya da yeni yarat */}
       <ModPickDialog

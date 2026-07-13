@@ -12,15 +12,20 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { db } from "@/lib/db";
 import {
+  addParallelPerspectives,
+  deleteEntry,
   listModifiersForTarget,
   updateEntry,
   getLinkedSiblingModIds,
   listEntryTypes,
   listMods,
   type ModWithType,
+  type ParallelSub,
 } from "@/lib/db/queries";
 import { DateTimeRangeInput } from "@/components/forms/datetime-range-input";
+import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { cn } from "@/lib/utils";
 import { ENTRY_VALUE_TYPE_LABELS } from "@/types";
 import type { EntryWithContext, EntryType } from "@/types";
@@ -67,6 +72,42 @@ export function EditEntryModal({
       .filter((v) => v.entryTypeId && !v.modId && v.value)
       .map((v) => v.entryTypeId!)
   );
+
+  // Paralel perspektifler: mevcut kardeşler (linkedGroup) + bu oturumda eklenenler
+  const [newParallels, setNewParallels] = useState<ParallelSub[]>([]);
+  const [parallelPickerOpen, setParallelPickerOpen] = useState(false);
+  const siblings =
+    useLiveQuery(async () => {
+      if (!entry.linkedGroupId) return [];
+      const sibs = await db.entries
+        .where("linkedGroupId")
+        .equals(entry.linkedGroupId)
+        .filter((e) => e.id !== entry.id)
+        .toArray();
+      const out: { id: string; subcategoryId: string; catName: string; subName: string }[] = [];
+      for (const s of sibs) {
+        const sub = await db.subcategories.get(s.subcategoryId);
+        const cat = sub ? await db.categories.get(sub.categoryId) : undefined;
+        out.push({
+          id: s.id,
+          subcategoryId: s.subcategoryId,
+          catName: cat?.name ?? "—",
+          subName: sub?.isCategoryRoot ? (cat?.name ?? "—") : (sub?.name ?? "—"),
+        });
+      }
+      return out;
+    }, [entry.id, entry.linkedGroupId]) ?? [];
+
+  // Seçicide gizlenecekler: girdinin kendisi + zaten perspektifi olan altlar
+  const hiddenSubIds = new Set([
+    entry.subcategoryId,
+    ...siblings.map((s) => s.subcategoryId),
+  ]);
+
+  async function removeSibling(sib: { id: string; subName: string }) {
+    if (!confirm(`"${sib.subName}" perspektifi ve girdisi silinsin mi?`)) return;
+    await deleteEntry(sib.id);
+  }
 
   const [addModOpen, setAddModOpen] = useState(false);
   const [notes, setNotes] = useState(entry.notes ?? "");
@@ -194,6 +235,14 @@ export function EditEntryModal({
         occurredAt: new Date(occurredAt).getTime(),
         notes: notes.trim() || undefined,
       });
+      // Yeni perspektifler — güncellenen değerlerden eşleşenler kopyalanır
+      if (newParallels.length) {
+        await addParallelPerspectives(
+          entry.id,
+          newParallels.map((p) => p.id)
+        );
+        setNewParallels([]);
+      }
       onOpenChange(false);
     } finally {
       setSaving(false);
@@ -236,6 +285,79 @@ export function EditEntryModal({
                 Bu girdiye mod ekle
               </button>
             )}
+
+            {/* Paralel perspektifler — mevcutlar + bu oturumda eklenenler */}
+            <div className="flex flex-col gap-2 pt-1">
+              <div className="flex items-center gap-1.5">
+                <Link2 className="h-3.5 w-3.5 text-violet-400/70" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Paralel perspektifler
+                </span>
+              </div>
+              {siblings.map((sib) => (
+                <div
+                  key={sib.id}
+                  className="flex items-center gap-3 rounded-xl border border-violet-500/50 bg-violet-500/10 px-3 py-2.5"
+                >
+                  <div className="flex-1 min-w-0 leading-tight">
+                    <span className="text-xs text-muted-foreground">
+                      {sib.catName}
+                    </span>
+                    <span className="text-xs text-muted-foreground mx-1">/</span>
+                    <span className="text-sm font-medium">{sib.subName}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeSibling(sib)}
+                    className="h-5 w-5 flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-destructive transition-colors shrink-0"
+                    aria-label={`${sib.subName} perspektifini sil`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              {newParallels.map((ps) => (
+                <div
+                  key={ps.id}
+                  className="flex items-center gap-3 rounded-xl border border-dashed border-violet-500/40 bg-violet-500/5 px-3 py-2.5"
+                >
+                  <div className="flex-1 min-w-0 leading-tight">
+                    <span className="text-xs text-muted-foreground">
+                      {ps.categoryName}
+                    </span>
+                    <span className="text-xs text-muted-foreground mx-1">/</span>
+                    <span className="text-sm font-medium">
+                      {ps.isCategoryRoot ? ps.categoryName : ps.name}
+                    </span>
+                    <span className="ml-1.5 text-[10px] text-violet-300/60">
+                      kaydedince eklenecek
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setNewParallels((prev) =>
+                        prev.filter((p) => p.id !== ps.id)
+                      )
+                    }
+                    className="h-5 w-5 flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-muted-foreground transition-colors shrink-0"
+                    aria-label={`${ps.name} paralel perspektifini kaldır`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setParallelPickerOpen(true)}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors self-start"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {siblings.length > 0 || newParallels.length > 0
+                  ? "Başka perspektif ekle"
+                  : "Paralel perspektif ekle"}
+              </button>
+            </div>
 
             {/* Date */}
             <div className="flex flex-col gap-1.5">
@@ -293,6 +415,19 @@ export function EditEntryModal({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Paralel perspektif seçici — girdi ekleme akışıyla ortak bileşen */}
+      <ParallelPickDialog
+        open={parallelPickerOpen}
+        onOpenChange={setParallelPickerOpen}
+        excludeCategoryId={entry.category.id}
+        hiddenSubIds={hiddenSubIds}
+        selected={newParallels}
+        onAdd={(ps) => setNewParallels((prev) => [...prev, ps])}
+        onRemove={(id) =>
+          setNewParallels((prev) => prev.filter((p) => p.id !== id))
+        }
+      />
 
       {/* Add-mod picker — sibling dialog to avoid nesting issues */}
       <Dialog open={addModOpen} onOpenChange={setAddModOpen}>
