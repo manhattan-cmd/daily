@@ -34,6 +34,7 @@ export function ParallelPickDialog({
   selected,
   onAdd,
   onRemove,
+  onConfirm,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -44,6 +45,9 @@ export function ParallelPickDialog({
   selected: ParallelSub[];
   onAdd: (ps: ParallelSub) => void;
   onRemove: (id: string) => void;
+  /** Tamam'a basılınca (dışarı tıklayarak kapatmada değil) — düzenleme modalı
+   * bununla akışı hemen başlatır; verilmezse Tamam yalnızca kapatır */
+  onConfirm?: () => void;
 }) {
   const selectedIds = new Set(selected.map((p) => p.id));
 
@@ -176,7 +180,14 @@ export function ParallelPickDialog({
         )}
 
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>Tamam</Button>
+          <Button
+            onClick={() => {
+              onOpenChange(false);
+              onConfirm?.();
+            }}
+          >
+            Tamam
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

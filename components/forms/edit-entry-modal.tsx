@@ -648,7 +648,10 @@ export function EditEntryModal({
         </DialogContent>
       </Dialog>
 
-      {/* Paralel perspektif seçici — girdi ekleme akışıyla ortak bileşen */}
+      {/* Paralel perspektif seçici — girdi ekleme akışıyla ortak bileşen.
+          Tamam'a basılınca akış hemen başlar (düzenlemeler kaydedilir, her
+          perspektif için adım formu açılır) — ikinci bir Kaydet beklemek
+          "hiçbir şey olmadı" hissi veriyordu */}
       <ParallelPickDialog
         open={parallelPickerOpen}
         onOpenChange={setParallelPickerOpen}
@@ -659,6 +662,9 @@ export function EditEntryModal({
         onRemove={(id) =>
           setNewParallels((prev) => prev.filter((p) => p.id !== id))
         }
+        onConfirm={() => {
+          if (newParallels.length) void handleSave();
+        }}
       />
 
       {/* Add-mod picker — sibling dialog to avoid nesting issues */}
