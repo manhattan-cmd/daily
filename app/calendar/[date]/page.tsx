@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, ArrowRight, CalendarDays, MoonStar, Target, PenLine } from "lucide-react";
+import { ArrowLeft, ArrowRight, Boxes, CalendarDays, MoonStar, Target, PenLine } from "lucide-react";
 import { db } from "@/lib/db";
 import { listEntriesByDate, listGoalsByDate } from "@/lib/db/queries";
 import { EntryCard } from "@/components/dashboard/entry-card";
@@ -16,25 +16,42 @@ import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { AddMenu, type AddMenuItem } from "@/components/calendar/add-menu";
 import { SleepSheet } from "@/components/calendar/sleep-sheet";
 import { SleepCard } from "@/components/calendar/sleep-card";
+import { ActivityCard } from "@/components/calendar/activity-card";
 
 type EntryItem =
   | { type: "single"; entry: EntryWithContext }
-  | { type: "group"; entries: EntryWithContext[] };
+  | { type: "group"; entries: EntryWithContext[] }
+  | { type: "activity"; activityId: string; entries: EntryWithContext[] };
 
+/** Önce aktiviteye, sonra paralel gruba (linkedGroupId) göre katlar */
 function groupEntries(entries: EntryWithContext[]): EntryItem[] {
   const result: EntryItem[] = [];
+  const activityMap = new Map<string, EntryWithContext[]>();
   const groupMap = new Map<string, EntryWithContext[]>();
+  const seenActivity = new Set<string>();
   const seen = new Set<string>();
 
   for (const e of entries) {
-    if (e.linkedGroupId) {
+    if (e.activityId) {
+      if (!activityMap.has(e.activityId)) activityMap.set(e.activityId, []);
+      activityMap.get(e.activityId)!.push(e);
+    } else if (e.linkedGroupId) {
       if (!groupMap.has(e.linkedGroupId)) groupMap.set(e.linkedGroupId, []);
       groupMap.get(e.linkedGroupId)!.push(e);
     }
   }
 
   for (const e of entries) {
-    if (!e.linkedGroupId) {
+    if (e.activityId) {
+      if (!seenActivity.has(e.activityId)) {
+        result.push({
+          type: "activity",
+          activityId: e.activityId,
+          entries: activityMap.get(e.activityId)!,
+        });
+        seenActivity.add(e.activityId);
+      }
+    } else if (!e.linkedGroupId) {
       result.push({ type: "single", entry: e });
     } else if (!seen.has(e.linkedGroupId)) {
       result.push({ type: "group", entries: groupMap.get(e.linkedGroupId)! });
@@ -60,6 +77,7 @@ export default function CalendarDayPage({
 }) {
   const { date } = use(params);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetActivityMode, setSheetActivityMode] = useState(false);
   const [goalSheetOpen, setGoalSheetOpen] = useState(false);
   const [sleepSheetOpen, setSleepSheetOpen] = useState(false);
 
@@ -68,6 +86,9 @@ export default function CalendarDayPage({
 
   const entries = useLiveQuery(() => listEntriesByDate(date), [date]);
   const goals = useLiveQuery(() => listGoalsByDate(date), [date]);
+  // Aktivite adları — tablo küçük, id → kayıt haritası kart başlıkları için
+  const activities = useLiveQuery(() => db.activities.toArray(), []);
+  const activityById = new Map((activities ?? []).map((a) => [a.id, a]));
   const hasSleepCategory = useLiveQuery(
     async () => !!(await db.categories.filter((c) => !!c.isBuiltIn).first()),
     []
@@ -128,7 +149,20 @@ export default function CalendarDayPage({
                 label: "Girdi",
                 icon: PenLine,
                 iconClass: "text-primary",
-                onSelect: () => setSheetOpen(true),
+                onSelect: () => {
+                  setSheetActivityMode(false);
+                  setSheetOpen(true);
+                },
+              },
+              {
+                key: "activity",
+                label: "Aktivite",
+                icon: Boxes,
+                iconClass: "text-cyan-400",
+                onSelect: () => {
+                  setSheetActivityMode(true);
+                  setSheetOpen(true);
+                },
               },
               {
                 key: "goal",
@@ -228,6 +262,12 @@ export default function CalendarDayPage({
                 {items.map((item) =>
                   item.type === "single" ? (
                     <EntryCard key={item.entry.id} entry={item.entry} />
+                  ) : item.type === "activity" ? (
+                    <ActivityCard
+                      key={item.activityId}
+                      activity={activityById.get(item.activityId)}
+                      entries={item.entries}
+                    />
                   ) : (
                     <LinkedEntryCard
                       key={item.entries[0].linkedGroupId}
@@ -245,6 +285,7 @@ export default function CalendarDayPage({
         date={date}
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
+        activityMode={sheetActivityMode}
       />
 
       <AddGoalSheet

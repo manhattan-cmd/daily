@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import { db } from "./index";
 import type {
+  Activity,
   Category,
   CategoryModifier,
   SubCategory,
@@ -769,6 +770,89 @@ export async function deleteField(fieldId: string): Promise<void> {
 
 // ============ Entries ============
 
+// ============ Activities ============
+
+export async function createActivity(input: {
+  name: string;
+  icon?: string;
+  occurredAt?: number;
+}): Promise<Activity> {
+  const a: Activity = {
+    id: id(),
+    name: input.name.trim(),
+    icon: input.icon,
+    occurredAt: input.occurredAt ?? now(),
+    createdAt: now(),
+    updatedAt: now(),
+  };
+  await db.activities.add(a);
+  return a;
+}
+
+/** Aktivite kaydını (yoksa) verilen id ile yaratır — akış id'yi bellekte üretir,
+ * kayıt ilk girdi kaydedilirken yazılır; isim verip vazgeçen çöp kayıt bırakmaz. */
+export async function ensureActivity(input: {
+  id: string;
+  name: string;
+  occurredAt: number;
+}): Promise<void> {
+  const existing = await db.activities.get(input.id);
+  if (existing) return;
+  await db.activities.add({
+    id: input.id,
+    name: input.name.trim(),
+    occurredAt: input.occurredAt,
+    createdAt: now(),
+    updatedAt: now(),
+  });
+}
+
+export async function updateActivity(
+  activityId: string,
+  patch: Partial<Pick<Activity, "name" | "icon">>
+): Promise<void> {
+  await db.activities.update(activityId, { ...patch, updatedAt: now() });
+}
+
+/** Geçmiş aktivite adları — en yeniden eskiye, tekilleştirilmiş (öneri çipleri) */
+export async function listActivityNameSuggestions(limit = 8): Promise<string[]> {
+  const all = await db.activities.orderBy("createdAt").reverse().toArray();
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const a of all) {
+    const key = a.name.trim().toLocaleLowerCase("tr-TR");
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(a.name);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+/**
+ * Aktiviteyi siler. mode "disband": girdiler bağımsız girdi olarak kalır
+ * (activityId kaldırılır); "with-entries": içindeki tüm girdiler değerleriyle
+ * birlikte silinir.
+ */
+export async function deleteActivity(
+  activityId: string,
+  mode: "disband" | "with-entries"
+): Promise<void> {
+  const entries = await db.entries
+    .where("activityId")
+    .equals(activityId)
+    .toArray();
+  if (mode === "with-entries") {
+    for (const e of entries) await deleteEntry(e.id);
+  } else {
+    for (const e of entries) {
+      // Dexie update semantiği: undefined verilen alan kayıttan silinir
+      await db.entries.update(e.id, { activityId: undefined, updatedAt: now() });
+    }
+  }
+  await db.activities.delete(activityId);
+}
+
 // ============ Parallel Subcategories ============
 
 export type ParallelSub = SubCategory & { categoryName: string };
@@ -798,6 +882,7 @@ export async function createEntry(input: {
   occurredAt?: number;
   notes?: string;
   linkedGroupId?: string;
+  activityId?: string;
 }): Promise<Entry> {
   const entry: Entry = {
     id: id(),
@@ -808,6 +893,7 @@ export async function createEntry(input: {
     createdAt: now(),
     updatedAt: now(),
     ...(input.linkedGroupId ? { linkedGroupId: input.linkedGroupId } : {}),
+    ...(input.activityId ? { activityId: input.activityId } : {}),
   };
   const values: EntryValue[] = (input.typeValues ?? []).map((v) => ({
     id: id(),

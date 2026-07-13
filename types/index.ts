@@ -131,6 +131,22 @@ export interface CategoryModifier {
   createdAt: number;
 }
 
+/**
+ * Aktivite — farklı kategori/alt kategorilerden girdileri tek oturum altında
+ * toplayan konteyner ("Market alışverişi", "Antrenman"). Paralel gruptan
+ * (linkedGroupId) farkı: içindeki girdiler AYRI olaylardır, değer senkronu yok.
+ * Girdiler alt kategorilerinde kaldığından genel analizler etkilenmez;
+ * activityId indeksi ileride aktivite bazlı analize zemin sağlar.
+ */
+export interface Activity {
+  id: string;
+  name: string;
+  icon?: string;
+  occurredAt: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface Entry {
   id: string;
   subcategoryId: string;
@@ -140,6 +156,8 @@ export interface Entry {
   createdAt: number;
   updatedAt: number;
   linkedGroupId?: string;
+  /** Bağlı olduğu aktivite (varsa) — gün sayfasında aktivite kartında katlanır */
+  activityId?: string;
 }
 
 export interface EntryValue {

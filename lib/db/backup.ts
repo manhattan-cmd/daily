@@ -1,5 +1,6 @@
 import { db } from "./index";
 import type {
+  Activity,
   Category,
   SubCategory,
   Field,
@@ -26,6 +27,8 @@ export interface BackupData {
   entries: Entry[];
   entryValues: EntryValue[];
   goals: Goal[];
+  /** v10+ — eski yedeklerde bulunmayabilir */
+  activities?: Activity[];
 }
 
 export interface BackupPayload {
@@ -48,6 +51,7 @@ export async function exportBackup(): Promise<BackupPayload> {
     entries,
     entryValues,
     goals,
+    activities,
   ] = await Promise.all([
     db.categories.toArray(),
     db.subcategories.toArray(),
@@ -59,6 +63,7 @@ export async function exportBackup(): Promise<BackupPayload> {
     db.entries.toArray(),
     db.entryValues.toArray(),
     db.goals.toArray(),
+    db.activities.toArray(),
   ]);
   return {
     app: "routine",
@@ -75,6 +80,7 @@ export async function exportBackup(): Promise<BackupPayload> {
       entries,
       entryValues,
       goals,
+      activities,
     },
   };
 }
@@ -128,6 +134,7 @@ export async function restoreBackup(payload: BackupPayload): Promise<void> {
       db.entries,
       db.entryValues,
       db.goals,
+      db.activities,
     ],
     async () => {
       await Promise.all([
@@ -141,6 +148,7 @@ export async function restoreBackup(payload: BackupPayload): Promise<void> {
         db.entries.clear(),
         db.entryValues.clear(),
         db.goals.clear(),
+        db.activities.clear(),
       ]);
       await Promise.all([
         data.categories?.length ? db.categories.bulkPut(data.categories) : null,
@@ -157,6 +165,7 @@ export async function restoreBackup(payload: BackupPayload): Promise<void> {
         data.entries?.length ? db.entries.bulkPut(data.entries) : null,
         data.entryValues?.length ? db.entryValues.bulkPut(data.entryValues) : null,
         data.goals?.length ? db.goals.bulkPut(data.goals) : null,
+        data.activities?.length ? db.activities.bulkPut(data.activities) : null,
       ]);
     }
   );

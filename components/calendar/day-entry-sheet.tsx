@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Plus, X, ChevronDown, Trash2, Link2 } from "lucide-react";
+import { ArrowLeft, Boxes, Plus, X, ChevronDown, Trash2, Link2 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
 import {
@@ -13,7 +13,9 @@ import {
   createEntry,
   deleteCategory,
   deleteSubCategory,
+  ensureActivity,
   getOrCreateCategoryRootSub,
+  listActivityNameSuggestions,
   moveSubCategory,
   type CategoryModifierWithType,
   type ParallelSub,
@@ -45,14 +47,17 @@ interface DayEntrySheetProps {
   date: string;
   open: boolean;
   onClose: () => void;
+  /** true: sheet aktivite akışıyla açılır — önce isim, sonra seri girdi ekleme */
+  activityMode?: boolean;
 }
 
 type Step =
+  | { type: "activity-name" }
   | { type: "pick" }
   | { type: "form"; sub: SubCategory }
   | { type: "parallel-form"; sub: SubCategory; catName: string; queueIndex: number; queueTotal: number; groupId: string; carryover: Record<string, string> };
 
-export function DayEntrySheet({ date, open, onClose }: DayEntrySheetProps) {
+export function DayEntrySheet({ date, open, onClose, activityMode }: DayEntrySheetProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>({ type: "pick" });
   const [values, setValues] = useState<Record<string, string>>({});
@@ -62,6 +67,9 @@ export function DayEntrySheet({ date, open, onClose }: DayEntrySheetProps) {
   const [selectedParallels, setSelectedParallels] = useState<ParallelSub[]>([]);
   const [parallelQueue, setParallelQueue] = useState<ParallelSub[]>([]);
   const [lockedTypeIds, setLockedTypeIds] = useState<Set<string>>(new Set());
+  // Aktivite akışı: id bellekte üretilir, DB kaydı ilk girdiyle yazılır (ensureActivity)
+  const [activity, setActivity] = useState<{ id: string; name: string } | null>(null);
+  const [activityCount, setActivityCount] = useState(0);
 
   useEffect(() => {
     if (!open) {
@@ -73,9 +81,16 @@ export function DayEntrySheet({ date, open, onClose }: DayEntrySheetProps) {
         setSelectedParallels([]);
         setParallelQueue([]);
         setLockedTypeIds(new Set());
+        setActivity(null);
+        setActivityCount(0);
       }, 300);
     }
   }, [open]);
+
+  // Aktivite modunda açılış isim adımından başlar
+  useEffect(() => {
+    if (open && activityMode) setStep({ type: "activity-name" });
+  }, [open, activityMode]);
 
   const groups = useLiveQuery(async () => {
     const cats = await db.categories.orderBy("order").toArray();
@@ -91,7 +106,8 @@ export function DayEntrySheet({ date, open, onClose }: DayEntrySheetProps) {
       }));
   }, []);
 
-  const currentSubId = step.type !== "pick" ? step.sub.id : "";
+  const currentSubId =
+    step.type === "form" || step.type === "parallel-form" ? step.sub.id : "";
 
   // Modifier'ları canlı izle — hem ana hem paralel form için
   const formMods = useLiveQuery(
@@ -154,12 +170,18 @@ export function DayEntrySheet({ date, open, onClose }: DayEntrySheetProps) {
         modId: m.modId,
         value: vals[valueKey(m)],
       }));
+    const occurredAt = makeOccurredAt();
+    // Aktivite kaydı ilk girdiyle yazılır — isim verip vazgeçen iz bırakmaz
+    if (activity) {
+      await ensureActivity({ id: activity.id, name: activity.name, occurredAt });
+    }
     await createEntry({
       subcategoryId: subId,
       typeValues,
-      occurredAt: makeOccurredAt(),
+      occurredAt,
       notes: (entryNotes ?? notes).trim() || undefined,
       linkedGroupId: groupId,
+      activityId: activity?.id,
     });
   }
 
@@ -223,6 +245,15 @@ export function DayEntrySheet({ date, open, onClose }: DayEntrySheetProps) {
       if (step.type === "form") {
         const groupId = selectedParallels.length > 0 ? nanoid(12) : undefined;
         await persistEntry(step.sub.id, formMods, values, groupId);
+        // Aktivite modunda seri giriş: kaydet → seçim adımına dön, sheet açık kalır
+        if (activity) {
+          setActivityCount((c) => c + 1);
+          setValues({});
+          setNotes("");
+          setShowNotes(false);
+          setStep({ type: "pick" });
+          return;
+        }
         if (selectedParallels.length > 0) {
           setSelectedParallels([]);
           await advanceToNextParallel(
@@ -284,18 +315,29 @@ export function DayEntrySheet({ date, open, onClose }: DayEntrySheetProps) {
           <div className="h-[3px] w-10 rounded-full bg-white/15" />
         </div>
 
-        {step.type === "pick" ? (
+        {step.type === "activity-name" ? (
+          <ActivityNameStep
+            onConfirm={(name) => {
+              setActivity({ id: nanoid(12), name });
+              setStep({ type: "pick" });
+            }}
+            onClose={onClose}
+          />
+        ) : step.type === "pick" ? (
           <PickStep
             groups={groups}
             onSubSelect={handleSubSelect}
             onCategorySelect={handleCategorySelect}
             onClose={onClose}
+            activity={activity ? { name: activity.name, count: activityCount } : null}
           />
         ) : (
           <FormStep
             sub={step.sub}
             mods={formMods}
             currentCategoryId={step.sub.categoryId}
+            hideParallels={!!activity}
+            activityName={activity?.name}
             selectedParallels={step.type === "form" ? selectedParallels : []}
             onAddParallel={(ps) => setSelectedParallels((prev) => [...prev, ps])}
             onRemoveParallel={(id) => setSelectedParallels((prev) => prev.filter((p) => p.id !== id))}
@@ -324,6 +366,81 @@ export function DayEntrySheet({ date, open, onClose }: DayEntrySheetProps) {
   );
 }
 
+// ─── Activity Name Step ──────────────────────────────────────────────────────
+
+/** Aktivite akışının ilk adımı — isim + geçmiş adlardan öneri çipleri */
+function ActivityNameStep({
+  onConfirm,
+  onClose,
+}: {
+  onConfirm: (name: string) => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState("");
+  const suggestions = useLiveQuery(() => listActivityNameSuggestions(), []) ?? [];
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (name.trim()) onConfirm(name.trim());
+  }
+
+  return (
+    <>
+      <div className="flex items-center justify-between px-5 pt-2 pb-3 shrink-0">
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold tracking-tight">
+            Yeni Aktivite
+          </h2>
+          <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+            Farklı kategorilerden girdileri tek çatı altında topla
+          </p>
+        </div>
+        <button
+          onClick={onClose}
+          className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors shrink-0"
+          aria-label="Kapat"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-10">
+        <form onSubmit={submit} className="flex flex-col gap-4">
+          {suggestions.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-muted-foreground">Son aktiviteler</p>
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => onConfirm(s)}
+                    className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium transition-all hover:bg-muted active:scale-95"
+                  >
+                    <Boxes className="h-3 w-3 text-cyan-400/70" />
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">veya yenisini yaz</p>
+            </div>
+          )}
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Aktivite adı (örn. Market alışverişi)"
+            autoFocus={suggestions.length === 0}
+            className="h-12 text-base"
+          />
+          <Button type="submit" size="lg" disabled={!name.trim()}>
+            Devam →
+          </Button>
+        </form>
+      </div>
+    </>
+  );
+}
+
 // ─── Pick Step ───────────────────────────────────────────────────────────────
 
 /** Sürükleme sırasında bırakılabilecek hedef */
@@ -337,6 +454,7 @@ function PickStep({
   onSubSelect,
   onCategorySelect,
   onClose,
+  activity,
 }: {
   groups:
     | { category: Category; topSubs: SubCategory[]; allSubs: SubCategory[] }[]
@@ -344,6 +462,8 @@ function PickStep({
   onSubSelect: (sub: SubCategory) => void;
   onCategorySelect: (category: Category) => void;
   onClose: () => void;
+  /** Aktivite akışında başlık bandı + Bitti butonu */
+  activity?: { name: string; count: number } | null;
 }) {
   // Basılı tut + sürükle: daire başka bir dairenin (altına taşı), kategori
   // başlığının (o kategorinin ana seviyesine taşı) ya da çöp alanının (sil)
@@ -465,24 +585,49 @@ function PickStep({
 
   return (
     <>
-      <div className="flex items-center justify-between px-5 pt-2 pb-3 shrink-0">
+      <div className="flex items-center justify-between gap-2 px-5 pt-2 pb-3 shrink-0">
         <div className="min-w-0">
+          {activity && !drag && (
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <Boxes className="h-3 w-3 text-cyan-400" />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan-400/80 truncate">
+                {activity.name}
+                {activity.count > 0 && ` · ${activity.count} girdi eklendi`}
+              </span>
+            </div>
+          )}
           <h2 className="text-base font-semibold tracking-tight truncate">
-            {drag ? `"${drag.sub.name}" taşınıyor` : "Ne eklemek istersin?"}
+            {drag
+              ? `"${drag.sub.name}" taşınıyor`
+              : activity
+                ? "Aktiviteye girdi ekle"
+                : "Ne eklemek istersin?"}
           </h2>
           <p className="text-[10px] text-muted-foreground/60 mt-0.5">
             {drag
               ? "Bir dairenin ya da kategori adının üzerine bırak"
-              : "İpucu: daireyi basılı tutup sürükleyerek taşıyabilirsin"}
+              : activity
+                ? "İstediğin kadar ekle — bitince Bitti'ye bas"
+                : "İpucu: daireyi basılı tutup sürükleyerek taşıyabilirsin"}
           </p>
         </div>
-        <button
-          onClick={onClose}
-          className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors shrink-0"
-          aria-label="Kapat"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {activity && (
+            <button
+              onClick={onClose}
+              className="flex h-7 items-center rounded-full bg-cyan-500/15 border border-cyan-500/40 px-3 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/25 transition-colors"
+            >
+              Bitti
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors"
+            aria-label="Kapat"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
       <div
@@ -1029,6 +1174,8 @@ function FormStep({
   sub,
   mods,
   currentCategoryId,
+  hideParallels,
+  activityName,
   selectedParallels,
   onAddParallel,
   onRemoveParallel,
@@ -1048,6 +1195,9 @@ function FormStep({
   sub: SubCategory;
   mods: CategoryModifierWithType[];
   currentCategoryId: string;
+  /** Aktivite akışında paralel perspektif bölümü gizlenir (seri giriş sade kalsın) */
+  hideParallels?: boolean;
+  activityName?: string;
   selectedParallels: ParallelSub[];
   onAddParallel: (ps: ParallelSub) => void;
   onRemoveParallel: (id: string) => void;
@@ -1103,6 +1253,14 @@ function FormStep({
               </span>
             </div>
           )}
+          {activityName && !parallelContext && (
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <Boxes className="h-3 w-3 text-cyan-400" />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan-400/80 truncate">
+                {activityName}
+              </span>
+            </div>
+          )}
           <h2 className="text-base font-semibold tracking-tight truncate">{sub.name}</h2>
         </div>
       </div>
@@ -1147,8 +1305,8 @@ function FormStep({
             </>
           )}
 
-          {/* Paralel perspektifler — sadece ana form adımında */}
-          {!parallelContext && (
+          {/* Paralel perspektifler — sadece ana form adımında (aktivite akışında gizli) */}
+          {!parallelContext && !hideParallels && (
             <div className="flex flex-col gap-2 pt-1">
               <div className="flex items-center gap-1.5">
                 <Link2 className="h-3.5 w-3.5 text-violet-400/70" />

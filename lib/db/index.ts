@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie";
 import type {
+  Activity,
   Category,
   SubCategory,
   Field,
@@ -23,6 +24,7 @@ export class RoutineDB extends Dexie {
   categoryModifiers!: Table<CategoryModifier, string>;
   mods!: Table<Mod, string>;
   goals!: Table<Goal, string>;
+  activities!: Table<Activity, string>;
 
   constructor() {
     super("RoutineDB");
@@ -201,6 +203,13 @@ export class RoutineDB extends Dexie {
           }
         }
       });
+    // v10 — Aktiviteler: girdileri tek oturum altında toplayan konteyner.
+    // entries'e activityId indeksi eklenir (veri dönüşümü gerekmez).
+    this.version(10).stores({
+      activities: "id, name, occurredAt, createdAt",
+      entries:
+        "id, subcategoryId, occurredAt, createdAt, title, linkedGroupId, activityId",
+    });
   }
 }
 
