@@ -212,7 +212,7 @@ export default function ConnectionMap({
         href: `/structure/${cat.id}`,
         note:
           shared.length > 0
-            ? `Ortak mod: ${[...new Set(shared.flatMap((s) => s.labels))].join(", ")}`
+            ? `Ortak özellik: ${[...new Set(shared.flatMap((s) => s.labels))].join(", ")}`
             : null,
       };
     }

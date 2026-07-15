@@ -167,7 +167,7 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
             {/* Mod chips */}
             <div className="flex flex-col gap-2.5">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Mod seç
+                Özellik seç
                 {selectedTypeIds.length > 0 && (
                   <span className="ml-1.5 normal-case font-normal text-muted-foreground/50">
                     · {selectedTypeIds.length} seçili
@@ -235,7 +235,7 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
                   className="flex items-center gap-1.5 rounded-xl border border-dashed border-border/60 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:border-border transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  Başka mod
+                  Başka özellik
                 </button>
               </div>
             </div>
@@ -378,7 +378,7 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
       <Dialog open={typePickerOpen} onOpenChange={setTypePickerOpen}>
         <DialogContent className="max-h-[70dvh] overflow-y-auto gap-4">
           <DialogHeader>
-            <DialogTitle>Mod seç</DialogTitle>
+            <DialogTitle>Özellik seç</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2">
             {availableInPicker.map((t) => (

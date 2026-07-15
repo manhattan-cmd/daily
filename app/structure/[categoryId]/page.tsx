@@ -70,7 +70,7 @@ export default function CategoryDetailPage({
     <>
       <PageHeader
         title={category?.name ?? "..."}
-        description="Alt kategoriler ve modlar"
+        description="Alt kategoriler ve özellikler"
         back="/structure"
       />
 

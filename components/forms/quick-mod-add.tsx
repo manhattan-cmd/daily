@@ -27,10 +27,10 @@ export function QuickModAdd({
           "flex items-center gap-1 rounded-lg border border-dashed px-2 py-1 text-xs transition-all active:scale-95",
           "border-border/60 text-muted-foreground/60 hover:border-border hover:text-muted-foreground"
         )}
-        aria-label="Mod ekle"
+        aria-label="Özellik ekle"
       >
         <SlidersHorizontal className="h-3 w-3" />
-        <span>Mod ekle</span>
+        <span>Özellik ekle</span>
       </button>
 
       <ModPickDialog

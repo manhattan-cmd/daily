@@ -128,7 +128,7 @@ export default function GalaxyPage() {
                 <svg width="18" height="4" viewBox="0 0 18 4">
                   <line x1="0" y1="2" x2="18" y2="2" stroke="currentColor" className="text-muted-foreground" strokeWidth="1" strokeDasharray="3 3" />
                 </svg>
-                <span className="text-[10px] text-muted-foreground">ortak mod</span>
+                <span className="text-[10px] text-muted-foreground">ortak özellik</span>
               </div>
             )}
             {data.connections.length > 0 && data.parallels.length > 0 && (

@@ -354,7 +354,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
               {/* Mod chips */}
               <div className="flex flex-col gap-2.5">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Mod seç
+                  Özellik seç
                   {selectedTypeIds.length > 0 && (
                     <span className="ml-1.5 normal-case font-normal text-muted-foreground/50">
                       · {selectedTypeIds.length} seçili
@@ -425,8 +425,8 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
                   >
                     <Plus className="h-3.5 w-3.5" />
                     {selectedTypeIds.length === 0 && mods.length === 0
-                      ? "Mod seç"
-                      : "Başka mod"}
+                      ? "Özellik seç"
+                      : "Başka özellik"}
                   </button>
                 </div>
               </div>
@@ -591,7 +591,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
       <Dialog open={typePickerOpen} onOpenChange={setTypePickerOpen}>
         <DialogContent className="max-h-[70dvh] overflow-y-auto gap-4">
           <DialogHeader>
-            <DialogTitle>Mod seç</DialogTitle>
+            <DialogTitle>Özellik seç</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2">
             {availableInPicker.map((t) => (

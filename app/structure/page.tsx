@@ -53,7 +53,7 @@ export default function StructurePage() {
     <>
       <PageHeader
         title="Yapı"
-        description="Kategori ve modları yönet"
+        description="Kategori ve özellikleri yönet"
         action={<CategoryQuickAdd existingNames={existingNames} />}
       />
 
@@ -67,9 +67,9 @@ export default function StructurePage() {
             <Sliders className="h-5 w-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-medium">Modlar</div>
+            <div className="font-medium">Özellikler</div>
             <div className="text-xs text-muted-foreground">
-              Tüm modları gör, yönet — ölçüler de burada
+              Tüm özellikleri gör, yönet — ölçüler de burada
             </div>
           </div>
           <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -85,7 +85,7 @@ export default function StructurePage() {
           <div className="flex-1 min-w-0">
             <div className="font-medium">Bağlantı Haritası</div>
             <div className="text-xs text-muted-foreground">
-              Kategori, alt kategori ve mod bağlantılarını gör
+              Kategori, alt kategori ve özellik bağlantılarını gör
             </div>
           </div>
           <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />

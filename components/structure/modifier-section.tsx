@@ -33,27 +33,28 @@ export function ModifierSection({
     <section className="flex flex-col gap-3 mb-6">
       <div className="flex items-center justify-between px-1">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Modlar
+          Özellikler
         </h2>
         <button
           onClick={() => setPickerOpen(true)}
           className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
         >
           <Plus className="h-3.5 w-3.5" />
-          Mod ekle
+          Özellik ekle
         </button>
       </div>
 
       {!mods || mods.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-card/40 px-4 py-5 text-center">
           <p className="text-sm text-muted-foreground">
-            Henüz mod ekli değil. Havuzdan bir mod seç ya da yenisini yarat.
+            Henüz özellik ekli değil. Havuzdan bir özellik seç ya da yenisini
+            yarat.
           </p>
           <button
             onClick={() => setPickerOpen(true)}
             className="mt-1 text-xs text-primary hover:text-primary/80 transition-colors"
           >
-            Mod ekle →
+            Özellik ekle →
           </button>
         </div>
       ) : (
@@ -81,7 +82,7 @@ export function ModifierSection({
               <button
                 onClick={() => handleDetach(mod.id)}
                 className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                aria-label={`${mod.name ?? mod.entryType.name} modunu buradan çıkar`}
+                aria-label={`${mod.name ?? mod.entryType.name} özelliğini buradan çıkar`}
               >
                 <X className="h-3.5 w-3.5" />
               </button>

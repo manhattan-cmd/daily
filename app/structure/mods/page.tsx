@@ -105,7 +105,7 @@ export default function ModsHomePage() {
     try {
       const clash = await findModByName(name);
       if (clash) {
-        setError(`"${clash.name}" adında bir mod zaten var — mod adları tekildir.`);
+        setError(`"${clash.name}" adında bir özellik zaten var — özellik adları tekildir.`);
         return;
       }
       await createMod(name, measureId);
@@ -133,20 +133,20 @@ export default function ModsHomePage() {
       u && (u.count > 0 || u.valueCount > 0)
         ? ` ${u.count} yerden kaldırılacak; ${u.valueCount} kayıt değeri ölçü adıyla kalacak.`
         : "";
-    if (!confirm(`"${mod.name}" modu havuzdan silinsin mi?${detail}`)) return;
+    if (!confirm(`"${mod.name}" özelliği havuzdan silinsin mi?${detail}`)) return;
     await deleteMod(mod.id);
   }
 
   return (
     <>
       <PageHeader
-        title="Modlar"
+        title="Özellikler"
         description="Ölçülebilir en küçük birimler — her ad tekildir"
         back="/structure"
         action={
           <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-1.5">
             <Plus className="h-3.5 w-3.5" />
-            Yeni Mod
+            Yeni Özellik
           </Button>
         }
       />
@@ -162,7 +162,7 @@ export default function ModsHomePage() {
         <div className="flex-1 min-w-0">
           <div className="font-medium">Ölçüler</div>
           <div className="text-xs text-muted-foreground">
-            Modların kullandığı ölçü türleri (Süre, Mesafe, Para...)
+            Özelliklerin kullandığı ölçü türleri (Süre, Mesafe, Para...)
           </div>
         </div>
         <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -174,7 +174,7 @@ export default function ModsHomePage() {
           {mods.some((m) => m.isBuiltIn) && (
             <section className="mb-6">
               <h2 className="px-1 mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Yerleşik Modlar
+                Yerleşik Özellikler
               </h2>
               <div className="grid grid-cols-2 gap-2">
                 {mods
@@ -213,7 +213,7 @@ export default function ModsHomePage() {
           {/* Kullanıcı modları */}
           <section className="mb-6">
             <h2 className="px-1 mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Senin Modların
+              Senin Özelliklerin
             </h2>
             {mods.filter((m) => !m.isBuiltIn).length === 0 ? (
               <button
@@ -221,7 +221,7 @@ export default function ModsHomePage() {
                 className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-card/40 px-4 py-5 text-sm text-muted-foreground hover:bg-card/70 transition-colors"
               >
                 <Plus className="h-4 w-4" />
-                İlk modunu yarat — isim ver, ölçü seç
+                İlk özelliğini yarat — isim ver, ölçü seç
               </button>
             ) : (
               <div className="flex flex-col gap-2">
@@ -268,14 +268,14 @@ export default function ModsHomePage() {
                               setRenameError(false);
                             }}
                             className="rounded-lg p-1.5 text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
-                            aria-label={`${mod.name} modunu yeniden adlandır`}
+                            aria-label={`${mod.name} özelliğini yeniden adlandır`}
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => handleDelete(mod)}
                             className="rounded-lg p-1.5 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            aria-label={`${mod.name} modunu sil`}
+                            aria-label={`${mod.name} özelliğini sil`}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -293,14 +293,14 @@ export default function ModsHomePage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="gap-4 max-h-[80dvh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-base">Yeni mod yarat</DialogTitle>
+            <DialogTitle className="text-base">Yeni özellik yarat</DialogTitle>
             <DialogDescription>
               Havuza eklenir; kategorilere Yapı sayfasından ya da girdi
               formundan bağlanır
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="pool-mod-name">Mod adı</Label>
+            <Label htmlFor="pool-mod-name">Özellik adı</Label>
             <Input
               id="pool-mod-name"
               value={name}
@@ -366,9 +366,9 @@ export default function ModsHomePage() {
       >
         <DialogContent className="max-w-[340px] gap-4">
           <DialogHeader>
-            <DialogTitle className="text-base">Modu yeniden adlandır</DialogTitle>
+            <DialogTitle className="text-base">Özelliği yeniden adlandır</DialogTitle>
             <DialogDescription>
-              Ad her yerde değişir — mod tektir
+              Ad her yerde değişir — özellik tektir
             </DialogDescription>
           </DialogHeader>
           <Input
@@ -379,7 +379,7 @@ export default function ModsHomePage() {
           />
           {renameError && (
             <p className="text-xs text-amber-300/90">
-              Bu adda başka bir mod var — mod adları tekildir.
+              Bu adda başka bir özellik var — özellik adları tekildir.
             </p>
           )}
           <DialogFooter>

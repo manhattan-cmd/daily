@@ -1211,7 +1211,7 @@ function FormStep({
           {mods.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border/50 bg-muted/20 px-4 py-5 flex flex-col items-center gap-2.5 text-center">
               <p className="text-sm text-muted-foreground">
-                Detay eklemek istersen mod aç — istemezsen doğrudan kaydet
+                Kaydını tutmak istediğin özellikleri ekle veya doğrudan kaydet.
               </p>
               <button
                 type="button"
@@ -1219,7 +1219,7 @@ function FormStep({
                 className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Mod ekle
+                Özellik ekle
               </button>
             </div>
           ) : (
@@ -1241,7 +1241,7 @@ function FormStep({
                 className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors self-start"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Mod ekle
+                Özellik ekle
               </button>
             </>
           )}
@@ -1393,7 +1393,7 @@ function ModInput({
           type="button"
           onClick={onRemove}
           className="h-5 w-5 flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted transition-colors"
-          aria-label={`${mod.entryType.name} modunu bu girdiden çıkar`}
+          aria-label={`${mod.entryType.name} özelliğini bu girdiden çıkar`}
         >
           <X className="h-3 w-3" />
         </button>

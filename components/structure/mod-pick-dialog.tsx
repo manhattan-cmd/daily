@@ -99,7 +99,7 @@ export function ModPickDialog({
         if (attachedModIds.has(clash.id)) {
           setError(`"${clash.name}" zaten var ve ${targetName} içinde ekli.`);
         } else {
-          setError(`"${clash.name}" adında bir mod zaten var.`);
+          setError(`"${clash.name}" adında bir özellik zaten var.`);
           setExistingId(clash.id);
         }
         return;
@@ -126,11 +126,11 @@ export function ModPickDialog({
                 <ArrowLeft className="h-3.5 w-3.5" />
               </button>
             )}
-            {mode === "create" ? "Yeni mod yarat" : "Mod ekle"}
+            {mode === "create" ? "Yeni özellik yarat" : "Özellik ekle"}
           </DialogTitle>
           <DialogDescription>
             {mode === "create"
-              ? "Mod adı tekildir — aynı mod her yerde paylaşılır"
+              ? "Özellik adı tekildir — aynı özellik her yerde paylaşılır"
               : `${targetName} için havuzdan seç ya da yeni yarat`}
           </DialogDescription>
         </DialogHeader>
@@ -139,7 +139,7 @@ export function ModPickDialog({
           <>
             {available.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
-                Havuzdaki tüm modlar zaten ekli.
+                Havuzdaki tüm özellikler zaten ekli.
               </p>
             ) : (
               <div className="flex flex-col gap-2">
@@ -178,13 +178,13 @@ export function ModPickDialog({
               className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border px-3 py-2.5 text-sm text-primary hover:border-primary/50 transition-colors"
             >
               <Plus className="h-4 w-4" />
-              Yeni mod yarat
+              Yeni özellik yarat
             </button>
           </>
         ) : (
           <>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="mod-name-input">Mod adı</Label>
+              <Label htmlFor="mod-name-input">Özellik adı</Label>
               <Input
                 id="mod-name-input"
                 value={name}
@@ -240,7 +240,7 @@ export function ModPickDialog({
                     className="mt-1.5 flex items-center gap-1 font-medium text-amber-100 hover:underline"
                   >
                     <Check className="h-3 w-3" />
-                    Var olan modu ekle
+                    Var olan özelliği ekle
                   </button>
                 )}
               </div>

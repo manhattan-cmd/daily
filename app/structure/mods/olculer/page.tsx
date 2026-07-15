@@ -50,7 +50,7 @@ export default function OlculerPage() {
   async function handleDelete(t: EntryType) {
     if (
       !confirm(
-        `"${t.name}" ölçüsünü silmek istediğinden emin misin? Bu ölçüyü kullanan modlar etkilenmez.`
+        `"${t.name}" ölçüsünü silmek istediğinden emin misin? Bu ölçüyü kullanan özellikler etkilenmez.`
       )
     )
       return;
@@ -61,7 +61,7 @@ export default function OlculerPage() {
     <>
       <PageHeader
         title="Ölçüler"
-        description="Modların ölçüm araçları — bir ilkel tür seç, yapılandır"
+        description="Özelliklerin ölçüm araçları — bir ilkel tür seç, yapılandır"
         back="/structure/mods"
         action={
           <Button
