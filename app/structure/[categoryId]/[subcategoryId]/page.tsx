@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { ModifierSection } from "@/components/structure/modifier-section";
-import { GuideHint } from "@/components/structure/structure-guide";
 import { CategoryIcon, CATEGORY_ICON_MAP } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
 import type { SubCategory } from "@/types";
@@ -91,30 +90,21 @@ export default function SubCategoryDetailPage({
         />
       )}
 
-      {/* Modlar — bu dalda ölçülecek değerler */}
+      {/* Modlar */}
       {subcategory && (
         <ModifierSection
           targetType="subcategory"
           targetId={subcategoryId}
           targetName={subcategory.name}
-          description={`"${subcategory.name}" girdilerinde sorulacak ölçüler.`}
-          emptyText={`"${subcategory.name}"e dair neyi ölçmek istiyorsun? Para (₺), Miktar (adet), Süre (dk)… Bir mod ekle; girdi yazarken bu değer sorulur.`}
         />
       )}
 
-      {/* Alt kategoriler — istenirse bu dal da dallandırılabilir */}
-      {children && (
+      {/* Alt kategoriler */}
+      {children && children.length > 0 && (
         <section className="flex flex-col gap-2 mb-6">
           <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Alt Kategoriler
           </h2>
-          {children.length === 0 && subcategory && (
-            <GuideHint>
-              İstersen &bdquo;{subcategory.name}&rdquo;i alttaki + ile daha da
-              dallandırabilirsin (örn. Market → Manav, Şarküteri) — ya da
-              dallandırmadan Takvim&apos;den girdi eklemeye başla.
-            </GuideHint>
-          )}
           {children.map((child) => {
             const hasChildren = hasSubChildren(child.id);
             const Icon = hasChildren ? FolderOpen : Folder;
