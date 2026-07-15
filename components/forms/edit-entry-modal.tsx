@@ -557,7 +557,7 @@ export function EditEntryModal({
                 className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Bu girdiye mod ekle
+                Bu girdiye özellik ekle
               </button>
             )}
 
@@ -702,7 +702,7 @@ export function EditEntryModal({
         <DialogContent className="gap-4 max-h-[80dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-base">
-              Bu girdiye mod ekle
+              Bu girdiye özellik ekle
               <span className="block text-xs font-normal text-muted-foreground mt-0.5">
                 Yalnızca bu girdi için geçerli olacak
               </span>
