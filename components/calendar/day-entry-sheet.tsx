@@ -4,14 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Boxes, Plus, X, ChevronDown, Trash2, Link2 } from "lucide-react";
+import { ArrowLeft, Boxes, ChevronDown, ChevronRight, CornerDownRight, Link2, Plus, Trash2, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
 import {
   listModifiersForTarget,
   removeModifier,
   createEntry,
-  deleteCategory,
   deleteSubCategory,
   ensureActivity,
   getOrCreateCategoryRootSub,
@@ -656,7 +655,7 @@ function PickStep({
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-7">
+          <div className="flex flex-col gap-5">
             {groups.map(({ category, topSubs, allSubs }) => (
               <CategoryGroup
                 key={category.id}
@@ -792,21 +791,9 @@ function CategoryGroup({
   const [expansionPath, setExpansionPath] = useState<string[]>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [addParentId, setAddParentId] = useState<string | undefined>(undefined);
-  const [deleteCatOpen, setDeleteCatOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   const isCatDropTarget =
     dropTarget?.kind === "cat" && dropTarget.id === category.id;
-
-  async function confirmDeleteCategory() {
-    setDeleting(true);
-    try {
-      await deleteCategory(category.id);
-    } finally {
-      setDeleting(false);
-      setDeleteCatOpen(false);
-    }
-  }
 
   function handleExpand(subId: string, levelIndex: number) {
     setExpansionPath((prev) => {
@@ -836,8 +823,10 @@ function CategoryGroup({
   }
 
   function renderLevel(subs: SubCategory[], levelIndex: number): React.ReactNode {
-    const parentId = subs[0]?.parentId; // undefined for topSubs
     const expandedIdAtLevel = expansionPath[levelIndex];
+    const expandedSub = expandedIdAtLevel
+      ? allSubs.find((s) => s.id === expandedIdAtLevel)
+      : undefined;
     const nextLevelSubs = expandedIdAtLevel
       ? allSubs
           .filter((s) => s.parentId === expandedIdAtLevel)
@@ -846,17 +835,7 @@ function CategoryGroup({
 
     return (
       <div key={`level-${levelIndex}`}>
-        <div
-          className={cn(
-            "flex flex-wrap gap-4",
-            levelIndex > 0 && "mt-5 pt-4 pl-4 border-l-[2px]"
-          )}
-          style={
-            levelIndex > 0
-              ? { borderColor: `${category.color}35` }
-              : undefined
-          }
-        >
+        <div className="flex flex-wrap gap-4">
           {subs.map((sub) => {
             const hasChildren = allSubs.some((s) => s.parentId === sub.id);
             const isExpanded = expansionPath[levelIndex] === sub.id;
@@ -882,62 +861,70 @@ function CategoryGroup({
               />
             );
           })}
-          <AddCircle
-            categoryColor={category.color}
-            onTap={() => openAdd(parentId)}
-          />
         </div>
 
-        {nextLevelSubs.length > 0 &&
-          renderLevel(nextLevelSubs, levelIndex + 1)}
+        {/* Açılan dal: ebeveyn adı etiketli, bağlantı çizgili yuva — iç içe
+            render edildiğinden derinleştikçe girinti artar, aidiyet okunur */}
+        {nextLevelSubs.length > 0 && expandedSub && (
+          <div
+            className="mt-3 ml-7 border-l-2 pl-3.5 pb-1"
+            style={{ borderColor: `${category.color}40` }}
+          >
+            <div className="mb-2.5 flex items-center gap-1.5">
+              <CornerDownRight
+                className="h-3 w-3 shrink-0"
+                style={{ color: `${category.color}90` }}
+              />
+              <span
+                className="truncate text-[10px] font-semibold uppercase tracking-wider"
+                style={{ color: `${category.color}c0` }}
+              >
+                {expandedSub.name}
+              </span>
+            </div>
+            {renderLevel(nextLevelSubs, levelIndex + 1)}
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div>
-      {/* Section header — ada tıklayınca kategori doğrudan girdi olarak eklenir;
+      {/* Section header — kutuya tıklayınca kategori doğrudan girdi olarak eklenir;
           sürüklemede üzerine bırakılan alt kategori bu kategorinin ana seviyesine taşınır */}
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-3">
         <button
           data-drop-cat={category.id}
           onClick={() => onCategorySelect(category)}
           className={cn(
-            "flex items-center gap-2 flex-1 min-w-0 rounded-lg -mx-1 px-1 py-0.5 hover:bg-white/5 active:scale-[0.98] transition-all text-left",
-            isCatDropTarget && "bg-white/10 ring-1 ring-inset scale-[1.02]"
+            "flex items-center gap-2.5 flex-1 min-w-0 rounded-xl border px-3 py-2.5 text-left transition-all hover:brightness-110 active:scale-[0.98]",
+            isCatDropTarget && "ring-1 ring-inset scale-[1.02]"
           )}
-          style={
-            isCatDropTarget
+          style={{
+            borderColor: `${category.color}${isCatDropTarget ? "" : "30"}`,
+            background: `linear-gradient(135deg, ${category.color}${isCatDropTarget ? "30" : "16"}, ${category.color}06)`,
+            ...(isCatDropTarget
               ? ({ "--tw-ring-color": category.color } as React.CSSProperties)
-              : undefined
-          }
+              : {}),
+          }}
           aria-label={`${category.name} kategorisine doğrudan girdi ekle`}
         >
           <div
-            className="h-2 w-2 rounded-full shrink-0"
+            className="h-2.5 w-2.5 rounded-full shrink-0"
             style={{ backgroundColor: category.color }}
           />
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70 truncate">
+          <span className="flex-1 truncate text-sm font-semibold">
             {category.name}
           </span>
-          <Plus
-            className="h-3 w-3 shrink-0"
-            style={{ color: `${category.color}90` }}
-          />
-        </button>
-        <button
-          onClick={() => setDeleteCatOpen(true)}
-          className="h-6 w-6 rounded-full border border-border/40 flex items-center justify-center hover:border-red-500/50 hover:bg-red-500/10 active:scale-95 transition-all"
-          aria-label={`${category.name} kategorisini sil`}
-        >
-          <Trash2 className="h-3 w-3 text-muted-foreground/50 hover:text-red-400" />
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
         </button>
         <button
           onClick={() => openAdd(undefined)}
-          className="h-6 w-6 rounded-full border border-dashed border-border/60 flex items-center justify-center hover:border-foreground/30 hover:bg-muted/40 active:scale-95 transition-all"
+          className="h-9 w-9 shrink-0 rounded-full border border-dashed border-border/60 flex items-center justify-center hover:border-foreground/30 hover:bg-muted/40 active:scale-95 transition-all"
           aria-label={`${category.name} altına alt kategori ekle`}
         >
-          <Plus className="h-3 w-3 text-muted-foreground" />
+          <Plus className="h-4 w-4 text-muted-foreground" />
         </button>
       </div>
 
@@ -958,33 +945,6 @@ function CategoryGroup({
         }}
       />
 
-      {/* Kategori silme onayı (alt kategori silme, sürükleyip çöpe bırakmayla yapılır) */}
-      <Dialog open={deleteCatOpen} onOpenChange={setDeleteCatOpen}>
-        <DialogContent className="max-w-[320px]">
-          <DialogHeader>
-            <DialogTitle>{`"${category.name}" silinsin mi?`}</DialogTitle>
-            <DialogDescription>
-              Tüm alt kategoriler ve girdiler kalıcı olarak silinecek.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteCatOpen(false)}
-              disabled={deleting}
-            >
-              İptal
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDeleteCategory}
-              disabled={deleting}
-            >
-              {deleting ? "Siliniyor..." : "Sil"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -1144,40 +1104,6 @@ function SubCircle({
 
       <span className="text-[11px] leading-tight text-center text-muted-foreground max-w-[64px] line-clamp-2 select-none">
         {sub.name}
-      </span>
-    </button>
-  );
-}
-
-// ─── Add Circle ──────────────────────────────────────────────────────────────
-
-function AddCircle({
-  categoryColor,
-  onTap,
-}: {
-  categoryColor: string;
-  onTap: () => void;
-}) {
-  return (
-    <button
-      onClick={onTap}
-      className="flex flex-col items-center gap-2 active:scale-90 transition-transform group"
-      aria-label="Yeni alt kategori ekle"
-    >
-      <div
-        className="h-[60px] w-[60px] rounded-full flex items-center justify-center border-[1.5px] border-dashed transition-all duration-200 group-hover:bg-white/5"
-        style={{ borderColor: `${categoryColor}50` }}
-      >
-        <Plus
-          className="h-5 w-5 transition-colors"
-          style={{ color: `${categoryColor}70` }}
-        />
-      </div>
-      <span
-        className="text-[11px] leading-tight text-center max-w-[64px] select-none"
-        style={{ color: `${categoryColor}60` }}
-      >
-        Yeni
       </span>
     </button>
   );
