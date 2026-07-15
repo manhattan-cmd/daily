@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Boxes, ChevronDown, ChevronRight, CornerDownRight, Link2, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, Boxes, Check, ChevronDown, ChevronRight, CornerDownRight, Link2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
 import {
@@ -339,6 +339,7 @@ export function DayEntrySheet({
           />
         ) : step.type === "pick" ? (
           <PickStep
+            key={open ? "open" : "closed"}
             groups={groups}
             onSubSelect={handleSubSelect}
             onCategorySelect={handleCategorySelect}
@@ -494,6 +495,9 @@ function PickStep({
   const dropRef = useRef<DropTarget | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<SubCategory | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Düzenleme modu: + rozetleri yalnızca bu moddayken görünür — normal
+  // görünüm sade kalır (kafa karıştıran artılar gizli)
+  const [editMode, setEditMode] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const subById = useMemo(() => {
@@ -622,7 +626,9 @@ function PickStep({
               ? "Bir dairenin ya da kategori adının üzerine bırak"
               : activity
                 ? "İstediğin kadar ekle — bitince Bitti'ye bas"
-                : "İpucu: daireyi basılı tutup sürükleyerek taşıyabilirsin"}
+                : editMode
+                  ? "+ ile alt kategori ekle; daireyi basılı tutup sürükleyerek taşı"
+                  : "Girdi eklemek istediğin yeri seç"}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -655,21 +661,47 @@ function PickStep({
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-5">
-            {groups.map(({ category, topSubs, allSubs }) => (
-              <CategoryGroup
-                key={category.id}
-                category={category}
-                topSubs={topSubs}
-                allSubs={allSubs}
-                onSubSelect={onSubSelect}
-                onCategorySelect={onCategorySelect}
-                onDragStart={startDrag}
-                draggingSubId={drag?.sub.id ?? null}
-                dropTarget={dropTarget}
-              />
-            ))}
-          </div>
+          <>
+            {/* Düzenleme modu anahtarı — + rozetlerini gösterir/gizler */}
+            <button
+              onClick={() => setEditMode((v) => !v)}
+              className={cn(
+                "mb-4 flex w-full items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-medium transition-colors",
+                editMode
+                  ? "border-primary/50 bg-primary/10 text-primary"
+                  : "border-dashed border-border/60 text-muted-foreground hover:border-border hover:text-foreground"
+              )}
+            >
+              {editMode ? (
+                <>
+                  <Check className="h-3.5 w-3.5" />
+                  Düzenlemeyi bitir
+                </>
+              ) : (
+                <>
+                  <Pencil className="h-3.5 w-3.5" />
+                  Alt kategorileri düzenle / oluştur
+                </>
+              )}
+            </button>
+
+            <div className="flex flex-col gap-5">
+              {groups.map(({ category, topSubs, allSubs }) => (
+                <CategoryGroup
+                  key={category.id}
+                  category={category}
+                  topSubs={topSubs}
+                  allSubs={allSubs}
+                  editMode={editMode}
+                  onSubSelect={onSubSelect}
+                  onCategorySelect={onCategorySelect}
+                  onDragStart={startDrag}
+                  draggingSubId={drag?.sub.id ?? null}
+                  dropTarget={dropTarget}
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
 
@@ -768,6 +800,7 @@ function CategoryGroup({
   category,
   topSubs,
   allSubs,
+  editMode,
   onSubSelect,
   onCategorySelect,
   onDragStart,
@@ -777,6 +810,8 @@ function CategoryGroup({
   category: Category;
   topSubs: SubCategory[];
   allSubs: SubCategory[];
+  /** Düzenleme modunda + rozetleri görünür */
+  editMode: boolean;
   onSubSelect: (sub: SubCategory) => void;
   onCategorySelect: (category: Category) => void;
   onDragStart: (
@@ -856,7 +891,7 @@ function CategoryGroup({
                     ? () => handleExpand(sub.id, levelIndex)
                     : undefined
                 }
-                onAddChild={() => openAdd(sub.id)}
+                onAddChild={editMode ? () => openAdd(sub.id) : undefined}
                 onDragStart={(pos) => onDragStart(sub, category.color, pos)}
               />
             );
@@ -919,13 +954,15 @@ function CategoryGroup({
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
         </button>
-        <button
-          onClick={() => openAdd(undefined)}
-          className="h-9 w-9 shrink-0 rounded-full border border-dashed border-border/60 flex items-center justify-center hover:border-foreground/30 hover:bg-muted/40 active:scale-95 transition-all"
-          aria-label={`${category.name} altına alt kategori ekle`}
-        >
-          <Plus className="h-4 w-4 text-muted-foreground" />
-        </button>
+        {editMode && (
+          <button
+            onClick={() => openAdd(undefined)}
+            className="h-9 w-9 shrink-0 rounded-full border border-dashed border-border/60 flex items-center justify-center hover:border-foreground/30 hover:bg-muted/40 active:scale-95 transition-all"
+            aria-label={`${category.name} altına alt kategori ekle`}
+          >
+            <Plus className="h-4 w-4 text-muted-foreground" />
+          </button>
+        )}
       </div>
 
       {renderLevel(topSubs, 0)}
@@ -1064,10 +1101,10 @@ function SubCircle({
       >
         <SubGlyph sub={sub} color={categoryColor} />
 
-        {/* Expand/collapse badge — sağ-alt */}
+        {/* Expand/collapse badge — sağ-alt; belirgin olsun diye büyük */}
         {hasChildren && (
           <div
-            className="absolute -bottom-0.5 -right-0.5 h-[18px] w-[18px] rounded-full flex items-center justify-center border-[1.5px] border-background transition-colors"
+            className="absolute -bottom-1 -right-1 h-[24px] w-[24px] rounded-full flex items-center justify-center border-2 border-background shadow-md transition-colors"
             style={{ backgroundColor: categoryColor }}
             onClick={(e) => {
               e.stopPropagation();
@@ -1078,9 +1115,10 @@ function SubCircle({
           >
             <ChevronDown
               className={cn(
-                "h-2.5 w-2.5 text-white transition-transform duration-200",
+                "h-3.5 w-3.5 text-white transition-transform duration-200",
                 isExpanded && "rotate-180"
               )}
+              strokeWidth={2.5}
             />
           </div>
         )}
