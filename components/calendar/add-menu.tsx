@@ -28,7 +28,8 @@ export function AddMenu({ items }: { items: AddMenuItem[] }) {
   const n = items.length;
   const start = 180;
   const step = n > 1 ? 90 / (n - 1) : 0;
-  const minChord = 68; // 48px daire + ~20px nefes payı
+  // 48px daire + altındaki etiket + nefes payı — etiketler alt alta gelmesin
+  const minChord = 92;
   const R =
     n > 1
       ? Math.max(100, minChord / (2 * Math.sin((step * Math.PI) / 360)))
@@ -62,7 +63,7 @@ export function AddMenu({ items }: { items: AddMenuItem[] }) {
             <div
               key={item.key}
               className={cn(
-                "absolute left-1/2 top-1/2 transition-all duration-300 ease-out",
+                "absolute left-1/2 top-1/2 flex flex-col items-center transition-all duration-300 ease-out",
                 open
                   ? "opacity-100"
                   : "opacity-0 pointer-events-none"
@@ -81,8 +82,7 @@ export function AddMenu({ items }: { items: AddMenuItem[] }) {
               >
                 <Icon className={cn("h-5 w-5", item.iconClass ?? "text-primary")} />
               </button>
-              {/* Etiket dairenin solunda — yay sola açıldığından komşu dairelerle çakışmaz */}
-              <span className="pointer-events-none absolute right-full top-1/2 mr-2 -translate-y-1/2 whitespace-nowrap select-none rounded-lg bg-black/55 px-2 py-1 text-[11px] font-medium text-white/95 backdrop-blur-sm">
+              <span className="pointer-events-none mt-1.5 whitespace-nowrap select-none text-[11px] font-medium text-white/90 [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]">
                 {item.label}
               </span>
             </div>
