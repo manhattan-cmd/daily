@@ -87,6 +87,8 @@ export function EntryCard({ entry }: { entry: EntryWithContext }) {
                   subcategoryId={entry.subcategoryId}
                   subcategoryName={entry.subcategory.name}
                   categoryId={entry.category.id}
+                  entryId={entry.id}
+                  occurredAt={entry.occurredAt}
                 />
               </span>
             </div>

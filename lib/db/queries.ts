@@ -910,6 +910,23 @@ export async function createEntry(input: {
   return entry;
 }
 
+/** Var olan girdiye tek değer ekler — girdi kartından özellik ekleme akışı */
+export async function addEntryValue(
+  entryId: string,
+  input: { entryTypeId: string; modId?: string; value: string }
+): Promise<void> {
+  await db.transaction("rw", [db.entries, db.entryValues], async () => {
+    await db.entryValues.add({
+      id: id(),
+      entryId,
+      entryTypeId: input.entryTypeId,
+      ...(input.modId ? { modId: input.modId } : {}),
+      value: input.value,
+    });
+    await db.entries.update(entryId, { updatedAt: now() });
+  });
+}
+
 export async function updateEntry(
   entryId: string,
   input: {

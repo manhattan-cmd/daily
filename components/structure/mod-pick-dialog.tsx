@@ -37,6 +37,7 @@ export function ModPickDialog({
   targetId,
   targetName,
   onGoToMeasures,
+  onAttached,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -44,6 +45,9 @@ export function ModPickDialog({
   targetId: string;
   targetName: string;
   onGoToMeasures?: () => void;
+  /** Bir özellik eklendiğinde (seçilen ya da yeni yaratılan) çağrılır —
+   * girdi kartı akışı bunu değer sorma adımına bağlar */
+  onAttached?: (mod: ModWithType) => void;
 }) {
   const [mode, setMode] = useState<"pick" | "create">("pick");
   const [name, setName] = useState("");
@@ -91,6 +95,8 @@ export function ModPickDialog({
     try {
       await attachMod(targetType, targetId, modId);
       onOpenChange(false);
+      const picked = (pool ?? []).find((m) => m.id === modId);
+      if (picked) onAttached?.(picked);
     } finally {
       setSaving(false);
     }
@@ -115,6 +121,8 @@ export function ModPickDialog({
       const { mod } = await createMod(name, measureId);
       await attachMod(targetType, targetId, mod.id);
       onOpenChange(false);
+      const measure = (measures ?? []).find((t) => t.id === measureId);
+      if (measure) onAttached?.({ ...mod, entryType: measure });
     } finally {
       setSaving(false);
     }
@@ -145,26 +153,38 @@ export function ModPickDialog({
 
         {mode === "pick" ? (
           <>
-            {/* Havuz başlığı + arama */}
+            {/* Havuz başlığı + yeni yarat + arama */}
             <div className="flex items-center justify-between gap-2 -mb-1">
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Havuzdan seç
               </span>
-              <button
-                onClick={() => {
-                  setSearchOpen((v) => !v);
-                  if (searchOpen) setSearch("");
-                }}
-                className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-full transition-colors",
-                  searchOpen
-                    ? "bg-primary/15 text-primary"
-                    : "bg-white/8 text-muted-foreground hover:bg-white/12 hover:text-foreground"
-                )}
-                aria-label={searchOpen ? "Aramayı kapat" : "Özellik ara"}
-              >
-                <Search className="h-3.5 w-3.5" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => {
+                    setMode("create");
+                    if (search.trim()) setName(search.trim());
+                  }}
+                  className="flex h-7 items-center gap-1 rounded-full bg-primary/10 px-2.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                >
+                  <Plus className="h-3 w-3" />
+                  Yeni yarat
+                </button>
+                <button
+                  onClick={() => {
+                    setSearchOpen((v) => !v);
+                    if (searchOpen) setSearch("");
+                  }}
+                  className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-full transition-colors",
+                    searchOpen
+                      ? "bg-primary/15 text-primary"
+                      : "bg-white/8 text-muted-foreground hover:bg-white/12 hover:text-foreground"
+                  )}
+                  aria-label={searchOpen ? "Aramayı kapat" : "Özellik ara"}
+                >
+                  <Search className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
 
             {searchOpen && (
@@ -220,22 +240,6 @@ export function ModPickDialog({
                   </button>
                 );
               })}
-              <button
-                onClick={() => {
-                  setMode("create");
-                  if (search.trim()) setName(search.trim());
-                }}
-                className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border px-2 py-3 text-primary transition-colors hover:border-primary/50 hover:bg-primary/5"
-              >
-                <span className="flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-primary/40">
-                  <Plus className="h-4 w-4" />
-                </span>
-                <span className="w-full truncate text-center text-xs font-medium leading-tight">
-                  {search.trim() && filtered.length === 0
-                    ? `"${search.trim()}" yarat`
-                    : "Yeni yarat"}
-                </span>
-              </button>
             </div>
 
             {available.length === 0 && !search && (
@@ -245,7 +249,7 @@ export function ModPickDialog({
             )}
             {search && filtered.length === 0 && available.length > 0 && (
               <p className="text-xs text-muted-foreground/70 -mt-1">
-                &bdquo;{search}&rdquo; havuzda yok — yukarıdan yaratabilirsin.
+                &bdquo;{search}&rdquo; havuzda yok — <span className="font-medium">Yeni yarat</span> bu adla oluşturur.
               </p>
             )}
           </>

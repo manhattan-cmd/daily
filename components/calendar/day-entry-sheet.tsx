@@ -1393,7 +1393,9 @@ function FormStep({
 
 // ─── Mod Input ────────────────────────────────────────────────────────────────
 
-function ModInput({
+/** Tek özelliğin değer girişi — girdi formu ve kart üstü hızlı değer sorma
+ * (QuickModAdd) ortak kullanır */
+export function ModInput({
   mod,
   value,
   onChange,
