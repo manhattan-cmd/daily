@@ -49,10 +49,18 @@ export function ActivityCard({
 
   const name = activity?.name ?? "Aktivite";
 
-  // Otomatik toplamlar — mod bazında; en büyük 3 gösterilir
+  // Otomatik toplamlar — özellik × alt kategori bazında; farklı alt
+  // kategorilerin değerleri TOPLANMAZ (60 şınav + 50 squat ≠ 110), her biri
+  // kendi adıyla gösterilir. En büyük 3 gösterilir.
   const totals = useMemo(() => {
-    const map = new Map<string, { name: string; unit: string; total: number }>();
+    const map = new Map<
+      string,
+      { name: string; unit: string; total: number; subName: string }
+    >();
     for (const e of entries) {
+      const subName = e.subcategory.isCategoryRoot
+        ? e.category.name
+        : e.subcategory.name;
       for (const v of e.values) {
         if (!v.modId || !v.mod || !v.entryType) continue;
         const nm = classifyNumericMod(v.mod, v.entryType);
@@ -60,9 +68,11 @@ export function ActivityCard({
         const amount =
           nm.kind === "duration" ? dtrDurationHours(v.value) : parseNumeric(v.value);
         if (!amount) continue;
-        const cur = map.get(nm.id) ?? { name: nm.name, unit: nm.unit, total: 0 };
+        const key = `${nm.id}:${e.subcategoryId}`;
+        const cur =
+          map.get(key) ?? { name: nm.name, unit: nm.unit, total: 0, subName };
         cur.total += amount;
-        map.set(nm.id, cur);
+        map.set(key, cur);
       }
     }
     return [...map.values()].sort((a, b) => b.total - a.total).slice(0, 3);
@@ -131,7 +141,7 @@ export function ActivityCard({
               <div className="mt-1 flex flex-wrap gap-1.5">
                 {totals.map((t) => (
                   <span
-                    key={t.name}
+                    key={`${t.name}:${t.subName}`}
                     className="flex items-baseline gap-1 rounded-md bg-muted/70 px-2 py-0.5"
                   >
                     <span className="text-xs font-semibold tabular-nums">
@@ -139,7 +149,7 @@ export function ActivityCard({
                     </span>
                     <span className="text-[10px] text-muted-foreground">
                       {t.unit ? `${t.unit} ` : ""}
-                      {t.name}
+                      {t.subName}
                     </span>
                   </span>
                 ))}
@@ -152,25 +162,6 @@ export function ActivityCard({
               expanded && "rotate-180"
             )}
           />
-          {/* Sil/dağıt — köşede, hover'da belirir */}
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteOpen(true);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.stopPropagation();
-                setDeleteOpen(true);
-              }
-            }}
-            className="absolute right-2 top-2 rounded-lg p-1.5 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground/60 hover:!text-destructive hover:bg-destructive/10"
-            aria-label="Aktiviteyi sil veya dağıt"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </span>
         </div>
 
         {/* Girdiler — satıra dokununca düzenleme */}
@@ -190,13 +181,25 @@ export function ActivityCard({
               ) : (
                 <span />
               )}
-              <Link
-                href={`/analytics/activity/${encodeURIComponent(name)}`}
-                className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Aktivite Analizi
-                <ArrowRight className="h-3 w-3" />
-              </Link>
+              <div className="flex items-center gap-3">
+                <Link
+                  href={`/analytics/activity/${encodeURIComponent(name)}`}
+                  className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Aktivite Analizi
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
+                {/* Sil/dağıt — görünür buton (köşedeki hover-gizli buton okla çakışıyordu) */}
+                <button
+                  type="button"
+                  onClick={() => setDeleteOpen(true)}
+                  className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-destructive"
+                  aria-label="Aktiviteyi sil veya dağıt"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Sil
+                </button>
+              </div>
             </div>
             {entries.map((e) => {
               const valueChips = e.values

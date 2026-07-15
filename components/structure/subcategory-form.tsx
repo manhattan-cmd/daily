@@ -89,6 +89,8 @@ export function SubCategoryForm({
   const [icon, setIcon] = useState<string | undefined>(subcategory?.icon);
   const [isRegular, setIsRegular] = useState(!!subcategory?.isRegular);
   const [saving, setSaving] = useState(false);
+  // Aynı adda alt kategori uyarısı — var olan dal (kategori genelinde aranır)
+  const [duplicate, setDuplicate] = useState<SubCategory | null>(null);
   // Konum (yalnız düzenlemede): hedef üst — kategori ana seviyesi ya da bir alt kategori
   const [location, setLocation] = useState<{
     categoryId: string;
@@ -101,6 +103,7 @@ export function SubCategoryForm({
       setName(subcategory?.name ?? "");
       setIcon(subcategory?.icon);
       setIsRegular(!!subcategory?.isRegular);
+      setDuplicate(null);
       setLocation(
         subcategory
           ? { categoryId: subcategory.categoryId, parentId: subcategory.parentId }
@@ -193,8 +196,37 @@ export function SubCategoryForm({
     return base.filter((p) => !siblings.has(norm(p)));
   }, [parentSubcategoryId, parentSub, context, categoryName]);
 
-  async function save(nameToSave: string) {
+  /** Var olan dalın okunur yolu: "Spor & Fitness › Ağırlık Kaldırma" */
+  function pathOf(sub: SubCategory): string {
+    const catName = context?.cat?.name ?? categoryName ?? "";
+    const chain: string[] = [];
+    let cur = sub.parentId
+      ? context?.subs.find((s) => s.id === sub.parentId)
+      : undefined;
+    let hops = 0;
+    while (cur && hops++ < 20) {
+      chain.unshift(cur.name);
+      cur = cur.parentId
+        ? context?.subs.find((s) => s.id === cur!.parentId)
+        : undefined;
+    }
+    return [catName, ...chain].join(" › ");
+  }
+
+  async function save(nameToSave: string, force = false) {
     if (!nameToSave.trim()) return;
+    // Aynı kategoride (ağacın neresinde olursa olsun) aynı ad varsa uyar —
+    // "Squat" hem Ağırlık Kaldırma altında hem kökte olursa karışıklık doğar
+    if (!isEdit && !force) {
+      const norm = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
+      const existing = context?.subs.find(
+        (s) => !s.isCategoryRoot && norm(s.name) === norm(nameToSave)
+      );
+      if (existing) {
+        setDuplicate(existing);
+        return;
+      }
+    }
     setSaving(true);
     try {
       if (isEdit && subcategory) {
@@ -349,7 +381,10 @@ export function SubCategoryForm({
                 {presets.map((p) => (
                   <button
                     key={p}
-                    onClick={() => setName(p)}
+                    onClick={() => {
+                      setName(p);
+                      setDuplicate(null);
+                    }}
                     className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium transition-all hover:bg-muted active:scale-95"
                   >
                     {p}
@@ -365,11 +400,50 @@ export function SubCategoryForm({
               )}
               <Input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setDuplicate(null);
+                }}
                 placeholder="Alt kategori adı..."
                 autoFocus={presets.length === 0}
                 className="h-12 text-base"
               />
+
+              {/* Aynı ad uyarısı — var olanı kullan ya da bilerek ikinciyi aç */}
+              {duplicate && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed text-amber-200/90">
+                  <span className="font-semibold">
+                    &bdquo;{duplicate.name}&rdquo;
+                  </span>{" "}
+                  bu kategoride zaten var —{" "}
+                  <span className="font-medium">{pathOf(duplicate)}</span>{" "}
+                  altında. Aynı adla ikinci bir dal analizlerde karışıklık
+                  yaratabilir.
+                  <div className="mt-2 flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSaved?.(duplicate);
+                        setDuplicate(null);
+                        setName("");
+                        setIcon(undefined);
+                        onOpenChange(false);
+                      }}
+                      className="font-semibold text-amber-100 hover:underline"
+                    >
+                      Var olanı kullan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => save(name, true)}
+                      className="text-amber-200/70 hover:text-amber-100 transition-colors"
+                    >
+                      Yine de oluştur
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {iconSection}
               <Button
                 type="submit"
