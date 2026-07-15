@@ -1,6 +1,7 @@
 import Dexie, { type Table } from "dexie";
 import type {
   Activity,
+  AnalysisWidget,
   Category,
   SubCategory,
   Field,
@@ -25,6 +26,7 @@ export class RoutineDB extends Dexie {
   mods!: Table<Mod, string>;
   goals!: Table<Goal, string>;
   activities!: Table<Activity, string>;
+  analysisWidgets!: Table<AnalysisWidget, string>;
 
   constructor() {
     super("RoutineDB");
@@ -209,6 +211,11 @@ export class RoutineDB extends Dexie {
       activities: "id, name, occurredAt, createdAt",
       entries:
         "id, subcategoryId, occurredAt, createdAt, title, linkedGroupId, activityId",
+    });
+    // v11 — Analiz widget'ları: kullanıcının analizde görmek istediği
+    // (mod × yöntem) seçimleri, kategori/alt kategori başına.
+    this.version(11).stores({
+      analysisWidgets: "id, [targetType+targetId], modId, createdAt",
     });
   }
 }

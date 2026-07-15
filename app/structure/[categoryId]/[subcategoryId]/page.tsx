@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
+  ChartSpline,
   Folder,
   FolderOpen,
   MoreHorizontal,
@@ -81,6 +82,15 @@ export default function SubCategoryDetailPage({
         title={subcategory?.name ?? "..."}
         description={category?.name}
         back={backPath}
+        action={
+          <Link
+            href={`/structure/${categoryId}/${subcategoryId}/analysis`}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Analiz ayarları"
+          >
+            <ChartSpline className="h-5 w-5" />
+          </Link>
+        }
       />
 
       {openSubMenuId && (

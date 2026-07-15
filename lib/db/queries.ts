@@ -1,7 +1,10 @@
 import { nanoid } from "nanoid";
 import { db } from "./index";
+import { classifyNumericMod, type NumericMod } from "@/lib/analytics";
 import type {
   Activity,
+  AnalysisMethod,
+  AnalysisWidget,
   Category,
   CategoryModifier,
   SubCategory,
@@ -723,6 +726,117 @@ export async function inheritModifiers(
     createdAt: now(),
   }));
   await db.categoryModifiers.bulkAdd(inherited);
+}
+
+// ============ Analysis Widgets ============
+
+export async function listAnalysisWidgets(
+  targetType: "category" | "subcategory",
+  targetId: string
+): Promise<AnalysisWidget[]> {
+  const widgets = await db.analysisWidgets
+    .where("[targetType+targetId]")
+    .equals([targetType, targetId])
+    .toArray();
+  return widgets.sort((a, b) => a.order - b.order);
+}
+
+/** Aynı mod + yöntem zaten ekliyse no-op (null döner) */
+export async function addAnalysisWidget(
+  targetType: "category" | "subcategory",
+  targetId: string,
+  modId: string,
+  method: AnalysisMethod
+): Promise<AnalysisWidget | null> {
+  const existing = await listAnalysisWidgets(targetType, targetId);
+  if (existing.some((w) => w.modId === modId && w.method === method)) {
+    return null;
+  }
+  const widget: AnalysisWidget = {
+    id: id(),
+    targetType,
+    targetId,
+    modId,
+    method,
+    order: existing.length + 1,
+    createdAt: now(),
+  };
+  await db.analysisWidgets.add(widget);
+  return widget;
+}
+
+export async function removeAnalysisWidget(widgetId: string): Promise<void> {
+  await db.analysisWidgets.delete(widgetId);
+}
+
+/**
+ * Analiz ayarlarında sürüklenebilecek mod küreleri — hedefin kendisine,
+ * atalarına (üst alt kategoriler + kategori) ve alt ağacına atanmış,
+ * sayısal olarak analiz edilebilir modlar.
+ */
+export async function listAnalysisModCandidates(
+  targetType: "category" | "subcategory",
+  targetId: string
+): Promise<NumericMod[]> {
+  let categoryId: string;
+  const subTargets = new Set<string>();
+
+  if (targetType === "category") {
+    categoryId = targetId;
+    const all = await db.subcategories
+      .where("categoryId")
+      .equals(categoryId)
+      .toArray();
+    for (const s of all) subTargets.add(s.id);
+  } else {
+    const sub = await db.subcategories.get(targetId);
+    if (!sub) return [];
+    categoryId = sub.categoryId;
+    const all = await db.subcategories
+      .where("categoryId")
+      .equals(categoryId)
+      .toArray();
+    const byId = new Map(all.map((s) => [s.id, s]));
+    // Atalar (kendisi dahil)
+    let cur: SubCategory | undefined = sub;
+    let hops = 0;
+    while (cur && hops++ < 20) {
+      subTargets.add(cur.id);
+      cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+    }
+    // Alt ağaç
+    let frontier = [targetId];
+    while (frontier.length) {
+      const next = all.filter(
+        (s) =>
+          s.parentId && frontier.includes(s.parentId) && !subTargets.has(s.id)
+      );
+      for (const s of next) subTargets.add(s.id);
+      frontier = next.map((s) => s.id);
+    }
+  }
+
+  const attachments = await db.categoryModifiers
+    .filter(
+      (a) =>
+        (a.targetType === "category" && a.targetId === categoryId) ||
+        (a.targetType === "subcategory" && subTargets.has(a.targetId))
+    )
+    .toArray();
+  const modIds = new Set(
+    attachments.map((a) => a.modId).filter((x): x is string => !!x)
+  );
+  if (!modIds.size) return [];
+  const [allMods, allTypes] = await Promise.all([
+    db.mods.toArray(),
+    db.entryTypes.toArray(),
+  ]);
+  const typeMap = new Map(allTypes.map((t) => [t.id, t]));
+  return allMods
+    .filter((m) => modIds.has(m.id))
+    .map((m) => classifyNumericMod(m, typeMap.get(m.entryTypeId)))
+    .filter((m): m is NumericMod => !!m)
+    .sort((a, b) => a.name.localeCompare(b.name, "tr"));
 }
 
 // ============ Fields ============

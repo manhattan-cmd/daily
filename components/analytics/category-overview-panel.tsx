@@ -16,6 +16,7 @@ import {
   statSub,
 } from "@/lib/analytics";
 import { StatTile } from "./stat-tile";
+import { CustomAnalysisSection } from "./custom-analysis";
 import { DailyBarChart } from "./daily-bar-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
 import { EntryList, type EntryListRow } from "./entry-list";
@@ -252,6 +253,17 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
           />
         </div>
       )}
+
+      {/* Özel Analizler — yapı bölümündeki Analiz Ayarları'nda kurgulanan kutular */}
+      <CustomAnalysisSection
+        category={category}
+        targetType="category"
+        targetId={category.id}
+        entries={data.entries}
+        values={data.values}
+        rangeStart={0}
+        rangeLabel="Tüm Zamanlar"
+      />
 
       {/* İstikrar — aktif gün oranı ve seriler (metrikten bağımsız, girdi bazlı) */}
       <div className="flex flex-col gap-2">
