@@ -190,43 +190,52 @@ export function ModPickDialog({
               </div>
             )}
 
-            {/* Özellik çipleri — sade, sarmal düzen */}
-            <div className="flex flex-wrap gap-2">
-              {filtered.map((m: ModWithType) => (
-                <button
-                  key={m.id}
-                  onClick={() => handleAttach(m.id)}
-                  disabled={saving}
-                  className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium transition-all hover:bg-muted active:scale-95 disabled:opacity-50"
-                >
-                  {m.name}
-                  {m.entryType.unit && (
-                    <span className="text-xs text-muted-foreground">
-                      ({m.entryType.unit})
+            {/* Özellik kutuları — modüler ızgara */}
+            <div className="grid grid-cols-2 gap-2">
+              {filtered.map((m: ModWithType) => {
+                const KindIcon =
+                  MEASURE_KIND_META[m.entryType.valueType ?? "number"].icon;
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => handleAttach(m.id)}
+                    disabled={saving}
+                    className="flex flex-col items-start gap-2 rounded-2xl border border-border bg-card p-3 text-left transition-all hover:bg-muted hover:border-primary/40 active:scale-[0.97] disabled:opacity-50"
+                  >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                      <KindIcon
+                        className="h-4 w-4 text-primary"
+                        strokeWidth={1.75}
+                      />
                     </span>
-                  )}
-                  {!m.entryType.unit &&
-                    (m.entryType.valueType ?? "number") !== "number" && (
-                      <span className="text-xs text-muted-foreground">
-                        ({ENTRY_VALUE_TYPE_LABELS[m.entryType.valueType ?? "number"]})
+                    <span className="flex w-full min-w-0 items-center gap-1">
+                      <span className="truncate text-sm font-semibold">
+                        {m.name}
                       </span>
-                    )}
-                  {m.isBuiltIn && (
-                    <Sparkles className="h-3 w-3 text-muted-foreground/40" />
-                  )}
-                </button>
-              ))}
+                      {m.isBuiltIn && (
+                        <Sparkles className="h-3 w-3 shrink-0 text-muted-foreground/40" />
+                      )}
+                    </span>
+                    <span className="text-[11px] leading-none text-muted-foreground">
+                      {m.entryType.unit ||
+                        ENTRY_VALUE_TYPE_LABELS[m.entryType.valueType ?? "number"]}
+                    </span>
+                  </button>
+                );
+              })}
               <button
                 onClick={() => {
                   setMode("create");
                   if (search.trim()) setName(search.trim());
                 }}
-                className="flex items-center gap-1.5 rounded-xl border border-dashed border-border px-3 py-2 text-sm text-primary transition-colors hover:border-primary/50"
+                className="flex min-h-[104px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border p-3 text-primary transition-colors hover:border-primary/50 hover:bg-primary/5"
               >
-                <Plus className="h-3.5 w-3.5" />
-                {search.trim() && filtered.length === 0
-                  ? `"${search.trim()}" yarat`
-                  : "Yeni yarat"}
+                <Plus className="h-5 w-5" />
+                <span className="text-center text-xs font-medium leading-tight">
+                  {search.trim() && filtered.length === 0
+                    ? `"${search.trim()}" yarat`
+                    : "Yeni yarat"}
+                </span>
               </button>
             </div>
 
