@@ -193,44 +193,6 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   boolean: "Evet / Hayır",
 };
 
-/**
- * Analiz yöntemi — bir modun girdileri üzerinde nasıl özetleneceği.
- * sum/avg tek sayı, max/min tarihli tek sayı, daily gün gün seri grafiği.
- */
-export type AnalysisMethod = "sum" | "avg" | "max" | "min" | "daily";
-
-export const ANALYSIS_METHOD_LABELS: Record<AnalysisMethod, string> = {
-  sum: "Toplam",
-  avg: "Ortalama",
-  max: "En Yüksek",
-  min: "En Düşük",
-  daily: "Gün Gün",
-};
-
-export const ANALYSIS_METHOD_DESCRIPTIONS: Record<AnalysisMethod, string> = {
-  sum: "Aralıktaki tüm değerlerin toplamı",
-  avg: "Girdi başına ortalama değer",
-  max: "Aralıktaki en yüksek değer",
-  min: "Aralıktaki en düşük değer",
-  daily: "Günlük değişimi gösteren seri",
-};
-
-/**
- * Analiz widget'ı — kullanıcının bir kategori/alt kategori analizinde görmek
- * istediği (mod × yöntem) seçimi. Yapı bölümündeki Analiz Ayarları sayfasında
- * mod küresi bir yönteme bırakılarak oluşturulur; analiz sayfasında kutu olarak
- * gösterilir.
- */
-export interface AnalysisWidget {
-  id: string;
-  targetType: "category" | "subcategory";
-  targetId: string;
-  modId: string;
-  method: AnalysisMethod;
-  order: number;
-  createdAt: number;
-}
-
 export interface GoalTarget {
   entryTypeId: string;
   /** Hedefin bağlı olduğu global mod (yeni kayıtlarda dolu) */

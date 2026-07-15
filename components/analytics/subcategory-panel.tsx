@@ -24,7 +24,6 @@ import {
 } from "@/lib/analytics";
 import { monthPeriod, weekPeriod, yearPeriod } from "@/lib/period";
 import { StatTile } from "./stat-tile";
-import { CustomAnalysisSection } from "./custom-analysis";
 import { DailyBarChart } from "./daily-bar-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
 import { RangePicker } from "./range-picker";
@@ -270,17 +269,6 @@ export function SubcategoryPanel({
           }
         />
       </div>
-
-      {/* Özel Analizler — yapı bölümündeki Analiz Ayarları'nda kurgulanan kutular */}
-      <CustomAnalysisSection
-        category={category}
-        targetType="subcategory"
-        targetId={subcategory.id}
-        entries={data.entries}
-        values={data.values}
-        rangeStart={rangeStart}
-        rangeLabel={RANGE_LABELS[range]}
-      />
 
       <div className="rounded-2xl border border-border bg-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">

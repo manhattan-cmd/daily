@@ -1,7 +1,6 @@
 import { db } from "./index";
 import type {
   Activity,
-  AnalysisWidget,
   Category,
   SubCategory,
   Field,
@@ -30,8 +29,6 @@ export interface BackupData {
   goals: Goal[];
   /** v10+ — eski yedeklerde bulunmayabilir */
   activities?: Activity[];
-  /** v11+ — eski yedeklerde bulunmayabilir */
-  analysisWidgets?: AnalysisWidget[];
 }
 
 export interface BackupPayload {
@@ -55,7 +52,6 @@ export async function exportBackup(): Promise<BackupPayload> {
     entryValues,
     goals,
     activities,
-    analysisWidgets,
   ] = await Promise.all([
     db.categories.toArray(),
     db.subcategories.toArray(),
@@ -68,7 +64,6 @@ export async function exportBackup(): Promise<BackupPayload> {
     db.entryValues.toArray(),
     db.goals.toArray(),
     db.activities.toArray(),
-    db.analysisWidgets.toArray(),
   ]);
   return {
     app: "routine",
@@ -86,7 +81,6 @@ export async function exportBackup(): Promise<BackupPayload> {
       entryValues,
       goals,
       activities,
-      analysisWidgets,
     },
   };
 }
@@ -141,7 +135,6 @@ export async function restoreBackup(payload: BackupPayload): Promise<void> {
       db.entryValues,
       db.goals,
       db.activities,
-      db.analysisWidgets,
     ],
     async () => {
       await Promise.all([
@@ -156,7 +149,6 @@ export async function restoreBackup(payload: BackupPayload): Promise<void> {
         db.entryValues.clear(),
         db.goals.clear(),
         db.activities.clear(),
-        db.analysisWidgets.clear(),
       ]);
       await Promise.all([
         data.categories?.length ? db.categories.bulkPut(data.categories) : null,
@@ -174,9 +166,6 @@ export async function restoreBackup(payload: BackupPayload): Promise<void> {
         data.entryValues?.length ? db.entryValues.bulkPut(data.entryValues) : null,
         data.goals?.length ? db.goals.bulkPut(data.goals) : null,
         data.activities?.length ? db.activities.bulkPut(data.activities) : null,
-        data.analysisWidgets?.length
-          ? db.analysisWidgets.bulkPut(data.analysisWidgets)
-          : null,
       ]);
     }
   );
