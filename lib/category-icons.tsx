@@ -39,6 +39,22 @@ import {
   Dog,
   Cat,
   Baby,
+  Footprints,
+  HeartPulse,
+  BedDouble,
+  Banknote,
+  PiggyBank,
+  Salad,
+  CupSoda,
+  Timer,
+  Mountain,
+  Waves,
+  TreePine,
+  Film,
+  Guitar,
+  Stethoscope,
+  Croissant,
+  Apple,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 
@@ -83,6 +99,22 @@ export const CATEGORY_ICON_MAP: Record<string, React.FC<LucideProps>> = {
   Dog,
   Cat,
   Baby,
+  Footprints,
+  HeartPulse,
+  BedDouble,
+  Banknote,
+  PiggyBank,
+  Salad,
+  CupSoda,
+  Timer,
+  Mountain,
+  Waves,
+  TreePine,
+  Film,
+  Guitar,
+  Stethoscope,
+  Croissant,
+  Apple,
 };
 
 export const CATEGORY_ICON_NAMES = Object.keys(CATEGORY_ICON_MAP);
@@ -99,5 +131,6 @@ export function CategoryIcon({
   if (!name) return null;
   const Icon = CATEGORY_ICON_MAP[name];
   if (!Icon) return null;
-  return <Icon className={className} style={style} />;
+  // Uygulama genelinde standart kalem kalınlığı — semboller aynı ağırlıkta okunur
+  return <Icon strokeWidth={1.75} className={className} style={style} />;
 }

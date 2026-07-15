@@ -63,7 +63,7 @@ export function LinkedEntryCard({ entries }: { entries: EntryWithContext[] }) {
         className="group cursor-pointer rounded-2xl border border-violet-500/25 bg-card overflow-hidden transition-transform active:scale-[0.99]"
       >
         {/* Header */}
-        <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-2.5">
+        <div className="flex items-center gap-2.5 px-3 pt-2.5 pb-2">
           <EntryIcon
             category={shared.category}
             subcategory={shared.subcategory}
@@ -108,7 +108,7 @@ export function LinkedEntryCard({ entries }: { entries: EntryWithContext[] }) {
         <div className="h-px bg-border/40 mx-4" />
 
         {/* Per-perspective rows — only perspective-specific values */}
-        <div className="px-4 py-3 flex flex-col gap-3">
+        <div className="px-3 py-2.5 flex flex-col gap-2.5">
           {entries.map((entry) => {
             const ownValues = entry.values.filter(
               (v) => v.entryTypeId && v.entryType && !sharedTypeIds.has(v.entryTypeId)
@@ -177,7 +177,7 @@ function ValueChip({
   if (vt === "boolean") display = value === "true" ? "Evet" : "Hayır";
 
   return (
-    <div className="flex items-baseline gap-1 rounded-lg bg-muted px-2.5 py-1">
+    <div className="flex items-baseline gap-1 rounded-lg bg-muted px-2 py-0.5">
       <span className="text-sm font-semibold tabular-nums">{display}</span>
       {vt === "number" && entryType.unit && (
         <span className="text-xs text-muted-foreground">{entryType.unit}</span>

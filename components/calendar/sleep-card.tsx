@@ -41,14 +41,14 @@ export function SleepCard({ entry }: { entry: EntryWithContext }) {
       <button
         onClick={() => setEditOpen(true)}
         className={cn(
-          "group relative w-full overflow-hidden rounded-2xl border border-violet-500/25 p-4 text-left",
+          "group relative w-full overflow-hidden rounded-2xl border border-violet-500/25 px-3 py-2.5 text-left",
           "bg-gradient-to-br from-violet-500/15 via-violet-500/5 to-transparent",
           "transition-colors hover:border-violet-500/40 active:scale-[0.99]"
         )}
       >
-        <div className="flex items-center gap-3.5">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/20">
-            <MoonStar className="h-5 w-5 text-violet-300" />
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/20">
+            <MoonStar className="h-[18px] w-[18px] text-violet-300" strokeWidth={1.75} />
           </span>
 
           <div className="flex-1 min-w-0">

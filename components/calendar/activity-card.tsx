@@ -102,10 +102,10 @@ export function ActivityCard({
             if (e.key === "Enter") setExpanded((v) => !v);
           }}
           aria-label={`${name} aktivitesini ${expanded ? "kapat" : "aç"}`}
-          className="relative flex w-full cursor-pointer items-center gap-3 p-3 text-left select-none"
+          className="relative flex w-full cursor-pointer items-center gap-2.5 px-3 py-2.5 text-left select-none"
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/20">
-            <Boxes className="h-4.5 w-4.5 text-cyan-300" />
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-cyan-500/20">
+            <Boxes className="h-4 w-4 text-cyan-300" strokeWidth={1.75} />
           </span>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 text-[10px] leading-none">
@@ -126,9 +126,9 @@ export function ActivityCard({
                 ))}
               </span>
             </div>
-            <div className="mt-1 text-sm font-semibold truncate">{name}</div>
+            <div className="mt-0.5 text-sm font-semibold truncate">{name}</div>
             {totals.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
+              <div className="mt-1 flex flex-wrap gap-1.5">
                 {totals.map((t) => (
                   <span
                     key={t.name}

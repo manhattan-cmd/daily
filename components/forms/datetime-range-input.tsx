@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SHORT_MONTHS } from "@/lib/analytics";
@@ -132,6 +132,7 @@ function DateTimePanel({
   disabled = false,
 }: DateTimePanelProps) {
   const [datePart = "", timePart = ""] = value.split("T");
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   function offsetDate(offset: number): string {
     // Yerel takvim gününü koru — toISOString UTC'ye çevirip günü kaydırır
@@ -157,6 +158,16 @@ function DateTimePanel({
     if (!t) return;
     const d = datePart || offsetDate(defaultOffset);
     onChange(`${d}T${t}`);
+  }
+
+  /** Seçici sütunundan saat/dakika seçimi — eksik parça varsayılandan tamamlanır */
+  function pickTime(part: "h" | "m", val: string) {
+    const [h = "", m = ""] = timePart.split(":");
+    const hh = part === "h" ? val : h || defaultTime.split(":")[0];
+    const mm = part === "m" ? val : m || "00";
+    selectTime(`${hh}:${mm}`);
+    // Dakika seçimi akışı tamamlar; saat seçiminde dakika için açık kalır
+    if (part === "m") setPickerOpen(false);
   }
 
   const hasValue = !!(datePart && timePart);
@@ -191,28 +202,117 @@ function DateTimePanel({
         ))}
       </div>
 
-      {/* Time input */}
-      <div className="relative">
-        <input
-          type="time"
-          value={timePart}
-          disabled={disabled}
-          onChange={(e) => selectTime(e.target.value)}
-          style={{ colorScheme: "dark" }}
-          className={cn(
-            "w-full bg-transparent border-none outline-none",
-            "text-[1.85rem] font-bold tabular-nums leading-tight",
-            "cursor-pointer transition-colors",
-            "[&::-webkit-datetime-edit]:leading-none",
-            "[&::-webkit-datetime-edit-text]:text-muted-foreground/60",
-            "[&::-webkit-calendar-picker-indicator]:opacity-20",
-            "[&::-webkit-calendar-picker-indicator]:invert",
-            "[&::-webkit-calendar-picker-indicator]:cursor-pointer",
-            hasValue ? "text-foreground" : "text-muted-foreground/30",
-            disabled && "cursor-not-allowed opacity-50"
-          )}
+      {/* Saat — dokununca özel saat/dakika seçici açılır (native picker kaba) */}
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setPickerOpen((o) => !o)}
+        aria-label={`${label} saatini seç`}
+        aria-expanded={pickerOpen}
+        className={cn(
+          "w-full text-left bg-transparent outline-none",
+          "text-[1.85rem] font-bold tabular-nums leading-tight",
+          "cursor-pointer transition-colors",
+          hasValue ? "text-foreground" : "text-muted-foreground/30",
+          pickerOpen && "text-primary",
+          disabled && "cursor-not-allowed opacity-50"
+        )}
+      >
+        {timePart || "--:--"}
+      </button>
+
+      {pickerOpen && !disabled && (
+        <TimeWheel
+          hour={timePart.split(":")[0] ?? ""}
+          minute={timePart.split(":")[1] ?? ""}
+          onPick={pickTime}
         />
-      </div>
+      )}
+    </div>
+  );
+}
+
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+const MINUTES = Array.from({ length: 12 }, (_, i) =>
+  String(i * 5).padStart(2, "0")
+);
+
+/**
+ * Kart içi saat seçici — iki kaydırmalı sütun (saat + dakika, 5 dk adım).
+ * Native time picker'ın hantal Temizle/İptal/Ayarla penceresinin yerine geçer;
+ * seçim anında uygulanır, onay butonu yok. Açılışta seçili değerler ortalanır.
+ */
+function TimeWheel({
+  hour,
+  minute,
+  onPick,
+}: {
+  hour: string;
+  minute: string;
+  onPick: (part: "h" | "m", val: string) => void;
+}) {
+  // Kayıtlı dakika 5'in katı değilse (eski kayıt/elle giriş) listeye eklenir
+  const minutes = useMemo(() => {
+    if (!minute || MINUTES.includes(minute)) return MINUTES;
+    return [...MINUTES, minute].sort();
+  }, [minute]);
+
+  return (
+    <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted/30 p-1">
+      <WheelColumn values={HOURS} selected={hour} onPick={(v) => onPick("h", v)} />
+      <WheelColumn
+        values={minutes}
+        selected={minute}
+        onPick={(v) => onPick("m", v)}
+      />
+    </div>
+  );
+}
+
+function WheelColumn({
+  values,
+  selected,
+  onPick,
+}: {
+  values: string[];
+  selected: string;
+  onPick: (v: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Açılışta seçili değeri sütunun ortasına getir
+  useEffect(() => {
+    const el = ref.current?.querySelector<HTMLElement>("[data-selected=true]");
+    if (el && ref.current) {
+      ref.current.scrollTop =
+        el.offsetTop - ref.current.clientHeight / 2 + el.clientHeight / 2;
+    }
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className="h-36 overflow-y-auto overscroll-contain rounded-lg [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      {values.map((v) => {
+        const isSel = v === selected;
+        return (
+          <button
+            key={v}
+            type="button"
+            data-selected={isSel}
+            onClick={() => onPick(v)}
+            className={cn(
+              "block w-full rounded-lg py-1.5 text-center text-sm tabular-nums transition-colors",
+              isSel
+                ? "bg-primary/20 font-bold text-foreground"
+                : "text-muted-foreground/60 hover:bg-muted/60 hover:text-foreground"
+            )}
+          >
+            {v}
+          </button>
+        );
+      })}
     </div>
   );
 }

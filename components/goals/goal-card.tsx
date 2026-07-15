@@ -86,7 +86,7 @@ export function GoalCard({ goal }: { goal: GoalWithContext }) {
     <>
       <div
         className={cn(
-          "flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors",
+          "flex items-center gap-3 rounded-2xl border px-3 py-2.5 transition-colors",
           isCompleted
             ? "border-emerald-500/30 bg-emerald-500/5"
             : "border-border bg-card"
@@ -134,7 +134,7 @@ export function GoalCard({ goal }: { goal: GoalWithContext }) {
           </div>
 
           {/* Targets — one per line or wrap */}
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
             {goal.targets.map((target) => (
               <TargetChip
                 key={target.entryTypeId}

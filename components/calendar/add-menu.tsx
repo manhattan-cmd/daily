@@ -62,7 +62,7 @@ export function AddMenu({ items }: { items: AddMenuItem[] }) {
             <div
               key={item.key}
               className={cn(
-                "absolute left-1/2 top-1/2 flex flex-col items-center transition-all duration-300 ease-out",
+                "absolute left-1/2 top-1/2 transition-all duration-300 ease-out",
                 open
                   ? "opacity-100"
                   : "opacity-0 pointer-events-none"
@@ -81,7 +81,8 @@ export function AddMenu({ items }: { items: AddMenuItem[] }) {
               >
                 <Icon className={cn("h-5 w-5", item.iconClass ?? "text-primary")} />
               </button>
-              <span className="mt-1.5 text-[10px] font-medium text-white/90 whitespace-nowrap select-none">
+              {/* Etiket dairenin solunda — yay sola açıldığından komşu dairelerle çakışmaz */}
+              <span className="pointer-events-none absolute right-full top-1/2 mr-2 -translate-y-1/2 whitespace-nowrap select-none rounded-lg bg-black/55 px-2 py-1 text-[11px] font-medium text-white/95 backdrop-blur-sm">
                 {item.label}
               </span>
             </div>

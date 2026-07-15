@@ -37,7 +37,7 @@ export function EntryCard({ entry }: { entry: EntryWithContext }) {
         onKeyDown={(e) => {
           if (e.key === "Enter") setEditOpen(true);
         }}
-        className="group relative w-full cursor-pointer overflow-hidden rounded-2xl border p-3 text-left transition-transform active:scale-[0.99]"
+        className="group relative w-full cursor-pointer overflow-hidden rounded-2xl border px-3 py-2.5 text-left transition-transform active:scale-[0.99]"
         style={{
           borderColor: `${color}28`,
           background: `linear-gradient(135deg, ${color}1f, ${color}08 45%, transparent)`,
@@ -45,11 +45,7 @@ export function EntryCard({ entry }: { entry: EntryWithContext }) {
         aria-label={`${entry.subcategory.name} girdisini düzenle`}
       >
         <div className="flex items-start gap-2.5">
-          <EntryIcon
-            category={entry.category}
-            subcategory={entry.subcategory}
-            className="h-9 w-9 rounded-xl"
-          />
+          <EntryIcon category={entry.category} subcategory={entry.subcategory} />
           <div className="flex-1 min-w-0">
             {/* Üst satır: kategori etiketi (kök girdide gizli) + saat */}
             <div className="flex items-center gap-1.5 text-[10px] leading-none">
@@ -68,13 +64,13 @@ export function EntryCard({ entry }: { entry: EntryWithContext }) {
                 {formatDateTime(entry.occurredAt)}
               </span>
             </div>
-            <div className="mt-1 text-sm font-semibold truncate">
+            <div className="mt-0.5 text-sm font-semibold truncate">
               {isRoot ? entry.category.name : entry.subcategory.name}
             </div>
 
             {/* Değer chipleri + hızlı mod ekle — karta tıklama düzenleme
                 açtığından iç etkileşimler kabarcıklanmadan durdurulur */}
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
               {typedValues.map((v) => (
                 <ValueChip
                   key={v.id}
@@ -96,7 +92,7 @@ export function EntryCard({ entry }: { entry: EntryWithContext }) {
             </div>
 
             {entry.notes && (
-              <p className="mt-1.5 text-xs text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {entry.notes}
               </p>
             )}
@@ -151,7 +147,7 @@ function ValueChip({
       : null;
 
     return (
-      <div className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2 py-1">
+      <div className="flex items-center gap-1.5 rounded-md bg-muted/80 px-1.5 py-0.5">
         {startTime && (
           <span className="text-[13px] font-semibold tabular-nums">{startTime}</span>
         )}
@@ -177,7 +173,7 @@ function ValueChip({
   if (vt === "boolean") display = value === "true" ? "Evet" : "Hayır";
 
   return (
-    <div className="flex items-baseline gap-1 rounded-md bg-muted/80 px-2 py-1">
+    <div className="flex items-baseline gap-1 rounded-md bg-muted/80 px-1.5 py-0.5">
       <span className="text-[13px] font-semibold tabular-nums">{display}</span>
       {vt === "number" && entryType.unit && (
         <span className="text-xs text-muted-foreground">{entryType.unit}</span>
