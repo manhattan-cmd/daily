@@ -15,6 +15,8 @@ interface ModifierSectionProps {
   description?: string;
   /** Boş durumda gösterilen, mod kavramını anlatan metin */
   emptyText?: string;
+  /** Boş durumu tek satırlık ince bir şerit olarak göster (büyük kutu yerine) */
+  compactEmpty?: boolean;
 }
 
 export function ModifierSection({
@@ -23,6 +25,7 @@ export function ModifierSection({
   targetName,
   description,
   emptyText,
+  compactEmpty = false,
 }: ModifierSectionProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -58,6 +61,14 @@ export function ModifierSection({
       </div>
 
       {!mods || mods.length === 0 ? (
+        compactEmpty ? (
+          <button
+            onClick={() => setPickerOpen(true)}
+            className="rounded-xl border border-dashed border-border bg-card/40 px-3 py-2 text-left text-xs text-muted-foreground/70 transition-colors hover:bg-card/70 hover:text-muted-foreground"
+          >
+            {emptyText ?? "Henüz mod yok — eklemek için dokun."}
+          </button>
+        ) : (
         <div className="rounded-2xl border border-dashed border-border bg-card/40 px-4 py-4">
           <p className="text-xs leading-relaxed text-muted-foreground">
             {emptyText ??
@@ -70,6 +81,7 @@ export function ModifierSection({
             Mod ekle →
           </button>
         </div>
+        )
       ) : (
         <div className="flex flex-col gap-1.5">
           {mods.map((mod) => (

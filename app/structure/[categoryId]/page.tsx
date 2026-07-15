@@ -82,7 +82,19 @@ export default function CategoryDetailPage({
         />
       )}
 
-      {/* Alt kategoriler — yeni kullanıcının ilk adımı, o yüzden modlardan önce */}
+      {/* Modlar — üstte ama mütevazı: boş durumda tek satırlık şerit */}
+      {category && (
+        <ModifierSection
+          targetType="category"
+          targetId={categoryId}
+          targetName={category.name}
+          description="Girdi eklerken sorulan ölçüler — buraya eklersen kategorinin tamamında geçerli olur."
+          emptyText="Henüz mod yok — Para (₺), Süre (dk) gibi ölçüleri buradan eklersin. İstersen önce alt kategorilerini kur."
+          compactEmpty
+        />
+      )}
+
+      {/* Alt kategoriler — yeni kullanıcının ilk adımı */}
       {subcategories && (
         <section className="flex flex-col gap-2 mb-6">
           <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -198,17 +210,6 @@ export default function CategoryDetailPage({
             );
           })}
         </section>
-      )}
-
-      {/* Modlar — kategori geneli ölçüler; alt kategorilerden sonra gelir */}
-      {category && (
-        <ModifierSection
-          targetType="category"
-          targetId={categoryId}
-          targetName={category.name}
-          description="Girdi eklerken sorulan ölçüler — buraya eklersen kategorinin tamamında geçerli olur."
-          emptyText={`Mod, girdi eklerken sorulan ölçü — Para (₺), Süre (dk), Miktar (adet) gibi. İstersen önce alt kategorilerini kur; modları "${category.name}" geneline ya da tek tek dallara sonra da ekleyebilirsin.`}
-        />
       )}
 
       <div className="flex justify-center mt-2">
