@@ -11,12 +11,18 @@ interface ModifierSectionProps {
   targetType: "category" | "subcategory";
   targetId: string;
   targetName: string;
+  /** Başlığın altında görünen bağlama özel tek satır açıklama */
+  description?: string;
+  /** Boş durumda gösterilen, mod kavramını anlatan metin */
+  emptyText?: string;
 }
 
 export function ModifierSection({
   targetType,
   targetId,
   targetName,
+  description,
+  emptyText,
 }: ModifierSectionProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -31,27 +37,35 @@ export function ModifierSection({
 
   return (
     <section className="flex flex-col gap-3 mb-6">
-      <div className="flex items-center justify-between px-1">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Modlar
-        </h2>
-        <button
-          onClick={() => setPickerOpen(true)}
-          className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Mod ekle
-        </button>
+      <div className="px-1">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Modlar
+          </h2>
+          <button
+            onClick={() => setPickerOpen(true)}
+            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Mod ekle
+          </button>
+        </div>
+        {description && (
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground/70">
+            {description}
+          </p>
+        )}
       </div>
 
       {!mods || mods.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card/40 px-4 py-5 text-center">
-          <p className="text-sm text-muted-foreground">
-            Henüz mod ekli değil. Havuzdan bir mod seç ya da yenisini yarat.
+        <div className="rounded-2xl border border-dashed border-border bg-card/40 px-4 py-4">
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {emptyText ??
+              "Mod, girdi eklerken sorulan ölçü — Para (₺), Süre (dk), Miktar (adet) gibi. Havuzdan seç ya da kendi modunu yarat."}
           </p>
           <button
             onClick={() => setPickerOpen(true)}
-            className="mt-1 text-xs text-primary hover:text-primary/80 transition-colors"
+            className="mt-2 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
           >
             Mod ekle →
           </button>

@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CategoryForm } from "@/components/structure/category-form";
 import { CategoryQuickAdd } from "@/components/structure/category-quick-add";
+import { HowItWorksCard } from "@/components/structure/structure-guide";
 import { CategoryIcon } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
 import type { Category } from "@/types";
@@ -56,6 +57,9 @@ export default function StructurePage() {
         description="Kategori ve modları yönet"
         action={<CategoryQuickAdd existingNames={existingNames} />}
       />
+
+      {/* Nasıl çalışır — yeni kullanıcı tanıtımı, kapatılabilir */}
+      <HowItWorksCard />
 
       {/* Kısayollar */}
       <div className="flex flex-col gap-2 mb-5">

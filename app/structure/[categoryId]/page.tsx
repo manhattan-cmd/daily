@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { ModifierSection } from "@/components/structure/modifier-section";
+import { GuideHint } from "@/components/structure/structure-guide";
 import { CategoryIcon, CATEGORY_ICON_MAP } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
 import type { SubCategory } from "@/types";
@@ -81,21 +82,35 @@ export default function CategoryDetailPage({
         />
       )}
 
-      {/* Modlar */}
-      {category && (
-        <ModifierSection
-          targetType="category"
-          targetId={categoryId}
-          targetName={category.name}
-        />
-      )}
-
-      {/* Alt kategoriler */}
-      {subcategories && subcategories.length > 0 && (
+      {/* Alt kategoriler — yeni kullanıcının ilk adımı, o yüzden modlardan önce */}
+      {subcategories && (
         <section className="flex flex-col gap-2 mb-6">
           <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Alt Kategoriler
           </h2>
+          {subcategories.length === 0 && (
+            <GuideHint
+              action={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setEditing(undefined);
+                    setFormOpen(true);
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  İlk alt kategoriyi ekle
+                </Button>
+              }
+            >
+              <span className="font-medium text-foreground">
+                &bdquo;{category?.name ?? "Kategori"}&rdquo;yi dallara ayırarak başla
+              </span>{" "}
+              — örneğin Harcamalar için Market, Fatura, Ulaşım. Girdiler bu
+              dallara yazılır; analizler de dal dal kırılır.
+            </GuideHint>
+          )}
           {subcategories.map((sub) => {
             const hasChildren = hasSubChildren(sub.id);
             const Icon = hasChildren ? FolderOpen : Folder;
@@ -183,6 +198,17 @@ export default function CategoryDetailPage({
             );
           })}
         </section>
+      )}
+
+      {/* Modlar — kategori geneli ölçüler; alt kategorilerden sonra gelir */}
+      {category && (
+        <ModifierSection
+          targetType="category"
+          targetId={categoryId}
+          targetName={category.name}
+          description="Girdi eklerken sorulan ölçüler — buraya eklersen kategorinin tamamında geçerli olur."
+          emptyText={`Mod, girdi eklerken sorulan ölçü — Para (₺), Süre (dk), Miktar (adet) gibi. İstersen önce alt kategorilerini kur; modları "${category.name}" geneline ya da tek tek dallara sonra da ekleyebilirsin.`}
+        />
       )}
 
       <div className="flex justify-center mt-2">
