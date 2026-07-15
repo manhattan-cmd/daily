@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, ArrowUpRight, Check, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Check, Plus, Search, Sparkles, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +52,9 @@ export function ModPickDialog({
   const [error, setError] = useState<string | null>(null);
   const [existingId, setExistingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Havuzda arama — büyüteç açar, yazdıkça süzülür
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
   const pool = useLiveQuery(() => listMods(), []);
   const attached = useLiveQuery(
@@ -68,6 +71,8 @@ export function ModPickDialog({
         setMeasureId(null);
         setError(null);
         setExistingId(null);
+        setSearchOpen(false);
+        setSearch("");
       }, 200);
       return () => clearTimeout(t);
     }
@@ -77,6 +82,10 @@ export function ModPickDialog({
     (attached ?? []).map((a) => a.modId).filter(Boolean)
   );
   const available = (pool ?? []).filter((m) => !attachedModIds.has(m.id));
+  const norm = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
+  const filtered = search
+    ? available.filter((m) => norm(m.name).includes(norm(search)))
+    : available;
 
   async function handleAttach(modId: string) {
     setSaving(true);
@@ -131,55 +140,106 @@ export function ModPickDialog({
           <DialogDescription>
             {mode === "create"
               ? "Özellik adı tekildir — aynı özellik her yerde paylaşılır"
-              : `${targetName} için havuzdan seç ya da yeni yarat`}
+              : `"${targetName}" ile ilgili kaydetmek ve takip etmek istediğin özellikleri seç ya da yarat.`}
           </DialogDescription>
         </DialogHeader>
 
         {mode === "pick" ? (
           <>
-            {available.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Havuzdaki tüm özellikler zaten ekli.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {available.map((m: ModWithType) => (
+            {/* Havuz başlığı + arama */}
+            <div className="flex items-center justify-between gap-2 -mb-1">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Havuzdan seç
+              </span>
+              <button
+                onClick={() => {
+                  setSearchOpen((v) => !v);
+                  if (searchOpen) setSearch("");
+                }}
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-full transition-colors",
+                  searchOpen
+                    ? "bg-primary/15 text-primary"
+                    : "bg-white/8 text-muted-foreground hover:bg-white/12 hover:text-foreground"
+                )}
+                aria-label={searchOpen ? "Aramayı kapat" : "Özellik ara"}
+              >
+                <Search className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            {searchOpen && (
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Özellik ara..."
+                  autoFocus
+                  className="h-9 pl-9 pr-8"
+                />
+                {search && (
                   <button
-                    key={m.id}
-                    onClick={() => handleAttach(m.id)}
-                    disabled={saving}
-                    className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-3 text-left transition-colors hover:bg-muted active:scale-[0.99] disabled:opacity-50"
+                    onClick={() => setSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground/60 hover:text-foreground transition-colors"
+                    aria-label="Aramayı temizle"
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm flex items-center gap-1.5">
-                        {m.name}
-                        {m.isBuiltIn && (
-                          <Sparkles className="h-3 w-3 text-muted-foreground/50" />
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {m.entryType.name !== m.name && `${m.entryType.name} · `}
-                        {ENTRY_VALUE_TYPE_LABELS[m.entryType.valueType ?? "number"]}
-                        {m.entryType.unit
-                          ? ` · ${m.entryType.unit}`
-                          : m.entryType.choices?.length
-                          ? ` · ${m.entryType.choices.join(", ")}`
-                          : null}
-                      </div>
-                    </div>
-                    <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <X className="h-3 w-3" />
                   </button>
-                ))}
+                )}
               </div>
             )}
 
-            <button
-              onClick={() => setMode("create")}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border px-3 py-2.5 text-sm text-primary hover:border-primary/50 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              Yeni özellik yarat
-            </button>
+            {/* Özellik çipleri — sade, sarmal düzen */}
+            <div className="flex flex-wrap gap-2">
+              {filtered.map((m: ModWithType) => (
+                <button
+                  key={m.id}
+                  onClick={() => handleAttach(m.id)}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium transition-all hover:bg-muted active:scale-95 disabled:opacity-50"
+                >
+                  {m.name}
+                  {m.entryType.unit && (
+                    <span className="text-xs text-muted-foreground">
+                      ({m.entryType.unit})
+                    </span>
+                  )}
+                  {!m.entryType.unit &&
+                    (m.entryType.valueType ?? "number") !== "number" && (
+                      <span className="text-xs text-muted-foreground">
+                        ({ENTRY_VALUE_TYPE_LABELS[m.entryType.valueType ?? "number"]})
+                      </span>
+                    )}
+                  {m.isBuiltIn && (
+                    <Sparkles className="h-3 w-3 text-muted-foreground/40" />
+                  )}
+                </button>
+              ))}
+              <button
+                onClick={() => {
+                  setMode("create");
+                  if (search.trim()) setName(search.trim());
+                }}
+                className="flex items-center gap-1.5 rounded-xl border border-dashed border-border px-3 py-2 text-sm text-primary transition-colors hover:border-primary/50"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {search.trim() && filtered.length === 0
+                  ? `"${search.trim()}" yarat`
+                  : "Yeni yarat"}
+              </button>
+            </div>
+
+            {available.length === 0 && !search && (
+              <p className="text-xs text-muted-foreground/70 -mt-1">
+                Havuzdaki tüm özellikler zaten ekli — yenisini yaratabilirsin.
+              </p>
+            )}
+            {search && filtered.length === 0 && available.length > 0 && (
+              <p className="text-xs text-muted-foreground/70 -mt-1">
+                &bdquo;{search}&rdquo; havuzda yok — yukarıdan yaratabilirsin.
+              </p>
+            )}
           </>
         ) : (
           <>
