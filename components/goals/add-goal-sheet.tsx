@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Check, ChevronRight, Plus, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import { db } from "@/lib/db";
 import {
   listModifiersForTarget,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/db/queries";
 import { CategoryForm } from "@/components/structure/category-form";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
+import { EntryIcon } from "@/components/dashboard/entry-icon";
 import { DateTimeRangeInput } from "@/components/forms/datetime-range-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,8 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
   const [catFormOpen, setCatFormOpen] = useState(false);
   const [subFormOpen, setSubFormOpen] = useState(false);
   const [typePickerOpen, setTypePickerOpen] = useState(false);
+  // Alt kategori adımında açılmış dallar
+  const [expandedSubs, setExpandedSubs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!open) {
@@ -53,6 +56,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
         setStep({ type: "cat" });
         setSelectedTypeIds([]);
         setTargetValues({});
+        setExpandedSubs(new Set());
       }, 300);
       return () => clearTimeout(t);
     }
@@ -63,6 +67,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
     []
   );
 
+  // Kategorinin TÜM alt kategorileri — iç içe dallar da hedef seçilebilir
   const subcategories = useLiveQuery(async () => {
     if (step.type !== "sub") return [];
     const all = await db.subcategories
@@ -70,7 +75,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
       .equals(step.category.id)
       .toArray();
     return all
-      .filter((s) => !s.parentId && !s.isCategoryRoot)
+      .filter((s) => !s.isCategoryRoot)
       .sort((a, b) => a.order - b.order);
   }, [step]);
 
@@ -90,6 +95,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
 
   function handleBack() {
     if (step.type === "sub") {
+      setExpandedSubs(new Set());
       setStep({ type: "cat" });
     } else if (step.type === "mod") {
       setSelectedTypeIds([]);
@@ -252,14 +258,20 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
                 <button
                   key={cat.id}
                   onClick={() => setStep({ type: "sub", category: cat })}
-                  className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left transition-colors hover:bg-muted active:scale-[0.99]"
+                  className="flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all hover:brightness-110 active:scale-[0.98]"
+                  style={{
+                    borderColor: `${cat.color}30`,
+                    background: `linear-gradient(135deg, ${cat.color}16, ${cat.color}06)`,
+                  }}
                 >
                   <div
-                    className="h-3 w-3 rounded-full shrink-0"
+                    className="h-2.5 w-2.5 rounded-full shrink-0"
                     style={{ backgroundColor: cat.color }}
                   />
-                  <span className="font-medium flex-1">{cat.name}</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                  <span className="flex-1 truncate text-sm font-semibold">
+                    {cat.name}
+                  </span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
                 </button>
               ))}
               <button
@@ -311,33 +323,23 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
                   Bu kategoride alt kategori yok.
                 </p>
               )}
-              {(subcategories ?? []).map((sub) => (
-                <button
-                  key={sub.id}
-                  onClick={() =>
-                    setStep({ type: "mod", category: step.category, sub })
-                  }
-                  className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left transition-colors hover:bg-muted active:scale-[0.99]"
-                >
-                  {sub.icon ? (
-                    <span className="text-xl leading-none shrink-0">
-                      {sub.icon}
-                    </span>
-                  ) : (
-                    <div
-                      className="h-7 w-7 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
-                      style={{
-                        backgroundColor: `${step.category.color}20`,
-                        color: step.category.color,
-                      }}
-                    >
-                      {sub.name[0].toUpperCase()}
-                    </div>
-                  )}
-                  <span className="font-medium flex-1">{sub.name}</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
-                </button>
-              ))}
+              <SubRows
+                subs={subcategories ?? []}
+                parentId={undefined}
+                category={step.category}
+                expanded={expandedSubs}
+                onToggle={(id) =>
+                  setExpandedSubs((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(id)) next.delete(id);
+                    else next.add(id);
+                    return next;
+                  })
+                }
+                onSelect={(sub) =>
+                  setStep({ type: "mod", category: step.category, sub })
+                }
+              />
               <button
                 onClick={() => setSubFormOpen(true)}
                 className="flex items-center gap-3 rounded-2xl border border-dashed border-border/60 px-4 py-3.5 text-left text-muted-foreground hover:text-foreground hover:border-border transition-colors"
@@ -587,7 +589,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
         />
       )}
 
-      {/* All types picker dialog */}
+      {/* All types picker dialog — kept below */}
       <Dialog open={typePickerOpen} onOpenChange={setTypePickerOpen}>
         <DialogContent className="max-h-[70dvh] overflow-y-auto gap-4">
           <DialogHeader>
@@ -617,6 +619,89 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
           </div>
         </DialogContent>
       </Dialog>
+    </>
+  );
+}
+
+/**
+ * Alt kategori satırları — girdi penceresindeki dille: standart ikon rozeti,
+ * çocuğu olan satırda ok; açılınca çocuklar kategori renginde bağlantı
+ * çizgili yuvada iç içe listelenir (derinleştikçe girinti artar).
+ */
+function SubRows({
+  subs,
+  parentId,
+  category,
+  expanded,
+  onToggle,
+  onSelect,
+}: {
+  subs: SubCategory[];
+  parentId: string | undefined;
+  category: Category;
+  expanded: Set<string>;
+  onToggle: (id: string) => void;
+  onSelect: (sub: SubCategory) => void;
+}) {
+  const rows = subs.filter((s) => (s.parentId ?? undefined) === parentId);
+  if (rows.length === 0) return null;
+
+  return (
+    <>
+      {rows.map((sub) => {
+        const hasChildren = subs.some((s) => s.parentId === sub.id);
+        const isExpanded = expanded.has(sub.id);
+        return (
+          <div key={sub.id}>
+            <div className="flex items-center gap-1 rounded-2xl border border-border bg-card transition-colors hover:bg-card/80">
+              <button
+                onClick={() => onSelect(sub)}
+                className="flex flex-1 items-center gap-3 min-w-0 px-3 py-2.5 text-left active:scale-[0.99] transition-transform"
+              >
+                <EntryIcon category={category} subcategory={sub} size="sm" />
+                <span className="flex-1 truncate font-medium">{sub.name}</span>
+                {!hasChildren && (
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40" />
+                )}
+              </button>
+              {hasChildren && (
+                <button
+                  onClick={() => onToggle(sub.id)}
+                  className="mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label={
+                    isExpanded
+                      ? `${sub.name} alt kategorilerini gizle`
+                      : `${sub.name} alt kategorilerini göster`
+                  }
+                >
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 transition-transform duration-200",
+                      isExpanded && "rotate-180"
+                    )}
+                  />
+                </button>
+              )}
+            </div>
+
+            {hasChildren && isExpanded && (
+              <div
+                className="ml-5 mt-1.5 mb-1.5 flex flex-col gap-1.5 border-l-2 pl-2.5"
+                style={{ borderColor: `${category.color}40` }}
+              >
+                <SubRows
+                  subs={subs}
+                  parentId={sub.id}
+                  category={category}
+                  expanded={expanded}
+                  onToggle={onToggle}
+                  onSelect={onSelect}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
     </>
   );
 }
