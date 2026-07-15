@@ -22,6 +22,33 @@ import {
 import { EmojiPicker } from "@/components/structure/icon-picker";
 import { cn } from "@/lib/utils";
 
+/** Bilinen üst alt kategorilere özel öneriler — "Market altına ne açılır?" */
+const NESTED_PRESETS: Record<string, string[]> = {
+  // Harcamalar
+  "Market":        ["Manav", "Şarküteri", "Temizlik", "Atıştırmalık", "İçecek"],
+  "Fatura":        ["Elektrik", "Su", "Doğalgaz", "İnternet", "Telefon"],
+  "Ulaşım":        ["Toplu Taşıma", "Taksi", "Yakıt", "Otopark"],
+  "Yemek":         ["Restoran", "Kafe", "Sipariş", "Tatlı"],
+  "Eğlence":       ["Sinema", "Konser", "Oyun", "Abonelik"],
+  // Spor & Fitness
+  "Gym":           ["Göğüs", "Sırt", "Bacak", "Omuz", "Kol"],
+  "Koşu":          ["Tempo Koşusu", "Uzun Koşu", "İnterval"],
+  // Beslenme
+  "İçecek":        ["Su", "Kahve", "Çay"],
+  "Ara Öğün":      ["Meyve", "Kuruyemiş", "Tatlı"],
+  // Sağlık
+  "İlaç":          ["Sabah", "Akşam", "Ağrı Kesici"],
+  "Vitamin":       ["D Vitamini", "B12", "Omega 3", "Magnezyum"],
+  // Çalışma
+  "Proje":         ["Planlama", "Geliştirme", "Revizyon"],
+  // Öğrenme
+  "Kitap":         ["Roman", "Kişisel Gelişim", "Mesleki"],
+  "Dil Pratiği":   ["Kelime", "Dinleme", "Konuşma", "Gramer"],
+  // Eğlence (kategori)
+  "Dizi":          ["Yeni Bölüm", "Tekrar İzleme"],
+  "Oyun":          ["PC", "Konsol", "Mobil"],
+};
+
 const SUBCATEGORY_PRESETS: Record<string, string[]> = {
   "Uyku":          ["Gece Uykusu", "Şekerleme", "Uyku Kalitesi", "Gece Rutini", "Uyanış"],
   "Spor & Fitness":["Koşu", "Gym", "Yürüyüş", "Yüzme", "Bisiklet"],
@@ -93,6 +120,35 @@ export function SubCategoryForm({
     return { cats, subs };
   }, [isEdit, open]);
 
+  // Oluşturma bağlamı — hedef kategori + alt kategorileri (yol ve öneriler için)
+  const context = useLiveQuery(async () => {
+    if (isEdit || !open) return undefined;
+    const [cat, subs] = await Promise.all([
+      db.categories.get(categoryId),
+      db.subcategories.where("categoryId").equals(categoryId).toArray(),
+    ]);
+    return { cat, subs };
+  }, [isEdit, open, categoryId]);
+
+  // Nereye ekleniyor: kategori › (varsa) üst alt kategori zinciri
+  const parentSub = parentSubcategoryId
+    ? context?.subs.find((s) => s.id === parentSubcategoryId)
+    : undefined;
+  const targetPath = useMemo(() => {
+    const catName = context?.cat?.name ?? categoryName;
+    if (!catName) return null;
+    const chain: string[] = [];
+    let cur = parentSub;
+    let hops = 0;
+    while (cur && hops++ < 20) {
+      chain.unshift(cur.name);
+      cur = cur.parentId
+        ? context?.subs.find((s) => s.id === cur!.parentId)
+        : undefined;
+    }
+    return [catName, ...chain].join(" › ");
+  }, [context, categoryName, parentSub]);
+
   // Taşınanın kendisi ve torunları hedef olamaz (döngü)
   const excludedIds = useMemo(() => {
     const set = new Set<string>();
@@ -112,7 +168,30 @@ export function SubCategoryForm({
     (location.categoryId !== subcategory.categoryId ||
       (location.parentId ?? undefined) !== (subcategory.parentId ?? undefined));
 
-  const presets = categoryName ? (SUBCATEGORY_PRESETS[categoryName] ?? []) : [];
+  // Öneriler bağlama göre: bir alt kategorinin altına ekleniyorsa o ebeveyne
+  // özel liste (yoksa öneri yok — kategori önerileri orada yanıltıcı olur),
+  // ana seviyedeyse kategoriye özel liste. Zaten var olan kardeşler düşülür.
+  const presets = useMemo(() => {
+    const norm = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
+    const base = parentSubcategoryId
+      ? parentSub
+        ? NESTED_PRESETS[parentSub.name] ?? []
+        : []
+      : (() => {
+          const catName = context?.cat?.name ?? categoryName;
+          return catName ? SUBCATEGORY_PRESETS[catName] ?? [] : [];
+        })();
+    const siblings = new Set(
+      (context?.subs ?? [])
+        .filter(
+          (s) =>
+            !s.isCategoryRoot &&
+            (s.parentId ?? undefined) === (parentSubcategoryId ?? undefined)
+        )
+        .map((s) => norm(s.name))
+    );
+    return base.filter((p) => !siblings.has(norm(p)));
+  }, [parentSubcategoryId, parentSub, context, categoryName]);
 
   async function save(nameToSave: string) {
     if (!nameToSave.trim()) return;
@@ -166,6 +245,19 @@ export function SubCategoryForm({
           <DialogTitle>
             {isEdit ? "Alt kategoriyi düzenle" : "Yeni alt kategori"}
           </DialogTitle>
+          {/* Nereye eklendiği — kategori renk noktası + yol */}
+          {!isEdit && targetPath && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: context?.cat?.color ?? "#6366f1" }}
+              />
+              <span className="truncate font-medium text-foreground/80">
+                {targetPath}
+              </span>
+              <span className="shrink-0 text-muted-foreground/60">altına</span>
+            </div>
+          )}
         </DialogHeader>
 
         {/* Edit mode: simple form */}
