@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, ArrowUpRight, Check, Plus, Search, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Check, Plus, Search, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,6 @@ import {
   findModByName,
   type ModWithType,
 } from "@/lib/db/queries";
-import { ENTRY_VALUE_TYPE_LABELS } from "@/types";
 import { MEASURE_KIND_META } from "@/lib/measure-kinds";
 import { cn } from "@/lib/utils";
 
@@ -190,8 +189,8 @@ export function ModPickDialog({
               </div>
             )}
 
-            {/* Özellik kutuları — modüler ızgara */}
-            <div className="grid grid-cols-2 gap-2">
+            {/* Özellik atomları — küçük, sık, ortalanmış modüler kutular */}
+            <div className="grid grid-cols-3 gap-2">
               {filtered.map((m: ModWithType) => {
                 const KindIcon =
                   MEASURE_KIND_META[m.entryType.valueType ?? "number"].icon;
@@ -200,25 +199,23 @@ export function ModPickDialog({
                     key={m.id}
                     onClick={() => handleAttach(m.id)}
                     disabled={saving}
-                    className="flex flex-col items-start gap-2 rounded-2xl border border-border bg-card p-3 text-left transition-all hover:bg-muted hover:border-primary/40 active:scale-[0.97] disabled:opacity-50"
+                    className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-2 py-3 transition-all hover:border-primary/40 hover:bg-muted active:scale-[0.94] disabled:opacity-50"
                   >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                    <span
+                      className="flex h-9 w-9 items-center justify-center rounded-full"
+                      style={{
+                        background:
+                          "radial-gradient(circle at 32% 28%, rgba(129,140,248,0.28), rgba(129,140,248,0.08) 70%)",
+                        boxShadow: "inset 0 0 0 1px rgba(129,140,248,0.18)",
+                      }}
+                    >
                       <KindIcon
                         className="h-4 w-4 text-primary"
                         strokeWidth={1.75}
                       />
                     </span>
-                    <span className="flex w-full min-w-0 items-center gap-1">
-                      <span className="truncate text-sm font-semibold">
-                        {m.name}
-                      </span>
-                      {m.isBuiltIn && (
-                        <Sparkles className="h-3 w-3 shrink-0 text-muted-foreground/40" />
-                      )}
-                    </span>
-                    <span className="text-[11px] leading-none text-muted-foreground">
-                      {m.entryType.unit ||
-                        ENTRY_VALUE_TYPE_LABELS[m.entryType.valueType ?? "number"]}
+                    <span className="w-full truncate text-center text-xs font-medium leading-tight">
+                      {m.name}
                     </span>
                   </button>
                 );
@@ -228,10 +225,12 @@ export function ModPickDialog({
                   setMode("create");
                   if (search.trim()) setName(search.trim());
                 }}
-                className="flex min-h-[104px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border p-3 text-primary transition-colors hover:border-primary/50 hover:bg-primary/5"
+                className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border px-2 py-3 text-primary transition-colors hover:border-primary/50 hover:bg-primary/5"
               >
-                <Plus className="h-5 w-5" />
-                <span className="text-center text-xs font-medium leading-tight">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-primary/40">
+                  <Plus className="h-4 w-4" />
+                </span>
+                <span className="w-full truncate text-center text-xs font-medium leading-tight">
                   {search.trim() && filtered.length === 0
                     ? `"${search.trim()}" yarat`
                     : "Yeni yarat"}
