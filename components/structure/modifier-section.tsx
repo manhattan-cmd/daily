@@ -1,11 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Unlink } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { listModifiersForTarget, removeModifier } from "@/lib/db/queries";
+import {
+  listModifiersForTarget,
+  removeModifier,
+  type CategoryModifierWithType,
+} from "@/lib/db/queries";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
-import { ENTRY_VALUE_TYPE_LABELS } from "@/types";
+import {
+  ModAtom,
+  ModAtomAdd,
+  ModAtomCore,
+  modAtomIcon,
+} from "@/components/structure/mod-atom";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { measureSummary } from "@/lib/measure-kinds";
 
 interface ModifierSectionProps {
   targetType: "category" | "subcategory";
@@ -19,77 +37,71 @@ export function ModifierSection({
   targetName,
 }: ModifierSectionProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Atoma dokununca açılan detay — çıkarma da buradan
+  const [selected, setSelected] = useState<CategoryModifierWithType | null>(
+    null
+  );
 
   const mods = useLiveQuery(
     () => listModifiersForTarget(targetType, targetId),
     [targetType, targetId]
   );
 
-  async function handleDetach(attachmentId: string) {
-    await removeModifier(attachmentId);
+  async function handleDetach() {
+    if (!selected) return;
+    await removeModifier(selected.id);
+    setSelected(null);
   }
 
   return (
-    <section className="flex flex-col gap-3 mb-6">
-      <div className="flex items-center justify-between px-1">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Özellikler
-        </h2>
-        <button
-          onClick={() => setPickerOpen(true)}
-          className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Özellik ekle
-        </button>
+    <section className="mb-6">
+      <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Özellikler
+      </h2>
+      <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
+        {(mods ?? []).map((mod) => (
+          <ModAtom
+            key={mod.id}
+            icon={modAtomIcon(mod)}
+            name={mod.name ?? mod.entryType.name}
+            onClick={() => setSelected(mod)}
+          />
+        ))}
+        <ModAtomAdd label="Özellik ekle" onClick={() => setPickerOpen(true)} />
       </div>
 
-      {!mods || mods.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card/40 px-4 py-5 text-center">
-          <p className="text-sm text-muted-foreground">
-            Henüz özellik ekli değil. Havuzdan bir özellik seç ya da yenisini
-            yarat.
-          </p>
-          <button
-            onClick={() => setPickerOpen(true)}
-            className="mt-1 text-xs text-primary hover:text-primary/80 transition-colors"
-          >
-            Özellik ekle →
-          </button>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-1.5">
-          {mods.map((mod) => (
-            <div
-              key={mod.id}
-              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm truncate">
-                  {mod.name ?? mod.entryType.name}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {mod.entryType.name !== (mod.name ?? "") &&
-                    `${mod.entryType.name} · `}
-                  {ENTRY_VALUE_TYPE_LABELS[mod.entryType.valueType ?? "number"]}
-                  {mod.entryType.unit
-                    ? ` · ${mod.entryType.unit}`
-                    : mod.entryType.choices?.length
-                    ? ` · ${mod.entryType.choices.join(", ")}`
-                    : null}
-                </div>
-              </div>
-              <button
-                onClick={() => handleDetach(mod.id)}
-                className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                aria-label={`${mod.name ?? mod.entryType.name} özelliğini buradan çıkar`}
+      {/* Atom detayı — ölçüsü + buradan çıkarma */}
+      <Dialog
+        open={selected !== null}
+        onOpenChange={(o) => { if (!o) setSelected(null); }}
+      >
+        <DialogContent className="max-w-[340px] gap-4">
+          {selected && (
+            <>
+              <DialogHeader className="items-center text-center">
+                <ModAtomCore icon={modAtomIcon(selected)} size="lg" />
+                <DialogTitle className="text-base pt-1">
+                  {selected.name ?? selected.entryType.name}
+                </DialogTitle>
+                <DialogDescription>
+                  {measureSummary(selected.entryType)}
+                </DialogDescription>
+              </DialogHeader>
+              <Button
+                variant="outline"
+                className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={handleDetach}
               >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+                <Unlink className="h-3.5 w-3.5" />
+                &bdquo;{targetName}&rdquo; içinden çıkar
+              </Button>
+              <p className="text-center text-[11px] text-muted-foreground/60 -mt-2">
+                Özellik havuzda kalır, yalnızca buradan ayrılır
+              </p>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <ModPickDialog
         open={pickerOpen}

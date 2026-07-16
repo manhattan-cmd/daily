@@ -24,10 +24,14 @@ const BUILT_IN_MOD_ICONS: Record<string, LucideIcon> = {
   "Uyku Kalitesi": Star,
 };
 
-/** Özelliğin atom simgesi: yerleşikse özel simgesi, değilse ölçü türünün simgesi */
-export function modAtomIcon(mod: ModWithType): LucideIcon {
+/** Özelliğin atom simgesi: yerleşikse özel simgesi, değilse ölçü türünün simgesi.
+ * Bağlanmış özelliklerde (CategoryModifierWithType) ad boş olabilir. */
+export function modAtomIcon(mod: {
+  name?: string;
+  entryType: ModWithType["entryType"];
+}): LucideIcon {
   return (
-    BUILT_IN_MOD_ICONS[mod.name] ??
+    BUILT_IN_MOD_ICONS[mod.name ?? ""] ??
     MEASURE_KIND_META[mod.entryType.valueType ?? "number"].icon
   );
 }
