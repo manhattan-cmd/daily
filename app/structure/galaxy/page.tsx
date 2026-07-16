@@ -103,9 +103,12 @@ export default function GalaxyPage() {
         )
       ) : null}
 
-      {/* Üst menü — harita üstünde yüzer */}
-      <div className="absolute top-8 inset-x-0 z-10 px-4">
-        <StructureTabs />
+      {/* Üst menü — harita üstünde yüzer; pt-safe çentikli ekranlarda
+          durum çubuğunun altına itilmesini önler */}
+      <div className="absolute top-0 inset-x-0 z-10 pt-safe">
+        <div className="px-4 pt-8">
+          <StructureTabs />
+        </div>
       </div>
 
       {/* Legend */}
