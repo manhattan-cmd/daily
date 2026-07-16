@@ -24,6 +24,7 @@ import {
   type ModWithType,
 } from "@/lib/db/queries";
 import { MEASURE_KIND_META } from "@/lib/measure-kinds";
+import { ModAtom, modAtomIcon } from "@/components/structure/mod-atom";
 import { cn } from "@/lib/utils";
 
 /**
@@ -222,37 +223,17 @@ export function ModPickDialog({
               </div>
             )}
 
-            {/* Özellik atomları — küçük, sık, ortalanmış modüler kutular */}
-            <div className="grid grid-cols-3 gap-2">
-              {filtered.map((m: ModWithType) => {
-                const KindIcon =
-                  MEASURE_KIND_META[m.entryType.valueType ?? "number"].icon;
-                return (
-                  <button
-                    key={m.id}
-                    onClick={() => handleAttach(m.id)}
-                    disabled={saving}
-                    className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-2 py-3 transition-all hover:border-primary/40 hover:bg-muted active:scale-[0.94] disabled:opacity-50"
-                  >
-                    <span
-                      className="flex h-9 w-9 items-center justify-center rounded-full"
-                      style={{
-                        background:
-                          "radial-gradient(circle at 32% 28%, rgba(129,140,248,0.28), rgba(129,140,248,0.08) 70%)",
-                        boxShadow: "inset 0 0 0 1px rgba(129,140,248,0.18)",
-                      }}
-                    >
-                      <KindIcon
-                        className="h-4 w-4 text-primary"
-                        strokeWidth={1.75}
-                      />
-                    </span>
-                    <span className="w-full truncate text-center text-xs font-medium leading-tight">
-                      {m.name}
-                    </span>
-                  </button>
-                );
-              })}
+            {/* Özellik atomları — dairesel çekirdekler, sık 4 sütunlu dizilim */}
+            <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
+              {filtered.map((m: ModWithType) => (
+                <ModAtom
+                  key={m.id}
+                  icon={modAtomIcon(m)}
+                  name={m.name}
+                  onClick={() => handleAttach(m.id)}
+                  disabled={saving}
+                />
+              ))}
             </div>
 
             {available.length === 0 && !search && (
