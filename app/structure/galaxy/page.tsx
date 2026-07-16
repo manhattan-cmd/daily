@@ -2,6 +2,7 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { Waypoints } from "lucide-react";
+import { PageHeader } from "@/components/layout/page-header";
 import { StructureTabs } from "@/components/structure/structure-tabs";
 import { db } from "@/lib/db";
 import ConnectionMap, {
@@ -84,34 +85,35 @@ export default function GalaxyPage() {
   }, []);
 
   return (
-    <div className="relative -mx-4 -mb-4 overflow-hidden" style={{ height: "100%" }}>
-      {data ? (
-        data.categories.length === 0 ? (
-          <div className="flex h-full items-center justify-center px-4">
-            <EmptyState
-              icon={Waypoints}
-              title="Harita boş"
-              description="Bağlantı haritasını görmek için önce kategori oluştur."
+    <div className="flex flex-col" style={{ height: "100%" }}>
+      {/* Diğer Yapı sayfalarıyla aynı başlık + menü hizası */}
+      <PageHeader
+        title="Yapı"
+        description="Harita — kategori ve özellik bağlantıları"
+        className="mb-0"
+      />
+      <StructureTabs className="mt-4 mb-4" />
+
+      <div className="relative flex-1 -mx-4 -mb-4 overflow-hidden">
+        {data ? (
+          data.categories.length === 0 ? (
+            <div className="flex h-full items-center justify-center px-4">
+              <EmptyState
+                icon={Waypoints}
+                title="Harita boş"
+                description="Bağlantı haritasını görmek için önce kategori oluştur."
+              />
+            </div>
+          ) : (
+            <ConnectionMap
+              categories={data.categories}
+              connections={data.connections}
+              parallels={data.parallels}
             />
-          </div>
-        ) : (
-          <ConnectionMap
-            categories={data.categories}
-            connections={data.connections}
-            parallels={data.parallels}
-          />
-        )
-      ) : null}
+          )
+        ) : null}
 
-      {/* Üst menü — harita üstünde yüzer; pt-safe çentikli ekranlarda
-          durum çubuğunun altına itilmesini önler */}
-      <div className="absolute top-0 inset-x-0 z-10 pt-safe">
-        <div className="px-4 pt-8">
-          <StructureTabs />
-        </div>
-      </div>
-
-      {/* Legend */}
+        {/* Legend */}
       {data && (data.connections.length > 0 || data.parallels.length > 0) && (
         <div className="absolute bottom-4 inset-x-0 flex justify-center z-10 pointer-events-none">
           <div className="flex items-center gap-3 rounded-full border border-border bg-card/80 backdrop-blur-sm px-4 py-1.5">
@@ -137,6 +139,7 @@ export default function GalaxyPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
