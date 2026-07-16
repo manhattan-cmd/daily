@@ -10,6 +10,7 @@ import {
   deleteEntryType,
 } from "@/lib/db/queries";
 import { PageHeader } from "@/components/layout/page-header";
+import { StructureTabs } from "@/components/structure/structure-tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,9 +61,8 @@ export default function OlculerPage() {
   return (
     <>
       <PageHeader
-        title="Ölçüler"
-        description="Özelliklerin ölçüm araçları — bir ilkel tür seç, yapılandır"
-        back="/structure/mods"
+        title="Yapı"
+        description="Ölçüler — özelliklerin ölçüm araçları"
         action={
           <Button
             size="sm"
@@ -74,6 +74,8 @@ export default function OlculerPage() {
           </Button>
         }
       />
+
+      <StructureTabs className="-mt-2 mb-5" />
 
       {groups === undefined ? null : (
         <div className="flex flex-col gap-6 mb-6">

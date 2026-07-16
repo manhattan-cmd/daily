@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronRight, Download, Layers, MoreHorizontal, Pencil, Sliders, Trash2, Waypoints } from "lucide-react";
+import { Layers, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { db } from "@/lib/db";
 import { listCategories, deleteCategory } from "@/lib/db/queries";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CategoryForm } from "@/components/structure/category-form";
 import { CategoryQuickAdd } from "@/components/structure/category-quick-add";
+import { StructureTabs } from "@/components/structure/structure-tabs";
 import { CategoryIcon } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
 import type { Category } from "@/types";
@@ -53,60 +54,11 @@ export default function StructurePage() {
     <>
       <PageHeader
         title="Yapı"
-        description="Kategori ve özellikleri yönet"
+        description="Kategoriler — rutinin ana başlıkları"
         action={<CategoryQuickAdd existingNames={existingNames} />}
       />
 
-      {/* Kısayollar */}
-      <div className="flex flex-col gap-2 mb-5">
-        <Link
-          href="/structure/mods"
-          className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 transition-colors hover:bg-card/80 active:scale-[0.99]"
-        >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-            <Sliders className="h-5 w-5 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-medium">Özellikler</div>
-            <div className="text-xs text-muted-foreground">
-              Tüm özellikleri gör, yönet — ölçüler de burada
-            </div>
-          </div>
-          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-        </Link>
-
-        <Link
-          href="/structure/galaxy"
-          className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 transition-colors hover:bg-card/80 active:scale-[0.99]"
-        >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/10">
-            <Waypoints className="h-5 w-5 text-violet-400" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-medium">Bağlantı Haritası</div>
-            <div className="text-xs text-muted-foreground">
-              Kategori, alt kategori ve özellik bağlantılarını gör
-            </div>
-          </div>
-          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-        </Link>
-
-        <Link
-          href="/structure/backup"
-          className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 transition-colors hover:bg-card/80 active:scale-[0.99]"
-        >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
-            <Download className="h-5 w-5 text-emerald-400" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-medium">Yedekleme</div>
-            <div className="text-xs text-muted-foreground">
-              Verilerini dışa aktar veya geri yükle
-            </div>
-          </div>
-          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-        </Link>
-      </div>
+      <StructureTabs className="-mt-2 mb-5" />
 
       {/* Backdrop — closes open menu on outside click */}
       {openMenuId && (
@@ -115,12 +67,6 @@ export default function StructurePage() {
           onClick={() => setOpenMenuId(null)}
         />
       )}
-
-      <div className="px-1 mb-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Kategoriler
-        </h2>
-      </div>
 
       {categories === undefined ? null : categories.length === 0 ? (
         <EmptyState

@@ -1,15 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   ArrowLeft,
-  ChevronRight,
   Pencil,
   Plus,
-  Ruler,
+  Search,
   Trash2,
+  X,
 } from "lucide-react";
 import { db } from "@/lib/db";
 import {
@@ -40,6 +39,7 @@ import {
   ModAtomCore,
   modAtomIcon,
 } from "@/components/structure/mod-atom";
+import { StructureTabs } from "@/components/structure/structure-tabs";
 import { cn } from "@/lib/utils";
 
 type Usage = { count: number; places: string[]; valueCount: number };
@@ -56,6 +56,9 @@ export default function ModsHomePage() {
   const [detailView, setDetailView] = useState<"info" | "rename">("info");
   const [renameValue, setRenameValue] = useState("");
   const [renameError, setRenameError] = useState(false);
+  // Havuzda arama — büyüteç açar, yazdıkça iki bölüm birden süzülür
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
   const mods = useLiveQuery(() => listMods(), []);
   const measures = useLiveQuery(() => listEntryTypes(), []);
@@ -138,69 +141,77 @@ export default function ModsHomePage() {
 
   const selectedUsage = selected ? usage?.get(selected.id) : undefined;
 
+  const norm = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
+  const visibleMods = (mods ?? []).filter(
+    (m) => !search || norm(m.name).includes(norm(search))
+  );
+  const builtIns = visibleMods.filter((m) => m.isBuiltIn);
+  const userMods = visibleMods.filter((m) => !m.isBuiltIn);
+
   return (
     <>
       <PageHeader
-        title="Özellikler"
-        description="Ölçülebilir en küçük birimler — her ad tekildir"
-        back="/structure"
+        title="Yapı"
+        description="Özellikler — ölçülebilir en küçük birimler"
         action={
-          <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-1.5">
-            <Plus className="h-3.5 w-3.5" />
-            Yeni Özellik
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => {
+                setSearchOpen((v) => !v);
+                if (searchOpen) setSearch("");
+              }}
+              className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-full transition-colors",
+                searchOpen
+                  ? "bg-primary/15 text-primary"
+                  : "bg-white/8 text-muted-foreground hover:bg-white/12 hover:text-foreground"
+              )}
+              aria-label={searchOpen ? "Aramayı kapat" : "Özellik ara"}
+            >
+              <Search className="h-3.5 w-3.5" />
+            </button>
+            <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-1.5">
+              <Plus className="h-3.5 w-3.5" />
+              Yeni Özellik
+            </Button>
+          </div>
         }
       />
 
-      {/* Ölçüler alt sayfası */}
-      <Link
-        href="/structure/mods/olculer"
-        className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 mb-6 transition-colors hover:bg-card/80 active:scale-[0.99]"
-      >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-          <Ruler className="h-5 w-5 text-primary" />
+      <StructureTabs className="-mt-2 mb-5" />
+
+      {searchOpen && (
+        <div className="relative mb-5">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Özellik ara..."
+            autoFocus
+            className="h-9 pl-9 pr-8"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground/60 hover:text-foreground transition-colors"
+              aria-label="Aramayı temizle"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-medium">Ölçüler</div>
-          <div className="text-xs text-muted-foreground">
-            Özelliklerin kullandığı ölçü türleri (Süre, Mesafe, Para...)
-          </div>
-        </div>
-        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-      </Link>
+      )}
 
       {mods === undefined ? null : (
         <>
           {/* Yerleşik atomlar — dairesel, sık ızgara */}
-          {mods.some((m) => m.isBuiltIn) && (
+          {builtIns.length > 0 && (
             <section className="mb-6">
               <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Yerleşik Özellikler
               </h2>
               <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
-                {mods
-                  .filter((m) => m.isBuiltIn)
-                  .map((mod) => (
-                    <ModAtom
-                      key={mod.id}
-                      icon={modAtomIcon(mod)}
-                      name={mod.name}
-                      onClick={() => openDetail(mod)}
-                    />
-                  ))}
-              </div>
-            </section>
-          )}
-
-          {/* Kullanıcı atomları */}
-          <section className="mb-6">
-            <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Senin Özelliklerin
-            </h2>
-            <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
-              {mods
-                .filter((m) => !m.isBuiltIn)
-                .map((mod) => (
+                {builtIns.map((mod) => (
                   <ModAtom
                     key={mod.id}
                     icon={modAtomIcon(mod)}
@@ -208,14 +219,46 @@ export default function ModsHomePage() {
                     onClick={() => openDetail(mod)}
                   />
                 ))}
-              <ModAtomAdd
-                label={
-                  mods.some((m) => !m.isBuiltIn) ? "Yeni yarat" : "İlk özelliğin"
-                }
-                onClick={() => setCreateOpen(true)}
-              />
-            </div>
-          </section>
+              </div>
+            </section>
+          )}
+
+          {/* Kullanıcı atomları */}
+          {(userMods.length > 0 || !search) && (
+            <section className="mb-6">
+              <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Senin Özelliklerin
+              </h2>
+              <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
+                {userMods.map((mod) => (
+                  <ModAtom
+                    key={mod.id}
+                    icon={modAtomIcon(mod)}
+                    name={mod.name}
+                    onClick={() => openDetail(mod)}
+                  />
+                ))}
+                {!search && (
+                  <ModAtomAdd
+                    label={
+                      mods.some((m) => !m.isBuiltIn)
+                        ? "Yeni yarat"
+                        : "İlk özelliğin"
+                    }
+                    onClick={() => setCreateOpen(true)}
+                  />
+                )}
+              </div>
+            </section>
+          )}
+
+          {search && visibleMods.length === 0 && (
+            <p className="px-1 text-xs text-muted-foreground/70">
+              &bdquo;{search}&rdquo; adında bir özellik yok —{" "}
+              <span className="font-medium">Yeni Özellik</span> bu adla
+              yaratabilir.
+            </p>
+          )}
         </>
       )}
 

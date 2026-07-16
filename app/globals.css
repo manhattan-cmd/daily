@@ -90,6 +90,15 @@ input[type="number"] {
   background: var(--muted-foreground);
 }
 
+/* Yatay sekme sıraları — kaydırılır ama çubuk görünmez */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Safe area for mobile */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0);

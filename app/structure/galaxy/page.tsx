@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Waypoints } from "lucide-react";
+import { Waypoints } from "lucide-react";
+import { StructureTabs } from "@/components/structure/structure-tabs";
 import { db } from "@/lib/db";
 import ConnectionMap, {
   type MapCategory,
@@ -103,20 +103,9 @@ export default function GalaxyPage() {
         )
       ) : null}
 
-      {/* Header */}
-      <div className="absolute top-10 left-4 z-10">
-        <Link
-          href="/structure"
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Yapı
-        </Link>
-      </div>
-      <div className="absolute top-10 inset-x-0 flex justify-center z-10 pointer-events-none">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
-          Bağlantı Haritası
-        </span>
+      {/* Üst menü — harita üstünde yüzer */}
+      <div className="absolute top-8 inset-x-0 z-10 px-4">
+        <StructureTabs />
       </div>
 
       {/* Legend */}

@@ -11,6 +11,7 @@ import {
   restoreBackup,
 } from "@/lib/db/backup";
 import { PageHeader } from "@/components/layout/page-header";
+import { StructureTabs } from "@/components/structure/structure-tabs";
 import { Button } from "@/components/ui/button";
 
 export default function BackupPage() {
@@ -89,10 +90,11 @@ export default function BackupPage() {
   return (
     <>
       <PageHeader
-        title="Yedekleme"
-        description="Verilerini dışa aktar veya geri yükle"
-        back="/structure"
+        title="Yapı"
+        description="Yedekleme — verilerini dışa aktar veya geri yükle"
       />
+
+      <StructureTabs className="-mt-2 mb-5" />
 
       <div className="flex flex-col gap-5">
         <p className="text-sm text-muted-foreground leading-relaxed">
