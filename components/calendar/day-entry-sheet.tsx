@@ -1195,6 +1195,8 @@ function FormStep({
 }) {
   const [modPickerOpen, setModPickerOpen] = useState(false);
   const [parallelPickerOpen, setParallelPickerOpen] = useState(false);
+  // Seçiciden yeni eklenen özellik — alanı görünüme kaydırıp odaklarız
+  const [focusModId, setFocusModId] = useState<string | null>(null);
 
   async function handleRemoveMod(mod: CategoryModifierWithType) {
     await removeModifier(mod.id);
@@ -1271,6 +1273,7 @@ function FormStep({
                   onRemove={lockedTypeIds.has(sharedKey(mod)) ? undefined : () => handleRemoveMod(mod)}
                   isLocked={lockedTypeIds.has(sharedKey(mod))}
                   entryDate={entryDate}
+                  autoFocus={mod.modId === focusModId}
                 />
               ))}
               <button
@@ -1386,6 +1389,7 @@ function FormStep({
         targetType="subcategory"
         targetId={sub.id}
         targetName={sub.name}
+        onAttached={(m) => setFocusModId(m.id)}
       />
     </>
   );
@@ -1402,6 +1406,7 @@ export function ModInput({
   onRemove,
   isLocked = false,
   entryDate,
+  autoFocus = false,
 }: {
   mod: CategoryModifierWithType;
   value: string;
@@ -1409,9 +1414,22 @@ export function ModInput({
   onRemove?: () => void;
   isLocked?: boolean;
   entryDate?: string;
+  /** Yeni eklenen özellik: alan görünüme kaydırılır, yazı alanları odaklanır */
+  autoFocus?: boolean;
 }) {
   const vt = mod.entryType.valueType ?? "number";
   const today = new Date().toISOString().split("T")[0];
+  const scrolledRef = useRef(false);
+  const scrollOnMount = (el: HTMLDivElement | null) => {
+    if (el && autoFocus && !scrolledRef.current) {
+      scrolledRef.current = true;
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+      // Alan, seçici dialog kapanmadan mount olabiliyor — Radix'in odak
+      // tuzağı autoFocus'u yutuyor; dialog söküldükten sonra tekrar odakla
+      const input = el.querySelector("input");
+      if (input) setTimeout(() => input.focus(), 300);
+    }
+  };
 
   const modLabel = mod.name ?? mod.entryType.name;
   const labelRow = (
@@ -1461,7 +1479,7 @@ export function ModInput({
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5" ref={scrollOnMount}>
       {labelRow}
 
       {vt === "number" && (
@@ -1472,6 +1490,7 @@ export function ModInput({
           onChange={(e) => onChange(e.target.value)}
           placeholder="0"
           step="any"
+          autoFocus={autoFocus}
         />
       )}
 
@@ -1480,6 +1499,7 @@ export function ModInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Metin gir..."
+          autoFocus={autoFocus}
         />
       )}
 

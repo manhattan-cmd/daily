@@ -72,6 +72,8 @@ export function EditEntryModal({
 
   // Girdiye özel eklenen havuz modları (bu oturumda)
   const [extraModIds, setExtraModIds] = useState<string[]>([]);
+  // Yeni eklenen özelliğin alanı — görünüme kaydırılıp odaklanır
+  const [focusKey, setFocusKey] = useState<string | null>(null);
 
   // Modsuz eski değerler (migrasyon öncesi kalıntı) — ölçüyle gösterilir
   const [extraTypeIds] = useState<string[]>(() =>
@@ -325,6 +327,7 @@ export function EditEntryModal({
     setExtraModIds((prev) =>
       prev.includes(modId) ? prev : [...prev, modId]
     );
+    setFocusKey(modId);
     setAddModOpen(false);
   }
 
@@ -546,6 +549,7 @@ export function EditEntryModal({
                 onRemove={() => handleRemove(row.key)}
                 isShared={!!row.modId && siblingModIds.has(row.modId)}
                 entryDate={entryDate}
+                autoFocus={row.key === focusKey}
               />
             ))}
 
@@ -745,6 +749,7 @@ function ModInput({
   onRemove,
   isShared = false,
   entryDate,
+  autoFocus = false,
 }: {
   label: string;
   entryType: EntryType;
@@ -753,12 +758,21 @@ function ModInput({
   onRemove?: () => void;
   isShared?: boolean;
   entryDate?: string;
+  /** Yeni eklenen özellik: alan görünüme kaydırılır, yazı alanları odaklanır */
+  autoFocus?: boolean;
 }) {
   const vt = entryType.valueType ?? "number";
   const today = new Date().toISOString().split("T")[0];
+  const scrolledRef = useRef(false);
+  const scrollOnMount = (el: HTMLDivElement | null) => {
+    if (el && autoFocus && !scrolledRef.current) {
+      scrolledRef.current = true;
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  };
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5" ref={scrollOnMount}>
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium">
           {label}
@@ -795,6 +809,7 @@ function ModInput({
           onChange={(e) => onChange(e.target.value)}
           placeholder="0"
           step="any"
+          autoFocus={autoFocus}
         />
       )}
 
@@ -803,6 +818,7 @@ function ModInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Metin gir..."
+          autoFocus={autoFocus}
         />
       )}
 

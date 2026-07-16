@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, ArrowUpRight, Check, Plus, Search, X } from "lucide-react";
 import {
@@ -58,6 +58,9 @@ export function ModPickDialog({
   // Havuzda arama — büyüteç açar, yazdıkça süzülür
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
+  // Ekleme ile kapanışta Radix odağı tetikleyiciye geri verir — bu, yeni
+  // eklenen alanın autoFocus'unu çalar; bir kereliğine bastırılır
+  const attachedRef = useRef(false);
 
   const pool = useLiveQuery(() => listMods(), []);
   const attached = useLiveQuery(
@@ -94,6 +97,7 @@ export function ModPickDialog({
     setSaving(true);
     try {
       await attachMod(targetType, targetId, modId);
+      attachedRef.current = true;
       onOpenChange(false);
       const picked = (pool ?? []).find((m) => m.id === modId);
       if (picked) onAttached?.(picked);
@@ -120,6 +124,7 @@ export function ModPickDialog({
       }
       const { mod } = await createMod(name, measureId);
       await attachMod(targetType, targetId, mod.id);
+      attachedRef.current = true;
       onOpenChange(false);
       const measure = (measures ?? []).find((t) => t.id === measureId);
       if (measure) onAttached?.({ ...mod, entryType: measure });
@@ -130,7 +135,15 @@ export function ModPickDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gap-4 max-h-[80dvh] overflow-y-auto">
+      <DialogContent
+        className="gap-4 max-h-[80dvh] overflow-y-auto"
+        onCloseAutoFocus={(e) => {
+          if (attachedRef.current) {
+            e.preventDefault();
+            attachedRef.current = false;
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="text-base flex items-center gap-2">
             {mode === "create" && (
