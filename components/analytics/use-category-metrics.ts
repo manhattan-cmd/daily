@@ -185,20 +185,12 @@ export function useCategoryMetrics({
           .toArray()
       : [];
 
-    // Sayısal modlar: kapsama atananlar + girdilerde kullanılanlar
-    const attachments = await db.categoryModifiers
-      .filter(
-        (a) =>
-          (!rootSubId &&
-            a.targetType === "category" &&
-            a.targetId === category.id) ||
-          (a.targetType === "subcategory" && scopeSubIds.includes(a.targetId))
-      )
-      .toArray();
-    const modIds = new Set([
-      ...attachments.map((a) => a.modId).filter((x): x is string => !!x),
-      ...values.map((v) => v.modId).filter((x): x is string => !!x),
-    ]);
+    // Sayısal modlar: yalnızca kapsamdaki girdilerde GERÇEKTEN kullanılanlar.
+    // Atanmış ama hiç veri girilmemiş özellikler metrik çipi olarak
+    // gösterilmez — analiz edilecek bir şeyleri yok, kalabalık yapıyorlardı.
+    const modIds = new Set(
+      values.map((v) => v.modId).filter((x): x is string => !!x)
+    );
     // bulkGet yerine tam tablo taraması — küçük tablolar (havuzdaki mod/ölçü sayısı sınırlı),
     // bulkGet'in ardışık yazımlardan hemen sonra bazı anahtarlar için null dönebildiği gözlendi
     const [allMods, allTypes] = await Promise.all([
