@@ -3,22 +3,14 @@
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Folder, FolderOpen, Pencil, Trash2 } from "lucide-react";
-import { db } from "@/lib/db";
-import {
-  getCategory,
-  listSubCategoriesByCategory,
-  deleteCategory,
-} from "@/lib/db/queries";
+import { Pencil, Trash2 } from "lucide-react";
+import { getCategory, deleteCategory } from "@/lib/db/queries";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { CategoryForm } from "@/components/structure/category-form";
 import { ModifierSection } from "@/components/structure/modifier-section";
-import {
-  CategoryTile,
-  CategoryTileAdd,
-} from "@/components/structure/category-tile";
+import { SubCategoryTree } from "@/components/structure/subcategory-tree";
 
 export default function CategoryDetailPage({
   params,
@@ -29,16 +21,10 @@ export default function CategoryDetailPage({
   const router = useRouter();
 
   const category = useLiveQuery(() => getCategory(categoryId), [categoryId]);
-  const subcategories = useLiveQuery(
-    () => listSubCategoriesByCategory(categoryId),
-    [categoryId]
-  );
-  const allSubs = useLiveQuery(
-    () => db.subcategories.where("categoryId").equals(categoryId).toArray(),
-    [categoryId]
-  );
 
   const [subFormOpen, setSubFormOpen] = useState(false);
+  // Ağaçtan gelen ekleme hedefi — undefined kök seviye demek
+  const [newParentId, setNewParentId] = useState<string | undefined>();
   const [catFormOpen, setCatFormOpen] = useState(false);
 
   async function onDeleteCategory() {
@@ -52,9 +38,6 @@ export default function CategoryDetailPage({
     await deleteCategory(categoryId);
     router.push("/structure");
   }
-
-  const hasSubChildren = (subId: string) =>
-    allSubs?.some((s) => s.parentId === subId) ?? false;
 
   return (
     <>
@@ -97,35 +80,31 @@ export default function CategoryDetailPage({
         />
       )}
 
-      {/* Alt kategori rafları — kategori renginde kare karolar */}
-      {category && subcategories && (
+      {/* Alt kategori ağacı — hiyerarşi iç içe açılır */}
+      {category && (
         <section className="mb-6">
           <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Alt Kategoriler
           </h2>
-          <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
-            {subcategories.map((sub) => (
-              <CategoryTile
-                key={sub.id}
-                href={`/structure/${categoryId}/${sub.id}`}
-                color={category.color}
-                icon={sub.icon}
-                fallback={hasSubChildren(sub.id) ? FolderOpen : Folder}
-                name={sub.name}
-              />
-            ))}
-            <CategoryTileAdd
-              label="Alt kategori"
-              onClick={() => setSubFormOpen(true)}
-            />
-          </div>
+          <SubCategoryTree
+            categoryId={categoryId}
+            color={category.color}
+            onAddChild={(parentSubId) => {
+              setNewParentId(parentSubId);
+              setSubFormOpen(true);
+            }}
+          />
         </section>
       )}
 
       <SubCategoryForm
         open={subFormOpen}
-        onOpenChange={setSubFormOpen}
+        onOpenChange={(o) => {
+          setSubFormOpen(o);
+          if (!o) setNewParentId(undefined);
+        }}
         categoryId={categoryId}
+        parentSubcategoryId={newParentId}
         categoryName={category?.name}
       />
 

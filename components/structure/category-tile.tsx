@@ -20,15 +20,21 @@ export function CategoryTileCore({
   /** Lucide adı ya da emoji; yoksa fallback ikonu */
   icon?: string;
   fallback?: LucideIcon;
-  size?: "md" | "lg";
+  size?: "sm" | "md" | "lg";
 }) {
   const isLucide = !!icon && icon in CATEGORY_ICON_MAP;
-  const iconCls = cn(size === "lg" ? "h-7 w-7" : "h-5 w-5");
+  const iconCls = cn(
+    size === "lg" ? "h-7 w-7" : size === "sm" ? "h-4 w-4" : "h-5 w-5"
+  );
   return (
     <span
       className={cn(
         "flex shrink-0 items-center justify-center",
-        size === "lg" ? "h-16 w-16 rounded-2xl" : "h-12 w-12 rounded-xl"
+        size === "lg"
+          ? "h-16 w-16 rounded-2xl"
+          : size === "sm"
+          ? "h-9 w-9 rounded-lg"
+          : "h-12 w-12 rounded-xl"
       )}
       style={{
         background: `linear-gradient(145deg, ${color}42, ${color}14)`,
@@ -41,7 +47,7 @@ export function CategoryTileCore({
         <span
           className={cn(
             "leading-none select-none",
-            size === "lg" ? "text-2xl" : "text-xl"
+            size === "lg" ? "text-2xl" : size === "sm" ? "text-base" : "text-xl"
           )}
         >
           {icon}

@@ -3,23 +3,17 @@
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Folder, FolderOpen, Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import {
   getSubCategory,
   getCategory,
-  listSubCategoriesByParent,
   deleteSubCategory,
 } from "@/lib/db/queries";
-import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { ModifierSection } from "@/components/structure/modifier-section";
-import {
-  CategoryTile,
-  CategoryTileAdd,
-} from "@/components/structure/category-tile";
-import type { SubCategory } from "@/types";
+import { SubCategoryTree } from "@/components/structure/subcategory-tree";
 
 export default function SubCategoryDetailPage({
   params,
@@ -34,18 +28,11 @@ export default function SubCategoryDetailPage({
     () => getSubCategory(subcategoryId),
     [subcategoryId]
   );
-  const children = useLiveQuery(
-    () => listSubCategoriesByParent(subcategoryId),
-    [subcategoryId]
-  );
-  const allSubs = useLiveQuery(
-    () => db.subcategories.where("categoryId").equals(categoryId).toArray(),
-    [categoryId]
-  );
 
   const [subFormOpen, setSubFormOpen] = useState(false);
-  // Formun hedefi: kendisi (düzenleme) ya da undefined (yeni çocuk)
+  // Formun hedefi: kendisi (düzenleme) ya da ağaçtan seçilen ebeveyne yeni çocuk
   const [editingSelf, setEditingSelf] = useState(false);
+  const [newParentId, setNewParentId] = useState<string>(subcategoryId);
 
   const backPath = subcategory?.parentId
     ? `/structure/${categoryId}/${subcategory.parentId}`
@@ -62,9 +49,6 @@ export default function SubCategoryDetailPage({
     await deleteSubCategory(subcategoryId);
     router.push(backPath);
   }
-
-  const hasSubChildren = (subId: string) =>
-    allSubs?.some((s) => s.parentId === subId) ?? false;
 
   return (
     <>
@@ -110,31 +94,22 @@ export default function SubCategoryDetailPage({
         />
       )}
 
-      {/* Çocuk alt kategori rafları */}
-      {category && children && (
+      {/* Çocuk alt kategori ağacı */}
+      {category && (
         <section className="mb-6">
           <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Alt Kategoriler
           </h2>
-          <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
-            {children.map((child: SubCategory) => (
-              <CategoryTile
-                key={child.id}
-                href={`/structure/${categoryId}/${child.id}`}
-                color={category.color}
-                icon={child.icon}
-                fallback={hasSubChildren(child.id) ? FolderOpen : Folder}
-                name={child.name}
-              />
-            ))}
-            <CategoryTileAdd
-              label="Alt kategori"
-              onClick={() => {
-                setEditingSelf(false);
-                setSubFormOpen(true);
-              }}
-            />
-          </div>
+          <SubCategoryTree
+            categoryId={categoryId}
+            color={category.color}
+            parentId={subcategoryId}
+            onAddChild={(parentSubId) => {
+              setEditingSelf(false);
+              setNewParentId(parentSubId ?? subcategoryId);
+              setSubFormOpen(true);
+            }}
+          />
         </section>
       )}
 
@@ -142,10 +117,13 @@ export default function SubCategoryDetailPage({
         open={subFormOpen}
         onOpenChange={(o) => {
           setSubFormOpen(o);
-          if (!o) setEditingSelf(false);
+          if (!o) {
+            setEditingSelf(false);
+            setNewParentId(subcategoryId);
+          }
         }}
         categoryId={categoryId}
-        parentSubcategoryId={editingSelf ? undefined : subcategoryId}
+        parentSubcategoryId={editingSelf ? undefined : newParentId}
         categoryName={category?.name}
         subcategory={editingSelf ? subcategory : undefined}
       />
