@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, Pencil, Plus, Trash2, X } from "lucide-react";
+import { db } from "@/lib/db";
 import {
   listEntryTypes,
   createEntryType,
@@ -10,6 +11,11 @@ import {
   deleteEntryType,
 } from "@/lib/db/queries";
 import { PageHeader } from "@/components/layout/page-header";
+import {
+  MeasureParticle,
+  MeasureParticleAdd,
+  MeasureParticleCore,
+} from "@/components/structure/measure-particle";
 import { StructureTabs } from "@/components/structure/structure-tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,9 +41,13 @@ type DialogState =
   | { mode: "kind" }
   | { mode: "config"; kind: EntryValueType; editing?: EntryType };
 
+type MeasureUsage = { modCount: number; modNames: string[]; valueCount: number };
+
 export default function OlculerPage() {
   const types = useLiveQuery(() => listEntryTypes(), []);
   const [dialog, setDialog] = useState<DialogState>({ mode: "closed" });
+  // Parçacığa dokununca açılan detay — düzenleme ve silme buradan
+  const [selected, setSelected] = useState<EntryType | null>(null);
 
   // Türe göre grupla — ölçü, ilkel türün yapılandırılmış hali
   const groups = useMemo(() => {
@@ -48,6 +58,30 @@ export default function OlculerPage() {
     })).filter((g) => g.items.length > 0);
   }, [types]);
 
+  // Ölçünün kullanımı: kaç özellik bu ölçüyle ölçülüyor, kaç kayıt değeri var
+  const usage = useLiveQuery(async () => {
+    const [mods, values] = await Promise.all([
+      db.mods.toArray(),
+      db.entryValues.toArray(),
+    ]);
+    const map = new Map<string, MeasureUsage>();
+    for (const m of mods) {
+      const u =
+        map.get(m.entryTypeId) ?? { modCount: 0, modNames: [], valueCount: 0 };
+      u.modCount++;
+      if (u.modNames.length < 4) u.modNames.push(m.name);
+      map.set(m.entryTypeId, u);
+    }
+    for (const v of values) {
+      if (!v.entryTypeId) continue;
+      const u =
+        map.get(v.entryTypeId) ?? { modCount: 0, modNames: [], valueCount: 0 };
+      u.valueCount++;
+      map.set(v.entryTypeId, u);
+    }
+    return map;
+  }, []);
+
   async function handleDelete(t: EntryType) {
     if (
       !confirm(
@@ -56,7 +90,10 @@ export default function OlculerPage() {
     )
       return;
     await deleteEntryType(t.id);
+    setSelected(null);
   }
+
+  const selectedUsage = selected ? usage?.get(selected.id) : undefined;
 
   return (
     <>
@@ -95,55 +132,98 @@ export default function OlculerPage() {
                     · {items.length}
                   </span>
                 </div>
-                <div className="flex flex-col gap-1.5">
+                {/* Parçacık ızgarası — atomlarla aynı 4 sütunlu ritim */}
+                <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
                   {items.map((t) => (
-                    <div
+                    <MeasureParticle
                       key={t.id}
-                      className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm flex items-center gap-1.5 truncate">
-                          {t.name}
-                          {t.isBuiltIn && (
-                            <Sparkles className="h-3 w-3 shrink-0 text-muted-foreground/50" />
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {measureSummary(t)}
-                        </div>
-                      </div>
-                      {!t.isBuiltIn && (
-                        <>
-                          <button
-                            onClick={() =>
-                              setDialog({
-                                mode: "config",
-                                kind: t.valueType ?? "number",
-                                editing: t,
-                              })
-                            }
-                            className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                            aria-label={`${t.name} ölçüsünü düzenle`}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(t)}
-                            className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            aria-label={`${t.name} ölçüsünü sil`}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </>
-                      )}
-                    </div>
+                      icon={KindIcon}
+                      name={t.name}
+                      onClick={() => setSelected(t)}
+                    />
                   ))}
+                  <MeasureParticleAdd
+                    onClick={() => setDialog({ mode: "config", kind })}
+                  />
                 </div>
               </section>
             );
           })}
         </div>
       )}
+
+      {/* Parçacık detayı — bilgi + düzenle/sil tek dialogda */}
+      <Dialog
+        open={selected !== null}
+        onOpenChange={(o) => { if (!o) setSelected(null); }}
+      >
+        <DialogContent className="max-w-[340px] gap-4">
+          {selected && (
+            <>
+              <DialogHeader className="items-center text-center">
+                <MeasureParticleCore
+                  icon={MEASURE_KIND_META[selected.valueType ?? "number"].icon}
+                  size="lg"
+                />
+                <DialogTitle className="text-base pt-1">
+                  {selected.name}
+                </DialogTitle>
+                <DialogDescription>
+                  {MEASURE_KIND_META[selected.valueType ?? "number"].label}
+                  {" · "}
+                  {measureSummary(selected)}
+                  {selected.isBuiltIn && " · yerleşik"}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="rounded-xl border border-border bg-card px-3 py-2.5 text-xs text-muted-foreground text-center">
+                {selectedUsage &&
+                (selectedUsage.modCount > 0 || selectedUsage.valueCount > 0) ? (
+                  <>
+                    {selectedUsage.modNames.length > 0 && (
+                      <>
+                        {selectedUsage.modNames.join(", ")}
+                        {selectedUsage.modCount > selectedUsage.modNames.length &&
+                          ` +${selectedUsage.modCount - selectedUsage.modNames.length}`}
+                        {" · "}
+                      </>
+                    )}
+                    {selectedUsage.valueCount} kayıt
+                  </>
+                ) : (
+                  "henüz kullanılmadı"
+                )}
+              </div>
+              {!selected.isBuiltIn && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 gap-1.5"
+                    onClick={() => {
+                      setDialog({
+                        mode: "config",
+                        kind: selected.valueType ?? "number",
+                        editing: selected,
+                      });
+                      setSelected(null);
+                    }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Düzenle
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1 gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => handleDelete(selected)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Sil
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <MeasureDialog dialog={dialog} onChange={setDialog} />
     </>
