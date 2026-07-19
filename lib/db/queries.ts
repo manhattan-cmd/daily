@@ -594,7 +594,7 @@ export async function listModifiersForTarget(
         .filter((m) => m.targetType === targetType && m.targetId === targetId)
         .toArray()
     );
-  attachments.sort((a, b) => a.order - b.order);
+  attachments.sort((a, b) => a.order - b.order || a.createdAt - b.createdAt);
 
   const modIds = [
     ...new Set(attachments.map((a) => a.modId).filter((x): x is string => !!x)),
@@ -702,6 +702,72 @@ async function propagateModToDescendants(
 
 export async function removeModifier(modifierId: string): Promise<void> {
   await db.categoryModifiers.delete(modifierId);
+}
+
+/** Hedefin altındaki tüm alt kategori id'leri (her derinlikte). */
+async function listDescendantSubIds(
+  targetType: "category" | "subcategory",
+  targetId: string
+): Promise<string[]> {
+  if (targetType === "category") {
+    const subs = await db.subcategories
+      .where("categoryId")
+      .equals(targetId)
+      .toArray();
+    return subs.map((s) => s.id);
+  }
+  const ids: string[] = [];
+  let frontier = [targetId];
+  while (frontier.length) {
+    const children = await db.subcategories
+      .where("parentId")
+      .anyOf(frontier)
+      .toArray();
+    frontier = children.map((c) => c.id);
+    ids.push(...frontier);
+  }
+  return ids;
+}
+
+/** Aynı özelliğin hedefin altındaki alt kategorilerde kaç ataması var? */
+export async function countDescendantModAttachments(
+  targetType: "category" | "subcategory",
+  targetId: string,
+  modId: string
+): Promise<number> {
+  const ids = new Set(await listDescendantSubIds(targetType, targetId));
+  if (!ids.size) return 0;
+  return db.categoryModifiers
+    .filter(
+      (a) =>
+        a.targetType === "subcategory" && ids.has(a.targetId) && a.modId === modId
+    )
+    .count();
+}
+
+/**
+ * Atamayı kaldır ve aynı özelliği hedefin altındaki tüm alt kategorilerden de
+ * sök. Girdi değerlerine dokunmaz — özellik havuzda, kayıtlar yerinde kalır.
+ */
+export async function removeModifierCascade(modifierId: string): Promise<void> {
+  const att = await db.categoryModifiers.get(modifierId);
+  if (!att) return;
+  const ids = new Set(
+    await listDescendantSubIds(att.targetType, att.targetId)
+  );
+  await db.transaction("rw", db.categoryModifiers, async () => {
+    await db.categoryModifiers.delete(modifierId);
+    if (att.modId && ids.size) {
+      await db.categoryModifiers
+        .filter(
+          (a) =>
+            a.targetType === "subcategory" &&
+            ids.has(a.targetId) &&
+            a.modId === att.modId
+        )
+        .delete();
+    }
+  });
 }
 
 export async function inheritModifiers(

@@ -47,6 +47,9 @@ export function SubCategoryTree({
     const modById = new Map(mods.map((m) => [m.id, m]));
     const typeById = new Map(types.map((t) => [t.id, t]));
 
+    // Semboller alt kategori sayfasındaki daire sırasıyla aynı gelsin
+    atts.sort((a, b) => a.order - b.order || a.createdAt - b.createdAt);
+
     const modsBySub = new Map<string, SubMods>();
     for (const a of atts) {
       if (a.targetType !== "subcategory" || !subIds.has(a.targetId)) continue;
