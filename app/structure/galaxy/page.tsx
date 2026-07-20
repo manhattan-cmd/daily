@@ -14,13 +14,24 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 export default function GalaxyPage() {
   const data = useLiveQuery(async () => {
-    const [cats, allSubs, attachments, poolMods] = await Promise.all([
+    const [cats, allSubs, attachments, poolMods, entryTypes] = await Promise.all([
       db.categories.orderBy("order").toArray(),
       db.subcategories.toArray(),
       db.categoryModifiers.toArray(),
       db.mods.toArray(),
+      db.entryTypes.toArray(),
     ]);
     const modName = new Map(poolMods.map((m) => [m.id, m.name]));
+    const valueTypeByEntryType = new Map(
+      entryTypes.map((t) => [t.id, t.valueType ?? "number"])
+    );
+    // Modun ölçüsü — parçacık simgesi bunun üstünden seçilir
+    const modMeasure = new Map(
+      poolMods.map((m) => [
+        m.id,
+        valueTypeByEntryType.get(m.entryTypeId) ?? "number",
+      ])
+    );
     const subById = new Map(allSubs.map((s) => [s.id, s]));
 
     // Kategori başına paylaşılan atomlar: kategori + alt kategorilerinin modları
@@ -59,7 +70,10 @@ export default function GalaxyPage() {
           connections.push({
             a: categories[i].id,
             b: categories[j].id,
-            labels: shared.map((id) => modName.get(id) ?? "?"),
+            labels: shared.map((id) => ({
+              name: modName.get(id) ?? "?",
+              valueType: modMeasure.get(id) ?? "number",
+            })),
           });
         }
       }

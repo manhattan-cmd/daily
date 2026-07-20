@@ -15,13 +15,13 @@ export function MeasureParticleCore({
   size = "md",
 }: {
   icon: LucideIcon;
-  size?: "md" | "lg";
+  size?: "xs" | "md" | "lg";
 }) {
   return (
     <span
       className={cn(
         "relative flex shrink-0 items-center justify-center",
-        size === "lg" ? "h-16 w-16" : "h-12 w-12"
+        size === "lg" ? "h-16 w-16" : size === "xs" ? "h-6 w-6" : "h-12 w-12"
       )}
     >
       {/* Yörünge — eğik elips + üstünde elektron */}
@@ -47,7 +47,7 @@ export function MeasureParticleCore({
       <span
         className={cn(
           "flex items-center justify-center rounded-full",
-          size === "lg" ? "h-10 w-10" : "h-7 w-7"
+          size === "lg" ? "h-10 w-10" : size === "xs" ? "h-4 w-4" : "h-7 w-7"
         )}
         style={{
           background:
@@ -59,7 +59,7 @@ export function MeasureParticleCore({
         <Icon
           className={cn(
             "text-primary",
-            size === "lg" ? "h-5 w-5" : "h-3.5 w-3.5"
+            size === "lg" ? "h-5 w-5" : size === "xs" ? "h-2.5 w-2.5" : "h-3.5 w-3.5"
           )}
           strokeWidth={1.75}
         />

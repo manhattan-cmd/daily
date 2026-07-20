@@ -4,6 +4,9 @@ import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { CategoryIcon, CATEGORY_ICON_MAP } from "@/lib/category-icons";
+import { MeasureParticleCore } from "@/components/structure/measure-particle";
+import { MEASURE_KIND_META } from "@/lib/measure-kinds";
+import type { EntryValueType } from "@/types";
 import { cn } from "@/lib/utils";
 
 export type MapSub = { id: string; name: string; icon?: string };
@@ -16,8 +19,11 @@ export type MapCategory = {
   subs: MapSub[];
 };
 
+/** Paylaşılan bir özelliğin haritada gösterilen ölçüsü — parçacık simgesi bunun üstünden seçilir */
+export type MapConnectionLabel = { name: string; valueType: EntryValueType };
+
 /** Kategori çifti arasında ortak mod bağlantısı */
-export type MapConnection = { a: string; b: string; labels: string[] };
+export type MapConnection = { a: string; b: string; labels: MapConnectionLabel[] };
 
 /** Aynı isimli alt kategoriler arası paralel bağlantı (sub id'leri) */
 export type MapParallel = { a: string; b: string };
@@ -205,15 +211,15 @@ export default function ConnectionMap({
       const shared = connections.filter(
         (c) => c.a === selectedId || c.b === selectedId
       );
+      const sharedLabels = new Map<string, MapConnectionLabel>();
+      for (const s of shared) for (const l of s.labels) sharedLabels.set(l.name, l);
       return {
         name: cat.name,
         color: cat.color,
         kind: "Kategori",
         href: `/structure/${cat.id}`,
-        note:
-          shared.length > 0
-            ? `Ortak özellik: ${[...new Set(shared.flatMap((s) => s.labels))].join(", ")}`
-            : null,
+        note: null as string | null,
+        sharedMeasures: [...sharedLabels.values()],
       };
     }
     const parent = subCat.get(selectedId);
@@ -228,6 +234,7 @@ export default function ConnectionMap({
       kind: `${parent.name} · Alt kategori`,
       href: `/structure/${parent.id}/${sub.id}`,
       note: isParallel ? "Paralel bağlantısı var" : null,
+      sharedMeasures: [] as MapConnectionLabel[],
     };
   }, [selectedId, categories, connections, parallels, subCat]);
 
@@ -341,10 +348,17 @@ export default function ConnectionMap({
               return (
                 <div
                   key={`lbl-${c.a}-${c.b}`}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-border bg-card/90 px-2 py-0.5 text-[9px] text-muted-foreground whitespace-nowrap pointer-events-none"
+                  className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center gap-1 rounded-full border border-border bg-card/90 pl-1 pr-2 py-0.5 text-[9px] text-muted-foreground whitespace-nowrap pointer-events-none"
                   style={{ left: mx, top: my }}
                 >
-                  {c.labels.join(", ")}
+                  {c.labels.map((l) => (
+                    <MeasureParticleCore
+                      key={l.name}
+                      icon={MEASURE_KIND_META[l.valueType].icon}
+                      size="xs"
+                    />
+                  ))}
+                  {c.labels.map((l) => l.name).join(", ")}
                 </div>
               );
             })}
@@ -458,9 +472,32 @@ export default function ConnectionMap({
               <span className="block truncate text-sm font-medium">
                 {selected.name}
               </span>
-              <span className="block truncate text-[11px] text-muted-foreground">
-                {selected.note ?? selected.kind}
-              </span>
+              {selected.sharedMeasures.length > 0 ? (
+                <span className="flex items-center gap-1 overflow-hidden text-[11px] text-muted-foreground">
+                  <span className="shrink-0">Ortak özellik:</span>
+                  {selected.sharedMeasures.slice(0, 3).map((l) => (
+                    <span
+                      key={l.name}
+                      className="flex shrink-0 items-center gap-1 truncate"
+                    >
+                      <MeasureParticleCore
+                        icon={MEASURE_KIND_META[l.valueType].icon}
+                        size="xs"
+                      />
+                      {l.name}
+                    </span>
+                  ))}
+                  {selected.sharedMeasures.length > 3 && (
+                    <span className="shrink-0">
+                      +{selected.sharedMeasures.length - 3}
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span className="block truncate text-[11px] text-muted-foreground">
+                  {selected.note ?? selected.kind}
+                </span>
+              )}
             </span>
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
           </Link>
