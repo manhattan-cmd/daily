@@ -16,7 +16,11 @@ import type {
   GoalTarget,
   GoalWithContext,
   Mod,
+  Note,
+  NoteBlock,
+  NoteTag,
 } from "@/types";
+import { CATEGORY_COLORS } from "@/types";
 
 const now = () => Date.now();
 const id = () => nanoid(12);
@@ -1366,4 +1370,92 @@ async function hydrateEntries(entries: Entry[]): Promise<EntryWithContext[]> {
     });
   }
   return results;
+}
+
+// ============ Notlar ============
+
+/**
+ * Yerleşik not etiketleri — paragraf etiket havuzunun çekirdeği.
+ * Kullanıcı kendi etiketlerini bunların yanına yaratır.
+ */
+const BUILT_IN_NOTE_TAGS: Omit<NoteTag, "id" | "createdAt">[] = [
+  { name: "Düşünce", color: "#8b5cf6", isBuiltIn: true, order: 1 },
+  { name: "His", color: "#ec4899", isBuiltIn: true, order: 2 },
+  { name: "Not", color: "#3b82f6", isBuiltIn: true, order: 3 },
+  { name: "Aktivite", color: "#06b6d4", isBuiltIn: true, order: 4 },
+];
+
+const normTagName = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
+
+export async function ensureBuiltInNoteTags(): Promise<void> {
+  const existing = await db.noteTags.toArray();
+  const existingNames = new Set(existing.map((t) => normTagName(t.name)));
+  const toAdd = BUILT_IN_NOTE_TAGS.filter(
+    (t) => !existingNames.has(normTagName(t.name))
+  ).map((t) => ({ ...t, id: id(), createdAt: now() } satisfies NoteTag));
+  if (toAdd.length) await db.noteTags.bulkAdd(toAdd);
+}
+
+export async function listNoteTags(): Promise<NoteTag[]> {
+  const all = await db.noteTags.toArray();
+  return all.sort((a, b) => a.order - b.order || a.createdAt - b.createdAt);
+}
+
+/** Etiket yarat — ad tekildir; çakışmada null döner. Renk paletten sırayla seçilir. */
+export async function createNoteTag(name: string): Promise<NoteTag | null> {
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  const all = await db.noteTags.toArray();
+  if (all.some((t) => normTagName(t.name) === normTagName(trimmed))) return null;
+  const tag: NoteTag = {
+    id: id(),
+    name: trimmed,
+    color: CATEGORY_COLORS[all.length % CATEGORY_COLORS.length],
+    order: Math.max(0, ...all.map((t) => t.order)) + 1,
+    createdAt: now(),
+  };
+  await db.noteTags.add(tag);
+  return tag;
+}
+
+export async function listNotesByDate(date: string): Promise<Note[]> {
+  const notes = await db.notes.where("date").equals(date).toArray();
+  return notes.sort((a, b) => a.createdAt - b.createdAt);
+}
+
+export async function getNote(noteId: string): Promise<Note | undefined> {
+  return db.notes.get(noteId);
+}
+
+/** Boş bir notla başla — editör açılırken çağrılır; boş kalırsa geri dönüşte silinir */
+export async function createNote(date: string): Promise<Note> {
+  const note: Note = {
+    id: id(),
+    date,
+    title: "",
+    blocks: [{ id: id(), text: "", tagIds: [] }],
+    createdAt: now(),
+    updatedAt: now(),
+  };
+  await db.notes.add(note);
+  return note;
+}
+
+export async function updateNote(
+  noteId: string,
+  changes: { title?: string; blocks?: NoteBlock[] }
+): Promise<void> {
+  await db.notes.update(noteId, { ...changes, updatedAt: now() });
+}
+
+export async function deleteNote(noteId: string): Promise<void> {
+  await db.notes.delete(noteId);
+}
+
+/** Başlıksız ve tüm parağrafları boş not — listelerde gizlenir, çıkışta silinir */
+export function noteIsEmpty(note: Note): boolean {
+  return (
+    !(note.title ?? "").trim() &&
+    note.blocks.every((b) => !b.text.trim())
+  );
 }

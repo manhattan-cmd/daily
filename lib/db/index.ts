@@ -11,6 +11,8 @@ import type {
   CategoryModifier,
   Mod,
   Goal,
+  Note,
+  NoteTag,
 } from "@/types";
 
 export class RoutineDB extends Dexie {
@@ -25,6 +27,8 @@ export class RoutineDB extends Dexie {
   mods!: Table<Mod, string>;
   goals!: Table<Goal, string>;
   activities!: Table<Activity, string>;
+  notes!: Table<Note, string>;
+  noteTags!: Table<NoteTag, string>;
 
   constructor() {
     super("RoutineDB");
@@ -215,6 +219,12 @@ export class RoutineDB extends Dexie {
     // almasın diye) şema satırı duruyor; tablo şu an kullanılmıyor.
     this.version(11).stores({
       analysisWidgets: "id, [targetType+targetId], modId, createdAt",
+    });
+    // v12 — Notlar: gün sayfasının serbest yazım katmanı. Not = başlık +
+    // paragraf blokları (gömülü); etiketler paragraf düzeyinde, havuzu noteTags.
+    this.version(12).stores({
+      notes: "id, date, createdAt, updatedAt",
+      noteTags: "id, name, order, createdAt",
     });
   }
 }

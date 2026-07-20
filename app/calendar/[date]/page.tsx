@@ -2,10 +2,19 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, ArrowRight, Boxes, CalendarDays, MoonStar, Target, PenLine } from "lucide-react";
+import { ArrowLeft, ArrowRight, Boxes, CalendarDays, MoonStar, NotebookPen, Target, PenLine } from "lucide-react";
 import { db } from "@/lib/db";
-import { listEntriesByDate, listGoalsByDate } from "@/lib/db/queries";
+import {
+  createNote,
+  listEntriesByDate,
+  listGoalsByDate,
+  listNotesByDate,
+  listNoteTags,
+  noteIsEmpty,
+} from "@/lib/db/queries";
+import { NoteCard } from "@/components/notes/note-card";
 import { EntryCard } from "@/components/dashboard/entry-card";
 import { LinkedEntryCard } from "@/components/dashboard/linked-entry-card";
 import { GoalCard } from "@/components/goals/goal-card";
@@ -76,6 +85,7 @@ export default function CalendarDayPage({
   params: Promise<{ date: string }>;
 }) {
   const { date } = use(params);
+  const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetActivityMode, setSheetActivityMode] = useState(false);
   // Var olan aktiviteye girdi eklerken sheet isim adımını atlayıp bu aktiviteyle açılır
@@ -91,6 +101,13 @@ export default function CalendarDayPage({
 
   const entries = useLiveQuery(() => listEntriesByDate(date), [date]);
   const goals = useLiveQuery(() => listGoalsByDate(date), [date]);
+  // Boş bırakılıp geri dönülen notlar listede görünmez
+  const notes = useLiveQuery(
+    async () => (await listNotesByDate(date)).filter((n) => !noteIsEmpty(n)),
+    [date]
+  );
+  const noteTags = useLiveQuery(() => listNoteTags(), []);
+  const tagById = new Map((noteTags ?? []).map((t) => [t.id, t]));
   // Aktivite adları — tablo küçük, id → kayıt haritası kart başlıkları için
   const activities = useLiveQuery(() => db.activities.toArray(), []);
   const activityById = new Map((activities ?? []).map((a) => [a.id, a]));
@@ -178,6 +195,16 @@ export default function CalendarDayPage({
                 iconClass: "text-amber-400",
                 onSelect: () => setGoalSheetOpen(true),
               },
+              {
+                key: "note",
+                label: "Not",
+                icon: NotebookPen,
+                iconClass: "text-rose-400",
+                onSelect: async () => {
+                  const note = await createNote(date);
+                  router.push(`/notes/${note.id}`);
+                },
+              },
               ...(hasSleepCategory
                 ? ([
                     {
@@ -226,9 +253,31 @@ export default function CalendarDayPage({
         </div>
       )}
 
+      {/* Not yuvası — derli toplu satırlar, dokununca tam sayfa editör */}
+      {notes && notes.length > 0 && (
+        <div className="mb-5">
+          <div className="flex items-center gap-1.5 mb-2.5 px-1">
+            <NotebookPen className="h-3.5 w-3.5 text-rose-400/80" />
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Notlar
+            </h2>
+            <span className="text-xs text-muted-foreground/60">
+              · {notes.length}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {notes.map((note) => (
+              <NoteCard key={note.id} note={note} tagById={tagById} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Girdiler */}
       {entries === undefined ? null : otherEntries.length === 0 ? (
-        sleepEntries.length === 0 && (!goals || goals.length === 0) ? (
+        sleepEntries.length === 0 &&
+        (!goals || goals.length === 0) &&
+        (!notes || notes.length === 0) ? (
           <EmptyState
             icon={CalendarDays}
             title="Bu gün boş"

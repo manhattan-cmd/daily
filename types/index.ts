@@ -221,6 +221,41 @@ export interface GoalWithContext extends Omit<Goal, "targets"> {
   targets: GoalTargetWithContext[];
 }
 
+/**
+ * Not etiketi — paragraf etiket havuzu. Yerleşikler (Düşünce, His, Not,
+ * Aktivite) uygulamayla gelir, kullanıcı kendi etiketlerini yaratabilir.
+ * İleride not↔not ve not↔girdi bağlantı haritaları bu etiketler üzerinden kurulur.
+ */
+export interface NoteTag {
+  id: string;
+  name: string;
+  color: string;
+  isBuiltIn?: boolean;
+  order: number;
+  createdAt: number;
+}
+
+/** Not paragrafı — nota gömülü blok; etiketler paragraf düzeyinde atanır */
+export interface NoteBlock {
+  id: string;
+  text: string;
+  tagIds: string[];
+}
+
+/**
+ * Gün notu — serbest yazım alanı (günce/not defteri). Ölçülebilir girdilerin
+ * yanında düşünce, his ve yazılı aktiviteler için; bir güne birden çok not olabilir.
+ */
+export interface Note {
+  id: string;
+  /** YYYY-MM-DD */
+  date: string;
+  title?: string;
+  blocks: NoteBlock[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 export const CATEGORY_COLORS = [
   "#6366f1", // indigo
   "#8b5cf6", // violet
