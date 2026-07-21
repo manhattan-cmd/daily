@@ -8,6 +8,7 @@ const TABS = [
   { href: "/structure", label: "Kategoriler" },
   { href: "/structure/mods", label: "Özellikler" },
   { href: "/structure/mods/olculer", label: "Ölçüler" },
+  { href: "/structure/notes", label: "Notlar" },
   { href: "/structure/galaxy", label: "Harita" },
   { href: "/structure/backup", label: "Yedekleme" },
 ] as const;

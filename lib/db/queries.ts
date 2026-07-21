@@ -1420,6 +1420,70 @@ export async function createNoteTag(name: string): Promise<NoteTag | null> {
   return tag;
 }
 
+/** Etiketi yeniden adlandır — ad tekildir; çakışmada false döner. */
+export async function renameNoteTag(
+  tagId: string,
+  name: string
+): Promise<boolean> {
+  const trimmed = name.trim();
+  if (!trimmed) return false;
+  const all = await db.noteTags.toArray();
+  if (
+    all.some(
+      (t) => t.id !== tagId && normTagName(t.name) === normTagName(trimmed)
+    )
+  )
+    return false;
+  await db.noteTags.update(tagId, { name: trimmed });
+  return true;
+}
+
+/** Etiketi havuzdan sil ve tüm not paragraflarından çıkar (metne dokunulmaz). */
+export async function deleteNoteTag(tagId: string): Promise<void> {
+  await db.transaction("rw", [db.noteTags, db.notes], async () => {
+    const notes = await db.notes.toArray();
+    for (const note of notes) {
+      if (!note.blocks.some((b) => b.tagIds.includes(tagId))) continue;
+      const blocks = note.blocks.map((b) => ({
+        ...b,
+        tagIds: b.tagIds.filter((t) => t !== tagId),
+      }));
+      await db.notes.update(note.id, { blocks, updatedAt: now() });
+    }
+    await db.noteTags.delete(tagId);
+  });
+}
+
+/** Her etiketin kaç notta ve kaç paragrafta kullanıldığı. */
+export async function noteTagUsage(): Promise<
+  Map<string, { notes: number; blocks: number }>
+> {
+  const notes = await db.notes.toArray();
+  const map = new Map<string, { notes: number; blocks: number }>();
+  for (const note of notes) {
+    if (noteIsEmpty(note)) continue;
+    const inThisNote = new Set<string>();
+    for (const b of note.blocks) {
+      for (const tid of b.tagIds) {
+        const u = map.get(tid) ?? { notes: 0, blocks: 0 };
+        u.blocks++;
+        map.set(tid, u);
+        inThisNote.add(tid);
+      }
+    }
+    for (const tid of inThisNote) map.get(tid)!.notes++;
+  }
+  return map;
+}
+
+/** Tüm notlar (boşlar hariç), en yeni gün önce. */
+export async function listAllNotes(): Promise<Note[]> {
+  const notes = await db.notes.toArray();
+  return notes
+    .filter((n) => !noteIsEmpty(n))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+}
+
 export async function listNotesByDate(date: string): Promise<Note[]> {
   const notes = await db.notes.where("date").equals(date).toArray();
   return notes.sort((a, b) => a.createdAt - b.createdAt);
