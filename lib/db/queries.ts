@@ -1383,6 +1383,8 @@ const BUILT_IN_NOTE_TAGS: Omit<NoteTag, "id" | "createdAt">[] = [
   { name: "His", color: "#ec4899", isBuiltIn: true, order: 2 },
   { name: "Not", color: "#3b82f6", isBuiltIn: true, order: 3 },
   { name: "Aktivite", color: "#06b6d4", isBuiltIn: true, order: 4 },
+  { name: "Hatırlatma", color: "#f59e0b", isBuiltIn: true, order: 5 },
+  { name: "İçgörü", color: "#10b981", isBuiltIn: true, order: 6 },
 ];
 
 const normTagName = (s: string) => s.trim().toLocaleLowerCase("tr-TR");

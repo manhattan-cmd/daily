@@ -154,6 +154,51 @@ export default function NoteEditorPage({
     );
   }
 
+  /**
+   * Etiket çipine dokunma: metinde seçim varsa seçili sekans kendi bloğuna
+   * ayrılır ve etiket ona uygulanır (cümle düzeyinde etiketleme); seçim
+   * yoksa tüm paragrafa aç/kapa davranır.
+   */
+  function applyTag(blockId: string, tagId: string) {
+    const el = taRefs.current.get(blockId);
+    const index = blocks.findIndex((b) => b.id === blockId);
+    if (index === -1) return;
+    const block = blocks[index];
+    const selStart = el?.selectionStart ?? 0;
+    const selEnd = el?.selectionEnd ?? 0;
+    const partial =
+      el &&
+      selEnd > selStart &&
+      (selStart > 0 || selEnd < block.text.length) &&
+      block.text.slice(selStart, selEnd).trim();
+
+    if (!partial) {
+      toggleTag(blockId, tagId);
+      return;
+    }
+
+    const before = block.text.slice(0, selStart);
+    const mid = block.text.slice(selStart, selEnd);
+    const after = block.text.slice(selEnd);
+    const midBlock: NoteBlock = {
+      id: nid(),
+      text: mid,
+      tagIds: [...new Set([...block.tagIds, tagId])],
+    };
+    setBlocks((prev) => {
+      const next = [...prev];
+      const pieces: NoteBlock[] = [];
+      if (before.trim()) pieces.push({ ...block, text: before });
+      pieces.push(midBlock);
+      if (after.trim())
+        pieces.push({ id: nid(), text: after, tagIds: [...block.tagIds] });
+      next.splice(index, 1, ...pieces);
+      return next;
+    });
+    pendingFocus.current = { id: midBlock.id, pos: mid.length };
+    setActiveBlockId(midBlock.id);
+  }
+
   function onBlockKeyDown(
     e: React.KeyboardEvent<HTMLTextAreaElement>,
     index: number
@@ -332,7 +377,7 @@ export default function NoteEditorPage({
                         key={tag.id}
                         type="button"
                         onPointerDown={(e) => e.preventDefault()}
-                        onClick={() => toggleTag(block.id, tag.id)}
+                        onClick={() => applyTag(block.id, tag.id)}
                         className={cn(
                           "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
                           !on && "border-border text-muted-foreground hover:text-foreground"
