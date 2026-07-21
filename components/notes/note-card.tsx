@@ -4,9 +4,10 @@ import Link from "next/link";
 import type { Note, NoteTag } from "@/types";
 
 /**
- * Gün sayfasındaki derli toplu not satırı — başlık (yoksa ilk satır),
- * tek satır önizleme ve sağda paragraf etiketlerinin renk noktaları.
- * Dokununca tam sayfa editör açılır.
+ * Gün sayfasındaki not satırı — sade ve derli toplu. İçerik önizlemesi
+ * göstermez, başlığı öne çıkarmaz; kimliğini etiketlerden alır: solda
+ * editördeki paragraf şeridini yansıtan renk çubuğu ve baskın etiketten
+ * çok hafif bir zemin tonu. Dokununca tam sayfa editör açılır.
  */
 export function NoteCard({
   note,
@@ -15,11 +16,6 @@ export function NoteCard({
   note: Note;
   tagById: Map<string, NoteTag>;
 }) {
-  const lines = note.blocks.map((b) => b.text.trim()).filter(Boolean);
-  const title = (note.title ?? "").trim() || lines[0] || "Not";
-  const preview =
-    (note.title ?? "").trim() ? lines[0] : lines[1];
-
   // Notta kullanılan benzersiz etiketler (görülme sırasıyla)
   const noteTags = [
     ...new Map(
@@ -31,31 +27,39 @@ export function NoteCard({
     ).values(),
   ];
 
+  const tint = noteTags[0]?.color;
+  const title = (note.title ?? "").trim();
+  const label =
+    title || (noteTags.length ? noteTags.map((t) => t.name).join(" · ") : "Not");
+
   return (
     <Link
       href={`/notes/${note.id}`}
-      className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 transition-all hover:bg-card/80 active:scale-[0.99]"
+      className="flex items-stretch gap-2.5 overflow-hidden rounded-xl border border-border bg-card px-3 py-2.5 transition-all hover:brightness-110 active:scale-[0.99]"
+      style={
+        tint
+          ? {
+              borderColor: `${tint}24`,
+              background: `linear-gradient(135deg, ${tint}14, ${tint}05 55%, transparent)`,
+            }
+          : undefined
+      }
     >
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium">{title}</div>
-        {preview && (
-          <div className="truncate text-xs text-muted-foreground">
-            {preview}
-          </div>
-        )}
-      </div>
+      {/* Etiket şeridi — editördeki paragraf imzasını yansıtır */}
       {noteTags.length > 0 && (
-        <span className="flex shrink-0 items-center gap-1">
-          {noteTags.slice(0, 4).map((t) => (
+        <span className="flex w-[3px] shrink-0 flex-col overflow-hidden rounded-full">
+          {noteTags.map((t) => (
             <span
               key={t.id}
-              className="h-1.5 w-1.5 rounded-full"
-              style={{ backgroundColor: t.color }}
-              title={t.name}
+              className="flex-1"
+              style={{ backgroundColor: `${t.color}cc` }}
             />
           ))}
         </span>
       )}
+      <span className="min-w-0 flex-1 self-center truncate text-[13px] text-foreground/75">
+        {label}
+      </span>
     </Link>
   );
 }
