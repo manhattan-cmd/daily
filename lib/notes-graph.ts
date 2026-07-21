@@ -1,17 +1,16 @@
 import type { Note, NoteTag } from "@/types";
 
 /**
- * Not bağlantı grafiği — her not bir düğüm, ortak örüntüler kenar.
+ * Not grafiği yardımcıları.
  *
- * Bu ilk sürüm tamamen YEREL ve deterministik: bağlantı gücü iki sinyalin
- * ağırlıklı toplamı —
- *   1) Etiket örtüşmesi (Düşünce/His/Hatırlatma... paylaşımı) — nadir etiketler
- *      daha çok ağırlık taşır (idf).
- *   2) Sözcüksel benzerlik (paylaşılan anlamlı sözcükler, tf-idf kosinüs).
+ * Bağlantıların KENDİSİ artık yapay zekâ tarafından, içgörüyle kurulur
+ * ([[notes-feature]], `lib/ai/note-analysis.ts`). Buradaki yerel sözcüksel
+ * benzerlik yalnızca **aday bulucu (retriever)** olarak kalır: yeni bir notu
+ * hangi eski notlarla birlikte modele göndereceğimizi ucuza seçer. Etiketler
+ * artık bağ sinyali değil; not sayfasında arama/filtre içindir.
  *
- * GELECEK: anlamsal örüntü (aynı düşünce kalıbı, aynhis, aynı planlama) dil
- * modeliyle çıkarılıp `semantic` sinyali olarak bu toplama eklenecek — arayüz
- * ve düzen aynı kalır, yalnızca `strengthBetween` zenginleşir. [[app-vision]]
+ * `layoutNotesGraph` düğüm+kenar geometrisini üretir (kuvvet-yönlü, tek
+ * seferde, animasyonsuz) ve yapay zekâ kenarlarıyla beslenir.
  */
 
 export type NoteNode = {
@@ -23,7 +22,7 @@ export type NoteNode = {
   tagIds: string[];
 };
 
-export type NoteEdge = { a: string; b: string; strength: number; shared: string[] };
+export type NoteEdge = { a: string; b: string; strength: number };
 
 export type NotesGraph = { nodes: NoteNode[]; edges: NoteEdge[] };
 
@@ -34,7 +33,7 @@ const STOPWORDS = new Set([
   "ne", "her", "bazı", "hiç", "hep", "şey", "kadar", "sonra", "önce", "ben",
   "sen", "biz", "siz", "onlar", "beni", "seni", "bana", "sana", "ona", "bunu",
   "şunu", "olan", "olarak", "oldu", "olur", "değil", "yok", "var", "mi", "mı",
-  "mu", "mü", "ki̇", "diye", "yani", "işte", "hâlâ", "hala", "artık", "biraz",
+  "mu", "mü", "diye", "yani", "işte", "hâlâ", "hala", "artık", "biraz",
   "belki", "ancak", "çünkü", "eğer", "göre", "beri", "dolayı", "üzere",
   "bugün", "dün", "yarın", "şimdi",
 ]);
@@ -48,117 +47,94 @@ function tokenize(text: string): string[] {
     .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
 }
 
-function cosine(
-  a: Map<string, number>,
-  b: Map<string, number>,
-  norA: number,
-  norB: number
-): number {
-  if (norA === 0 || norB === 0) return 0;
-  let dot = 0;
-  const [small, large] = a.size < b.size ? [a, b] : [b, a];
-  for (const [term, wa] of small) {
-    const wb = large.get(term);
-    if (wb) dot += wa * wb;
-  }
-  return dot / (norA * norB);
+/** Notun tüm metni — başlık + paragraflar. */
+export function noteText(note: Note): string {
+  return [(note.title ?? ""), ...note.blocks.map((b) => b.text)].join(" ");
+}
+
+/** Notun kart/harita başlığı — başlık yoksa ilk dolu satır. */
+export function noteTitle(note: Note): string {
+  return (
+    (note.title ?? "").trim() ||
+    note.blocks.map((b) => b.text.trim()).find(Boolean) ||
+    "Not"
+  );
 }
 
 /**
- * Notlardan bağlantı grafiği kur. `minStrength` altındaki kenarlar atılır.
+ * Sözcüksel aday bulucu — bir kez tf-idf indeksi kurar, her not için en
+ * benzer K notu döndürür (yapay zekâ çözümüne aday listesi).
  */
-export function buildNotesGraph(
-  notes: Note[],
-  tagById: Map<string, NoteTag>,
-  opts: { minStrength?: number; tagWeight?: number } = {}
-): NotesGraph {
-  const minStrength = opts.minStrength ?? 0.12;
-  const tagWeight = opts.tagWeight ?? 0.55;
-  const lexWeight = 1 - tagWeight;
-
-  const nodes: NoteNode[] = notes.map((n) => {
-    const tagIds = [...new Set(n.blocks.flatMap((b) => b.tagIds))].filter((t) =>
-      tagById.has(t)
-    );
-    const title =
-      (n.title ?? "").trim() ||
-      n.blocks.map((b) => b.text.trim()).find(Boolean) ||
-      "Not";
-    return {
-      id: n.id,
-      title,
-      date: n.date,
-      color: tagIds[0] ? tagById.get(tagIds[0])!.color : undefined,
-      tagIds,
-    };
-  });
-
+export function buildLexicalIndex(notes: Note[]) {
   const N = notes.length;
-  if (N < 2) return { nodes, edges: [] };
-
-  // Etiket idf — nadir etiket daha ayırt edici
-  const tagDoc = new Map<string, number>();
-  for (const node of nodes)
-    for (const t of node.tagIds) tagDoc.set(t, (tagDoc.get(t) ?? 0) + 1);
-  const tagIdf = (t: string) => Math.log(1 + N / (tagDoc.get(t) ?? 1));
-
-  // Sözcük tf + idf
   const tf: Map<string, number>[] = [];
   const df = new Map<string, number>();
   for (const n of notes) {
-    const words = tokenize(
-      [(n.title ?? ""), ...n.blocks.map((b) => b.text)].join(" ")
-    );
     const m = new Map<string, number>();
-    for (const w of words) m.set(w, (m.get(w) ?? 0) + 1);
+    for (const w of tokenize(noteText(n))) m.set(w, (m.get(w) ?? 0) + 1);
     tf.push(m);
     for (const w of m.keys()) df.set(w, (df.get(w) ?? 0) + 1);
   }
-  const wordIdf = (w: string) => Math.log(1 + N / (df.get(w) ?? 1));
-
-  // tf-idf vektörleri + normları
+  const idf = (w: string) => Math.log(1 + N / (df.get(w) ?? 1));
   const vecs = tf.map((m) => {
     const v = new Map<string, number>();
     let sq = 0;
     for (const [w, c] of m) {
-      const val = c * wordIdf(w);
+      const val = c * idf(w);
       v.set(w, val);
       sq += val * val;
     }
     return { v, nor: Math.sqrt(sq) };
   });
+  const indexById = new Map(notes.map((n, i) => [n.id, i]));
 
-  const edges: NoteEdge[] = [];
-  for (let i = 0; i < N; i++) {
-    for (let j = i + 1; j < N; j++) {
-      const ni = nodes[i];
-      const nj = nodes[j];
-
-      // Etiket benzerliği — idf ağırlıklı örtüşme / birleşim
-      const setI = new Set(ni.tagIds);
-      const shared = nj.tagIds.filter((t) => setI.has(t));
-      let tagSim = 0;
-      if (ni.tagIds.length && nj.tagIds.length) {
-        const union = new Set([...ni.tagIds, ...nj.tagIds]);
-        let inter = 0;
-        let uni = 0;
-        for (const t of union) {
-          const w = tagIdf(t);
-          uni += w;
-          if (setI.has(t) && nj.tagIds.includes(t)) inter += w;
-        }
-        tagSim = uni ? inter / uni : 0;
-      }
-
-      const lexSim = cosine(vecs[i].v, vecs[j].v, vecs[i].nor, vecs[j].nor);
-      const strength = tagWeight * tagSim + lexWeight * lexSim;
-      if (strength >= minStrength) {
-        edges.push({ a: ni.id, b: nj.id, strength, shared });
-      }
+  function cosine(i: number, j: number): number {
+    const A = vecs[i];
+    const B = vecs[j];
+    if (A.nor === 0 || B.nor === 0) return 0;
+    let dot = 0;
+    const [small, large] = A.v.size < B.v.size ? [A.v, B.v] : [B.v, A.v];
+    for (const [t, wa] of small) {
+      const wb = large.get(t);
+      if (wb) dot += wa * wb;
     }
+    return dot / (A.nor * B.nor);
   }
 
-  return { nodes, edges };
+  return {
+    /** targetId dışındaki notlardan en benzer K tanesi (benzerlik>0). */
+    topK(targetId: string, k: number): Note[] {
+      const i = indexById.get(targetId);
+      if (i === undefined) return [];
+      const scored: { note: Note; s: number }[] = [];
+      for (let j = 0; j < N; j++) {
+        if (j === i) continue;
+        const s = cosine(i, j);
+        if (s > 0) scored.push({ note: notes[j], s });
+      }
+      scored.sort((a, b) => b.s - a.s);
+      return scored.slice(0, k).map((x) => x.note);
+    },
+  };
+}
+
+/** Notlardan harita düğümleri. */
+export function noteNodes(
+  notes: Note[],
+  tagById: Map<string, NoteTag>
+): NoteNode[] {
+  return notes.map((n) => {
+    const tagIds = [...new Set(n.blocks.flatMap((b) => b.tagIds))].filter((t) =>
+      tagById.has(t)
+    );
+    return {
+      id: n.id,
+      title: noteTitle(n),
+      date: n.date,
+      color: tagIds[0] ? tagById.get(tagIds[0])!.color : undefined,
+      tagIds,
+    };
+  });
 }
 
 /**
@@ -174,18 +150,16 @@ export function layoutNotesGraph(
   const n = nodes.length;
   const R = Math.max(120, n * 22);
 
-  // Halka üzerinde deterministik başlangıç
   nodes.forEach((node, i) => {
     const a = (i / Math.max(n, 1)) * Math.PI * 2;
     pos.set(node.id, { x: Math.cos(a) * R, y: Math.sin(a) * R, vx: 0, vy: 0 });
   });
 
-  const kRep = R * R * 0.9; // itme sabiti
-  const kGrav = 0.015; // merkeze çekim
+  const kRep = R * R * 0.9;
+  const kGrav = 0.015;
   const damp = 0.82;
 
   for (let it = 0; it < iterations; it++) {
-    // İtme — tüm çiftler
     for (let i = 0; i < n; i++) {
       const pi = pos.get(nodes[i].id)!;
       for (let j = i + 1; j < n; j++) {
@@ -208,10 +182,10 @@ export function layoutNotesGraph(
         pj.vy -= fy;
       }
     }
-    // Çekim — kenarlar, güce göre
     for (const e of edges) {
-      const pa = pos.get(e.a)!;
-      const pb = pos.get(e.b)!;
+      const pa = pos.get(e.a);
+      const pb = pos.get(e.b);
+      if (!pa || !pb) continue;
       const dx = pb.x - pa.x;
       const dy = pb.y - pa.y;
       const d = Math.hypot(dx, dy) || 1;
@@ -223,7 +197,6 @@ export function layoutNotesGraph(
       pb.vx -= fx;
       pb.vy -= fy;
     }
-    // Merkez çekimi + entegrasyon
     for (const node of nodes) {
       const p = pos.get(node.id)!;
       p.vx -= p.x * kGrav;

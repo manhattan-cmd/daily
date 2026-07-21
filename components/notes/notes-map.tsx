@@ -1,20 +1,14 @@
 "use client";
 
-import {
-  useMemo,
-  useRef,
-  useState,
-  useEffect,
-  useCallback,
-} from "react";
+import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ChevronRight, NotebookPen } from "lucide-react";
+import { ChevronRight, NotebookPen, Sparkles, X } from "lucide-react";
 import {
-  buildNotesGraph,
   layoutNotesGraph,
+  noteNodes,
   type NotesGraph,
 } from "@/lib/notes-graph";
-import type { Note, NoteTag } from "@/types";
+import type { Note, NoteConnection, NoteTag } from "@/types";
 import { cn } from "@/lib/utils";
 
 const MONTHS_TR = [
@@ -26,27 +20,59 @@ function shortDate(date: string): string {
   return `${d} ${MONTHS_TR[m - 1]}`;
 }
 
-type Pos = { x: number; y: number };
-
 /**
- * Not haritası — her not bir düğüm, ortak örüntüler (etiket + sözcüksel
- * benzerlik) bağ. Bağ kalınlığı/parlaklığı güce göre; kuvvet-yönlü yerleşim
- * benzer notları kümeler. Düğüme dokununca bağlı notlar vurgulanır.
+ * Not haritası — her not bir düğüm, yapay zekânın kurduğu içgörülü bağlar
+ * kenar. Bağ kalınlığı güce göre; düğüme dokununca bağlı notlar vurgulanır ve
+ * altta bağların NEDENİNİ açıklayan içgörüler listelenir.
  */
 export function NotesMap({
   notes,
   tags,
+  connections,
 }: {
   notes: Note[];
   tags: NoteTag[];
+  connections: NoteConnection[];
 }) {
   const tagById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
 
-  const graph: NotesGraph = useMemo(
-    () => buildNotesGraph(notes, tagById),
-    [notes, tagById]
-  );
+  const graph: NotesGraph = useMemo(() => {
+    const nodes = noteNodes(notes, tagById);
+    const ids = new Set(nodes.map((n) => n.id));
+    const edges = connections
+      .filter((c) => ids.has(c.aId) && ids.has(c.bId))
+      .map((c) => ({ a: c.aId, b: c.bId, strength: c.strength }));
+    return { nodes, edges };
+  }, [notes, tagById, connections]);
+
   const positions = useMemo(() => layoutNotesGraph(graph), [graph]);
+  const titleById = useMemo(
+    () => new Map(graph.nodes.map((n) => [n.id, n])),
+    [graph.nodes]
+  );
+
+  // Düğüm → bağları (içgörüyle)
+  const linksByNode = useMemo(() => {
+    const m = new Map<
+      string,
+      { otherId: string; strength: number; insight: string }[]
+    >();
+    for (const c of connections) {
+      if (!titleById.has(c.aId) || !titleById.has(c.bId)) continue;
+      (m.get(c.aId) ?? m.set(c.aId, []).get(c.aId)!).push({
+        otherId: c.bId,
+        strength: c.strength,
+        insight: c.insight,
+      });
+      (m.get(c.bId) ?? m.set(c.bId, []).get(c.bId)!).push({
+        otherId: c.aId,
+        strength: c.strength,
+        insight: c.insight,
+      });
+    }
+    for (const list of m.values()) list.sort((a, b) => b.strength - a.strength);
+    return m;
+  }, [connections, titleById]);
 
   const extent = useMemo(() => {
     let max = 120;
@@ -75,7 +101,6 @@ export function NotesMap({
     return () => ro.disconnect();
   }, []);
 
-  // Grafik değişince yeniden sığdır
   useEffect(() => setFitted(false), [graph]);
 
   useEffect(() => {
@@ -131,16 +156,12 @@ export function NotesMap({
     }));
   }, []);
 
-  // Seçili düğümün komşuları
   const neighbors = useMemo(() => {
     if (!selectedId) return null;
     const set = new Set<string>([selectedId]);
-    for (const e of graph.edges) {
-      if (e.a === selectedId) set.add(e.b);
-      if (e.b === selectedId) set.add(e.a);
-    }
+    for (const l of linksByNode.get(selectedId) ?? []) set.add(l.otherId);
     return set;
-  }, [selectedId, graph.edges]);
+  }, [selectedId, linksByNode]);
 
   const dimNode = (id: string) => (neighbors ? !neighbors.has(id) : false);
   const dimEdge = (a: string, b: string) =>
@@ -148,16 +169,14 @@ export function NotesMap({
 
   const selected = useMemo(() => {
     if (!selectedId) return null;
-    const node = graph.nodes.find((n) => n.id === selectedId);
+    const node = titleById.get(selectedId);
     if (!node) return null;
-    const linked = graph.edges.filter(
-      (e) => e.a === selectedId || e.b === selectedId
-    ).length;
-    const nodeTags = node.tagIds
-      .map((t) => tagById.get(t))
-      .filter((t): t is NoteTag => !!t);
-    return { node, linked, nodeTags };
-  }, [selectedId, graph, tagById]);
+    const links = (linksByNode.get(selectedId) ?? []).map((l) => ({
+      ...l,
+      other: titleById.get(l.otherId),
+    }));
+    return { node, links };
+  }, [selectedId, titleById, linksByNode]);
 
   const world = extent * 2;
   const maxStrength = useMemo(
@@ -189,7 +208,6 @@ export function NotesMap({
           transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})`,
         }}
       >
-        {/* Kenarlar */}
         <svg
           className="absolute overflow-visible"
           style={{ left: -extent, top: -extent }}
@@ -220,7 +238,6 @@ export function NotesMap({
           })}
         </svg>
 
-        {/* Düğümler */}
         {graph.nodes.map((node) => {
           const p = positions.get(node.id);
           if (!p) return null;
@@ -263,15 +280,12 @@ export function NotesMap({
         })}
       </div>
 
-      {/* Seçim kartı */}
+      {/* Seçim kartı — bağlar ve içgörüleri */}
       {selected && (
-        <div className="absolute inset-x-4 bottom-4 z-20">
-          <Link
-            href={`/notes/${selected.node.id}`}
-            className="flex items-center gap-3 rounded-2xl border border-border bg-card/95 px-4 py-3 shadow-xl backdrop-blur-sm"
-          >
+        <div className="absolute inset-x-3 bottom-3 z-20 max-h-[52%] overflow-y-auto rounded-2xl border border-border bg-card/95 shadow-xl backdrop-blur-sm">
+          <div className="sticky top-0 flex items-center gap-2 border-b border-border/60 bg-card/95 px-4 py-3 backdrop-blur-sm">
             <span
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
               style={{
                 borderColor: `${selected.node.color ?? "#64748b"}66`,
                 backgroundColor: `${selected.node.color ?? "#64748b"}1f`,
@@ -282,21 +296,64 @@ export function NotesMap({
                 style={{ color: selected.node.color ?? "#94a3b8" }}
               />
             </span>
-            <span className="min-w-0 flex-1">
+            <Link
+              href={`/notes/${selected.node.id}`}
+              className="min-w-0 flex-1"
+            >
               <span className="block truncate text-sm font-medium">
                 {selected.node.title}
               </span>
-              <span className="block truncate text-[11px] text-muted-foreground">
-                {shortDate(selected.node.date)}
-                {selected.nodeTags.length > 0 &&
-                  " · " + selected.nodeTags.map((t) => t.name).join(", ")}
-                {selected.linked > 0
-                  ? ` · ${selected.linked} bağ`
-                  : " · bağ yok"}
+              <span className="block text-[11px] text-muted-foreground">
+                {shortDate(selected.node.date)} ·{" "}
+                {selected.links.length > 0
+                  ? `${selected.links.length} bağ`
+                  : "bağ yok"}
               </span>
-            </span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-          </Link>
+            </Link>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedId(null);
+              }}
+              className="rounded-full p-1 text-muted-foreground/70 hover:text-foreground"
+              aria-label="Kapat"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {selected.links.length === 0 ? (
+            <p className="px-4 py-4 text-xs text-muted-foreground">
+              Bu notun henüz bağı yok.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border/50">
+              {selected.links.map((l) => (
+                <li key={l.otherId}>
+                  <Link
+                    href={`/notes/${l.otherId}`}
+                    className="flex gap-2.5 px-4 py-3 transition-colors hover:bg-white/5"
+                  >
+                    <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/70" />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate text-xs font-medium">
+                          {l.other?.title ?? "Not"}
+                        </span>
+                        <span className="shrink-0 text-[10px] text-muted-foreground/60">
+                          {l.other ? shortDate(l.other.date) : ""}
+                        </span>
+                      </span>
+                      <span className="mt-0.5 block text-[11px] leading-relaxed text-muted-foreground">
+                        {l.insight}
+                      </span>
+                    </span>
+                    <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>

@@ -13,6 +13,8 @@ import type {
   Goal,
   Note,
   NoteTag,
+  NoteConnection,
+  AppSetting,
 } from "@/types";
 
 export class RoutineDB extends Dexie {
@@ -29,6 +31,8 @@ export class RoutineDB extends Dexie {
   activities!: Table<Activity, string>;
   notes!: Table<Note, string>;
   noteTags!: Table<NoteTag, string>;
+  noteConnections!: Table<NoteConnection, string>;
+  settings!: Table<AppSetting, string>;
 
   constructor() {
     super("RoutineDB");
@@ -225,6 +229,12 @@ export class RoutineDB extends Dexie {
     this.version(12).stores({
       notes: "id, date, createdAt, updatedAt",
       noteTags: "id, name, order, createdAt",
+    });
+    // v13 — Yapay zekâ bağlantıları: not↔not kenarları içgörüyle; ve
+    // anahtar-değer ayarlar (API anahtarı, model tercihi).
+    this.version(13).stores({
+      noteConnections: "id, aId, bId, [aId+bId], updatedAt",
+      settings: "key",
     });
   }
 }

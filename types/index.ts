@@ -254,7 +254,40 @@ export interface Note {
   blocks: NoteBlock[];
   createdAt: number;
   updatedAt: number;
+  /** Bu içerikle en son yapay zekâ bağlantı çözümünün yapıldığı an (indekssiz) */
+  aiAnalyzedAt?: number;
 }
+
+/**
+ * Yapay zekâ ile kurulan not↔not bağlantısı. `aId < bId` (kanonik sıra) —
+ * her çift için tek kayıt. `insight`, bağın nedenini açıklayan içgörü metni.
+ */
+export interface NoteConnection {
+  id: string;
+  aId: string;
+  bId: string;
+  /** 0..1 arası bağ gücü (yapay zekânın değerlendirmesi) */
+  strength: number;
+  /** Neden bağlı — kullanıcıya yeni ufuk açan kısa açıklama */
+  insight: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Anahtar-değer ayar kaydı (API anahtarı, model tercihi vb.) */
+export interface AppSetting {
+  key: string;
+  value: string;
+}
+
+/** Bağlantı çözümünde kullanılabilecek Claude modelleri */
+export const AI_MODELS = [
+  { id: "claude-opus-4-8", label: "Opus 4.8 — en derin", hint: "~3 cent/not" },
+  { id: "claude-sonnet-5", label: "Sonnet 5 — dengeli", hint: "~1 cent/not" },
+  { id: "claude-haiku-4-5", label: "Haiku 4.5 — en ucuz", hint: "~½ cent/not" },
+] as const;
+
+export type AiModelId = (typeof AI_MODELS)[number]["id"];
 
 export const CATEGORY_COLORS = [
   "#6366f1", // indigo

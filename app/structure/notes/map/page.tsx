@@ -3,15 +3,22 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { NotebookPen } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
-import { listAllNotes, listNoteTags } from "@/lib/db/queries";
+import {
+  listAllNotes,
+  listNoteConnections,
+  listNoteTags,
+} from "@/lib/db/queries";
 import { NotesMap } from "@/components/notes/notes-map";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export default function NotesMapPage() {
   const notes = useLiveQuery(() => listAllNotes(), []);
   const tags = useLiveQuery(() => listNoteTags(), []);
+  const connections = useLiveQuery(() => listNoteConnections(), []);
 
-  const ready = notes !== undefined && tags !== undefined;
+  const ready =
+    notes !== undefined && tags !== undefined && connections !== undefined;
+  const hasLinks = (connections?.length ?? 0) > 0;
 
   return (
     <div className="flex flex-col" style={{ height: "100%" }}>
@@ -31,11 +38,19 @@ export default function NotesMapPage() {
               description="En az iki not olduğunda aralarındaki bağlar burada belirir."
             />
           </div>
+        ) : !hasLinks ? (
+          <div className="flex h-full items-center justify-center px-4">
+            <EmptyState
+              icon={NotebookPen}
+              title="Henüz bağ çözülmedi"
+              description="Notlar sayfasındaki “Bağlantıları çöz” ile yapay zekâ notların arasındaki örüntüleri bulsun."
+            />
+          </div>
         ) : (
           <>
-            <NotesMap notes={notes} tags={tags} />
+            <NotesMap notes={notes} tags={tags} connections={connections} />
             {/* Legend */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center">
+            <div className="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center">
               <div className="flex items-center gap-2 rounded-full border border-border bg-card/80 px-4 py-1.5 backdrop-blur-sm">
                 <svg width="24" height="6" viewBox="0 0 24 6">
                   <line
@@ -49,7 +64,7 @@ export default function NotesMapPage() {
                   />
                 </svg>
                 <span className="text-[10px] text-muted-foreground">
-                  kalın çizgi = güçlü örüntü bağı
+                  kalın çizgi = güçlü örüntü bağı · düğüme dokun
                 </span>
               </div>
             </div>
