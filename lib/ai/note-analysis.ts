@@ -8,16 +8,18 @@ import { buildLexicalIndex, noteText, noteTitle } from "@/lib/notes-graph";
 import { AiError, callClaude } from "./anthropic";
 import type { Note } from "@/types";
 
-const CANDIDATE_COUNT = 6;
+// Küçük günce için tüm notları aday ver (anlamca bağları kelime örtüşmesi
+// olmadan da bulsun); çok not varsa en benzer bu kadarıyla sınırla.
+const MAX_CANDIDATES = 18;
 
-const SYSTEM = `Sen bir kişisel günce analizcisisin. Kullanıcının notları arasında GERÇEK, anlamlı örüntüleri bulursun: aynı düşünce kalıbı, tekrar eden his, aynı kişi/ilişki, aynı planlama ya da uğraş, örtük bir tema. Amacın kullanıcının kendini daha iyi tanıması ve fark etmediği bağları görmesi.
+const SYSTEM = `Sen bir kişisel günce analizcisisin. Kullanıcının notları arasında anlamlı örüntüleri bulursun: aynı düşünce kalıbı, tekrar eden his ya da ruh hâli, aynı kişi/ilişki, aynı kaygı ya da arzu, aynı planlama/uğraş, örtük bir tema. Amacın kullanıcının kendini daha iyi tanıması ve fark etmediği bağları görmesi.
 
 Kurallar:
-- Yüzeysel kelime benzerliğine değil, ALTTA YATAN ANLAMA bak.
-- Zorlama bağ kurma. Gerçek bir örüntü yoksa o adayı atla; hiç yoksa boş dizi döndür.
-- "insight" alanı Türkçe, tek cümle, bağın NEDENİNİ açıklayan, kullanıcıya yeni bir ufuk açan bir gözlem olsun (klişe değil).
+- Yüzeysel kelime benzerliğine DEĞİL, ALTTA YATAN ANLAMA bak. Farklı kelimelerle yazılmış ama aynı hissi/düşünceyi taşıyan notları da birbirine bağla.
+- Aynı temayı, hissi ya da kişiyi paylaşan her aday için bir bağ kur. Emin olduğun gerçek örüntüleri kaçırma; ama tamamen alakasız notları da zorlama.
+- "insight" alanı Türkçe, tek cümle, bağın NEDENİNİ açıklayan, kullanıcıya yeni bir ufuk açan bir gözlem olsun (klişe değil, spesifik).
 - strength 0 ile 1 arası: zayıf çağrışım ~0.3, güçlü/net örüntü ~0.9.
-- Yalnızca son yanıtın olarak geçerli bir JSON dizisi yaz; başka hiçbir metin, açıklama ya da kod bloğu işareti ekleme.`;
+- Yalnızca son yanıtın olarak geçerli bir JSON dizisi yaz; başka hiçbir metin, açıklama ya da kod bloğu işareti ekleme. Bağ yoksa: []`;
 
 function noteBody(n: Note): string {
   const t = (n.title ?? "").trim();
@@ -124,7 +126,12 @@ export async function analyzeNotes(opts: {
     const target = targets[i];
     opts.onProgress?.({ done: i, total: targets.length, current: noteTitle(target) });
 
-    const candidates = index.topK(target.id, CANDIDATE_COUNT);
+    // Küçük günce: tüm diğer notlar aday; büyükse en benzer MAX_CANDIDATES
+    const others = notes.filter((n) => n.id !== target.id);
+    const candidates =
+      others.length <= MAX_CANDIDATES
+        ? others
+        : index.topK(target.id, MAX_CANDIDATES);
     if (!candidates.length) {
       await markNoteAnalyzed(target.id);
       analyzed++;
@@ -134,7 +141,7 @@ export async function analyzeNotes(opts: {
 
     try {
       const text = await callClaude(SYSTEM, buildUserPrompt(target, candidates), {
-        maxTokens: 1600,
+        maxTokens: 2000,
         signal: opts.signal,
       });
       const links = parseLinks(text, candidates.length);

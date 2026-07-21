@@ -36,7 +36,11 @@ import {
   DEFAULT_AI_MODEL,
   testApiKey,
 } from "@/lib/ai/anthropic";
-import { analyzeNotes, type AnalyzeProgress } from "@/lib/ai/note-analysis";
+import {
+  analyzeNotes,
+  pendingNoteCount,
+  type AnalyzeProgress,
+} from "@/lib/ai/note-analysis";
 import { noteText } from "@/lib/notes-graph";
 import { PageHeader } from "@/components/layout/page-header";
 import { StructureTabs } from "@/components/structure/structure-tabs";
@@ -76,6 +80,7 @@ export default function StructureNotesPage() {
   const usage = useLiveQuery(() => noteTagUsage(), []);
   const apiKey = useLiveQuery(() => getSetting(AI_KEY_SETTING), []);
   const connections = useLiveQuery(() => listNoteConnections(), []);
+  const pending = useLiveQuery(() => pendingNoteCount(), []);
 
   // Etiket havuzu (yarat/düzenle)
   const [createOpen, setCreateOpen] = useState(false);
@@ -165,7 +170,7 @@ export default function StructureNotesPage() {
     setSelected(null);
   }
 
-  async function handleAnalyze() {
+  async function handleAnalyze(force: boolean) {
     if (!hasKey) {
       setAiOpen(true);
       return;
@@ -174,14 +179,16 @@ export default function StructureNotesPage() {
     setResult(null);
     setProgress({ done: 0, total: 0 });
     try {
-      const r = await analyzeNotes({ onProgress: setProgress });
+      const r = await analyzeNotes({ force, onProgress: setProgress });
       if (r.errors.length) {
         setResult(`Hata: ${r.errors[0]}`);
       } else if (r.analyzed === 0) {
-        setResult("Çözülecek yeni not yok.");
+        setResult(
+          force ? "Bağlanacak not bulunamadı." : "Çözülecek yeni not yok."
+        );
       } else {
         setResult(
-          `${r.analyzed} not çözüldü, ${r.connections} bağ bulundu.`
+          `${r.analyzed} not tarandı, ${r.connections} bağ bulundu.`
         );
       }
     } catch (e) {
@@ -251,25 +258,50 @@ export default function StructureNotesPage() {
             <KeyRound className="h-4 w-4" />
           </button>
         </div>
-        <Button
-          className="w-full gap-1.5"
-          onClick={handleAnalyze}
-          disabled={running}
-        >
-          {running ? (
+        {(() => {
+          const pend = pending ?? 0;
+          const hasNotes = (notes?.length ?? 0) >= 2;
+          // Anahtar yoksa: ayarlara götür. Bekleyen not varsa: artımlı çöz.
+          // Yoksa: tümünü yeniden tara (harita boşsa da bu doldurur).
+          const forceMain = hasKey && pend === 0;
+          const label = !hasKey
+            ? "Anahtarı gir ve başla"
+            : pend > 0
+            ? `Bağlantıları çöz (${pend})`
+            : "Tümünü yeniden tara";
+          return (
             <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {progress && progress.total > 0
-                ? `Çözülüyor ${progress.done}/${progress.total}`
-                : "Çözülüyor…"}
+              <Button
+                className="w-full gap-1.5"
+                onClick={() => handleAnalyze(forceMain)}
+                disabled={running}
+              >
+                {running ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    {progress && progress.total > 0
+                      ? `Taranıyor ${progress.done}/${progress.total}`
+                      : "Taranıyor…"}
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {label}
+                  </>
+                )}
+              </Button>
+              {/* Bekleyen not varken bile tümünü yeniden tarama seçeneği */}
+              {hasKey && hasNotes && pend > 0 && !running && (
+                <button
+                  onClick={() => handleAnalyze(true)}
+                  className="mt-2 w-full text-center text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Tümünü yeniden tara
+                </button>
+              )}
             </>
-          ) : (
-            <>
-              <Sparkles className="h-3.5 w-3.5" />
-              {hasKey ? "Bağlantıları çöz" : "Anahtarı gir ve başla"}
-            </>
-          )}
-        </Button>
+          );
+        })()}
         {running && progress?.current && (
           <p className="mt-2 truncate text-center text-[11px] text-muted-foreground">
             {progress.current}
