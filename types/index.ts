@@ -235,11 +235,27 @@ export interface NoteTag {
   createdAt: number;
 }
 
+/**
+ * Not bağlantısı — bir paragraftaki kelime/öbeğin (anchor) bir girdiye ya da
+ * başka bir nota iliştirilmesi. Kullanıcının kendi kurduğu bağ; hayat
+ * haritasının kenarı. [[app-vision]]
+ */
+export interface NoteLink {
+  id: string;
+  /** İliştirilen kelime/öbek — çipin etiketi ve metindeki dayanağı */
+  anchor: string;
+  type: "note" | "entry";
+  /** Hedef not id'si ya da girdi id'si */
+  targetId: string;
+}
+
 /** Not paragrafı — nota gömülü blok; etiketler paragraf düzeyinde atanır */
 export interface NoteBlock {
   id: string;
   text: string;
   tagIds: string[];
+  /** Bu paragraftaki kelime/öbeklerden çıkan bağlar (indekssiz, opsiyonel) */
+  links?: NoteLink[];
 }
 
 /**

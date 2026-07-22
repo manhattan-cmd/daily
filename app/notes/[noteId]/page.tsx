@@ -1,19 +1,32 @@
 "use client";
 
-import { use, useEffect, useRef, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { nanoid } from "nanoid";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  CornerDownRight,
+  FileText,
+  Link2,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   createNoteTag,
+  createNoteWithTitle,
   deleteNote,
+  getEntryBriefs,
   getNote,
+  listNoteBacklinks,
   listNoteTags,
   noteIsEmpty,
   updateNote,
+  type EntryPick,
 } from "@/lib/db/queries";
+import { EntryPickerDialog } from "@/components/notes/entry-picker-dialog";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { Note, NoteBlock } from "@/types";
+import type { Note, NoteBlock, NoteLink } from "@/types";
 import { cn } from "@/lib/utils";
 
 const nid = () => nanoid(12);
@@ -36,18 +49,20 @@ const MONTHS_TR = [
 const WEEKDAYS_TR = [
   "Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi",
 ];
-
 function dateLabel(date: string): string {
   const [y, m, d] = date.split("-").map(Number);
   const dt = new Date(y, m - 1, d);
   return `${dt.getDate()} ${MONTHS_TR[dt.getMonth()]} ${WEEKDAYS_TR[dt.getDay()]}`;
 }
 
+type Selection = { blockId: string; start: number; end: number; text: string };
+
 /**
- * Not editörü — Samsung Notes hissiyatında tam sayfa serbest yazım.
- * Not = başlık + paragraf blokları; her paragrafa etiket atanabilir
- * (Düşünce, His, Aktivite...). Etiketli paragrafın solunda renk şeridi durur.
- * Değişiklikler kendiliğinden kaydedilir; bomboş bırakılan not çıkışta silinir.
+ * Not editörü — tam sayfa serbest yazım + kullanıcı-örgülü bağlar.
+ * Bir kelime/öbek seçilince araç çubuğu çıkar: "Not aç" (öbek → yeni not,
+ * wiki gibi) ya da "Girdi iliştir" (kelime → var olan girdi). Bağlar
+ * paragrafın altında çip olur; dokununca hedefe gidilir. Değişiklikler
+ * kendiliğinden kaydedilir; bomboş bırakılan not çıkışta silinir. [[app-vision]]
  */
 export default function NoteEditorPage({
   params,
@@ -57,18 +72,34 @@ export default function NoteEditorPage({
   const { noteId } = use(params);
   const router = useRouter();
 
-  // DB'den bir kez yüklenir, sonrası yerel state + debounce'lu kayıt
-  // (liveQuery ile sürekli senkron, yazarken imleci bozar)
   const [loaded, setLoaded] = useState<Note | null | undefined>(undefined);
   const [title, setTitle] = useState("");
   const [blocks, setBlocks] = useState<NoteBlock[]>([]);
-  // Etiket satırı bu bloğun altında görünür — son odaklanan blok
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
+  const [selection, setSelection] = useState<Selection | null>(null);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [tagError, setTagError] = useState(false);
+  // Girdi iliştirmenin hedefi (blok + kelime), picker açıkken
+  const [entryTarget, setEntryTarget] = useState<{
+    blockId: string;
+    anchor: string;
+  } | null>(null);
 
   const tags = useLiveQuery(() => listNoteTags(), []);
+  const backlinks = useLiveQuery(() => listNoteBacklinks(noteId), [noteId]);
+
+  const entryLinkIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const b of blocks)
+      for (const l of b.links ?? []) if (l.type === "entry") ids.add(l.targetId);
+    return [...ids];
+  }, [blocks]);
+  const entryBriefs = useLiveQuery(
+    () => getEntryBriefs(entryLinkIds),
+    [entryLinkIds.join(",")]
+  );
+
   const taRefs = useRef(new Map<string, HTMLTextAreaElement>());
   const pendingFocus = useRef<{ id: string; pos: number } | null>(null);
 
@@ -84,7 +115,6 @@ export default function NoteEditorPage({
     });
   }, [noteId]);
 
-  // Otomatik kayıt — yazım durunca
   useEffect(() => {
     if (!loaded) return;
     const t = setTimeout(() => {
@@ -93,7 +123,6 @@ export default function NoteEditorPage({
     return () => clearTimeout(t);
   }, [noteId, loaded, title, blocks]);
 
-  // Split/merge sonrası imleci doğru bloğa taşı
   useEffect(() => {
     if (!pendingFocus.current) return;
     const { id, pos } = pendingFocus.current;
@@ -105,7 +134,6 @@ export default function NoteEditorPage({
     pendingFocus.current = null;
   }, [blocks]);
 
-  // Metin dışarıdan değişince (split/merge) yükseklikleri tazele
   useEffect(() => {
     for (const el of taRefs.current.values()) autoResize(el);
   }, [blocks]);
@@ -115,12 +143,20 @@ export default function NoteEditorPage({
     el.style.height = `${el.scrollHeight}px`;
   }
 
+  function captureSelection(blockId: string, el: HTMLTextAreaElement) {
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    const text = el.value.slice(start, end);
+    if (end > start && text.trim()) setSelection({ blockId, start, end, text });
+    else setSelection(null);
+  }
+
   async function handleBack() {
     if (loaded) {
       const current: Note = { ...loaded, title, blocks };
       if (noteIsEmpty(current)) await deleteNote(noteId);
       else await updateNote(noteId, { title, blocks });
-      router.push(`/calendar/${loaded.date}`);
+      router.back();
     } else {
       router.push("/calendar");
     }
@@ -139,6 +175,60 @@ export default function NoteEditorPage({
     );
   }
 
+  function addLink(blockId: string, link: NoteLink): NoteBlock[] {
+    const next = blocks.map((b) =>
+      b.id === blockId ? { ...b, links: [...(b.links ?? []), link] } : b
+    );
+    setBlocks(next);
+    return next;
+  }
+
+  function removeLink(blockId: string, linkId: string) {
+    setBlocks((prev) =>
+      prev.map((b) =>
+        b.id === blockId
+          ? { ...b, links: (b.links ?? []).filter((l) => l.id !== linkId) }
+          : b
+      )
+    );
+  }
+
+  // Öbek → yeni not (wiki). Bağı ekler, kaydeder, yeni nota gider.
+  async function handleOpenNote() {
+    if (!selection || !loaded) return;
+    const phrase = selection.text.trim();
+    if (!phrase) return;
+    const note = await createNoteWithTitle(loaded.date, phrase);
+    const next = addLink(selection.blockId, {
+      id: nid(),
+      anchor: phrase,
+      type: "note",
+      targetId: note.id,
+    });
+    await updateNote(noteId, { title, blocks: next });
+    setSelection(null);
+    router.push(`/notes/${note.id}`);
+  }
+
+  // Kelime → var olan girdi. Picker açar.
+  function handleAttachEntry() {
+    if (!selection) return;
+    setEntryTarget({ blockId: selection.blockId, anchor: selection.text.trim() });
+  }
+
+  async function onPickEntry(entry: EntryPick) {
+    if (!entryTarget) return;
+    const next = addLink(entryTarget.blockId, {
+      id: nid(),
+      anchor: entryTarget.anchor,
+      type: "entry",
+      targetId: entry.id,
+    });
+    await updateNote(noteId, { title, blocks: next });
+    setEntryTarget(null);
+    setSelection(null);
+  }
+
   function toggleTag(blockId: string, tagId: string) {
     setBlocks((prev) =>
       prev.map((b) =>
@@ -154,11 +244,6 @@ export default function NoteEditorPage({
     );
   }
 
-  /**
-   * Etiket çipine dokunma: metinde seçim varsa seçili sekans kendi bloğuna
-   * ayrılır ve etiket ona uygulanır (cümle düzeyinde etiketleme); seçim
-   * yoksa tüm paragrafa aç/kapa davranır.
-   */
   function applyTag(blockId: string, tagId: string) {
     const el = taRefs.current.get(blockId);
     const index = blocks.findIndex((b) => b.id === blockId);
@@ -188,7 +273,7 @@ export default function NoteEditorPage({
     setBlocks((prev) => {
       const next = [...prev];
       const pieces: NoteBlock[] = [];
-      if (before.trim()) pieces.push({ ...block, text: before });
+      if (before.trim()) pieces.push({ ...block, text: before, links: undefined });
       pieces.push(midBlock);
       if (after.trim())
         pieces.push({ id: nid(), text: after, tagIds: [...block.tagIds] });
@@ -197,6 +282,7 @@ export default function NoteEditorPage({
     });
     pendingFocus.current = { id: midBlock.id, pos: mid.length };
     setActiveBlockId(midBlock.id);
+    setSelection(null);
   }
 
   function onBlockKeyDown(
@@ -207,7 +293,6 @@ export default function NoteEditorPage({
     const block = blocks[index];
 
     if (e.key === "Enter") {
-      // Enter yeni paragraf açar — bölünen kuyruk etiketlerini taşır
       e.preventDefault();
       const pos = el.selectionStart ?? block.text.length;
       const before = block.text.slice(0, pos);
@@ -225,6 +310,7 @@ export default function NoteEditorPage({
       });
       pendingFocus.current = { id: fresh.id, pos: 0 };
       setActiveBlockId(fresh.id);
+      setSelection(null);
       return;
     }
 
@@ -234,7 +320,6 @@ export default function NoteEditorPage({
       el.selectionEnd === 0 &&
       index > 0
     ) {
-      // Paragraf başında silme öncekiyle birleştirir
       e.preventDefault();
       const prevBlock = blocks[index - 1];
       const junction = prevBlock.text.length;
@@ -246,12 +331,14 @@ export default function NoteEditorPage({
           tagIds: block.text.trim()
             ? [...new Set([...prevBlock.tagIds, ...block.tagIds])]
             : prevBlock.tagIds,
+          links: [...(prevBlock.links ?? []), ...(block.links ?? [])],
         };
         next.splice(index, 1);
         return next;
       });
       pendingFocus.current = { id: prevBlock.id, pos: junction };
       setActiveBlockId(prevBlock.id);
+      setSelection(null);
     }
   }
 
@@ -282,10 +369,11 @@ export default function NoteEditorPage({
 
   const tagById = new Map((tags ?? []).map((t) => [t.id, t]));
   const bodyEmpty = blocks.every((b) => !b.text);
+  const briefs = entryBriefs ?? new Map<string, EntryPick>();
 
   return (
     <>
-      {/* Başlık çubuğu — geri (kaydeder), tarih, sil */}
+      {/* Başlık çubuğu */}
       <div className="flex items-center justify-between pt-10 pb-4">
         <button
           onClick={handleBack}
@@ -329,10 +417,11 @@ export default function NoteEditorPage({
             .map((tid) => tagById.get(tid))
             .filter((t): t is NonNullable<typeof t> => !!t);
           const active = activeBlockId === block.id;
+          const links = block.links ?? [];
+          const hasSel = selection?.blockId === block.id && !!selection.text.trim();
           return (
             <div key={block.id}>
               <div className="flex gap-2.5">
-                {/* Etiket şeridi — paragrafın renk imzası */}
                 <div
                   className="flex w-[3px] shrink-0 flex-col overflow-hidden rounded-full self-stretch my-0.5"
                   aria-hidden
@@ -360,14 +449,117 @@ export default function NoteEditorPage({
                   onChange={(e) => {
                     setBlockText(block.id, e.target.value);
                     autoResize(e.target);
+                    setSelection(null);
                   }}
                   onKeyDown={(e) => onBlockKeyDown(e, i)}
                   onFocus={() => setActiveBlockId(block.id)}
+                  onSelect={(e) => captureSelection(block.id, e.currentTarget)}
+                  onMouseUp={(e) => captureSelection(block.id, e.currentTarget)}
+                  onKeyUp={(e) => captureSelection(block.id, e.currentTarget)}
                   className="w-full resize-none bg-transparent py-0.5 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/35"
                 />
               </div>
 
-              {/* Etiket satırı — imlecin olduğu paragrafın altında */}
+              {/* Bağ çipleri — paragrafın kelime→girdi / öbek→not bağları */}
+              {links.length > 0 && (
+                <div className="mb-1 flex flex-wrap gap-1.5 pl-[13.5px]">
+                  {links.map((l) => {
+                    if (l.type === "note") {
+                      return (
+                        <span key={l.id} className="inline-flex items-center">
+                          <Link
+                            href={`/notes/${l.targetId}`}
+                            className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 py-0.5 pl-2 pr-2.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
+                          >
+                            <FileText className="h-3 w-3" />
+                            {l.anchor}
+                          </Link>
+                          {active && (
+                            <button
+                              onClick={() => removeLink(block.id, l.id)}
+                              className="ml-0.5 rounded-full p-0.5 text-muted-foreground/50 hover:text-destructive"
+                              aria-label="Bağı kaldır"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
+                        </span>
+                      );
+                    }
+                    const brief = briefs.get(l.targetId);
+                    const color = brief?.color ?? "#64748b";
+                    const chip = (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full border py-0.5 pl-2 pr-2.5 text-[11px] font-medium"
+                        style={{
+                          borderColor: `${color}44`,
+                          backgroundColor: `${color}14`,
+                          color: brief ? color : undefined,
+                        }}
+                      >
+                        <Link2 className="h-3 w-3" />
+                        {l.anchor}
+                        {brief && (
+                          <span className="opacity-60">· {brief.title}</span>
+                        )}
+                        {!brief && (
+                          <span className="text-muted-foreground/60">
+                            · silinmiş
+                          </span>
+                        )}
+                      </span>
+                    );
+                    return (
+                      <span key={l.id} className="inline-flex items-center">
+                        {brief ? (
+                          <Link href={`/calendar/${brief.date}`}>{chip}</Link>
+                        ) : (
+                          chip
+                        )}
+                        {active && (
+                          <button
+                            onClick={() => removeLink(block.id, l.id)}
+                            className="ml-0.5 rounded-full p-0.5 text-muted-foreground/50 hover:text-destructive"
+                            aria-label="Bağı kaldır"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Seçim araç çubuğu — bir kelime/öbek seçiliyken */}
+              {hasSel && (
+                <div className="mb-2 flex items-center gap-1.5 pl-[13.5px]">
+                  <span className="shrink-0 max-w-[40%] truncate text-[11px] text-muted-foreground">
+                    &bdquo;{selection!.text.trim()}&rdquo;
+                  </span>
+                  <CornerDownRight className="h-3 w-3 shrink-0 text-muted-foreground/50" />
+                  <button
+                    type="button"
+                    onPointerDown={(e) => e.preventDefault()}
+                    onClick={handleOpenNote}
+                    className="flex shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
+                  >
+                    <FileText className="h-3 w-3" />
+                    Not aç
+                  </button>
+                  <button
+                    type="button"
+                    onPointerDown={(e) => e.preventDefault()}
+                    onClick={handleAttachEntry}
+                    className="flex shrink-0 items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <Link2 className="h-3 w-3" />
+                    Girdi iliştir
+                  </button>
+                </div>
+              )}
+
+              {/* Etiket satırı */}
               {active && (
                 <div className="no-scrollbar mt-1 mb-2 flex gap-1.5 overflow-x-auto pl-[13.5px] pr-1">
                   {(tags ?? []).map((tag) => {
@@ -415,7 +607,47 @@ export default function NoteEditorPage({
             </div>
           );
         })}
+
+        {/* Geri bağlantılar — bu nota bağlanan notlar */}
+        {backlinks && backlinks.length > 0 && (
+          <div className="mt-8 border-t border-border/60 pt-4">
+            <h2 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Bu nota bağlananlar
+            </h2>
+            <div className="flex flex-col gap-1.5">
+              {backlinks.map((n) => {
+                const label =
+                  (n.title ?? "").trim() ||
+                  n.blocks.map((b) => b.text.trim()).find(Boolean) ||
+                  "Not";
+                return (
+                  <Link
+                    key={n.id}
+                    href={`/notes/${n.id}`}
+                    className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-card/70"
+                  >
+                    <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate">{label}</span>
+                    <span className="shrink-0 text-[11px] text-muted-foreground/60">
+                      {n.date.slice(5)}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Girdi seçici */}
+      <EntryPickerDialog
+        open={entryTarget !== null}
+        onOpenChange={(o) => {
+          if (!o) setEntryTarget(null);
+        }}
+        anchor={entryTarget?.anchor ?? ""}
+        onPick={onPickEntry}
+      />
 
       {/* Yeni etiket */}
       <Dialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>

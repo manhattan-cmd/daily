@@ -1525,3 +1525,105 @@ export function noteIsEmpty(note: Note): boolean {
     note.blocks.every((b) => !b.text.trim())
   );
 }
+
+// ============ Not bağlantıları (kelime→girdi, öbek→not) ============
+
+export interface EntryPick {
+  id: string;
+  title: string;
+  subName: string;
+  catName: string;
+  color: string;
+  /** YYYY-MM-DD (occurredAt'ten) */
+  date: string;
+  occurredAt: number;
+}
+
+function ymdLocal(ts: number): string {
+  const d = new Date(ts);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+async function toEntryPicks(entries: Entry[]): Promise<EntryPick[]> {
+  const subIds = [...new Set(entries.map((e) => e.subcategoryId))];
+  const subs = (await db.subcategories.bulkGet(subIds)).filter(
+    Boolean
+  ) as SubCategory[];
+  const subMap = new Map(subs.map((s) => [s.id, s]));
+  const catIds = [...new Set(subs.map((s) => s.categoryId))];
+  const cats = (await db.categories.bulkGet(catIds)).filter(
+    Boolean
+  ) as Category[];
+  const catMap = new Map(cats.map((c) => [c.id, c]));
+  return entries.map((e) => {
+    const sub = subMap.get(e.subcategoryId);
+    const cat = sub ? catMap.get(sub.categoryId) : undefined;
+    const isRoot = !!sub?.isCategoryRoot;
+    return {
+      id: e.id,
+      title:
+        (e.title ?? "").trim() ||
+        (isRoot ? cat?.name ?? "Girdi" : sub?.name ?? "Girdi"),
+      subName: sub?.name ?? "",
+      catName: cat?.name ?? "",
+      color: cat?.color ?? "#64748b",
+      date: ymdLocal(e.occurredAt),
+      occurredAt: e.occurredAt,
+    };
+  });
+}
+
+/** Girdi iliştirme seçici için son girdiler (bağlamıyla). */
+export async function listEntriesForPicker(limit = 120): Promise<EntryPick[]> {
+  const entries = await db.entries
+    .orderBy("occurredAt")
+    .reverse()
+    .limit(limit)
+    .toArray();
+  return toEntryPicks(entries);
+}
+
+/** Belirli girdilerin kısa bilgisi (çip render'ı için). */
+export async function getEntryBriefs(
+  ids: string[]
+): Promise<Map<string, EntryPick>> {
+  if (!ids.length) return new Map();
+  const entries = (await db.entries.bulkGet(ids)).filter(Boolean) as Entry[];
+  const picks = await toEntryPicks(entries);
+  return new Map(picks.map((p) => [p.id, p]));
+}
+
+/** Wiki bağı: başlığıyla yeni bir not aç (öbek → not). */
+export async function createNoteWithTitle(
+  date: string,
+  title: string
+): Promise<Note> {
+  const note: Note = {
+    id: id(),
+    date,
+    title: title.trim(),
+    blocks: [{ id: id(), text: "", tagIds: [] }],
+    createdAt: now(),
+    updatedAt: now(),
+  };
+  await db.notes.add(note);
+  return note;
+}
+
+/** Bu nota bağlanan (geri bağlantı) notlar. */
+export async function listNoteBacklinks(noteId: string): Promise<Note[]> {
+  const all = await db.notes.toArray();
+  return all
+    .filter(
+      (n) =>
+        n.id !== noteId &&
+        !noteIsEmpty(n) &&
+        n.blocks.some((b) =>
+          (b.links ?? []).some(
+            (l) => l.type === "note" && l.targetId === noteId
+          )
+        )
+    )
+    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+}
