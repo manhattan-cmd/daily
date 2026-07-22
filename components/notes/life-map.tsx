@@ -10,7 +10,7 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
-import { layoutGraph, type LifeGraph, type LifeNode } from "@/lib/life-graph";
+import type { LifeGraph, LifeNode } from "@/lib/life-graph";
 import { cn } from "@/lib/utils";
 
 const MONTHS_TR = [
@@ -29,14 +29,20 @@ function nodeHref(node: LifeNode): string {
 }
 const norm = (s: string) => s.toLocaleLowerCase("tr-TR");
 
+const NOTE_COLOR = "#a78bfa";
+const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+
+type SimNode = { x: number; y: number; vx: number; vy: number };
+
 /**
- * Hayat haritası — notlar (mor, defter) ve girdiler (kategori renginde, halka)
- * düğüm; kullanıcının kendi kurduğu bağlar kenar. Düğüm boyutu bağ sayısıyla
- * büyür; kontrol panelinden filtre/arama; bir düğüme "Yerelleştir" ile onun
- * komşuluğuna (derinlik ayarlı) odaklanılır.
+ * Hayat haritası — Obsidian tarzı: düğümler minik noktalar (boyut = bağ
+ * sayısı), etiketler yakınlaşınca belirir, canlı kuvvet simülasyonu düğümleri
+ * organik biçimde oturtur; düğümler sürüklenebilir. Kuvvetler panelinden
+ * itme / bağ uzunluğu / merkez çekimi / metin solması ayarlanır. Kenarlar
+ * kullanıcının kendi kurduğu bağlardır. [[app-vision]]
  */
 export function LifeMap({ graph }: { graph: LifeGraph }) {
-  // Filtre & odak durumu
+  // Filtre & odak
   const [search, setSearch] = useState("");
   const [showNotes, setShowNotes] = useState(true);
   const [showEntries, setShowEntries] = useState(true);
@@ -45,8 +51,15 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
   const [depth, setDepth] = useState(1);
   const [controlsOpen, setControlsOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [hoverId, setHoverId] = useState<string | null>(null);
 
-  // Filtrelenmiş grafik (yerleşim öncesi)
+  // Kuvvetler (Obsidian: repel / link distance / center / text fade)
+  const [repel, setRepel] = useState(1);
+  const [linkDist, setLinkDist] = useState(70);
+  const [centerF, setCenterF] = useState(1);
+  const [textFade, setTextFade] = useState(1);
+
+  // Filtrelenmiş grafik
   const filtered = useMemo<LifeGraph>(() => {
     let nodes = graph.nodes.filter((n) =>
       n.kind === "note" ? showNotes : showEntries
@@ -94,13 +107,6 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
     return { nodes, edges };
   }, [graph, showNotes, showEntries, search, focusId, depth, hideOrphans]);
 
-  const positions = useMemo(() => layoutGraph(filtered), [filtered]);
-  const nodeById = useMemo(
-    () => new Map(filtered.nodes.map((n) => [n.id, n])),
-    [filtered.nodes]
-  );
-
-  // Bağ sayısı (degree) — düğüm boyutu için
   const degree = useMemo(() => {
     const m = new Map<string, number>();
     for (const e of filtered.edges) {
@@ -109,6 +115,11 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
     }
     return m;
   }, [filtered.edges]);
+
+  const nodeById = useMemo(
+    () => new Map(filtered.nodes.map((n) => [n.id, n])),
+    [filtered.nodes]
+  );
 
   const linksByNode = useMemo(() => {
     const m = new Map<string, { otherId: string; anchor: string }[]>();
@@ -125,17 +136,115 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
     return m;
   }, [filtered.edges, nodeById]);
 
-  const extent = useMemo(() => {
-    let max = 120;
-    for (const p of positions.values())
-      max = Math.max(max, Math.abs(p.x), Math.abs(p.y));
-    return max + 80;
-  }, [positions]);
+  // ── Canlı simülasyon ──────────────────────────────────────────────────────
+  const sim = useRef(new Map<string, SimNode>());
+  const alpha = useRef(1);
+  const dragId = useRef<string | null>(null);
+  const [, setTick] = useState(0);
 
+  // Yeni düğümlere altın açı sarmalında başlangıç konumu; kalanlar yerinde kalır
+  useEffect(() => {
+    const seen = new Set<string>();
+    filtered.nodes.forEach((n, i) => {
+      seen.add(n.id);
+      if (!sim.current.has(n.id)) {
+        const r = 24 + 14 * Math.sqrt(i + 1);
+        const a = i * GOLDEN;
+        sim.current.set(n.id, {
+          x: Math.cos(a) * r,
+          y: Math.sin(a) * r,
+          vx: 0,
+          vy: 0,
+        });
+      }
+    });
+    for (const id of [...sim.current.keys()])
+      if (!seen.has(id)) sim.current.delete(id);
+    alpha.current = 1;
+  }, [filtered.nodes]);
+
+  // Kuvvet ayarı değişince yeniden ısın
+  useEffect(() => {
+    alpha.current = Math.max(alpha.current, 0.5);
+  }, [repel, linkDist, centerF]);
+
+  useEffect(() => {
+    let raf = 0;
+    const step = () => {
+      if (alpha.current > 0.004) {
+        const nodes = filtered.nodes;
+        const kRep = 900 * repel;
+        // İtme — tüm çiftler
+        for (let i = 0; i < nodes.length; i++) {
+          const a = sim.current.get(nodes[i].id);
+          if (!a) continue;
+          for (let j = i + 1; j < nodes.length; j++) {
+            const b = sim.current.get(nodes[j].id);
+            if (!b) continue;
+            let dx = a.x - b.x;
+            let dy = a.y - b.y;
+            let d2 = dx * dx + dy * dy;
+            if (d2 < 1) {
+              d2 = 1;
+              dx = (i - j) % 2 ? 1 : -1;
+              dy = 0.5;
+            }
+            if (d2 > 90000) continue;
+            const d = Math.sqrt(d2);
+            const f = (kRep / d2) * alpha.current;
+            const fx = (dx / d) * f;
+            const fy = (dy / d) * f;
+            a.vx += fx;
+            a.vy += fy;
+            b.vx -= fx;
+            b.vy -= fy;
+          }
+        }
+        // Bağ yayları
+        for (const e of filtered.edges) {
+          const a = sim.current.get(e.a);
+          const b = sim.current.get(e.b);
+          if (!a || !b) continue;
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const d = Math.hypot(dx, dy) || 1;
+          const f = (d - linkDist) * 0.06 * alpha.current;
+          const fx = (dx / d) * f;
+          const fy = (dy / d) * f;
+          a.vx += fx;
+          a.vy += fy;
+          b.vx -= fx;
+          b.vy -= fy;
+        }
+        // Merkez çekimi + entegrasyon
+        for (const n of nodes) {
+          const p = sim.current.get(n.id);
+          if (!p) continue;
+          if (dragId.current === n.id) {
+            p.vx = 0;
+            p.vy = 0;
+            continue;
+          }
+          p.vx -= p.x * 0.012 * centerF * alpha.current;
+          p.vy -= p.y * 0.012 * centerF * alpha.current;
+          p.vx *= 0.6;
+          p.vy *= 0.6;
+          p.x += Math.max(-20, Math.min(20, p.vx));
+          p.y += Math.max(-20, Math.min(20, p.vy));
+        }
+        alpha.current *= 0.978;
+        setTick((t) => t + 1);
+      }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [filtered, repel, linkDist, centerF]);
+
+  // ── Pan / zoom ────────────────────────────────────────────────────────────
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
-  const [fitted, setFitted] = useState(false);
 
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinchDist = useRef(0);
@@ -151,17 +260,7 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
     return () => ro.disconnect();
   }, []);
 
-  // Filtre/odak değişince yeniden sığdır
-  useEffect(() => setFitted(false), [filtered]);
-
-  useEffect(() => {
-    if (fitted || !size.w || !size.h) return;
-    const zoom = Math.min(size.w, size.h) / (extent * 2);
-    setView({ x: 0, y: 0, zoom: Math.min(Math.max(zoom, 0.3), 1.4) });
-    setFitted(true);
-  }, [size, extent, fitted]);
-
-  const clampZoom = (z: number) => Math.min(Math.max(z, 0.25), 3);
+  const clampZoom = (z: number) => Math.min(Math.max(z, 0.2), 4);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     (e.target as Element).setPointerCapture?.(e.pointerId);
@@ -178,6 +277,7 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
     if (!prev) return;
     const cur = { x: e.clientX, y: e.clientY };
     pointers.current.set(e.pointerId, cur);
+    if (dragId.current) return; // düğüm sürükleniyor — pan yapma
     if (pointers.current.size === 1) {
       const dx = cur.x - prev.x;
       const dy = cur.y - prev.y;
@@ -207,16 +307,47 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
     }));
   }, []);
 
+  // ── Düğüm sürükleme ───────────────────────────────────────────────────────
+  const dragLast = useRef({ x: 0, y: 0 });
+
+  function onNodeDown(e: React.PointerEvent, id: string) {
+    e.stopPropagation();
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    dragId.current = id;
+    dragLast.current = { x: e.clientX, y: e.clientY };
+    moved.current = false;
+  }
+  function onNodeMove(e: React.PointerEvent) {
+    if (!dragId.current) return;
+    const dx = (e.clientX - dragLast.current.x) / view.zoom;
+    const dy = (e.clientY - dragLast.current.y) / view.zoom;
+    if (Math.abs(e.clientX - dragLast.current.x) + Math.abs(e.clientY - dragLast.current.y) > 2)
+      moved.current = true;
+    dragLast.current = { x: e.clientX, y: e.clientY };
+    const p = sim.current.get(dragId.current);
+    if (p) {
+      p.x += dx;
+      p.y += dy;
+      alpha.current = Math.max(alpha.current, 0.3);
+      setTick((t) => t + 1);
+    }
+  }
+  function onNodeUp(e: React.PointerEvent, id: string) {
+    const wasDrag = moved.current;
+    dragId.current = null;
+    if (!wasDrag) {
+      e.stopPropagation();
+      setSelectedId((cur) => (cur === id ? null : id));
+    }
+  }
+
+  // ── Vurgu / seçim ─────────────────────────────────────────────────────────
   const neighbors = useMemo(() => {
     if (!selectedId) return null;
     const set = new Set<string>([selectedId]);
     for (const l of linksByNode.get(selectedId) ?? []) set.add(l.otherId);
     return set;
   }, [selectedId, linksByNode]);
-
-  const dimNode = (id: string) => (neighbors ? !neighbors.has(id) : false);
-  const dimEdge = (a: string, b: string) =>
-    neighbors ? !(neighbors.has(a) && neighbors.has(b)) : false;
 
   const selected = useMemo(() => {
     if (!selectedId) return null;
@@ -229,22 +360,23 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
     return { node, links };
   }, [selectedId, nodeById, linksByNode]);
 
-  const world = extent * 2;
-
-  function nodeSize(node: LifeNode): number {
-    const d = degree.get(node.id) ?? 0;
-    return (node.kind === "note" ? 30 : 24) + Math.min(18, d * 4);
+  function radius(id: string, kind: LifeNode["kind"]): number {
+    const d = degree.get(id) ?? 0;
+    return (kind === "note" ? 4.5 : 3.6) + Math.min(8, d * 1.3);
   }
+
+  // Metin solması — Obsidian: yakınlaştıkça etiketler belirir
+  const labelOpacity = Math.max(
+    0,
+    Math.min(1, (view.zoom - 0.55 / textFade) / (0.6 / textFade))
+  );
+
+  const zoomK = `translate(${size.w / 2 + view.x}, ${size.h / 2 + view.y}) scale(${view.zoom})`;
 
   return (
     <div
       ref={containerRef}
       className="relative h-full w-full overflow-hidden touch-none select-none"
-      style={{
-        backgroundImage:
-          "radial-gradient(circle at center, color-mix(in srgb, var(--foreground) 6%, transparent) 1px, transparent 1px)",
-        backgroundSize: "26px 26px",
-      }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -254,24 +386,16 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
         if (!moved.current) setSelectedId(null);
       }}
     >
-      <div
-        className="absolute left-1/2 top-1/2"
-        style={{
-          transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})`,
-        }}
-      >
-        <svg
-          className="absolute overflow-visible"
-          style={{ left: -extent, top: -extent }}
-          width={world}
-          height={world}
-          viewBox={`${-extent} ${-extent} ${world} ${world}`}
-        >
+      <svg width={size.w} height={size.h} className="absolute inset-0">
+        <g transform={zoomK}>
+          {/* Kenarlar */}
           {filtered.edges.map((e, i) => {
-            const a = positions.get(e.a);
-            const b = positions.get(e.b);
+            const a = sim.current.get(e.a);
+            const b = sim.current.get(e.b);
             if (!a || !b) return null;
-            const dim = dimEdge(e.a, e.b);
+            const active =
+              neighbors && neighbors.has(e.a) && neighbors.has(e.b);
+            const dim = neighbors && !active;
             return (
               <line
                 key={i}
@@ -279,71 +403,72 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
                 y1={a.y}
                 x2={b.x}
                 y2={b.y}
-                stroke="#a78bfa"
-                strokeWidth={1.6}
-                strokeLinecap="round"
-                className="transition-opacity duration-300"
-                opacity={dim ? 0.06 : 0.5}
+                stroke={active ? "#a78bfa" : "#8b8b98"}
+                strokeWidth={active ? 1.6 : 1}
+                opacity={dim ? 0.04 : active ? 0.75 : 0.28}
               />
             );
           })}
-        </svg>
 
-        {filtered.nodes.map((node) => {
-          const p = positions.get(node.id);
-          if (!p) return null;
-          const color = node.color ?? (node.kind === "note" ? "#818cf8" : "#64748b");
-          const isSel = selectedId === node.id;
-          const isNote = node.kind === "note";
-          const sz = nodeSize(node);
-          return (
-            <button
-              key={node.id}
-              className={cn(
-                "absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 transition-opacity duration-300",
-                dimNode(node.id) && "opacity-20"
-              )}
-              style={{ left: p.x, top: p.y }}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!moved.current)
-                  setSelectedId((cur) => (cur === node.id ? null : node.id));
-              }}
-            >
-              <span
-                className={cn(
-                  "flex items-center justify-center border-2 bg-background shadow-lg transition-shadow",
-                  isNote ? "rounded-full" : "rounded-md",
-                  isSel && "ring-2 ring-offset-2 ring-offset-background"
-                )}
-                style={{
-                  width: sz,
-                  height: sz,
-                  borderColor: color,
-                  backgroundColor: `${color}22`,
-                  ...(isSel
-                    ? ({ "--tw-ring-color": color } as React.CSSProperties)
-                    : {}),
-                }}
-              >
-                {isNote ? (
-                  <NotebookPen className="h-4 w-4" style={{ color }} />
-                ) : (
-                  <span
-                    className="h-2.5 w-2.5 rounded-sm"
-                    style={{ backgroundColor: color }}
+          {/* Düğümler — noktalar */}
+          {filtered.nodes.map((n) => {
+            const p = sim.current.get(n.id);
+            if (!p) return null;
+            const color = n.color ?? (n.kind === "note" ? NOTE_COLOR : "#94a3b8");
+            const r = radius(n.id, n.kind);
+            const isSel = selectedId === n.id;
+            const isHover = hoverId === n.id;
+            const dim = neighbors ? !neighbors.has(n.id) : false;
+            const showLabel =
+              isSel || isHover || (neighbors?.has(n.id) ?? false)
+                ? 1
+                : labelOpacity * (dim ? 0 : 1);
+            return (
+              <g key={n.id} opacity={dim ? 0.15 : 1}>
+                {isSel && (
+                  <circle
+                    cx={p.x}
+                    cy={p.y}
+                    r={r + 4}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth={1.2}
+                    opacity={0.7}
                   />
                 )}
-              </span>
-              <span className="max-w-24 truncate text-[9px] font-medium leading-none text-foreground/80">
-                {node.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={r}
+                  fill={color}
+                  opacity={isSel || isHover ? 1 : 0.88}
+                  style={{ cursor: "pointer" }}
+                  onPointerDown={(e) => onNodeDown(e, n.id)}
+                  onPointerMove={onNodeMove}
+                  onPointerUp={(e) => onNodeUp(e, n.id)}
+                  onPointerEnter={() => setHoverId(n.id)}
+                  onPointerLeave={() => setHoverId((h) => (h === n.id ? null : h))}
+                />
+                {showLabel > 0.02 && (
+                  <text
+                    x={p.x}
+                    y={p.y + r + 9}
+                    textAnchor="middle"
+                    fontSize={8}
+                    fill="currentColor"
+                    className="pointer-events-none text-foreground/80"
+                    opacity={showLabel}
+                  >
+                    {n.label.length > 22 ? n.label.slice(0, 21) + "…" : n.label}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </g>
+      </svg>
 
-      {/* Kontroller — filtre / arama */}
+      {/* Kontroller — filtreler + kuvvetler */}
       <div
         className="absolute left-3 top-3 z-10"
         onClick={(e) => e.stopPropagation()}
@@ -353,14 +478,16 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
           onClick={() => setControlsOpen((v) => !v)}
           className={cn(
             "flex h-9 w-9 items-center justify-center rounded-full border border-border shadow-md backdrop-blur transition-colors",
-            controlsOpen ? "bg-primary/15 text-primary" : "bg-card/85 text-muted-foreground"
+            controlsOpen
+              ? "bg-primary/15 text-primary"
+              : "bg-card/85 text-muted-foreground"
           )}
-          aria-label="Filtreler"
+          aria-label="Harita ayarları"
         >
           <SlidersHorizontal className="h-4 w-4" />
         </button>
         {controlsOpen && (
-          <div className="mt-2 w-56 rounded-2xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur">
+          <div className="mt-2 w-60 rounded-2xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur">
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -368,7 +495,7 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
               className="mb-2 h-8 w-full rounded-lg border border-border bg-input px-2.5 text-xs outline-none placeholder:text-muted-foreground/50"
             />
             <div className="flex flex-wrap gap-1.5">
-              <Toggle on={showNotes} onClick={() => setShowNotes((v) => !v)} color="#818cf8">
+              <Toggle on={showNotes} onClick={() => setShowNotes((v) => !v)} color={NOTE_COLOR}>
                 Notlar
               </Toggle>
               <Toggle on={showEntries} onClick={() => setShowEntries((v) => !v)} color="#f97316">
@@ -403,33 +530,36 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
                 </button>
               </div>
             )}
+            {/* Kuvvetler — Obsidian'daki gibi */}
+            <div className="mt-2 flex flex-col gap-1.5 border-t border-border/60 pt-2">
+              <Slider label="İtme kuvveti" min={0.2} max={3} step={0.1} value={repel} onChange={setRepel} />
+              <Slider label="Bağ uzunluğu" min={30} max={160} step={5} value={linkDist} onChange={setLinkDist} />
+              <Slider label="Merkez kuvveti" min={0} max={3} step={0.1} value={centerF} onChange={setCenterF} />
+              <Slider label="Metin görünürlüğü" min={0.4} max={2} step={0.1} value={textFade} onChange={setTextFade} />
+            </div>
           </div>
         )}
       </div>
 
-      {/* Seçim kartı — bağlar ve dayandıkları kelime/öbek */}
+      {/* Seçim kartı */}
       {selected && (
         <div className="absolute inset-x-3 bottom-3 z-20 max-h-[52%] overflow-y-auto rounded-2xl border border-border bg-card/95 shadow-xl backdrop-blur-sm">
           <div className="sticky top-0 flex items-center gap-2 border-b border-border/60 bg-card/95 px-4 py-3 backdrop-blur-sm">
             <span
-              className={cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center border",
-                selected.node.kind === "note" ? "rounded-full" : "rounded-md"
-              )}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
               style={{
-                borderColor: `${selected.node.color ?? "#64748b"}66`,
-                backgroundColor: `${selected.node.color ?? "#64748b"}1f`,
+                backgroundColor: `${selected.node.color ?? (selected.node.kind === "note" ? NOTE_COLOR : "#94a3b8")}22`,
               }}
             >
               {selected.node.kind === "note" ? (
                 <NotebookPen
                   className="h-4 w-4"
-                  style={{ color: selected.node.color ?? "#818cf8" }}
+                  style={{ color: selected.node.color ?? NOTE_COLOR }}
                 />
               ) : (
                 <span
-                  className="h-2.5 w-2.5 rounded-sm"
-                  style={{ backgroundColor: selected.node.color ?? "#64748b" }}
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: selected.node.color ?? "#94a3b8" }}
                 />
               )}
             </span>
@@ -449,7 +579,9 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setFocusId((cur) => (cur === selected.node.id ? null : selected.node.id));
+                setFocusId((cur) =>
+                  cur === selected.node.id ? null : selected.node.id
+                );
                 setControlsOpen(true);
               }}
               className={cn(
@@ -541,5 +673,38 @@ function Toggle({
       )}
       {children}
     </button>
+  );
+}
+
+function Slider({
+  label,
+  min,
+  max,
+  step,
+  value,
+  onChange,
+}: {
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2">
+      <span className="w-24 shrink-0 text-[11px] text-muted-foreground">
+        {label}
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="h-1 w-full cursor-pointer accent-[#a78bfa]"
+      />
+    </label>
   );
 }

@@ -88,12 +88,12 @@ export default function LifeMapPage() {
             <div className="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center">
               <div className="flex items-center gap-3 rounded-full border border-border bg-card/80 px-4 py-1.5 backdrop-blur-sm">
                 <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                  <span className="h-2.5 w-2.5 rounded-full border-2 border-primary" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#a78bfa]" />
                   not
                 </span>
                 <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                  <span className="h-2.5 w-2.5 rounded-sm border-2 border-muted-foreground" />
-                  girdi · düğüme dokun
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#f97316]" />
+                  girdi · yakınlaş, sürükle, dokun
                 </span>
               </div>
             </div>
