@@ -19,7 +19,6 @@ import type {
   Note,
   NoteBlock,
   NoteTag,
-  NoteConnection,
 } from "@/types";
 import { CATEGORY_COLORS } from "@/types";
 
@@ -1516,76 +1515,7 @@ export async function updateNote(
 }
 
 export async function deleteNote(noteId: string): Promise<void> {
-  await db.transaction("rw", [db.notes, db.noteConnections], async () => {
-    await db.notes.delete(noteId);
-    await db.noteConnections
-      .filter((c) => c.aId === noteId || c.bId === noteId)
-      .delete();
-  });
-}
-
-// ============ Yapay zekâ bağlantıları ============
-
-const pairKey = (x: string, y: string): [string, string] =>
-  x < y ? [x, y] : [y, x];
-
-export async function listNoteConnections(): Promise<NoteConnection[]> {
-  return db.noteConnections.toArray();
-}
-
-/** Bir notu ilgilendiren tüm bağları sil (o not yeniden çözülmeden önce). */
-export async function clearConnectionsForNote(noteId: string): Promise<void> {
-  await db.noteConnections
-    .filter((c) => c.aId === noteId || c.bId === noteId)
-    .delete();
-}
-
-/** Bir çifti içgörüyle kaydet/güncelle (kanonik sıra; en yeni çözüm kazanır). */
-export async function upsertNoteConnection(
-  x: string,
-  y: string,
-  strength: number,
-  insight: string
-): Promise<void> {
-  const [aId, bId] = pairKey(x, y);
-  const existing = await db.noteConnections
-    .where("[aId+bId]")
-    .equals([aId, bId])
-    .first()
-    .catch(() =>
-      db.noteConnections.filter((c) => c.aId === aId && c.bId === bId).first()
-    );
-  if (existing) {
-    await db.noteConnections.update(existing.id, {
-      strength,
-      insight,
-      updatedAt: now(),
-    });
-  } else {
-    await db.noteConnections.add({
-      id: id(),
-      aId,
-      bId,
-      strength,
-      insight,
-      createdAt: now(),
-      updatedAt: now(),
-    });
-  }
-}
-
-export async function markNoteAnalyzed(noteId: string): Promise<void> {
-  await db.notes.update(noteId, { aiAnalyzedAt: now() });
-}
-
-// ============ Ayarlar (anahtar-değer) ============
-
-export async function getSetting(key: string): Promise<string | undefined> {
-  return (await db.settings.get(key))?.value;
-}
-
-export async function setSetting(key: string, value: string): Promise<void> {
-  await db.settings.put({ key, value });
+  await db.notes.delete(noteId);
 }
 
 /** Başlıksız ve tüm parağrafları boş not — listelerde gizlenir, çıkışta silinir */
