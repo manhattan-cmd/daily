@@ -20,11 +20,13 @@ import {
   deleteNote,
   getEntryBriefs,
   getNote,
+  listLinkTargets,
   listNoteBacklinks,
   listNoteTags,
   noteIsEmpty,
   updateNote,
   type EntryPick,
+  type LinkTarget,
 } from "@/lib/db/queries";
 import { EntryPickerDialog } from "@/components/notes/entry-picker-dialog";
 import { NotePickerDialog } from "@/components/notes/note-picker-dialog";
@@ -91,9 +93,16 @@ export default function NoteEditorPage({
     blockId: string;
     anchor: string;
   } | null>(null);
+  // Otomatik bağ önerisi seçimi (birden çok aday varsa)
+  const [suggestPick, setSuggestPick] = useState<{
+    blockId: string;
+    text: string;
+    candidates: LinkTarget[];
+  } | null>(null);
 
   const tags = useLiveQuery(() => listNoteTags(), []);
   const backlinks = useLiveQuery(() => listNoteBacklinks(noteId), [noteId]);
+  const targets = useLiveQuery(() => listLinkTargets(noteId), [noteId]);
 
   const entryLinkIds = useMemo(() => {
     const ids = new Set<string>();
@@ -230,6 +239,26 @@ export default function NoteEditorPage({
     setNoteTarget(null);
     setSelection(null);
     router.push(`/notes/${note.id}`);
+  }
+
+  // Otomatik bağ önerisine dokununca: tek aday varsa doğrudan bağla, çoksa seçtir.
+  function handleSuggest(blockId: string, text: string, candidates: LinkTarget[]) {
+    if (candidates.length === 1) {
+      void linkSuggestion(blockId, text, candidates[0]);
+    } else {
+      setSuggestPick({ blockId, text, candidates });
+    }
+  }
+
+  async function linkSuggestion(blockId: string, text: string, t: LinkTarget) {
+    const next = addLink(blockId, {
+      id: nid(),
+      anchor: text,
+      type: t.type,
+      targetId: t.id,
+    });
+    await updateNote(noteId, { title, blocks: next });
+    setSuggestPick(null);
   }
 
   // Var olan nota bağla: bağı ekler, kaydeder, notta kalır.
@@ -505,7 +534,12 @@ export default function NoteEditorPage({
                     className="w-full cursor-text whitespace-pre-wrap break-words py-0.5 text-sm leading-relaxed"
                   >
                     {block.text ? (
-                      <InlineText text={block.text} links={links} briefs={briefs} />
+                      <InlineText
+                        text={block.text}
+                        marks={buildMarks(block.text, links, targets ?? [])}
+                        briefs={briefs}
+                        onSuggest={(t, c) => handleSuggest(block.id, t, c)}
+                      />
                     ) : (
                       <span className="text-muted-foreground/35">
                         {i === 0 && bodyEmpty ? "Bugüne dair yaz..." : " "}
@@ -717,6 +751,49 @@ export default function NoteEditorPage({
         onPick={onPickNoteLink}
       />
 
+      {/* Öneri seçimi — aynı ada birden çok hedef */}
+      <Dialog
+        open={suggestPick !== null}
+        onOpenChange={(o) => {
+          if (!o) setSuggestPick(null);
+        }}
+      >
+        <DialogContent className="max-w-[340px] gap-3">
+          <DialogHeader>
+            <DialogTitle className="text-base">Neye bağlansın?</DialogTitle>
+            <DialogDescription>
+              &bdquo;{suggestPick?.text}&rdquo; için birden çok hedef var
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5">
+            {suggestPick?.candidates.map((c) => (
+              <button
+                key={`${c.type}:${c.id}`}
+                onClick={() =>
+                  linkSuggestion(suggestPick.blockId, suggestPick.text, c)
+                }
+                className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2 text-left transition-colors hover:bg-card/70"
+              >
+                {c.type === "note" ? (
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-primary" />
+                ) : (
+                  <Link2
+                    className="h-3.5 w-3.5 shrink-0"
+                    style={{ color: c.color ?? "#64748b" }}
+                  />
+                )}
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                  {c.name}
+                </span>
+                <span className="shrink-0 text-[11px] text-muted-foreground/60">
+                  {c.type === "note" ? "not" : "girdi"}
+                </span>
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Yeni etiket */}
       <Dialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>
         <DialogContent className="max-w-[340px] gap-4">
@@ -757,20 +834,26 @@ export default function NoteEditorPage({
   );
 }
 
-// ─── Metin-üstü vurgulama ────────────────────────────────────────────────────
+// ─── Metin-üstü vurgulama + otomatik bağ önerisi ─────────────────────────────
 
-/** Paragraf metnini, bağlı kelime/öbekleri metin içinde vurgulayarak gösterir. */
-function InlineText({
-  text,
-  links,
-  briefs,
-}: {
-  text: string;
-  links: NoteLink[];
-  briefs: Map<string, EntryPick>;
-}) {
-  // Her bağın anchor'ını, örtüşmeyen ilk konuma yerleştir (açgözlü)
-  const spans: { start: number; end: number; link: NoteLink }[] = [];
+type Mark =
+  | { kind: "link"; start: number; end: number; link: NoteLink }
+  | { kind: "suggest"; start: number; end: number; text: string; candidates: LinkTarget[] };
+
+const isWordChar = (c: string) => c !== "" && /[\p{L}\p{N}]/u.test(c);
+
+/**
+ * Paragraf metnini işaretlere böl: kesin bağlar (vurgulu) + otomatik bağ
+ * önerileri (var olan not/girdi adının geçtiği ama henüz bağlanmamış yerler).
+ */
+function buildMarks(
+  text: string,
+  links: NoteLink[],
+  targets: LinkTarget[]
+): Mark[] {
+  const placed: Mark[] = [];
+
+  // 1) Kesin bağlar — anchor'ın örtüşmeyen ilk konumu
   for (const l of links) {
     if (!l.anchor) continue;
     let from = 0;
@@ -778,31 +861,104 @@ function InlineText({
       const i = text.indexOf(l.anchor, from);
       if (i < 0) break;
       const j = i + l.anchor.length;
-      if (!spans.some((p) => i < p.end && j > p.start)) {
-        spans.push({ start: i, end: j, link: l });
+      if (!placed.some((p) => i < p.end && j > p.start)) {
+        placed.push({ kind: "link", start: i, end: j, link: l });
         break;
       }
       from = i + 1;
     }
   }
-  spans.sort((a, b) => a.start - b.start);
 
+  // 2) Öneriler — bu blokta zaten bağlı olmayan hedeflerin ad eşleşmeleri
+  const linkedIds = new Set(links.map((l) => l.targetId));
+  const lower = text.toLocaleLowerCase("tr-TR");
+  const bySpan = new Map<
+    string,
+    { start: number; end: number; text: string; candidates: LinkTarget[] }
+  >();
+  for (const t of targets) {
+    if (linkedIds.has(t.id)) continue;
+    const name = t.name.toLocaleLowerCase("tr-TR");
+    if (name.length < 3) continue;
+    let from = 0;
+    while (from <= lower.length) {
+      const i = lower.indexOf(name, from);
+      if (i < 0) break;
+      const j = i + name.length;
+      from = i + 1;
+      const before = i > 0 ? lower[i - 1] : "";
+      const after = j < lower.length ? lower[j] : "";
+      if (isWordChar(before) || isWordChar(after)) continue; // tam kelime
+      if (placed.some((p) => i < p.end && j > p.start)) continue; // kesin bağla çakışma
+      const key = `${i}-${j}`;
+      const ex = bySpan.get(key);
+      if (ex) ex.candidates.push(t);
+      else bySpan.set(key, { start: i, end: j, text: text.slice(i, j), candidates: [t] });
+      break; // hedef başına ilk eşleşme
+    }
+  }
+  for (const s of [...bySpan.values()].sort((a, b) => a.start - b.start)) {
+    if (placed.some((p) => s.start < p.end && s.end > p.start)) continue;
+    placed.push({ kind: "suggest", ...s });
+  }
+
+  placed.sort((a, b) => a.start - b.start);
+  return placed;
+}
+
+function InlineText({
+  text,
+  marks,
+  briefs,
+  onSuggest,
+}: {
+  text: string;
+  marks: Mark[];
+  briefs: Map<string, EntryPick>;
+  onSuggest: (text: string, candidates: LinkTarget[]) => void;
+}) {
   const out: React.ReactNode[] = [];
   let cur = 0;
-  spans.forEach((p, idx) => {
-    if (p.start > cur) out.push(<span key={`t${idx}`}>{text.slice(cur, p.start)}</span>);
-    out.push(
-      <InlineLink
-        key={`l${idx}`}
-        link={p.link}
-        label={text.slice(p.start, p.end)}
-        briefs={briefs}
-      />
-    );
-    cur = p.end;
+  marks.forEach((m, idx) => {
+    if (m.start > cur) out.push(<span key={`t${idx}`}>{text.slice(cur, m.start)}</span>);
+    if (m.kind === "link") {
+      out.push(
+        <InlineLink
+          key={`l${idx}`}
+          link={m.link}
+          label={text.slice(m.start, m.end)}
+          briefs={briefs}
+        />
+      );
+    } else {
+      out.push(
+        <SuggestSpan
+          key={`s${idx}`}
+          label={m.text}
+          onClick={() => onSuggest(m.text, m.candidates)}
+        />
+      );
+    }
+    cur = m.end;
   });
   if (cur < text.length) out.push(<span key="end">{text.slice(cur)}</span>);
   return <>{out}</>;
+}
+
+/** Otomatik bağ önerisi — noktalı altı çizili, dokununca bağlanır. */
+function SuggestSpan({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <span
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className="cursor-pointer rounded px-0.5 text-muted-foreground underline decoration-dotted decoration-muted-foreground/50 underline-offset-2 transition-colors hover:text-foreground"
+      title="Bağla?"
+    >
+      {label}
+    </span>
+  );
 }
 
 function InlineLink({

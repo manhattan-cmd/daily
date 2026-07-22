@@ -2,7 +2,14 @@
 
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ChevronRight, Link2, NotebookPen, X } from "lucide-react";
+import {
+  ChevronRight,
+  Crosshair,
+  Link2,
+  NotebookPen,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import { layoutGraph, type LifeGraph, type LifeNode } from "@/lib/life-graph";
 import { cn } from "@/lib/utils";
 
@@ -20,20 +27,89 @@ function nodeHref(node: LifeNode): string {
     ? `/notes/${node.id}`
     : `/calendar/${node.date ?? ""}`;
 }
+const norm = (s: string) => s.toLocaleLowerCase("tr-TR");
 
 /**
  * Hayat haritası — notlar (mor, defter) ve girdiler (kategori renginde, halka)
- * düğüm; kullanıcının kendi kurduğu bağlar kenar. Düğüme dokununca bağlı
- * düğümler ve bağın dayandığı kelime/öbek (anchor) listelenir.
+ * düğüm; kullanıcının kendi kurduğu bağlar kenar. Düğüm boyutu bağ sayısıyla
+ * büyür; kontrol panelinden filtre/arama; bir düğüme "Yerelleştir" ile onun
+ * komşuluğuna (derinlik ayarlı) odaklanılır.
  */
 export function LifeMap({ graph }: { graph: LifeGraph }) {
-  const positions = useMemo(() => layoutGraph(graph), [graph]);
+  // Filtre & odak durumu
+  const [search, setSearch] = useState("");
+  const [showNotes, setShowNotes] = useState(true);
+  const [showEntries, setShowEntries] = useState(true);
+  const [hideOrphans, setHideOrphans] = useState(false);
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const [depth, setDepth] = useState(1);
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Filtrelenmiş grafik (yerleşim öncesi)
+  const filtered = useMemo<LifeGraph>(() => {
+    let nodes = graph.nodes.filter((n) =>
+      n.kind === "note" ? showNotes : showEntries
+    );
+    if (search.trim()) {
+      const q = norm(search);
+      nodes = nodes.filter((n) => norm(n.label).includes(q));
+    }
+    let ids = new Set(nodes.map((n) => n.id));
+    let edges = graph.edges.filter((e) => ids.has(e.a) && ids.has(e.b));
+
+    if (focusId && ids.has(focusId)) {
+      const keep = new Set<string>([focusId]);
+      let frontier = new Set<string>([focusId]);
+      for (let d = 0; d < depth; d++) {
+        const next = new Set<string>();
+        for (const e of edges) {
+          if (frontier.has(e.a) && !keep.has(e.b)) {
+            keep.add(e.b);
+            next.add(e.b);
+          }
+          if (frontier.has(e.b) && !keep.has(e.a)) {
+            keep.add(e.a);
+            next.add(e.a);
+          }
+        }
+        frontier = next;
+      }
+      nodes = nodes.filter((n) => keep.has(n.id));
+      ids = new Set(nodes.map((n) => n.id));
+      edges = edges.filter((e) => ids.has(e.a) && ids.has(e.b));
+    }
+
+    if (hideOrphans) {
+      const deg = new Map<string, number>();
+      for (const e of edges) {
+        deg.set(e.a, (deg.get(e.a) ?? 0) + 1);
+        deg.set(e.b, (deg.get(e.b) ?? 0) + 1);
+      }
+      nodes = nodes.filter((n) => (deg.get(n.id) ?? 0) > 0);
+      ids = new Set(nodes.map((n) => n.id));
+      edges = edges.filter((e) => ids.has(e.a) && ids.has(e.b));
+    }
+
+    return { nodes, edges };
+  }, [graph, showNotes, showEntries, search, focusId, depth, hideOrphans]);
+
+  const positions = useMemo(() => layoutGraph(filtered), [filtered]);
   const nodeById = useMemo(
-    () => new Map(graph.nodes.map((n) => [n.id, n])),
-    [graph.nodes]
+    () => new Map(filtered.nodes.map((n) => [n.id, n])),
+    [filtered.nodes]
   );
 
-  // Düğüm → komşuları + anchor
+  // Bağ sayısı (degree) — düğüm boyutu için
+  const degree = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of filtered.edges) {
+      m.set(e.a, (m.get(e.a) ?? 0) + 1);
+      m.set(e.b, (m.get(e.b) ?? 0) + 1);
+    }
+    return m;
+  }, [filtered.edges]);
+
   const linksByNode = useMemo(() => {
     const m = new Map<string, { otherId: string; anchor: string }[]>();
     const push = (from: string, otherId: string, anchor: string) => {
@@ -41,13 +117,13 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
       list.push({ otherId, anchor });
       m.set(from, list);
     };
-    for (const e of graph.edges) {
+    for (const e of filtered.edges) {
       if (!nodeById.has(e.a) || !nodeById.has(e.b)) continue;
       push(e.a, e.b, e.anchor);
       push(e.b, e.a, e.anchor);
     }
     return m;
-  }, [graph.edges, nodeById]);
+  }, [filtered.edges, nodeById]);
 
   const extent = useMemo(() => {
     let max = 120;
@@ -60,7 +136,6 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
   const [fitted, setFitted] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinchDist = useRef(0);
@@ -76,7 +151,8 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
     return () => ro.disconnect();
   }, []);
 
-  useEffect(() => setFitted(false), [graph]);
+  // Filtre/odak değişince yeniden sığdır
+  useEffect(() => setFitted(false), [filtered]);
 
   useEffect(() => {
     if (fitted || !size.w || !size.h) return;
@@ -155,6 +231,11 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
 
   const world = extent * 2;
 
+  function nodeSize(node: LifeNode): number {
+    const d = degree.get(node.id) ?? 0;
+    return (node.kind === "note" ? 30 : 24) + Math.min(18, d * 4);
+  }
+
   return (
     <div
       ref={containerRef}
@@ -186,7 +267,7 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
           height={world}
           viewBox={`${-extent} ${-extent} ${world} ${world}`}
         >
-          {graph.edges.map((e, i) => {
+          {filtered.edges.map((e, i) => {
             const a = positions.get(e.a);
             const b = positions.get(e.b);
             if (!a || !b) return null;
@@ -208,12 +289,13 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
           })}
         </svg>
 
-        {graph.nodes.map((node) => {
+        {filtered.nodes.map((node) => {
           const p = positions.get(node.id);
           if (!p) return null;
           const color = node.color ?? (node.kind === "note" ? "#818cf8" : "#64748b");
           const isSel = selectedId === node.id;
           const isNote = node.kind === "note";
+          const sz = nodeSize(node);
           return (
             <button
               key={node.id}
@@ -231,10 +313,12 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
               <span
                 className={cn(
                   "flex items-center justify-center border-2 bg-background shadow-lg transition-shadow",
-                  isNote ? "h-9 w-9 rounded-full" : "h-7 w-7 rounded-md",
+                  isNote ? "rounded-full" : "rounded-md",
                   isSel && "ring-2 ring-offset-2 ring-offset-background"
                 )}
                 style={{
+                  width: sz,
+                  height: sz,
                   borderColor: color,
                   backgroundColor: `${color}22`,
                   ...(isSel
@@ -257,6 +341,70 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
             </button>
           );
         })}
+      </div>
+
+      {/* Kontroller — filtre / arama */}
+      <div
+        className="absolute left-3 top-3 z-10"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={() => setControlsOpen((v) => !v)}
+          className={cn(
+            "flex h-9 w-9 items-center justify-center rounded-full border border-border shadow-md backdrop-blur transition-colors",
+            controlsOpen ? "bg-primary/15 text-primary" : "bg-card/85 text-muted-foreground"
+          )}
+          aria-label="Filtreler"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+        </button>
+        {controlsOpen && (
+          <div className="mt-2 w-56 rounded-2xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Ara…"
+              className="mb-2 h-8 w-full rounded-lg border border-border bg-input px-2.5 text-xs outline-none placeholder:text-muted-foreground/50"
+            />
+            <div className="flex flex-wrap gap-1.5">
+              <Toggle on={showNotes} onClick={() => setShowNotes((v) => !v)} color="#818cf8">
+                Notlar
+              </Toggle>
+              <Toggle on={showEntries} onClick={() => setShowEntries((v) => !v)} color="#f97316">
+                Girdiler
+              </Toggle>
+              <Toggle on={hideOrphans} onClick={() => setHideOrphans((v) => !v)}>
+                Yetimleri gizle
+              </Toggle>
+            </div>
+            {focusId && (
+              <div className="mt-2 flex items-center gap-1.5 border-t border-border/60 pt-2">
+                <span className="text-[11px] text-muted-foreground">Derinlik</span>
+                {[1, 2].map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setDepth(d)}
+                    className={cn(
+                      "h-6 w-6 rounded-md border text-[11px] font-medium",
+                      depth === d
+                        ? "border-primary bg-primary/15 text-primary"
+                        : "border-border text-muted-foreground"
+                    )}
+                  >
+                    {d}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setFocusId(null)}
+                  className="ml-auto text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Tümü
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Seçim kartı — bağlar ve dayandıkları kelime/öbek */}
@@ -298,6 +446,23 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
                   : "bağ yok"}
               </span>
             </Link>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setFocusId((cur) => (cur === selected.node.id ? null : selected.node.id));
+                setControlsOpen(true);
+              }}
+              className={cn(
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
+                focusId === selected.node.id
+                  ? "bg-primary/15 text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              aria-label="Yerelleştir"
+              title="Bu düğümün komşuluğuna odaklan"
+            >
+              <Crosshair className="h-4 w-4" />
+            </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -344,5 +509,37 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
         </div>
       )}
     </div>
+  );
+}
+
+function Toggle({
+  on,
+  onClick,
+  color,
+  children,
+}: {
+  on: boolean;
+  onClick: () => void;
+  color?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+        on
+          ? "border-primary/40 bg-primary/10 text-foreground"
+          : "border-border text-muted-foreground/60 line-through"
+      )}
+    >
+      {color && (
+        <span
+          className="h-2 w-2 rounded-full"
+          style={{ backgroundColor: on ? color : "currentColor" }}
+        />
+      )}
+      {children}
+    </button>
   );
 }

@@ -1675,3 +1675,34 @@ export async function listSubcategoriesForPicker(): Promise<SubPick[]> {
         a.name.localeCompare(b.name, "tr")
     );
 }
+
+/** Otomatik bağ önerisi (unlinked mentions) için bağlanabilir hedefler:
+ *  başlıklı notlar + başlıklı girdiler. Adı en az 3 karakter. */
+export interface LinkTarget {
+  type: "note" | "entry";
+  id: string;
+  name: string;
+  date?: string;
+  color?: string;
+}
+
+export async function listLinkTargets(
+  excludeNoteId: string
+): Promise<LinkTarget[]> {
+  const [notes, entries] = await Promise.all([
+    db.notes.toArray(),
+    listEntriesForPicker(200),
+  ]);
+  const out: LinkTarget[] = [];
+  for (const n of notes) {
+    if (n.id === excludeNoteId || noteIsEmpty(n)) continue;
+    const name = (n.title ?? "").trim();
+    if (name.length >= 3) out.push({ type: "note", id: n.id, name });
+  }
+  for (const e of entries) {
+    const name = e.title.trim();
+    if (name.length >= 3)
+      out.push({ type: "entry", id: e.id, name, date: e.date, color: e.color });
+  }
+  return out;
+}
