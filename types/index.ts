@@ -224,20 +224,6 @@ export interface GoalWithContext extends Omit<Goal, "targets"> {
 }
 
 /**
- * Not etiketi — paragraf etiket havuzu. Yerleşikler (Düşünce, His, Not,
- * Aktivite) uygulamayla gelir, kullanıcı kendi etiketlerini yaratabilir.
- * İleride not↔not ve not↔girdi bağlantı haritaları bu etiketler üzerinden kurulur.
- */
-export interface NoteTag {
-  id: string;
-  name: string;
-  color: string;
-  isBuiltIn?: boolean;
-  order: number;
-  createdAt: number;
-}
-
-/**
  * Not bağlantısı — bir paragraftaki kelime/öbeğin (anchor) bir girdiye ya da
  * başka bir nota iliştirilmesi. Kullanıcının kendi kurduğu bağ; hayat
  * haritasının kenarı. [[app-vision]]
@@ -251,11 +237,10 @@ export interface NoteLink {
   targetId: string;
 }
 
-/** Not paragrafı — nota gömülü blok; etiketler paragraf düzeyinde atanır */
+/** Not paragrafı — nota gömülü blok */
 export interface NoteBlock {
   id: string;
   text: string;
-  tagIds: string[];
   /** Bu paragraftaki kelime/öbeklerden çıkan bağlar (indekssiz, opsiyonel) */
   links?: NoteLink[];
 }

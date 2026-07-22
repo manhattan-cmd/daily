@@ -9,20 +9,17 @@ import {
   CornerDownRight,
   FileText,
   Link2,
-  Plus,
   Trash2,
   X,
 } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
-  createNoteTag,
   createNoteWithTitle,
   deleteNote,
   getEntryBriefs,
   getNote,
   listLinkTargets,
   listNoteBacklinks,
-  listNoteTags,
   noteIsEmpty,
   updateNote,
   type EntryPick,
@@ -37,12 +34,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import type { Note, NoteBlock, NoteLink } from "@/types";
-import { cn } from "@/lib/utils";
 
 const nid = () => nanoid(12);
 
@@ -82,9 +75,6 @@ export default function NoteEditorPage({
   const [aliases, setAliases] = useState<string[]>([]);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection | null>(null);
-  const [tagDialogOpen, setTagDialogOpen] = useState(false);
-  const [newTagName, setNewTagName] = useState("");
-  const [tagError, setTagError] = useState(false);
   // Girdi iliştirmenin hedefi (blok + kelime), picker açıkken
   const [entryTarget, setEntryTarget] = useState<{
     blockId: string;
@@ -102,7 +92,6 @@ export default function NoteEditorPage({
     candidates: LinkTarget[];
   } | null>(null);
 
-  const tags = useLiveQuery(() => listNoteTags(), []);
   const backlinks = useLiveQuery(() => listNoteBacklinks(noteId), [noteId]);
   const targets = useLiveQuery(() => listLinkTargets(noteId), [noteId]);
 
@@ -129,9 +118,7 @@ export default function NoteEditorPage({
       setLoaded(n);
       setTitle(n.title ?? "");
       setAliases(n.aliases ?? []);
-      const initBlocks = n.blocks.length
-        ? n.blocks
-        : [{ id: nid(), text: "", tagIds: [] }];
+      const initBlocks = n.blocks.length ? n.blocks : [{ id: nid(), text: "" }];
       setBlocks(initBlocks);
       // Boş not → ilk blok hemen düzenlenebilir olsun (yazmaya başla)
       const empty =
@@ -297,62 +284,6 @@ export default function NoteEditorPage({
     setSelection(null);
   }
 
-  function toggleTag(blockId: string, tagId: string) {
-    setBlocks((prev) =>
-      prev.map((b) =>
-        b.id === blockId
-          ? {
-              ...b,
-              tagIds: b.tagIds.includes(tagId)
-                ? b.tagIds.filter((t) => t !== tagId)
-                : [...b.tagIds, tagId],
-            }
-          : b
-      )
-    );
-  }
-
-  function applyTag(blockId: string, tagId: string) {
-    const el = taRefs.current.get(blockId);
-    const index = blocks.findIndex((b) => b.id === blockId);
-    if (index === -1) return;
-    const block = blocks[index];
-    const selStart = el?.selectionStart ?? 0;
-    const selEnd = el?.selectionEnd ?? 0;
-    const partial =
-      el &&
-      selEnd > selStart &&
-      (selStart > 0 || selEnd < block.text.length) &&
-      block.text.slice(selStart, selEnd).trim();
-
-    if (!partial) {
-      toggleTag(blockId, tagId);
-      return;
-    }
-
-    const before = block.text.slice(0, selStart);
-    const mid = block.text.slice(selStart, selEnd);
-    const after = block.text.slice(selEnd);
-    const midBlock: NoteBlock = {
-      id: nid(),
-      text: mid,
-      tagIds: [...new Set([...block.tagIds, tagId])],
-    };
-    setBlocks((prev) => {
-      const next = [...prev];
-      const pieces: NoteBlock[] = [];
-      if (before.trim()) pieces.push({ ...block, text: before, links: undefined });
-      pieces.push(midBlock);
-      if (after.trim())
-        pieces.push({ id: nid(), text: after, tagIds: [...block.tagIds] });
-      next.splice(index, 1, ...pieces);
-      return next;
-    });
-    pendingFocus.current = { id: midBlock.id, pos: mid.length };
-    setActiveBlockId(midBlock.id);
-    setSelection(null);
-  }
-
   function onBlockKeyDown(
     e: React.KeyboardEvent<HTMLTextAreaElement>,
     index: number
@@ -365,11 +296,7 @@ export default function NoteEditorPage({
       const pos = el.selectionStart ?? block.text.length;
       const before = block.text.slice(0, pos);
       const after = block.text.slice(pos);
-      const fresh: NoteBlock = {
-        id: nid(),
-        text: after,
-        tagIds: after.trim() ? [...block.tagIds] : [],
-      };
+      const fresh: NoteBlock = { id: nid(), text: after };
       setBlocks((prev) => {
         const next = [...prev];
         next[index] = { ...block, text: before };
@@ -396,9 +323,6 @@ export default function NoteEditorPage({
         next[index - 1] = {
           ...prevBlock,
           text: prevBlock.text + block.text,
-          tagIds: block.text.trim()
-            ? [...new Set([...prevBlock.tagIds, ...block.tagIds])]
-            : prevBlock.tagIds,
           links: [...(prevBlock.links ?? []), ...(block.links ?? [])],
         };
         next.splice(index, 1);
@@ -408,17 +332,6 @@ export default function NoteEditorPage({
       setActiveBlockId(prevBlock.id);
       setSelection(null);
     }
-  }
-
-  async function handleCreateTag() {
-    const created = await createNoteTag(newTagName);
-    if (!created) {
-      setTagError(true);
-      return;
-    }
-    if (activeBlockId) toggleTag(activeBlockId, created.id);
-    setNewTagName("");
-    setTagDialogOpen(false);
   }
 
   if (loaded === undefined) return null;
@@ -435,7 +348,6 @@ export default function NoteEditorPage({
     );
   }
 
-  const tagById = new Map((tags ?? []).map((t) => [t.id, t]));
   const bodyEmpty = blocks.every((b) => !b.text);
   const briefs = entryBriefs ?? new Map<string, EntryPick>();
 
@@ -484,27 +396,12 @@ export default function NoteEditorPage({
       {/* Paragraflar */}
       <div className="flex flex-col pb-28">
         {blocks.map((block, i) => {
-          const blockTags = block.tagIds
-            .map((tid) => tagById.get(tid))
-            .filter((t): t is NonNullable<typeof t> => !!t);
           const active = activeBlockId === block.id;
           const links = block.links ?? [];
           const hasSel = selection?.blockId === block.id && !!selection.text.trim();
           return (
             <div key={block.id}>
-              <div className="flex gap-2.5">
-                <div
-                  className="flex w-[3px] shrink-0 flex-col overflow-hidden rounded-full self-stretch my-0.5"
-                  aria-hidden
-                >
-                  {blockTags.map((t) => (
-                    <span
-                      key={t.id}
-                      className="flex-1"
-                      style={{ backgroundColor: `${t.color}cc` }}
-                    />
-                  ))}
-                </div>
+              <div className="flex">
                 {active ? (
                   <textarea
                     ref={(el) => {
@@ -557,7 +454,7 @@ export default function NoteEditorPage({
 
               {/* Bağ çipleri — düzenlerken yönetim/kaldırma (gösterimde bağlar metin içinde vurgulu) */}
               {active && links.length > 0 && (
-                <div className="mb-1 flex flex-wrap gap-1.5 pl-[13.5px]">
+                <div className="mb-1 flex flex-wrap gap-1.5">
                   {links.map((l) => {
                     if (l.type === "note") {
                       return (
@@ -628,7 +525,7 @@ export default function NoteEditorPage({
 
               {/* Seçim araç çubuğu — bir kelime/öbek seçiliyken */}
               {hasSel && (
-                <div className="mb-2 flex items-center gap-1.5 pl-[13.5px]">
+                <div className="mb-2 flex items-center gap-1.5">
                   <span className="shrink-0 max-w-[40%] truncate text-[11px] text-muted-foreground">
                     &bdquo;{selection!.text.trim()}&rdquo;
                   </span>
@@ -654,51 +551,6 @@ export default function NoteEditorPage({
                 </div>
               )}
 
-              {/* Etiket satırı */}
-              {active && (
-                <div className="no-scrollbar mt-1 mb-2 flex gap-1.5 overflow-x-auto pl-[13.5px] pr-1">
-                  {(tags ?? []).map((tag) => {
-                    const on = block.tagIds.includes(tag.id);
-                    return (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        onPointerDown={(e) => e.preventDefault()}
-                        onClick={() => applyTag(block.id, tag.id)}
-                        className={cn(
-                          "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
-                          !on && "border-border text-muted-foreground hover:text-foreground"
-                        )}
-                        style={
-                          on
-                            ? {
-                                borderColor: `${tag.color}80`,
-                                backgroundColor: `${tag.color}1f`,
-                                color: tag.color,
-                              }
-                            : undefined
-                        }
-                        aria-pressed={on}
-                      >
-                        {tag.name}
-                      </button>
-                    );
-                  })}
-                  <button
-                    type="button"
-                    onPointerDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      setTagError(false);
-                      setNewTagName("");
-                      setTagDialogOpen(true);
-                    }}
-                    className="flex shrink-0 items-center gap-1 rounded-full border border-dashed border-primary/35 px-2.5 py-1 text-[11px] font-medium text-primary/70 hover:border-primary/60 hover:text-primary transition-colors"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Etiket
-                  </button>
-                </div>
-              )}
             </div>
           );
         })}
@@ -800,42 +652,6 @@ export default function NoteEditorPage({
         </DialogContent>
       </Dialog>
 
-      {/* Yeni etiket */}
-      <Dialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>
-        <DialogContent className="max-w-[340px] gap-4">
-          <DialogHeader>
-            <DialogTitle className="text-base">Yeni etiket</DialogTitle>
-            <DialogDescription>
-              Havuza eklenir; her paragrafa atanabilir
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            value={newTagName}
-            onChange={(e) => {
-              setNewTagName(e.target.value);
-              setTagError(false);
-            }}
-            placeholder="örn. Rüya, Fikir, İş"
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleCreateTag();
-            }}
-          />
-          {tagError && (
-            <p className="text-xs text-amber-300/90">
-              Bu adda bir etiket zaten var — etiket adları tekildir.
-            </p>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTagDialogOpen(false)}>
-              İptal
-            </Button>
-            <Button onClick={handleCreateTag} disabled={!newTagName.trim()}>
-              Yarat
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

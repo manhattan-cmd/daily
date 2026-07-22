@@ -18,9 +18,7 @@ import type {
   Mod,
   Note,
   NoteBlock,
-  NoteTag,
 } from "@/types";
-import { CATEGORY_COLORS } from "@/types";
 
 const now = () => Date.now();
 const id = () => nanoid(12);
@@ -1374,108 +1372,6 @@ async function hydrateEntries(entries: Entry[]): Promise<EntryWithContext[]> {
 
 // ============ Notlar ============
 
-/**
- * Yerleşik not etiketleri — paragraf etiket havuzunun çekirdeği.
- * Kullanıcı kendi etiketlerini bunların yanına yaratır.
- */
-const BUILT_IN_NOTE_TAGS: Omit<NoteTag, "id" | "createdAt">[] = [
-  { name: "Düşünce", color: "#8b5cf6", isBuiltIn: true, order: 1 },
-  { name: "His", color: "#ec4899", isBuiltIn: true, order: 2 },
-  { name: "Not", color: "#3b82f6", isBuiltIn: true, order: 3 },
-  { name: "Aktivite", color: "#06b6d4", isBuiltIn: true, order: 4 },
-  { name: "Hatırlatma", color: "#f59e0b", isBuiltIn: true, order: 5 },
-  { name: "İçgörü", color: "#10b981", isBuiltIn: true, order: 6 },
-];
-
-const normTagName = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
-
-export async function ensureBuiltInNoteTags(): Promise<void> {
-  const existing = await db.noteTags.toArray();
-  const existingNames = new Set(existing.map((t) => normTagName(t.name)));
-  const toAdd = BUILT_IN_NOTE_TAGS.filter(
-    (t) => !existingNames.has(normTagName(t.name))
-  ).map((t) => ({ ...t, id: id(), createdAt: now() } satisfies NoteTag));
-  if (toAdd.length) await db.noteTags.bulkAdd(toAdd);
-}
-
-export async function listNoteTags(): Promise<NoteTag[]> {
-  const all = await db.noteTags.toArray();
-  return all.sort((a, b) => a.order - b.order || a.createdAt - b.createdAt);
-}
-
-/** Etiket yarat — ad tekildir; çakışmada null döner. Renk paletten sırayla seçilir. */
-export async function createNoteTag(name: string): Promise<NoteTag | null> {
-  const trimmed = name.trim();
-  if (!trimmed) return null;
-  const all = await db.noteTags.toArray();
-  if (all.some((t) => normTagName(t.name) === normTagName(trimmed))) return null;
-  const tag: NoteTag = {
-    id: id(),
-    name: trimmed,
-    color: CATEGORY_COLORS[all.length % CATEGORY_COLORS.length],
-    order: Math.max(0, ...all.map((t) => t.order)) + 1,
-    createdAt: now(),
-  };
-  await db.noteTags.add(tag);
-  return tag;
-}
-
-/** Etiketi yeniden adlandır — ad tekildir; çakışmada false döner. */
-export async function renameNoteTag(
-  tagId: string,
-  name: string
-): Promise<boolean> {
-  const trimmed = name.trim();
-  if (!trimmed) return false;
-  const all = await db.noteTags.toArray();
-  if (
-    all.some(
-      (t) => t.id !== tagId && normTagName(t.name) === normTagName(trimmed)
-    )
-  )
-    return false;
-  await db.noteTags.update(tagId, { name: trimmed });
-  return true;
-}
-
-/** Etiketi havuzdan sil ve tüm not paragraflarından çıkar (metne dokunulmaz). */
-export async function deleteNoteTag(tagId: string): Promise<void> {
-  await db.transaction("rw", [db.noteTags, db.notes], async () => {
-    const notes = await db.notes.toArray();
-    for (const note of notes) {
-      if (!note.blocks.some((b) => b.tagIds.includes(tagId))) continue;
-      const blocks = note.blocks.map((b) => ({
-        ...b,
-        tagIds: b.tagIds.filter((t) => t !== tagId),
-      }));
-      await db.notes.update(note.id, { blocks, updatedAt: now() });
-    }
-    await db.noteTags.delete(tagId);
-  });
-}
-
-/** Her etiketin kaç notta ve kaç paragrafta kullanıldığı. */
-export async function noteTagUsage(): Promise<
-  Map<string, { notes: number; blocks: number }>
-> {
-  const notes = await db.notes.toArray();
-  const map = new Map<string, { notes: number; blocks: number }>();
-  for (const note of notes) {
-    if (noteIsEmpty(note)) continue;
-    const inThisNote = new Set<string>();
-    for (const b of note.blocks) {
-      for (const tid of b.tagIds) {
-        const u = map.get(tid) ?? { notes: 0, blocks: 0 };
-        u.blocks++;
-        map.set(tid, u);
-        inThisNote.add(tid);
-      }
-    }
-    for (const tid of inThisNote) map.get(tid)!.notes++;
-  }
-  return map;
-}
-
 /** Tüm notlar (boşlar hariç), en yeni gün önce. */
 export async function listAllNotes(): Promise<Note[]> {
   const notes = await db.notes.toArray();
@@ -1499,7 +1395,7 @@ export async function createNote(date: string): Promise<Note> {
     id: id(),
     date,
     title: "",
-    blocks: [{ id: id(), text: "", tagIds: [] }],
+    blocks: [{ id: id(), text: "" }],
     createdAt: now(),
     updatedAt: now(),
   };
@@ -1613,7 +1509,7 @@ export async function createNoteWithTitle(
     id: id(),
     date,
     title: title.trim(),
-    blocks: [{ id: id(), text: "", tagIds: [] }],
+    blocks: [{ id: id(), text: "" }],
     createdAt: now(),
     updatedAt: now(),
   };

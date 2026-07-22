@@ -11,7 +11,6 @@ import {
   listEntriesByDate,
   listGoalsByDate,
   listNotesByDate,
-  listNoteTags,
   noteIsEmpty,
 } from "@/lib/db/queries";
 import { NoteCard } from "@/components/notes/note-card";
@@ -106,8 +105,6 @@ export default function CalendarDayPage({
     async () => (await listNotesByDate(date)).filter((n) => !noteIsEmpty(n)),
     [date]
   );
-  const noteTags = useLiveQuery(() => listNoteTags(), []);
-  const tagById = new Map((noteTags ?? []).map((t) => [t.id, t]));
   // Aktivite adları — tablo küçük, id → kayıt haritası kart başlıkları için
   const activities = useLiveQuery(() => db.activities.toArray(), []);
   const activityById = new Map((activities ?? []).map((a) => [a.id, a]));
@@ -267,7 +264,7 @@ export default function CalendarDayPage({
           </div>
           <div className="flex flex-col gap-1.5">
             {notes.map((note) => (
-              <NoteCard key={note.id} note={note} tagById={tagById} />
+              <NoteCard key={note.id} note={note} />
             ))}
           </div>
         </div>

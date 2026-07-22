@@ -3,11 +3,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { Waypoints } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
-import {
-  getEntryBriefs,
-  listAllNotes,
-  listNoteTags,
-} from "@/lib/db/queries";
+import { getEntryBriefs, listAllNotes } from "@/lib/db/queries";
 import { LifeMap } from "@/components/notes/life-map";
 import type { LifeGraph, LifeNode, LifeEdge } from "@/lib/life-graph";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -22,8 +18,7 @@ function noteTitleOf(title: string | undefined, blocks: { text: string }[]) {
 
 export default function LifeMapPage() {
   const graph = useLiveQuery(async (): Promise<LifeGraph> => {
-    const [notes, tags] = await Promise.all([listAllNotes(), listNoteTags()]);
-    const tagById = new Map(tags.map((t) => [t.id, t]));
+    const notes = await listAllNotes();
     const noteIds = new Set(notes.map((n) => n.id));
 
     // Girdi bağlarının hedefleri
@@ -36,14 +31,10 @@ export default function LifeMapPage() {
 
     const nodes: LifeNode[] = [];
     for (const n of notes) {
-      const tagIds = [...new Set(n.blocks.flatMap((b) => b.tagIds))].filter((t) =>
-        tagById.has(t)
-      );
       nodes.push({
         id: n.id,
         kind: "note",
         label: noteTitleOf(n.title, n.blocks),
-        color: tagIds[0] ? tagById.get(tagIds[0])!.color : undefined,
         date: n.date,
       });
     }

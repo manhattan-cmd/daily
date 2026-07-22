@@ -7,7 +7,6 @@ import {
   ensureBuiltInEntryTypes,
   ensureBuiltInCategories,
   ensureBuiltInMods,
-  ensureBuiltInNoteTags,
   ensureDefaultModifiers,
 } from "@/lib/db/queries";
 import { BottomNav } from "./bottom-nav";
@@ -31,7 +30,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       await ensureBuiltInMods();
       await ensureBuiltInCategories();
       await ensureDefaultModifiers();
-      await ensureBuiltInNoteTags();
     })().catch((err) => console.error("Init error", err));
   }, []);
 

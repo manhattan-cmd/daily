@@ -12,7 +12,6 @@ import type {
   Mod,
   Goal,
   Note,
-  NoteTag,
 } from "@/types";
 
 export class RoutineDB extends Dexie {
@@ -28,7 +27,6 @@ export class RoutineDB extends Dexie {
   goals!: Table<Goal, string>;
   activities!: Table<Activity, string>;
   notes!: Table<Note, string>;
-  noteTags!: Table<NoteTag, string>;
 
   constructor() {
     super("RoutineDB");
@@ -237,6 +235,24 @@ export class RoutineDB extends Dexie {
       noteConnections: null,
       settings: null,
     });
+    // v15 — Not etiket sistemi kaldırıldı (bağ sistemi onun yerini aldı);
+    // noteTags tablosu düşürülür, bloklardaki tagIds alanları temizlenir.
+    this.version(15)
+      .stores({
+        noteTags: null,
+      })
+      .upgrade(async (tx) => {
+        const notes = await tx.table<Note, string>("notes").toArray();
+        for (const n of notes) {
+          if (!n.blocks.some((b) => "tagIds" in b)) continue;
+          const blocks = n.blocks.map((b) => {
+            const rest = { ...b } as Record<string, unknown>;
+            delete rest.tagIds;
+            return rest;
+          });
+          await tx.table("notes").update(n.id, { blocks });
+        }
+      });
   }
 }
 
