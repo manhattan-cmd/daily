@@ -26,10 +26,12 @@ import {
   listEntryTypes,
   listEntryBacklinks,
   listMods,
+  setEntryAliases,
   type CategoryModifierWithType,
   type ModWithType,
   type ParallelSub,
 } from "@/lib/db/queries";
+import { AliasEditor } from "@/components/notes/alias-editor";
 import {
   DateTimeRangeInput,
   formatDTRDisplay,
@@ -227,6 +229,7 @@ export function EditEntryModal({
   }
 
   const [addModOpen, setAddModOpen] = useState(false);
+  const [aliases, setAliases] = useState<string[]>(entry.aliases ?? []);
   const [notes, setNotes] = useState(entry.notes ?? "");
   const [showNotes, setShowNotes] = useState(!!entry.notes);
   const [occurredAt, setOccurredAt] = useState(() => {
@@ -341,6 +344,7 @@ export function EditEntryModal({
   async function handleSave() {
     setSaving(true);
     try {
+      await setEntryAliases(entry.id, aliases);
       const typeValues = rows
         .filter((r) => (values[r.key] ?? "") !== "")
         .map((r) => ({
@@ -685,6 +689,9 @@ export function EditEntryModal({
                 />
               )}
             </div>
+
+            {/* Takma adlar — notlarda otomatik bağ önerisi bunlarla da eşleşir */}
+            <AliasEditor aliases={aliases} onChange={setAliases} />
 
             {/* Notlarda geçiyor — girdi tarafı backlink */}
             {entryBacklinks && entryBacklinks.length > 0 && (

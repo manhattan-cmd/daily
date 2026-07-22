@@ -1509,9 +1509,17 @@ export async function createNote(date: string): Promise<Note> {
 
 export async function updateNote(
   noteId: string,
-  changes: { title?: string; blocks?: NoteBlock[] }
+  changes: { title?: string; blocks?: NoteBlock[]; aliases?: string[] }
 ): Promise<void> {
   await db.notes.update(noteId, { ...changes, updatedAt: now() });
+}
+
+/** Girdinin takma adlarını ayarla (otomatik bağ önerisi bunlarla da eşleşir). */
+export async function setEntryAliases(
+  entryId: string,
+  aliases: string[]
+): Promise<void> {
+  await db.entries.update(entryId, { aliases, updatedAt: now() });
 }
 
 export async function deleteNote(noteId: string): Promise<void> {
@@ -1537,6 +1545,7 @@ export interface EntryPick {
   /** YYYY-MM-DD (occurredAt'ten) */
   date: string;
   occurredAt: number;
+  aliases?: string[];
 }
 
 function ymdLocal(ts: number): string {
@@ -1570,6 +1579,7 @@ async function toEntryPicks(entries: Entry[]): Promise<EntryPick[]> {
       color: cat?.color ?? "#64748b",
       date: ymdLocal(e.occurredAt),
       occurredAt: e.occurredAt,
+      aliases: e.aliases,
     };
   });
 }
@@ -1694,15 +1704,25 @@ export async function listLinkTargets(
     listEntriesForPicker(200),
   ]);
   const out: LinkTarget[] = [];
+  const add = (base: Omit<LinkTarget, "name">, name: string) => {
+    const nm = name.trim();
+    if (nm.length >= 3) out.push({ ...base, name: nm });
+  };
   for (const n of notes) {
     if (n.id === excludeNoteId || noteIsEmpty(n)) continue;
-    const name = (n.title ?? "").trim();
-    if (name.length >= 3) out.push({ type: "note", id: n.id, name });
+    const base = { type: "note" as const, id: n.id };
+    add(base, n.title ?? "");
+    for (const a of n.aliases ?? []) add(base, a);
   }
   for (const e of entries) {
-    const name = e.title.trim();
-    if (name.length >= 3)
-      out.push({ type: "entry", id: e.id, name, date: e.date, color: e.color });
+    const base = {
+      type: "entry" as const,
+      id: e.id,
+      date: e.date,
+      color: e.color,
+    };
+    add(base, e.title);
+    for (const a of e.aliases ?? []) add(base, a);
   }
   return out;
 }

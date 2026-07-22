@@ -152,6 +152,8 @@ export interface Entry {
   subcategoryId: string;
   title?: string;
   notes?: string;
+  /** Takma adlar — otomatik bağ önerisi bunlarla da eşleşir (indekssiz) */
+  aliases?: string[];
   occurredAt: number;
   createdAt: number;
   updatedAt: number;
@@ -268,6 +270,8 @@ export interface Note {
   date: string;
   title?: string;
   blocks: NoteBlock[];
+  /** Takma adlar — otomatik bağ önerisi bunlarla da eşleşir (indekssiz) */
+  aliases?: string[];
   createdAt: number;
   updatedAt: number;
 }

@@ -30,6 +30,7 @@ import {
 } from "@/lib/db/queries";
 import { EntryPickerDialog } from "@/components/notes/entry-picker-dialog";
 import { NotePickerDialog } from "@/components/notes/note-picker-dialog";
+import { AliasEditor } from "@/components/notes/alias-editor";
 import {
   Dialog,
   DialogContent,
@@ -78,6 +79,7 @@ export default function NoteEditorPage({
   const [loaded, setLoaded] = useState<Note | null | undefined>(undefined);
   const [title, setTitle] = useState("");
   const [blocks, setBlocks] = useState<NoteBlock[]>([]);
+  const [aliases, setAliases] = useState<string[]>([]);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
@@ -126,6 +128,7 @@ export default function NoteEditorPage({
       }
       setLoaded(n);
       setTitle(n.title ?? "");
+      setAliases(n.aliases ?? []);
       const initBlocks = n.blocks.length
         ? n.blocks
         : [{ id: nid(), text: "", tagIds: [] }];
@@ -143,10 +146,10 @@ export default function NoteEditorPage({
   useEffect(() => {
     if (!loaded) return;
     const t = setTimeout(() => {
-      updateNote(noteId, { title, blocks });
+      updateNote(noteId, { title, blocks, aliases });
     }, 400);
     return () => clearTimeout(t);
-  }, [noteId, loaded, title, blocks]);
+  }, [noteId, loaded, title, blocks, aliases]);
 
   useEffect(() => {
     if (!pendingFocus.current) return;
@@ -180,7 +183,7 @@ export default function NoteEditorPage({
     if (loaded) {
       const current: Note = { ...loaded, title, blocks };
       if (noteIsEmpty(current)) await deleteNote(noteId);
-      else await updateNote(noteId, { title, blocks });
+      else await updateNote(noteId, { title, blocks, aliases });
       router.back();
     } else {
       router.push("/calendar");
@@ -462,7 +465,7 @@ export default function NoteEditorPage({
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Başlık"
-        className="w-full bg-transparent text-2xl font-bold tracking-tight outline-none placeholder:text-muted-foreground/30 mb-3"
+        className="w-full bg-transparent text-2xl font-bold tracking-tight outline-none placeholder:text-muted-foreground/30 mb-1.5"
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
@@ -474,6 +477,9 @@ export default function NoteEditorPage({
           }
         }}
       />
+
+      {/* Takma adlar — otomatik bağ önerisi bunlarla da eşleşir */}
+      <AliasEditor aliases={aliases} onChange={setAliases} className="mb-3" />
 
       {/* Paragraflar */}
       <div className="flex flex-col pb-28">
