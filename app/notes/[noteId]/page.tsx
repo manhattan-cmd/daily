@@ -27,6 +27,7 @@ import {
   type EntryPick,
 } from "@/lib/db/queries";
 import { EntryPickerDialog } from "@/components/notes/entry-picker-dialog";
+import { NotePickerDialog } from "@/components/notes/note-picker-dialog";
 import {
   Dialog,
   DialogContent,
@@ -85,6 +86,11 @@ export default function NoteEditorPage({
     blockId: string;
     anchor: string;
   } | null>(null);
+  // Not bağlamanın hedefi (blok + öbek), not seçici açıkken
+  const [noteTarget, setNoteTarget] = useState<{
+    blockId: string;
+    anchor: string;
+  } | null>(null);
 
   const tags = useLiveQuery(() => listNoteTags(), []);
   const backlinks = useLiveQuery(() => listNoteBacklinks(noteId), [noteId]);
@@ -111,7 +117,17 @@ export default function NoteEditorPage({
       }
       setLoaded(n);
       setTitle(n.title ?? "");
-      setBlocks(n.blocks.length ? n.blocks : [{ id: nid(), text: "", tagIds: [] }]);
+      const initBlocks = n.blocks.length
+        ? n.blocks
+        : [{ id: nid(), text: "", tagIds: [] }];
+      setBlocks(initBlocks);
+      // Boş not → ilk blok hemen düzenlenebilir olsun (yazmaya başla)
+      const empty =
+        !(n.title ?? "").trim() && initBlocks.every((b) => !b.text.trim());
+      if (empty) {
+        setActiveBlockId(initBlocks[0].id);
+        pendingFocus.current = { id: initBlocks[0].id, pos: 0 };
+      }
     });
   }, [noteId]);
 
@@ -193,21 +209,41 @@ export default function NoteEditorPage({
     );
   }
 
-  // Öbek → yeni not (wiki). Bağı ekler, kaydeder, yeni nota gider.
-  async function handleOpenNote() {
-    if (!selection || !loaded) return;
-    const phrase = selection.text.trim();
-    if (!phrase) return;
+  // Öbek → not bağla: seçiciyi açar (yeni not ya da var olan not).
+  function handleNoteLink() {
+    if (!selection) return;
+    setNoteTarget({ blockId: selection.blockId, anchor: selection.text.trim() });
+  }
+
+  // Yeni not aç (wiki): bağı ekler, kaydeder, yeni nota gider.
+  async function onCreateNoteLink() {
+    if (!noteTarget || !loaded) return;
+    const phrase = noteTarget.anchor;
     const note = await createNoteWithTitle(loaded.date, phrase);
-    const next = addLink(selection.blockId, {
+    const next = addLink(noteTarget.blockId, {
       id: nid(),
       anchor: phrase,
       type: "note",
       targetId: note.id,
     });
     await updateNote(noteId, { title, blocks: next });
+    setNoteTarget(null);
     setSelection(null);
     router.push(`/notes/${note.id}`);
+  }
+
+  // Var olan nota bağla: bağı ekler, kaydeder, notta kalır.
+  async function onPickNoteLink(note: Note) {
+    if (!noteTarget) return;
+    const next = addLink(noteTarget.blockId, {
+      id: nid(),
+      anchor: noteTarget.anchor,
+      type: "note",
+      targetId: note.id,
+    });
+    await updateNote(noteId, { title, blocks: next });
+    setNoteTarget(null);
+    setSelection(null);
   }
 
   // Kelime → var olan girdi. Picker açar.
@@ -434,34 +470,53 @@ export default function NoteEditorPage({
                     />
                   ))}
                 </div>
-                <textarea
-                  ref={(el) => {
-                    if (el) {
-                      taRefs.current.set(block.id, el);
-                      autoResize(el);
-                    } else {
-                      taRefs.current.delete(block.id);
-                    }
-                  }}
-                  rows={1}
-                  value={block.text}
-                  placeholder={i === 0 && bodyEmpty ? "Bugüne dair yaz..." : ""}
-                  onChange={(e) => {
-                    setBlockText(block.id, e.target.value);
-                    autoResize(e.target);
-                    setSelection(null);
-                  }}
-                  onKeyDown={(e) => onBlockKeyDown(e, i)}
-                  onFocus={() => setActiveBlockId(block.id)}
-                  onSelect={(e) => captureSelection(block.id, e.currentTarget)}
-                  onMouseUp={(e) => captureSelection(block.id, e.currentTarget)}
-                  onKeyUp={(e) => captureSelection(block.id, e.currentTarget)}
-                  className="w-full resize-none bg-transparent py-0.5 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/35"
-                />
+                {active ? (
+                  <textarea
+                    ref={(el) => {
+                      if (el) {
+                        taRefs.current.set(block.id, el);
+                        autoResize(el);
+                      } else {
+                        taRefs.current.delete(block.id);
+                      }
+                    }}
+                    rows={1}
+                    value={block.text}
+                    placeholder={i === 0 && bodyEmpty ? "Bugüne dair yaz..." : ""}
+                    onChange={(e) => {
+                      setBlockText(block.id, e.target.value);
+                      autoResize(e.target);
+                      setSelection(null);
+                    }}
+                    onKeyDown={(e) => onBlockKeyDown(e, i)}
+                    onBlur={() => setSelection(null)}
+                    onSelect={(e) => captureSelection(block.id, e.currentTarget)}
+                    onMouseUp={(e) => captureSelection(block.id, e.currentTarget)}
+                    onKeyUp={(e) => captureSelection(block.id, e.currentTarget)}
+                    className="w-full resize-none bg-transparent py-0.5 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/35"
+                  />
+                ) : (
+                  // Düzenlenmiyorken metin-üstü vurgulamayla göster; dokununca düzenle
+                  <div
+                    onClick={() => {
+                      pendingFocus.current = { id: block.id, pos: block.text.length };
+                      setActiveBlockId(block.id);
+                    }}
+                    className="w-full cursor-text whitespace-pre-wrap break-words py-0.5 text-sm leading-relaxed"
+                  >
+                    {block.text ? (
+                      <InlineText text={block.text} links={links} briefs={briefs} />
+                    ) : (
+                      <span className="text-muted-foreground/35">
+                        {i === 0 && bodyEmpty ? "Bugüne dair yaz..." : " "}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Bağ çipleri — paragrafın kelime→girdi / öbek→not bağları */}
-              {links.length > 0 && (
+              {/* Bağ çipleri — düzenlerken yönetim/kaldırma (gösterimde bağlar metin içinde vurgulu) */}
+              {active && links.length > 0 && (
                 <div className="mb-1 flex flex-wrap gap-1.5 pl-[13.5px]">
                   {links.map((l) => {
                     if (l.type === "note") {
@@ -541,11 +596,11 @@ export default function NoteEditorPage({
                   <button
                     type="button"
                     onPointerDown={(e) => e.preventDefault()}
-                    onClick={handleOpenNote}
+                    onClick={handleNoteLink}
                     className="flex shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
                   >
                     <FileText className="h-3 w-3" />
-                    Not aç
+                    Not bağla
                   </button>
                   <button
                     type="button"
@@ -649,6 +704,18 @@ export default function NoteEditorPage({
         onPick={onPickEntry}
       />
 
+      {/* Not seçici — yeni not aç ya da var olana bağla */}
+      <NotePickerDialog
+        open={noteTarget !== null}
+        onOpenChange={(o) => {
+          if (!o) setNoteTarget(null);
+        }}
+        anchor={noteTarget?.anchor ?? ""}
+        excludeId={noteId}
+        onCreate={onCreateNoteLink}
+        onPick={onPickNoteLink}
+      />
+
       {/* Yeni etiket */}
       <Dialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>
         <DialogContent className="max-w-[340px] gap-4">
@@ -686,5 +753,98 @@ export default function NoteEditorPage({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+// ─── Metin-üstü vurgulama ────────────────────────────────────────────────────
+
+/** Paragraf metnini, bağlı kelime/öbekleri metin içinde vurgulayarak gösterir. */
+function InlineText({
+  text,
+  links,
+  briefs,
+}: {
+  text: string;
+  links: NoteLink[];
+  briefs: Map<string, EntryPick>;
+}) {
+  // Her bağın anchor'ını, örtüşmeyen ilk konuma yerleştir (açgözlü)
+  const spans: { start: number; end: number; link: NoteLink }[] = [];
+  for (const l of links) {
+    if (!l.anchor) continue;
+    let from = 0;
+    while (from <= text.length) {
+      const i = text.indexOf(l.anchor, from);
+      if (i < 0) break;
+      const j = i + l.anchor.length;
+      if (!spans.some((p) => i < p.end && j > p.start)) {
+        spans.push({ start: i, end: j, link: l });
+        break;
+      }
+      from = i + 1;
+    }
+  }
+  spans.sort((a, b) => a.start - b.start);
+
+  const out: React.ReactNode[] = [];
+  let cur = 0;
+  spans.forEach((p, idx) => {
+    if (p.start > cur) out.push(<span key={`t${idx}`}>{text.slice(cur, p.start)}</span>);
+    out.push(
+      <InlineLink
+        key={`l${idx}`}
+        link={p.link}
+        label={text.slice(p.start, p.end)}
+        briefs={briefs}
+      />
+    );
+    cur = p.end;
+  });
+  if (cur < text.length) out.push(<span key="end">{text.slice(cur)}</span>);
+  return <>{out}</>;
+}
+
+function InlineLink({
+  link,
+  label,
+  briefs,
+}: {
+  link: NoteLink;
+  label: string;
+  briefs: Map<string, EntryPick>;
+}) {
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+  if (link.type === "note") {
+    return (
+      <Link
+        href={`/notes/${link.targetId}`}
+        onClick={stop}
+        className="rounded px-0.5 font-medium text-primary underline decoration-primary/40 underline-offset-2 bg-primary/10"
+      >
+        {label}
+      </Link>
+    );
+  }
+  const brief = briefs.get(link.targetId);
+  if (!brief) {
+    return (
+      <span className="rounded bg-muted px-0.5 text-muted-foreground underline decoration-dotted underline-offset-2">
+        {label}
+      </span>
+    );
+  }
+  return (
+    <Link
+      href={`/calendar/${brief.date}`}
+      onClick={stop}
+      className="rounded px-0.5 font-medium underline underline-offset-2"
+      style={{
+        backgroundColor: `${brief.color}22`,
+        color: brief.color,
+        textDecorationColor: `${brief.color}66`,
+      }}
+    >
+      {label}
+    </Link>
   );
 }
