@@ -1,15 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   ArrowLeft,
+  ChevronRight,
   NotebookPen,
   Pencil,
   Plus,
   Search,
   Trash2,
+  Waypoints,
   X,
 } from "lucide-react";
 import {
@@ -156,6 +159,23 @@ export default function StructureNotesPage() {
       />
 
       <StructureTabs className="-mt-2 mb-5" />
+
+      {/* Hayat Haritası hub kartı */}
+      <Link
+        href="/structure/notes/map"
+        className="mb-6 flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-card/70"
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+          <Waypoints className="h-5 w-5 text-primary" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-medium">Hayat Haritası</span>
+          <span className="block text-xs text-muted-foreground">
+            Notlar ve girdiler arasında kurduğun bağları gör
+          </span>
+        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+      </Link>
 
       {/* Etiketler — filtre (Düzenle ile yönetim) */}
       <section className="mb-4">
