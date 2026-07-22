@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import Link from "next/link";
 import { nanoid } from "nanoid";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plus, Link2, X } from "lucide-react";
+import { FileText, Plus, Link2, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ import {
   updateEntry,
   getLinkedSiblingModIds,
   listEntryTypes,
+  listEntryBacklinks,
   listMods,
   type CategoryModifierWithType,
   type ModWithType,
@@ -57,6 +59,11 @@ export function EditEntryModal({
       new Set<string>());
   const allEntryTypes = useLiveQuery(() => listEntryTypes(), []);
   const poolMods = useLiveQuery(() => listMods(), []);
+  // Girdi tarafı backlink — bu girdiyi anan notlar
+  const entryBacklinks = useLiveQuery(
+    () => listEntryBacklinks(entry.id),
+    [entry.id]
+  );
 
   // Satır anahtarı: isimli mod değerleri için modId, girdiye özel ölçüler için "t:<typeId>"
   const [values, setValues] = useState<Record<string, string>>(() => {
@@ -678,6 +685,37 @@ export function EditEntryModal({
                 />
               )}
             </div>
+
+            {/* Notlarda geçiyor — girdi tarafı backlink */}
+            {entryBacklinks && entryBacklinks.length > 0 && (
+              <div className="flex flex-col gap-2 pt-1">
+                <div className="flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5 text-primary/70" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Notlarda geçiyor
+                  </span>
+                </div>
+                {entryBacklinks.map((n) => {
+                  const label =
+                    (n.title ?? "").trim() ||
+                    n.blocks.map((b) => b.text.trim()).find(Boolean) ||
+                    "Not";
+                  return (
+                    <Link
+                      key={n.id}
+                      href={`/notes/${n.id}`}
+                      onClick={() => onOpenChange(false)}
+                      className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-card/70"
+                    >
+                      <span className="min-w-0 flex-1 truncate">{label}</span>
+                      <span className="shrink-0 text-[11px] text-muted-foreground/60">
+                        {n.date.slice(5)}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <DialogFooter>

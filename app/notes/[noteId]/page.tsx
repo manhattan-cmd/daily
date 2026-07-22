@@ -701,6 +701,7 @@ export default function NoteEditorPage({
           if (!o) setEntryTarget(null);
         }}
         anchor={entryTarget?.anchor ?? ""}
+        defaultDate={loaded.date}
         onPick={onPickEntry}
       />
 

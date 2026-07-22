@@ -1627,3 +1627,51 @@ export async function listNoteBacklinks(noteId: string): Promise<Note[]> {
     )
     .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
 }
+
+/** Bu girdiyi anan (kelime iliştiren) notlar — girdi tarafı backlink. */
+export async function listEntryBacklinks(entryId: string): Promise<Note[]> {
+  const all = await db.notes.toArray();
+  return all
+    .filter(
+      (n) =>
+        !noteIsEmpty(n) &&
+        n.blocks.some((b) =>
+          (b.links ?? []).some(
+            (l) => l.type === "entry" && l.targetId === entryId
+          )
+        )
+    )
+    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+}
+
+export interface SubPick {
+  id: string;
+  name: string;
+  catName: string;
+  color: string;
+}
+
+/** Yeni girdi iliştirme için alt kategoriler (kök hariç), kategoriye göre. */
+export async function listSubcategoriesForPicker(): Promise<SubPick[]> {
+  const [subs, cats] = await Promise.all([
+    db.subcategories.toArray(),
+    db.categories.toArray(),
+  ]);
+  const catMap = new Map(cats.map((c) => [c.id, c]));
+  return subs
+    .filter((s) => !s.isCategoryRoot)
+    .map((s) => {
+      const c = catMap.get(s.categoryId);
+      return {
+        id: s.id,
+        name: s.name,
+        catName: c?.name ?? "",
+        color: c?.color ?? "#64748b",
+      };
+    })
+    .sort(
+      (a, b) =>
+        a.catName.localeCompare(b.catName, "tr") ||
+        a.name.localeCompare(b.name, "tr")
+    );
+}
