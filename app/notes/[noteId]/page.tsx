@@ -523,6 +523,47 @@ export default function NoteEditorPage({
                 </div>
               )}
 
+              {/* Olası bağ önerileri — yazarken (var olan not/girdi/takma ad eşleşmesi) */}
+              {active &&
+                (() => {
+                  const sug = buildMarks(
+                    block.text,
+                    links,
+                    targets ?? []
+                  ).filter(
+                    (m): m is Extract<Mark, { kind: "suggest" }> =>
+                      m.kind === "suggest"
+                  );
+                  if (!sug.length) return null;
+                  return (
+                    <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] text-muted-foreground/70">
+                        Olası bağ:
+                      </span>
+                      {sug.map((m, k) => (
+                        <button
+                          key={k}
+                          type="button"
+                          onPointerDown={(e) => e.preventDefault()}
+                          onClick={() =>
+                            handleSuggest(block.id, m.text, m.candidates)
+                          }
+                          className="rounded-full border border-dashed border-primary/40 px-2 py-0.5 text-[11px] font-medium text-primary/80 transition-colors hover:bg-primary/10"
+                        >
+                          {m.text}
+                          {m.candidates.length === 1 &&
+                            m.candidates[0].title !== m.text && (
+                              <span className="opacity-60">
+                                {" "}
+                                → {m.candidates[0].title}
+                              </span>
+                            )}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
+
               {/* Seçim araç çubuğu — bir kelime/öbek seçiliyken */}
               {hasSel && (
                 <div className="mb-2 flex items-center gap-1.5">
@@ -641,7 +682,7 @@ export default function NoteEditorPage({
                   />
                 )}
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                  {c.name}
+                  {c.title}
                 </span>
                 <span className="shrink-0 text-[11px] text-muted-foreground/60">
                   {c.type === "note" ? "not" : "girdi"}

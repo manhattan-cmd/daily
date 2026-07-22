@@ -1587,7 +1587,10 @@ export async function listSubcategoriesForPicker(): Promise<SubPick[]> {
 export interface LinkTarget {
   type: "note" | "entry";
   id: string;
+  /** Metinde eşleşen ad (başlık ya da takma ad) */
   name: string;
+  /** Hedefin görünen adı (başlık) — seçici/çip için */
+  title: string;
   date?: string;
   color?: string;
 }
@@ -1606,7 +1609,11 @@ export async function listLinkTargets(
   };
   for (const n of notes) {
     if (n.id === excludeNoteId || noteIsEmpty(n)) continue;
-    const base = { type: "note" as const, id: n.id };
+    const title =
+      (n.title ?? "").trim() ||
+      n.blocks.map((b) => b.text.trim()).find(Boolean) ||
+      "Not";
+    const base = { type: "note" as const, id: n.id, title };
     add(base, n.title ?? "");
     for (const a of n.aliases ?? []) add(base, a);
   }
@@ -1614,6 +1621,7 @@ export async function listLinkTargets(
     const base = {
       type: "entry" as const,
       id: e.id,
+      title: e.title,
       date: e.date,
       color: e.color,
     };
