@@ -263,7 +263,6 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
   const clampZoom = (z: number) => Math.min(Math.max(z, 0.2), 4);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
-    (e.target as Element).setPointerCapture?.(e.pointerId);
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.current.size === 2) {
       const [p1, p2] = [...pointers.current.values()];
@@ -296,8 +295,11 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
   }, []);
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
+    // Boş alanda tek dokunuş (sürükleme/pinch değil) → seçimi kapat
+    const wasTap = pointers.current.size === 1 && !moved.current;
     pointers.current.delete(e.pointerId);
     pinchDist.current = 0;
+    if (wasTap) setSelectedId(null);
   }, []);
 
   const onWheel = useCallback((e: React.WheelEvent) => {
@@ -307,23 +309,33 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
     }));
   }, []);
 
-  // ── Düğüm sürükleme ───────────────────────────────────────────────────────
+  // ── Düğüm sürükleme / seçim ───────────────────────────────────────────────
   const dragLast = useRef({ x: 0, y: 0 });
+  const dragStart = useRef({ x: 0, y: 0 });
 
   function onNodeDown(e: React.PointerEvent, id: string) {
     e.stopPropagation();
-    (e.target as Element).setPointerCapture?.(e.pointerId);
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
     dragId.current = id;
+    dragStart.current = { x: e.clientX, y: e.clientY };
     dragLast.current = { x: e.clientX, y: e.clientY };
     moved.current = false;
   }
   function onNodeMove(e: React.PointerEvent) {
     if (!dragId.current) return;
+    // Sürükleme, basılan noktadan toplam mesafeyle belirlenir (tık titremesi seçimi bozmasın)
+    if (
+      Math.hypot(
+        e.clientX - dragStart.current.x,
+        e.clientY - dragStart.current.y
+      ) > 6
+    ) {
+      moved.current = true;
+    }
     const dx = (e.clientX - dragLast.current.x) / view.zoom;
     const dy = (e.clientY - dragLast.current.y) / view.zoom;
-    if (Math.abs(e.clientX - dragLast.current.x) + Math.abs(e.clientY - dragLast.current.y) > 2)
-      moved.current = true;
     dragLast.current = { x: e.clientX, y: e.clientY };
+    if (!moved.current) return; // henüz tık — düğümü oynatma
     const p = sim.current.get(dragId.current);
     if (p) {
       p.x += dx;
@@ -334,6 +346,7 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
   }
   function onNodeUp(e: React.PointerEvent, id: string) {
     const wasDrag = moved.current;
+    (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
     dragId.current = null;
     if (!wasDrag) {
       e.stopPropagation();
@@ -382,9 +395,6 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       onWheel={onWheel}
-      onClick={() => {
-        if (!moved.current) setSelectedId(null);
-      }}
     >
       <svg width={size.w} height={size.h} className="absolute inset-0">
         <g transform={zoomK}>
@@ -436,16 +446,29 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
                     opacity={0.7}
                   />
                 )}
+                {/* Görünen nokta — etkileşim büyük görünmez alanda */}
                 <circle
                   cx={p.x}
                   cy={p.y}
                   r={r}
                   fill={color}
                   opacity={isSel || isHover ? 1 : 0.88}
-                  style={{ cursor: "pointer" }}
+                  className="pointer-events-none"
+                />
+                {/* Kolay dokunmak için geniş şeffaf isabet alanı */}
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={Math.max(r + 8, 14)}
+                  fill="transparent"
+                  style={{ cursor: "pointer", touchAction: "none" }}
                   onPointerDown={(e) => onNodeDown(e, n.id)}
                   onPointerMove={onNodeMove}
                   onPointerUp={(e) => onNodeUp(e, n.id)}
+                  onPointerCancel={() => {
+                    dragId.current = null;
+                  }}
+                  onClick={(e) => e.stopPropagation()}
                   onPointerEnter={() => setHoverId(n.id)}
                   onPointerLeave={() => setHoverId((h) => (h === n.id ? null : h))}
                 />
