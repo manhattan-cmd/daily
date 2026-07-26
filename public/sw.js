@@ -1,8 +1,16 @@
 // Routine — service worker. Uygulama tamamen istemci tarafı (IndexedDB) çalıştığı için
 // asıl iş "app shell"i (HTML kabuğu + statik varlıklar) önbelleklemek: sunucu çevrimdışıyken
 // de uygulama açılsın, veriler zaten cihazda.
-const CACHE_VERSION = "v1";
+//
+// Önbellek stratejisi (bayat "eski tasarım" parlamasını önlemek için kritik):
+//   • /_next/static ve /icons → içerik-hash'li, gerçekten değişmez: cache-first.
+//     (URL değişince içerik de değişir; bayat sunmak imkânsız.)
+//   • Navigasyon HTML'i, RSC/flight verisi ve diğer her şey → network-first.
+//     (Bunları önbellekten "önce" sunmak, yeni sürüm yayınlandıktan sonra eski
+//      build'in parçalarını gösterip "sonra kendiliğinden düzelme" yaşatıyordu.)
+const CACHE_VERSION = "v2";
 const CACHE_NAME = `routine-${CACHE_VERSION}`;
+const APP_SHELL = "/";
 
 const PRECACHE_URLS = [
   "/",
@@ -22,6 +30,8 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
+  // Sürüm değişince eski önbellekleri (ör. routine-v1) tamamen sil — birikmiş
+  // eski build parçaları böylece temizlenir.
   event.waitUntil(
     caches
       .keys()
@@ -34,6 +44,33 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// Yanıtı arka planda önbelleğe koy — yönlendirilmiş/opak yanıtları atla, hatayı yut.
+function putInCache(request, response) {
+  if (!response || response.status !== 200 || response.redirected) return;
+  const copy = response.clone();
+  caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
+}
+
+// Cache-first: değişmez varlıklar için — varsa hemen önbellekten, yoksa ağdan çek + sakla.
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  putInCache(request, response);
+  return response;
+}
+
+// Network-first: taze içerik şart olan istekler için — ağ başarısızsa önbelleğe düş.
+async function networkFirst(request) {
+  try {
+    const response = await fetch(request);
+    putInCache(request, response);
+    return response;
+  } catch {
+    return (await caches.match(request)) ?? Response.error();
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
@@ -41,41 +78,34 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Navigasyonlar (sayfa yüklemeleri): önce ağ, olmazsa önbellekten aynı sayfa,
-  // o da yoksa app shell ("/") — böylece çevrimdışıyken daha önce açılmış bir
-  // sayfa görülür, hiç açılmamışsa en azından uygulama kabuğu yüklenir.
+  // Değişmez, hash'li varlıklar → cache-first.
+  if (
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.startsWith("/icons/")
+  ) {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
+
+  // Navigasyonlar (tam sayfa yüklemeleri) → network-first; çevrimdışıysa daha önce
+  // açılmış aynı sayfa, o da yoksa app shell ("/") ile en azından uygulama açılsın.
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          putInCache(request, response);
           return response;
         })
         .catch(
           async () =>
             (await caches.match(request)) ??
-            (await caches.match("/")) ??
+            (await caches.match(APP_SHELL)) ??
             Response.error()
         )
     );
     return;
   }
 
-  // Diğer same-origin GET istekleri (statik JS/CSS/font/ikon): stale-while-revalidate —
-  // önbellek varsa hemen onu ver, arka planda tazele; yoksa ağdan çekip önbelleğe koy.
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached);
-      return cached ?? network;
-    })
-  );
+  // Kalan her şey (RSC/flight verisi, manifest, vb.) → network-first.
+  event.respondWith(networkFirst(request));
 });
