@@ -2,9 +2,11 @@
 
 import {
   Boxes,
+  Flame,
   MoonStar,
   Plus,
   Route,
+  Scale,
   Star,
   Timer,
   Wallet,
@@ -20,6 +22,8 @@ const BUILT_IN_MOD_ICONS: Record<string, LucideIcon> = {
   "Süre": Timer,
   "Mesafe": Route,
   "Miktar": Boxes,
+  "Ağırlık": Scale,
+  "Kalori": Flame,
   "Uyku Süresi": MoonStar,
   "Uyku Kalitesi": Star,
 };

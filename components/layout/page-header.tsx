@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 interface PageHeaderProps {
   title: string;
   description?: string;
+  /** Açıklama satır sayısı — varsayılan 1 (tek satır, kırpılır); 2 iki satıra sarar */
+  descriptionLines?: 1 | 2;
   back?: string;
   action?: React.ReactNode;
   className?: string;
@@ -15,6 +17,7 @@ interface PageHeaderProps {
 export function PageHeader({
   title,
   description,
+  descriptionLines = 1,
   back,
   action,
   className,
@@ -41,7 +44,12 @@ export function PageHeader({
             {title}
           </h1>
           {description ? (
-            <p className="truncate text-sm text-muted-foreground">
+            <p
+              className={cn(
+                "text-sm text-muted-foreground",
+                descriptionLines === 2 ? "line-clamp-2" : "truncate"
+              )}
+            >
               {description}
             </p>
           ) : null}

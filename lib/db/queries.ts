@@ -451,6 +451,8 @@ const BUILT_IN_MODS: { name: string; typeName: string }[] = [
   { name: "Süre", typeName: "Süre" },
   { name: "Mesafe", typeName: "Mesafe" },
   { name: "Miktar", typeName: "Miktar" },
+  { name: "Ağırlık", typeName: "Ağırlık" },
+  { name: "Kalori", typeName: "Kalori" },
   // Şablon Uyku kategorisinin yerleşik modları
   { name: "Uyku Süresi", typeName: "Tarih Aralığı" },
   { name: "Uyku Kalitesi", typeName: "1–5 Skala" },
@@ -566,6 +568,28 @@ export async function renameMod(modId: string, name: string): Promise<boolean> {
   if (clash && clash.id !== modId) return false;
   await db.mods.update(modId, { name: name.trim() });
   return true;
+}
+
+/**
+ * Özelliğin ölçüsünü değiştir — mod ile birlikte tüm atamaları (denormalize
+ * entryTypeId) güncellenir; böylece bundan sonraki girdiler yeni ölçüyle
+ * kaydedilir. Eskiden kaydedilmiş değerler kendi (eski) ölçülerini sakladığı
+ * için geçmiş bozulmaz. Yerleşik modlarda da güvenli: ensureBuiltInMods var
+ * olan modun ölçüsünü sıfırlamaz, yalnızca eksik olanı ekler.
+ */
+export async function setModMeasure(
+  modId: string,
+  entryTypeId: string
+): Promise<void> {
+  await db.transaction("rw", [db.mods, db.categoryModifiers], async () => {
+    await db.mods.update(modId, { entryTypeId });
+    const attachments = await db.categoryModifiers
+      .filter((a) => a.modId === modId)
+      .toArray();
+    for (const a of attachments) {
+      await db.categoryModifiers.update(a.id, { entryTypeId });
+    }
+  });
 }
 
 /** Modu havuzdan sil — tüm atamalarıyla birlikte. Girdi değerleri ölçü adına düşer. */

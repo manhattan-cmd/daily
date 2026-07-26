@@ -15,6 +15,7 @@ import {
   listMods,
   createMod,
   renameMod,
+  setModMeasure,
   deleteMod,
   findModByName,
   listEntryTypes,
@@ -50,12 +51,14 @@ export default function ModsHomePage() {
   const [measureId, setMeasureId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  // Atom detayı — dokununca açılır; yeniden adlandırma aynı diyalog içinde
-  // görünüm geçişiyle yapılır (üst üste dialog açmak kırılgan)
+  // Atom detayı — dokununca açılır; düzenleme aynı diyalog içinde görünüm
+  // geçişiyle yapılır (üst üste dialog açmak kırılgan)
   const [selected, setSelected] = useState<ModWithType | null>(null);
-  const [detailView, setDetailView] = useState<"info" | "rename">("info");
-  const [renameValue, setRenameValue] = useState("");
-  const [renameError, setRenameError] = useState(false);
+  const [detailView, setDetailView] = useState<"info" | "edit">("info");
+  const [editName, setEditName] = useState("");
+  const [editMeasureId, setEditMeasureId] = useState<string | null>(null);
+  const [editError, setEditError] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
   // Havuzda arama — büyüteç açar, yazdıkça iki bölüm birden süzülür
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -96,7 +99,14 @@ export default function ModsHomePage() {
   function openDetail(mod: ModWithType) {
     setSelected(mod);
     setDetailView("info");
-    setRenameError(false);
+    setEditError(false);
+  }
+
+  function openEdit(mod: ModWithType) {
+    setEditName(mod.name);
+    setEditMeasureId(mod.entryTypeId);
+    setEditError(false);
+    setDetailView("edit");
   }
 
   async function handleCreate() {
@@ -118,14 +128,30 @@ export default function ModsHomePage() {
     }
   }
 
-  async function handleRename() {
-    if (!selected || !renameValue.trim()) return;
-    const ok = await renameMod(selected.id, renameValue);
-    if (!ok) {
-      setRenameError(true);
-      return;
+  async function handleSaveEdit() {
+    if (!selected) return;
+    setEditSaving(true);
+    try {
+      // Ad değişikliği yalnızca kullanıcı özelliklerinde (yerleşiklerin adı sabit)
+      if (!selected.isBuiltIn) {
+        const trimmed = editName.trim();
+        if (!trimmed) return;
+        if (trimmed !== selected.name) {
+          const ok = await renameMod(selected.id, trimmed);
+          if (!ok) {
+            setEditError(true);
+            return;
+          }
+        }
+      }
+      // Ölçü değişikliği — mod + tüm atamaları senkronlanır
+      if (editMeasureId && editMeasureId !== selected.entryTypeId) {
+        await setModMeasure(selected.id, editMeasureId);
+      }
+      setSelected(null);
+    } finally {
+      setEditSaving(false);
     }
-    setSelected(null);
   }
 
   async function handleDelete(mod: ModWithType) {
@@ -152,7 +178,8 @@ export default function ModsHomePage() {
     <>
       <PageHeader
         title="Yapı"
-        description="Özellikler — ölçülebilir en küçük birimler"
+        description="Ölçüp takip ettiğin şeyler — kilo, süre, para… Kategorilere ekleyip değer girersin."
+        descriptionLines={2}
         action={
           <div className="flex items-center gap-1.5">
             <button
@@ -298,20 +325,16 @@ export default function ModsHomePage() {
                   "henüz kullanılmadı"
                 )}
               </div>
-              {!selected.isBuiltIn && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1 gap-1.5"
-                    onClick={() => {
-                      setRenameValue(selected.name);
-                      setRenameError(false);
-                      setDetailView("rename");
-                    }}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Yeniden adlandır
-                  </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-1.5"
+                  onClick={() => openEdit(selected)}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Düzenle
+                </Button>
+                {!selected.isBuiltIn && (
                   <Button
                     variant="outline"
                     className="flex-1 gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -320,11 +343,11 @@ export default function ModsHomePage() {
                     <Trash2 className="h-3.5 w-3.5" />
                     Sil
                   </Button>
-                </div>
-              )}
+                )}
+              </div>
             </>
           )}
-          {selected && detailView === "rename" && (
+          {selected && detailView === "edit" && (
             <>
               <DialogHeader>
                 <DialogTitle className="text-base flex items-center gap-2">
@@ -335,28 +358,97 @@ export default function ModsHomePage() {
                   >
                     <ArrowLeft className="h-3.5 w-3.5" />
                   </button>
-                  Özelliği yeniden adlandır
+                  Özelliği düzenle
                 </DialogTitle>
                 <DialogDescription>
-                  Ad her yerde değişir — özellik tektir
+                  {selected.isBuiltIn
+                    ? "Yerleşik özellik — adı sabit, ölçüsü değiştirilebilir"
+                    : "Ad her yerde değişir — özellik tektir"}
                 </DialogDescription>
               </DialogHeader>
-              <Input
-                value={renameValue}
-                onChange={(e) => { setRenameValue(e.target.value); setRenameError(false); }}
-                autoFocus
-                onKeyDown={(e) => { if (e.key === "Enter") handleRename(); }}
-              />
-              {renameError && (
-                <p className="text-xs text-amber-300/90">
-                  Bu adda başka bir özellik var — özellik adları tekildir.
-                </p>
+
+              {/* Ad — yalnızca kullanıcı özelliklerinde düzenlenir */}
+              {selected.isBuiltIn ? (
+                <div className="flex flex-col gap-2">
+                  <Label>Özellik adı</Label>
+                  <p className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+                    {selected.name}
+                    <span className="ml-1.5 text-xs opacity-70">· yerleşik</span>
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="edit-mod-name">Özellik adı</Label>
+                  <Input
+                    id="edit-mod-name"
+                    value={editName}
+                    onChange={(e) => { setEditName(e.target.value); setEditError(false); }}
+                    autoFocus
+                    onKeyDown={(e) => { if (e.key === "Enter") handleSaveEdit(); }}
+                  />
+                  {editError && (
+                    <p className="text-xs text-amber-300/90">
+                      Bu adda başka bir özellik var — özellik adları tekildir.
+                    </p>
+                  )}
+                </div>
               )}
+
+              {/* Ölçü seçimi — mod tek bir ölçüyle ölçülür */}
+              <div className="flex flex-col gap-2">
+                <Label>Ölçüsü</Label>
+                <div className="flex flex-wrap gap-2">
+                  {(measures ?? []).map((t) => {
+                    const KindIcon = MEASURE_KIND_META[t.valueType ?? "number"].icon;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setEditMeasureId(t.id)}
+                        className={cn(
+                          "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm transition-colors",
+                          editMeasureId === t.id
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-card text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <KindIcon className="h-3.5 w-3.5 opacity-60" />
+                        {t.name}
+                        {t.unit && (
+                          <span className="text-xs opacity-60">({t.unit})</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {selectedUsage &&
+                  selectedUsage.valueCount > 0 &&
+                  editMeasureId !== selected.entryTypeId && (
+                    <p className="text-xs text-amber-300/90">
+                      {selectedUsage.valueCount} eski kayıt önceki ölçüsüyle kalır;
+                      yeni girdiler seçtiğin ölçüyle kaydedilir.
+                    </p>
+                  )}
+              </div>
+
               <DialogFooter>
-                <Button variant="outline" onClick={() => setDetailView("info")}>
+                <Button
+                  variant="outline"
+                  onClick={() => setDetailView("info")}
+                  disabled={editSaving}
+                >
                   İptal
                 </Button>
-                <Button onClick={handleRename} disabled={!renameValue.trim()}>
+                <Button
+                  onClick={handleSaveEdit}
+                  disabled={
+                    editSaving ||
+                    !editMeasureId ||
+                    (!selected.isBuiltIn && !editName.trim()) ||
+                    (editName.trim() === selected.name &&
+                      editMeasureId === selected.entryTypeId)
+                  }
+                >
                   Kaydet
                 </Button>
               </DialogFooter>
