@@ -18,7 +18,7 @@ import {
 } from "@/lib/db/queries";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
-import { EntryPickTree } from "@/components/calendar/entry-pick-tree";
+import { EntryNetwork } from "@/components/calendar/entry-network";
 import { DateTimeRangeInput, formatDTRDisplay } from "@/components/forms/datetime-range-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -516,11 +516,10 @@ function PickStep({
             </p>
           </div>
         ) : (
-          <EntryPickTree
+          <EntryNetwork
             groups={groups}
             onSubSelect={onSubSelect}
             onCategorySelect={onCategorySelect}
-            scrollParentRef={scrollRef}
           />
         )}
       </div>
