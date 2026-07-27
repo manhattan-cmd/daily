@@ -4,16 +4,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Check,
-  ChevronRight,
+  ChevronDown,
+  CornerDownRight,
   Folder,
   FolderOpen,
-  GripVertical,
   Move,
   Plus,
   Trash2,
 } from "lucide-react";
 import { moveSubCategory } from "@/lib/db/queries";
-import { CategoryTileCore } from "@/components/structure/category-tile";
+import {
+  CategoryTileCore,
+  CategoryTileAdd,
+} from "@/components/structure/category-tile";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { DeleteSubCategoryDialog } from "@/components/structure/delete-subcategory-dialog";
 import { cn } from "@/lib/utils";
@@ -31,11 +34,13 @@ type DropTarget =
   | { kind: "trash" };
 
 /**
- * Girdi ekleme seçim ağacı — "Ne eklemek istersin?" gövdesi. Yapı bölümünün
- * satır diliyle aynı: kare çekirdek + ad + ok. Dokunuş kategori/alt kategori
- * seçer (girdi formuna geçer). "Düzenle · taşı" ile satırlar basılı tutulup
- * sürüklenir: başka satırın altına, başka kategorinin başlığına (kök), çöpe.
- * Çok kategori aynı ekranda olduğundan kategoriler-arası taşıma doğaldır.
+ * Girdi ekleme seçim ekranı — "Ne eklemek istersin?" gövdesi. Modüler ızgara:
+ * her kategori kendi başlığı altında 4 sütunlu kare karolar. Alt kategorisi
+ * olana dokununca içi yine ızgara olarak açılır (aynı hizada). Kare çekirdek +
+ * ad; şekil dili Yapı bölümüyle bir. Dokunuş kategori/alt kategori seçer (forma
+ * geçer). "Düzenle · taşı" ile karolar basılı tutulup sürüklenir: başka karonun
+ * altına (iç içe), kategori başlığına (kök), çöpe. Çok kategori ekranda olduğu
+ * için kategoriler-arası taşıma doğaldır.
  */
 export function EntryPickTree({
   groups,
@@ -143,7 +148,6 @@ export function EntryPickTree({
       }
       const catId = t.dataset.dropCat;
       if (catId) {
-        // Zaten o kategorinin kökündeyse no-op
         if (drag.sub.categoryId === catId && !drag.sub.parentId)
           return setTarget(null);
         return setTarget({ kind: "cat", id: catId });
@@ -182,7 +186,6 @@ export function EntryPickTree({
     };
   }, [drag, subById, scrollParentRef]);
 
-  // Silinen düğümün içindekilerinin taşınacağı üstün adı
   const deleteParentName = confirmDelete
     ? confirmDelete.parentId
       ? subById.get(confirmDelete.parentId)?.name ??
@@ -208,83 +211,31 @@ export function EntryPickTree({
       )}
       {editMode && !drag && (
         <p className="mb-3 px-1 text-[11px] leading-snug text-muted-foreground/70">
-          Bir satırı basılı tutup sürükle: başka satırın üstüne (altına taşınır),
+          Bir kareyi basılı tutup sürükle: başka karenin üstüne (altına taşınır),
           kategori başlığına (kök) ya da çöpe. + ile yeni alt kategori.
         </p>
       )}
 
-      <div className="flex flex-col gap-5">
-        {(groups ?? []).map((g) => {
-          const isCatDrop =
-            dropTarget?.kind === "cat" && dropTarget.id === g.category.id;
-          return (
-            <section key={g.category.id}>
-              {/* Kategori başlığı — dokun: doğrudan kategoriye ekle; sürüklemede kök hedefi */}
-              <button
-                data-drop-cat={g.category.id}
-                onClick={() => onCategorySelect(g.category)}
-                className={cn(
-                  "flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-all active:scale-[0.99]",
-                  isCatDrop ? "ring-1 ring-inset" : "hover:bg-white/5"
-                )}
-                style={
-                  isCatDrop
-                    ? {
-                        background: `${g.category.color}1f`,
-                        // @ts-expect-error CSS custom property
-                        "--tw-ring-color": g.category.color,
-                      }
-                    : undefined
-                }
-              >
-                <CategoryTileCore
-                  color={g.category.color}
-                  icon={g.category.icon}
-                  size="sm"
-                />
-                <span className="flex-1 truncate text-sm font-semibold">
-                  {g.category.name}
-                </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40" />
-              </button>
-
-              <div className="mt-0.5 flex flex-col gap-0.5 pl-1">
-                {g.topSubs.map((sub) => (
-                  <PickTreeNode
-                    key={sub.id}
-                    sub={sub}
-                    depth={0}
-                    color={g.category.color}
-                    childrenMap={childrenMap}
-                    editMode={editMode}
-                    draggingSubId={drag?.sub.id ?? null}
-                    dropTarget={dropTarget}
-                    onSubSelect={onSubSelect}
-                    onDragStart={startDrag}
-                    onAddChild={(categoryId, parentId) =>
-                      setAddTarget({ categoryId, parentId })
-                    }
-                  />
-                ))}
-                {editMode && (
-                  <AddRow
-                    label={
-                      g.topSubs.length === 0
-                        ? "İlk alt kategoriyi ekle"
-                        : "Alt kategori ekle"
-                    }
-                    onClick={() => setAddTarget({ categoryId: g.category.id })}
-                  />
-                )}
-                {!editMode && g.topSubs.length === 0 && (
-                  <p className="px-1.5 py-1 text-[11px] text-muted-foreground/50">
-                    Alt kategori yok — başlığa dokunup doğrudan ekleyebilirsin.
-                  </p>
-                )}
-              </div>
-            </section>
-          );
-        })}
+      <div className="flex flex-col gap-6">
+        {(groups ?? []).map((g) => (
+          <CategorySection
+            key={g.category.id}
+            category={g.category}
+            topSubs={g.topSubs}
+            childrenMap={childrenMap}
+            subById={subById}
+            editMode={editMode}
+            isCatDrop={dropTarget?.kind === "cat" && dropTarget.id === g.category.id}
+            draggingSubId={drag?.sub.id ?? null}
+            dropTarget={dropTarget}
+            onSubSelect={onSubSelect}
+            onCategorySelect={onCategorySelect}
+            onDragStart={startDrag}
+            onAddChild={(categoryId, parentId) =>
+              setAddTarget({ categoryId, parentId })
+            }
+          />
+        ))}
       </div>
 
       {/* Çöp alanı — sürüklerken görünür */}
@@ -389,26 +340,32 @@ export function EntryPickTree({
   );
 }
 
-function PickTreeNode({
-  sub,
-  depth,
-  color,
+// ─── Kategori bölümü ──────────────────────────────────────────────────────────
+
+function CategorySection({
+  category,
+  topSubs,
   childrenMap,
+  subById,
   editMode,
+  isCatDrop,
   draggingSubId,
   dropTarget,
   onSubSelect,
+  onCategorySelect,
   onDragStart,
   onAddChild,
 }: {
-  sub: SubCategory;
-  depth: number;
-  color: string;
+  category: Category;
+  topSubs: SubCategory[];
   childrenMap: Map<string, SubCategory[]>;
+  subById: Map<string, SubCategory>;
   editMode: boolean;
+  isCatDrop: boolean;
   draggingSubId: string | null;
   dropTarget: DropTarget | null;
   onSubSelect: (sub: SubCategory) => void;
+  onCategorySelect: (category: Category) => void;
   onDragStart: (
     sub: SubCategory,
     color: string,
@@ -416,115 +373,163 @@ function PickTreeNode({
   ) => void;
   onAddChild: (categoryId: string, parentId?: string) => void;
 }) {
-  const kids = childrenMap.get(sub.id) ?? [];
-  const [open, setOpen] = useState(false);
+  // expandedPath[d] = derinlik d'de açık alt kategori id'si (akordeon)
+  const [expandedPath, setExpandedPath] = useState<string[]>([]);
+  const color = category.color;
 
-  const isDragging = draggingSubId === sub.id;
-  const isDropTarget = dropTarget?.kind === "sub" && dropTarget.id === sub.id;
+  function toggle(subId: string, depth: number) {
+    setExpandedPath((prev) =>
+      prev[depth] === subId ? prev.slice(0, depth) : [...prev.slice(0, depth), subId]
+    );
+  }
 
-  const rowInner = (
-    <>
-      <CategoryTileCore
-        color={color}
-        icon={sub.icon}
-        fallback={kids.length > 0 ? FolderOpen : Folder}
-        size="sm"
-      />
-      <span className="truncate text-sm font-medium">{sub.name}</span>
-      {editMode && (
-        <GripVertical className="ml-auto h-4 w-4 shrink-0 text-muted-foreground/40" />
-      )}
-    </>
-  );
-
-  return (
-    <div className="flex flex-col gap-0.5">
-      <div className="flex items-center gap-0.5">
-        {editMode ? (
-          <PickDragRow
-            isDragging={isDragging}
-            isDropTarget={isDropTarget}
-            color={color}
-            dropId={sub.id}
-            onStart={(pos) => onDragStart(sub, color, pos)}
-          >
-            {rowInner}
-          </PickDragRow>
-        ) : (
-          <button
-            type="button"
-            onClick={() => onSubSelect(sub)}
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-1.5 py-1.5 text-left transition-all hover:bg-white/5 active:scale-[0.99]"
-          >
-            {rowInner}
-          </button>
-        )}
-
-        {kids.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-white/5 hover:text-foreground"
-            aria-label={open ? `${sub.name} dalını kapat` : `${sub.name} dalını aç`}
-            aria-expanded={open}
-          >
-            <ChevronRight
-              className={cn(
-                "h-4 w-4 transition-transform duration-200",
-                open && "rotate-90"
-              )}
-            />
-          </button>
-        )}
-      </div>
-
-      {open && (
-        <div
-          className="ml-[21px] flex flex-col gap-0.5 border-l pl-2.5"
-          style={{ borderColor: `${color}2e` }}
-        >
-          {kids.map((child) => (
-            <PickTreeNode
-              key={child.id}
-              sub={child}
-              depth={depth + 1}
-              color={color}
-              childrenMap={childrenMap}
-              editMode={editMode}
-              draggingSubId={draggingSubId}
-              dropTarget={dropTarget}
-              onSubSelect={onSubSelect}
-              onDragStart={onDragStart}
-              onAddChild={onAddChild}
-            />
-          ))}
+  function renderLevel(
+    subs: SubCategory[],
+    depth: number,
+    parentId?: string
+  ): React.ReactNode {
+    const expandedId = expandedPath[depth];
+    const expandedSub = expandedId ? subById.get(expandedId) : undefined;
+    const childSubs = expandedId ? childrenMap.get(expandedId) ?? [] : [];
+    return (
+      <>
+        {/* Kare ızgara — daima 4 sütun */}
+        <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
+          {subs.map((sub) => {
+            const hasKids = (childrenMap.get(sub.id)?.length ?? 0) > 0;
+            return (
+              <SubTile
+                key={sub.id}
+                sub={sub}
+                color={color}
+                hasChildren={hasKids}
+                isExpanded={expandedPath[depth] === sub.id}
+                isDragging={draggingSubId === sub.id}
+                isDropTarget={
+                  dropTarget?.kind === "sub" && dropTarget.id === sub.id
+                }
+                editMode={editMode}
+                onSelect={() => onSubSelect(sub)}
+                onExpand={hasKids ? () => toggle(sub.id, depth) : undefined}
+                onDragStart={(pos) => onDragStart(sub, color, pos)}
+              />
+            );
+          })}
           {editMode && (
-            <AddRow
-              label={kids.length === 0 ? "İçine alt kategori ekle" : "Ekle"}
-              onClick={() => onAddChild(sub.categoryId, sub.id)}
+            <CategoryTileAdd
+              label="Ekle"
+              onClick={() => onAddChild(category.id, parentId)}
             />
           )}
         </div>
+
+        {/* Açılan dal — aynı ızgara diliyle, kategori renginde kılavuz */}
+        {expandedSub && (childSubs.length > 0 || editMode) && (
+          <div
+            className="mt-2 ml-1 border-l-2 pl-2.5"
+            style={{ borderColor: `${color}40` }}
+          >
+            <button
+              data-drop-sub={expandedSub.id}
+              type="button"
+              onClick={() => onSubSelect(expandedSub)}
+              className="mb-1.5 flex items-center gap-1.5 rounded-lg px-1 py-0.5 transition-colors hover:bg-white/5"
+            >
+              <CornerDownRight
+                className="h-3 w-3 shrink-0"
+                style={{ color: `${color}c0` }}
+              />
+              <span
+                className="truncate text-[11px] font-semibold uppercase tracking-wider"
+                style={{ color: `${color}d0` }}
+              >
+                {expandedSub.name}
+              </span>
+              <span className="text-[10px] text-muted-foreground/60">· ekle</span>
+            </button>
+            {renderLevel(childSubs, depth + 1, expandedSub.id)}
+          </div>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <section>
+      {/* Kategori başlığı — dokun: doğrudan kategoriye ekle; sürüklemede kök hedefi */}
+      <button
+        data-drop-cat={category.id}
+        onClick={() => onCategorySelect(category)}
+        className={cn(
+          "mb-2 flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left transition-all",
+          isCatDrop ? "ring-1 ring-inset" : "hover:bg-white/5"
+        )}
+        style={
+          isCatDrop
+            ? {
+                background: `${color}1f`,
+                // @ts-expect-error CSS custom property
+                "--tw-ring-color": color,
+              }
+            : undefined
+        }
+      >
+        <span
+          className="h-3 w-3 shrink-0 rounded-[4px]"
+          style={{
+            background: `linear-gradient(145deg, ${color}, ${color}88)`,
+            boxShadow: `0 0 8px ${color}55`,
+          }}
+        />
+        <span className="flex-1 truncate text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {category.name}
+        </span>
+        <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground/60">
+          <Plus className="h-3 w-3" />
+          girdi
+        </span>
+      </button>
+
+      {topSubs.length === 0 && !editMode ? (
+        <p className="px-1.5 text-[11px] text-muted-foreground/50">
+          Alt kategori yok — başlığa dokunup doğrudan ekleyebilirsin.
+        </p>
+      ) : (
+        renderLevel(topSubs, 0, undefined)
       )}
-    </div>
+    </section>
   );
 }
 
-/** Düzenleme modunda satırın sürüklenebilir gövdesi (350ms basılı tut → sürükle). */
-function PickDragRow({
+// ─── Kare karo ────────────────────────────────────────────────────────────────
+
+/**
+ * Alt kategori karesi. Yaprak → dokun seçer (forma geçer). Alt kategorisi olan →
+ * dokun açar/kapar (içi ızgara). Düzenleme modunda basılı tut → sürükle (350ms;
+ * erken hareket kaydırma sayılıp iptal eder).
+ */
+function SubTile({
+  sub,
+  color,
+  hasChildren,
+  isExpanded,
   isDragging,
   isDropTarget,
-  color,
-  dropId,
-  onStart,
-  children,
+  editMode,
+  onSelect,
+  onExpand,
+  onDragStart,
 }: {
+  sub: SubCategory;
+  color: string;
+  hasChildren: boolean;
+  isExpanded: boolean;
   isDragging: boolean;
   isDropTarget: boolean;
-  color: string;
-  dropId: string;
-  onStart: (pos: { x: number; y: number }) => void;
-  children: React.ReactNode;
+  editMode: boolean;
+  onSelect: () => void;
+  onExpand?: () => void;
+  onDragStart: (pos: { x: number; y: number }) => void;
 }) {
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const downPos = useRef<{ x: number; y: number } | null>(null);
@@ -535,55 +540,86 @@ function PickDragRow({
     holdTimer.current = null;
   };
 
-  return (
-    <div
-      data-drop-sub={dropId}
-      onPointerDown={(e) => {
-        downPos.current = { x: e.clientX, y: e.clientY };
-        started.current = false;
-        clearHold();
-        holdTimer.current = setTimeout(() => {
-          started.current = true;
-          onStart(downPos.current!);
-        }, 350);
-      }}
-      onPointerMove={(e) => {
-        if (!downPos.current || started.current) return;
-        if (
-          Math.abs(e.clientX - downPos.current.x) > 10 ||
-          Math.abs(e.clientY - downPos.current.y) > 10
-        )
-          clearHold();
-      }}
-      onPointerUp={clearHold}
-      onPointerCancel={clearHold}
-      onContextMenu={(e) => e.preventDefault()}
-      className={cn(
-        "flex min-w-0 flex-1 select-none items-center gap-2.5 rounded-xl px-1.5 py-1.5 transition-all",
-        isDragging ? "opacity-30" : "hover:bg-white/5"
-      )}
-      style={
-        isDropTarget
-          ? { outline: `2px solid ${color}`, outlineOffset: "1px" }
-          : undefined
-      }
-    >
-      {children}
-    </div>
-  );
-}
+  function handleClick() {
+    if (started.current) {
+      started.current = false;
+      return; // sürükleme oldu — tıklama bastırılır
+    }
+    if (hasChildren && onExpand) onExpand();
+    else onSelect();
+  }
 
-function AddRow({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
+      data-drop-sub={sub.id}
       type="button"
-      onClick={onClick}
-      className="group flex items-center gap-2.5 rounded-xl px-1.5 py-1.5 text-xs text-muted-foreground/60 transition-colors hover:bg-white/5 hover:text-foreground"
+      onClick={handleClick}
+      onPointerDown={
+        editMode
+          ? (e) => {
+              downPos.current = { x: e.clientX, y: e.clientY };
+              started.current = false;
+              clearHold();
+              holdTimer.current = setTimeout(() => {
+                started.current = true;
+                onDragStart(downPos.current!);
+              }, 350);
+            }
+          : undefined
+      }
+      onPointerMove={
+        editMode
+          ? (e) => {
+              if (!downPos.current || started.current) return;
+              if (
+                Math.abs(e.clientX - downPos.current.x) > 10 ||
+                Math.abs(e.clientY - downPos.current.y) > 10
+              )
+                clearHold();
+            }
+          : undefined
+      }
+      onPointerUp={editMode ? clearHold : undefined}
+      onPointerCancel={editMode ? clearHold : undefined}
+      onContextMenu={(e) => e.preventDefault()}
+      className={cn(
+        "flex select-none flex-col items-center gap-1.5 rounded-2xl px-1 py-2 transition-all hover:bg-white/5 active:scale-[0.92]",
+        isDragging && "opacity-30"
+      )}
     >
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-dashed border-muted-foreground/25 transition-colors group-hover:border-primary/50 group-hover:text-primary">
-        <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+      <span className="relative">
+        <span
+          className="block rounded-xl"
+          style={
+            isDropTarget
+              ? { outline: `2px solid ${color}`, outlineOffset: "2px" }
+              : undefined
+          }
+        >
+          <CategoryTileCore
+            color={color}
+            icon={sub.icon}
+            fallback={hasChildren ? FolderOpen : Folder}
+          />
+        </span>
+        {hasChildren && (
+          <span
+            className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-background"
+            style={{ backgroundColor: color }}
+          >
+            <ChevronDown
+              className={cn(
+                "h-2.5 w-2.5 text-white transition-transform duration-200",
+                isExpanded && "rotate-180"
+              )}
+              strokeWidth={2.75}
+            />
+          </span>
+        )}
       </span>
-      {label}
+      <span className="w-full truncate text-center text-[11px] font-medium leading-tight">
+        {sub.name}
+      </span>
     </button>
   );
 }
