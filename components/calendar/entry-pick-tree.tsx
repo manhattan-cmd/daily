@@ -391,66 +391,90 @@ function CategorySection({
     const expandedId = expandedPath[depth];
     const expandedSub = expandedId ? subById.get(expandedId) : undefined;
     const childSubs = expandedId ? childrenMap.get(expandedId) ?? [] : [];
-    return (
-      <>
-        {/* Kare ızgara — daima 4 sütun */}
-        <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
-          {subs.map((sub) => {
-            const hasKids = (childrenMap.get(sub.id)?.length ?? 0) > 0;
-            return (
-              <SubTile
-                key={sub.id}
-                sub={sub}
-                color={color}
-                hasChildren={hasKids}
-                isExpanded={expandedPath[depth] === sub.id}
-                isDragging={draggingSubId === sub.id}
-                isDropTarget={
-                  dropTarget?.kind === "sub" && dropTarget.id === sub.id
-                }
-                editMode={editMode}
-                onSelect={() => onSubSelect(sub)}
-                onExpand={hasKids ? () => toggle(sub.id, depth) : undefined}
-                onDragStart={(pos) => onDragStart(sub, color, pos)}
-              />
-            );
-          })}
-          {editMode && (
-            <CategoryTileAdd
-              label="Ekle"
-              onClick={() => onAddChild(category.id, parentId)}
-            />
-          )}
-        </div>
 
-        {/* Açılan dal — aynı ızgara diliyle, kategori renginde kılavuz */}
-        {expandedSub && (childSubs.length > 0 || editMode) && (
-          <div
-            className="mt-2 ml-1 border-l-2 pl-2.5"
-            style={{ borderColor: `${color}40` }}
+    // Açılan dal — aynı ızgara diliyle, kategori renginde kılavuz
+    const expansion =
+      expandedSub && (childSubs.length > 0 || editMode) ? (
+        <div
+          className="mt-2 ml-1 border-l-2 pl-2.5"
+          style={{ borderColor: `${color}40` }}
+        >
+          <button
+            data-drop-sub={expandedSub.id}
+            type="button"
+            onClick={() => onSubSelect(expandedSub)}
+            className="mb-1.5 flex items-center gap-1.5 rounded-lg px-1 py-0.5 transition-colors hover:bg-white/5"
           >
-            <button
-              data-drop-sub={expandedSub.id}
-              type="button"
-              onClick={() => onSubSelect(expandedSub)}
-              className="mb-1.5 flex items-center gap-1.5 rounded-lg px-1 py-0.5 transition-colors hover:bg-white/5"
+            <CornerDownRight
+              className="h-3 w-3 shrink-0"
+              style={{ color: `${color}c0` }}
+            />
+            <span
+              className="truncate text-[11px] font-semibold uppercase tracking-wider"
+              style={{ color: `${color}d0` }}
             >
-              <CornerDownRight
-                className="h-3 w-3 shrink-0"
-                style={{ color: `${color}c0` }}
-              />
-              <span
-                className="truncate text-[11px] font-semibold uppercase tracking-wider"
-                style={{ color: `${color}d0` }}
-              >
-                {expandedSub.name}
-              </span>
-              <span className="text-[10px] text-muted-foreground/60">· ekle</span>
-            </button>
-            {renderLevel(childSubs, depth + 1, expandedSub.id)}
-          </div>
-        )}
-      </>
+              {expandedSub.name}
+            </span>
+            <span className="text-[10px] text-muted-foreground/60">· ekle</span>
+          </button>
+          {renderLevel(childSubs, depth + 1, expandedSub.id)}
+        </div>
+      ) : null;
+
+    // Hücreler 4'lü satırlara bölünür; açılan karonun bulunduğu satırın HEMEN
+    // altında açılır — çok aşağıda değil, ilgili yerde.
+    type Cell = { kind: "sub"; sub: SubCategory } | { kind: "add" };
+    const cells: Cell[] = [
+      ...subs.map((sub): Cell => ({ kind: "sub", sub })),
+      ...(editMode ? [{ kind: "add" } as Cell] : []),
+    ];
+    const rows: Cell[][] = [];
+    for (let i = 0; i < cells.length; i += 4) rows.push(cells.slice(i, i + 4));
+
+    return (
+      <div className="flex flex-col gap-1">
+        {rows.map((row, ri) => {
+          const rowHasExpanded =
+            !!expandedId &&
+            row.some((c) => c.kind === "sub" && c.sub.id === expandedId);
+          return (
+            <div key={ri}>
+              <div className="grid grid-cols-4 gap-x-1.5">
+                {row.map((c) =>
+                  c.kind === "add" ? (
+                    <CategoryTileAdd
+                      key="add"
+                      label="Ekle"
+                      onClick={() => onAddChild(category.id, parentId)}
+                    />
+                  ) : (
+                    <SubTile
+                      key={c.sub.id}
+                      sub={c.sub}
+                      color={color}
+                      hasChildren={(childrenMap.get(c.sub.id)?.length ?? 0) > 0}
+                      isExpanded={expandedId === c.sub.id}
+                      isDragging={draggingSubId === c.sub.id}
+                      isDropTarget={
+                        dropTarget?.kind === "sub" && dropTarget.id === c.sub.id
+                      }
+                      editMode={editMode}
+                      onSelect={() => onSubSelect(c.sub)}
+                      onExpand={
+                        (childrenMap.get(c.sub.id)?.length ?? 0) > 0
+                          ? () => toggle(c.sub.id, depth)
+                          : undefined
+                      }
+                      onDragStart={(pos) => onDragStart(c.sub, color, pos)}
+                    />
+                  )
+                )}
+              </div>
+              {rowHasExpanded && expansion}
+            </div>
+          );
+        })}
+      </div>
     );
   }
 
