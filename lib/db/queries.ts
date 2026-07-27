@@ -332,18 +332,23 @@ export async function updateSubCategory(
   await db.subcategories.update(subId, { ...patch, updatedAt: now() });
 }
 
-/** Girdi ekleme v2 ağında düğümün sürüklenip yerleştirildiği konumu kaydet. */
-export async function setSubcategoryPos(
-  subId: string,
-  pos: { x: number; y: number }
-): Promise<void> {
-  await db.subcategories.update(subId, { netPos: pos, updatedAt: now() });
+/**
+ * Girdi ekleme v2 ağında düğümleri çokgen köşelerine yerleştirme = kardeşler
+ * arası yeniden sıralama. Verilen id sırasına göre order = index atanır.
+ */
+export async function reorderCategories(orderedIds: string[]): Promise<void> {
+  await db.transaction("rw", db.categories, async () => {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db.categories.update(orderedIds[i], { order: i + 1, updatedAt: now() });
+    }
+  });
 }
-export async function setCategoryPos(
-  catId: string,
-  pos: { x: number; y: number }
-): Promise<void> {
-  await db.categories.update(catId, { netPos: pos, updatedAt: now() });
+export async function reorderSubcategories(orderedIds: string[]): Promise<void> {
+  await db.transaction("rw", db.subcategories, async () => {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db.subcategories.update(orderedIds[i], { order: i + 1, updatedAt: now() });
+    }
+  });
 }
 
 /**

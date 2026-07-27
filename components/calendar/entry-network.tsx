@@ -13,8 +13,8 @@ import {
   Plus,
 } from "lucide-react";
 import {
-  setSubcategoryPos,
-  setCategoryPos,
+  reorderCategories,
+  reorderSubcategories,
 } from "@/lib/db/queries";
 import { CategoryTileCore } from "@/components/structure/category-tile";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
@@ -154,25 +154,37 @@ export function EntryNetwork({
     }));
   }, [focusObj, categories, topSubsByCat, childrenMap]);
 
-  // Konum: kullanıcı sürükleyip kaydettiyse netPos, yoksa çokgen yuvası
+  // Konum: her düğüm çokgenin bir köşesinde (sıra = order). Sürükleme köşeler
+  // arasında yeniden dizer; serbest konum yok.
   const positions = useMemo(() => {
     const n = nodes.length;
     const R = n <= 4 ? 104 : Math.min(128, 88 + n * 6);
-    return nodes.map((node, i) => {
-      const custom = node.kind === "cat" ? node.cat.netPos : node.sub.netPos;
-      if (custom) return { x: custom.x, y: custom.y, custom: true };
+    return nodes.map((_, i) => {
       const a = angleFor(i, n);
-      return { x: C + R * Math.cos(a), y: C + R * Math.sin(a), custom: false };
+      return { x: C + R * Math.cos(a), y: C + R * Math.sin(a) };
     });
   }, [nodes]);
 
   const nodeId = (node: Node) => (node.kind === "cat" ? node.cat.id : node.sub.id);
-  // Sürüklenen düğüm anlık parmak konumunda gösterilir (ışın/çokgen de takip eder)
+  // Sürüklenen düğüm anlık parmak konumunda gösterilir (ışın da takip eder)
   const effPositions = positions.map((p, i) => {
     if (drag && dragPos && drag.id === nodeId(nodes[i])) return dragPos;
     return { x: p.x, y: p.y };
   });
-  const anyCustom = positions.some((p) => p.custom) || drag != null;
+  // Sürüklerken en yakın köşe (oturacağı yuva) — vurgulanır
+  const targetSlot = useMemo(() => {
+    if (!drag || !dragPos) return -1;
+    let best = -1;
+    let bestD = Infinity;
+    positions.forEach((p, i) => {
+      const d = (p.x - dragPos.x) ** 2 + (p.y - dragPos.y) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    });
+    return best;
+  }, [drag, dragPos, positions]);
 
   const trail = useMemo(() => {
     const t: { label: string; focus: NetFocus }[] = [
@@ -221,9 +233,25 @@ export function EntryNetwork({
       setDragPos(null);
       posRef.current = null;
       if (!d || !p) return;
-      const pos = { x: Math.round(p.x), y: Math.round(p.y) };
-      if (d.kind === "sub") await setSubcategoryPos(d.id, pos);
-      else await setCategoryPos(d.id, pos);
+      const idOf = (nd: Node) => (nd.kind === "cat" ? nd.cat.id : nd.sub.id);
+      const from = nodes.findIndex((nd) => idOf(nd) === d.id);
+      if (from < 0) return;
+      // En yakın köşe yuvası
+      let to = from;
+      let bestD = Infinity;
+      positions.forEach((slot, i) => {
+        const dist = (slot.x - p.x) ** 2 + (slot.y - p.y) ** 2;
+        if (dist < bestD) {
+          bestD = dist;
+          to = i;
+        }
+      });
+      if (to === from) return;
+      // Yer değiştir (dragged ↔ hedef köşedeki) → order olarak kaydet
+      const ids = nodes.map(idOf);
+      [ids[from], ids[to]] = [ids[to], ids[from]];
+      if (d.kind === "cat") await reorderCategories(ids);
+      else await reorderSubcategories(ids);
     };
     const prevent = (e: TouchEvent) => e.preventDefault();
     window.addEventListener("pointermove", onMove);
@@ -234,7 +262,7 @@ export function EntryNetwork({
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("touchmove", prevent);
     };
-  }, [drag]);
+  }, [drag, nodes, positions]);
 
   function startDrag(node: Node, p: { x: number; y: number }) {
     setDrag({ id: nodeId(node), kind: node.kind });
@@ -282,7 +310,8 @@ export function EntryNetwork({
         ? focusObj.cat.name
         : focusObj.sub.name;
   const hasNodes = nodes.length > 0;
-  const polyPoints = effPositions.map((p) => `${p.x},${p.y}`).join(" ");
+  // Çokgen daima sabit köşelerden (temiz kalır); ışınlar sürükleneni takip eder
+  const polyPoints = positions.map((p) => `${p.x},${p.y}`).join(" ");
 
   return (
     <div className="flex flex-col">
@@ -424,12 +453,24 @@ export function EntryNetwork({
               strokeWidth={1.5}
             />
           )}
-          {!anyCustom && effPositions.length >= 3 && (
+          {positions.length >= 3 && (
             <polygon
               points={polyPoints}
               fill={`${centerColor}0f`}
               stroke={`${centerColor}50`}
               strokeWidth={1.5}
+            />
+          )}
+          {/* Sürüklerken oturacağı köşe vurgusu */}
+          {drag && targetSlot >= 0 && positions[targetSlot] && (
+            <circle
+              cx={positions[targetSlot].x}
+              cy={positions[targetSlot].y}
+              r={30}
+              fill="none"
+              stroke={centerColor}
+              strokeWidth={2}
+              strokeDasharray="5 4"
             />
           )}
         </svg>
