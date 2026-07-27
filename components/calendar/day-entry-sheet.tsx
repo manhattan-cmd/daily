@@ -1,39 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Boxes, Check, ChevronDown, ChevronRight, CornerDownRight, Link2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, Boxes, Link2, Plus, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
 import {
   listModifiersForTarget,
   removeModifier,
   createEntry,
-  deleteSubCategory,
   ensureActivity,
   getOrCreateCategoryRootSub,
   listActivityNameSuggestions,
-  moveSubCategory,
   type CategoryModifierWithType,
   type ParallelSub,
 } from "@/lib/db/queries";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
-import { CATEGORY_ICON_MAP, CategoryIcon } from "@/lib/category-icons";
-import { SubCategoryForm } from "@/components/structure/subcategory-form";
+import { EntryPickTree } from "@/components/calendar/entry-pick-tree";
 import { DateTimeRangeInput, formatDTRDisplay } from "@/components/forms/datetime-range-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { Category, SubCategory } from "@/types";
 
@@ -458,12 +446,6 @@ function ActivityNameStep({
 
 // ─── Pick Step ───────────────────────────────────────────────────────────────
 
-/** Sürükleme sırasında bırakılabilecek hedef */
-type DropTarget =
-  | { kind: "sub"; id: string }
-  | { kind: "cat"; id: string }
-  | { kind: "trash" };
-
 function PickStep({
   groups,
   onSubSelect,
@@ -480,132 +462,13 @@ function PickStep({
   /** Aktivite akışında başlık bandı + Bitti butonu */
   activity?: { name: string; count: number } | null;
 }) {
-  // Basılı tut + sürükle: daire başka bir dairenin (altına taşı), kategori
-  // başlığının (o kategorinin ana seviyesine taşı) ya da çöp alanının (sil)
-  // üzerine bırakılır. Analizler parentId zincirini canlı okuduğundan taşıma
-  // sonrası kendiliğinden yeni hiyerarşiye uyar.
-  const [drag, setDrag] = useState<{
-    sub: SubCategory;
-    color: string;
-    /** Taşınanın kendisi + torunları — bunların üzerine bırakılamaz (döngü) */
-    invalidIds: Set<string>;
-  } | null>(null);
-  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
-  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
-  const dropRef = useRef<DropTarget | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<SubCategory | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  // Düzenleme modu: + rozetleri yalnızca bu moddayken görünür — normal
-  // görünüm sade kalır (kafa karıştıran artılar gizli)
-  const [editMode, setEditMode] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  const subById = useMemo(() => {
-    const m = new Map<string, SubCategory>();
-    for (const g of groups ?? []) for (const s of g.allSubs) m.set(s.id, s);
-    return m;
-  }, [groups]);
-
-  function startDrag(
-    sub: SubCategory,
-    color: string,
-    pos: { x: number; y: number }
-  ) {
-    const invalid = new Set<string>([sub.id]);
-    const all = groups?.flatMap((g) => g.allSubs) ?? [];
-    const stack = [sub.id];
-    while (stack.length) {
-      const cur = stack.pop()!;
-      for (const s of all)
-        if (s.parentId === cur && !invalid.has(s.id)) {
-          invalid.add(s.id);
-          stack.push(s.id);
-        }
-    }
-    setDrag({ sub, color, invalidIds: invalid });
-    setDragPos(pos);
-    navigator.vibrate?.(15);
-  }
-
-  useEffect(() => {
-    if (!drag) return;
-    const setTarget = (t: DropTarget | null) => {
-      dropRef.current = t;
-      setDropTarget(t);
-    };
-    const endDrag = () => {
-      setDrag(null);
-      setDragPos(null);
-      setTarget(null);
-    };
-    const onMove = (e: PointerEvent) => {
-      setDragPos({ x: e.clientX, y: e.clientY });
-      // Kenara yaklaşınca liste kendiliğinden kayar
-      const sc = scrollRef.current;
-      if (sc) {
-        const r = sc.getBoundingClientRect();
-        if (e.clientY < r.top + 56) sc.scrollTop -= 10;
-        else if (e.clientY > r.bottom - 84) sc.scrollTop += 10;
-      }
-      const el = document.elementFromPoint(e.clientX, e.clientY);
-      const t = el?.closest?.(
-        "[data-drop-sub],[data-drop-cat],[data-drop-trash]"
-      ) as HTMLElement | null;
-      if (!t) return setTarget(null);
-      if (t.dataset.dropTrash !== undefined) return setTarget({ kind: "trash" });
-      const subId = t.dataset.dropSub;
-      if (subId) {
-        // Kendi alt ağacına ya da zaten altında olduğu üste bırakılamaz
-        if (drag.invalidIds.has(subId) || drag.sub.parentId === subId)
-          return setTarget(null);
-        return setTarget({ kind: "sub", id: subId });
-      }
-      const catId = t.dataset.dropCat;
-      if (catId) {
-        if (drag.sub.categoryId === catId && !drag.sub.parentId)
-          return setTarget(null);
-        return setTarget({ kind: "cat", id: catId });
-      }
-      setTarget(null);
-    };
-    const onUp = async () => {
-      const t = dropRef.current;
-      const moving = drag.sub;
-      endDrag();
-      if (!t) return;
-      if (t.kind === "trash") {
-        setConfirmDelete(moving);
-      } else if (t.kind === "sub") {
-        const parent = subById.get(t.id);
-        if (parent)
-          await moveSubCategory(moving.id, {
-            categoryId: parent.categoryId,
-            parentId: parent.id,
-          });
-      } else {
-        await moveSubCategory(moving.id, { categoryId: t.id });
-      }
-    };
-    const onCancel = () => endDrag();
-    // Sürükleme boyunca dokunmatik kaydırmayı kilitle
-    const prevent = (e: TouchEvent) => e.preventDefault();
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onCancel);
-    window.addEventListener("touchmove", prevent, { passive: false });
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onCancel);
-      window.removeEventListener("touchmove", prevent);
-    };
-  }, [drag, subById]);
 
   return (
     <>
       <div className="flex items-center justify-between gap-2 px-5 pt-2 pb-3 shrink-0">
         <div className="min-w-0">
-          {activity && !drag && (
+          {activity && (
             <div className="flex items-center gap-1.5 mb-0.5">
               <Boxes className="h-3 w-3 text-cyan-400" />
               <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan-400/80 truncate">
@@ -615,20 +478,12 @@ function PickStep({
             </div>
           )}
           <h2 className="text-base font-semibold tracking-tight truncate">
-            {drag
-              ? `"${drag.sub.name}" taşınıyor`
-              : activity
-                ? "Aktiviteye girdi ekle"
-                : "Ne eklemek istersin?"}
+            {activity ? "Aktiviteye girdi ekle" : "Ne eklemek istersin?"}
           </h2>
           <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-            {drag
-              ? "Bir dairenin ya da kategori adının üzerine bırak"
-              : activity
-                ? "İstediğin kadar ekle — bitince Bitti'ye bas"
-                : editMode
-                  ? "+ ile alt kategori ekle; daireyi basılı tutup sürükleyerek taşı"
-                  : "Girdi eklemek istediğin yeri seç"}
+            {activity
+              ? "İstediğin kadar ekle — bitince Bitti'ye bas"
+              : "Girdi eklemek istediğin yeri seç"}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -661,489 +516,15 @@ function PickStep({
             </p>
           </div>
         ) : (
-          <>
-            {/* Düzenleme modu anahtarı — + rozetlerini gösterir/gizler */}
-            <button
-              onClick={() => setEditMode((v) => !v)}
-              className={cn(
-                "mb-4 flex w-full items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-medium transition-colors",
-                editMode
-                  ? "border-primary/50 bg-primary/10 text-primary"
-                  : "border-dashed border-border/60 text-muted-foreground hover:border-border hover:text-foreground"
-              )}
-            >
-              {editMode ? (
-                <>
-                  <Check className="h-3.5 w-3.5" />
-                  Düzenlemeyi bitir
-                </>
-              ) : (
-                <>
-                  <Pencil className="h-3.5 w-3.5" />
-                  Alt kategorileri düzenle / oluştur
-                </>
-              )}
-            </button>
-
-            <div className="flex flex-col gap-5">
-              {groups.map(({ category, topSubs, allSubs }) => (
-                <CategoryGroup
-                  key={category.id}
-                  category={category}
-                  topSubs={topSubs}
-                  allSubs={allSubs}
-                  editMode={editMode}
-                  onSubSelect={onSubSelect}
-                  onCategorySelect={onCategorySelect}
-                  onDragStart={startDrag}
-                  draggingSubId={drag?.sub.id ?? null}
-                  dropTarget={dropTarget}
-                />
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Çöp alanı — sürükleme sırasında görünür; bırakınca onaylı silme */}
-      {drag && (
-        <div
-          data-drop-trash
-          className={cn(
-            "absolute inset-x-4 bottom-4 z-[60] flex h-14 items-center justify-center gap-2 rounded-2xl border-2 border-dashed transition-colors",
-            dropTarget?.kind === "trash"
-              ? "border-red-500 bg-red-500/25 text-red-200"
-              : "border-red-500/40 bg-background/95 text-red-400/80"
-          )}
-        >
-          <Trash2 className="h-4 w-4" />
-          <span className="text-xs font-medium">Silmek için buraya bırak</span>
-        </div>
-      )}
-
-      {/* Sürüklenen hayalet daire — parmağı izler */}
-      {drag &&
-        dragPos &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-            className="pointer-events-none fixed z-[100]"
-            style={{
-              left: dragPos.x,
-              top: dragPos.y,
-              transform: "translate(-50%, -110%)",
-            }}
-          >
-            <div
-              className="h-[64px] w-[64px] rounded-full flex items-center justify-center shadow-2xl"
-              style={{
-                backgroundColor: `${drag.color}30`,
-                outline: `2px solid ${drag.color}`,
-                backdropFilter: "blur(4px)",
-              }}
-            >
-              <SubGlyph sub={drag.sub} color={drag.color} />
-            </div>
-          </div>,
-          document.body
-        )}
-
-      {/* Sürükle-sil onayı */}
-      <Dialog
-        open={confirmDelete !== null}
-        onOpenChange={(o) => {
-          if (!o) setConfirmDelete(null);
-        }}
-      >
-        <DialogContent className="max-w-[320px]">
-          <DialogHeader>
-            <DialogTitle>{`"${confirmDelete?.name ?? ""}" silinsin mi?`}</DialogTitle>
-            <DialogDescription>
-              Bu alt kategoriye (ve altlarına) ait tüm girdiler kalıcı olarak
-              silinecek.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setConfirmDelete(null)}
-              disabled={deleting}
-            >
-              İptal
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={deleting}
-              onClick={async () => {
-                if (!confirmDelete) return;
-                setDeleting(true);
-                try {
-                  await deleteSubCategory(confirmDelete.id);
-                } finally {
-                  setDeleting(false);
-                  setConfirmDelete(null);
-                }
-              }}
-            >
-              {deleting ? "Siliniyor..." : "Sil"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-// ─── Category Group ───────────────────────────────────────────────────────────
-
-function CategoryGroup({
-  category,
-  topSubs,
-  allSubs,
-  editMode,
-  onSubSelect,
-  onCategorySelect,
-  onDragStart,
-  draggingSubId,
-  dropTarget,
-}: {
-  category: Category;
-  topSubs: SubCategory[];
-  allSubs: SubCategory[];
-  /** Düzenleme modunda + rozetleri görünür */
-  editMode: boolean;
-  onSubSelect: (sub: SubCategory) => void;
-  onCategorySelect: (category: Category) => void;
-  onDragStart: (
-    sub: SubCategory,
-    color: string,
-    pos: { x: number; y: number }
-  ) => void;
-  draggingSubId: string | null;
-  dropTarget: DropTarget | null;
-}) {
-  // expansionPath[0] = expanded topSub id, expansionPath[1] = expanded child id, …
-  const [expansionPath, setExpansionPath] = useState<string[]>([]);
-  const [addOpen, setAddOpen] = useState(false);
-  const [addParentId, setAddParentId] = useState<string | undefined>(undefined);
-
-  const isCatDropTarget =
-    dropTarget?.kind === "cat" && dropTarget.id === category.id;
-
-  function handleExpand(subId: string, levelIndex: number) {
-    setExpansionPath((prev) => {
-      if (prev[levelIndex] === subId) {
-        // Collapse this level and all deeper levels
-        return prev.slice(0, levelIndex);
-      }
-      // Expand at this level, clear any deeper levels
-      return [...prev.slice(0, levelIndex), subId];
-    });
-  }
-
-  function openAdd(parentSubcategoryId?: string) {
-    setAddParentId(parentSubcategoryId);
-    setAddOpen(true);
-  }
-
-  // Calculate how many ancestor hops from category root to a sub
-  function depthOf(subId: string): number {
-    let depth = 0;
-    let current = allSubs.find((s) => s.id === subId);
-    while (current?.parentId) {
-      depth++;
-      current = allSubs.find((s) => s.id === current!.parentId);
-    }
-    return depth;
-  }
-
-  function renderLevel(subs: SubCategory[], levelIndex: number): React.ReactNode {
-    const expandedIdAtLevel = expansionPath[levelIndex];
-    const expandedSub = expandedIdAtLevel
-      ? allSubs.find((s) => s.id === expandedIdAtLevel)
-      : undefined;
-    const nextLevelSubs = expandedIdAtLevel
-      ? allSubs
-          .filter((s) => s.parentId === expandedIdAtLevel)
-          .sort((a, b) => a.order - b.order)
-      : [];
-
-    return (
-      <div key={`level-${levelIndex}`}>
-        <div className="flex flex-wrap gap-4">
-          {subs.map((sub) => {
-            const hasChildren = allSubs.some((s) => s.parentId === sub.id);
-            const isExpanded = expansionPath[levelIndex] === sub.id;
-            return (
-              <SubCircle
-                key={sub.id}
-                sub={sub}
-                categoryColor={category.color}
-                hasChildren={hasChildren}
-                isExpanded={isExpanded}
-                isDragging={draggingSubId === sub.id}
-                isDropTarget={
-                  dropTarget?.kind === "sub" && dropTarget.id === sub.id
-                }
-                onTap={() => onSubSelect(sub)}
-                onExpand={
-                  hasChildren
-                    ? () => handleExpand(sub.id, levelIndex)
-                    : undefined
-                }
-                onAddChild={editMode ? () => openAdd(sub.id) : undefined}
-                onDragStart={(pos) => onDragStart(sub, category.color, pos)}
-              />
-            );
-          })}
-        </div>
-
-        {/* Açılan dal: ebeveyn adı etiketli, bağlantı çizgili yuva — iç içe
-            render edildiğinden derinleştikçe girinti artar, aidiyet okunur */}
-        {nextLevelSubs.length > 0 && expandedSub && (
-          <div
-            className="mt-3 ml-7 border-l-2 pl-3.5 pb-1"
-            style={{ borderColor: `${category.color}40` }}
-          >
-            <div className="mb-2.5 flex items-center gap-1.5">
-              <CornerDownRight
-                className="h-3 w-3 shrink-0"
-                style={{ color: `${category.color}90` }}
-              />
-              <span
-                className="truncate text-[10px] font-semibold uppercase tracking-wider"
-                style={{ color: `${category.color}c0` }}
-              >
-                {expandedSub.name}
-              </span>
-            </div>
-            {renderLevel(nextLevelSubs, levelIndex + 1)}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      {/* Section header — kutuya tıklayınca kategori doğrudan girdi olarak eklenir;
-          sürüklemede üzerine bırakılan alt kategori bu kategorinin ana seviyesine taşınır */}
-      <div className="flex items-center gap-2 mb-3">
-        <button
-          data-drop-cat={category.id}
-          onClick={() => onCategorySelect(category)}
-          className={cn(
-            "flex items-center gap-2.5 flex-1 min-w-0 rounded-xl border px-3 py-2.5 text-left transition-all hover:brightness-110 active:scale-[0.98]",
-            isCatDropTarget && "ring-1 ring-inset scale-[1.02]"
-          )}
-          style={{
-            borderColor: `${category.color}${isCatDropTarget ? "" : "30"}`,
-            background: `linear-gradient(135deg, ${category.color}${isCatDropTarget ? "30" : "16"}, ${category.color}06)`,
-            ...(isCatDropTarget
-              ? ({ "--tw-ring-color": category.color } as React.CSSProperties)
-              : {}),
-          }}
-          aria-label={`${category.name} kategorisine doğrudan girdi ekle`}
-        >
-          <div
-            className="h-2.5 w-2.5 rounded-full shrink-0"
-            style={{ backgroundColor: category.color }}
+          <EntryPickTree
+            groups={groups}
+            onSubSelect={onSubSelect}
+            onCategorySelect={onCategorySelect}
+            scrollParentRef={scrollRef}
           />
-          <span className="flex-1 truncate text-sm font-semibold">
-            {category.name}
-          </span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
-        </button>
-        {editMode && (
-          <button
-            onClick={() => openAdd(undefined)}
-            className="h-9 w-9 shrink-0 rounded-full border border-dashed border-border/60 flex items-center justify-center hover:border-foreground/30 hover:bg-muted/40 active:scale-95 transition-all"
-            aria-label={`${category.name} altına alt kategori ekle`}
-          >
-            <Plus className="h-4 w-4 text-muted-foreground" />
-          </button>
         )}
       </div>
-
-      {renderLevel(topSubs, 0)}
-
-      {/* Quick add dialog */}
-      <SubCategoryForm
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        categoryId={category.id}
-        parentSubcategoryId={addParentId}
-        categoryName={category.name}
-        onSaved={() => {
-          if (addParentId) {
-            const level = depthOf(addParentId);
-            handleExpand(addParentId, level);
-          }
-        }}
-      />
-
-    </div>
-  );
-}
-
-// ─── Sub Circle ──────────────────────────────────────────────────────────────
-
-/** Dairenin içindeki sembol — SubCircle ve sürükleme hayaleti ortak kullanır */
-function SubGlyph({ sub, color }: { sub: SubCategory; color: string }) {
-  const isLucideIcon = sub.icon && sub.icon in CATEGORY_ICON_MAP;
-  if (isLucideIcon) {
-    return (
-      <CategoryIcon name={sub.icon} className="h-6 w-6" style={{ color }} />
-    );
-  }
-  if (sub.icon) {
-    return (
-      <span className="text-[26px] leading-none select-none">{sub.icon}</span>
-    );
-  }
-  return (
-    <span
-      className="text-lg font-bold leading-none select-none"
-      style={{ color }}
-    >
-      {sub.name[0].toUpperCase()}
-    </span>
-  );
-}
-
-function SubCircle({
-  sub,
-  categoryColor,
-  hasChildren,
-  isExpanded,
-  isDragging,
-  isDropTarget,
-  onTap,
-  onExpand,
-  onAddChild,
-  onDragStart,
-}: {
-  sub: SubCategory;
-  categoryColor: string;
-  hasChildren: boolean;
-  isExpanded: boolean;
-  isDragging: boolean;
-  isDropTarget: boolean;
-  onTap: () => void;
-  onExpand?: () => void;
-  onAddChild?: () => void;
-  onDragStart: (pos: { x: number; y: number }) => void;
-}) {
-  // Basılı tutma → sürükleme: 350ms hareketsiz basış sürüklemeyi başlatır;
-  // erken hareket kaydırma sayılır ve iptal eder. Sürükleme olduysa bırakıştaki
-  // click bastırılır (yoksa form açılırdı).
-  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const downPos = useRef<{ x: number; y: number } | null>(null);
-  const dragStarted = useRef(false);
-
-  const clearHold = () => {
-    if (holdTimer.current) clearTimeout(holdTimer.current);
-    holdTimer.current = null;
-  };
-
-  return (
-    <button
-      data-drop-sub={sub.id}
-      onClick={() => {
-        if (dragStarted.current) {
-          dragStarted.current = false;
-          return;
-        }
-        onTap();
-      }}
-      onPointerDown={(e) => {
-        downPos.current = { x: e.clientX, y: e.clientY };
-        dragStarted.current = false;
-        clearHold();
-        holdTimer.current = setTimeout(() => {
-          dragStarted.current = true;
-          onDragStart(downPos.current!);
-        }, 350);
-      }}
-      onPointerMove={(e) => {
-        if (!downPos.current || dragStarted.current) return;
-        if (
-          Math.abs(e.clientX - downPos.current.x) > 10 ||
-          Math.abs(e.clientY - downPos.current.y) > 10
-        )
-          clearHold();
-      }}
-      onPointerUp={clearHold}
-      onPointerCancel={clearHold}
-      onContextMenu={(e) => e.preventDefault()}
-      className={cn(
-        "flex flex-col items-center gap-2 active:scale-90 transition-transform",
-        isDragging && "opacity-30"
-      )}
-    >
-      <div
-        className={cn(
-          "relative h-[60px] w-[60px] rounded-full flex items-center justify-center transition-all duration-200",
-          isDropTarget && "scale-110"
-        )}
-        style={{
-          backgroundColor: isDropTarget
-            ? `${categoryColor}45`
-            : isExpanded
-              ? `${categoryColor}35`
-              : `${categoryColor}18`,
-          outline:
-            isDropTarget || isExpanded
-              ? `2px solid ${categoryColor}`
-              : undefined,
-          outlineOffset: isDropTarget || isExpanded ? "2px" : undefined,
-        }}
-      >
-        <SubGlyph sub={sub} color={categoryColor} />
-
-        {/* Expand/collapse badge — sağ-alt; belirgin olsun diye büyük */}
-        {hasChildren && (
-          <div
-            className="absolute -bottom-1 -right-1 h-[24px] w-[24px] rounded-full flex items-center justify-center border-2 border-background shadow-md transition-colors"
-            style={{ backgroundColor: categoryColor }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onExpand?.();
-            }}
-            role="button"
-            aria-label={isExpanded ? `${sub.name} alt kategorilerini gizle` : `${sub.name} alt kategorilerini göster`}
-          >
-            <ChevronDown
-              className={cn(
-                "h-3.5 w-3.5 text-white transition-transform duration-200",
-                isExpanded && "rotate-180"
-              )}
-              strokeWidth={2.5}
-            />
-          </div>
-        )}
-
-        {/* Alt kategori ekle rozeti — sol-alt */}
-        {onAddChild && (
-          <div
-            className="absolute -bottom-0.5 -left-0.5 h-[18px] w-[18px] rounded-full flex items-center justify-center border-[1.5px] border-background"
-            style={{ backgroundColor: `${categoryColor}60` }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddChild();
-            }}
-            role="button"
-            aria-label={`${sub.name} altına alt kategori ekle`}
-          >
-            <Plus className="h-2.5 w-2.5 text-white" />
-          </div>
-        )}
-      </div>
-
-      <span className="text-[11px] leading-tight text-center text-muted-foreground max-w-[64px] line-clamp-2 select-none">
-        {sub.name}
-      </span>
-    </button>
+    </>
   );
 }
 
