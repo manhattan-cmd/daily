@@ -531,6 +531,7 @@ function PickStep({
             onFocusChange={onNetFocusChange}
             onSubSelect={onSubSelect}
             onCategorySelect={onCategorySelect}
+            onClose={onClose}
           />
         )}
       </div>

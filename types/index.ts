@@ -58,6 +58,8 @@ export interface Category {
   color: string;
   /** Uygulamayla gelen şablon kategori (Uyku) — girdi seçiciden gizlenir, özel akışı vardır */
   isBuiltIn?: boolean;
+  /** Girdi ekleme v2 ağında kullanıcının sürükleyip yerleştirdiği konum (0..300 tuval birimi). İndekssiz opsiyonel (migration yok). */
+  netPos?: { x: number; y: number };
   order: number;
   createdAt: number;
   updatedAt: number;
@@ -74,6 +76,8 @@ export interface SubCategory {
   /** Düzenli/sabit kalem (kira, fatura gibi) — analizlerde tek dokunuşla hariç
    * tutulabilir; işaret alt ağaca miras iner. İndekssiz opsiyonel alan (migration yok). */
   isRegular?: boolean;
+  /** Girdi ekleme v2 ağında sürüklenip yerleştirilen konum (0..300 tuval birimi). İndekssiz opsiyonel (migration yok). */
+  netPos?: { x: number; y: number };
   order: number;
   createdAt: number;
   updatedAt: number;

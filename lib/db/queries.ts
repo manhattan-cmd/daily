@@ -332,6 +332,20 @@ export async function updateSubCategory(
   await db.subcategories.update(subId, { ...patch, updatedAt: now() });
 }
 
+/** Girdi ekleme v2 ağında düğümün sürüklenip yerleştirildiği konumu kaydet. */
+export async function setSubcategoryPos(
+  subId: string,
+  pos: { x: number; y: number }
+): Promise<void> {
+  await db.subcategories.update(subId, { netPos: pos, updatedAt: now() });
+}
+export async function setCategoryPos(
+  catId: string,
+  pos: { x: number; y: number }
+): Promise<void> {
+  await db.categories.update(catId, { netPos: pos, updatedAt: now() });
+}
+
 /**
  * Alt kategoriyi sil.
  * - mode "all" (varsayılan): kendisi, tüm torunları ve onların girdileri kalıcı silinir.

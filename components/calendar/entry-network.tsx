@@ -1,14 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ChevronRight,
   Folder,
   FolderOpen,
+  FolderPlus,
+  Layers,
   MoreHorizontal,
   PenLine,
   Plus,
 } from "lucide-react";
+import {
+  setSubcategoryPos,
+  setCategoryPos,
+} from "@/lib/db/queries";
 import { CategoryTileCore } from "@/components/structure/category-tile";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { CategoryForm } from "@/components/structure/category-form";
@@ -49,8 +56,8 @@ function angleFor(i: number, n: number): number {
 /**
  * Girdi ekleme v2 — ağ tabanlı gezinme. Kök: ana kategoriler ağ olarak. Bir
  * düğüme dokun → onun "sayfası": ortada kendisi, çevresinde çocukları çokgen ağ.
- * Yaprakta ağ yok. Ortadakine (ya da menüden "Girdi ekle") dokun → forma geçer.
- * Breadcrumb ile yukarı; sayfa menüsünde "Girdi ekle" / "Alt kategori aç".
+ * Düğümler basılı tutulup sürüklenerek serbestçe yerleştirilir (netPos kalıcı).
+ * Sayfa menüsü: Girdi ekle · Alt kategori aç · Yapı sayfası.
  */
 export function EntryNetwork({
   groups,
@@ -58,20 +65,30 @@ export function EntryNetwork({
   onFocusChange,
   onSubSelect,
   onCategorySelect,
+  onClose,
 }: {
   groups: NetGroup[] | undefined;
-  /** Kontrollü odak — sheet'te tutulur ki form→geri odağı korusun */
   focus: NetFocus;
   onFocusChange: (focus: NetFocus) => void;
   onSubSelect: (sub: SubCategory) => void;
   onCategorySelect: (category: Category) => void;
+  onClose: () => void;
 }) {
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [addSub, setAddSub] = useState<{
     categoryId: string;
     parentId?: string;
   } | null>(null);
   const [addCatOpen, setAddCatOpen] = useState(false);
+
+  // Sürükleme: basılı tut → serbest taşı → bırakınca netPos kaydolur
+  const [drag, setDrag] = useState<{ id: string; kind: "cat" | "sub" } | null>(
+    null
+  );
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  const posRef = useRef<{ x: number; y: number } | null>(null);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
 
   const categories = useMemo(
     () => (groups ?? []).map((g) => g.category),
@@ -106,7 +123,6 @@ export function EntryNetwork({
     [groups]
   );
 
-  // Kontrollü id-odağı → gerçek nesne (silinmişse köke düşer)
   const focusObj: Focus = useMemo(() => {
     if (focus == null) return null;
     if (focus.type === "cat") {
@@ -138,14 +154,25 @@ export function EntryNetwork({
     }));
   }, [focusObj, categories, topSubsByCat, childrenMap]);
 
+  // Konum: kullanıcı sürükleyip kaydettiyse netPos, yoksa çokgen yuvası
   const positions = useMemo(() => {
     const n = nodes.length;
     const R = n <= 4 ? 104 : Math.min(128, 88 + n * 6);
-    return nodes.map((_, i) => {
+    return nodes.map((node, i) => {
+      const custom = node.kind === "cat" ? node.cat.netPos : node.sub.netPos;
+      if (custom) return { x: custom.x, y: custom.y, custom: true };
       const a = angleFor(i, n);
-      return { x: C + R * Math.cos(a), y: C + R * Math.sin(a) };
+      return { x: C + R * Math.cos(a), y: C + R * Math.sin(a), custom: false };
     });
   }, [nodes]);
+
+  const nodeId = (node: Node) => (node.kind === "cat" ? node.cat.id : node.sub.id);
+  // Sürüklenen düğüm anlık parmak konumunda gösterilir (ışın/çokgen de takip eder)
+  const effPositions = positions.map((p, i) => {
+    if (drag && dragPos && drag.id === nodeId(nodes[i])) return dragPos;
+    return { x: p.x, y: p.y };
+  });
+  const anyCustom = positions.some((p) => p.custom) || drag != null;
 
   const trail = useMemo(() => {
     const t: { label: string; focus: NetFocus }[] = [
@@ -172,6 +199,49 @@ export function EntryNetwork({
     return t;
   }, [focusObj, subById, catById]);
 
+  // Sürükleme pencere olayları
+  useEffect(() => {
+    if (!drag) return;
+    const onMove = (e: PointerEvent) => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const scale = CANVAS / rect.width;
+      let x = (e.clientX - rect.left) * scale;
+      let y = (e.clientY - rect.top) * scale;
+      x = Math.max(28, Math.min(CANVAS - 28, x));
+      y = Math.max(28, Math.min(CANVAS - 28, y));
+      const np = { x, y };
+      posRef.current = np;
+      setDragPos(np);
+    };
+    const onUp = async () => {
+      const p = posRef.current;
+      const d = drag;
+      setDrag(null);
+      setDragPos(null);
+      posRef.current = null;
+      if (!d || !p) return;
+      const pos = { x: Math.round(p.x), y: Math.round(p.y) };
+      if (d.kind === "sub") await setSubcategoryPos(d.id, pos);
+      else await setCategoryPos(d.id, pos);
+    };
+    const prevent = (e: TouchEvent) => e.preventDefault();
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("touchmove", prevent, { passive: false });
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("touchmove", prevent);
+    };
+  }, [drag]);
+
+  function startDrag(node: Node, p: { x: number; y: number }) {
+    setDrag({ id: nodeId(node), kind: node.kind });
+    setDragPos(p);
+    posRef.current = p;
+    navigator.vibrate?.(12);
+  }
   function drill(node: Node) {
     onFocusChange(
       node.kind === "cat"
@@ -194,6 +264,16 @@ export function EntryNetwork({
         parentId: focusObj.sub.id,
       });
   }
+  function goStructure() {
+    setMenuOpen(false);
+    if (focusObj == null) return;
+    const path =
+      focusObj.type === "cat"
+        ? `/structure/${focusObj.cat.id}`
+        : `/structure/${focusObj.sub.categoryId}/${focusObj.sub.id}`;
+    onClose();
+    router.push(path);
+  }
 
   const focusName =
     focusObj == null
@@ -202,7 +282,7 @@ export function EntryNetwork({
         ? focusObj.cat.name
         : focusObj.sub.name;
   const hasNodes = nodes.length > 0;
-  const polyPoints = positions.map((p) => `${p.x},${p.y}`).join(" ");
+  const polyPoints = effPositions.map((p) => `${p.x},${p.y}`).join(" ");
 
   return (
     <div className="flex flex-col">
@@ -234,34 +314,66 @@ export function EntryNetwork({
             <button
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="Sayfa menüsü"
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-white/8 text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
+              className={cn(
+                "flex h-7 w-7 items-center justify-center rounded-full transition-colors",
+                menuOpen
+                  ? "bg-primary/20 text-primary"
+                  : "bg-white/8 text-muted-foreground hover:bg-white/12 hover:text-foreground"
+              )}
             >
               <MoreHorizontal className="h-4 w-4" />
             </button>
             {menuOpen && (
               <>
+                {/* Arka planı karart */}
                 <div
-                  className="fixed inset-0 z-10"
+                  className="fixed inset-0 z-30 bg-black/55 backdrop-blur-[1px]"
                   onClick={() => setMenuOpen(false)}
                 />
-                <div className="absolute right-0 top-9 z-20 w-44 overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
-                  <button
+                <div className="absolute right-0 top-9 z-40 w-60 overflow-hidden rounded-2xl border border-white/10 bg-card shadow-2xl">
+                  {/* Bağlam başlığı — hangi sayfadayız */}
+                  <div className="flex items-center gap-2.5 border-b border-border bg-white/[0.03] px-3 py-2.5">
+                    <CategoryTileCore
+                      color={centerColor}
+                      icon={
+                        focusObj.type === "cat"
+                          ? focusObj.cat.icon
+                          : focusObj.sub.icon
+                      }
+                      fallback={FolderOpen}
+                      size="sm"
+                    />
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold">
+                        {focusName}
+                      </div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                        {focusObj.type === "cat" ? "kategori" : "alt kategori"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <MenuItem
+                    icon={<PenLine className="h-4 w-4 text-primary" />}
+                    title="Girdi ekle"
+                    subtitle="Bu sayfaya kayıt ekle"
                     onClick={() => {
                       setMenuOpen(false);
                       addEntryHere();
                     }}
-                    className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-white/5"
-                  >
-                    <PenLine className="h-4 w-4 text-primary" />
-                    Girdi ekle
-                  </button>
-                  <button
+                  />
+                  <MenuItem
+                    icon={<FolderPlus className="h-4 w-4 text-muted-foreground" />}
+                    title="Alt kategori aç"
+                    subtitle="İçine yeni alt kategori"
                     onClick={openAddSub}
-                    className="flex w-full items-center gap-2.5 border-t border-border px-3 py-2.5 text-left text-sm transition-colors hover:bg-white/5"
-                  >
-                    <Plus className="h-4 w-4 text-muted-foreground" />
-                    Alt kategori aç
-                  </button>
+                  />
+                  <MenuItem
+                    icon={<Layers className="h-4 w-4 text-muted-foreground" />}
+                    title="Yapı sayfası"
+                    subtitle="Düzenle / taşı / sil"
+                    onClick={goStructure}
+                  />
                 </div>
               </>
             )}
@@ -280,7 +392,8 @@ export function EntryNetwork({
 
       {/* Ağ tuvali */}
       <div
-        className="relative mx-auto"
+        ref={canvasRef}
+        className="relative mx-auto touch-none"
         style={{ width: CANVAS, height: CANVAS, maxWidth: "100%" }}
       >
         <svg
@@ -290,7 +403,7 @@ export function EntryNetwork({
           height="100%"
         >
           {focusObj != null &&
-            positions.map((p, i) => (
+            effPositions.map((p, i) => (
               <line
                 key={i}
                 x1={C}
@@ -301,17 +414,17 @@ export function EntryNetwork({
                 strokeWidth={1.5}
               />
             ))}
-          {positions.length === 2 && (
+          {focusObj == null && effPositions.length === 2 && (
             <line
-              x1={positions[0].x}
-              y1={positions[0].y}
-              x2={positions[1].x}
-              y2={positions[1].y}
+              x1={effPositions[0].x}
+              y1={effPositions[0].y}
+              x2={effPositions[1].x}
+              y2={effPositions[1].y}
               stroke={`${centerColor}45`}
               strokeWidth={1.5}
             />
           )}
-          {positions.length >= 3 && (
+          {!anyCustom && effPositions.length >= 3 && (
             <polygon
               points={polyPoints}
               fill={`${centerColor}0f`}
@@ -349,40 +462,29 @@ export function EntryNetwork({
           </button>
         )}
 
-        {/* Çevre düğümler */}
+        {/* Çevre düğümler — dokun: gir · basılı tut: sürükle */}
         {nodes.map((node, i) => {
-          const p = positions[i];
+          const p = effPositions[i];
           const isCat = node.kind === "cat";
-          const id = isCat ? node.cat.id : node.sub.id;
+          const id = nodeId(node);
           const name = isCat ? node.cat.name : node.sub.name;
           const icon = isCat ? node.cat.icon : node.sub.icon;
           const nodeColor = isCat ? node.cat.color : centerColor;
           const hasKids =
             !isCat && (childrenMap.get(node.sub.id)?.length ?? 0) > 0;
           return (
-            <button
+            <NetNode
               key={id}
-              onClick={() => drill(node)}
-              className="absolute flex flex-col items-center gap-0.5"
-              style={{ left: p.x, top: p.y, transform: "translate(-50%,-50%)" }}
-            >
-              <span className="relative">
-                <CategoryTileCore
-                  color={nodeColor}
-                  icon={icon}
-                  fallback={hasKids ? FolderOpen : Folder}
-                />
-                {hasKids && (
-                  <span
-                    className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-background"
-                    style={{ backgroundColor: nodeColor }}
-                  />
-                )}
-              </span>
-              <span className="max-w-[80px] truncate text-center text-[10px] font-medium leading-tight text-muted-foreground">
-                {name}
-              </span>
-            </button>
+              x={p.x}
+              y={p.y}
+              color={nodeColor}
+              icon={icon}
+              name={name}
+              hasKids={hasKids}
+              isDragging={drag?.id === id}
+              onTap={() => drill(node)}
+              onDragStart={() => startDrag(node, p)}
+            />
           );
         })}
 
@@ -394,12 +496,18 @@ export function EntryNetwork({
       </div>
 
       {/* İpucu */}
-      {focusObj != null && (
+      {focusObj != null ? (
         <p className="mt-1 text-center text-[11px] leading-snug text-muted-foreground/70">
           {hasNodes
-            ? "Çevredekine dokun → içine gir · ortadakine dokun → buraya ekle"
+            ? "Dokun: içine gir · ortadaki: buraya ekle · basılı tutup sürükle: taşı"
             : "Bu bir uç — ortadakine dokun ya da menüden “Girdi ekle”."}
         </p>
+      ) : (
+        hasNodes && (
+          <p className="mt-1 text-center text-[11px] leading-snug text-muted-foreground/70">
+            Dokun: içine gir · basılı tutup sürükle: yerini değiştir
+          </p>
+        )
       )}
 
       {/* Alt kategori aç */}
@@ -416,5 +524,131 @@ export function EntryNetwork({
       {/* Yeni kategori (kök) */}
       <CategoryForm open={addCatOpen} onOpenChange={setAddCatOpen} />
     </div>
+  );
+}
+
+function MenuItem({
+  icon,
+  title,
+  subtitle,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex w-full items-center gap-3 border-t border-border/60 px-3 py-2.5 text-left transition-colors first:border-t-0 hover:bg-white/5 active:bg-white/[0.07]"
+    >
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5">
+        {icon}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-medium">{title}</span>
+        <span className="block text-[11px] text-muted-foreground">
+          {subtitle}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Ağ düğümü — dokun: içine gir; basılı tut (350ms): sürükleyerek yerini değiştir.
+ * Erken hareket sürüklemeyi başlatmaz (dokunuş gibi kalır).
+ */
+function NetNode({
+  x,
+  y,
+  color,
+  icon,
+  name,
+  hasKids,
+  isDragging,
+  onTap,
+  onDragStart,
+}: {
+  x: number;
+  y: number;
+  color: string;
+  icon?: string;
+  name: string;
+  hasKids: boolean;
+  isDragging: boolean;
+  onTap: () => void;
+  onDragStart: () => void;
+}) {
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const downPos = useRef<{ x: number; y: number } | null>(null);
+  const started = useRef(false);
+  const clearHold = () => {
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+    holdTimer.current = null;
+  };
+
+  return (
+    <button
+      onClick={() => {
+        if (started.current) {
+          started.current = false;
+          return;
+        }
+        onTap();
+      }}
+      onPointerDown={(e) => {
+        downPos.current = { x: e.clientX, y: e.clientY };
+        started.current = false;
+        clearHold();
+        holdTimer.current = setTimeout(() => {
+          started.current = true;
+          onDragStart();
+        }, 350);
+      }}
+      onPointerMove={(e) => {
+        if (!downPos.current || started.current) return;
+        if (
+          Math.abs(e.clientX - downPos.current.x) > 8 ||
+          Math.abs(e.clientY - downPos.current.y) > 8
+        )
+          clearHold();
+      }}
+      onPointerUp={clearHold}
+      onPointerCancel={clearHold}
+      onContextMenu={(e) => e.preventDefault()}
+      className={cn(
+        "absolute flex select-none flex-col items-center gap-0.5 transition-transform",
+        isDragging ? "z-20 scale-110" : "z-0"
+      )}
+      style={{ left: x, top: y, transform: "translate(-50%,-50%)" }}
+    >
+      <span className="relative">
+        <span
+          className="block rounded-xl"
+          style={
+            isDragging
+              ? { outline: `2px solid ${color}`, outlineOffset: "2px" }
+              : undefined
+          }
+        >
+          <CategoryTileCore
+            color={color}
+            icon={icon}
+            fallback={hasKids ? FolderOpen : Folder}
+          />
+        </span>
+        {hasKids && (
+          <span
+            className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-background"
+            style={{ backgroundColor: color }}
+          />
+        )}
+      </span>
+      <span className="max-w-[80px] truncate text-center text-[10px] font-medium leading-tight text-muted-foreground">
+        {name}
+      </span>
+    </button>
   );
 }
