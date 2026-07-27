@@ -21,6 +21,12 @@ export type NetGroup = {
   allSubs: SubCategory[];
 };
 
+/** Odak — id tabanlı (sheet'te tutulur; form→geri odağı korur, veri güncellemesine dayanıklı) */
+export type NetFocus =
+  | null
+  | { type: "cat"; id: string }
+  | { type: "sub"; id: string };
+
 type Focus =
   | null
   | { type: "cat"; cat: Category }
@@ -48,14 +54,18 @@ function angleFor(i: number, n: number): number {
  */
 export function EntryNetwork({
   groups,
+  focus,
+  onFocusChange,
   onSubSelect,
   onCategorySelect,
 }: {
   groups: NetGroup[] | undefined;
+  /** Kontrollü odak — sheet'te tutulur ki form→geri odağı korusun */
+  focus: NetFocus;
+  onFocusChange: (focus: NetFocus) => void;
   onSubSelect: (sub: SubCategory) => void;
   onCategorySelect: (category: Category) => void;
 }) {
-  const [focus, setFocus] = useState<Focus>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [addSub, setAddSub] = useState<{
     categoryId: string;
@@ -96,25 +106,37 @@ export function EntryNetwork({
     [groups]
   );
 
+  // Kontrollü id-odağı → gerçek nesne (silinmişse köke düşer)
+  const focusObj: Focus = useMemo(() => {
+    if (focus == null) return null;
+    if (focus.type === "cat") {
+      const c = catById.get(focus.id);
+      return c ? { type: "cat", cat: c } : null;
+    }
+    const s = subById.get(focus.id);
+    return s ? { type: "sub", sub: s } : null;
+  }, [focus, catById, subById]);
+
   const centerColor =
-    focus == null
+    focusObj == null
       ? "#818cf8"
-      : focus.type === "cat"
-        ? focus.cat.color
-        : catById.get(focus.sub.categoryId)?.color ?? "#818cf8";
+      : focusObj.type === "cat"
+        ? focusObj.cat.color
+        : catById.get(focusObj.sub.categoryId)?.color ?? "#818cf8";
 
   const nodes: Node[] = useMemo(() => {
-    if (focus == null) return categories.map((cat) => ({ kind: "cat", cat }));
-    if (focus.type === "cat")
-      return (topSubsByCat.get(focus.cat.id) ?? []).map((sub) => ({
+    if (focusObj == null)
+      return categories.map((cat) => ({ kind: "cat", cat }));
+    if (focusObj.type === "cat")
+      return (topSubsByCat.get(focusObj.cat.id) ?? []).map((sub) => ({
         kind: "sub",
         sub,
       }));
-    return (childrenMap.get(focus.sub.id) ?? []).map((sub) => ({
+    return (childrenMap.get(focusObj.sub.id) ?? []).map((sub) => ({
       kind: "sub",
       sub,
     }));
-  }, [focus, categories, topSubsByCat, childrenMap]);
+  }, [focusObj, categories, topSubsByCat, childrenMap]);
 
   const positions = useMemo(() => {
     const n = nodes.length;
@@ -126,51 +148,59 @@ export function EntryNetwork({
   }, [nodes]);
 
   const trail = useMemo(() => {
-    const t: { label: string; focus: Focus }[] = [
+    const t: { label: string; focus: NetFocus }[] = [
       { label: "Kategoriler", focus: null },
     ];
-    if (focus == null) return t;
-    if (focus.type === "cat") {
-      t.push({ label: focus.cat.name, focus });
+    if (focusObj == null) return t;
+    if (focusObj.type === "cat") {
+      t.push({
+        label: focusObj.cat.name,
+        focus: { type: "cat", id: focusObj.cat.id },
+      });
       return t;
     }
     const chain: SubCategory[] = [];
-    let cur: SubCategory | undefined = focus.sub;
+    let cur: SubCategory | undefined = focusObj.sub;
     while (cur) {
       chain.unshift(cur);
       cur = cur.parentId ? subById.get(cur.parentId) : undefined;
     }
-    const cat = catById.get(focus.sub.categoryId);
-    if (cat) t.push({ label: cat.name, focus: { type: "cat", cat } });
-    for (const s of chain) t.push({ label: s.name, focus: { type: "sub", sub: s } });
+    const cat = catById.get(focusObj.sub.categoryId);
+    if (cat) t.push({ label: cat.name, focus: { type: "cat", id: cat.id } });
+    for (const s of chain)
+      t.push({ label: s.name, focus: { type: "sub", id: s.id } });
     return t;
-  }, [focus, subById, catById]);
+  }, [focusObj, subById, catById]);
 
   function drill(node: Node) {
-    setFocus(
+    onFocusChange(
       node.kind === "cat"
-        ? { type: "cat", cat: node.cat }
-        : { type: "sub", sub: node.sub }
+        ? { type: "cat", id: node.cat.id }
+        : { type: "sub", id: node.sub.id }
     );
   }
   function addEntryHere() {
-    if (focus == null) return;
-    if (focus.type === "cat") onCategorySelect(focus.cat);
-    else onSubSelect(focus.sub);
+    if (focusObj == null) return;
+    if (focusObj.type === "cat") onCategorySelect(focusObj.cat);
+    else onSubSelect(focusObj.sub);
   }
   function openAddSub() {
     setMenuOpen(false);
-    if (focus == null) return;
-    if (focus.type === "cat") setAddSub({ categoryId: focus.cat.id });
-    else setAddSub({ categoryId: focus.sub.categoryId, parentId: focus.sub.id });
+    if (focusObj == null) return;
+    if (focusObj.type === "cat") setAddSub({ categoryId: focusObj.cat.id });
+    else
+      setAddSub({
+        categoryId: focusObj.sub.categoryId,
+        parentId: focusObj.sub.id,
+      });
   }
 
   const focusName =
-    focus == null
+    focusObj == null
       ? "Kategoriler"
-      : focus.type === "cat"
-        ? focus.cat.name
-        : focus.sub.name;
+      : focusObj.type === "cat"
+        ? focusObj.cat.name
+        : focusObj.sub.name;
   const hasNodes = nodes.length > 0;
   const polyPoints = positions.map((p) => `${p.x},${p.y}`).join(" ");
 
@@ -185,7 +215,7 @@ export function EntryNetwork({
                 <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/40" />
               )}
               <button
-                onClick={() => setFocus(t.focus)}
+                onClick={() => onFocusChange(t.focus)}
                 className={cn(
                   "max-w-[120px] truncate rounded px-1.5 py-0.5 text-xs transition-colors",
                   i === trail.length - 1
@@ -199,7 +229,7 @@ export function EntryNetwork({
           ))}
         </div>
 
-        {focus != null ? (
+        {focusObj != null ? (
           <div className="relative shrink-0">
             <button
               onClick={() => setMenuOpen((v) => !v)}
@@ -259,7 +289,7 @@ export function EntryNetwork({
           width="100%"
           height="100%"
         >
-          {focus != null &&
+          {focusObj != null &&
             positions.map((p, i) => (
               <line
                 key={i}
@@ -292,7 +322,7 @@ export function EntryNetwork({
         </svg>
 
         {/* Merkez düğüm — dokun: buraya ekle */}
-        {focus != null && (
+        {focusObj != null && (
           <button
             onClick={addEntryHere}
             aria-label={`${focusName} · buraya ekle`}
@@ -302,7 +332,7 @@ export function EntryNetwork({
             <span className="relative">
               <CategoryTileCore
                 color={centerColor}
-                icon={focus.type === "cat" ? focus.cat.icon : focus.sub.icon}
+                icon={focusObj.type === "cat" ? focusObj.cat.icon : focusObj.sub.icon}
                 fallback={FolderOpen}
                 size="lg"
               />
@@ -356,7 +386,7 @@ export function EntryNetwork({
           );
         })}
 
-        {focus == null && !hasNodes && (
+        {focusObj == null && !hasNodes && (
           <p className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-muted-foreground">
             Henüz kategori yok. Sağ üstten ekle.
           </p>
@@ -364,7 +394,7 @@ export function EntryNetwork({
       </div>
 
       {/* İpucu */}
-      {focus != null && (
+      {focusObj != null && (
         <p className="mt-1 text-center text-[11px] leading-snug text-muted-foreground/70">
           {hasNodes
             ? "Çevredekine dokun → içine gir · ortadakine dokun → buraya ekle"
