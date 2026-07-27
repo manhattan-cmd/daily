@@ -19,6 +19,7 @@ import {
 } from "@/components/structure/category-tile";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { DeleteSubCategoryDialog } from "@/components/structure/delete-subcategory-dialog";
+import { RadialExplorer } from "@/components/calendar/entry-radial-explorer";
 import { cn } from "@/lib/utils";
 import type { Category, SubCategory } from "@/types";
 
@@ -67,6 +68,8 @@ export function EntryPickTree({
     categoryId: string;
     parentId?: string;
   } | null>(null);
+  // DENEME: alt kategoriye basınca açılan radyal keşif penceresi
+  const [explorer, setExplorer] = useState<SubCategory | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const visibleSubs = useMemo(
@@ -91,6 +94,10 @@ export function EntryPickTree({
   );
   const catById = useMemo(
     () => new Map((groups ?? []).map((g) => [g.category.id, g.category])),
+    [groups]
+  );
+  const topSubsByCat = useMemo(
+    () => new Map((groups ?? []).map((g) => [g.category.id, g.topSubs])),
     [groups]
   );
   const hasAnySub = visibleSubs.length > 0;
@@ -231,6 +238,7 @@ export function EntryPickTree({
             onSubSelect={onSubSelect}
             onCategorySelect={onCategorySelect}
             onDragStart={startDrag}
+            onOpenExplorer={(sub) => setExplorer(sub)}
             onAddChild={(categoryId, parentId) =>
               setAddTarget({ categoryId, parentId })
             }
@@ -336,6 +344,26 @@ export function EntryPickTree({
           addTarget ? catById.get(addTarget.categoryId)?.name : undefined
         }
       />
+
+      {/* DENEME: radyal keşif penceresi */}
+      {explorer && (
+        <RadialExplorer
+          initialSub={explorer}
+          catById={catById}
+          subById={subById}
+          childrenMap={childrenMap}
+          topSubsByCat={topSubsByCat}
+          onSelectSub={(sub) => {
+            setExplorer(null);
+            onSubSelect(sub);
+          }}
+          onSelectCat={(cat) => {
+            setExplorer(null);
+            onCategorySelect(cat);
+          }}
+          onClose={() => setExplorer(null)}
+        />
+      )}
     </div>
   );
 }
@@ -354,6 +382,7 @@ function CategorySection({
   onSubSelect,
   onCategorySelect,
   onDragStart,
+  onOpenExplorer,
   onAddChild,
 }: {
   category: Category;
@@ -371,6 +400,7 @@ function CategorySection({
     color: string,
     pos: { x: number; y: number }
   ) => void;
+  onOpenExplorer: (sub: SubCategory) => void;
   onAddChild: (categoryId: string, parentId?: string) => void;
 }) {
   // expandedPath[d] = derinlik d'de açık alt kategori id'si (akordeon)
@@ -462,7 +492,9 @@ function CategorySection({
                       onSelect={() => onSubSelect(c.sub)}
                       onExpand={
                         (childrenMap.get(c.sub.id)?.length ?? 0) > 0
-                          ? () => toggle(c.sub.id, depth)
+                          ? editMode
+                            ? () => toggle(c.sub.id, depth)
+                            : () => onOpenExplorer(c.sub)
                           : undefined
                       }
                       onDragStart={(pos) => onDragStart(c.sub, color, pos)}
