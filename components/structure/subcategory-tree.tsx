@@ -17,13 +17,10 @@ import {
 } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import {
-  moveSubCategory,
-  deleteSubCategory,
-  listCategories,
-} from "@/lib/db/queries";
+import { moveSubCategory, listCategories } from "@/lib/db/queries";
 import { CategoryTileCore } from "@/components/structure/category-tile";
 import { modAtomIcon } from "@/components/structure/mod-atom";
+import { DeleteSubCategoryDialog } from "@/components/structure/delete-subcategory-dialog";
 import {
   Dialog,
   DialogContent,
@@ -123,7 +120,6 @@ export function SubCategoryTree({
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const dropRef = useRef<DropTarget | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<SubCategory | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [movePickFor, setMovePickFor] = useState<SubCategory | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -233,36 +229,31 @@ export function SubCategoryTree({
   if (!data) return null;
   const roots = data.childrenMap.get(parentId ?? "") ?? [];
   const rootLabel = parentId ? "Bu dalın köküne taşı" : "Kategori köküne taşı";
+  const currentCatName =
+    (categories ?? []).find((c) => c.id === categoryId)?.name ?? "kategori";
   const otherCategories = (categories ?? []).filter(
     (c) => c.id !== categoryId && !c.isBuiltIn
   );
+  // Silinen düğümün içindekilerinin taşınacağı üstün adı
+  const deleteParentName = confirmDelete
+    ? confirmDelete.parentId
+      ? subById.get(confirmDelete.parentId)?.name ?? currentCatName
+      : currentCatName
+    : "";
 
   return (
     <div ref={rootRef} className="flex flex-col gap-0.5">
-      {/* Düzenleme anahtarı — yalnızca taşınabilecek satır varsa */}
-      {roots.length > 0 && (
+      {/* Düzenlemeye giriş — yalnızca taşınabilecek satır varsa ve edit dışıyken.
+          Çıkış (Bitir) sürekli görünür yüzen çubukla yapılır (aşağıda). */}
+      {roots.length > 0 && !editMode && (
         <div className="mb-1 flex justify-end">
           <button
             type="button"
-            onClick={() => setEditMode((v) => !v)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-              editMode
-                ? "border-primary/50 bg-primary/10 text-primary"
-                : "border-border text-muted-foreground hover:text-foreground hover:bg-white/5"
-            )}
+            onClick={() => setEditMode(true)}
+            className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
           >
-            {editMode ? (
-              <>
-                <Check className="h-3.5 w-3.5" />
-                Bitir
-              </>
-            ) : (
-              <>
-                <Move className="h-3.5 w-3.5" />
-                Düzenle · taşı
-              </>
-            )}
+            <Move className="h-3.5 w-3.5" />
+            Düzenle · taşı
           </button>
         </div>
       )}
@@ -382,48 +373,37 @@ export function SubCategoryTree({
           document.body
         )}
 
-      {/* Sürükle-sil onayı */}
-      <Dialog
-        open={confirmDelete !== null}
+      {/* Düzenlemeden çıkış — sürekli erişilebilir yüzen buton (sürüklerken gizli).
+          Böylece işlem sonrası başa dönüp "Bitir" aramak gerekmez. */}
+      {editMode &&
+        !drag &&
+        !confirmDelete &&
+        !movePickFor &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[70] px-4">
+            <div className="mx-auto flex max-w-[420px] justify-end">
+              <button
+                type="button"
+                onClick={() => setEditMode(false)}
+                className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition-transform active:scale-95"
+              >
+                <Check className="h-4 w-4" />
+                Düzenlemeyi bitir
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* Çöpe sürükleme → silme seçenekleri (tamamen sil / sadece bunu sil) */}
+      <DeleteSubCategoryDialog
+        sub={confirmDelete}
+        parentName={deleteParentName}
         onOpenChange={(o) => {
           if (!o) setConfirmDelete(null);
         }}
-      >
-        <DialogContent className="max-w-[320px]">
-          <DialogHeader>
-            <DialogTitle>{`"${confirmDelete?.name ?? ""}" silinsin mi?`}</DialogTitle>
-            <DialogDescription>
-              Bu alt kategoriye (ve altlarına) ait tüm girdiler kalıcı olarak
-              silinecek.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setConfirmDelete(null)}
-              disabled={deleting}
-            >
-              İptal
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={deleting}
-              onClick={async () => {
-                if (!confirmDelete) return;
-                setDeleting(true);
-                try {
-                  await deleteSubCategory(confirmDelete.id);
-                } finally {
-                  setDeleting(false);
-                  setConfirmDelete(null);
-                }
-              }}
-            >
-              {deleting ? "Siliniyor..." : "Sil"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      />
 
       {/* Başka kategoriye taşıma seçicisi */}
       <Dialog

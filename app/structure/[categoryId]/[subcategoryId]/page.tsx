@@ -4,16 +4,13 @@ import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Pencil, Trash2 } from "lucide-react";
-import {
-  getSubCategory,
-  getCategory,
-  deleteSubCategory,
-} from "@/lib/db/queries";
+import { getSubCategory, getCategory } from "@/lib/db/queries";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { ModifierSection } from "@/components/structure/modifier-section";
 import { SubCategoryTree } from "@/components/structure/subcategory-tree";
+import { DeleteSubCategoryDialog } from "@/components/structure/delete-subcategory-dialog";
 
 export default function SubCategoryDetailPage({
   params,
@@ -28,27 +25,25 @@ export default function SubCategoryDetailPage({
     () => getSubCategory(subcategoryId),
     [subcategoryId]
   );
+  // Silme diyaloğu "sadece bunu sil" seçeneğinde içindekilerin taşınacağı üst
+  const parentSub = useLiveQuery(
+    () => (subcategory?.parentId ? getSubCategory(subcategory.parentId) : undefined),
+    [subcategory?.parentId]
+  );
 
   const [subFormOpen, setSubFormOpen] = useState(false);
   // Formun hedefi: kendisi (düzenleme) ya da ağaçtan seçilen ebeveyne yeni çocuk
   const [editingSelf, setEditingSelf] = useState(false);
   const [newParentId, setNewParentId] = useState<string>(subcategoryId);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const backPath = subcategory?.parentId
     ? `/structure/${categoryId}/${subcategory.parentId}`
     : `/structure/${categoryId}`;
 
-  async function onDeleteSelf() {
-    if (!subcategory) return;
-    if (
-      !confirm(
-        `"${subcategory.name}" alt kategorisini silmek istediğinden emin misin? Tüm içerik silinecek.`
-      )
-    )
-      return;
-    await deleteSubCategory(subcategoryId);
-    router.push(backPath);
-  }
+  const deleteParentName = subcategory?.parentId
+    ? parentSub?.name ?? category?.name ?? "üst kategori"
+    : category?.name ?? "kategori";
 
   return (
     <>
@@ -75,7 +70,7 @@ export default function SubCategoryDetailPage({
                 size="icon"
                 variant="ghost"
                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                onClick={onDeleteSelf}
+                onClick={() => setDeleteOpen(true)}
                 aria-label="Alt kategoriyi sil"
               >
                 <Trash2 className="h-4 w-4" />
@@ -126,6 +121,13 @@ export default function SubCategoryDetailPage({
         parentSubcategoryId={editingSelf ? undefined : newParentId}
         categoryName={category?.name}
         subcategory={editingSelf ? subcategory : undefined}
+      />
+
+      <DeleteSubCategoryDialog
+        sub={deleteOpen ? subcategory ?? null : null}
+        parentName={deleteParentName}
+        onOpenChange={setDeleteOpen}
+        onDeleted={() => router.push(backPath)}
       />
     </>
   );

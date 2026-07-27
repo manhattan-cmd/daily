@@ -332,8 +332,77 @@ export async function updateSubCategory(
   await db.subcategories.update(subId, { ...patch, updatedAt: now() });
 }
 
-export async function deleteSubCategory(subId: string): Promise<void> {
-  // Recursively delete children first
+/**
+ * Alt kategoriyi sil.
+ * - mode "all" (varsayılan): kendisi, tüm torunları ve onların girdileri kalıcı silinir.
+ * - mode "promote": yalnızca bu düğüm kaldırılır; girdileri ve doğrudan çocukları
+ *   bir üst seviyeye (üst alt kategori; yoksa kategorinin kökü) taşınır — hiçbir
+ *   girdi silinmez. Analizler parentId zincirini canlı okuduğundan yeni hiyerarşiye
+ *   kendiliğinden uyar.
+ */
+export async function deleteSubCategory(
+  subId: string,
+  mode: "all" | "promote" = "all"
+): Promise<void> {
+  const sub = await db.subcategories.get(subId);
+  if (!sub || sub.isCategoryRoot) return;
+
+  if (mode === "promote") {
+    // Girdilerin taşınacağı hedef: üst alt kategori; kök seviyedeyse kategorinin kökü
+    const entryTargetSubId = sub.parentId
+      ? sub.parentId
+      : (await getOrCreateCategoryRootSub(sub.categoryId)).id;
+    // Çocukların yeni üstü: bu düğümün üstü (undefined → kök seviye)
+    const childParentId = sub.parentId;
+    const children = await db.subcategories
+      .where("parentId")
+      .equals(subId)
+      .toArray();
+    // Çocuklar hedef seviyenin mevcut kardeşlerinin ardına eklensin
+    const baseOrder = await db.subcategories
+      .where("categoryId")
+      .equals(sub.categoryId)
+      .filter(
+        (s) =>
+          !s.isCategoryRoot &&
+          s.id !== subId &&
+          (s.parentId ?? undefined) === (childParentId ?? undefined)
+      )
+      .count();
+
+    await db.transaction(
+      "rw",
+      [db.subcategories, db.entries, db.fields, db.categoryModifiers],
+      async () => {
+        // Girdiler ve (varsa eski) alanlar üst seviyeye — değerler geçerli kalsın
+        await db.entries
+          .where("subcategoryId")
+          .equals(subId)
+          .modify({ subcategoryId: entryTargetSubId, updatedAt: now() });
+        await db.fields
+          .where("subcategoryId")
+          .equals(subId)
+          .modify({ subcategoryId: entryTargetSubId, updatedAt: now() });
+        // Çocukları bir seviye yukarı al (promote) — undefined parentId kökü demektir
+        let ord = baseOrder + 1;
+        for (const c of children) {
+          await db.subcategories.update(c.id, {
+            parentId: childParentId,
+            order: ord++,
+            updatedAt: now(),
+          });
+        }
+        // Bu düğümün kendi mod atamalarını sil, sonra düğümü sil
+        await db.categoryModifiers
+          .filter((m) => m.targetType === "subcategory" && m.targetId === subId)
+          .delete();
+        await db.subcategories.delete(subId);
+      }
+    );
+    return;
+  }
+
+  // mode === "all": özyinelemeli tam silme
   const children = await db.subcategories.where("parentId").equals(subId).toArray();
   for (const child of children) await deleteSubCategory(child.id);
 
