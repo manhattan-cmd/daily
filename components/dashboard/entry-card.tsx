@@ -4,21 +4,35 @@ import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import type { EntryWithContext, EntryType } from "@/types";
 import { deleteEntry } from "@/lib/db/queries";
-import { formatDateTime } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
+import { useLongPress } from "@/lib/use-long-press";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { EntryIcon } from "@/components/dashboard/entry-icon";
 import { QuickModAdd } from "@/components/forms/quick-mod-add";
+import {
+  SelectionLayer,
+  selectedCardClass,
+  type EntrySelection,
+} from "@/components/calendar/entry-selection";
 import { calcDTRDuration, parseDTR } from "@/components/forms/datetime-range-input";
 
 /**
  * Gün/ana sayfa girdi kartı — uyku kartıyla aynı dil: kategori renginde degrade
  * zemin, karta dokununca düzenleme açılır, silme köşedeki hover ikonu.
  * İç içe buton olmaması için kart div[role=button] (QuickModAdd gerçek buton).
+ * `selection` verilirse basılı tutmak toplu seçimi başlatır.
  */
-export function EntryCard({ entry }: { entry: EntryWithContext }) {
+export function EntryCard({
+  entry,
+  selection,
+}: {
+  entry: EntryWithContext;
+  selection?: EntrySelection;
+}) {
   const [editOpen, setEditOpen] = useState(false);
   const color = entry.category.color;
   const isRoot = !!entry.subcategory.isCategoryRoot;
+  const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
 
   async function onDelete(e: React.MouseEvent) {
     e.stopPropagation();
@@ -33,11 +47,18 @@ export function EntryCard({ entry }: { entry: EntryWithContext }) {
       <div
         role="button"
         tabIndex={0}
-        onClick={() => setEditOpen(true)}
+        onClick={() => {
+          if (longPress.consume()) return;
+          setEditOpen(true);
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter") setEditOpen(true);
         }}
-        className="group relative w-full cursor-pointer overflow-hidden rounded-2xl border px-3 py-2.5 text-left transition-transform active:scale-[0.99]"
+        {...(selection && !selection.active ? longPress.handlers : {})}
+        className={cn(
+          "group relative w-full cursor-pointer overflow-hidden rounded-2xl border px-3 py-2.5 text-left transition-transform active:scale-[0.99]",
+          selection?.selected && selectedCardClass
+        )}
         style={{
           borderColor: `${color}28`,
           background: `linear-gradient(135deg, ${color}1f, ${color}08 45%, transparent)`,
@@ -114,6 +135,14 @@ export function EntryCard({ entry }: { entry: EntryWithContext }) {
         >
           <Trash2 className="h-3.5 w-3.5" />
         </span>
+
+        {selection?.active && (
+          <SelectionLayer
+            selected={selection.selected}
+            onToggle={selection.onToggle}
+            label={`${entry.subcategory.name} girdisini seç`}
+          />
+        )}
       </div>
 
       <EditEntryModal

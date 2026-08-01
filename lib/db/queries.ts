@@ -177,6 +177,110 @@ export async function ensureBuiltInCategories(): Promise<void> {
   }
 }
 
+// ============ İlk Açılış Tohumu ============
+
+/**
+ * Bomboş bir uygulamayla karşılaşan yeni kullanıcı kategori → alt kategori →
+ * özellik zincirini kavrayamıyor. İlk açılışta bu zinciri gösteren örnek bir
+ * yapı kurulur. Yerleşik DEĞİLler: sıradan kayıtlar, istenmeyeni silinir.
+ *
+ * `mods` kategoriye bağlanır ve alt kategorilere kendiliğinden yayılır;
+ * alt kategorinin kendi `mods`'u ise ona özel eklenir (Yürüyüş'ün Mesafe'si
+ * gibi) — böylece devralma ve özelleştirme birlikte görülür.
+ */
+type StarterSub = { name: string; icon?: string; mods?: string[] };
+
+const STARTER_CATEGORIES: {
+  name: string;
+  color: string;
+  icon: string;
+  mods: string[];
+  subs: StarterSub[];
+}[] = [
+  {
+    name: "Harcamalar",
+    color: "#f59e0b",
+    icon: "Wallet",
+    mods: ["Para"],
+    subs: [
+      { name: "Market", icon: "ShoppingCart" },
+      { name: "Ulaşım", icon: "Car" },
+      { name: "Yeme-İçme", icon: "Utensils" },
+      { name: "Fatura", icon: "Zap" },
+    ],
+  },
+  {
+    name: "Spor",
+    color: "#10b981",
+    icon: "Dumbbell",
+    mods: ["Süre"],
+    subs: [
+      { name: "Yürüyüş", icon: "Footprints", mods: ["Mesafe"] },
+      { name: "Bisiklet", icon: "Bike", mods: ["Mesafe"] },
+      { name: "Antrenman", icon: "Dumbbell" },
+    ],
+  },
+  {
+    name: "Çalışma",
+    color: "#6366f1",
+    icon: "GraduationCap",
+    mods: ["Süre"],
+    subs: [
+      { name: "Ders", icon: "GraduationCap" },
+      { name: "Okuma", icon: "Book" },
+      { name: "Proje", icon: "Laptop" },
+    ],
+  },
+];
+
+/** Tohum bir kez atılır; kullanıcı örnekleri silerse geri gelmemeli. */
+const STARTER_FLAG = "routine-starter-seeded";
+
+/**
+ * Örnek yapıyı yalnızca gerçekten boş bir kurulumda kur. Kullanıcının kendi
+ * kategorisi ya da tek bir girdisi bile varsa (mevcut kullanıcılar, yedekten
+ * dönenler) hiç dokunulmaz — o durumda da bayrak yazılır ki her açılışta
+ * tekrar bakılmasın.
+ */
+export async function ensureStarterData(): Promise<void> {
+  if (typeof window === "undefined") return;
+  if (localStorage.getItem(STARTER_FLAG)) return;
+
+  const [categories, entryCount] = await Promise.all([
+    db.categories.toArray(),
+    db.entries.count(),
+  ]);
+  const inUse = entryCount > 0 || categories.some((c) => !c.isBuiltIn);
+
+  if (!inUse) {
+    for (const template of STARTER_CATEGORIES) {
+      const cat = await createCategory({
+        name: template.name,
+        color: template.color,
+        icon: template.icon,
+      });
+      // Önce kategoriye bağla: sonra açılan alt kategoriler devralır
+      for (const modName of template.mods) {
+        const mod = await findModByName(modName);
+        if (mod) await attachMod("category", cat.id, mod.id);
+      }
+      for (const s of template.subs) {
+        const sub = await createSubCategory({
+          categoryId: cat.id,
+          name: s.name,
+          icon: s.icon,
+        });
+        for (const modName of s.mods ?? []) {
+          const mod = await findModByName(modName);
+          if (mod) await attachMod("subcategory", sub.id, mod.id);
+        }
+      }
+    }
+  }
+
+  localStorage.setItem(STARTER_FLAG, "1");
+}
+
 // ============ Categories ============
 
 export async function listCategories(): Promise<Category[]> {
@@ -1197,6 +1301,73 @@ export async function deleteEntry(entryId: string): Promise<void> {
     await db.entryValues.where("entryId").equals(entryId).delete();
     await db.entries.delete(entryId);
   });
+}
+
+// ============ Toplu Girdi İşlemleri ============
+
+/**
+ * Seçili girdileri başka bir güne taşı. Her girdinin kendi saati korunur,
+ * yalnızca tarihi değişir. Girdileri kısmen taşınan bir aktivitenin zamanı
+ * kalan girdilerinin en erkenine çekilir; tamamı taşındıysa yeni güne kayar.
+ */
+export async function moveEntriesToDate(
+  entryIds: string[],
+  dateStr: string
+): Promise<void> {
+  if (!entryIds.length) return;
+  const [y, m, d] = dateStr.split("-").map(Number);
+  await db.transaction("rw", [db.entries, db.activities], async () => {
+    const entries = (await db.entries.bulkGet(entryIds)).filter(
+      (e): e is Entry => !!e
+    );
+    const touchedActivities = new Set<string>();
+    for (const e of entries) {
+      const src = new Date(e.occurredAt);
+      const next = new Date(
+        y, m - 1, d,
+        src.getHours(), src.getMinutes(), src.getSeconds(), src.getMilliseconds()
+      );
+      await db.entries.update(e.id, {
+        occurredAt: next.getTime(),
+        updatedAt: now(),
+      });
+      if (e.activityId) touchedActivities.add(e.activityId);
+    }
+    for (const activityId of touchedActivities) {
+      const rest = await db.entries.where("activityId").equals(activityId).toArray();
+      if (!rest.length) continue;
+      await db.activities.update(activityId, {
+        occurredAt: Math.min(...rest.map((x) => x.occurredAt)),
+        updatedAt: now(),
+      });
+    }
+  });
+}
+
+/**
+ * Seçili girdileri değerleriyle birlikte sil. Girdisi kalmayan aktiviteler
+ * de düşer (boş aktivite kartı gün sayfasında zaten görünmez).
+ */
+export async function deleteEntries(entryIds: string[]): Promise<void> {
+  if (!entryIds.length) return;
+  await db.transaction(
+    "rw",
+    [db.entries, db.entryValues, db.activities],
+    async () => {
+      const entries = (await db.entries.bulkGet(entryIds)).filter(
+        (e): e is Entry => !!e
+      );
+      const touchedActivities = new Set(
+        entries.map((e) => e.activityId).filter((a): a is string => !!a)
+      );
+      await db.entryValues.where("entryId").anyOf(entryIds).delete();
+      await db.entries.bulkDelete(entryIds);
+      for (const activityId of touchedActivities) {
+        const left = await db.entries.where("activityId").equals(activityId).count();
+        if (left === 0) await db.activities.delete(activityId);
+      }
+    }
+  );
 }
 
 export async function listEntriesByDate(dateStr: string): Promise<EntryWithContext[]> {

@@ -24,6 +24,12 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { useLongPress } from "@/lib/use-long-press";
+import {
+  SelectionLayer,
+  selectedCardClass,
+  type EntrySelection,
+} from "@/components/calendar/entry-selection";
 
 /**
  * Gün sayfasındaki aktivite kartı — farklı kategorilerden girdileri tek çatı
@@ -31,21 +37,25 @@ import { cn } from "@/lib/utils";
  * (sayı/süre toplanır, skala atlanır — puanları toplamak anlamsız) ve kategori
  * renk noktaları. Açılınca girdiler mini satırlar; satıra dokununca düzenleme.
  * Silme iki seçenekli: "dağıt" (girdiler bağımsız kalır) / girdilerle sil.
+ * `selection` verilirse basılı tutmak aktivitenin tüm girdilerini seçer.
  */
 export function ActivityCard({
   activity,
   entries,
   onAddEntries,
+  selection,
 }: {
   activity?: Activity;
   entries: EntryWithContext[];
   /** "Girdi ekle" — sheet'i bu aktiviteyle (isim adımı atlanarak) açar */
   onAddEntries?: (activity: Activity) => void;
+  selection?: EntrySelection;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState<EntryWithContext | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
 
   const name = activity?.name ?? "Aktivite";
 
@@ -99,15 +109,20 @@ export function ActivityCard({
     <>
       <div
         className={cn(
-          "group overflow-hidden rounded-2xl border transition-colors",
-          "border-cyan-500/25 bg-gradient-to-br from-cyan-500/12 via-cyan-500/4 to-transparent"
+          "group relative overflow-hidden rounded-2xl border transition-colors",
+          "border-cyan-500/25 bg-gradient-to-br from-cyan-500/12 via-cyan-500/4 to-transparent",
+          selection?.selected && selectedCardClass
         )}
+        {...(selection && !selection.active ? longPress.handlers : {})}
       >
         {/* Başlık — dokununca açılır/kapanır */}
         <div
           role="button"
           tabIndex={0}
-          onClick={() => setExpanded((v) => !v)}
+          onClick={() => {
+            if (longPress.consume()) return;
+            setExpanded((v) => !v);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter") setExpanded((v) => !v);
           }}
@@ -251,6 +266,14 @@ export function ActivityCard({
               );
             })}
           </div>
+        )}
+
+        {selection?.active && (
+          <SelectionLayer
+            selected={selection.selected}
+            onToggle={selection.onToggle}
+            label={`${name} aktivitesinin girdilerini seç`}
+          />
         )}
       </div>
 

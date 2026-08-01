@@ -7,10 +7,26 @@ import { deleteEntry } from "@/lib/db/queries";
 import { Button } from "@/components/ui/button";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { EntryIcon } from "@/components/dashboard/entry-icon";
+import { cn } from "@/lib/utils";
+import { useLongPress } from "@/lib/use-long-press";
+import {
+  SelectionLayer,
+  selectedCardClass,
+  type EntrySelection,
+} from "@/components/calendar/entry-selection";
 
-export function LinkedEntryCard({ entries }: { entries: EntryWithContext[] }) {
+/** `selection` verilirse basılı tutma toplu seçimi başlatır — paralel
+ *  perspektiflerin tamamı tek kart olarak seçilir. */
+export function LinkedEntryCard({
+  entries,
+  selection,
+}: {
+  entries: EntryWithContext[];
+  selection?: EntrySelection;
+}) {
   const [deleting, setDeleting] = useState(false);
   const [editingEntry, setEditingEntry] = useState<EntryWithContext | null>(null);
+  const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
   const shared = entries[0];
   const time = new Date(shared.occurredAt).toLocaleTimeString("tr-TR", {
     hour: "2-digit",
@@ -55,12 +71,19 @@ export function LinkedEntryCard({ entries }: { entries: EntryWithContext[] }) {
       <div
         role="button"
         tabIndex={0}
-        onClick={() => setEditingEntry(shared)}
+        onClick={() => {
+          if (longPress.consume()) return;
+          setEditingEntry(shared);
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter") setEditingEntry(shared);
         }}
+        {...(selection && !selection.active ? longPress.handlers : {})}
         aria-label={`${shared.subcategory.name} girdisini düzenle`}
-        className="group cursor-pointer rounded-2xl border border-violet-500/25 bg-card overflow-hidden transition-transform active:scale-[0.99]"
+        className={cn(
+          "group relative cursor-pointer rounded-2xl border border-violet-500/25 bg-card overflow-hidden transition-transform active:scale-[0.99]",
+          selection?.selected && selectedCardClass
+        )}
       >
         {/* Header */}
         <div className="flex items-center gap-2.5 px-3 pt-2.5 pb-2">
@@ -150,6 +173,14 @@ export function LinkedEntryCard({ entries }: { entries: EntryWithContext[] }) {
             );
           })}
         </div>
+
+        {selection?.active && (
+          <SelectionLayer
+            selected={selection.selected}
+            onToggle={selection.onToggle}
+            label={`${shared.subcategory.name} paralel girdisini seç`}
+          />
+        )}
       </div>
 
       {editingEntry && (

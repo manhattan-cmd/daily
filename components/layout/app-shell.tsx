@@ -8,6 +8,7 @@ import {
   ensureBuiltInCategories,
   ensureBuiltInMods,
   ensureDefaultModifiers,
+  ensureStarterData,
 } from "@/lib/db/queries";
 import { BottomNav } from "./bottom-nav";
 import { StatusBar } from "./status-bar";
@@ -30,6 +31,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       await ensureBuiltInMods();
       await ensureBuiltInCategories();
       await ensureDefaultModifiers();
+      // En son: yerleşikler kurulduktan sonra ilk açılış örnekleri
+      await ensureStarterData();
     })().catch((err) => console.error("Init error", err));
   }, []);
 

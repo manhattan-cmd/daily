@@ -8,9 +8,11 @@ import { ArrowLeft, ArrowRight, Boxes, CalendarDays, MoonStar, NotebookPen, Targ
 import { db } from "@/lib/db";
 import {
   createNote,
+  deleteEntries,
   listEntriesByDate,
   listGoalsByDate,
   listNotesByDate,
+  moveEntriesToDate,
   noteIsEmpty,
 } from "@/lib/db/queries";
 import { NoteCard } from "@/components/notes/note-card";
@@ -25,6 +27,10 @@ import { AddMenu, type AddMenuItem } from "@/components/calendar/add-menu";
 import { SleepSheet } from "@/components/calendar/sleep-sheet";
 import { SleepCard } from "@/components/calendar/sleep-card";
 import { ActivityCard } from "@/components/calendar/activity-card";
+import {
+  EntrySelectionBar,
+  type EntrySelection,
+} from "@/components/calendar/entry-selection";
 
 type EntryItem =
   | { type: "single"; entry: EntryWithContext }
@@ -94,6 +100,8 @@ export default function CalendarDayPage({
   } | null>(null);
   const [goalSheetOpen, setGoalSheetOpen] = useState(false);
   const [sleepSheetOpen, setSleepSheetOpen] = useState(false);
+  // Toplu seçim — null: mod kapalı. Kart bazlı seçilir, girdi id'si tutulur.
+  const [selected, setSelected] = useState<Set<string> | null>(null);
 
   const [yearN, monthN, dayN] = date.split("-").map(Number);
   const d = new Date(yearN, monthN - 1, dayN);
@@ -116,6 +124,28 @@ export default function CalendarDayPage({
   // Yerleşik Uyku girdileri kendi zarif yuvasında gösterilir
   const sleepEntries = (entries ?? []).filter((e) => e.category.isBuiltIn);
   const otherEntries = (entries ?? []).filter((e) => !e.category.isBuiltIn);
+
+  // Kart → seçim durumu. Bir kart birden çok girdi taşıyorsa (paralel grup,
+  // aktivite) hepsi birlikte seçilir; görünen neyse o seçilir.
+  const selectionActive = selected !== null;
+  const allSelected =
+    otherEntries.length > 0 &&
+    !!selected &&
+    otherEntries.every((e) => selected.has(e.id));
+  const selectionFor = (ids: string[]): EntrySelection => ({
+    active: selectionActive,
+    selected: !!selected && ids.every((id) => selected.has(id)),
+    // Seçim modu açıkken basılı tutma mevcut seçimi bozmasın
+    onStart: () => setSelected((prev) => prev ?? new Set(ids)),
+    onToggle: () =>
+      setSelected((prev) => {
+        const next = new Set(prev ?? []);
+        if (ids.every((id) => next.has(id))) ids.forEach((id) => next.delete(id));
+        else ids.forEach((id) => next.add(id));
+        // Son seçim de bırakılınca moddan çık
+        return next.size ? next : null;
+      }),
+  });
 
   const todayFlat = (() => {
     const t = new Date();
@@ -311,10 +341,19 @@ export default function CalendarDayPage({
                       />
                     ))}
                   </span>
+                  {!selectionActive && (
+                    <span className="ml-auto text-[10px] text-muted-foreground/50">
+                      basılı tut: çoklu seçim
+                    </span>
+                  )}
                 </div>
                 {items.map((item) =>
                   item.type === "single" ? (
-                    <EntryCard key={item.entry.id} entry={item.entry} />
+                    <EntryCard
+                      key={item.entry.id}
+                      entry={item.entry}
+                      selection={selectionFor([item.entry.id])}
+                    />
                   ) : item.type === "activity" ? (
                     <ActivityCard
                       key={item.activityId}
@@ -325,11 +364,13 @@ export default function CalendarDayPage({
                         setSheetActivityMode(false);
                         setSheetOpen(true);
                       }}
+                      selection={selectionFor(item.entries.map((e) => e.id))}
                     />
                   ) : (
                     <LinkedEntryCard
                       key={item.entries[0].linkedGroupId}
                       entries={item.entries}
+                      selection={selectionFor(item.entries.map((e) => e.id))}
                     />
                   )
                 )}
@@ -337,6 +378,33 @@ export default function CalendarDayPage({
             );
           })()}
         </div>
+      )}
+
+      {/* Seçim çubuğu altta duruyor — son kart altında kalmasın */}
+      {selectionActive && <div className="h-28" />}
+
+      {selected && selected.size > 0 && (
+        <EntrySelectionBar
+          date={date}
+          count={selected.size}
+          allSelected={allSelected}
+          onSelectAll={() =>
+            setSelected(
+              allSelected ? null : new Set(otherEntries.map((e) => e.id))
+            )
+          }
+          onCancel={() => setSelected(null)}
+          onMove={async (target) => {
+            await moveEntriesToDate([...selected], target);
+            setSelected(null);
+            // Nereye gittiklerini görsün diye hedef güne geç
+            router.push(`/calendar/${target}`);
+          }}
+          onDelete={async () => {
+            await deleteEntries([...selected]);
+            setSelected(null);
+          }}
+        />
       )}
 
       <DayEntrySheet
