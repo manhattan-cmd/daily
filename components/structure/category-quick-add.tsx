@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Plus, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { HScroll } from "@/components/ui/h-scroll";
 import { createCategory } from "@/lib/db/queries";
 import { CategoryIcon, CATEGORY_ICON_MAP } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
@@ -140,7 +141,7 @@ export function CategoryQuickAdd({
                 </button>
               ))}
             </div>
-            <div className="mt-2 flex gap-1 overflow-x-auto pb-1">
+            <HScroll wrapperClassName="mt-2" className="gap-1 pb-1">
               {Object.keys(CATEGORY_ICON_MAP).map((iconName) => {
                 const selected = customIcon === iconName;
                 return (
@@ -166,7 +167,7 @@ export function CategoryQuickAdd({
                   </button>
                 );
               })}
-            </div>
+            </HScroll>
           </div>
         </div>
       )}

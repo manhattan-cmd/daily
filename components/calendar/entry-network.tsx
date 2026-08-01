@@ -23,6 +23,7 @@ import {
 import { CategoryTileCore } from "@/components/structure/category-tile";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { CategoryForm } from "@/components/structure/category-form";
+import { HScroll } from "@/components/ui/h-scroll";
 import { cn } from "@/lib/utils";
 import type { Category, SubCategory } from "@/types";
 
@@ -463,7 +464,7 @@ export function EntryNetwork({
     <div className="flex flex-col">
       {/* Breadcrumb + görünüm seçici + sayfa menüsü */}
       <div className="mb-2 flex items-center gap-1">
-        <div className="no-scrollbar flex min-w-0 flex-1 items-center overflow-x-auto">
+        <HScroll wrapperClassName="min-w-0 flex-1" className="items-center">
           {trail.map((t, i) => (
             <span key={i} className="flex shrink-0 items-center">
               {i > 0 && (
@@ -482,7 +483,7 @@ export function EntryNetwork({
               </button>
             </span>
           ))}
-        </div>
+        </HScroll>
 
         {/* Görünüm — kalabalıklaşmaya başlayan sayfalarda çıkar */}
         {nodes.length >= 6 && (

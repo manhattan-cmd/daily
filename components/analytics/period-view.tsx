@@ -27,6 +27,7 @@ import { ShareBars, type ShareRow } from "@/components/analytics/share-bars";
 import { EntryList, type EntryListRow } from "@/components/analytics/entry-list";
 import { PeriodQuickNav } from "@/components/analytics/period-quick-nav";
 import { PeriodCategoryPanel } from "@/components/analytics/period-category-panel";
+import { HScroll } from "@/components/ui/h-scroll";
 
 /**
  * Dönem analiz görünümü — herhangi bir zaman penceresinin (gün/hafta/ay/yıl/özel/tümü)
@@ -338,7 +339,7 @@ export function PeriodView({
                 <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
+            <HScroll wrapperClassName="-mx-4" className="gap-2 px-4 pb-1">
               {catChips.map(({ cat: c, count }) => {
                 const active = selectedCat.id === c.id;
                 return (
@@ -378,7 +379,7 @@ export function PeriodView({
                   </button>
                 );
               })}
-            </div>
+            </HScroll>
 
             <PeriodCategoryPanel category={selectedCat} period={period} />
           </section>

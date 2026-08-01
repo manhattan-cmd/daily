@@ -9,6 +9,7 @@ import {
   yearPeriod,
 } from "@/lib/period";
 import { cn } from "@/lib/utils";
+import { HScroll } from "@/components/ui/h-scroll";
 import { PeriodJump } from "./period-jump";
 
 /**
@@ -29,7 +30,7 @@ export function PeriodQuickNav({ activeKey }: { activeKey: string }) {
   ];
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
+    <HScroll wrapperClassName="-mx-4" className="gap-2 px-4 pb-1">
       {chips.map((c) => {
         const active = activeKey === c.key;
         return (
@@ -52,6 +53,6 @@ export function PeriodQuickNav({ activeKey }: { activeKey: string }) {
         );
       })}
       <PeriodJump />
-    </div>
+    </HScroll>
   );
 }

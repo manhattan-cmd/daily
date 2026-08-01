@@ -61,8 +61,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           relative flex flex-col overflow-hidden bg-background
           /* Mobil: tam ekran */
           h-dvh w-full
-          /* Masaüstü: telefon boyutu + çerçeve */
-          md:h-[844px] md:w-[390px] md:rounded-[3rem] md:border md:border-white/10
+          /* Masaüstü: telefon boyutu + çerçeve. Kısa ekranlarda (dizüstü)
+             844px pencereyi aşıp alt navigasyonu dışarıda bırakıyordu —
+             yüksekliği görünür alana kıstırıyoruz (md:p-8 payı düşülür). */
+          md:h-[min(844px,calc(100dvh-4rem))] md:w-[390px] md:rounded-[3rem] md:border md:border-white/10
           md:shadow-[0_0_0_10px_#111115,0_40px_80px_rgba(0,0,0,0.9)]
         "
       >
