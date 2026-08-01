@@ -71,17 +71,14 @@ export function LinkedEntryCard({
       <div
         role="button"
         tabIndex={0}
-        onClick={() => {
-          if (longPress.consume()) return;
-          setEditingEntry(shared);
-        }}
+        onClick={() => setEditingEntry(shared)}
         onKeyDown={(e) => {
           if (e.key === "Enter") setEditingEntry(shared);
         }}
-        {...(selection && !selection.active ? longPress.handlers : {})}
+        {...(selection && !selection.active ? longPress : {})}
         aria-label={`${shared.subcategory.name} girdisini düzenle`}
         className={cn(
-          "group relative cursor-pointer rounded-2xl border border-violet-500/25 bg-card overflow-hidden transition-transform active:scale-[0.99]",
+          "group relative cursor-pointer select-none touch-manipulation rounded-2xl border border-violet-500/25 bg-card overflow-hidden transition-transform active:scale-[0.99]",
           selection?.selected && selectedCardClass
         )}
       >

@@ -109,20 +109,17 @@ export function ActivityCard({
     <>
       <div
         className={cn(
-          "group relative overflow-hidden rounded-2xl border transition-colors",
+          "group relative select-none touch-manipulation overflow-hidden rounded-2xl border transition-colors",
           "border-cyan-500/25 bg-gradient-to-br from-cyan-500/12 via-cyan-500/4 to-transparent",
           selection?.selected && selectedCardClass
         )}
-        {...(selection && !selection.active ? longPress.handlers : {})}
+        {...(selection && !selection.active ? longPress : {})}
       >
         {/* Başlık — dokununca açılır/kapanır */}
         <div
           role="button"
           tabIndex={0}
-          onClick={() => {
-            if (longPress.consume()) return;
-            setExpanded((v) => !v);
-          }}
+          onClick={() => setExpanded((v) => !v)}
           onKeyDown={(e) => {
             if (e.key === "Enter") setExpanded((v) => !v);
           }}

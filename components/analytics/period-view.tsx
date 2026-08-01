@@ -205,6 +205,18 @@ export function PeriodView({
     data?.cats[0] ??
     null;
 
+  // Kategori detayı çipleri — dönemde en çok girdisi olan başa; girdisi
+  // olmayanlar (yapı sırasını koruyarak) sona, sayısı olmadan sönük görünür
+  const catChips = useMemo(() => {
+    if (!data) return [];
+    const counts = new Map(
+      (computed?.catShare ?? []).map((r) => [r.id, r.value])
+    );
+    return data.cats
+      .map((cat, order) => ({ cat, order, count: counts.get(cat.id) ?? 0 }))
+      .sort((a, b) => b.count - a.count || a.order - b.order);
+  }, [data, computed]);
+
   const progress = computed?.progress;
   const showProgress =
     !!progress &&
@@ -327,7 +339,7 @@ export function PeriodView({
               </Link>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
-              {data.cats.map((c) => {
+              {catChips.map(({ cat: c, count }) => {
                 const active = selectedCat.id === c.id;
                 return (
                   <button
@@ -337,7 +349,9 @@ export function PeriodView({
                       "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0",
                       active
                         ? "text-foreground"
-                        : "border-border bg-card text-muted-foreground hover:text-foreground"
+                        : count > 0
+                          ? "border-border bg-card text-muted-foreground hover:text-foreground"
+                          : "border-border/50 bg-card/50 text-muted-foreground/50 hover:text-muted-foreground"
                     )}
                     style={
                       active
@@ -349,10 +363,18 @@ export function PeriodView({
                     }
                   >
                     <span
-                      className="h-1.5 w-1.5 rounded-full"
+                      className={cn(
+                        "h-1.5 w-1.5 rounded-full",
+                        count === 0 && !active && "opacity-40"
+                      )}
                       style={{ backgroundColor: c.color }}
                     />
                     {c.name}
+                    {count > 0 && (
+                      <span className="tabular-nums text-muted-foreground/60">
+                        {count}
+                      </span>
+                    )}
                   </button>
                 );
               })}

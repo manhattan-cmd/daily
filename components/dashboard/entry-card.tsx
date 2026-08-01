@@ -47,16 +47,13 @@ export function EntryCard({
       <div
         role="button"
         tabIndex={0}
-        onClick={() => {
-          if (longPress.consume()) return;
-          setEditOpen(true);
-        }}
+        onClick={() => setEditOpen(true)}
         onKeyDown={(e) => {
           if (e.key === "Enter") setEditOpen(true);
         }}
-        {...(selection && !selection.active ? longPress.handlers : {})}
+        {...(selection && !selection.active ? longPress : {})}
         className={cn(
-          "group relative w-full cursor-pointer overflow-hidden rounded-2xl border px-3 py-2.5 text-left transition-transform active:scale-[0.99]",
+          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border px-3 py-2.5 text-left transition-transform active:scale-[0.99]",
           selection?.selected && selectedCardClass
         )}
         style={{
