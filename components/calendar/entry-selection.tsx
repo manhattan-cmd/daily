@@ -156,7 +156,7 @@ export function EntrySelectionBar({
                 <X className="h-3.5 w-3.5" />
               </button>
               <span className="flex-1 text-sm font-semibold">
-                {count} girdi seçildi
+                {count} öğe seçildi
               </span>
               <button
                 onClick={onSelectAll}
@@ -202,7 +202,7 @@ export function EntrySelectionBar({
                   Hangi güne taşınsın?
                 </p>
                 <p className="text-[10px] text-muted-foreground/70">
-                  {count} girdi · saatleri korunur
+                  {count} öğe · girdilerin saati korunur
                 </p>
               </div>
             </div>
@@ -258,10 +258,10 @@ export function EntrySelectionBar({
               </button>
               <div className="min-w-0">
                 <p className="text-sm font-semibold leading-tight">
-                  {count} girdi silinsin mi?
+                  {count} öğe silinsin mi?
                 </p>
                 <p className="text-[10px] text-muted-foreground/70">
-                  Değerleriyle birlikte kalıcı olarak silinir.
+                  İçerikleriyle birlikte kalıcı olarak silinir.
                 </p>
               </div>
             </div>

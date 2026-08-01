@@ -10,10 +10,27 @@ import {
 } from "@/components/forms/datetime-range-input";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { cn } from "@/lib/utils";
+import { useLongPress } from "@/lib/use-long-press";
+import {
+  SelectionLayer,
+  selectedCardClass,
+  type EntrySelection,
+} from "@/components/calendar/entry-selection";
 
-/** Gün sayfasındaki yerleşik uyku kartı — süre aralığı + kalite */
-export function SleepCard({ entry }: { entry: EntryWithContext }) {
+/**
+ * Gün sayfasındaki yerleşik uyku kartı — süre aralığı + kalite.
+ * `selection` verilirse basılı tutmak toplu seçimi başlatır; kartın kendisi
+ * `<button>` olduğundan seçim katmanı dıştaki sarmalayıcıya konur.
+ */
+export function SleepCard({
+  entry,
+  selection,
+}: {
+  entry: EntryWithContext;
+  selection?: EntrySelection;
+}) {
   const [editOpen, setEditOpen] = useState(false);
+  const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
 
   const rangeValue = entry.values.find(
     (v) => (v.entryType?.valueType ?? "") === "datetime-range"
@@ -38,13 +55,21 @@ export function SleepCard({ entry }: { entry: EntryWithContext }) {
 
   return (
     <>
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setEditOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") setEditOpen(true);
+        }}
+        {...(selection && !selection.active ? longPress : {})}
         className={cn(
-          "group relative w-full overflow-hidden rounded-2xl border border-violet-500/25 px-3 py-2.5 text-left",
+          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border border-violet-500/25 px-3 py-2.5 text-left",
           "bg-gradient-to-br from-violet-500/15 via-violet-500/5 to-transparent",
-          "transition-colors hover:border-violet-500/40 active:scale-[0.99]"
+          "transition-colors hover:border-violet-500/40 active:scale-[0.99]",
+          selection?.selected && selectedCardClass
         )}
+        aria-label="Uyku kaydını düzenle"
       >
         <div className="flex items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/20">
@@ -107,7 +132,15 @@ export function SleepCard({ entry }: { entry: EntryWithContext }) {
             <Trash2 className="h-3.5 w-3.5" />
           </span>
         </div>
-      </button>
+
+        {selection?.active && (
+          <SelectionLayer
+            selected={selection.selected}
+            onToggle={selection.onToggle}
+            label="Uyku kaydını seç"
+          />
+        )}
+      </div>
 
       <EditEntryModal entry={entry} open={editOpen} onOpenChange={setEditOpen} />
     </>

@@ -9,10 +9,14 @@ import { db } from "@/lib/db";
 import {
   createNote,
   deleteEntries,
+  deleteGoals,
+  deleteNotes,
   listEntriesByDate,
   listGoalsByDate,
   listNotesByDate,
   moveEntriesToDate,
+  moveGoalsToDate,
+  moveNotesToDate,
   noteIsEmpty,
 } from "@/lib/db/queries";
 import { NoteCard } from "@/components/notes/note-card";
@@ -125,27 +129,37 @@ export default function CalendarDayPage({
   const sleepEntries = (entries ?? []).filter((e) => e.category.isBuiltIn);
   const otherEntries = (entries ?? []).filter((e) => !e.category.isBuiltIn);
 
-  // Kart → seçim durumu. Bir kart birden çok girdi taşıyorsa (paralel grup,
-  // aktivite) hepsi birlikte seçilir; görünen neyse o seçilir.
+  // Kart → seçim durumu. Günün her öğesi (girdi, uyku, hedef, not) seçilebilir;
+  // tür önekli anahtarla tutulur çünkü ayrı tablolarda yaşıyorlar. Bir kart
+  // birden çok girdi taşıyorsa (paralel grup, aktivite) hepsi birlikte seçilir.
   const selectionActive = selected !== null;
+  const allKeys = [
+    ...sleepEntries.map((e) => `entry:${e.id}`),
+    ...otherEntries.map((e) => `entry:${e.id}`),
+    ...(goals ?? []).map((g) => `goal:${g.id}`),
+    ...(notes ?? []).map((n) => `note:${n.id}`),
+  ];
   const allSelected =
-    otherEntries.length > 0 &&
-    !!selected &&
-    otherEntries.every((e) => selected.has(e.id));
-  const selectionFor = (ids: string[]): EntrySelection => ({
+    allKeys.length > 0 && !!selected && allKeys.every((k) => selected.has(k));
+  const selectionFor = (keys: string[]): EntrySelection => ({
     active: selectionActive,
-    selected: !!selected && ids.every((id) => selected.has(id)),
+    selected: !!selected && keys.every((k) => selected.has(k)),
     // Seçim modu açıkken basılı tutma mevcut seçimi bozmasın
-    onStart: () => setSelected((prev) => prev ?? new Set(ids)),
+    onStart: () => setSelected((prev) => prev ?? new Set(keys)),
     onToggle: () =>
       setSelected((prev) => {
         const next = new Set(prev ?? []);
-        if (ids.every((id) => next.has(id))) ids.forEach((id) => next.delete(id));
-        else ids.forEach((id) => next.add(id));
+        if (keys.every((k) => next.has(k))) keys.forEach((k) => next.delete(k));
+        else keys.forEach((k) => next.add(k));
         // Son seçim de bırakılınca moddan çık
         return next.size ? next : null;
       }),
   });
+  /** Seçimden bir türün id'lerini ayıkla */
+  const idsOf = (kind: "entry" | "goal" | "note") =>
+    [...(selected ?? [])]
+      .filter((k) => k.startsWith(`${kind}:`))
+      .map((k) => k.slice(kind.length + 1));
 
   const todayFlat = (() => {
     const t = new Date();
@@ -255,7 +269,11 @@ export default function CalendarDayPage({
       {sleepEntries.length > 0 && (
         <div className="mb-5 flex flex-col gap-2">
           {sleepEntries.map((e) => (
-            <SleepCard key={e.id} entry={e} />
+            <SleepCard
+              key={e.id}
+              entry={e}
+              selection={selectionFor([`entry:${e.id}`])}
+            />
           ))}
         </div>
       )}
@@ -274,7 +292,11 @@ export default function CalendarDayPage({
           </div>
           <div className="flex flex-col gap-2">
             {goals.map((goal) => (
-              <GoalCard key={goal.id} goal={goal} />
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                selection={selectionFor([`goal:${goal.id}`])}
+              />
             ))}
           </div>
         </div>
@@ -294,7 +316,11 @@ export default function CalendarDayPage({
           </div>
           <div className="flex flex-col gap-1.5">
             {notes.map((note) => (
-              <NoteCard key={note.id} note={note} />
+              <NoteCard
+                key={note.id}
+                note={note}
+                selection={selectionFor([`note:${note.id}`])}
+              />
             ))}
           </div>
         </div>
@@ -352,7 +378,7 @@ export default function CalendarDayPage({
                     <EntryCard
                       key={item.entry.id}
                       entry={item.entry}
-                      selection={selectionFor([item.entry.id])}
+                      selection={selectionFor([`entry:${item.entry.id}`])}
                     />
                   ) : item.type === "activity" ? (
                     <ActivityCard
@@ -364,13 +390,17 @@ export default function CalendarDayPage({
                         setSheetActivityMode(false);
                         setSheetOpen(true);
                       }}
-                      selection={selectionFor(item.entries.map((e) => e.id))}
+                      selection={selectionFor(
+                        item.entries.map((e) => `entry:${e.id}`)
+                      )}
                     />
                   ) : (
                     <LinkedEntryCard
                       key={item.entries[0].linkedGroupId}
                       entries={item.entries}
-                      selection={selectionFor(item.entries.map((e) => e.id))}
+                      selection={selectionFor(
+                        item.entries.map((e) => `entry:${e.id}`)
+                      )}
                     />
                   )
                 )}
@@ -389,19 +419,21 @@ export default function CalendarDayPage({
           count={selected.size}
           allSelected={allSelected}
           onSelectAll={() =>
-            setSelected(
-              allSelected ? null : new Set(otherEntries.map((e) => e.id))
-            )
+            setSelected(allSelected ? null : new Set(allKeys))
           }
           onCancel={() => setSelected(null)}
           onMove={async (target) => {
-            await moveEntriesToDate([...selected], target);
+            await moveEntriesToDate(idsOf("entry"), target);
+            await moveGoalsToDate(idsOf("goal"), target);
+            await moveNotesToDate(idsOf("note"), target);
             setSelected(null);
             // Nereye gittiklerini görsün diye hedef güne geç
             router.push(`/calendar/${target}`);
           }}
           onDelete={async () => {
-            await deleteEntries([...selected]);
+            await deleteEntries(idsOf("entry"));
+            await deleteGoals(idsOf("goal"));
+            await deleteNotes(idsOf("note"));
             setSelected(null);
           }}
         />

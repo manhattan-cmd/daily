@@ -11,6 +11,12 @@ import {
   parseDTR,
 } from "@/components/forms/datetime-range-input";
 import { cn } from "@/lib/utils";
+import { useLongPress } from "@/lib/use-long-press";
+import {
+  SelectionLayer,
+  selectedCardClass,
+  type EntrySelection,
+} from "@/components/calendar/entry-selection";
 
 function TargetChip({ target, completed }: { target: GoalTargetWithContext; completed: boolean }) {
   const vt = target.entryType.valueType ?? "number";
@@ -59,9 +65,17 @@ function TargetChip({ target, completed }: { target: GoalTargetWithContext; comp
   );
 }
 
-export function GoalCard({ goal }: { goal: GoalWithContext }) {
+/** `selection` verilirse basılı tutmak toplu seçimi başlatır */
+export function GoalCard({
+  goal,
+  selection,
+}: {
+  goal: GoalWithContext;
+  selection?: EntrySelection;
+}) {
   const [loading, setLoading] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
   const isCompleted = !!goal.completedEntryId;
 
   async function toggleComplete() {
@@ -86,11 +100,13 @@ export function GoalCard({ goal }: { goal: GoalWithContext }) {
     <>
       <div
         className={cn(
-          "flex items-center gap-3 rounded-2xl border px-3 py-2.5 transition-colors",
+          "relative flex select-none touch-manipulation items-center gap-3 rounded-2xl border px-3 py-2.5 transition-colors",
           isCompleted
             ? "border-emerald-500/30 bg-emerald-500/5"
-            : "border-border bg-card"
+            : "border-border bg-card",
+          selection?.selected && selectedCardClass
         )}
+        {...(selection && !selection.active ? longPress : {})}
       >
         {/* Complete toggle */}
         <button
@@ -162,6 +178,14 @@ export function GoalCard({ goal }: { goal: GoalWithContext }) {
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
+        )}
+
+        {selection?.active && (
+          <SelectionLayer
+            selected={selection.selected}
+            onToggle={selection.onToggle}
+            label={`${goal.subcategory.name} hedefini seç`}
+          />
         )}
       </div>
 

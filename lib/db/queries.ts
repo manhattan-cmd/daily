@@ -1303,12 +1303,29 @@ export async function deleteEntry(entryId: string): Promise<void> {
   });
 }
 
-// ============ Toplu Girdi İşlemleri ============
+// ============ Toplu Gün Öğesi İşlemleri ============
+
+const startOfDayTs = (t: number) => {
+  const d = new Date(t);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+};
+
+/** "YYYY-MM-DDTHH:mm" yerel zaman damgasını gün olarak kaydırır */
+function shiftLocalDateTime(s: string, days: number): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})(.*)$/.exec(s);
+  if (!m) return s;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + days);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}${m[4]}`;
+}
 
 /**
  * Seçili girdileri başka bir güne taşı. Her girdinin kendi saati korunur,
- * yalnızca tarihi değişir. Girdileri kısmen taşınan bir aktivitenin zamanı
- * kalan girdilerinin en erkenine çekilir; tamamı taşındıysa yeni güne kayar.
+ * yalnızca tarihi değişir. Tarih aralığı değerleri (uyku gibi) girdiyle aynı
+ * gün sayısı kadar kaydırılır — yoksa kartta eski tarihler kalırdı.
+ * Girdileri kısmen taşınan bir aktivitenin zamanı kalan girdilerinin en
+ * erkenine çekilir; tamamı taşındıysa yeni güne kayar.
  */
 export async function moveEntriesToDate(
   entryIds: string[],
@@ -1316,32 +1333,113 @@ export async function moveEntriesToDate(
 ): Promise<void> {
   if (!entryIds.length) return;
   const [y, m, d] = dateStr.split("-").map(Number);
-  await db.transaction("rw", [db.entries, db.activities], async () => {
-    const entries = (await db.entries.bulkGet(entryIds)).filter(
-      (e): e is Entry => !!e
-    );
-    const touchedActivities = new Set<string>();
-    for (const e of entries) {
-      const src = new Date(e.occurredAt);
-      const next = new Date(
-        y, m - 1, d,
-        src.getHours(), src.getMinutes(), src.getSeconds(), src.getMilliseconds()
+  const dtrTypeIds = new Set(
+    (
+      await db.entryTypes
+        .filter((t) => t.valueType === "datetime-range")
+        .toArray()
+    ).map((t) => t.id)
+  );
+  await db.transaction(
+    "rw",
+    [db.entries, db.entryValues, db.activities],
+    async () => {
+      const entries = (await db.entries.bulkGet(entryIds)).filter(
+        (e): e is Entry => !!e
       );
-      await db.entries.update(e.id, {
-        occurredAt: next.getTime(),
-        updatedAt: now(),
-      });
-      if (e.activityId) touchedActivities.add(e.activityId);
+      const touchedActivities = new Set<string>();
+      for (const e of entries) {
+        const src = new Date(e.occurredAt);
+        const next = new Date(
+          y, m - 1, d,
+          src.getHours(), src.getMinutes(), src.getSeconds(), src.getMilliseconds()
+        );
+        const dayDelta = Math.round(
+          (startOfDayTs(next.getTime()) - startOfDayTs(e.occurredAt)) / 86400000
+        );
+        await db.entries.update(e.id, {
+          occurredAt: next.getTime(),
+          updatedAt: now(),
+        });
+
+        if (dayDelta !== 0 && dtrTypeIds.size) {
+          const values = await db.entryValues
+            .where("entryId")
+            .equals(e.id)
+            .toArray();
+          for (const v of values) {
+            if (!v.entryTypeId || !dtrTypeIds.has(v.entryTypeId) || !v.value)
+              continue;
+            try {
+              const parsed = JSON.parse(v.value) as {
+                start?: string;
+                end?: string;
+              };
+              await db.entryValues.update(v.id, {
+                value: JSON.stringify({
+                  ...parsed,
+                  ...(parsed.start
+                    ? { start: shiftLocalDateTime(parsed.start, dayDelta) }
+                    : {}),
+                  ...(parsed.end
+                    ? { end: shiftLocalDateTime(parsed.end, dayDelta) }
+                    : {}),
+                }),
+              });
+            } catch {
+              /* biçimi bozuk değere dokunma */
+            }
+          }
+        }
+
+        if (e.activityId) touchedActivities.add(e.activityId);
+      }
+      for (const activityId of touchedActivities) {
+        const rest = await db.entries.where("activityId").equals(activityId).toArray();
+        if (!rest.length) continue;
+        await db.activities.update(activityId, {
+          occurredAt: Math.min(...rest.map((x) => x.occurredAt)),
+          updatedAt: now(),
+        });
+      }
     }
-    for (const activityId of touchedActivities) {
-      const rest = await db.entries.where("activityId").equals(activityId).toArray();
-      if (!rest.length) continue;
-      await db.activities.update(activityId, {
-        occurredAt: Math.min(...rest.map((x) => x.occurredAt)),
-        updatedAt: now(),
-      });
+  );
+}
+
+/** Notlar günü `date` alanıyla tutar — taşımak tarihi değiştirmektir */
+export async function moveNotesToDate(
+  noteIds: string[],
+  dateStr: string
+): Promise<void> {
+  if (!noteIds.length) return;
+  await db.transaction("rw", db.notes, async () => {
+    for (const noteId of noteIds) {
+      await db.notes.update(noteId, { date: dateStr, updatedAt: now() });
     }
   });
+}
+
+export async function deleteNotes(noteIds: string[]): Promise<void> {
+  if (!noteIds.length) return;
+  await db.notes.bulkDelete(noteIds);
+}
+
+/** Hedefler de günü `date` alanıyla tutar */
+export async function moveGoalsToDate(
+  goalIds: string[],
+  dateStr: string
+): Promise<void> {
+  if (!goalIds.length) return;
+  await db.transaction("rw", db.goals, async () => {
+    for (const goalId of goalIds) {
+      await db.goals.update(goalId, { date: dateStr });
+    }
+  });
+}
+
+/** Tek tek deleteGoal — tamamlayan girdiyi de temizlemesi için */
+export async function deleteGoals(goalIds: string[]): Promise<void> {
+  for (const goalId of goalIds) await deleteGoal(goalId);
 }
 
 /**
