@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Boxes, Link2, Plus, X } from "lucide-react";
+import { ArrowLeft, Boxes, Clock, Link2, NotebookPen, Plus, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
 import {
@@ -19,10 +20,15 @@ import {
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { EntryNetwork, type NetFocus } from "@/components/calendar/entry-network";
-import { DateTimeRangeInput, formatDTRDisplay } from "@/components/forms/datetime-range-input";
+import {
+  DateTimeInput,
+  DateTimeRangeInput,
+  formatDTRDisplay,
+} from "@/components/forms/datetime-range-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, toLocalDateValue } from "@/lib/utils";
+import { SHORT_MONTHS } from "@/lib/analytics";
+import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
 import type { Category, SubCategory } from "@/types";
 
 /** Değer state anahtarı: global mod id (legacy atamalarda atama id'si) */
@@ -57,7 +63,8 @@ export function DayEntrySheet({
   const [step, setStep] = useState<Step>({ type: "pick" });
   const [values, setValues] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState("");
-  const [showNotes, setShowNotes] = useState(false);
+  // Girdinin zamanı — formdaki "Zaman" seçeneğinden değiştirilebilir
+  const [occurredAt, setOccurredAt] = useState("");
   const [saving, setSaving] = useState(false);
   const [selectedParallels, setSelectedParallels] = useState<ParallelSub[]>([]);
   const [parallelQueue, setParallelQueue] = useState<ParallelSub[]>([]);
@@ -74,7 +81,6 @@ export function DayEntrySheet({
         setStep({ type: "pick" });
         setValues({});
         setNotes("");
-        setShowNotes(false);
         setSelectedParallels([]);
         setParallelQueue([]);
         setLockedTypeIds(new Set());
@@ -139,10 +145,20 @@ export function DayEntrySheet({
     });
   }, [formMods, currentSubId]);
 
+  /** Varsayılan: sayfanın günü + şu anki saat ("YYYY-MM-DDTHH:mm") */
+  function defaultOccurredAt(): string {
+    const [y, mo, d] = date.split("-").map(Number);
+    const n = new Date();
+    return toLocalDateTimeValue(
+      new Date(y, mo - 1, d, n.getHours(), n.getMinutes(), 0, 0).getTime()
+    );
+  }
+
   function handleSubSelect(sub: SubCategory) {
     setValues({});
     setSelectedParallels([]);
     setParallelQueue([]);
+    setOccurredAt(defaultOccurredAt());
     setStep({ type: "form", sub });
   }
 
@@ -150,14 +166,6 @@ export function DayEntrySheet({
   async function handleCategorySelect(category: Category) {
     const rootSub = await getOrCreateCategoryRootSub(category.id);
     handleSubSelect(rootSub);
-  }
-
-  function makeOccurredAt(): number {
-    const [y, mo, d] = date.split("-").map(Number);
-    const dt = new Date(y, mo - 1, d);
-    const now = new Date();
-    dt.setHours(now.getHours(), now.getMinutes(), 0, 0);
-    return dt.getTime();
   }
 
   // vals: valueKey(mod) → değer. Değerler havuzdaki atoma (modId) bağlanır.
@@ -175,15 +183,17 @@ export function DayEntrySheet({
         modId: m.modId,
         value: vals[valueKey(m)],
       }));
-    const occurredAt = makeOccurredAt();
+    // Kullanıcı formdan değiştirmiş olabilir; paralel perspektifler de aynı anı
+    // paylaşsın diye tek kaynak
+    const ts = new Date(occurredAt).getTime();
     // Aktivite kaydı ilk girdiyle yazılır — isim verip vazgeçen iz bırakmaz
     if (activity) {
-      await ensureActivity({ id: activity.id, name: activity.name, occurredAt });
+      await ensureActivity({ id: activity.id, name: activity.name, occurredAt: ts });
     }
     await createEntry({
       subcategoryId: subId,
       typeValues,
-      occurredAt,
+      occurredAt: ts,
       notes: (entryNotes ?? notes).trim() || undefined,
       linkedGroupId: groupId,
       activityId: activity?.id,
@@ -231,7 +241,6 @@ export function DayEntrySheet({
     setValues(initial);
     setLockedTypeIds(newLocked);
     setNotes("");
-    setShowNotes(false);
     setParallelQueue(queue.slice(1));
     setStep({
       type: "parallel-form",
@@ -255,7 +264,6 @@ export function DayEntrySheet({
           setActivityCount((c) => c + 1);
           setValues({});
           setNotes("");
-          setShowNotes(false);
           setStep({ type: "pick" });
           return;
         }
@@ -287,7 +295,6 @@ export function DayEntrySheet({
     setStep({ type: "pick" });
     setValues({});
     setNotes("");
-    setShowNotes(false);
     setLockedTypeIds(new Set());
     setSelectedParallels([]);
     setParallelQueue([]);
@@ -341,7 +348,12 @@ export function DayEntrySheet({
           />
         ) : (
           <FormStep
+            key={step.sub.id}
             sub={step.sub}
+            category={
+              (groups ?? []).find((g) => g.category.id === step.sub.categoryId)
+                ?.category
+            }
             mods={formMods}
             currentCategoryId={step.sub.categoryId}
             hideParallels={!!activity}
@@ -361,8 +373,8 @@ export function DayEntrySheet({
             }
             notes={notes}
             onNotesChange={setNotes}
-            showNotes={showNotes}
-            onShowNotesChange={setShowNotes}
+            occurredAt={occurredAt}
+            onOccurredAtChange={setOccurredAt}
             onBack={handleBack}
             onSave={handleFormSave}
             saving={saving}
@@ -541,8 +553,66 @@ function PickStep({
 
 // ─── Form Step ───────────────────────────────────────────────────────────────
 
+/** Zaman çipinin etiketi — gün formun günüyse yalnız saat, değilse gün de */
+function occurredAtLabel(occurredAt: string, entryDate: string): string {
+  const [d = "", t = ""] = occurredAt.split("T");
+  if (!t) return "Zaman";
+  if (d === entryDate) return t;
+  const dt = new Date(d + "T00:00:00");
+  return `${dt.getDate()} ${SHORT_MONTHS[dt.getMonth()]} · ${t}`;
+}
+
+/** Formun ikincil seçenek çipi — dolu olan vurgulanır, açık olan çerçevelenir */
+function OptionChip({
+  icon: Icon,
+  label,
+  active,
+  filled,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  active: boolean;
+  filled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+        active
+          ? "border-primary/50 bg-primary/12 text-foreground"
+          : filled
+            ? "border-border bg-card text-foreground"
+            : "border-border/60 bg-card/40 text-muted-foreground hover:text-foreground"
+      )}
+    >
+      <Icon
+        className={cn(
+          "h-3.5 w-3.5",
+          active || filled ? "text-primary" : "text-muted-foreground/60"
+        )}
+      />
+      {label}
+    </button>
+  );
+}
+
+/** Formun ikincil seçenekleri — aynı anda yalnız biri açılır */
+type Panel = "time" | "note" | "parallel";
+
+/**
+ * Girdi formu. Ekranın ana gövdesi yalnız ÖZELLİKLERdir (sorulan değerler +
+ * "özellik ekle"); zaman, not ve paralel perspektif ortada durup akışı
+ * karıştırmasın diye altta seçenek çipleri hâline getirildi — dokununca
+ * yerinde açılır, biri açılınca diğeri kapanır.
+ */
 function FormStep({
   sub,
+  category,
   mods,
   currentCategoryId,
   hideParallels,
@@ -556,14 +626,15 @@ function FormStep({
   onValueChange,
   notes,
   onNotesChange,
-  showNotes,
-  onShowNotesChange,
+  occurredAt,
+  onOccurredAtChange,
   onBack,
   onSave,
   saving,
   entryDate,
 }: {
   sub: SubCategory;
+  category?: Category;
   mods: CategoryModifierWithType[];
   currentCategoryId: string;
   /** Aktivite akışında paralel perspektif bölümü gizlenir (seri giriş sade kalsın) */
@@ -578,8 +649,8 @@ function FormStep({
   onValueChange: (typeId: string, val: string) => void;
   notes: string;
   onNotesChange: (v: string) => void;
-  showNotes: boolean;
-  onShowNotesChange: (v: boolean) => void;
+  occurredAt: string;
+  onOccurredAtChange: (v: string) => void;
   onBack: () => void;
   onSave: () => void;
   saving: boolean;
@@ -587,8 +658,10 @@ function FormStep({
 }) {
   const [modPickerOpen, setModPickerOpen] = useState(false);
   const [parallelPickerOpen, setParallelPickerOpen] = useState(false);
+  const [panel, setPanel] = useState<Panel | null>(null);
   // Seçiciden yeni eklenen özellik — alanı görünüme kaydırıp odaklarız
   const [focusModId, setFocusModId] = useState<string | null>(null);
+  const togglePanel = (p: Panel) => setPanel((cur) => (cur === p ? null : p));
 
   async function handleRemoveMod(mod: CategoryModifierWithType) {
     await removeModifier(mod.id);
@@ -634,60 +707,119 @@ function FormStep({
               </span>
             </div>
           )}
-          <h2 className="text-base font-semibold tracking-tight truncate">{sub.name}</h2>
+          {!parallelContext && !activityName && category && (
+            <span
+              className="block truncate text-[10px] font-semibold uppercase tracking-[0.14em]"
+              style={{ color: `${category.color}cc` }}
+            >
+              {category.name}
+            </span>
+          )}
+          <h2 className="text-base font-semibold tracking-tight truncate">
+            {sub.isCategoryRoot ? (category?.name ?? sub.name) : sub.name}
+          </h2>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-6">
-        <div className="flex flex-col gap-4">
-          {mods.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border/50 bg-muted/20 px-4 py-5 flex flex-col items-center gap-2.5 text-center">
-              <p className="text-sm text-muted-foreground">
-                Kaydını tutmak istediğin özellikleri ekle veya doğrudan kaydet.
-              </p>
-              <button
-                type="button"
-                onClick={() => setModPickerOpen(true)}
-                className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Özellik ekle
-              </button>
+        {/* ── Özellikler: formun tek ana gövdesi ── */}
+        {mods.length === 0 ? (
+          <button
+            type="button"
+            onClick={() => setModPickerOpen(true)}
+            className="flex w-full flex-col items-center gap-2 rounded-2xl border border-dashed border-primary/25 bg-primary/[0.04] px-5 py-7 text-center transition-colors hover:border-primary/45 hover:bg-primary/[0.07]"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary">
+              <Plus className="h-5 w-5" strokeWidth={2.25} />
+            </span>
+            <span className="text-sm font-semibold">Özellik ekle</span>
+            <span className="text-[11px] leading-snug text-muted-foreground">
+              Neyin kaydını tutmak istersin? Boş da kaydedebilirsin.
+            </span>
+          </button>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {mods.map((mod) => (
+              <ModInput
+                key={mod.id}
+                mod={mod}
+                value={values[valueKey(mod)] ?? ""}
+                onChange={(v) => onValueChange(valueKey(mod), v)}
+                onRemove={lockedTypeIds.has(sharedKey(mod)) ? undefined : () => handleRemoveMod(mod)}
+                isLocked={lockedTypeIds.has(sharedKey(mod))}
+                entryDate={entryDate}
+                autoFocus={mod.modId === focusModId}
+              />
+            ))}
+            <button
+              type="button"
+              onClick={() => setModPickerOpen(true)}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Özellik ekle
+            </button>
+          </div>
+        )}
+
+        {/* ── Seçenekler: zaman · not · perspektif ── */}
+        <div className="mt-6 border-t border-white/[0.06] pt-3">
+          <div className="flex flex-wrap gap-1.5">
+            <OptionChip
+              icon={Clock}
+              label={occurredAtLabel(occurredAt, entryDate)}
+              active={panel === "time"}
+              filled={occurredAt.split("T")[0] !== entryDate}
+              onClick={() => togglePanel("time")}
+            />
+            <OptionChip
+              icon={NotebookPen}
+              label="Not"
+              active={panel === "note"}
+              filled={!!notes.trim()}
+              onClick={() => togglePanel("note")}
+            />
+            {!parallelContext && !hideParallels && (
+              <OptionChip
+                icon={Link2}
+                label={
+                  selectedParallels.length
+                    ? `Perspektif · ${selectedParallels.length}`
+                    : "Perspektif"
+                }
+                active={panel === "parallel"}
+                filled={selectedParallels.length > 0}
+                onClick={() => togglePanel("parallel")}
+              />
+            )}
+          </div>
+
+          {panel === "time" && (
+            <div className="mt-3">
+              <DateTimeInput
+                value={occurredAt}
+                onChange={onOccurredAtChange}
+              />
             </div>
-          ) : (
-            <>
-              {mods.map((mod) => (
-                <ModInput
-                  key={mod.id}
-                  mod={mod}
-                  value={values[valueKey(mod)] ?? ""}
-                  onChange={(v) => onValueChange(valueKey(mod), v)}
-                  onRemove={lockedTypeIds.has(sharedKey(mod)) ? undefined : () => handleRemoveMod(mod)}
-                  isLocked={lockedTypeIds.has(sharedKey(mod))}
-                  entryDate={entryDate}
-                  autoFocus={mod.modId === focusModId}
-                />
-              ))}
-              <button
-                type="button"
-                onClick={() => setModPickerOpen(true)}
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors self-start"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Özellik ekle
-              </button>
-            </>
           )}
 
-          {/* Paralel perspektifler — sadece ana form adımında (aktivite akışında gizli) */}
-          {!parallelContext && !hideParallels && (
-            <div className="flex flex-col gap-2 pt-1">
-              <div className="flex items-center gap-1.5">
-                <Link2 className="h-3.5 w-3.5 text-violet-400/70" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Paralel perspektifler
-                </span>
-              </div>
+          {panel === "note" && (
+            <textarea
+              value={notes}
+              onChange={(e) => onNotesChange(e.target.value)}
+              placeholder="Bu girdiyle ilgili bir not..."
+              rows={3}
+              autoFocus
+              className="mt-3 w-full resize-none rounded-xl border border-border bg-input px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          )}
+
+          {panel === "parallel" && (
+            <div className="mt-3 flex flex-col gap-2">
+              <p className="text-[11px] leading-snug text-muted-foreground/70">
+                Aynı olayı başka bir kategoride de kaydet — kaydettikten sonra
+                her biri için detaylar sorulur.
+              </p>
               {selectedParallels.map((ps) => (
                 <div
                   key={ps.id}
@@ -711,43 +843,13 @@ function FormStep({
               <button
                 type="button"
                 onClick={() => setParallelPickerOpen(true)}
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors self-start"
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-violet-500/30 py-2.5 text-sm font-medium text-violet-300/80 transition-colors hover:border-violet-500/50 hover:text-violet-200"
               >
                 <Plus className="h-3.5 w-3.5" />
-                {selectedParallels.length > 0 ? "Başka perspektif ekle" : "Paralel perspektif ekle"}
+                {selectedParallels.length > 0 ? "Başka perspektif" : "Perspektif seç"}
               </button>
             </div>
           )}
-
-          <div>
-            <button
-              type="button"
-              onClick={() => onShowNotesChange(!showNotes)}
-              className={cn(
-                "flex items-center gap-1.5 text-sm transition-colors",
-                showNotes
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Plus
-                className={cn(
-                  "h-3.5 w-3.5 transition-transform",
-                  showNotes && "rotate-45"
-                )}
-              />
-              Not ekle
-            </button>
-            {showNotes && (
-              <textarea
-                value={notes}
-                onChange={(e) => onNotesChange(e.target.value)}
-                placeholder="Bu girdiyle ilgili bir not..."
-                rows={3}
-                className="mt-2 w-full resize-none rounded-xl border border-border bg-input px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            )}
-          </div>
         </div>
       </div>
 
