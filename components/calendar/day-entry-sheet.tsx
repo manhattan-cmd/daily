@@ -3,7 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Boxes, Clock, Link2, NotebookPen, Plus, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Boxes,
+  Clock,
+  Link2,
+  MoreHorizontal,
+  NotebookPen,
+  Plus,
+  X,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
@@ -562,18 +571,18 @@ function occurredAtLabel(occurredAt: string, entryDate: string): string {
   return `${dt.getDate()} ${SHORT_MONTHS[dt.getMonth()]} · ${t}`;
 }
 
-/** Formun ikincil seçenek çipi — dolu olan vurgulanır, açık olan çerçevelenir */
-function OptionChip({
+/** Seçenek menüsü satırı — başlığın altında o an geçerli değeri gösterir */
+function MenuRow({
   icon: Icon,
-  label,
+  title,
+  subtitle,
   active,
-  filled,
   onClick,
 }: {
   icon: LucideIcon;
-  label: string;
+  title: string;
+  subtitle: string;
   active: boolean;
-  filled: boolean;
   onClick: () => void;
 }) {
   return (
@@ -581,34 +590,72 @@ function OptionChip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={cn(
-        "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-        active
-          ? "border-primary/50 bg-primary/12 text-foreground"
-          : filled
-            ? "border-border bg-card text-foreground"
-            : "border-border/60 bg-card/40 text-muted-foreground hover:text-foreground"
-      )}
+      className="flex w-full items-center gap-3 border-t border-border/60 px-3 py-2.5 text-left transition-colors first:border-t-0 hover:bg-white/5 active:bg-white/[0.07]"
     >
-      <Icon
+      <span
         className={cn(
-          "h-3.5 w-3.5",
-          active || filled ? "text-primary" : "text-muted-foreground/60"
+          "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+          active ? "bg-primary/15" : "bg-white/5"
         )}
-      />
-      {label}
+      >
+        <Icon
+          className={cn(
+            "h-4 w-4",
+            active ? "text-primary" : "text-muted-foreground"
+          )}
+        />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">{title}</span>
+        <span className="block truncate text-[11px] text-muted-foreground">
+          {subtitle}
+        </span>
+      </span>
     </button>
   );
 }
 
-/** Formun ikincil seçenekleri — aynı anda yalnız biri açılır */
-type Panel = "time" | "note" | "parallel";
+/** Menüden açılan bölüm — başlık satırı + kapatma */
+function PanelBlock({
+  icon: Icon,
+  title,
+  onClose,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mt-5">
+      <div className="mb-1.5 flex items-center gap-1.5">
+        <Icon className="h-3 w-3 text-primary/70" />
+        <span className="flex-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/60">
+          {title}
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={`${title} bölümünü kapat`}
+          className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground/50 transition-colors hover:text-foreground"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** Menüden açılan bölümler — aynı anda yalnız biri açık kalır */
+type Panel = "time" | "parallel";
 
 /**
- * Girdi formu. Ekranın ana gövdesi yalnız ÖZELLİKLERdir (sorulan değerler +
- * "özellik ekle"); zaman, not ve paralel perspektif ortada durup akışı
- * karıştırmasın diye altta seçenek çipleri hâline getirildi — dokununca
- * yerinde açılır, biri açılınca diğeri kapanır.
+ * Girdi formu. Ana gövde yalnız ÖZELLİKLERdir (sorulan değerler + "özellik
+ * ekle"), hemen altında her zaman görünen not alanı. Zaman ve paralel
+ * perspektif ortada durup akışı karıştırmasın diye başlıktaki küçük seçenek
+ * menüsüne alındı; seçilince özelliklerin altında yerinde açılırlar.
  */
 function FormStep({
   sub,
@@ -659,9 +706,18 @@ function FormStep({
   const [modPickerOpen, setModPickerOpen] = useState(false);
   const [parallelPickerOpen, setParallelPickerOpen] = useState(false);
   const [panel, setPanel] = useState<Panel | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   // Seçiciden yeni eklenen özellik — alanı görünüme kaydırıp odaklarız
   const [focusModId, setFocusModId] = useState<string | null>(null);
-  const togglePanel = (p: Panel) => setPanel((cur) => (cur === p ? null : p));
+  const togglePanel = (p: Panel) => {
+    setMenuOpen(false);
+    setPanel((cur) => (cur === p ? null : p));
+  };
+
+  const timeChanged = occurredAt.split("T")[0] !== entryDate;
+  const showParallelOption = !parallelContext && !hideParallels;
+  // Menüde bir şey ayarlanmışsa düğmede nokta belirir
+  const optionsTouched = timeChanged || selectedParallels.length > 0;
 
   async function handleRemoveMod(mod: CategoryModifierWithType) {
     await removeModifier(mod.id);
@@ -719,6 +775,58 @@ function FormStep({
             {sub.isCategoryRoot ? (category?.name ?? sub.name) : sub.name}
           </h2>
         </div>
+
+        {/* Seçenekler — zaman ve paralel perspektif ortada durup akışı
+            karıştırmasın diye küçük bir menüde */}
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Seçenekler"
+            aria-expanded={menuOpen}
+            className={cn(
+              "relative flex h-7 w-7 items-center justify-center rounded-full transition-colors",
+              menuOpen
+                ? "bg-primary/20 text-primary"
+                : "bg-white/8 text-muted-foreground hover:bg-white/12 hover:text-foreground"
+            )}
+          >
+            <MoreHorizontal className="h-4 w-4" />
+            {optionsTouched && !menuOpen && (
+              <span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary" />
+            )}
+          </button>
+          {menuOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-30 bg-black/55 backdrop-blur-[1px]"
+                onClick={() => setMenuOpen(false)}
+              />
+              <div className="absolute right-0 top-9 z-40 w-60 overflow-hidden rounded-2xl border border-white/10 bg-card shadow-2xl">
+                <MenuRow
+                  icon={Clock}
+                  title="Zaman"
+                  subtitle={occurredAtLabel(occurredAt, entryDate)}
+                  active={panel === "time"}
+                  onClick={() => togglePanel("time")}
+                />
+                {showParallelOption && (
+                  <MenuRow
+                    icon={Link2}
+                    title="Paralel perspektif"
+                    subtitle={
+                      selectedParallels.length
+                        ? `${selectedParallels.length} seçili`
+                        : "Başka kategoride de kaydet"
+                    }
+                    active={panel === "parallel"}
+                    onClick={() => togglePanel("parallel")}
+                  />
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-6">
@@ -762,60 +870,24 @@ function FormStep({
           </div>
         )}
 
-        {/* ── Seçenekler: zaman · not · perspektif ── */}
-        <div className="mt-6 border-t border-white/[0.06] pt-3">
-          <div className="flex flex-wrap gap-1.5">
-            <OptionChip
-              icon={Clock}
-              label={occurredAtLabel(occurredAt, entryDate)}
-              active={panel === "time"}
-              filled={occurredAt.split("T")[0] !== entryDate}
-              onClick={() => togglePanel("time")}
-            />
-            <OptionChip
-              icon={NotebookPen}
-              label="Not"
-              active={panel === "note"}
-              filled={!!notes.trim()}
-              onClick={() => togglePanel("note")}
-            />
-            {!parallelContext && !hideParallels && (
-              <OptionChip
-                icon={Link2}
-                label={
-                  selectedParallels.length
-                    ? `Perspektif · ${selectedParallels.length}`
-                    : "Perspektif"
-                }
-                active={panel === "parallel"}
-                filled={selectedParallels.length > 0}
-                onClick={() => togglePanel("parallel")}
-              />
-            )}
-          </div>
+        {/* ── Menüden açılan bölümler ── */}
+        {panel === "time" && (
+          <PanelBlock
+            icon={Clock}
+            title="Zaman"
+            onClose={() => setPanel(null)}
+          >
+            <DateTimeInput value={occurredAt} onChange={onOccurredAtChange} />
+          </PanelBlock>
+        )}
 
-          {panel === "time" && (
-            <div className="mt-3">
-              <DateTimeInput
-                value={occurredAt}
-                onChange={onOccurredAtChange}
-              />
-            </div>
-          )}
-
-          {panel === "note" && (
-            <textarea
-              value={notes}
-              onChange={(e) => onNotesChange(e.target.value)}
-              placeholder="Bu girdiyle ilgili bir not..."
-              rows={3}
-              autoFocus
-              className="mt-3 w-full resize-none rounded-xl border border-border bg-input px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          )}
-
-          {panel === "parallel" && (
-            <div className="mt-3 flex flex-col gap-2">
+        {panel === "parallel" && showParallelOption && (
+          <PanelBlock
+            icon={Link2}
+            title="Paralel perspektif"
+            onClose={() => setPanel(null)}
+          >
+            <div className="flex flex-col gap-2">
               <p className="text-[11px] leading-snug text-muted-foreground/70">
                 Aynı olayı başka bir kategoride de kaydet — kaydettikten sonra
                 her biri için detaylar sorulur.
@@ -849,7 +921,26 @@ function FormStep({
                 {selectedParallels.length > 0 ? "Başka perspektif" : "Perspektif seç"}
               </button>
             </div>
-          )}
+          </PanelBlock>
+        )}
+
+        {/* ── Not — her zaman altta, doğrudan yazılabilir ── */}
+        <div className="mt-6 border-t border-white/[0.06] pt-3">
+          <label
+            htmlFor="entry-note"
+            className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/50"
+          >
+            <NotebookPen className="h-3 w-3" />
+            Not
+          </label>
+          <textarea
+            id="entry-note"
+            value={notes}
+            onChange={(e) => onNotesChange(e.target.value)}
+            placeholder="Bu girdiyle ilgili bir not..."
+            rows={2}
+            className="w-full resize-none rounded-xl border border-border bg-input px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+          />
         </div>
       </div>
 
