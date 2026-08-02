@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Moon, Sun } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock, Moon, Sun } from "lucide-react";
+import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
 import { SHORT_MONTHS } from "@/lib/analytics";
 
 function shortDate(dateStr: string): string {
@@ -236,9 +236,167 @@ function DateTimePanel({
   );
 }
 
+/**
+ * Tek tarih+saat alanı — girdi düzenlemedeki "Tarih & Saat". Yerini aldığı
+ * `<input type="datetime-local">` hem çirkindi hem de tarayıcının hantal
+ * penceresini açıyordu. Gün ok tuşlarıyla ileri/geri alınır, takvimden
+ * seçilebilir, saat aynı çarkla ayarlanır (burada dakika adımı 1).
+ */
+export function DateTimeInput({
+  value,
+  onChange,
+  disabled = false,
+}: {
+  value: string; // "YYYY-MM-DDTHH:mm"
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const [datePart = "", timePart = ""] = value.split("T");
+  const [wheelOpen, setWheelOpen] = useState(false);
+
+  const today = toLocalDateValue();
+  const relative =
+    datePart === today
+      ? "Bugün"
+      : datePart === offsetDate(today, -1)
+        ? "Dün"
+        : datePart === offsetDate(today, 1)
+          ? "Yarın"
+          : null;
+
+  const pretty = datePart
+    ? new Date(datePart + "T00:00:00").toLocaleDateString("tr-TR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      })
+    : "—";
+
+  const shiftDay = (days: number) =>
+    onChange(`${offsetDate(datePart, days)}T${timePart}`);
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      {/* Gün — oklarla bir gün ileri/geri, ortadan takvim */}
+      <div className="flex items-center gap-1 px-2 py-2">
+        <StepButton
+          side="left"
+          label="Önceki gün"
+          disabled={disabled || !datePart}
+          onClick={() => shiftDay(-1)}
+        />
+        <div className="relative min-w-0 flex-1 text-center">
+          <div className="flex items-center justify-center gap-1.5">
+            <span className="truncate text-sm font-semibold">{pretty}</span>
+            {relative && (
+              <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-semibold text-primary">
+                {relative}
+              </span>
+            )}
+          </div>
+          <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground/50">
+            <CalendarDays className="h-3 w-3" />
+            Takvimden seç
+          </span>
+          {/* Görünmez native tarih girişi — tüm alan tıklanabilir olsun diye */}
+          <input
+            type="date"
+            value={datePart}
+            disabled={disabled}
+            aria-label="Tarih seç"
+            onChange={(e) =>
+              e.target.value && onChange(`${e.target.value}T${timePart}`)
+            }
+            className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed"
+          />
+        </div>
+        <StepButton
+          side="right"
+          label="Sonraki gün"
+          disabled={disabled || !datePart}
+          onClick={() => shiftDay(1)}
+        />
+      </div>
+
+      {/* Saat */}
+      <div className="flex items-center justify-between border-t border-border/60 px-4 py-2">
+        <div className="flex items-center gap-1.5 text-muted-foreground/50">
+          <Clock className="h-3 w-3" />
+          <span className="text-[9px] font-bold uppercase tracking-[0.15em]">
+            Saat
+          </span>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange(toLocalDateTimeValue(Date.now()))}
+            className="rounded-full bg-white/8 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
+          >
+            Şimdi
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => setWheelOpen((o) => !o)}
+            aria-label="Saati seç"
+            aria-expanded={wheelOpen}
+            className={cn(
+              "text-[1.6rem] font-bold leading-none tabular-nums transition-colors",
+              timePart ? "text-foreground" : "text-muted-foreground/30",
+              wheelOpen && "text-primary",
+              disabled && "cursor-not-allowed opacity-50"
+            )}
+          >
+            {timePart || "--:--"}
+          </button>
+        </div>
+      </div>
+
+      {wheelOpen && !disabled && (
+        <TimeWheel
+          label="Saat"
+          time={timePart}
+          minuteStep={1}
+          onChange={(t) => onChange(`${datePart}T${t}`)}
+          onClose={() => setWheelOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function StepButton({
+  side,
+  label,
+  disabled,
+  onClick,
+}: {
+  side: "left" | "right";
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  const Icon = side === "left" ? ChevronLeft : ChevronRight;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground/60 transition-colors hover:bg-white/5 hover:text-foreground disabled:opacity-30"
+    >
+      <Icon className="h-4 w-4" />
+    </button>
+  );
+}
+
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const MINUTES = Array.from({ length: 12 }, (_, i) =>
   String(i * 5).padStart(2, "0")
+);
+const ALL_MINUTES = Array.from({ length: 60 }, (_, i) =>
+  String(i).padStart(2, "0")
 );
 
 /** Satır yüksekliği ve görünen satır sayısı (tek sayı olmalı — orta bant) */
@@ -260,18 +418,22 @@ function TimeWheel({
   time,
   onChange,
   onClose,
+  minuteStep = 5,
 }: {
   label: string;
   time: string;
   onChange: (t: string) => void;
   onClose: () => void;
+  /** Uyku aralığında 5 dk yeter; tek girdi saatinde dakika birebir seçilir */
+  minuteStep?: 1 | 5;
 }) {
   const [hour = "", minute = ""] = time.split(":");
-  // Kayıtlı dakika 5'in katı değilse (eski kayıt/elle giriş) listeye eklenir
+  // Kayıtlı dakika adıma denk gelmiyorsa (eski kayıt/elle giriş) listeye eklenir
   const minutes = useMemo(() => {
-    if (!minute || MINUTES.includes(minute)) return MINUTES;
-    return [...MINUTES, minute].sort();
-  }, [minute]);
+    const base = minuteStep === 1 ? ALL_MINUTES : MINUTES;
+    if (!minute || base.includes(minute)) return base;
+    return [...base, minute].sort();
+  }, [minute, minuteStep]);
 
   return (
     <div className="border-t border-border/60 bg-muted/10 px-4 pb-3 pt-2.5">

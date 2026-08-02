@@ -5,6 +5,27 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+const p2 = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * Form alanları için yerel takvim günü ("YYYY-MM-DD"). toISOString() UTC'ye
+ * çevirdiği için gece yarısına yakın saatlerde günü kaydırıyordu.
+ */
+export function toLocalDateValue(timestamp: number = Date.now()): string {
+  const d = new Date(timestamp);
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+}
+
+/**
+ * Form alanları için yerel tarih+saat ("YYYY-MM-DDTHH:mm"). `new Date(...)` bu
+ * biçimi yerel kabul ettiğinden gidiş-dönüş kayıpsız olur; toISOString ile
+ * üretilirse her kayıtta zaman UTC farkı kadar kayıyordu.
+ */
+export function toLocalDateTimeValue(timestamp: number): string {
+  const d = new Date(timestamp);
+  return `${toLocalDateValue(timestamp)}T${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
+
 export function formatTime(timestamp: number): string {
   const date = new Date(timestamp);
   return date.toLocaleTimeString("tr-TR", {

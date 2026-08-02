@@ -33,11 +33,12 @@ import {
 } from "@/lib/db/queries";
 import { AliasEditor } from "@/components/notes/alias-editor";
 import {
+  DateTimeInput,
   DateTimeRangeInput,
   formatDTRDisplay,
 } from "@/components/forms/datetime-range-input";
 import { ParallelPickList } from "@/components/forms/parallel-pick-dialog";
-import { cn } from "@/lib/utils";
+import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
 import { ENTRY_VALUE_TYPE_LABELS } from "@/types";
 import type { EntryWithContext, EntryType } from "@/types";
 
@@ -232,11 +233,11 @@ export function EditEntryModal({
   const [aliases, setAliases] = useState<string[]>(entry.aliases ?? []);
   const [notes, setNotes] = useState(entry.notes ?? "");
   const [showNotes, setShowNotes] = useState(!!entry.notes);
-  const [occurredAt, setOccurredAt] = useState(() => {
-    const d = new Date(entry.occurredAt);
-    d.setSeconds(0, 0);
-    return d.toISOString().slice(0, 16);
-  });
+  // Yerel biçim şart: kaydederken `new Date(occurredAt)` bunu yerel okuyor —
+  // toISOString ile üretilirse her kayıtta zaman UTC farkı kadar kayıyordu
+  const [occurredAt, setOccurredAt] = useState(() =>
+    toLocalDateTimeValue(entry.occurredAt)
+  );
   const [saving, setSaving] = useState(false);
 
   const entryTypeMap = useMemo(() => {
@@ -322,7 +323,7 @@ export function EditEntryModal({
     return (poolMods ?? []).filter((m) => !visibleModIds.has(m.id));
   }, [poolMods, rows]);
 
-  const entryDate = new Date(entry.occurredAt).toISOString().split("T")[0];
+  const entryDate = toLocalDateValue(entry.occurredAt);
 
   function handleRemove(key: string) {
     setRemovedKeys((prev) => new Set([...prev, key]));
@@ -649,14 +650,10 @@ export function EditEntryModal({
               </button>
             </div>
 
-            {/* Date */}
+            {/* Tarih & Saat */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Tarih & Saat</label>
-              <Input
-                type="datetime-local"
-                value={occurredAt}
-                onChange={(e) => setOccurredAt(e.target.value)}
-              />
+              <DateTimeInput value={occurredAt} onChange={setOccurredAt} />
             </div>
 
             {/* Notes */}
@@ -807,7 +804,7 @@ function ModInput({
   autoFocus?: boolean;
 }) {
   const vt = entryType.valueType ?? "number";
-  const today = new Date().toISOString().split("T")[0];
+  const today = toLocalDateValue();
   const scrolledRef = useRef(false);
   const scrollOnMount = (el: HTMLDivElement | null) => {
     if (el && autoFocus && !scrolledRef.current) {

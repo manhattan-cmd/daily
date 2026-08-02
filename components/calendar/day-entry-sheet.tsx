@@ -22,7 +22,7 @@ import { EntryNetwork, type NetFocus } from "@/components/calendar/entry-network
 import { DateTimeRangeInput, formatDTRDisplay } from "@/components/forms/datetime-range-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { cn, toLocalDateValue } from "@/lib/utils";
 import type { Category, SubCategory } from "@/types";
 
 /** Değer state anahtarı: global mod id (legacy atamalarda atama id'si) */
@@ -810,7 +810,7 @@ export function ModInput({
   autoFocus?: boolean;
 }) {
   const vt = mod.entryType.valueType ?? "number";
-  const today = new Date().toISOString().split("T")[0];
+  const today = toLocalDateValue();
   const scrolledRef = useRef(false);
   const scrollOnMount = (el: HTMLDivElement | null) => {
     if (el && autoFocus && !scrolledRef.current) {
