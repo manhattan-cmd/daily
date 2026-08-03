@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { getMonthEntryCounts } from "@/lib/db/queries";
+import { getMonthDaySummary } from "@/lib/db/queries";
 import { cn } from "@/lib/utils";
 
 const MONTHS_TR = [
@@ -18,8 +18,8 @@ export default function CalendarPage() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
 
-  const entryCounts = useLiveQuery(
-    () => getMonthEntryCounts(year, month),
+  const summary = useLiveQuery(
+    () => getMonthDaySummary(year, month),
     [year, month]
   );
 
@@ -94,40 +94,56 @@ export default function CalendarPage() {
           if (!day) return <div key={`e-${i}`} className="aspect-square" />;
 
           const isToday = isCurrentMonth && day === today.getDate();
-          const count = entryCounts?.get(day) ?? 0;
-          const hasEntries = count > 0;
+          const info = summary?.get(day);
+          const colors = info?.colors ?? [];
+          const hasEntries = !!info;
 
           return (
             <Link
               key={day}
               href={`/calendar/${dateStr(day)}`}
+              aria-label={
+                hasEntries
+                  ? `${day} ${MONTHS_TR[month]} · ${info!.count} girdi`
+                  : `${day} ${MONTHS_TR[month]}`
+              }
               className={cn(
-                "relative flex flex-col items-center justify-center aspect-square rounded-2xl transition-all active:scale-95",
+                "relative flex aspect-square flex-col items-center justify-center rounded-2xl transition-all active:scale-95",
                 isToday
                   ? "bg-foreground text-background"
-                  : "hover:bg-muted/60"
+                  : hasEntries
+                    ? "bg-white/[0.04] hover:bg-white/[0.08]"
+                    : "hover:bg-muted/60"
               )}
             >
               <span
                 className={cn(
-                  "text-sm font-medium leading-none",
+                  "text-sm leading-none",
                   isToday
-                    ? "text-background"
+                    ? "font-semibold text-background"
                     : hasEntries
-                    ? "text-foreground"
-                    : "text-muted-foreground/50"
+                      ? "font-medium text-foreground"
+                      : "text-muted-foreground/40"
                 )}
               >
                 {day}
               </span>
 
-              {hasEntries && (
-                <span
-                  className={cn(
-                    "absolute bottom-[6px] h-[3px] w-[3px] rounded-full",
-                    isToday ? "bg-background/50" : "bg-primary/70"
-                  )}
-                />
+              {/* O gün dokunulan kategorilerin renkleri — en çok girdisi olan başta */}
+              {colors.length > 0 && (
+                <span className="absolute bottom-[5px] flex items-center gap-[3px]">
+                  {colors.map((c, ci) => (
+                    <span
+                      key={ci}
+                      className="h-[4px] w-[4px] rounded-full"
+                      style={{
+                        backgroundColor: c,
+                        // Beyaz "bugün" zemininde açık renkler kaybolmasın
+                        boxShadow: isToday ? `0 0 0 0.5px ${c}` : undefined,
+                      }}
+                    />
+                  ))}
+                </span>
               )}
             </Link>
           );

@@ -1480,22 +1480,66 @@ export async function listEntriesByDate(dateStr: string): Promise<EntryWithConte
   return hydrateEntries(entries);
 }
 
-export async function getMonthEntryCounts(
+export type DaySummary = {
+  count: number;
+  /** O gün girdi alan kategorilerin renkleri — en çok girdisi olan başta */
+  colors: string[];
+};
+
+/**
+ * Ay görünümü için gün özeti: girdi sayısı + o gün dokunulan kategorilerin
+ * renkleri. Takvimdeki küçük renkli işaretler bundan beslenir.
+ */
+export async function getMonthDaySummary(
   year: number,
-  month: number
-): Promise<Map<number, number>> {
+  month: number,
+  maxColors = 4
+): Promise<Map<number, DaySummary>> {
   const start = new Date(year, month, 1, 0, 0, 0, 0).getTime();
   const end = new Date(year, month + 1, 0, 23, 59, 59, 999).getTime();
   const entries = await db.entries
     .where("occurredAt")
     .between(start, end, true, true)
     .toArray();
+  const out = new Map<number, DaySummary>();
+  if (!entries.length) return out;
+
+  const subIds = [...new Set(entries.map((e) => e.subcategoryId))];
+  const subs = await db.subcategories.bulkGet(subIds);
+  const catIdBySub = new Map<string, string>();
+  for (const s of subs) if (s) catIdBySub.set(s.id, s.categoryId);
+  const cats = await db.categories.toArray();
+  const catById = new Map(cats.map((c) => [c.id, c]));
+
+  // gün → (kategori → o gün kaç girdi)
+  const perDay = new Map<number, Map<string, number>>();
   const counts = new Map<number, number>();
   for (const e of entries) {
-    const d = new Date(e.occurredAt).getDate();
-    counts.set(d, (counts.get(d) ?? 0) + 1);
+    const day = new Date(e.occurredAt).getDate();
+    counts.set(day, (counts.get(day) ?? 0) + 1);
+    const catId = catIdBySub.get(e.subcategoryId);
+    if (!catId) continue;
+    const m = perDay.get(day) ?? new Map<string, number>();
+    m.set(catId, (m.get(catId) ?? 0) + 1);
+    perDay.set(day, m);
   }
-  return counts;
+
+  for (const [day, count] of counts) {
+    const byCat = perDay.get(day);
+    const colors = byCat
+      ? [...byCat.entries()]
+          .sort(
+            (a, b) =>
+              b[1] - a[1] ||
+              (catById.get(a[0])?.order ?? 0) - (catById.get(b[0])?.order ?? 0)
+          )
+          .slice(0, maxColors)
+          .map(([id]) => catById.get(id)?.color)
+          .filter((c): c is string => !!c)
+      : [];
+    out.set(day, { count, colors });
+  }
+  return out;
 }
 
 export async function listRecentEntries(limit = 20): Promise<EntryWithContext[]> {
