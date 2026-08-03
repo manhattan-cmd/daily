@@ -4,7 +4,16 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { nanoid } from "nanoid";
 import { useLiveQuery } from "dexie-react-hooks";
-import { FileText, Plus, Link2, X } from "lucide-react";
+import {
+  Clock,
+  FileText,
+  Link2,
+  NotebookPen,
+  Plus,
+  Repeat,
+  Tags,
+  X,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -27,10 +36,14 @@ import {
   listEntryBacklinks,
   listMods,
   setEntryAliases,
+  updateSubCategory,
   type CategoryModifierWithType,
   type ModWithType,
   type ParallelSub,
 } from "@/lib/db/queries";
+import { Switch } from "@/components/ui/switch";
+import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
+import { SHORT_MONTHS } from "@/lib/analytics";
 import { AliasEditor } from "@/components/notes/alias-editor";
 import {
   DateTimeInput,
@@ -46,6 +59,18 @@ interface EditEntryModalProps {
   entry: EntryWithContext;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+/** Başlık menüsünden açılan bölümler — aynı anda yalnız biri açık kalır */
+type Panel = "time" | "parallel" | "alias" | "regular";
+
+/** Zaman satırının etiketi — gün girdinin günüyse yalnız saat, değilse gün de */
+function occurredAtLabel(occurredAt: string, entryDate: string): string {
+  const [d = "", t = ""] = occurredAt.split("T");
+  if (!t) return "Zaman";
+  if (d === entryDate) return t;
+  const dt = new Date(d + "T00:00:00");
+  return `${dt.getDate()} ${SHORT_MONTHS[dt.getMonth()]} · ${t}`;
 }
 
 export function EditEntryModal({
@@ -232,7 +257,21 @@ export function EditEntryModal({
   const [addModOpen, setAddModOpen] = useState(false);
   const [aliases, setAliases] = useState<string[]>(entry.aliases ?? []);
   const [notes, setNotes] = useState(entry.notes ?? "");
-  const [showNotes, setShowNotes] = useState(!!entry.notes);
+  // İkincil ayarlar başlıktaki menüden açılır — aynı anda yalnız biri
+  const [panel, setPanel] = useState<Panel | null>(null);
+  const togglePanel = (p: Panel) => setPanel((cur) => (cur === p ? null : p));
+
+  // "Düzenli / sabit" alt kategori özelliğidir; canlı okunur ve anında yazılır
+  const liveSub = useLiveQuery(
+    () => db.subcategories.get(entry.subcategoryId),
+    [entry.subcategoryId]
+  );
+  const isRegular = !!(liveSub ?? entry.subcategory).isRegular;
+  const regularScopeName = entry.subcategory.isCategoryRoot
+    ? entry.category.name
+    : entry.subcategory.name;
+  /** Mevcut kardeş perspektifler + bu oturumda eklenenler */
+  const totalParallels = siblings.length + newParallels.length;
   // Yerel biçim şart: kaydederken `new Date(occurredAt)` bunu yerel okuyor —
   // toISOString ile üretilirse her kayıtta zaman UTC farkı kadar kayıyordu
   const [occurredAt, setOccurredAt] = useState(() =>
@@ -544,11 +583,75 @@ export function EditEntryModal({
           ) : (
             <>
           <DialogHeader>
-            <DialogTitle>{entry.subcategory.name}</DialogTitle>
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <span
+                  className="block truncate text-[10px] font-semibold uppercase tracking-[0.14em]"
+                  style={{ color: `${entry.category.color}cc` }}
+                >
+                  {entry.category.name}
+                </span>
+                <DialogTitle className="truncate">
+                  {entry.subcategory.isCategoryRoot
+                    ? entry.category.name
+                    : entry.subcategory.name}
+                </DialogTitle>
+              </div>
+              {/* Kapatma çarpısı sağ üstte — menü onun soluna */}
+              <OptionsMenu
+                className="mr-7"
+                touched={
+                  occurredAt.slice(0, 10) !== entryDate ||
+                  totalParallels > 0 ||
+                  aliases.length > 0 ||
+                  isRegular
+                }
+                items={[
+                  {
+                    key: "time",
+                    icon: Clock,
+                    title: "Zaman",
+                    subtitle: occurredAtLabel(occurredAt, entryDate),
+                    active: panel === "time",
+                    onSelect: () => togglePanel("time"),
+                  },
+                  {
+                    key: "parallel",
+                    icon: Link2,
+                    title: "Paralel perspektif",
+                    subtitle: totalParallels
+                      ? `${totalParallels} perspektif`
+                      : "Başka kategoride de kaydet",
+                    active: panel === "parallel",
+                    onSelect: () => togglePanel("parallel"),
+                  },
+                  {
+                    key: "alias",
+                    icon: Tags,
+                    title: "Takma adlar",
+                    subtitle: aliases.length
+                      ? aliases.join(", ")
+                      : "Notlarda bu girdiyi anan sözcükler",
+                    active: panel === "alias",
+                    onSelect: () => togglePanel("alias"),
+                  },
+                  {
+                    key: "regular",
+                    icon: Repeat,
+                    title: "Düzenli / sabit",
+                    subtitle: isRegular
+                      ? "Açık — analizlerde hariç tutulabilir"
+                      : "Kapalı",
+                    active: panel === "regular",
+                    onSelect: () => togglePanel("regular"),
+                  },
+                ]}
+              />
+            </div>
           </DialogHeader>
 
           <div className="flex flex-col gap-4">
-            {/* Mod inputs */}
+            {/* ── Özellikler: modalın ana gövdesi ── */}
             {rows.map((row) => (
               <ModInput
                 key={row.key}
@@ -565,134 +668,162 @@ export function EditEntryModal({
               />
             ))}
 
-            {/* Add mod to this entry only */}
             {availableToAdd.length > 0 && (
               <button
                 type="button"
                 onClick={() => setAddModOpen(true)}
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
               >
                 <Plus className="h-3.5 w-3.5" />
                 Bu girdiye özellik ekle
               </button>
             )}
 
-            {/* Paralel perspektifler — mevcutlar + bu oturumda eklenenler */}
-            <div className="flex flex-col gap-2 pt-1">
-              <div className="flex items-center gap-1.5">
-                <Link2 className="h-3.5 w-3.5 text-violet-400/70" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Paralel perspektifler
-                </span>
-              </div>
-              {siblings.map((sib) => (
-                <div
-                  key={sib.id}
-                  className="flex items-center gap-3 rounded-xl border border-violet-500/50 bg-violet-500/10 px-3 py-2.5"
-                >
-                  <div className="flex-1 min-w-0 leading-tight">
-                    <span className="text-xs text-muted-foreground">
-                      {sib.catName}
-                    </span>
-                    <span className="text-xs text-muted-foreground mx-1">/</span>
-                    <span className="text-sm font-medium">{sib.subName}</span>
-                  </div>
+            {/* ── Menüden açılan bölümler ── */}
+            {panel === "time" && (
+              <PanelBlock
+                icon={Clock}
+                title="Zaman"
+                onClose={() => setPanel(null)}
+              >
+                <DateTimeInput value={occurredAt} onChange={setOccurredAt} />
+              </PanelBlock>
+            )}
+
+            {panel === "parallel" && (
+              <PanelBlock
+                icon={Link2}
+                title="Paralel perspektif"
+                onClose={() => setPanel(null)}
+              >
+                <div className="flex flex-col gap-2">
+                  {siblings.map((sib) => (
+                    <div
+                      key={sib.id}
+                      className="flex items-center gap-3 rounded-xl border border-violet-500/50 bg-violet-500/10 px-3 py-2.5"
+                    >
+                      <div className="flex-1 min-w-0 leading-tight">
+                        <span className="text-xs text-muted-foreground">
+                          {sib.catName}
+                        </span>
+                        <span className="text-xs text-muted-foreground mx-1">/</span>
+                        <span className="text-sm font-medium">{sib.subName}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeSibling(sib)}
+                        className="h-5 w-5 flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-destructive transition-colors shrink-0"
+                        aria-label={`${sib.subName} perspektifini sil`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  {newParallels.map((ps) => (
+                    <div
+                      key={ps.id}
+                      className="flex items-center gap-3 rounded-xl border border-dashed border-violet-500/40 bg-violet-500/5 px-3 py-2.5"
+                    >
+                      <div className="flex-1 min-w-0 leading-tight">
+                        <span className="text-xs text-muted-foreground">
+                          {ps.categoryName}
+                        </span>
+                        <span className="text-xs text-muted-foreground mx-1">/</span>
+                        <span className="text-sm font-medium">
+                          {ps.isCategoryRoot ? ps.categoryName : ps.name}
+                        </span>
+                        <span className="ml-1.5 text-[10px] text-violet-300/60">
+                          kaydedince detayları sorulacak
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNewParallels((prev) =>
+                            prev.filter((p) => p.id !== ps.id)
+                          )
+                        }
+                        className="h-5 w-5 flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-muted-foreground transition-colors shrink-0"
+                        aria-label={`${ps.name} paralel perspektifini kaldır`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
                   <button
                     type="button"
-                    onClick={() => removeSibling(sib)}
-                    className="h-5 w-5 flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-destructive transition-colors shrink-0"
-                    aria-label={`${sib.subName} perspektifini sil`}
+                    onClick={() => setPickerView(true)}
+                    className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-violet-500/30 py-2.5 text-sm font-medium text-violet-300/80 transition-colors hover:border-violet-500/50 hover:text-violet-200"
                   >
-                    <X className="h-3 w-3" />
+                    <Plus className="h-3.5 w-3.5" />
+                    {totalParallels > 0 ? "Başka perspektif" : "Perspektif seç"}
                   </button>
                 </div>
-              ))}
-              {newParallels.map((ps) => (
-                <div
-                  key={ps.id}
-                  className="flex items-center gap-3 rounded-xl border border-dashed border-violet-500/40 bg-violet-500/5 px-3 py-2.5"
-                >
-                  <div className="flex-1 min-w-0 leading-tight">
-                    <span className="text-xs text-muted-foreground">
-                      {ps.categoryName}
-                    </span>
-                    <span className="text-xs text-muted-foreground mx-1">/</span>
-                    <span className="text-sm font-medium">
-                      {ps.isCategoryRoot ? ps.categoryName : ps.name}
-                    </span>
-                    <span className="ml-1.5 text-[10px] text-violet-300/60">
-                      kaydedince detayları sorulacak
-                    </span>
+              </PanelBlock>
+            )}
+
+            {panel === "alias" && (
+              <PanelBlock
+                icon={Tags}
+                title="Takma adlar"
+                onClose={() => setPanel(null)}
+              >
+                <AliasEditor aliases={aliases} onChange={setAliases} />
+              </PanelBlock>
+            )}
+
+            {panel === "regular" && (
+              <PanelBlock
+                icon={Repeat}
+                title="Düzenli / sabit"
+                onClose={() => setPanel(null)}
+              >
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-input px-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">
+                      {regularScopeName} düzenli kalem
+                    </p>
+                    <p className="text-[11px] leading-snug text-muted-foreground">
+                      Kira, fatura gibi sabit kalemler analizlerde tek dokunuşla
+                      hariç tutulabilir. Bu ayar tek girdiye değil,{" "}
+                      <span className="text-foreground/80">
+                        {regularScopeName}
+                      </span>{" "}
+                      altındaki tüm girdilere işler.
+                    </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setNewParallels((prev) =>
-                        prev.filter((p) => p.id !== ps.id)
-                      )
+                  <Switch
+                    checked={isRegular}
+                    onCheckedChange={(v) =>
+                      updateSubCategory(entry.subcategoryId, { isRegular: v })
                     }
-                    className="h-5 w-5 flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-muted-foreground transition-colors shrink-0"
-                    aria-label={`${ps.name} paralel perspektifini kaldır`}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
+                  />
                 </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setPickerView(true)}
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors self-start"
+              </PanelBlock>
+            )}
+
+            {/* ── Not — her zaman altta ── */}
+            <div className="border-t border-white/[0.06] pt-3">
+              <label
+                htmlFor="edit-entry-note"
+                className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/50"
               >
-                <Plus className="h-3.5 w-3.5" />
-                {siblings.length > 0 || newParallels.length > 0
-                  ? "Başka perspektif ekle"
-                  : "Paralel perspektif ekle"}
-              </button>
+                <NotebookPen className="h-3 w-3" />
+                Not
+              </label>
+              <textarea
+                id="edit-entry-note"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Bu girdiyle ilgili bir not..."
+                rows={2}
+                className="w-full resize-none rounded-xl border border-border bg-input px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+              />
             </div>
-
-            {/* Tarih & Saat */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Tarih & Saat</label>
-              <DateTimeInput value={occurredAt} onChange={setOccurredAt} />
-            </div>
-
-            {/* Notes */}
-            <div>
-              <button
-                type="button"
-                onClick={() => setShowNotes(!showNotes)}
-                className={cn(
-                  "flex items-center gap-1.5 text-sm transition-colors",
-                  showNotes
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Plus
-                  className={cn(
-                    "h-3.5 w-3.5 transition-transform",
-                    showNotes && "rotate-45"
-                  )}
-                />
-                Not ekle
-              </button>
-              {showNotes && (
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Bu girdiyle ilgili bir not..."
-                  rows={3}
-                  className="mt-2 w-full resize-none rounded-xl border border-border bg-input px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              )}
-            </div>
-
-            {/* Takma adlar — notlarda otomatik bağ önerisi bunlarla da eşleşir */}
-            <AliasEditor aliases={aliases} onChange={setAliases} />
 
             {/* Notlarda geçiyor — girdi tarafı backlink */}
             {entryBacklinks && entryBacklinks.length > 0 && (
-              <div className="flex flex-col gap-2 pt-1">
+              <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-1.5">
                   <FileText className="h-3.5 w-3.5 text-primary/70" />
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
