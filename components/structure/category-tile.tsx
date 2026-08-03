@@ -6,30 +6,42 @@ import type { LucideIcon } from "lucide-react";
 import { CategoryIcon, CATEGORY_ICON_MAP } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
 
+/** 0–255 arası değeri iki haneli hex alfaya çevirir */
+const alpha = (v: number) =>
+  Math.round(Math.max(0, Math.min(255, v)))
+    .toString(16)
+    .padStart(2, "0");
+
 /**
  * Kategori rafı — atomların karesi. Özellik atomlarıyla aynı boyut ve
  * ızgara düzeni; daire yerine yumuşak kare, kategori kendi renginde parlar.
+ * `glow` (0–1) parlamayı güçlendirir: girdi ekleme ağında sık kullanılan
+ * alt kategoriler bununla öne çıkar.
  */
 export function CategoryTileCore({
   color,
   icon,
   fallback: Fallback = Folder,
   size = "md",
+  glow = 0,
 }: {
   color: string;
   /** Lucide adı ya da emoji; yoksa fallback ikonu */
   icon?: string;
   fallback?: LucideIcon;
   size?: "sm" | "md" | "lg";
+  /** 0: sönük · 1: en parlak (kardeşleri arasında en çok kullanılan) */
+  glow?: number;
 }) {
   const isLucide = !!icon && icon in CATEGORY_ICON_MAP;
+  const g = Math.max(0, Math.min(1, glow));
   const iconCls = cn(
     size === "lg" ? "h-7 w-7" : size === "sm" ? "h-4 w-4" : "h-5 w-5"
   );
   return (
     <span
       className={cn(
-        "flex shrink-0 items-center justify-center",
+        "flex shrink-0 items-center justify-center transition-shadow",
         size === "lg"
           ? "h-16 w-16 rounded-2xl"
           : size === "sm"
@@ -37,8 +49,10 @@ export function CategoryTileCore({
           : "h-12 w-12 rounded-xl"
       )}
       style={{
-        background: `linear-gradient(145deg, ${color}42, ${color}14)`,
-        boxShadow: `inset 0 0 0 1px ${color}55, 0 0 14px ${color}1f`,
+        background: `linear-gradient(145deg, ${color}${alpha(0x42 + 0x2e * g)}, ${color}14)`,
+        boxShadow: `inset 0 0 0 1px ${color}${alpha(0x55 + 0xaa * g)}, 0 0 ${
+          14 + 18 * g
+        }px ${color}${alpha(0x1f + 0x55 * g)}`,
       }}
     >
       {isLucide ? (

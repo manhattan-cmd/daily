@@ -16,7 +16,9 @@ import {
   Plus,
   Search,
 } from "lucide-react";
+import { useLiveQuery } from "dexie-react-hooks";
 import {
+  getEntryCountsBySubcategory,
   reorderCategories,
   reorderSubcategories,
 } from "@/lib/db/queries";
@@ -50,6 +52,9 @@ type Node =
 
 /** Yerleşim — düğüm sayısına göre otomatik seçilir, kullanıcı değiştirebilir */
 type Layout = "poly" | "spiral" | "list";
+
+/** Sayım gelmeden önceki sabit boş harita — memo'ları her render'da bozmasın */
+const NO_COUNTS: ReadonlyMap<string, number> = new Map();
 
 /** Tuval genişliği (px) — sarmal daha geniş alan ister */
 const MAX_POLY = 300;
@@ -196,6 +201,48 @@ export function EntryNetwork({
     [groups]
   );
 
+  // ─── Sık kullanım ───────────────────────────────────────────────────────────
+  // Bir düğümün "ağırlığı" kendi girdileri + tüm torunlarınınki. Parlaklık,
+  // aynı sayfadaki en çok kullanılan kardeşe göre orandır: kalabalık
+  // sayfalarda bile en sık kullanılan net biçimde öne çıksın.
+  const entryCounts =
+    useLiveQuery(() => getEntryCountsBySubcategory(), []) ?? NO_COUNTS;
+
+  const subtreeCounts = useMemo(() => {
+    const all = (groups ?? []).flatMap((g) => g.allSubs);
+    const kids = new Map<string, SubCategory[]>();
+    for (const s of all) {
+      if (!s.parentId) continue;
+      const arr = kids.get(s.parentId) ?? [];
+      arr.push(s);
+      kids.set(s.parentId, arr);
+    }
+    const totals = new Map<string, number>();
+    const walk = (s: SubCategory): number => {
+      const cached = totals.get(s.id);
+      if (cached !== undefined) return cached;
+      totals.set(s.id, 0); // döngüye karşı koruma
+      let sum = entryCounts.get(s.id) ?? 0;
+      for (const k of kids.get(s.id) ?? []) sum += walk(k);
+      totals.set(s.id, sum);
+      return sum;
+    };
+    for (const s of all) walk(s);
+    return totals;
+  }, [groups, entryCounts]);
+
+  // Kategori ağırlığı: gizli kök dahil tüm altlarının girdileri
+  const catCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const g of groups ?? []) {
+      m.set(
+        g.category.id,
+        g.allSubs.reduce((n, s) => n + (entryCounts.get(s.id) ?? 0), 0)
+      );
+    }
+    return m;
+  }, [groups, entryCounts]);
+
   const focusObj: Focus = useMemo(() => {
     if (focus == null) return null;
     if (focus.type === "cat") {
@@ -273,6 +320,14 @@ export function EntryNetwork({
   }, [nodes.length, layout, dense, half]);
 
   const nodeId = (node: Node) => (node.kind === "cat" ? node.cat.id : node.sub.id);
+  const nodeWeight = (node: Node) =>
+    node.kind === "cat"
+      ? catCounts.get(node.cat.id) ?? 0
+      : subtreeCounts.get(node.sub.id) ?? 0;
+  const maxWeight = nodes.reduce((m, n) => Math.max(m, nodeWeight(n)), 0);
+  /** 0–1: bu sayfanın en çok kullanılan düğümüne göre oran */
+  const glowOf = (node: Node) =>
+    maxWeight > 0 ? nodeWeight(node) / maxWeight : 0;
   // Sürüklenen düğüm anlık parmak konumunda gösterilir (ışın da takip eder)
   const effPositions = positions.map((p, i) => {
     if (drag && dragPos && drag.id === nodeId(nodes[i])) return dragPos;
@@ -455,9 +510,11 @@ export function EntryNetwork({
           kids: isCat
             ? topSubsByCat.get(node.cat.id)?.length ?? 0
             : childrenMap.get(node.sub.id)?.length ?? 0,
+          glow: glowOf(node),
         };
       }),
-    [nodes, centerColor, topSubsByCat, childrenMap]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nodes, centerColor, topSubsByCat, childrenMap, maxWeight, subtreeCounts, catCounts]
   );
 
   return (
@@ -740,6 +797,7 @@ export function EntryNetwork({
                   name={isCat ? node.cat.name : node.sub.name}
                   hasKids={hasKids}
                   dense={dense}
+                  glow={glowOf(node)}
                   isDragging={drag?.id === id}
                   onTap={() => drill(node)}
                   onDragStart={() => startDrag(node, p)}
@@ -824,6 +882,8 @@ type Row = {
   icon?: string;
   color: string;
   kids: number;
+  /** 0–1: sayfadaki en sık kullanılana göre oran */
+  glow: number;
 };
 
 /**
@@ -937,8 +997,18 @@ function NodeList({
                     icon={r.icon}
                     fallback={r.kids > 0 ? FolderOpen : Folder}
                     size="sm"
+                    glow={r.glow}
                   />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                  <span
+                    className={cn(
+                      "min-w-0 flex-1 truncate text-sm",
+                      r.glow > 0.5
+                        ? "font-semibold text-foreground"
+                        : r.glow > 0.15
+                          ? "font-medium text-foreground/85"
+                          : "font-medium text-muted-foreground"
+                    )}
+                  >
                     {r.name}
                   </span>
                   {r.kids > 0 && (
@@ -974,6 +1044,7 @@ function NetNode({
   name,
   hasKids,
   dense,
+  glow,
   isDragging,
   onTap,
   onDragStart,
@@ -985,6 +1056,8 @@ function NetNode({
   name: string;
   hasKids: boolean;
   dense: boolean;
+  /** 0–1: sayfadaki en sık kullanılana göre oran */
+  glow: number;
   isDragging: boolean;
   onTap: () => void;
   onDragStart: () => void;
@@ -1046,6 +1119,7 @@ function NetNode({
             icon={icon}
             fallback={hasKids ? FolderOpen : Folder}
             size={dense ? "sm" : "md"}
+            glow={glow}
           />
         </span>
         {hasKids && (
@@ -1060,8 +1134,13 @@ function NetNode({
       </span>
       <span
         className={cn(
-          "truncate text-center font-medium leading-tight text-muted-foreground",
-          dense ? "max-w-[64px] text-[9px]" : "max-w-[80px] text-[10px]"
+          "truncate text-center leading-tight",
+          dense ? "max-w-[64px] text-[9px]" : "max-w-[80px] text-[10px]",
+          glow > 0.5
+            ? "font-semibold text-foreground"
+            : glow > 0.15
+              ? "font-medium text-foreground/75"
+              : "font-medium text-muted-foreground"
         )}
       >
         {name}

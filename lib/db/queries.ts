@@ -1480,6 +1480,20 @@ export async function listEntriesByDate(dateStr: string): Promise<EntryWithConte
   return hydrateEntries(entries);
 }
 
+/**
+ * Alt kategori başına girdi sayısı. Girdi ekleme ağında sık kullanılanları
+ * parlatmak için — tam kayıtları okumadan yalnız indeks anahtarları gezilir,
+ * girdi sayısı büyüdükçe de ucuz kalır.
+ */
+export async function getEntryCountsBySubcategory(): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  await db.entries.orderBy("subcategoryId").eachKey((key) => {
+    const id = String(key);
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  });
+  return counts;
+}
+
 export type DaySummary = {
   count: number;
   /** O gün girdi alan kategorilerin renkleri — en çok girdisi olan başta */
