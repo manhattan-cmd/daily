@@ -15,6 +15,7 @@ import {
   PenLine,
   Plus,
   Search,
+  Sparkles,
 } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -907,6 +908,18 @@ function NodeList({
     ? rows.filter((r) => norm(r.name).includes(query))
     : rows;
 
+  /**
+   * En çok kullanılan birkaç satır — liste uzunken A–Z'de aşağıda kalanlara
+   * kısayol. Aramada gizlenir; hiç kullanılmamışlar girmez.
+   */
+  const frequent = useMemo(() => {
+    if (query || rows.length < 8) return [];
+    return rows
+      .filter((r) => r.glow > 0)
+      .sort((a, b) => b.glow - a.glow)
+      .slice(0, 5);
+  }, [rows, query]);
+
   // Aramada düz liste, normalde baş harfe göre bölümler
   const sections = useMemo(() => {
     if (query) return [{ key: "", items: filtered }];
@@ -973,6 +986,20 @@ function NodeList({
         </div>
       )}
 
+      {/* Sık kullanılanlar — A–Z'de aşağıda kalanlara kısayol. Aramada gizli;
+          öğeler alfabetik listede de kalır (alfabe eksik görünmesin) */}
+      {frequent.length > 0 && (
+        <div className="overflow-hidden rounded-2xl border border-primary/20 bg-primary/[0.04]">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-primary/70">
+            <Sparkles className="h-3 w-3" />
+            Sık kullanılanlar
+          </div>
+          {frequent.map((r) => (
+            <ListRow key={r.id} row={r} onOpen={onOpen} />
+          ))}
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-2xl border border-white/8 bg-white/[0.02]">
         {filtered.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground">
@@ -987,37 +1014,7 @@ function NodeList({
                 </div>
               )}
               {sec.items.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => onOpen(r.node)}
-                  className="flex w-full items-center gap-3 border-t border-white/5 px-3 py-2 text-left transition-colors first:border-t-0 hover:bg-white/5 active:bg-white/[0.07]"
-                >
-                  <CategoryTileCore
-                    color={r.color}
-                    icon={r.icon}
-                    fallback={r.kids > 0 ? FolderOpen : Folder}
-                    size="sm"
-                    glow={r.glow}
-                  />
-                  <span
-                    className={cn(
-                      "min-w-0 flex-1 truncate text-sm",
-                      r.glow > 0.5
-                        ? "font-semibold text-foreground"
-                        : r.glow > 0.15
-                          ? "font-medium text-foreground/85"
-                          : "font-medium text-muted-foreground"
-                    )}
-                  >
-                    {r.name}
-                  </span>
-                  {r.kids > 0 && (
-                    <span className="shrink-0 rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                      {r.kids}
-                    </span>
-                  )}
-                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40" />
-                </button>
+                <ListRow key={r.id} row={r} onOpen={onOpen} />
               ))}
             </div>
           ))
@@ -1028,6 +1025,42 @@ function NodeList({
         Dokun: içine gir · sıralamayı yapı sayfasından değiştir
       </p>
     </div>
+  );
+}
+
+/** Liste satırı — kullanım sıklığına göre karo parlar, ad belirginleşir */
+function ListRow({ row: r, onOpen }: { row: Row; onOpen: (node: Node) => void }) {
+  return (
+    <button
+      onClick={() => onOpen(r.node)}
+      className="flex w-full items-center gap-3 border-t border-white/5 px-3 py-2 text-left transition-colors first:border-t-0 hover:bg-white/5 active:bg-white/[0.07]"
+    >
+      <CategoryTileCore
+        color={r.color}
+        icon={r.icon}
+        fallback={r.kids > 0 ? FolderOpen : Folder}
+        size="sm"
+        glow={r.glow}
+      />
+      <span
+        className={cn(
+          "min-w-0 flex-1 truncate text-sm",
+          r.glow > 0.5
+            ? "font-semibold text-foreground"
+            : r.glow > 0.15
+              ? "font-medium text-foreground/85"
+              : "font-medium text-muted-foreground"
+        )}
+      >
+        {r.name}
+      </span>
+      {r.kids > 0 && (
+        <span className="shrink-0 rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+          {r.kids}
+        </span>
+      )}
+      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40" />
+    </button>
   );
 }
 
