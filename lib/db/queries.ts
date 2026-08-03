@@ -1565,6 +1565,18 @@ export async function listRecentEntries(limit = 20): Promise<EntryWithContext[]>
   return hydrateEntries(entries);
 }
 
+/**
+ * Tek girdiyi kategori/alt kategori ve değerleriyle birlikte getirir — analiz
+ * listelerinden girdiye dokununca düzenleme modalını açmak için.
+ */
+export async function getEntryWithContext(
+  entryId: string
+): Promise<EntryWithContext | undefined> {
+  const entry = await db.entries.get(entryId);
+  if (!entry) return undefined;
+  return (await hydrateEntries([entry]))[0];
+}
+
 export async function listEntriesBySubCategory(
   subId: string,
   limit?: number
