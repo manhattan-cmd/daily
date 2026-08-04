@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowRight, BarChart3 } from "lucide-react";
 import {
   listEntriesByCategory,
   listEntriesBySubtree,
@@ -15,9 +13,10 @@ import type { EntryWithContext } from "@/types";
  * Yapı sayfalarındaki "Son girdiler" bölümü — kategori/alt kategorinin kendi
  * kayıtları, yeniden eskiye. Liste analiz sayfalarındakiyle aynı bileşen:
  * sayfalıdır ("Daha fazla göster" ile eskiler açılır) ve satıra dokununca
- * girdinin düzenleme modalı açılır. Başlıkta analize gitme kısayolu var —
- * yapı sayfası böylece "bu ne, altında ne var, ne kaydettim, nasıl gidiyor"
- * sorularının hepsine cevap veren bir yer olur.
+ * girdinin düzenleme modalı açılır.
+ *
+ * Analize gidiş burada değil sayfa başlığında: buradayken "bu listenin
+ * analizi" gibi okunuyordu, oysa analiz kalemin tamamına ait.
  */
 export function RecentEntriesSection({
   scope,
@@ -25,11 +24,14 @@ export function RecentEntriesSection({
   subcategoryId,
   /** Sayfanın kendi adı — satırda tekrar etmesin, yalnız alt kalemler yazılır */
   selfName,
+  /** Kategori rengi — sayı rozeti, sol şerit ve değer etiketi bununla boyanır */
+  color = "#6366f1",
 }: {
   scope: "category" | "subcategory";
   categoryId: string;
   subcategoryId?: string;
   selfName?: string;
+  color?: string;
 }) {
   const entries = useLiveQuery(
     () =>
@@ -38,11 +40,6 @@ export function RecentEntriesSection({
         : listEntriesByCategory(categoryId, 200),
     [scope, categoryId, subcategoryId]
   );
-
-  const analyticsHref =
-    scope === "subcategory" && subcategoryId
-      ? `/analytics/${categoryId}/${subcategoryId}`
-      : `/analytics/${categoryId}`;
 
   const rows: EntryListRow[] = (entries ?? []).map((e) => {
     const label = subLabelOf(e);
@@ -58,27 +55,24 @@ export function RecentEntriesSection({
 
   return (
     <section className="mb-6">
-      <div className="mb-2 flex items-center justify-between gap-2 px-1">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Son Girdiler
-          {entries && entries.length > 0 && (
-            <span className="ml-1.5 font-normal text-muted-foreground/50">
-              {entries.length}
-            </span>
-          )}
-        </h2>
-        <Link
-          href={analyticsHref}
-          className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <BarChart3 className="h-3 w-3" />
-          Analiz
-          <ArrowRight className="h-3 w-3" />
-        </Link>
-      </div>
+      <h2 className="mb-2 flex items-center gap-1.5 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Son Girdiler
+        {entries && entries.length > 0 && (
+          <span
+            className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums"
+            style={{ backgroundColor: `${color}1f`, color: `${color}dd` }}
+          >
+            {entries.length}
+          </span>
+        )}
+      </h2>
 
-      <div className="rounded-2xl border border-border bg-card px-4 py-1">
-        <EntryList rows={rows} emptyText="Henüz girdi yok" />
+      {/* Kategori renginde ince bir sol şerit — liste kategoriye ait hissettirir */}
+      <div
+        className="overflow-hidden rounded-2xl border-l-2 bg-white/[0.02] px-4 py-1 ring-1 ring-inset ring-white/[0.06]"
+        style={{ borderLeftColor: `${color}80` }}
+      >
+        <EntryList rows={rows} emptyText="Henüz girdi yok" accent={`${color}e6`} />
       </div>
     </section>
   );

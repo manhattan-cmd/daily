@@ -1,9 +1,10 @@
 "use client";
 
 import { use, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Pencil, Trash2 } from "lucide-react";
+import { BarChart3, Pencil, Trash2 } from "lucide-react";
 import { getCategory, deleteCategory } from "@/lib/db/queries";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
@@ -49,6 +50,14 @@ export default function CategoryDetailPage({
         action={
           category && (
             <div className="flex items-center gap-0.5">
+              {/* Analiz sayfa düzeyinde — "son girdilerin analizi" sanılmasın */}
+              <Link
+                href={`/analytics/${categoryId}`}
+                aria-label={`${category.name} analizi`}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <BarChart3 className="h-4 w-4" />
+              </Link>
               <Button
                 size="icon"
                 variant="ghost"
@@ -89,6 +98,7 @@ export default function CategoryDetailPage({
           </h2>
           <SubCategoryTree
             categoryId={categoryId}
+            categoryName={category.name}
             color={category.color}
             onAddChild={(parentSubId) => {
               setNewParentId(parentSubId);
@@ -103,6 +113,7 @@ export default function CategoryDetailPage({
         scope="category"
         categoryId={categoryId}
         selfName={category?.name}
+        color={category?.color}
       />
 
       <SubCategoryForm

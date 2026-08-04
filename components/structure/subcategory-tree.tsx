@@ -4,19 +4,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
-  Check,
   ChevronRight,
   CornerUpLeft,
   Folder,
   FolderInput,
   FolderOpen,
-  GripVertical,
   Move,
   Plus,
   Trash2,
 } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
+import { useLongPress } from "@/lib/use-long-press";
 import { moveSubCategory, listCategories } from "@/lib/db/queries";
 import { CategoryTileCore } from "@/components/structure/category-tile";
 import { modAtomIcon } from "@/components/structure/mod-atom";
@@ -50,21 +49,28 @@ type DropTarget =
  * Alt kategori ağacı — hiyerarşi iç içe açılır satırlarla. Her satır: kare
  * raf çekirdeği + ad + satırın kendi özellik atomları (minik daireler).
  *
- * Düzenleme modu: "Düzenle · taşı" ile açılır. O modda satırlar basılı tutulup
- * sürüklenerek başka bir satırın altına, ağacın köküne, çöpe ya da başka bir
- * kategoriye taşınabilir. Taşıma mantığı moveSubCategory'de (döngü koruması,
- * alt ağaç kategori güncellemesi). Girdi ekleme sheet'indeki deneyimle aynı.
+ * Taşıma ayrı bir "düzenleme modu" istemez: satırı basılı tut, sürükle. Başka
+ * bir satırın üstüne bırakınca onun altına taşınır; ayrıca köke, çöpe ya da
+ * başka bir kategoriye bırakılabilir (bu hedefler yalnız sürüklerken çıkar).
+ * Taşıma mantığı moveSubCategory'de (döngü koruması, alt ağaç kategori
+ * güncellemesi). Girdi ekleme ağındaki jestle aynı.
  */
 export function SubCategoryTree({
   categoryId,
+  categoryName,
   color,
   parentId,
+  parentName,
   onAddChild,
 }: {
   categoryId: string;
+  /** Ekleme satırlarında "neyin altına" olduğunu açıkça yazmak için */
+  categoryName?: string;
   color: string;
   /** undefined: kategorinin kök alt kategorileri; dolu: bu düğümün çocukları */
   parentId?: string;
+  /** parentId doluyken o dalın adı — ekleme satırı bunu yazar */
+  parentName?: string;
   /** parentSubId undefined ise kök seviyeye ekleme istenmiştir */
   onAddChild: (parentSubId?: string) => void;
 }) {
@@ -110,7 +116,6 @@ export function SubCategoryTree({
   // Başka kategoriye taşıma seçicisi için diğer kategoriler
   const categories = useLiveQuery(() => listCategories(), []);
 
-  const [editMode, setEditMode] = useState(false);
   const [drag, setDrag] = useState<{
     sub: SubCategory;
     /** Taşınanın kendisi + torunları — bunların üstüne/köke bırakılamaz (döngü) */
@@ -243,25 +248,11 @@ export function SubCategoryTree({
 
   return (
     <div ref={rootRef} className="flex flex-col gap-0.5">
-      {/* Düzenlemeye giriş — yalnızca taşınabilecek satır varsa ve edit dışıyken.
-          Çıkış (Bitir) sürekli görünür yüzen çubukla yapılır (aşağıda). */}
-      {roots.length > 0 && !editMode && (
-        <div className="mb-1 flex justify-end">
-          <button
-            type="button"
-            onClick={() => setEditMode(true)}
-            className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
-          >
-            <Move className="h-3.5 w-3.5" />
-            Düzenle · taşı
-          </button>
-        </div>
-      )}
-
-      {editMode && !drag && (
-        <p className="px-1 pb-1.5 text-[11px] leading-snug text-muted-foreground/70">
-          Bir satırı basılı tutup sürükle: başka satırın üstüne bırak (altına
-          taşınır), köke, çöpe ya da başka kategoriye.
+      {/* Jest ipucu — düzenleme modu yok, doğrudan basılı tut */}
+      {roots.length > 0 && !drag && (
+        <p className="flex items-center gap-1.5 px-1 pb-1.5 text-[11px] leading-snug text-muted-foreground/50">
+          <Move className="h-3 w-3 shrink-0" />
+          Basılı tutup sürükle: başka satırın altına taşı, köke al, sil
         </p>
       )}
 
@@ -289,7 +280,6 @@ export function SubCategoryTree({
           categoryId={categoryId}
           color={color}
           data={data}
-          editMode={editMode}
           draggingSubId={drag?.sub.id ?? null}
           dropTarget={dropTarget}
           onAddChild={onAddChild}
@@ -297,9 +287,9 @@ export function SubCategoryTree({
         />
       ))}
       <AddRow
-        label={
-          roots.length === 0 ? "İlk alt kategoriyi ekle" : "Alt kategori ekle"
-        }
+        color={color}
+        emphasis
+        label={`${parentName ?? categoryName ?? "Buraya"} altına alt kategori ekle`}
         onClick={() => onAddChild(undefined)}
       />
 
@@ -368,29 +358,6 @@ export function SubCategoryTree({
                 <FolderInput className="h-4 w-4" />
                 <span className="text-xs font-medium">Başka kategori</span>
               </div>
-            </div>
-          </div>,
-          document.body
-        )}
-
-      {/* Düzenlemeden çıkış — sürekli erişilebilir yüzen buton (sürüklerken gizli).
-          Böylece işlem sonrası başa dönüp "Bitir" aramak gerekmez. */}
-      {editMode &&
-        !drag &&
-        !confirmDelete &&
-        !movePickFor &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[70] px-4">
-            <div className="mx-auto flex max-w-[420px] justify-end">
-              <button
-                type="button"
-                onClick={() => setEditMode(false)}
-                className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition-transform active:scale-95"
-              >
-                <Check className="h-4 w-4" />
-                Düzenlemeyi bitir
-              </button>
             </div>
           </div>,
           document.body
@@ -465,7 +432,6 @@ function TreeNode({
   categoryId,
   color,
   data,
-  editMode,
   draggingSubId,
   dropTarget,
   onAddChild,
@@ -476,7 +442,6 @@ function TreeNode({
   categoryId: string;
   color: string;
   data: TreeData;
-  editMode: boolean;
   draggingSubId: string | null;
   dropTarget: DropTarget | null;
   onAddChild: (parentSubId?: string) => void;
@@ -486,73 +451,89 @@ function TreeNode({
   const mods = data.modsBySub.get(sub.id) ?? [];
   // Kökler dolu geliyorsa hiyerarşi ilk bakışta görünsün
   const [open, setOpen] = useState(depth === 0 && kids.length > 0);
+  // Basılı tutma → sürükleme. Jest tetiklendiğinde sonraki click yutulduğu
+  // için satır bağlantısı açılmaz.
+  const longPress = useLongPress({
+    onLongPress: () => onDragStart(sub, lastPos.current),
+    delay: 350,
+    moveTolerance: 10,
+  });
+  const lastPos = useRef({ x: 0, y: 0 });
 
   const isDragging = draggingSubId === sub.id;
   const isDropTarget = dropTarget?.kind === "sub" && dropTarget.id === sub.id;
 
-  const rowInner = (
-    <>
-      <CategoryTileCore
-        color={color}
-        icon={sub.icon}
-        fallback={kids.length > 0 ? FolderOpen : Folder}
-        size="sm"
-      />
-      <span className="truncate text-sm font-medium">{sub.name}</span>
-
-      {editMode ? (
-        <GripVertical className="ml-auto h-4 w-4 shrink-0 text-muted-foreground/40" />
-      ) : (
-        mods.length > 0 && (
-          <span className="ml-auto flex shrink-0 items-center gap-1 pl-1">
-            {mods.slice(0, 3).map((m, i) => {
-              const Icon = modAtomIcon(m);
-              return (
-                <span
-                  key={i}
-                  className="flex h-5 w-5 items-center justify-center rounded-full"
-                  style={{
-                    background:
-                      "radial-gradient(circle at 32% 28%, rgba(129,140,248,0.30), rgba(129,140,248,0.07) 72%)",
-                    boxShadow: "inset 0 0 0 1px rgba(129,140,248,0.22)",
-                  }}
-                >
-                  <Icon className="h-3 w-3 text-primary" strokeWidth={1.75} />
-                </span>
-              );
-            })}
-            {mods.length > 3 && (
-              <span className="text-[10px] text-muted-foreground">
-                +{mods.length - 3}
-              </span>
-            )}
-          </span>
-        )
-      )}
-    </>
-  );
-
   return (
     <div className="flex flex-col gap-0.5">
       <div className="flex items-center gap-0.5">
-        {editMode ? (
-          <DragRow
-            sub={sub}
+        <Link
+          href={`/structure/${categoryId}/${sub.id}`}
+          data-drop-sub={sub.id}
+          // Bağlantılar varsayılan olarak sürüklenebilir; tarayıcının yerel
+          // sürükleme jesti başlayınca pointer olayları iptal edilip bizim
+          // taşımamız yarıda kalıyordu
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
+          {...longPress}
+          onPointerDownCapture={(e) => {
+            lastPos.current = { x: e.clientX, y: e.clientY };
+          }}
+          className={cn(
+            "flex min-w-0 flex-1 select-none touch-manipulation items-center gap-2.5 rounded-xl px-1.5 py-1.5 transition-all",
+            isDragging ? "opacity-30" : "hover:bg-white/5 active:scale-[0.99]"
+          )}
+          style={
+            isDropTarget
+              ? { outline: `2px solid ${color}`, outlineOffset: "1px" }
+              : undefined
+          }
+        >
+          <CategoryTileCore
             color={color}
-            isDragging={isDragging}
-            isDropTarget={isDropTarget}
-            onDragStart={onDragStart}
-          >
-            {rowInner}
-          </DragRow>
-        ) : (
-          <Link
-            href={`/structure/${categoryId}/${sub.id}`}
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-1.5 py-1.5 transition-all hover:bg-white/5 active:scale-[0.99]"
-          >
-            {rowInner}
-          </Link>
-        )}
+            icon={sub.icon}
+            fallback={kids.length > 0 ? FolderOpen : Folder}
+            size="sm"
+          />
+          <span className="min-w-0 flex-1 truncate text-sm font-medium">
+            {sub.name}
+          </span>
+
+          {/* Kaç alt kalemi var — hiyerarşi satırdan okunsun */}
+          {kids.length > 0 && (
+            <span
+              className="shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums"
+              style={{ backgroundColor: `${color}1f`, color: `${color}dd` }}
+            >
+              {kids.length}
+            </span>
+          )}
+
+          {mods.length > 0 && (
+            <span className="flex shrink-0 items-center gap-1 pl-0.5">
+              {mods.slice(0, 3).map((m, i) => {
+                const Icon = modAtomIcon(m);
+                return (
+                  <span
+                    key={i}
+                    className="flex h-5 w-5 items-center justify-center rounded-full"
+                    style={{
+                      background:
+                        "radial-gradient(circle at 32% 28%, rgba(129,140,248,0.30), rgba(129,140,248,0.07) 72%)",
+                      boxShadow: "inset 0 0 0 1px rgba(129,140,248,0.22)",
+                    }}
+                  >
+                    <Icon className="h-3 w-3 text-primary" strokeWidth={1.75} />
+                  </span>
+                );
+              })}
+              {mods.length > 3 && (
+                <span className="text-[10px] text-muted-foreground">
+                  +{mods.length - 3}
+                </span>
+              )}
+            </span>
+          )}
+        </Link>
 
         <button
           type="button"
@@ -584,7 +565,6 @@ function TreeNode({
               categoryId={categoryId}
               color={color}
               data={data}
-              editMode={editMode}
               draggingSubId={draggingSubId}
               dropTarget={dropTarget}
               onAddChild={onAddChild}
@@ -592,7 +572,8 @@ function TreeNode({
             />
           ))}
           <AddRow
-            label={kids.length === 0 ? "İçine alt kategori ekle" : "Ekle"}
+            color={color}
+            label={`${sub.name} içine ekle`}
             onClick={() => onAddChild(sub.id)}
           />
         </div>
@@ -602,83 +583,46 @@ function TreeNode({
 }
 
 /**
- * Düzenleme modunda satırın sürüklenebilir gövdesi. Basılı tutma → sürükleme:
- * 350ms hareketsiz basış başlatır; erken hareket (>10px) kaydırma sayılır ve
- * iptal eder. Hedef vurgusu kategori renginde.
+ * Ekleme satırı — neyin altına eklendiğini açıkça yazar. `emphasis`: kategori
+ * kökündeki ana ekleme, kategori renginde kesikli çerçeveyle öne çıkar.
  */
-function DragRow({
-  sub,
+function AddRow({
+  label,
   color,
-  isDragging,
-  isDropTarget,
-  onDragStart,
-  children,
+  emphasis = false,
+  onClick,
 }: {
-  sub: SubCategory;
+  label: string;
   color: string;
-  isDragging: boolean;
-  isDropTarget: boolean;
-  onDragStart: (sub: SubCategory, pos: { x: number; y: number }) => void;
-  children: React.ReactNode;
+  emphasis?: boolean;
+  onClick: () => void;
 }) {
-  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const downPos = useRef<{ x: number; y: number } | null>(null);
-  const started = useRef(false);
-
-  const clearHold = () => {
-    if (holdTimer.current) clearTimeout(holdTimer.current);
-    holdTimer.current = null;
-  };
-
-  return (
-    <div
-      data-drop-sub={sub.id}
-      onPointerDown={(e) => {
-        downPos.current = { x: e.clientX, y: e.clientY };
-        started.current = false;
-        clearHold();
-        holdTimer.current = setTimeout(() => {
-          started.current = true;
-          onDragStart(sub, downPos.current!);
-        }, 350);
-      }}
-      onPointerMove={(e) => {
-        if (!downPos.current || started.current) return;
-        if (
-          Math.abs(e.clientX - downPos.current.x) > 10 ||
-          Math.abs(e.clientY - downPos.current.y) > 10
-        )
-          clearHold();
-      }}
-      onPointerUp={clearHold}
-      onPointerCancel={clearHold}
-      onContextMenu={(e) => e.preventDefault()}
-      className={cn(
-        "flex min-w-0 flex-1 select-none items-center gap-2.5 rounded-xl px-1.5 py-1.5 transition-all",
-        isDragging ? "opacity-30" : "hover:bg-white/5"
-      )}
-      style={
-        isDropTarget
-          ? { outline: `2px solid ${color}`, outlineOffset: "1px" }
-          : undefined
-      }
-    >
-      {children}
-    </div>
-  );
-}
-
-function AddRow({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group flex items-center gap-2.5 rounded-xl px-1.5 py-1.5 text-xs text-muted-foreground/60 transition-colors hover:bg-white/5 hover:text-foreground"
+      className={cn(
+        "group flex items-center gap-2.5 rounded-xl px-1.5 py-1.5 text-xs transition-colors",
+        emphasis
+          ? "mt-1 border border-dashed py-2 font-medium"
+          : "text-muted-foreground/60 hover:bg-white/5 hover:text-foreground"
+      )}
+      style={
+        emphasis
+          ? { borderColor: `${color}45`, color: `${color}dd` }
+          : undefined
+      }
     >
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-dashed border-muted-foreground/25 transition-colors group-hover:border-primary/50 group-hover:text-primary">
+      <span
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-dashed transition-colors"
+        style={{
+          borderColor: emphasis ? `${color}70` : undefined,
+          color: emphasis ? color : undefined,
+        }}
+      >
         <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
       </span>
-      {label}
+      <span className="truncate">{label}</span>
     </button>
   );
 }

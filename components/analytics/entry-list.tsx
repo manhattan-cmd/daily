@@ -29,9 +29,12 @@ const PAGE_SIZE = 20;
 export function EntryList({
   rows,
   emptyText = "Bu aralıkta girdi yok",
+  accent,
 }: {
   rows: EntryListRow[];
   emptyText?: string;
+  /** Değer etiketini boyayan vurgu rengi (yapı sayfasında kategori rengi) */
+  accent?: string;
 }) {
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -86,7 +89,10 @@ export function EntryList({
             )}
           </div>
           {r.valueLabel && (
-            <div className="shrink-0 pt-0.5 text-xs font-semibold tabular-nums">
+            <div
+              className="shrink-0 pt-0.5 text-xs font-semibold tabular-nums"
+              style={accent ? { color: accent } : undefined}
+            >
               {r.valueLabel}
             </div>
           )}
