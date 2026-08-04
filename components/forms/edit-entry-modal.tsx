@@ -2,9 +2,11 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { nanoid } from "nanoid";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
+  ChevronRight,
   Clock,
   FileText,
   Link2,
@@ -78,6 +80,7 @@ export function EditEntryModal({
   open,
   onOpenChange,
 }: EditEntryModalProps) {
+  const router = useRouter();
   const mods = useLiveQuery(
     () => listModifiersForTarget("subcategory", entry.subcategoryId),
     [entry.subcategoryId]
@@ -272,6 +275,14 @@ export function EditEntryModal({
     : entry.subcategory.name;
   /** Mevcut kardeş perspektifler + bu oturumda eklenenler */
   const totalParallels = siblings.length + newParallels.length;
+
+  // Kök girdiler kategoriye aittir; gizli kök alt kategorisinin sayfası yok
+  const structureName = entry.subcategory.isCategoryRoot
+    ? entry.category.name
+    : entry.subcategory.name;
+  const structureHref = entry.subcategory.isCategoryRoot
+    ? `/structure/${entry.category.id}`
+    : `/structure/${entry.category.id}/${entry.subcategoryId}`;
   // Yerel biçim şart: kaydederken `new Date(occurredAt)` bunu yerel okuyor —
   // toISOString ile üretilirse her kayıtta zaman UTC farkı kadar kayıyordu
   const [occurredAt, setOccurredAt] = useState(() =>
@@ -584,19 +595,28 @@ export function EditEntryModal({
             <>
           <DialogHeader>
             <div className="flex items-start gap-2">
-              <div className="min-w-0 flex-1">
-                <span
-                  className="block truncate text-[10px] font-semibold uppercase tracking-[0.14em]"
-                  style={{ color: `${entry.category.color}cc` }}
-                >
-                  {entry.category.name}
+              {/* Başlığa dokunmak kalemin yapı sayfasına götürür — oradan
+                  özellikleri, alt kalemleri, son girdileri ve analizi görülür */}
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenChange(false);
+                  router.push(structureHref);
+                }}
+                className="group -m-1 flex min-w-0 flex-1 items-start gap-1.5 rounded-lg p-1 text-left transition-colors hover:bg-white/5"
+                aria-label={`${structureName} yapı sayfasına git`}
+              >
+                <span className="min-w-0 flex-1">
+                  <span
+                    className="block truncate text-[10px] font-semibold uppercase tracking-[0.14em]"
+                    style={{ color: `${entry.category.color}cc` }}
+                  >
+                    {entry.category.name}
+                  </span>
+                  <DialogTitle className="truncate">{structureName}</DialogTitle>
                 </span>
-                <DialogTitle className="truncate">
-                  {entry.subcategory.isCategoryRoot
-                    ? entry.category.name
-                    : entry.subcategory.name}
-                </DialogTitle>
-              </div>
+                <ChevronRight className="mt-3 h-4 w-4 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-foreground" />
+              </button>
               {/* Kapatma çarpısı sağ üstte — menü onun soluna */}
               <OptionsMenu
                 className="mr-7"

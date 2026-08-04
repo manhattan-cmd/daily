@@ -11,6 +11,7 @@ import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { CategoryForm } from "@/components/structure/category-form";
 import { ModifierSection } from "@/components/structure/modifier-section";
 import { SubCategoryTree } from "@/components/structure/subcategory-tree";
+import { RecentEntriesSection } from "@/components/structure/recent-entries-section";
 
 export default function CategoryDetailPage({
   params,
@@ -96,6 +97,13 @@ export default function CategoryDetailPage({
           />
         </section>
       )}
+
+      {/* Son girdiler + analize kısayol */}
+      <RecentEntriesSection
+        scope="category"
+        categoryId={categoryId}
+        selfName={category?.name}
+      />
 
       <SubCategoryForm
         open={subFormOpen}

@@ -11,6 +11,7 @@ import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { ModifierSection } from "@/components/structure/modifier-section";
 import { SubCategoryTree } from "@/components/structure/subcategory-tree";
 import { DeleteSubCategoryDialog } from "@/components/structure/delete-subcategory-dialog";
+import { RecentEntriesSection } from "@/components/structure/recent-entries-section";
 
 export default function SubCategoryDetailPage({
   params,
@@ -107,6 +108,14 @@ export default function SubCategoryDetailPage({
           />
         </section>
       )}
+
+      {/* Son girdiler + analize kısayol */}
+      <RecentEntriesSection
+        scope="subcategory"
+        categoryId={categoryId}
+        subcategoryId={subcategoryId}
+        selfName={subcategory?.name}
+      />
 
       <SubCategoryForm
         open={subFormOpen}

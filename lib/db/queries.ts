@@ -1589,6 +1589,37 @@ export async function listEntriesBySubCategory(
   return hydrateEntries(limit ? entries.slice(0, limit) : entries);
 }
 
+/**
+ * Alt kategorinin ve tüm torunlarının girdileri, yeniden eskiye. Yapı
+ * sayfasındaki "son girdiler" bölümü için — orada sayfalama istemcide
+ * yapıldığından üst sınır cömert ama sınırsız değil.
+ */
+export async function listEntriesBySubtree(
+  subId: string,
+  limit = 200
+): Promise<EntryWithContext[]> {
+  const all = await db.subcategories.toArray();
+  const kids = new Map<string, string[]>();
+  for (const s of all) {
+    if (!s.parentId) continue;
+    kids.set(s.parentId, [...(kids.get(s.parentId) ?? []), s.id]);
+  }
+  const ids: string[] = [];
+  const stack = [subId];
+  while (stack.length) {
+    const id = stack.pop()!;
+    if (ids.includes(id)) continue;
+    ids.push(id);
+    stack.push(...(kids.get(id) ?? []));
+  }
+  const entries = await db.entries
+    .where("subcategoryId")
+    .anyOf(ids)
+    .reverse()
+    .sortBy("occurredAt");
+  return hydrateEntries(entries.slice(0, limit));
+}
+
 export async function listEntriesByCategory(
   catId: string,
   limit = 20
