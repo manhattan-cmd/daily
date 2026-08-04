@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -57,6 +57,8 @@ export function PeriodView({
   const [selectedCatId, setSelectedCatId] = useState<string | null>(
     initialCatId ?? null
   );
+  // Dağılımdan kategori seçilince detaya kaydır
+  const detailRef = useRef<HTMLElement | null>(null);
 
   const data = useLiveQuery(async () => {
     const [cats, subs, entries] = await Promise.all([
@@ -313,8 +315,9 @@ export function PeriodView({
           </div>
         )}
 
-        {/* Kategori dağılımı — satıra basınca kategorinin analiz sayfasına gidilir
-            (dönem içi detay için alttaki Kategori Detayı çipleri kullanılır) */}
+        {/* Kategori dağılımı — satıra basınca aynı dönemin kategori detayına
+            geçilir. Eskiden kategorinin tüm zamanlar sayfasına gidiyordu:
+            tıklanan rakam dönemin, açılan sayfa tüm zamanlarındı. */}
         <div className="rounded-2xl border border-border bg-card p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
             Kategori Dağılımı
@@ -322,13 +325,19 @@ export function PeriodView({
           <ShareBars
             rows={computed?.catShare ?? []}
             emptyText="Bu dönemde girdi yok"
-            onSelect={(id) => router.push(`/analytics/${id}`)}
+            onSelect={(id) => {
+              setSelectedCatId(id);
+              detailRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
+            }}
           />
         </div>
 
         {/* Kategori detayı — bu dönem penceresine kısıtlı mod bazlı analiz */}
         {data && data.cats.length > 0 && selectedCat && (
-          <section className="flex flex-col gap-3 mt-2">
+          <section ref={detailRef} className="flex flex-col gap-3 mt-2 scroll-mt-4">
             <div className="flex items-center justify-between gap-2 px-1">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Kategori Detayı
