@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import { db } from "./index";
+import { toLocalDateValue } from "@/lib/utils";
 import type {
   Activity,
   Category,
@@ -1492,6 +1493,68 @@ export async function getEntryCountsBySubcategory(): Promise<Map<string, number>
     counts.set(id, (counts.get(id) ?? 0) + 1);
   });
   return counts;
+}
+
+export type DayBar = {
+  date: string;
+  count: number;
+  /** O günün kategori kırılımı, çoktan aza — şerit bunu yığılmış gösterir */
+  segments: { color: string; count: number }[];
+};
+
+/**
+ * Son N günün özeti (bugün dahil, eskiden yeniye) — ana sayfadaki ritim
+ * şeridi için. Her gün: girdi sayısı ve kategori kırılımı.
+ */
+export async function getRecentDaySummaries(days = 7): Promise<DayBar[]> {
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  const start = new Date();
+  start.setDate(start.getDate() - (days - 1));
+  start.setHours(0, 0, 0, 0);
+
+  const entries = await db.entries
+    .where("occurredAt")
+    .between(start.getTime(), end.getTime(), true, true)
+    .toArray();
+
+  const subIds = [...new Set(entries.map((e) => e.subcategoryId))];
+  const subs = subIds.length ? await db.subcategories.bulkGet(subIds) : [];
+  const catIdBySub = new Map<string, string>();
+  for (const s of subs) if (s) catIdBySub.set(s.id, s.categoryId);
+  const cats = await db.categories.toArray();
+  const catById = new Map(cats.map((c) => [c.id, c]));
+
+  const byDay = new Map<string, Map<string, number>>();
+  const counts = new Map<string, number>();
+  for (const e of entries) {
+    const key = toLocalDateValue(e.occurredAt);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+    const catId = catIdBySub.get(e.subcategoryId);
+    if (!catId) continue;
+    const m = byDay.get(key) ?? new Map<string, number>();
+    m.set(catId, (m.get(catId) ?? 0) + 1);
+    byDay.set(key, m);
+  }
+
+  const out: DayBar[] = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const key = toLocalDateValue(d.getTime());
+    const m = byDay.get(key);
+    out.push({
+      date: key,
+      count: counts.get(key) ?? 0,
+      segments: m
+        ? [...m.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .map(([id, n]) => ({ color: catById.get(id)?.color, count: n }))
+            .filter((s): s is { color: string; count: number } => !!s.color)
+        : [],
+    });
+  }
+  return out;
 }
 
 export type DaySummary = {
