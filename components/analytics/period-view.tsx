@@ -384,7 +384,12 @@ export function PeriodView({
               })}
             </HScroll>
 
-            <PeriodCategoryPanel category={selectedCat} period={period} />
+            {/* Dönem ya da kategori değişince kırılımda inilen yol sıfırlansın */}
+            <PeriodCategoryPanel
+              key={`${selectedCat.id}|${period.key}`}
+              category={selectedCat}
+              period={period}
+            />
           </section>
         )}
 

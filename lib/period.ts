@@ -4,7 +4,7 @@
  * m-2026-07 (ay), y-2026 (yıl), c-2026-06-01_2026-07-08 (özel; bitiş dahil), all (tüm zamanlar).
  */
 
-import { dayKey, startOfDayMs, weekStartMs, type RangeKey } from "./analytics";
+import { dayKey, startOfDayMs, weekStartMs } from "./analytics";
 
 export type PeriodKind = "day" | "week" | "month" | "year" | "custom" | "all";
 
@@ -194,19 +194,15 @@ export function periodProgress(
   return { elapsedDays, totalDays, inProgress: true };
 }
 
-/**
- * Dönemin, aralık (RangeKey) tabanlı kategori/alt kategori sayfalarındaki karşılığı —
- * yalnız içinde bulunulan gün/hafta/ay/yıl eşlenir; geçmiş ve özel pencerelerin
- * o sayfalarda karşılığı olmadığından "tum"a düşülür.
+/*
+ * NOT: Burada bir zamanlar rangeKeyForPeriod vardı — dönemi, aralık (RangeKey)
+ * tabanlı alt kategori sayfasının diline çevirmeye çalışıyordu. RangeKey
+ * doğası gereği "şimdi"ye görelidir ("bu ay"), geçmiş bir dönemi ("Temmuz
+ * 2026") ifade edemez; o yüzden geçmiş dönemler sessizce "tum"a düşüyor ve
+ * kırılımdan tıklanan alt kategori dönem yerine tüm zamanları gösteriyordu.
+ * Çözüm çeviri değil: kırılım artık dönemden çıkmadan derine iniyor
+ * (PeriodCategoryPanel). Aynı hataya düşmemek için fonksiyon kaldırıldı.
  */
-export function rangeKeyForPeriod(p: Period, now: Date = new Date()): RangeKey {
-  const t = now.getTime();
-  if (p.kind === "day" && p.key === dayPeriod(t).key) return "bugun";
-  if (p.kind === "week" && p.key === weekPeriod(t).key) return "hafta";
-  if (p.kind === "month" && p.key === monthPeriod(t).key) return "ay";
-  if (p.kind === "year" && p.key === yearPeriod(t).key) return "yil";
-  return "tum";
-}
 
 /** Önceki/sonraki dönem — custom'da aynı uzunlukta kaydırır; all'da yön yok (null) */
 export function shiftPeriod(p: Period, dir: 1 | -1): Period | null {

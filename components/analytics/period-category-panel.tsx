@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { ArrowRight, ChevronRight } from "lucide-react";
 import {
   bucketAncestorId,
   bucketKeyOf,
@@ -17,7 +18,7 @@ import {
 } from "@/lib/analytics";
 import {
   periodProgress,
-  rangeKeyForPeriod,
+
   weekPeriod,
   type Period,
 } from "@/lib/period";
@@ -28,7 +29,8 @@ import { EntryListSection, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
-import type { Category, Entry } from "@/types";
+import { cn } from "@/lib/utils";
+import type { Category, Entry, SubCategory } from "@/types";
 
 /**
  * Dönem sayfasındaki kategori detayı — kategori metriklerinin donmuş bir zaman
@@ -43,7 +45,11 @@ export function PeriodCategoryPanel({
   category: Category;
   period: Period;
 }) {
-  const router = useRouter();
+  // Kırılımdan derine inme — dönemin İÇİNDE kalır. Eskiden alt kategori
+  // sayfasına gidiliyordu; o sayfa "şimdi"ye göreli çalıştığından geçmiş bir
+  // dönemden tıklandığında sessizce tüm zamanları gösteriyordu.
+  const [path, setPath] = useState<SubCategory[]>([]);
+  const focus = path[path.length - 1];
   // Gün dönemlerinde hafta bağlamı gerekir — o günü kapsayan haftanın tamamı çekilir,
   // günün kendi rakamları pencere filtresiyle hesaplanır
   const containingWeek = useMemo(
@@ -54,9 +60,10 @@ export function PeriodCategoryPanel({
   const [excludeRegular, setExcludeRegular] = useExcludeRegular();
   const { data, metric, setMetricChoice, compute } = useCategoryMetrics({
     category,
+    rootSubId: focus?.id,
     fetchStart: containingWeek ? containingWeek.start : period.start,
     fetchEnd: containingWeek ? containingWeek.end : period.end,
-    resetKey: `${category.id}|${period.key}`,
+    resetKey: `${category.id}|${period.key}|${focus?.id ?? ""}`,
     excludeRegular,
   });
 
@@ -161,7 +168,8 @@ export function PeriodCategoryPanel({
     // Alt kategori kırılımı — iç içe altlar en üst ataya toplanır
     const bySubEntries = new Map<string, Entry[]>();
     for (const e of entries) {
-      const topId = bucketAncestorId(e.subcategoryId, subById);
+      // Odaklıysak bir kademe altını grupla; değilse kategorinin kök dalları
+      const topId = bucketAncestorId(e.subcategoryId, subById, focus?.id);
       if (!topId) continue;
       const list = bySubEntries.get(topId) ?? [];
       list.push(e);
@@ -216,7 +224,7 @@ export function PeriodCategoryPanel({
       shareRows,
       entryRows,
     };
-  }, [data, compute, metric.type, period, containingWeek, category.color]);
+  }, [data, compute, metric.type, period, containingWeek, category.color, focus?.id]);
 
   if (!data || !compute || !computed) return null;
 
@@ -346,32 +354,74 @@ export function PeriodCategoryPanel({
         </div>
       )}
 
-      {/* Alt kategori kırılımı — satıra basınca alt kategori detayına inilir;
-          içinde bulunulan gün/hafta/ay/yıl aynı pencereyle, diğerleri tüm zamanlarla */}
+      {/* Alt kategori kırılımı — satıra basınca aynı dönem içinde bir kademe
+          derine inilir (dönemden çıkılmaz) */}
       <div className="rounded-2xl border border-border bg-card p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-          Alt Kategori Dağılımı
-          {metric.type === "mod" && (
-            <span className="normal-case font-normal text-muted-foreground/60">
-              {" "}
-              ({compute.bucketIsAvg ? "ortalama" : "toplam"})
-            </span>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h3 className="min-w-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {focus ? `${focus.name} · Kırılım` : "Alt Kategori Dağılımı"}
+            {metric.type === "mod" && (
+              <span className="normal-case font-normal text-muted-foreground/60">
+                {" "}
+                ({compute.bucketIsAvg ? "ortalama" : "toplam"})
+              </span>
+            )}
+          </h3>
+          {focus && (
+            <Link
+              href={`/analytics/${category.id}/${focus.id}`}
+              className="flex shrink-0 items-center gap-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Tüm zamanlar
+              <ArrowRight className="h-3 w-3" />
+            </Link>
           )}
-        </h3>
+        </div>
+
+        {/* İnilen yol — dönem bağlamı korunarak yukarı çıkılır */}
+        {path.length > 0 && (
+          <div className="mb-2 flex flex-wrap items-center gap-0.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setPath([])}
+              className="rounded px-1 py-0.5 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {category.name}
+            </button>
+            {path.map((s, i) => (
+              <span key={s.id} className="flex items-center">
+                <ChevronRight className="h-3 w-3 text-muted-foreground/40" />
+                <button
+                  type="button"
+                  onClick={() => setPath(path.slice(0, i + 1))}
+                  className={cn(
+                    "max-w-[130px] truncate rounded px-1 py-0.5 transition-colors",
+                    i === path.length - 1
+                      ? "font-semibold text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {s.name}
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
         <ShareBars
           rows={computed.shareRows}
           emptyText={
             metric.type === "mod"
               ? `Bu dönemde ${metric.mod.name} verisi yok`
-              : "Bu dönemde girdi yok"
+              : focus
+                ? "Bu dalın altında ayrı bir kalem yok"
+                : "Bu dönemde girdi yok"
           }
-          onSelect={(subId) =>
-            router.push(
-              `/analytics/${category.id}/${subId}?range=${rangeKeyForPeriod(
-                period
-              )}&metric=${metric.type === "count" ? "count" : metric.mod.id}`
-            )
-          }
+          onSelect={(subId) => {
+            const sub = data.subById.get(subId);
+            // "Genel" satırı kategorinin gizli kökü — inilecek bir dal değil
+            if (sub && !sub.isCategoryRoot) setPath((p) => [...p, sub]);
+          }}
         />
       </div>
 
