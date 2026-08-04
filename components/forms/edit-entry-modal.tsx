@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { nanoid } from "nanoid";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
+  CalendarDays,
   ChevronRight,
   Clock,
   FileText,
@@ -53,7 +54,12 @@ import {
   formatDTRDisplay,
 } from "@/components/forms/datetime-range-input";
 import { ParallelPickList } from "@/components/forms/parallel-pick-dialog";
-import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
+import {
+  cn,
+  formatDateTime,
+  toLocalDateTimeValue,
+  toLocalDateValue,
+} from "@/lib/utils";
 import { ENTRY_VALUE_TYPE_LABELS } from "@/types";
 import type { EntryWithContext, EntryType } from "@/types";
 
@@ -668,6 +674,17 @@ export function EditEntryModal({
                 ]}
               />
             </div>
+
+            {/* Girdinin kayıtlı olduğu gün — dokununca o günün sayfası */}
+            <Link
+              href={`/calendar/${toLocalDateValue(entry.occurredAt)}`}
+              onClick={() => onOpenChange(false)}
+              className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-full border border-border bg-card/60 py-1 pl-2.5 pr-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <CalendarDays className="h-3 w-3" />
+              {formatDateTime(entry.occurredAt)}
+              <ChevronRight className="h-3 w-3 opacity-50" />
+            </Link>
           </DialogHeader>
 
           <div className="flex flex-col gap-4">
