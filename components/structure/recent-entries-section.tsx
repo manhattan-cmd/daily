@@ -5,7 +5,10 @@ import {
   listEntriesByCategory,
   listEntriesBySubtree,
 } from "@/lib/db/queries";
-import { EntryList, type EntryListRow } from "@/components/analytics/entry-list";
+import {
+  EntryListSection,
+  type EntryListRow,
+} from "@/components/analytics/entry-list";
 import { fmtNum } from "@/lib/analytics";
 import type { EntryWithContext } from "@/types";
 
@@ -55,25 +58,12 @@ export function RecentEntriesSection({
 
   return (
     <section className="mb-6">
-      <h2 className="mb-2 flex items-center gap-1.5 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Son Girdiler
-        {entries && entries.length > 0 && (
-          <span
-            className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums"
-            style={{ backgroundColor: `${color}1f`, color: `${color}dd` }}
-          >
-            {entries.length}
-          </span>
-        )}
-      </h2>
-
-      {/* Kategori renginde ince bir sol şerit — liste kategoriye ait hissettirir */}
-      <div
-        className="overflow-hidden rounded-2xl border-l-2 bg-white/[0.02] px-4 py-1 ring-1 ring-inset ring-white/[0.06]"
-        style={{ borderLeftColor: `${color}80` }}
-      >
-        <EntryList rows={rows} emptyText="Henüz girdi yok" accent={`${color}e6`} />
-      </div>
+      <EntryListSection
+        title="Son Girdiler"
+        accent={color}
+        rows={rows}
+        emptyText="Henüz girdi yok"
+      />
     </section>
   );
 }

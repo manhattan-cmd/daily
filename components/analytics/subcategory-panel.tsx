@@ -27,7 +27,7 @@ import { StatTile } from "./stat-tile";
 import { DailyBarChart } from "./daily-bar-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
 import { RangePicker } from "./range-picker";
-import { EntryList, type EntryListRow } from "./entry-list";
+import { EntryListSection, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
@@ -318,29 +318,25 @@ export function SubcategoryPanel({
         </div>
       )}
 
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Girdi Listesi
-          </h3>
-          {!hasChildren && (
-            <RangePicker value={shareRange} onChange={setShareRange} />
-          )}
-          {hasChildren && (
+      <EntryListSection
+        title="Girdi Listesi"
+        accent={category.color}
+        rows={computed.entryRows}
+        emptyText={
+          metric.type === "mod"
+            ? `Bu aralıkta ${metric.mod.name} verisi yok`
+            : "Bu aralıkta girdi yok"
+        }
+        action={
+          hasChildren ? (
             <span className="text-[10px] text-muted-foreground">
               {RANGE_LABELS[shareRange]}
             </span>
-          )}
-        </div>
-        <EntryList
-          rows={computed.entryRows}
-          emptyText={
-            metric.type === "mod"
-              ? `Bu aralıkta ${metric.mod.name} verisi yok`
-              : "Bu aralıkta girdi yok"
-          }
-        />
-      </div>
+          ) : (
+            <RangePicker value={shareRange} onChange={setShareRange} />
+          )
+        }
+      />
     </div>
   );
 }

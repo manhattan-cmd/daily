@@ -24,7 +24,10 @@ import { PageHeader } from "@/components/layout/page-header";
 import { StatTile } from "@/components/analytics/stat-tile";
 import { DailyBarChart } from "@/components/analytics/daily-bar-chart";
 import { ShareBars, type ShareRow } from "@/components/analytics/share-bars";
-import { EntryList, type EntryListRow } from "@/components/analytics/entry-list";
+import {
+  EntryListSection,
+  type EntryListRow,
+} from "@/components/analytics/entry-list";
 import { PeriodQuickNav } from "@/components/analytics/period-quick-nav";
 import { PeriodCategoryPanel } from "@/components/analytics/period-category-panel";
 import { HScroll } from "@/components/ui/h-scroll";
@@ -386,15 +389,11 @@ export function PeriodView({
         )}
 
         {/* Tüm kategorilerin girdileri */}
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-            Tüm Girdiler
-          </h3>
-          <EntryList
-            rows={computed?.entryRows ?? []}
-            emptyText="Bu dönemde girdi yok"
-          />
-        </div>
+        <EntryListSection
+          title="Tüm Girdiler"
+          rows={computed?.entryRows ?? []}
+          emptyText="Bu dönemde girdi yok"
+        />
       </div>
     </>
   );

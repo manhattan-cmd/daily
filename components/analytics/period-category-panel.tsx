@@ -24,7 +24,7 @@ import {
 import { StatTile } from "./stat-tile";
 import { DailyBarChart } from "./daily-bar-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
-import { EntryList, type EntryListRow } from "./entry-list";
+import { EntryListSection, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
@@ -376,19 +376,16 @@ export function PeriodCategoryPanel({
       </div>
 
       {/* Girdi listesi */}
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-          Girdi Listesi
-        </h3>
-        <EntryList
-          rows={computed.entryRows}
-          emptyText={
-            metric.type === "mod"
-              ? `Bu dönemde ${metric.mod.name} verisi yok`
-              : "Bu dönemde girdi yok"
-          }
-        />
-      </div>
+      <EntryListSection
+        title="Girdi Listesi"
+        accent={category.color}
+        rows={computed.entryRows}
+        emptyText={
+          metric.type === "mod"
+            ? `Bu dönemde ${metric.mod.name} verisi yok`
+            : "Bu dönemde girdi yok"
+        }
+      />
     </div>
   );
 }

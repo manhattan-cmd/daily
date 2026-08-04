@@ -21,6 +21,56 @@ export type EntryListRow = {
 
 const PAGE_SIZE = 20;
 
+/** Renk yoksa arayüzün kendi vurgusu */
+const DEFAULT_ACCENT = "#6366f1";
+
+/**
+ * Girdi listesi bölümü — başlık + sayı rozeti + listenin kabı. Kap ağır bir
+ * kart yerine hafif yüzey ve solda kategori renginde ince bir şerit; liste
+ * böylece ait olduğu kaleme bağlı görünür. Analiz panelleri ve yapı
+ * sayfaları aynı görünümü paylaşsın diye tek yerde.
+ */
+export function EntryListSection({
+  title,
+  rows,
+  emptyText,
+  accent = DEFAULT_ACCENT,
+  action,
+}: {
+  title: string;
+  rows: EntryListRow[];
+  emptyText?: string;
+  /** Kategori rengi — rozet, sol şerit ve değer etiketleri bununla boyanır */
+  accent?: string;
+  /** Başlığın sağındaki küçük kontrol (aralık seçici gibi) */
+  action?: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-2 px-1">
+        <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {title}
+          {rows.length > 0 && (
+            <span
+              className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums"
+              style={{ backgroundColor: `${accent}1f`, color: `${accent}dd` }}
+            >
+              {rows.length}
+            </span>
+          )}
+        </h3>
+        {action}
+      </div>
+      <div
+        className="overflow-hidden rounded-2xl border-l-2 bg-white/[0.02] px-4 py-1 ring-1 ring-inset ring-white/[0.06]"
+        style={{ borderLeftColor: `${accent}80` }}
+      >
+        <EntryList rows={rows} emptyText={emptyText} accent={`${accent}e6`} />
+      </div>
+    </div>
+  );
+}
+
 /**
  * Kalem kalem girdi listesi — tarih, (varsa) alt kategori, başlık/not, değer.
  * Sayfalı. Satıra dokununca girdinin düzenleme modalı açılır; kayıt canlı

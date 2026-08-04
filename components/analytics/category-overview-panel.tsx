@@ -18,7 +18,7 @@ import {
 import { StatTile } from "./stat-tile";
 import { DailyBarChart } from "./daily-bar-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
-import { EntryList, type EntryListRow } from "./entry-list";
+import { EntryListSection, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
@@ -360,19 +360,14 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       </div>
 
       {/* Girdi listesi — son 50 */}
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-          Son Girdiler
-        </h3>
-        <EntryList
-          rows={computed.entryRows}
-          emptyText={
-            metric.type === "mod"
-              ? `${metric.mod.name} verisi yok`
-              : "Girdi yok"
-          }
-        />
-      </div>
+      <EntryListSection
+        title="Son Girdiler"
+        accent={category.color}
+        rows={computed.entryRows}
+        emptyText={
+          metric.type === "mod" ? `${metric.mod.name} verisi yok` : "Girdi yok"
+        }
+      />
     </div>
   );
 }
