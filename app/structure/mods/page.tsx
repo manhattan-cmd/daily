@@ -176,10 +176,12 @@ export default function ModsHomePage() {
 
   return (
     <>
+      {/* Açıklama diğer Yapı sayfalarıyla aynı tek satırlık kalıpta: iki
+          satıra taşınca başlık uzuyor ve sekme şeridi aşağı kayıyordu.
+          Uzun anlatım sekmelerin altına indi. */}
       <PageHeader
         title="Yapı"
-        description="Ölçüp takip ettiğin şeyler — kilo, süre, para… Kategorilere ekleyip değer girersin."
-        descriptionLines={2}
+        description="Özellikler — ölçtüklerin"
         action={
           <div className="flex items-center gap-1.5">
             <button
@@ -206,6 +208,10 @@ export default function ModsHomePage() {
       />
 
       <StructureTabs />
+
+      <p className="mb-5 -mt-2 px-1 text-[11px] leading-snug text-muted-foreground/70">
+        Kilo, süre, para… Kategorilere ekleyip girdi sırasında değer girersin.
+      </p>
 
       {searchOpen && (
         <div className="relative mb-5">
