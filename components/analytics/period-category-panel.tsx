@@ -231,6 +231,10 @@ export function PeriodCategoryPanel({
       seriesFrame,
       hasSeries,
       shareRows,
+      // İnilecek bir kademe yoksa (yaprak kalem, ya da bu dönemde yalnızca
+      // kalemin kendi girdileri var) dağılım tek bir %100 çubuğundan ibaret
+      // kalır — hiçbir şey anlatmaz, bölüm hiç açılmaz
+      hasBreakdown: shareRows.some((r) => r.drillable),
       entryRows,
     };
   }, [data, compute, metric.type, period, containingWeek, category, focus?.id]);
@@ -255,55 +259,63 @@ export function PeriodCategoryPanel({
       {/* Kapsam şeridi — derine inildiğinde aşağıdaki HER ŞEYİN (istatistik,
           grafik, kırılım, liste) hangi kaleme ait olduğunu söyler. Yoksa
           Yemek rakamlarına bakarken Harcamalar sanılabiliyordu. */}
-      {path.length > 0 && (
+      {focus && (
         <div
-          className="flex items-center gap-1.5 rounded-xl border px-2 py-1.5"
+          className="flex items-center gap-2.5 rounded-2xl border px-2.5 py-2.5"
           style={{
-            borderColor: `${category.color}40`,
-            backgroundColor: `${category.color}0f`,
+            borderColor: `${category.color}55`,
+            backgroundColor: `${category.color}14`,
           }}
         >
           <button
             type="button"
             onClick={() => setPath(path.slice(0, -1))}
             aria-label="Bir üst kaleme dön"
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-white/8 text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/8 text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
           >
-            <ChevronLeft className="h-3.5 w-3.5" />
+            <ChevronLeft className="h-5 w-5" />
           </button>
-          <div className="flex min-w-0 flex-1 flex-wrap items-center text-xs">
-            <button
-              type="button"
-              onClick={() => setPath([])}
-              className="rounded px-1 py-0.5 font-medium text-muted-foreground underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground"
-            >
-              {category.name}
-            </button>
-            {path.map((s, i) => {
-              const last = i === path.length - 1;
-              return (
+          <div className="min-w-0 flex-1">
+            {/* Üst satır — geldiğimiz yol; her adımına basıp dönülebilir */}
+            <div className="flex min-w-0 flex-wrap items-center text-[11px] leading-tight text-muted-foreground">
+              <button
+                type="button"
+                onClick={() => setPath([])}
+                className="rounded px-0.5 underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground"
+              >
+                {category.name}
+              </button>
+              {path.slice(0, -1).map((s, i) => (
                 <span key={s.id} className="flex min-w-0 items-center">
-                  <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/40" />
-                  {last ? (
-                    <span
-                      className="max-w-[150px] truncate px-1 py-0.5 font-semibold"
-                      style={{ color: `${category.color}ee` }}
-                    >
-                      {s.name}
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setPath(path.slice(0, i + 1))}
-                      className="max-w-[130px] truncate rounded px-1 py-0.5 font-medium text-muted-foreground underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground"
-                    >
-                      {s.name}
-                    </button>
-                  )}
+                  <ChevronRight className="h-3 w-3 shrink-0 opacity-40" />
+                  <button
+                    type="button"
+                    onClick={() => setPath(path.slice(0, i + 1))}
+                    className="max-w-[110px] truncate rounded px-0.5 underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground"
+                  >
+                    {s.name}
+                  </button>
                 </span>
-              );
-            })}
+              ))}
+              <ChevronRight className="h-3 w-3 shrink-0 opacity-40" />
+            </div>
+            {/* Alt satır — bulunulan katman, şeridin en belirgin öğesi */}
+            <div
+              className="truncate text-[17px] font-bold leading-tight"
+              style={{ color: category.color }}
+            >
+              {focus.name}
+            </div>
           </div>
+          {/* Kapsamın tüm zamanlar analizi — kırılım kutusu artık yaprak
+              kalemlerde açılmadığı için bağlantı burada durur */}
+          <Link
+            href={`/analytics/${category.id}/${focus.id}`}
+            className="flex w-12 shrink-0 flex-col items-center gap-0.5 rounded-lg px-1 text-center text-[10px] font-medium leading-tight text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowRight className="h-3.5 w-3.5" />
+            <span>Tüm zamanlar</span>
+          </Link>
         </div>
       )}
 
@@ -404,12 +416,13 @@ export function PeriodCategoryPanel({
 
       {/* Alt kategori kırılımı — seriden ÖNCE: önce "ne nereye gitmiş"
           görülür, istenirse bir kademe derine inilir (dönemden çıkılmadan),
-          sonra o kapsamın zaman serisi incelenir */}
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <div className="mb-3 flex items-center justify-between gap-2">
+          sonra o kapsamın zaman serisi incelenir. İnilecek kademe kalmadıysa
+          bölüm hiç açılmaz */}
+      {computed.hasBreakdown && (
+        <div className="rounded-2xl border border-border bg-card p-4">
           {/* Odaklıyken de gösterilen şey aynı: bu kalemin altındaki
               kalemlerin dağılımı — başlık da aynı kalır */}
-          <h3 className="min-w-0 text-xs font-semibold uppercase leading-tight tracking-wider text-muted-foreground">
+          <h3 className="mb-3 min-w-0 text-xs font-semibold uppercase leading-tight tracking-wider text-muted-foreground">
             {scopePrefix}
             Alt Kategori Dağılımı
             {metric.type === "mod" && (
@@ -419,38 +432,22 @@ export function PeriodCategoryPanel({
               </span>
             )}
           </h3>
-          {focus && (
-            <Link
-              href={`/analytics/${category.id}/${focus.id}`}
-              className="flex shrink-0 items-center gap-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Tüm zamanlar
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-          )}
-        </div>
 
-        {/* Yol artık panelin tepesindeki kapsam şeridinde — burada tekrar etmez */}
-        <ShareBars
-          rows={computed.shareRows}
-          emptyText={
-            metric.type === "mod"
-              ? `Bu dönemde ${metric.mod.name} verisi yok`
-              : focus
-                ? "Bu dalın altında ayrı bir kalem yok"
-                : "Bu dönemde girdi yok"
-          }
-          onSelect={(subId) => {
-            const sub = data.subById.get(subId);
-            if (!sub) return;
-            // Kalemin kendi doğrudan girdileri (kategori kökü ya da odağın
-            // kendisi) bir alt kademe değil — inilecek bir yer yok
-            if (sub.isCategoryRoot || sub.id === focus?.id) return;
-            // Aynı düğüm yolda varsa tekrar eklenmez (döngü koruması)
-            setPath((p) => (p.some((s) => s.id === sub.id) ? p : [...p, sub]));
-          }}
-        />
-      </div>
+          {/* Yol artık panelin tepesindeki kapsam şeridinde — burada tekrar etmez */}
+          <ShareBars
+            rows={computed.shareRows}
+            onSelect={(subId) => {
+              const sub = data.subById.get(subId);
+              if (!sub) return;
+              // Kalemin kendi doğrudan girdileri (kategori kökü ya da odağın
+              // kendisi) bir alt kademe değil — inilecek bir yer yok
+              if (sub.isCategoryRoot || sub.id === focus?.id) return;
+              // Aynı düğüm yolda varsa tekrar eklenmez (döngü koruması)
+              setPath((p) => (p.some((s) => s.id === sub.id) ? p : [...p, sub]));
+            }}
+          />
+        </div>
+      )}
 
       {/* Seri — bir günden uzun dönemlerde */}
       {computed.hasSeries && (
