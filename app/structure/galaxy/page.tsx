@@ -104,9 +104,8 @@ export default function GalaxyPage() {
       <PageHeader
         title="Yapı"
         description="Harita — kategori ve özellik bağlantıları"
-        className="mb-0"
       />
-      <StructureTabs className="mt-4 mb-4" />
+      <StructureTabs />
 
       <div className="relative flex-1 -mx-4 -mb-4 overflow-hidden">
         {data ? (

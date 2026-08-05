@@ -64,7 +64,7 @@ export default function StructureNotesPage() {
         }
       />
 
-      <StructureTabs className="-mt-2 mb-5" />
+      <StructureTabs />
 
       {/* Hayat Haritası hub kartı */}
       <Link

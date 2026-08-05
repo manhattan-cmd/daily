@@ -205,7 +205,7 @@ export default function ModsHomePage() {
         }
       />
 
-      <StructureTabs className="-mt-2 mb-5" />
+      <StructureTabs />
 
       {searchOpen && (
         <div className="relative mb-5">

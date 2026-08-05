@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarRange } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { chipClass } from "@/components/ui/section-nav";
 import { dayKey } from "@/lib/analytics";
 import {
   customPeriod,
@@ -80,7 +82,7 @@ export function PeriodJump({ align = "right" }: { align?: "right" | "center" }) 
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        className={cn(chipClass(false), "flex items-center gap-1.5")}
       >
         <CalendarRange className="h-3.5 w-3.5" />
         Özel

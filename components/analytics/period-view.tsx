@@ -242,10 +242,11 @@ export function PeriodView({
         back={back}
       />
 
-      <div className="flex flex-col gap-4 pb-6">
-        {/* Hızlı atlama çipleri — Bugün / Bu Hafta / Bu Ay / Bu Yıl / Tümü / Özel */}
-        <PeriodQuickNav activeKey={period.key} />
+      {/* Hızlı atlama çipleri — Yapı sekmeleriyle aynı yerde: başlığın hemen
+          altında, içerik akışının dışında */}
+      <PeriodQuickNav activeKey={period.key} />
 
+      <div className="flex flex-col gap-4 pb-6">
         {/* Dönem gezintisi: ◀ önceki · etiket · sonraki ▶ (Tümü'nde yön yok) */}
         {(prev || nextP) && (
           <div className="flex items-center justify-between gap-2">

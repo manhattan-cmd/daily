@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HScroll } from "@/components/ui/h-scroll";
-import { cn } from "@/lib/utils";
+import { SectionNav, chipClass } from "@/components/ui/section-nav";
 
 const TABS = [
   { href: "/structure", label: "Kategoriler" },
@@ -14,31 +13,27 @@ const TABS = [
   { href: "/structure/backup", label: "Yedekleme" },
 ] as const;
 
-/** Yapı bölümünün üst menüsü — beş alt sayfa arasında pill sekmeler */
-export function StructureTabs({ className }: { className?: string }) {
+/**
+ * Yapı bölümünün üst menüsü — alt sayfalar arası pill sekmeler. Konum ve
+ * biçim Analiz'in dönem çipleriyle ortak (SectionNav).
+ */
+export function StructureTabs() {
   const pathname = usePathname();
   return (
-    <nav aria-label="Yapı bölümleri" className={className}>
-      <HScroll wrapperClassName="-mx-4" className="gap-1.5 px-4">
-        {TABS.map((tab) => {
-          const active = pathname === tab.href;
-          return (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className={cn(
-                "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                active
-                  ? "border-primary/40 bg-primary/15 text-primary"
-                  : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-card/80"
-              )}
-              aria-current={active ? "page" : undefined}
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
-      </HScroll>
-    </nav>
+    <SectionNav label="Yapı bölümleri">
+      {TABS.map((tab) => {
+        const active = pathname === tab.href;
+        return (
+          <Link
+            key={tab.href}
+            href={tab.href}
+            className={chipClass(active)}
+            aria-current={active ? "page" : undefined}
+          >
+            {tab.label}
+          </Link>
+        );
+      })}
+    </SectionNav>
   );
 }

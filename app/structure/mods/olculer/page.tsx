@@ -112,7 +112,7 @@ export default function OlculerPage() {
         }
       />
 
-      <StructureTabs className="-mt-2 mb-5" />
+      <StructureTabs />
 
       {groups === undefined ? null : (
         <div className="flex flex-col gap-6 mb-6">

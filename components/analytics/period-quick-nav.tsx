@@ -8,8 +8,7 @@ import {
   weekPeriod,
   yearPeriod,
 } from "@/lib/period";
-import { cn } from "@/lib/utils";
-import { HScroll } from "@/components/ui/h-scroll";
+import { SectionNav, chipClass } from "@/components/ui/section-nav";
 import { PeriodJump } from "./period-jump";
 
 /**
@@ -30,7 +29,7 @@ export function PeriodQuickNav({ activeKey }: { activeKey: string }) {
   ];
 
   return (
-    <HScroll wrapperClassName="-mx-4" className="gap-2 px-4 pb-1">
+    <SectionNav>
       {chips.map((c) => {
         const active = activeKey === c.key;
         return (
@@ -38,21 +37,16 @@ export function PeriodQuickNav({ activeKey }: { activeKey: string }) {
             key={c.key}
             type="button"
             onClick={() =>
-              !active &&
-              router.push(c.href || `/analytics/period/${c.key}`)
+              !active && router.push(c.href || `/analytics/period/${c.key}`)
             }
-            className={cn(
-              "rounded-xl border px-3.5 py-1.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0",
-              active
-                ? "border-primary/60 bg-primary/15 text-foreground"
-                : "border-border bg-card text-muted-foreground hover:text-foreground"
-            )}
+            className={chipClass(active)}
+            aria-current={active ? "page" : undefined}
           >
             {c.label}
           </button>
         );
       })}
       <PeriodJump />
-    </HScroll>
+    </SectionNav>
   );
 }

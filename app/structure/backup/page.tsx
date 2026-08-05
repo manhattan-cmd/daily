@@ -94,7 +94,7 @@ export default function BackupPage() {
         description="Yedekleme — verilerini dışa aktar veya geri yükle"
       />
 
-      <StructureTabs className="-mt-2 mb-5" />
+      <StructureTabs />
 
       <div className="flex flex-col gap-5">
         <p className="text-sm text-muted-foreground leading-relaxed">

@@ -22,7 +22,7 @@ export default function StructurePage() {
         action={<CategoryQuickAdd existingNames={existingNames} />}
       />
 
-      <StructureTabs className="-mt-2 mb-5" />
+      <StructureTabs />
 
       {categories === undefined ? null : categories.length === 0 ? (
         <EmptyState
