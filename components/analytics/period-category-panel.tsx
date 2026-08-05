@@ -397,9 +397,11 @@ export function PeriodCategoryPanel({
           sonra o kapsamın zaman serisi incelenir */}
       <div className="rounded-2xl border border-border bg-card p-4">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h3 className="min-w-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {/* Odaklıyken de gösterilen şey aynı: bu kalemin altındaki
+              kalemlerin dağılımı — başlık da aynı kalır */}
+          <h3 className="min-w-0 text-xs font-semibold uppercase leading-tight tracking-wider text-muted-foreground">
             {scopePrefix}
-            {focus ? "Kırılım" : "Alt Kategori Dağılımı"}
+            Alt Kategori Dağılımı
             {metric.type === "mod" && (
               <span className="normal-case font-normal text-muted-foreground/60">
                 {" "}
