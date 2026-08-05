@@ -205,7 +205,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       {metric.type === "count" ? (
         <div className="grid grid-cols-2 gap-2">
           <StatTile
-            label="Girdi"
+            label="Girdi sayısı"
             value={fmtNum(computed.withValueCount)}
             sub="tüm zamanlar"
           />
@@ -242,7 +242,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
             />
           )}
           <StatTile
-            label="Değerli girdi"
+            label="Girdi sayısı"
             value={fmtNum(computed.withValueCount)}
             sub={`${computed.elapsedDays} günde`}
           />

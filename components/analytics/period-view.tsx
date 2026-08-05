@@ -19,7 +19,12 @@ import {
   type Granularity,
   type SeriesFrame,
 } from "@/lib/analytics";
-import { periodProgress, shiftPeriod, type Period } from "@/lib/period";
+import {
+  periodProgress,
+  periodShortLabel,
+  shiftPeriod,
+  type Period,
+} from "@/lib/period";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatTile } from "@/components/analytics/stat-tile";
 import { DailyBarChart } from "@/components/analytics/daily-bar-chart";
@@ -223,6 +228,8 @@ export function PeriodView({
       .sort((a, b) => b.count - a.count || a.order - b.order);
   }, [data, computed]);
 
+  /** KPI alt yazısı — sayıların hangi aralığa ait olduğu ("bu hafta") */
+  const spanLabel = periodShortLabel(period);
   const progress = computed?.progress;
   const showProgress =
     !!progress &&
@@ -276,26 +283,26 @@ export function PeriodView({
           </div>
         )}
 
-        {/* KPI'lar */}
+        {/* KPI'lar — her kutu neyin, hangi aralıkta sayısı olduğunu söyler */}
         <div className="grid grid-cols-3 gap-2">
           <StatTile
-            label="Girdi"
+            label="Girdi sayısı"
             value={fmtNum(computed?.entryCount ?? 0)}
-            sub="toplam"
+            sub={spanLabel}
           />
           <StatTile
-            label="Aktif Gün"
+            label="Aktif gün"
             value={fmtNum(computed?.activeDays ?? 0)}
             sub={
-              showProgress
-                ? `${progress.elapsedDays} günde`
-                : "girdisi olan"
+              progress
+                ? `${progress.elapsedDays} günün ${computed?.activeDays ?? 0} günü`
+                : spanLabel
             }
           />
           <StatTile
-            label="Kategori"
+            label="Kullanılan kategori"
             value={fmtNum(computed?.catCount ?? 0)}
-            sub="kullanılan"
+            sub={spanLabel}
           />
         </div>
 

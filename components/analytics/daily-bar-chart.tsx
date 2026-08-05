@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { ArrowRight } from "lucide-react";
 import { fmtNum, type DayBucket } from "@/lib/analytics";
 
 const MARGIN_RIGHT = 4;
@@ -65,6 +66,9 @@ export function DailyBarChart({
   // gerçek fare hareketi serbest bırakır; masaüstü hover akışı etkilenmez.
   const [tipDismissed, setTipDismissed] = useState(false);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Seçilen kova — dokunuş doğrudan gitmez, altta "git" bağlantısı belirir.
+  // Ani yönlendirme (parmak kalkar kalkmaz sayfa değişmesi) rahatsız ediciydi.
+  const [picked, setPicked] = useState<DayBucket | null>(null);
   useEffect(
     () => () => {
       if (dismissTimer.current) clearTimeout(dismissTimer.current);
@@ -89,9 +93,9 @@ export function DailyBarChart({
     if (plotWidth <= 0) return;
     const relX = e.clientX - rect.left - plotLeft;
     const idx = Math.floor((relX / plotWidth) * data.length);
-    if (idx < 0 || idx >= data.length) return;
-    const k = data[idx]?.periodKey;
-    if (k) onSelect(k);
+    const b = idx >= 0 && idx < data.length ? data[idx] : undefined;
+    // Boş kovada gidilecek bir şey yok; dokunuş seçimi de temizler
+    setPicked(b && b.value > 0 && b.periodKey ? b : null);
   };
 
   return (
@@ -172,6 +176,27 @@ export function DailyBarChart({
         {caption}
       </div>
     )}
+
+    {/* Seçilen kova — değeri gösterir, gitmeyi kullanıcı seçer */}
+    {onSelect && picked && (
+      <button
+        type="button"
+        onClick={() => picked.periodKey && onSelect(picked.periodKey)}
+        className="mt-2 flex w-full items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-left transition-colors hover:bg-muted/40"
+      >
+        <span className="min-w-0 flex-1 truncate text-xs">
+          <span className="font-medium">{picked.full}</span>
+          <span className="text-muted-foreground">
+            {" · "}
+            {fmtNum(picked.value)} {unit ?? ""}
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-primary">
+          Aç
+          <ArrowRight className="h-3 w-3" />
+        </span>
+      </button>
+    )}
     </>
   );
 }
@@ -215,6 +240,8 @@ function ChartTip({
 }) {
   if (!active || !payload?.length) return null;
   const p = payload[0];
+  // Boş kovada gösterilecek bir şey yok — "0 girdi" balonu gürültü
+  if (!p.value) return null;
   return (
     <div className="rounded-xl border border-border bg-[#1c1c1f] px-3 py-2 shadow-xl">
       <div className="text-sm font-semibold leading-tight">

@@ -260,14 +260,14 @@ export function PeriodCategoryPanel({
       {metric.type === "count" ? (
         isDay ? (
           <StatTile
-            label="Girdi"
+            label="Girdi sayısı"
             value={fmtNum(computed.withValueCount)}
             sub={period.label}
           />
         ) : (
           <div className="grid grid-cols-2 gap-2">
             <StatTile
-              label="Girdi"
+              label="Girdi sayısı"
               value={fmtNum(computed.withValueCount)}
               sub={dayCountLabel}
             />
@@ -307,7 +307,7 @@ export function PeriodCategoryPanel({
             />
           )}
           <StatTile
-            label={metric.type === "mod" ? "Değerli girdi" : "Girdi"}
+            label="Girdi sayısı"
             value={fmtNum(computed.withValueCount)}
             sub={dayCountLabel}
           />
