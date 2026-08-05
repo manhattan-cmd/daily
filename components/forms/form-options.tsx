@@ -18,7 +18,10 @@ export type OptionItem = {
   title: string;
   /** O anki değer — "1 Ağu · 16:27", "2 seçili", "Kapalı" gibi */
   subtitle: string;
-  active: boolean;
+  /** Aç/kapa satırlarında verilir; eylem satırlarında verilmez */
+  active?: boolean;
+  /** Satır ikonunu vurgula (eylem satırlarında birincil eylemi belirtmek için) */
+  emphasis?: boolean;
   onSelect: () => void;
 };
 
@@ -26,10 +29,13 @@ export function OptionsMenu({
   items,
   /** Ayarlanmış bir şey varsa düğmede nokta belirir */
   touched,
+  /** Menünün üstünde bağlam şeridi — hangi öğenin menüsü olduğunu söyler */
+  header,
   className,
 }: {
   items: OptionItem[];
   touched?: boolean;
+  header?: React.ReactNode;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -62,6 +68,11 @@ export function OptionsMenu({
             onClick={() => setOpen(false)}
           />
           <div className="absolute right-0 top-9 z-40 w-60 overflow-hidden rounded-2xl border border-white/10 bg-card shadow-2xl">
+            {header && (
+              <div className="border-b border-border bg-white/[0.03] px-3 py-2.5">
+                {header}
+              </div>
+            )}
             {items.map((item) => (
               <MenuRow
                 key={item.key}
@@ -91,13 +102,15 @@ function MenuRow({ item, onClick }: { item: OptionItem; onClick: () => void }) {
       <span
         className={cn(
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-          item.active ? "bg-primary/15" : "bg-white/5"
+          item.active || item.emphasis ? "bg-primary/15" : "bg-white/5"
         )}
       >
         <Icon
           className={cn(
             "h-4 w-4",
-            item.active ? "text-primary" : "text-muted-foreground"
+            item.active || item.emphasis
+              ? "text-primary"
+              : "text-muted-foreground"
           )}
         />
       </span>

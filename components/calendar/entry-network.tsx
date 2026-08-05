@@ -9,7 +9,6 @@ import {
   FolderPlus,
   Layers,
   List,
-  MoreHorizontal,
   Network,
   Orbit,
   PenLine,
@@ -27,6 +26,7 @@ import { CategoryTileCore } from "@/components/structure/category-tile";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { CategoryForm } from "@/components/structure/category-form";
 import { HScroll } from "@/components/ui/h-scroll";
+import { OptionsMenu } from "@/components/forms/form-options";
 import { cn } from "@/lib/utils";
 import type { Category, SubCategory } from "@/types";
 
@@ -154,7 +154,6 @@ export function EntryNetwork({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
   const [addSub, setAddSub] = useState<{
     categoryId: string;
     parentId?: string;
@@ -443,7 +442,6 @@ export function EntryNetwork({
     else onSubSelect(focusObj.sub);
   }
   function openAddSub() {
-    setMenuOpen(false);
     if (focusObj == null) return;
     if (focusObj.type === "cat") setAddSub({ categoryId: focusObj.cat.id });
     else
@@ -453,7 +451,6 @@ export function EntryNetwork({
       });
   }
   function goStructure() {
-    setMenuOpen(false);
     if (focusObj == null) return;
     const path =
       focusObj.type === "cat"
@@ -566,70 +563,50 @@ export function EntryNetwork({
         )}
 
         {focusObj != null ? (
-          <div className="relative shrink-0">
-            <button
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-label="Sayfa menüsü"
-              className={cn(
-                "flex h-7 w-7 items-center justify-center rounded-full transition-colors",
-                menuOpen
-                  ? "bg-primary/20 text-primary"
-                  : "bg-white/8 text-muted-foreground hover:bg-white/12 hover:text-foreground"
-              )}
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </button>
-            {menuOpen && (
-              <>
-                {/* Arka planı karart */}
-                <div
-                  className="fixed inset-0 z-30 bg-black/55 backdrop-blur-[1px]"
-                  onClick={() => setMenuOpen(false)}
+          <OptionsMenu
+            header={
+              <div className="flex items-center gap-2.5">
+                <CategoryTileCore
+                  color={centerColor}
+                  icon={focusIcon}
+                  fallback={FolderOpen}
+                  size="sm"
                 />
-                <div className="absolute right-0 top-9 z-40 w-60 overflow-hidden rounded-2xl border border-white/10 bg-card shadow-2xl">
-                  {/* Bağlam başlığı — hangi sayfadayız */}
-                  <div className="flex items-center gap-2.5 border-b border-border bg-white/[0.03] px-3 py-2.5">
-                    <CategoryTileCore
-                      color={centerColor}
-                      icon={focusIcon}
-                      fallback={FolderOpen}
-                      size="sm"
-                    />
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold">
-                        {focusName}
-                      </div>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
-                        {focusObj.type === "cat" ? "kategori" : "alt kategori"}
-                      </div>
-                    </div>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold">
+                    {focusName}
                   </div>
-
-                  <MenuItem
-                    icon={<PenLine className="h-4 w-4 text-primary" />}
-                    title="Girdi ekle"
-                    subtitle="Bu sayfaya kayıt ekle"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      addEntryHere();
-                    }}
-                  />
-                  <MenuItem
-                    icon={<FolderPlus className="h-4 w-4 text-muted-foreground" />}
-                    title="Alt kategori aç"
-                    subtitle="İçine yeni alt kategori"
-                    onClick={openAddSub}
-                  />
-                  <MenuItem
-                    icon={<Layers className="h-4 w-4 text-muted-foreground" />}
-                    title="Yapı sayfası"
-                    subtitle="Düzenle / taşı / sil"
-                    onClick={goStructure}
-                  />
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                    {focusObj.type === "cat" ? "kategori" : "alt kategori"}
+                  </div>
                 </div>
-              </>
-            )}
-          </div>
+              </div>
+            }
+            items={[
+              {
+                key: "add-entry",
+                icon: PenLine,
+                title: "Girdi ekle",
+                subtitle: "Bu sayfaya kayıt ekle",
+                emphasis: true,
+                onSelect: addEntryHere,
+              },
+              {
+                key: "add-sub",
+                icon: FolderPlus,
+                title: "Alt kategori aç",
+                subtitle: "İçine yeni alt kategori",
+                onSelect: openAddSub,
+              },
+              {
+                key: "structure",
+                icon: Layers,
+                title: "Yapı sayfası",
+                subtitle: "Düzenle / taşı / sil",
+                onSelect: goStructure,
+              },
+            ]}
+          />
         ) : (
           <button
             onClick={() => setAddCatOpen(true)}
@@ -844,35 +821,6 @@ export function EntryNetwork({
       {/* Yeni kategori (kök) */}
       <CategoryForm open={addCatOpen} onOpenChange={setAddCatOpen} />
     </div>
-  );
-}
-
-function MenuItem({
-  icon,
-  title,
-  subtitle,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex w-full items-center gap-3 border-t border-border/60 px-3 py-2.5 text-left transition-colors first:border-t-0 hover:bg-white/5 active:bg-white/[0.07]"
-    >
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5">
-        {icon}
-      </span>
-      <span className="min-w-0">
-        <span className="block text-sm font-medium">{title}</span>
-        <span className="block text-[11px] text-muted-foreground">
-          {subtitle}
-        </span>
-      </span>
-    </button>
   );
 }
 

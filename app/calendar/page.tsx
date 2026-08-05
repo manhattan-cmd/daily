@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getMonthDaySummary } from "@/lib/db/queries";
 import { cn } from "@/lib/utils";
+import { swallowNextClick } from "@/lib/use-long-press";
 
 const MONTHS_TR = [
   "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
@@ -31,6 +32,56 @@ export default function CalendarPage() {
     if (month === 11) { setYear((y) => y + 1); setMonth(0); }
     else setMonth((m) => m + 1);
   }
+
+  /**
+   * Yatay kaydırmayla ay değiştirme. Dikey hareket baskınsa jest bırakılır ki
+   * sayfanın kendi kaydırması bozulmasın; sürüklerken ızgara parmağı sönümlü
+   * takip eder, eşiği (60px) geçince ay değişir.
+   */
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+  const [swipeDx, setSwipeDx] = useState(0);
+  const swiping = useRef(false);
+
+  const swipeHandlers = {
+    onPointerDown: (e: React.PointerEvent) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      swipeStart.current = { x: e.clientX, y: e.clientY };
+      swiping.current = false;
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const s = swipeStart.current;
+      if (!s) return;
+      const dx = e.clientX - s.x;
+      const dy = e.clientY - s.y;
+      if (!swiping.current) {
+        if (Math.abs(dx) < 12 || Math.abs(dx) <= Math.abs(dy)) {
+          // Dikey ağır basıyorsa jestten çekil — sayfa kaymaya devam etsin
+          if (Math.abs(dy) > 12) swipeStart.current = null;
+          return;
+        }
+        swiping.current = true;
+      }
+      setSwipeDx(Math.max(-70, Math.min(70, dx * 0.5)));
+    },
+    onPointerUp: (e: React.PointerEvent) => {
+      const s = swipeStart.current;
+      swipeStart.current = null;
+      setSwipeDx(0);
+      if (!s || !swiping.current) return;
+      swiping.current = false;
+      // Yatay jest başladıysa bu bir dokunuş değildir: eşiği geçmese bile
+      // parmağın altındaki gün açılmasın, ızgara yerine otursun
+      swallowNextClick();
+      const dx = e.clientX - s.x;
+      if (dx <= -60) nextMonth();
+      else if (dx >= 60) prevMonth();
+    },
+    onPointerCancel: () => {
+      swipeStart.current = null;
+      swiping.current = false;
+      setSwipeDx(0);
+    },
+  };
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayJS = new Date(year, month, 1).getDay(); // 0=Sun
@@ -76,6 +127,15 @@ export default function CalendarPage() {
         </button>
       </div>
 
+      {/* Ay ızgarası — yatay kaydırmayla ay değişir */}
+      <div
+        {...swipeHandlers}
+        className="touch-pan-y select-none"
+        style={{
+          transform: swipeDx ? `translateX(${swipeDx}px)` : undefined,
+          transition: swipeDx ? "none" : "transform 200ms ease-out",
+        }}
+      >
       {/* Weekday headers */}
       <div className="grid grid-cols-7 mb-1">
         {WEEKDAYS.map((d) => (
@@ -102,6 +162,10 @@ export default function CalendarPage() {
             <Link
               key={day}
               href={`/calendar/${dateStr(day)}`}
+              // Bağlantılar varsayılan olarak sürüklenebilir; tarayıcının yerel
+              // sürükleme jesti kaydırmayı yarıda kesiyordu
+              draggable={false}
+              onDragStart={(e) => e.preventDefault()}
               aria-label={
                 hasEntries
                   ? `${day} ${MONTHS_TR[month]} · ${info!.count} girdi`
@@ -149,6 +213,11 @@ export default function CalendarPage() {
           );
         })}
       </div>
+      </div>
+
+      <p className="mt-3 text-center text-[11px] text-muted-foreground/40">
+        Ay değiştirmek için sağa/sola kaydır
+      </p>
     </div>
   );
 }

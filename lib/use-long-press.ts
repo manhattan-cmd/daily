@@ -5,10 +5,13 @@ import { useRef } from "react";
 /**
  * Jest tetiklendikten sonra gelen click'i — hedefi ne olursa olsun — yutar.
  * Parmak basılıyken birkaç piksel kayınca bırakma anındaki click alttaki
- * karta düşebiliyor ve onu da seçiyordu; yakalama fazında durdurunca hiçbir
- * kart görmüyor. Click hiç gelmezse zamanlayıcı dinleyiciyi temizler.
+ * öğeye düşüp onu tetikliyordu; yakalama fazında durdurunca kimse görmüyor.
+ * Click hiç gelmezse zamanlayıcı dinleyiciyi temizler.
+ *
+ * Basılı tutma dışındaki jestler de kullanır (takvimde ay kaydırma gibi):
+ * jest bitince parmağın altındaki bağlantı açılmasın diye.
  */
-function swallowNextClick() {
+export function swallowNextClick() {
   if (typeof window === "undefined") return;
   const onClick = (e: MouseEvent) => {
     e.stopPropagation();
