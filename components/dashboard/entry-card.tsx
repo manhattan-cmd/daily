@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
 import type { EntryWithContext, EntryType } from "@/types";
-import { deleteEntry } from "@/lib/db/queries";
 import { cn, formatDateTime } from "@/lib/utils";
 import { useLongPress } from "@/lib/use-long-press";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
@@ -18,7 +16,9 @@ import { calcDTRDuration, parseDTR } from "@/components/forms/datetime-range-inp
 
 /**
  * Gün/ana sayfa girdi kartı — uyku kartıyla aynı dil: kategori renginde degrade
- * zemin, karta dokununca düzenleme açılır, silme köşedeki hover ikonu.
+ * zemin, karta dokununca düzenleme açılır. Silme kartta değil, düzenleme
+ * modalının menüsünde: köşedeki ikon yalnız hover'da göründüğünden dokunmatikte
+ * görünmez ama basılabilir durumdaydı (kazara silme).
  * İç içe buton olmaması için kart div[role=button] (QuickModAdd gerçek buton).
  * `selection` verilirse basılı tutmak toplu seçimi başlatır.
  */
@@ -33,12 +33,6 @@ export function EntryCard({
   const color = entry.category.color;
   const isRoot = !!entry.subcategory.isCategoryRoot;
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
-
-  async function onDelete(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (!confirm("Bu girdiyi silmek istediğinden emin misin?")) return;
-    await deleteEntry(entry.id);
-  }
 
   const typedValues = entry.values.filter((v) => v.entryTypeId && v.entryType);
 
@@ -118,20 +112,6 @@ export function EntryCard({
             )}
           </div>
         </div>
-
-        {/* Sil — uyku kartındaki desen: köşede, hover'da belirir */}
-        <span
-          role="button"
-          tabIndex={0}
-          onClick={onDelete}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") onDelete(e as unknown as React.MouseEvent);
-          }}
-          className="absolute right-2 top-2 rounded-lg p-1.5 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground/60 hover:!text-destructive hover:bg-destructive/10"
-          aria-label="Girdiyi sil"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </span>
 
         {selection?.active && (
           <SelectionLayer

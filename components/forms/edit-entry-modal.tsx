@@ -15,6 +15,7 @@ import {
   Plus,
   Repeat,
   Tags,
+  Trash2,
   X,
 } from "lucide-react";
 import {
@@ -70,7 +71,7 @@ interface EditEntryModalProps {
 }
 
 /** Başlık menüsünden açılan bölümler — aynı anda yalnız biri açık kalır */
-type Panel = "time" | "parallel" | "alias" | "regular";
+type Panel = "time" | "parallel" | "alias" | "regular" | "delete";
 
 /** Zaman satırının etiketi — gün girdinin günüyse yalnız saat, değilse gün de */
 function occurredAtLabel(occurredAt: string, entryDate: string): string {
@@ -268,6 +269,7 @@ export function EditEntryModal({
   const [notes, setNotes] = useState(entry.notes ?? "");
   // İkincil ayarlar başlıktaki menüden açılır — aynı anda yalnız biri
   const [panel, setPanel] = useState<Panel | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const togglePanel = (p: Panel) => setPanel((cur) => (cur === p ? null : p));
 
   // "Düzenli / sabit" alt kategori özelliğidir; canlı okunur ve anında yazılır
@@ -671,6 +673,15 @@ export function EditEntryModal({
                     active: panel === "regular",
                     onSelect: () => togglePanel("regular"),
                   },
+                  {
+                    key: "delete",
+                    icon: Trash2,
+                    title: "Girdiyi sil",
+                    subtitle: "Değerleriyle birlikte, geri alınamaz",
+                    tone: "destructive",
+                    active: panel === "delete",
+                    onSelect: () => togglePanel("delete"),
+                  },
                 ]}
               />
             </div>
@@ -835,6 +846,51 @@ export function EditEntryModal({
                       updateSubCategory(entry.subcategoryId, { isRegular: v })
                     }
                   />
+                </div>
+              </PanelBlock>
+            )}
+
+            {panel === "delete" && (
+              <PanelBlock
+                icon={Trash2}
+                title="Girdiyi sil"
+                onClose={() => setPanel(null)}
+              >
+                <div className="rounded-xl border border-destructive/30 bg-destructive/[0.07] p-3">
+                  <p className="text-[11px] leading-snug text-muted-foreground">
+                    <span className="font-medium text-foreground">
+                      {structureName}
+                    </span>{" "}
+                    girdisi değerleriyle birlikte kalıcı olarak silinecek.
+                    {siblings.length > 0 &&
+                      ` Paralel perspektifleri (${siblings.length}) yerinde kalır.`}
+                  </p>
+                  <div className="mt-2.5 flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="h-9 flex-1"
+                      onClick={() => setPanel(null)}
+                      disabled={deleting}
+                    >
+                      Vazgeç
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      className="h-9 flex-1"
+                      disabled={deleting}
+                      onClick={async () => {
+                        setDeleting(true);
+                        try {
+                          await deleteEntry(entry.id);
+                          onOpenChange(false);
+                        } finally {
+                          setDeleting(false);
+                        }
+                      }}
+                    >
+                      {deleting ? "Siliniyor..." : "Sil"}
+                    </Button>
+                  </div>
                 </div>
               </PanelBlock>
             )}

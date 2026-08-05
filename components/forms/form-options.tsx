@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, X } from "lucide-react";
+import { ChevronRight, MoreHorizontal, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +22,8 @@ export type OptionItem = {
   active?: boolean;
   /** Satır ikonunu vurgula (eylem satırlarında birincil eylemi belirtmek için) */
   emphasis?: boolean;
+  /** Yıkıcı eylemler en altta, ayrı bir bölmede ve kırmızı durur */
+  tone?: "default" | "destructive";
   onSelect: () => void;
 };
 
@@ -40,6 +42,9 @@ export function OptionsMenu({
 }) {
   const [open, setOpen] = useState(false);
   if (!items.length) return null;
+  // Yıkıcı eylemler ayrı bölmede, en altta
+  const normal = items.filter((i) => i.tone !== "destructive");
+  const destructive = items.filter((i) => i.tone === "destructive");
 
   return (
     <div className={cn("relative shrink-0", className)}>
@@ -64,25 +69,41 @@ export function OptionsMenu({
       {open && (
         <>
           <div
-            className="fixed inset-0 z-30 bg-black/55 backdrop-blur-[1px]"
+            className="fixed inset-0 z-30 bg-black/60 backdrop-blur-[2px]"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute right-0 top-9 z-40 w-60 overflow-hidden rounded-2xl border border-white/10 bg-card shadow-2xl">
+          <div className="animate-in absolute right-0 top-10 z-40 w-64 origin-top-right overflow-hidden rounded-2xl border border-white/[0.09] bg-card/95 shadow-[0_16px_48px_rgba(0,0,0,0.55)] backdrop-blur-xl">
             {header && (
-              <div className="border-b border-border bg-white/[0.03] px-3 py-2.5">
+              <div className="border-b border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
                 {header}
               </div>
             )}
-            {items.map((item) => (
-              <MenuRow
-                key={item.key}
-                item={item}
-                onClick={() => {
-                  setOpen(false);
-                  item.onSelect();
-                }}
-              />
-            ))}
+            <div className="p-1.5">
+              {normal.map((item) => (
+                <MenuRow
+                  key={item.key}
+                  item={item}
+                  onClick={() => {
+                    setOpen(false);
+                    item.onSelect();
+                  }}
+                />
+              ))}
+            </div>
+            {destructive.length > 0 && (
+              <div className="border-t border-white/[0.06] p-1.5">
+                {destructive.map((item) => (
+                  <MenuRow
+                    key={item.key}
+                    item={item}
+                    onClick={() => {
+                      setOpen(false);
+                      item.onSelect();
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}
@@ -92,34 +113,62 @@ export function OptionsMenu({
 
 function MenuRow({ item, onClick }: { item: OptionItem; onClick: () => void }) {
   const Icon = item.icon;
+  const bad = item.tone === "destructive";
+  const lit = !bad && (item.active || item.emphasis);
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={item.active}
-      className="flex w-full items-center gap-3 border-t border-border/60 px-3 py-2.5 text-left transition-colors first:border-t-0 hover:bg-white/5 active:bg-white/[0.07]"
+      className={cn(
+        "group flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-colors",
+        bad
+          ? "hover:bg-destructive/10 active:bg-destructive/15"
+          : item.active
+            ? "bg-primary/[0.09]"
+            : "hover:bg-white/[0.06] active:bg-white/[0.09]"
+      )}
     >
       <span
         className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-          item.active || item.emphasis ? "bg-primary/15" : "bg-white/5"
+          "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors",
+          bad
+            ? "bg-destructive/12 text-destructive"
+            : lit
+              ? "bg-primary/20 text-primary"
+              : "bg-white/[0.06] text-muted-foreground group-hover:text-foreground"
         )}
       >
-        <Icon
-          className={cn(
-            "h-4 w-4",
-            item.active || item.emphasis
-              ? "text-primary"
-              : "text-muted-foreground"
-          )}
-        />
+        <Icon className="h-4 w-4" />
       </span>
+
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium">{item.title}</span>
-        <span className="block truncate text-[11px] text-muted-foreground">
+        <span
+          className={cn(
+            "block text-[13px] font-medium leading-tight",
+            bad ? "text-destructive" : "text-foreground"
+          )}
+        >
+          {item.title}
+        </span>
+        <span className="mt-0.5 block truncate text-[11px] leading-tight text-muted-foreground/70">
           {item.subtitle}
         </span>
       </span>
+
+      {/* Açık olan bölüm nokta ile, diğerleri ok ile işaretlenir */}
+      {item.active ? (
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+      ) : (
+        <ChevronRight
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 transition-colors",
+            bad
+              ? "text-destructive/40"
+              : "text-muted-foreground/30 group-hover:text-muted-foreground/70"
+          )}
+        />
+      )}
     </button>
   );
 }

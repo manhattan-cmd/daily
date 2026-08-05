@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { MoonStar, Trash2 } from "lucide-react";
+import { MoonStar } from "lucide-react";
 import type { EntryWithContext } from "@/types";
-import { deleteEntry } from "@/lib/db/queries";
 import {
   parseDTR,
   calcDTRDuration,
@@ -46,12 +45,6 @@ export function SleepCard({
 
   const qualityMax = qualityValue?.entryType?.choices?.length ?? 5;
   const qualityNum = qualityValue ? Number(qualityValue.value) : null;
-
-  async function onDelete(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (!confirm("Bu uyku kaydını silmek istediğinden emin misin?")) return;
-    await deleteEntry(entry.id);
-  }
 
   return (
     <>
@@ -119,18 +112,6 @@ export function SleepCard({
             </div>
           )}
 
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={onDelete}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") onDelete(e as unknown as React.MouseEvent);
-            }}
-            className="absolute right-2 top-2 rounded-lg p-1.5 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground/60 hover:!text-destructive hover:bg-destructive/10"
-            aria-label="Uyku kaydını sil"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </span>
         </div>
 
         {selection?.active && (

@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Link2, Trash2, Pencil } from "lucide-react";
+import { Link2, Pencil } from "lucide-react";
 import type { EntryWithContext, EntryType } from "@/types";
-import { deleteEntry } from "@/lib/db/queries";
 import { Button } from "@/components/ui/button";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { EntryIcon } from "@/components/dashboard/entry-icon";
@@ -24,7 +23,6 @@ export function LinkedEntryCard({
   entries: EntryWithContext[];
   selection?: EntrySelection;
 }) {
-  const [deleting, setDeleting] = useState(false);
   const [editingEntry, setEditingEntry] = useState<EntryWithContext | null>(null);
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
   const shared = entries[0];
@@ -54,16 +52,6 @@ export function LinkedEntryCard({
     .map((tid) => firstValueByTypeId.get(tid)!)
     .filter(Boolean);
 
-  async function onDeleteAll() {
-    if (!confirm("Bu paralel girdiyi tüm perspektiflerle silmek istediğinden emin misin?")) return;
-    setDeleting(true);
-    try {
-      await Promise.all(entries.map((e) => deleteEntry(e.id)));
-    } finally {
-      setDeleting(false);
-    }
-  }
-
   return (
     <>
       {/* Karta dokunmak ana perspektifi düzenler (EntryCard ile aynı davranış);
@@ -92,19 +80,6 @@ export function LinkedEntryCard({
           <span className="font-semibold text-sm flex-1 truncate">{shared.subcategory.name}</span>
           <Link2 className="h-3.5 w-3.5 text-violet-400/60 shrink-0" />
           <span className="text-xs text-muted-foreground/60 shrink-0">{time}</span>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7 ml-1 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDeleteAll();
-            }}
-            disabled={deleting}
-            aria-label="Tüm perspektiflerle sil"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
         </div>
 
         {/* Shared values — shown once, between header and perspectives */}
