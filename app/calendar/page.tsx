@@ -34,16 +34,50 @@ export default function CalendarPage() {
   }
 
   /**
-   * Yatay kaydırmayla ay değiştirme. Dikey hareket baskınsa jest bırakılır ki
-   * sayfanın kendi kaydırması bozulmasın; sürüklerken ızgara parmağı sönümlü
-   * takip eder, eşiği (60px) geçince ay değişir.
+   * Yatay kaydırmayla ay değiştirme — sayfanın herhangi bir yerinden başlar.
+   * Parmak birebir takip edilir; eşiği (55px) geçince ay, kayıp-solarak
+   * çıkıp karşı taraftan girer. Dikey hareket baskınsa jestten çekilir ki
+   * sayfanın kendi kaydırması bozulmasın.
    */
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
-  const [swipeDx, setSwipeDx] = useState(0);
   const swiping = useRef(false);
+  const busy = useRef(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [dx, setDx] = useState(0);
+  const [fade, setFade] = useState(1);
+  const [gliding, setGliding] = useState(false);
+
+  /** Çıkış-giriş animasyonu: mevcut ay kayıp solar, yeni ay karşı taraftan gelir */
+  function glide(dir: -1 | 1) {
+    if (busy.current) return;
+    busy.current = true;
+    const w = rootRef.current?.clientWidth ?? 340;
+    const out = dir * w * 0.3;
+    setGliding(true);
+    setDx(out);
+    setFade(0);
+    window.setTimeout(() => {
+      if (dir < 0) nextMonth();
+      else prevMonth();
+      // Karşı tarafa ışınla (animasyonsuz), sonra yerine süzül
+      setGliding(false);
+      setDx(-out);
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          setGliding(true);
+          setDx(0);
+          setFade(1);
+          window.setTimeout(() => {
+            busy.current = false;
+          }, 180);
+        })
+      );
+    }, 140);
+  }
 
   const swipeHandlers = {
     onPointerDown: (e: React.PointerEvent) => {
+      if (busy.current) return;
       if (e.pointerType === "mouse" && e.button !== 0) return;
       swipeStart.current = { x: e.clientX, y: e.clientY };
       swiping.current = false;
@@ -51,36 +85,55 @@ export default function CalendarPage() {
     onPointerMove: (e: React.PointerEvent) => {
       const s = swipeStart.current;
       if (!s) return;
-      const dx = e.clientX - s.x;
-      const dy = e.clientY - s.y;
+      const mx = e.clientX - s.x;
+      const my = e.clientY - s.y;
       if (!swiping.current) {
-        if (Math.abs(dx) < 12 || Math.abs(dx) <= Math.abs(dy)) {
-          // Dikey ağır basıyorsa jestten çekil — sayfa kaymaya devam etsin
-          if (Math.abs(dy) > 12) swipeStart.current = null;
+        if (Math.abs(mx) < 10 || Math.abs(mx) <= Math.abs(my)) {
+          // Dikey ağır basıyorsa jestten çekil
+          if (Math.abs(my) > 10) swipeStart.current = null;
           return;
         }
         swiping.current = true;
+        setGliding(false);
       }
-      setSwipeDx(Math.max(-70, Math.min(70, dx * 0.5)));
+      const w = rootRef.current?.clientWidth ?? 340;
+      const clamped = Math.max(-w * 0.6, Math.min(w * 0.6, mx));
+      setDx(clamped);
+      // Eşiğe yaklaştıkça hafifçe soluyor — bırakınca ne olacağını sezdirir
+      setFade(1 - Math.min(0.55, Math.abs(clamped) / (w * 0.9)));
     },
     onPointerUp: (e: React.PointerEvent) => {
       const s = swipeStart.current;
       swipeStart.current = null;
-      setSwipeDx(0);
       if (!s || !swiping.current) return;
       swiping.current = false;
       // Yatay jest başladıysa bu bir dokunuş değildir: eşiği geçmese bile
-      // parmağın altındaki gün açılmasın, ızgara yerine otursun
+      // parmağın altındaki gün açılmasın
       swallowNextClick();
-      const dx = e.clientX - s.x;
-      if (dx <= -60) nextMonth();
-      else if (dx >= 60) prevMonth();
+      const total = e.clientX - s.x;
+      if (total <= -55) return glide(-1);
+      if (total >= 55) return glide(1);
+      setGliding(true);
+      setDx(0);
+      setFade(1);
     },
     onPointerCancel: () => {
       swipeStart.current = null;
       swiping.current = false;
-      setSwipeDx(0);
+      setGliding(true);
+      setDx(0);
+      setFade(1);
     },
+  };
+
+  /** Kaydırmayla birlikte hareket eden içerik (ay adı + ızgara) */
+  const glideStyle: React.CSSProperties = {
+    transform: dx ? `translate3d(${dx}px,0,0)` : undefined,
+    opacity: fade,
+    transition: gliding
+      ? "transform 180ms cubic-bezier(0.22,1,0.36,1), opacity 180ms ease-out"
+      : "none",
+    willChange: "transform, opacity",
   };
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -100,8 +153,15 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="flex flex-col pt-10 pb-4">
-      {/* Month navigation */}
+    /* Jest sayfanın tamamında: ızgaranın dışından da kaydırılabilir */
+    <div
+      ref={rootRef}
+      {...swipeHandlers}
+      // min-h-full: jest alanı içerikle sınırlı kalmasın, altındaki boşluktan
+      // da kaydırılabilsin
+      className="flex min-h-full touch-pan-y select-none flex-col overflow-hidden pt-10 pb-4"
+    >
+      {/* Ay gezintisi — oklar sabit kalır, ay adı içerikle birlikte kayar */}
       <div className="flex items-center justify-between mb-8">
         <button
           onClick={prevMonth}
@@ -111,7 +171,7 @@ export default function CalendarPage() {
           <ChevronLeft className="h-5 w-5" />
         </button>
 
-        <div className="text-center">
+        <div className="text-center" style={glideStyle}>
           <h1 className="text-xl font-semibold tracking-tight">
             {MONTHS_TR[month]}
           </h1>
@@ -127,15 +187,7 @@ export default function CalendarPage() {
         </button>
       </div>
 
-      {/* Ay ızgarası — yatay kaydırmayla ay değişir */}
-      <div
-        {...swipeHandlers}
-        className="touch-pan-y select-none"
-        style={{
-          transform: swipeDx ? `translateX(${swipeDx}px)` : undefined,
-          transition: swipeDx ? "none" : "transform 200ms ease-out",
-        }}
-      >
+      <div style={glideStyle}>
       {/* Weekday headers */}
       <div className="grid grid-cols-7 mb-1">
         {WEEKDAYS.map((d) => (
@@ -214,10 +266,6 @@ export default function CalendarPage() {
         })}
       </div>
       </div>
-
-      <p className="mt-3 text-center text-[11px] text-muted-foreground/40">
-        Ay değiştirmek için sağa/sola kaydır
-      </p>
     </div>
   );
 }
