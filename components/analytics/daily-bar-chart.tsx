@@ -14,6 +14,8 @@ import { ArrowRight } from "lucide-react";
 import { fmtNum, type DayBucket } from "@/lib/analytics";
 
 const MARGIN_RIGHT = 4;
+/** Balon yüksekliği — sütunun üstünde bu kadar yer yoksa aşağı açılır */
+const BALLOON_H = 72;
 
 /**
  * Seri kolon grafiği (günlük/haftalık/aylık kovalar) — tek seri, tek renk.
@@ -66,15 +68,29 @@ export function DailyBarChart({
   // gerçek fare hareketi serbest bırakır; masaüstü hover akışı etkilenmez.
   const [tipDismissed, setTipDismissed] = useState(false);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Seçilen kova — dokunuş doğrudan gitmez, altta "git" bağlantısı belirir.
-  // Ani yönlendirme (parmak kalkar kalkmaz sayfa değişmesi) rahatsız ediciydi.
-  const [picked, setPicked] = useState<DayBucket | null>(null);
+  // Seçilen kova + balonun sütuna göre konumu. Dokunuş doğrudan gitmez:
+  // sütunun üstünde küçük bir balon açılır, gitmek balonun içindeki
+  // bağlantıyla olur. Boşluğa dokunmak kapatır.
+  const [picked, setPicked] = useState<
+    { bucket: DayBucket; x: number; y: number } | null
+  >(null);
+  const boxRef = useRef<HTMLDivElement>(null);
   useEffect(
     () => () => {
       if (dismissTimer.current) clearTimeout(dismissTimer.current);
     },
     []
   );
+
+  // Grafiğin dışına dokunmak balonu kapatır
+  useEffect(() => {
+    if (!picked) return;
+    const onDown = (e: PointerEvent) => {
+      if (!boxRef.current?.contains(e.target as Node)) setPicked(null);
+    };
+    window.addEventListener("pointerdown", onDown);
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, [picked]);
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType !== "mouse") {
@@ -95,12 +111,22 @@ export function DailyBarChart({
     const idx = Math.floor((relX / plotWidth) * data.length);
     const b = idx >= 0 && idx < data.length ? data[idx] : undefined;
     // Boş kovada gidilecek bir şey yok; dokunuş seçimi de temizler
-    setPicked(b && b.value > 0 && b.periodKey ? b : null);
+    if (!b || b.value <= 0 || !b.periodKey) return setPicked(null);
+
+    // Balonu sütunun tepesine tuttur — sütun DOM'dan okunur, okunamazsa
+    // dokunulan noktanın biraz üstünde açılır
+    const bar = boxRef.current
+      ?.querySelectorAll(".recharts-bar-rectangle")
+      ?.[idx]?.getBoundingClientRect();
+    const x = bar ? bar.left + bar.width / 2 - rect.left : e.clientX - rect.left;
+    const y = bar ? bar.top - rect.top : e.clientY - rect.top - 12;
+    setPicked({ bucket: b, x, y });
   };
 
   return (
     <>
     <div
+      ref={boxRef}
       className={`relative h-[170px] w-full select-none [-webkit-tap-highlight-color:transparent]${onSelect ? " cursor-pointer" : ""}`}
       onPointerDown={(e) => {
         pointerDown.current = { x: e.clientX, y: e.clientY };
@@ -155,11 +181,15 @@ export function DailyBarChart({
           />
           {/* cursor kapalı: kolon boyu gri dikdörtgen bandı "çerçeve" gibi
               algılanıyordu — vurgu activeBar'ın parlamasına bırakıldı */}
-          <Tooltip
-            cursor={false}
-            active={tipDismissed ? false : undefined}
-            content={<ChartTip unit={unit} />}
-          />
+          {/* Kendi balonu olan grafiklerde (onSelect) recharts balonu kapalı —
+              ikisi üst üste binmesin */}
+          {!onSelect && (
+            <Tooltip
+              cursor={false}
+              active={tipDismissed ? false : undefined}
+              content={<ChartTip unit={unit} />}
+            />
+          )}
           <Bar
             dataKey="value"
             fill={color}
@@ -170,6 +200,52 @@ export function DailyBarChart({
           />
         </BarChart>
       </ResponsiveContainer>
+
+      {/* Seçilen sütunun balonu — sütunun tepesinde, ön planda. Sütun uzunsa
+          yukarıda yer kalmaz (balon karttan taşıp üstteki kutulara binerdi):
+          o durumda sütunun üstüne doğru aşağı açılır. */}
+      {onSelect && picked && (
+        <div
+          className="animate-in pointer-events-none absolute z-20"
+          style={{
+            left: Math.min(
+              Math.max(picked.x, 56),
+              (boxRef.current?.clientWidth ?? 340) - 56
+            ),
+            top: picked.y < BALLOON_H ? picked.y + 8 : picked.y - 8,
+            transform:
+              picked.y < BALLOON_H
+                ? "translate(-50%, 0)"
+                : "translate(-50%, -100%)",
+          }}
+        >
+          <div className="pointer-events-auto overflow-hidden rounded-xl border border-white/10 bg-[#1c1c1f]/95 shadow-[0_10px_30px_rgba(0,0,0,0.5)] backdrop-blur-sm">
+            <div className="px-2.5 pb-1.5 pt-2">
+              <div className="whitespace-nowrap text-sm font-semibold leading-none">
+                {fmtNum(picked.bucket.value)}
+                {unit && (
+                  <span className="ml-1 text-[11px] font-normal text-muted-foreground">
+                    {unit}
+                  </span>
+                )}
+              </div>
+              <div className="mt-1 whitespace-nowrap text-[10px] leading-none text-muted-foreground">
+                {picked.bucket.full}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                picked.bucket.periodKey && onSelect(picked.bucket.periodKey)
+              }
+              className="flex w-full items-center justify-center gap-1 border-t border-white/10 px-2.5 py-1.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10"
+            >
+              Aç
+              <ArrowRight className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
     {caption && (
       <div className="mt-1 text-center text-[10px] font-medium text-muted-foreground">
@@ -177,26 +253,6 @@ export function DailyBarChart({
       </div>
     )}
 
-    {/* Seçilen kova — değeri gösterir, gitmeyi kullanıcı seçer */}
-    {onSelect && picked && (
-      <button
-        type="button"
-        onClick={() => picked.periodKey && onSelect(picked.periodKey)}
-        className="mt-2 flex w-full items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-left transition-colors hover:bg-muted/40"
-      >
-        <span className="min-w-0 flex-1 truncate text-xs">
-          <span className="font-medium">{picked.full}</span>
-          <span className="text-muted-foreground">
-            {" · "}
-            {fmtNum(picked.value)} {unit ?? ""}
-          </span>
-        </span>
-        <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-primary">
-          Aç
-          <ArrowRight className="h-3 w-3" />
-        </span>
-      </button>
-    )}
     </>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ChevronRight } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   bucketAncestorId,
   bucketKeyOf,
@@ -29,7 +29,6 @@ import { EntryListSection, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
-import { cn } from "@/lib/utils";
 import type { Category, Entry, SubCategory } from "@/types";
 
 /**
@@ -235,10 +234,69 @@ export function PeriodCategoryPanel({
   const dayCountLabel = isDay
     ? periodShortLabel(period)
     : `${progress.elapsedDays} günde`;
+  /** Derine inildiyse bölüm başlıkları hangi kaleme ait olduğunu yazar */
+  const scopePrefix = focus ? (
+    <span style={{ color: `${category.color}dd` }}>{focus.name} · </span>
+  ) : null;
   const metricLabel = metric.type === "count" ? "girdi" : unit;
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Kapsam şeridi — derine inildiğinde aşağıdaki HER ŞEYİN (istatistik,
+          grafik, kırılım, liste) hangi kaleme ait olduğunu söyler. Yoksa
+          Yemek rakamlarına bakarken Harcamalar sanılabiliyordu. */}
+      {path.length > 0 && (
+        <div
+          className="flex items-center gap-1.5 rounded-xl border px-2 py-1.5"
+          style={{
+            borderColor: `${category.color}40`,
+            backgroundColor: `${category.color}0f`,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setPath(path.slice(0, -1))}
+            aria-label="Bir üst kaleme dön"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-white/8 text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </button>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center text-xs">
+            <button
+              type="button"
+              onClick={() => setPath([])}
+              className="rounded px-1 py-0.5 font-medium text-muted-foreground underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground"
+            >
+              {category.name}
+            </button>
+            {path.map((s, i) => {
+              const last = i === path.length - 1;
+              return (
+                <span key={s.id} className="flex min-w-0 items-center">
+                  <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/40" />
+                  {last ? (
+                    <span
+                      className="max-w-[150px] truncate px-1 py-0.5 font-semibold"
+                      style={{ color: `${category.color}ee` }}
+                    >
+                      {s.name}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setPath(path.slice(0, i + 1))}
+                      className="max-w-[130px] truncate rounded px-1 py-0.5 font-medium text-muted-foreground underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground"
+                    >
+                      {s.name}
+                    </button>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <MetricChips
         numericMods={data.numericMods}
         metric={metric}
@@ -337,7 +395,8 @@ export function PeriodCategoryPanel({
       {/* Seri — bir günden uzun dönemlerde */}
       {computed.hasSeries && (
         <div className="rounded-2xl border border-border bg-card p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {scopePrefix}
             {GRANULARITY_TITLES[computed.granularity]}{" "}
             {metric.type === "count" ? "girdi" : metric.mod.name}
             {metric.type === "mod" && (
@@ -362,7 +421,8 @@ export function PeriodCategoryPanel({
       <div className="rounded-2xl border border-border bg-card p-4">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="min-w-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {focus ? `${focus.name} · Kırılım` : "Alt Kategori Dağılımı"}
+            {scopePrefix}
+            {focus ? "Kırılım" : "Alt Kategori Dağılımı"}
             {metric.type === "mod" && (
               <span className="normal-case font-normal text-muted-foreground/60">
                 {" "}
@@ -381,36 +441,7 @@ export function PeriodCategoryPanel({
           )}
         </div>
 
-        {/* İnilen yol — dönem bağlamı korunarak yukarı çıkılır */}
-        {path.length > 0 && (
-          <div className="mb-2 flex flex-wrap items-center gap-0.5 text-xs">
-            <button
-              type="button"
-              onClick={() => setPath([])}
-              className="rounded px-1 py-0.5 text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {category.name}
-            </button>
-            {path.map((s, i) => (
-              <span key={s.id} className="flex items-center">
-                <ChevronRight className="h-3 w-3 text-muted-foreground/40" />
-                <button
-                  type="button"
-                  onClick={() => setPath(path.slice(0, i + 1))}
-                  className={cn(
-                    "max-w-[130px] truncate rounded px-1 py-0.5 transition-colors",
-                    i === path.length - 1
-                      ? "font-semibold text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {s.name}
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-
+        {/* Yol artık panelin tepesindeki kapsam şeridinde — burada tekrar etmez */}
         <ShareBars
           rows={computed.shareRows}
           emptyText={
@@ -430,7 +461,7 @@ export function PeriodCategoryPanel({
 
       {/* Girdi listesi */}
       <EntryListSection
-        title="Girdi Listesi"
+        title={focus ? `${focus.name} · Girdi Listesi` : "Girdi Listesi"}
         accent={category.color}
         rows={computed.entryRows}
         emptyText={
