@@ -306,28 +306,8 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         </div>
       </div>
 
-      {/* Trend — ilk girdiden bugüne */}
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-          {GRANULARITY_TITLES[computed.granularity]}{" "}
-          {metric.type === "count" ? "girdi" : metric.mod.name}
-          {metric.type === "mod" && (
-            <span className="normal-case font-normal text-muted-foreground/60">
-              {" "}
-              ({compute.bucketIsAvg ? "ortalama" : "toplam"})
-            </span>
-          )}{" "}
-          · Tüm Zamanlar
-        </h3>
-        <DailyBarChart
-          data={computed.buckets}
-          color={category.color}
-          unit={metric.type === "count" ? "girdi" : unit}
-          caption={computed.seriesFrame?.caption}
-        />
-      </div>
-
-      {/* Alt kategori kırılımı — satıra basınca alt kategori detayına inilir */}
+      {/* Alt kategori kırılımı — trendden ÖNCE: önce "ne nereye gitmiş"
+          görülür, istenirse alt kategoriye inilir, sonra trend incelenir */}
       <div className="rounded-2xl border border-border bg-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
           Alt Kategori Dağılımı
@@ -352,6 +332,27 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
               }`
             )
           }
+        />
+      </div>
+
+      {/* Trend — ilk girdiden bugüne */}
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+          {GRANULARITY_TITLES[computed.granularity]}{" "}
+          {metric.type === "count" ? "girdi" : metric.mod.name}
+          {metric.type === "mod" && (
+            <span className="normal-case font-normal text-muted-foreground/60">
+              {" "}
+              ({compute.bucketIsAvg ? "ortalama" : "toplam"})
+            </span>
+          )}{" "}
+          · Tüm Zamanlar
+        </h3>
+        <DailyBarChart
+          data={computed.buckets}
+          color={category.color}
+          unit={metric.type === "count" ? "girdi" : unit}
+          caption={computed.seriesFrame?.caption}
         />
       </div>
 

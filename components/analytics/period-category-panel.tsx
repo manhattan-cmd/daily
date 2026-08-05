@@ -392,32 +392,9 @@ export function PeriodCategoryPanel({
         </div>
       )}
 
-      {/* Seri — bir günden uzun dönemlerde */}
-      {computed.hasSeries && (
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {scopePrefix}
-            {GRANULARITY_TITLES[computed.granularity]}{" "}
-            {metric.type === "count" ? "girdi" : metric.mod.name}
-            {metric.type === "mod" && (
-              <span className="normal-case font-normal text-muted-foreground/60">
-                {" "}
-                ({compute.bucketIsAvg ? "ortalama" : "toplam"})
-              </span>
-            )}
-          </h3>
-          <DailyBarChart
-            data={computed.buckets}
-            color={category.color}
-            unit={metric.type === "count" ? "girdi" : unit}
-            caption={computed.seriesFrame?.caption}
-            showAllTicks={computed.seriesFrame?.showAllTicks}
-          />
-        </div>
-      )}
-
-      {/* Alt kategori kırılımı — satıra basınca aynı dönem içinde bir kademe
-          derine inilir (dönemden çıkılmaz) */}
+      {/* Alt kategori kırılımı — seriden ÖNCE: önce "ne nereye gitmiş"
+          görülür, istenirse bir kademe derine inilir (dönemden çıkılmadan),
+          sonra o kapsamın zaman serisi incelenir */}
       <div className="rounded-2xl border border-border bg-card p-4">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="min-w-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -458,6 +435,30 @@ export function PeriodCategoryPanel({
           }}
         />
       </div>
+
+      {/* Seri — bir günden uzun dönemlerde */}
+      {computed.hasSeries && (
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {scopePrefix}
+            {GRANULARITY_TITLES[computed.granularity]}{" "}
+            {metric.type === "count" ? "girdi" : metric.mod.name}
+            {metric.type === "mod" && (
+              <span className="normal-case font-normal text-muted-foreground/60">
+                {" "}
+                ({compute.bucketIsAvg ? "ortalama" : "toplam"})
+              </span>
+            )}
+          </h3>
+          <DailyBarChart
+            data={computed.buckets}
+            color={category.color}
+            unit={metric.type === "count" ? "girdi" : unit}
+            caption={computed.seriesFrame?.caption}
+            showAllTicks={computed.seriesFrame?.showAllTicks}
+          />
+        </div>
+      )}
 
       {/* Girdi listesi */}
       <EntryListSection

@@ -270,28 +270,9 @@ export function SubcategoryPanel({
         />
       </div>
 
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-          {GRANULARITY_TITLES[computed.granularity]}{" "}
-          {metric.type === "count" ? "girdi" : metric.mod.name}
-          {metric.type === "mod" && (
-            <span className="normal-case font-normal text-muted-foreground/60">
-              {" "}
-              ({compute.bucketIsAvg ? "ortalama" : "toplam"})
-            </span>
-          )}{" "}
-          · {RANGE_LABELS[range]}
-        </h3>
-        <DailyBarChart
-          data={computed.buckets}
-          color={category.color}
-          unit={metricLabel}
-          caption={computed.seriesFrame?.caption}
-          showAllTicks={computed.seriesFrame?.showAllTicks}
-        />
-      </div>
-
-      {/* Alt kategori kırılımı — yalnızca alt kategorisi olan düğümlerde gösterilir */}
+      {/* Alt kategori kırılımı — seriden ÖNCE: önce "ne nereye gitmiş"
+          görülür, istenirse alt kategoriye inilir, sonra seri incelenir.
+          Yalnızca alt kategorisi olan düğümlerde gösterilir */}
       {hasChildren && (
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
@@ -317,6 +298,27 @@ export function SubcategoryPanel({
           />
         </div>
       )}
+
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+          {GRANULARITY_TITLES[computed.granularity]}{" "}
+          {metric.type === "count" ? "girdi" : metric.mod.name}
+          {metric.type === "mod" && (
+            <span className="normal-case font-normal text-muted-foreground/60">
+              {" "}
+              ({compute.bucketIsAvg ? "ortalama" : "toplam"})
+            </span>
+          )}{" "}
+          · {RANGE_LABELS[range]}
+        </h3>
+        <DailyBarChart
+          data={computed.buckets}
+          color={category.color}
+          unit={metricLabel}
+          caption={computed.seriesFrame?.caption}
+          showAllTicks={computed.seriesFrame?.showAllTicks}
+        />
+      </div>
 
       <EntryListSection
         title="Girdi Listesi"
