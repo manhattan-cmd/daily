@@ -118,10 +118,11 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         const s = subById.get(id)!;
         return {
           id,
-          name: s.isCategoryRoot ? "Genel" : s.name,
+          name: s.isCategoryRoot ? category.name : s.name,
           color: category.color,
           value,
           display: unit ? `${fmtNum(value)} ${unit}` : fmtNum(value),
+          drillable: !s.isCategoryRoot,
         };
       });
 
@@ -139,7 +140,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
           occurredAt: e.occurredAt,
           title: e.title,
           notes: e.notes,
-          subLabel: sub ? (sub.isCategoryRoot ? "Genel" : sub.name) : undefined,
+          subLabel: sub ? (sub.isCategoryRoot ? category.name : sub.name) : undefined,
           valueLabel:
             metric.type === "mod"
               ? `${fmtNum(valueByEntry.get(e.id) ?? 0)}${unit ? ` ${unit}` : ""}`

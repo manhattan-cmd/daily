@@ -179,17 +179,18 @@ export function PeriodCategoryPanel({
       .filter((r) => r.value > 0)
       .map(({ id, value }) => {
         const s = subById.get(id)!;
-        // Odaklanılan kalemin KENDİ doğrudan girdileri (alt kaleme değil,
-        // doğrudan ona yazılmış) kendi id'sinde toplanır — kendi adıyla
-        // listelenirse "Yemek içinde Yemek" gibi görünüp sonsuz iniyordu.
-        // Kategori kökündeki karşılığı gibi "Genel" adıyla gösterilir.
+        // Kalemin KENDİ doğrudan girdileri (alt kalemine değil, doğrudan ona
+        // yazılmış) kendi id'sinde toplanır. Adıyla listelenir ama inilecek
+        // bir kademe değildir — tıklanabilir olsaydı kendi içine sonsuz
+        // inilirdi (Yemek > Yemek > ...).
         const isSelf = id === focus?.id || s.isCategoryRoot;
         return {
           id,
-          name: isSelf ? "Genel" : s.name,
+          name: s.isCategoryRoot ? category.name : s.name,
           color: category.color,
           value,
           display: unit ? `${fmtNum(value)} ${unit}` : fmtNum(value),
+          drillable: !isSelf,
         };
       });
 
@@ -206,7 +207,11 @@ export function PeriodCategoryPanel({
           occurredAt: e.occurredAt,
           title: e.title,
           notes: e.notes,
-          subLabel: sub ? (sub.isCategoryRoot ? "Genel" : sub.name) : undefined,
+          subLabel: sub
+            ? sub.isCategoryRoot
+              ? category.name
+              : sub.name
+            : undefined,
           valueLabel:
             metric.type === "mod"
               ? `${fmtNum(valueByEntry.get(e.id) ?? 0)}${unit ? ` ${unit}` : ""}`
@@ -228,7 +233,7 @@ export function PeriodCategoryPanel({
       shareRows,
       entryRows,
     };
-  }, [data, compute, metric.type, period, containingWeek, category.color, focus?.id]);
+  }, [data, compute, metric.type, period, containingWeek, category, focus?.id]);
 
   if (!data || !compute || !computed) return null;
 
@@ -438,8 +443,8 @@ export function PeriodCategoryPanel({
           onSelect={(subId) => {
             const sub = data.subById.get(subId);
             if (!sub) return;
-            // "Genel" satırları (kategori kökü ya da odağın kendi girdileri)
-            // bir alt kademe değil — inilecek bir yer yok
+            // Kalemin kendi doğrudan girdileri (kategori kökü ya da odağın
+            // kendisi) bir alt kademe değil — inilecek bir yer yok
             if (sub.isCategoryRoot || sub.id === focus?.id) return;
             // Aynı düğüm yolda varsa tekrar eklenmez (döngü koruması)
             setPath((p) => (p.some((s) => s.id === sub.id) ? p : [...p, sub]));

@@ -145,7 +145,7 @@ export function SubcategoryPanel({
         : null;
 
     // Alt kategori kırılımı — yalnızca bir kademe altı (immediate children); kendi üzerine düşen
-    // girdiler "Genel" adıyla ayrı bir satırda toplanır
+    // girdiler kalemin kendi adıyla ayrı bir satırda toplanır (tıklanamaz)
     const shareEntries = entries.filter((e) => e.occurredAt >= shareRangeStart);
     const bySubEntries = new Map<string, Entry[]>();
     for (const e of shareEntries) {
@@ -163,10 +163,12 @@ export function SubcategoryPanel({
         const s = isSelf ? subcategory : subById.get(id);
         return {
           id,
-          name: isSelf ? "Genel" : s?.name ?? "—",
+          name: s?.name ?? "—",
           color: category.color,
           value,
           display: unit ? `${fmtNum(value)} ${unit}` : fmtNum(value),
+          // Kalemin kendi doğrudan girdileri — inilecek bir kademe değil
+          drillable: !isSelf,
         };
       });
 

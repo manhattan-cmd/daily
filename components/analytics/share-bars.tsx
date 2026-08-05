@@ -10,6 +10,8 @@ export type ShareRow = {
   value: number;
   /** Biçimlenmiş değer (birimli); yoksa fmtNum(value) */
   display?: string;
+  /** false: bu satırdan inilecek bir kademe yok (kalemin kendi girdileri) */
+  drillable?: boolean;
 };
 
 /**
@@ -40,14 +42,18 @@ export function ShareBars({
     <div className="flex flex-col gap-3">
       {sorted.map((r) => {
         const pct = (r.value / total) * 100;
+        // Kalemin kendi girdileri satırı tıklanabilir görünmesin
+        const canDrill = !!onSelect && r.drillable !== false;
         return (
           <button
             key={r.id}
             type="button"
-            onClick={onSelect ? () => onSelect(r.id) : undefined}
+            onClick={canDrill ? () => onSelect!(r.id) : undefined}
             className={cn(
               "min-w-0 text-left",
-              onSelect ? "cursor-pointer transition-opacity hover:opacity-70" : "cursor-default"
+              canDrill
+                ? "cursor-pointer transition-opacity hover:opacity-70"
+                : "cursor-default"
             )}
           >
             <div className="flex items-baseline gap-1.5 mb-1">
