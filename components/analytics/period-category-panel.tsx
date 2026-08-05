@@ -179,9 +179,14 @@ export function PeriodCategoryPanel({
       .filter((r) => r.value > 0)
       .map(({ id, value }) => {
         const s = subById.get(id)!;
+        // Odaklanılan kalemin KENDİ doğrudan girdileri (alt kaleme değil,
+        // doğrudan ona yazılmış) kendi id'sinde toplanır — kendi adıyla
+        // listelenirse "Yemek içinde Yemek" gibi görünüp sonsuz iniyordu.
+        // Kategori kökündeki karşılığı gibi "Genel" adıyla gösterilir.
+        const isSelf = id === focus?.id || s.isCategoryRoot;
         return {
           id,
-          name: s.isCategoryRoot ? "Genel" : s.name,
+          name: isSelf ? "Genel" : s.name,
           color: category.color,
           value,
           display: unit ? `${fmtNum(value)} ${unit}` : fmtNum(value),
@@ -432,8 +437,12 @@ export function PeriodCategoryPanel({
           }
           onSelect={(subId) => {
             const sub = data.subById.get(subId);
-            // "Genel" satırı kategorinin gizli kökü — inilecek bir dal değil
-            if (sub && !sub.isCategoryRoot) setPath((p) => [...p, sub]);
+            if (!sub) return;
+            // "Genel" satırları (kategori kökü ya da odağın kendi girdileri)
+            // bir alt kademe değil — inilecek bir yer yok
+            if (sub.isCategoryRoot || sub.id === focus?.id) return;
+            // Aynı düğüm yolda varsa tekrar eklenmez (döngü koruması)
+            setPath((p) => (p.some((s) => s.id === sub.id) ? p : [...p, sub]));
           }}
         />
       </div>
