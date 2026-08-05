@@ -12,9 +12,6 @@ import {
 } from "recharts";
 import { fmtNum, type DayBucket } from "@/lib/analytics";
 
-// Plot alanının yatay sınırları — BarChart margin'ları ve YAxis genişliğiyle eşleşmeli
-const Y_AXIS_WIDTH = 40;
-const MARGIN_LEFT = -14;
 const MARGIN_RIGHT = 4;
 
 /**
@@ -40,6 +37,16 @@ export function DailyBarChart({
   showAllTicks?: boolean;
 }) {
   const allZero = data.every((d) => d.value === 0);
+
+  // Y ekseni genişliği en uzun etikete göre — sabit 40px + negatif sol margin
+  // büyük değerleri kırpıyordu ("1.100" → ".100"). Rakam ~7px, artı iç boşluk;
+  // recharts eksen üst sınırını yukarı yuvarlayabildiği için bir hane pay.
+  const maxVal = data.reduce((m, d) => Math.max(m, d.value), 0);
+  const Y_AXIS_WIDTH = Math.min(
+    68,
+    Math.max(30, (fmtNum(maxVal).length + 1) * 7 + 8)
+  );
+  const MARGIN_LEFT = 0;
   // Çok sayıda gün olduğunda eksende sabit aralıklarla ~6 etiket göster (kalabalığı önler)
   const tickInterval =
     !showAllTicks && data.length > 8 ? Math.ceil(data.length / 6) - 1 : 0;

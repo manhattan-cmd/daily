@@ -26,11 +26,13 @@ export function StatTile({
             style={{ backgroundColor: accent }}
           />
         )}
-        <span className="text-[11px] font-medium text-muted-foreground truncate">
+        {/* Etiket ve alt yazı kırpılmaz, sarar: dar kutularda "Günlük Ort."
+            gibi kısaltmalara ya da yarım kalan yazıya gerek kalmasın */}
+        <span className="text-[11px] font-medium leading-tight text-muted-foreground">
           {label}
         </span>
       </div>
-      <div className="mt-1 text-xl font-semibold leading-none truncate">
+      <div className="mt-1 truncate text-xl font-semibold leading-none">
         {value}
         {unit && (
           <span className="ml-1 text-xs font-normal text-muted-foreground">
@@ -39,7 +41,7 @@ export function StatTile({
         )}
       </div>
       {sub && (
-        <div className="mt-1 text-[10px] text-muted-foreground/70 truncate">
+        <div className="mt-1 text-[10px] leading-tight text-muted-foreground/70">
           {sub}
         </div>
       )}

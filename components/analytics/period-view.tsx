@@ -338,7 +338,9 @@ export function PeriodView({
 
         {/* Kategori detayı — bu dönem penceresine kısıtlı mod bazlı analiz */}
         {data && data.cats.length > 0 && selectedCat && (
-          <section ref={detailRef} className="flex flex-col gap-3 mt-2 scroll-mt-4">
+          /* scroll-mt: yapışkan sayfa başlığının altında kalmasın — kaydırma
+             "Kategori Detayı" başlığını da kapsayacak kadar yukarıda dursun */
+          <section ref={detailRef} className="mt-2 flex scroll-mt-32 flex-col gap-3">
             <div className="flex items-center justify-between gap-2 px-1">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Kategori Detayı

@@ -12,12 +12,12 @@ import {
   framePeriodSeries,
   GRANULARITY_TITLES,
   startOfDayMs,
-  statSub,
   type Granularity,
   type SeriesFrame,
 } from "@/lib/analytics";
 import {
   periodProgress,
+  periodShortLabel,
 
   weekPeriod,
   type Period,
@@ -231,6 +231,10 @@ export function PeriodCategoryPanel({
   const unit = compute.unit || undefined;
   const { progress, weekContext } = computed;
   const isDay = period.kind === "day";
+  /** Girdi kutusunun alt yazısı — sayının kaç günü kapsadığı */
+  const dayCountLabel = isDay
+    ? periodShortLabel(period)
+    : `${progress.elapsedDays} günde`;
   const metricLabel = metric.type === "count" ? "girdi" : unit;
 
   return (
@@ -265,10 +269,10 @@ export function PeriodCategoryPanel({
             <StatTile
               label="Girdi"
               value={fmtNum(computed.withValueCount)}
-              sub="toplam"
+              sub={dayCountLabel}
             />
             <StatTile
-              label="Günlük Ort."
+              label="Günlük ortalama"
               value={fmtNum(computed.dailyAvg)}
               unit="girdi"
               sub={`${progress.elapsedDays} gün üzerinden`}
@@ -282,15 +286,14 @@ export function PeriodCategoryPanel({
               label="Toplam"
               value={fmtNum(computed.total)}
               unit={unit}
-              sub={
-                compute.displayMode &&
-                statSub(compute.displayMode, computed.avg, compute.unit)
-              }
+              // Ortalama zaten yandaki kutuda; burada hangi aralığın toplamı
+              // olduğu daha faydalı
+              sub={periodShortLabel(period)}
             />
           )}
           {compute.displayMode === "both" && !isDay ? (
             <StatTile
-              label="Günlük Ort."
+              label="Günlük ortalama"
               value={fmtNum(computed.dailyAvg)}
               unit={unit}
               sub={`${progress.elapsedDays} gün üzerinden`}
@@ -304,9 +307,9 @@ export function PeriodCategoryPanel({
             />
           )}
           <StatTile
-            label="Girdi"
+            label={metric.type === "mod" ? "Değerli girdi" : "Girdi"}
             value={fmtNum(computed.withValueCount)}
-            sub="değerli"
+            sub={dayCountLabel}
           />
         </div>
       )}

@@ -13,7 +13,6 @@ import {
   GRANULARITY_TITLES,
   resolveSeriesWindow,
   startOfDayMs,
-  statSub,
 } from "@/lib/analytics";
 import { StatTile } from "./stat-tile";
 import { DailyBarChart } from "./daily-bar-chart";
@@ -211,7 +210,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
             sub="tüm zamanlar"
           />
           <StatTile
-            label="Günlük Ort."
+            label="Günlük ortalama"
             value={fmtNum(computed.dailyAvg)}
             unit="girdi"
             sub={`${computed.elapsedDays} gün üzerinden`}
@@ -224,15 +223,12 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
               label="Toplam"
               value={fmtNum(computed.total)}
               unit={unit}
-              sub={
-                compute.displayMode &&
-                statSub(compute.displayMode, computed.avg, compute.unit)
-              }
+              sub="tüm zamanlar"
             />
           )}
           {compute.displayMode === "both" ? (
             <StatTile
-              label="Günlük Ort."
+              label="Günlük ortalama"
               value={fmtNum(computed.dailyAvg)}
               unit={unit}
               sub={`${computed.elapsedDays} gün üzerinden`}
@@ -246,9 +242,9 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
             />
           )}
           <StatTile
-            label="Girdi"
+            label="Değerli girdi"
             value={fmtNum(computed.withValueCount)}
-            sub="değerli"
+            sub={`${computed.elapsedDays} günde`}
           />
         </div>
       )}

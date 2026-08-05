@@ -194,6 +194,21 @@ export function periodProgress(
   return { elapsedDays, totalDays, inProgress: true };
 }
 
+/**
+ * Dar yerlerde (KPI kutusu alt yazısı) dönemin kısa adı — içinde bulunulan
+ * dönemse "bu hafta" gibi, değilse kendi etiketi ("3 – 9 Ağustos").
+ * Yalnızca ETİKET üretir; veri penceresi seçmek için kullanılmaz.
+ */
+export function periodShortLabel(p: Period, now: Date = new Date()): string {
+  const t = now.getTime();
+  if (p.kind === "all") return "tüm zamanlar";
+  if (p.kind === "day") return p.key === dayPeriod(t).key ? "bugün" : p.label;
+  if (p.kind === "week") return p.key === weekPeriod(t).key ? "bu hafta" : p.label;
+  if (p.kind === "month") return p.key === monthPeriod(t).key ? "bu ay" : p.label;
+  if (p.kind === "year") return p.key === yearPeriod(t).key ? "bu yıl" : p.label;
+  return p.label;
+}
+
 /*
  * NOT: Burada bir zamanlar rangeKeyForPeriod vardı — dönemi, aralık (RangeKey)
  * tabanlı alt kategori sayfasının diline çevirmeye çalışıyordu. RangeKey
