@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import { db } from "./index";
+import { logDeletions, newBatchId } from "./deletions";
 import { toLocalDateValue } from "@/lib/utils";
 import type {
   Activity,
@@ -26,7 +27,10 @@ const id = () => nanoid(12);
 
 // ============ Entry Types ============
 
-const BUILT_IN_ENTRY_TYPES: Omit<EntryType, "id" | "createdAt">[] = [
+const BUILT_IN_ENTRY_TYPES: Omit<
+  EntryType,
+  "id" | "createdAt" | "updatedAt"
+>[] = [
   { name: "Para", unit: "₺", valueType: "number", isBuiltIn: true, order: 1 },
   { name: "Miktar", unit: "adet", valueType: "number", isBuiltIn: true, order: 2 },
   { name: "Süre", unit: "dk", valueType: "number", isBuiltIn: true, order: 3 },
@@ -66,7 +70,10 @@ export async function ensureBuiltInEntryTypes(): Promise<void> {
   );
   const toAdd = BUILT_IN_ENTRY_TYPES.filter(
     (t) => !survivingNames.has(t.name)
-  ).map((t) => ({ ...t, id: id(), createdAt: now() } satisfies EntryType));
+  ).map(
+    (t) =>
+      ({ ...t, id: id(), createdAt: now(), updatedAt: now() }) satisfies EntryType
+  );
   if (toAdd.length) await db.entryTypes.bulkAdd(toAdd);
 }
 
@@ -91,6 +98,7 @@ export async function createEntryType(input: {
     isBuiltIn: false,
     order: count + 1,
     createdAt: now(),
+    updatedAt: now(),
   };
   await db.entryTypes.add(entryType);
   return entryType;
@@ -122,6 +130,7 @@ export async function ensureBuiltInDimensions(): Promise<void> {
       type: "money",
       isBuiltIn: true,
       createdAt: now(),
+      updatedAt: now(),
     });
   }
   if (!hasTime) {
@@ -131,6 +140,7 @@ export async function ensureBuiltInDimensions(): Promise<void> {
       type: "time",
       isBuiltIn: true,
       createdAt: now(),
+      updatedAt: now(),
     });
   }
   if (toAdd.length) await db.globalDimensions.bulkAdd(toAdd);
@@ -334,13 +344,27 @@ export async function updateCategory(
   }
 }
 
-export async function deleteCategory(catId: string): Promise<void> {
+export async function deleteCategory(catId: string): Promise<string> {
+  const batchId = newBatchId();
   const subs = await db.subcategories.where("categoryId").equals(catId).toArray();
-  for (const sub of subs) await deleteSubCategory(sub.id);
-  await db.categoryModifiers
-    .filter((m) => m.targetType === "category" && m.targetId === catId)
-    .delete();
-  await db.categories.delete(catId);
+  // Kök dahil tüm alt ağaç aynı grupta silinsin ki "Geri al" kategoriyi
+  // içindeki her şeyle birlikte döndürsün
+  for (const sub of subs) await deleteSubCategory(sub.id, "all", batchId);
+  await db.transaction(
+    "rw",
+    [db.categories, db.categoryModifiers, db.deletions],
+    async () => {
+      const attachments = await db.categoryModifiers
+        .filter((m) => m.targetType === "category" && m.targetId === catId)
+        .toArray();
+      const category = await db.categories.get(catId);
+      await logDeletions("categoryModifiers", attachments, batchId);
+      if (category) await logDeletions("categories", [category], batchId);
+      await db.categoryModifiers.bulkDelete(attachments.map((a) => a.id));
+      await db.categories.delete(catId);
+    }
+  );
+  return batchId;
 }
 
 // ============ SubCategories ============
@@ -466,10 +490,11 @@ export async function reorderSubcategories(orderedIds: string[]): Promise<void> 
  */
 export async function deleteSubCategory(
   subId: string,
-  mode: "all" | "promote" = "all"
-): Promise<void> {
+  mode: "all" | "promote" = "all",
+  batchId = newBatchId()
+): Promise<string> {
   const sub = await db.subcategories.get(subId);
-  if (!sub || sub.isCategoryRoot) return;
+  if (!sub || sub.isCategoryRoot) return batchId;
 
   if (mode === "promote") {
     // Girdilerin taşınacağı hedef: üst alt kategori; kök seviyedeyse kategorinin kökü
@@ -496,7 +521,13 @@ export async function deleteSubCategory(
 
     await db.transaction(
       "rw",
-      [db.subcategories, db.entries, db.fields, db.categoryModifiers],
+      [
+        db.subcategories,
+        db.entries,
+        db.fields,
+        db.categoryModifiers,
+        db.deletions,
+      ],
       async () => {
         // Girdiler ve (varsa eski) alanlar üst seviyeye — değerler geçerli kalsın
         await db.entries
@@ -517,39 +548,45 @@ export async function deleteSubCategory(
           });
         }
         // Bu düğümün kendi mod atamalarını sil, sonra düğümü sil
-        await db.categoryModifiers
+        const attachments = await db.categoryModifiers
           .filter((m) => m.targetType === "subcategory" && m.targetId === subId)
-          .delete();
+          .toArray();
+        await logDeletions("categoryModifiers", attachments, batchId);
+        await logDeletions("subcategories", [sub], batchId);
+        await db.categoryModifiers.bulkDelete(attachments.map((a) => a.id));
         await db.subcategories.delete(subId);
       }
     );
-    return;
+    return batchId;
   }
 
-  // mode === "all": özyinelemeli tam silme
+  // mode === "all": özyinelemeli tam silme — hepsi tek grupta
   const children = await db.subcategories.where("parentId").equals(subId).toArray();
-  for (const child of children) await deleteSubCategory(child.id);
+  for (const child of children) await deleteSubCategory(child.id, "all", batchId);
 
   const fields = await db.fields.where("subcategoryId").equals(subId).toArray();
-  const fieldIds = fields.map((f) => f.id);
   const entries = await db.entries.where("subcategoryId").equals(subId).toArray();
   const entryIds = entries.map((e) => e.id);
+  // Girdileri ve değerlerini toplu yol siler: aktivite temizliği ve günlük orada
+  if (entryIds.length) await deleteEntries(entryIds, batchId);
 
   await db.transaction(
     "rw",
-    [db.fields, db.entries, db.entryValues, db.subcategories, db.categoryModifiers],
+    [db.fields, db.subcategories, db.categoryModifiers, db.deletions],
     async () => {
-      if (entryIds.length) {
-        await db.entryValues.where("entryId").anyOf(entryIds).delete();
-      }
-      await db.entries.where("subcategoryId").equals(subId).delete();
-      if (fieldIds.length) await db.fields.bulkDelete(fieldIds);
-      await db.categoryModifiers
+      const attachments = await db.categoryModifiers
         .filter((m) => m.targetType === "subcategory" && m.targetId === subId)
-        .delete();
+        .toArray();
+      await logDeletions("fields", fields, batchId);
+      await logDeletions("categoryModifiers", attachments, batchId);
+      await logDeletions("subcategories", [sub], batchId);
+
+      if (fields.length) await db.fields.bulkDelete(fields.map((f) => f.id));
+      await db.categoryModifiers.bulkDelete(attachments.map((a) => a.id));
       await db.subcategories.delete(subId);
     }
   );
+  return batchId;
 }
 
 /**
@@ -686,6 +723,7 @@ export async function ensureBuiltInMods(): Promise<void> {
       entryTypeId: type.id,
       isBuiltIn: true,
       createdAt: now(),
+      updatedAt: now(),
     });
   }
   if (toAdd.length) await db.mods.bulkAdd(toAdd);
@@ -750,6 +788,7 @@ export async function createMod(
     entryTypeId,
     isBuiltIn: false,
     createdAt: now(),
+    updatedAt: now(),
   };
   await db.mods.add(mod);
   return { mod, created: true };
@@ -870,6 +909,7 @@ export async function attachMod(
     entryTypeId: mod.entryTypeId,
     order: existing.length + 1,
     createdAt: now(),
+    updatedAt: now(),
   };
   await db.categoryModifiers.add(attachment);
   await propagateModToDescendants(targetType, targetId, mod);
@@ -913,6 +953,7 @@ async function propagateModToDescendants(
         entryTypeId: mod.entryTypeId,
         order: count + 1,
         createdAt: now(),
+        updatedAt: now(),
       });
     }
     await propagateModToDescendants("subcategory", child.id, mod);
@@ -1006,6 +1047,7 @@ export async function inheritModifiers(
     entryTypeId: a.entryTypeId,
     order: i + 1,
     createdAt: now(),
+    updatedAt: now(),
   }));
   await db.categoryModifiers.bulkAdd(inherited);
 }
@@ -1186,6 +1228,7 @@ export async function createEntry(input: {
     entryTypeId: v.entryTypeId,
     ...(v.modId ? { modId: v.modId } : {}),
     value: v.value,
+    updatedAt: now(),
   }));
 
   await db.transaction("rw", [db.entries, db.entryValues], async () => {
@@ -1207,6 +1250,7 @@ export async function addEntryValue(
       entryTypeId: input.entryTypeId,
       ...(input.modId ? { modId: input.modId } : {}),
       value: input.value,
+      updatedAt: now(),
     });
     await db.entries.update(entryId, { updatedAt: now() });
   });
@@ -1239,6 +1283,7 @@ export async function updateEntry(
       entryTypeId: v.entryTypeId,
       ...(v.modId ? { modId: v.modId } : {}),
       value: v.value,
+      updatedAt: now(),
     }));
     if (newValues.length) await db.entryValues.bulkAdd(newValues);
 
@@ -1297,11 +1342,9 @@ export async function getLinkedSiblingModIds(entryId: string): Promise<Set<strin
   return new Set(vals.filter((v) => v.modId).map((v) => v.modId!));
 }
 
-export async function deleteEntry(entryId: string): Promise<void> {
-  await db.transaction("rw", [db.entries, db.entryValues], async () => {
-    await db.entryValues.where("entryId").equals(entryId).delete();
-    await db.entries.delete(entryId);
-  });
+/** Tek girdi silme — toplu yolun aynısı (aktivite temizliği ve silme günlüğü dahil) */
+export async function deleteEntry(entryId: string): Promise<string> {
+  return deleteEntries([entryId]);
 }
 
 // ============ Toplu Gün Öğesi İşlemleri ============
@@ -1420,9 +1463,19 @@ export async function moveNotesToDate(
   });
 }
 
-export async function deleteNotes(noteIds: string[]): Promise<void> {
-  if (!noteIds.length) return;
-  await db.notes.bulkDelete(noteIds);
+export async function deleteNotes(
+  noteIds: string[],
+  batchId = newBatchId()
+): Promise<string> {
+  if (!noteIds.length) return batchId;
+  await db.transaction("rw", [db.notes, db.deletions], async () => {
+    const notes = (await db.notes.bulkGet(noteIds)).filter(
+      (n): n is Note => !!n
+    );
+    await logDeletions("notes", notes, batchId);
+    await db.notes.bulkDelete(noteIds);
+  });
+  return batchId;
 }
 
 /** Hedefler de günü `date` alanıyla tutar */
@@ -1438,20 +1491,34 @@ export async function moveGoalsToDate(
   });
 }
 
-/** Tek tek deleteGoal — tamamlayan girdiyi de temizlemesi için */
-export async function deleteGoals(goalIds: string[]): Promise<void> {
-  for (const goalId of goalIds) await deleteGoal(goalId);
+export async function deleteGoals(
+  goalIds: string[],
+  batchId = newBatchId()
+): Promise<string> {
+  if (!goalIds.length) return batchId;
+  await db.transaction("rw", [db.goals, db.deletions], async () => {
+    const goals = (await db.goals.bulkGet(goalIds)).filter(
+      (g): g is Goal => !!g
+    );
+    await logDeletions("goals", goals, batchId);
+    await db.goals.bulkDelete(goalIds);
+  });
+  return batchId;
 }
 
 /**
  * Seçili girdileri değerleriyle birlikte sil. Girdisi kalmayan aktiviteler
  * de düşer (boş aktivite kartı gün sayfasında zaten görünmez).
+ * Silinen her şey günlüğe yazılır — "Geri al" ondan besleniyor.
  */
-export async function deleteEntries(entryIds: string[]): Promise<void> {
-  if (!entryIds.length) return;
+export async function deleteEntries(
+  entryIds: string[],
+  batchId = newBatchId()
+): Promise<string> {
+  if (!entryIds.length) return batchId;
   await db.transaction(
     "rw",
-    [db.entries, db.entryValues, db.activities],
+    [db.entries, db.entryValues, db.activities, db.deletions],
     async () => {
       const entries = (await db.entries.bulkGet(entryIds)).filter(
         (e): e is Entry => !!e
@@ -1459,14 +1526,43 @@ export async function deleteEntries(entryIds: string[]): Promise<void> {
       const touchedActivities = new Set(
         entries.map((e) => e.activityId).filter((a): a is string => !!a)
       );
+      const values = await db.entryValues
+        .where("entryId")
+        .anyOf(entryIds)
+        .toArray();
+
+      await logDeletions("entries", entries, batchId);
+      await logDeletions("entryValues", values, batchId);
+
       await db.entryValues.where("entryId").anyOf(entryIds).delete();
       await db.entries.bulkDelete(entryIds);
+
       for (const activityId of touchedActivities) {
         const left = await db.entries.where("activityId").equals(activityId).count();
-        if (left === 0) await db.activities.delete(activityId);
+        if (left > 0) continue;
+        const activity = await db.activities.get(activityId);
+        if (activity) await logDeletions("activities", [activity], batchId);
+        await db.activities.delete(activityId);
       }
     }
   );
+  return batchId;
+}
+
+/**
+ * Gün sayfasındaki toplu silme — girdi, hedef ve notlar TEK grupta silinir ki
+ * "Geri al" hepsini birden döndürsün.
+ */
+export async function deleteDayItems(input: {
+  entryIds: string[];
+  goalIds: string[];
+  noteIds: string[];
+}): Promise<string> {
+  const batchId = newBatchId();
+  await deleteEntries(input.entryIds, batchId);
+  await deleteGoals(input.goalIds, batchId);
+  await deleteNotes(input.noteIds, batchId);
+  return batchId;
 }
 
 export async function listEntriesByDate(dateStr: string): Promise<EntryWithContext[]> {
@@ -1724,6 +1820,7 @@ export async function createGoal(input: {
     targets: input.targets,
     ...(input.note ? { note: input.note } : {}),
     createdAt: now(),
+    updatedAt: now(),
   };
   await db.goals.add(goal);
   return goal;
@@ -1839,12 +1936,14 @@ export async function updateGoal(
   await db.goals.update(goalId, patch);
 }
 
-export async function deleteGoal(goalId: string): Promise<void> {
+export async function deleteGoal(goalId: string): Promise<string> {
+  const batchId = newBatchId();
   const goal = await db.goals.get(goalId);
+  // Hedefi tamamlayan girdi de gider — ikisi tek grupta, geri alma bütün döner
   if (goal?.completedEntryId) {
-    await deleteEntry(goal.completedEntryId);
+    await deleteEntries([goal.completedEntryId], batchId);
   }
-  await db.goals.delete(goalId);
+  return deleteGoals([goalId], batchId);
 }
 
 async function hydrateEntries(entries: Entry[]): Promise<EntryWithContext[]> {
@@ -1963,8 +2062,8 @@ export async function setEntryAliases(
   await db.entries.update(entryId, { aliases, updatedAt: now() });
 }
 
-export async function deleteNote(noteId: string): Promise<void> {
-  await db.notes.delete(noteId);
+export async function deleteNote(noteId: string): Promise<string> {
+  return deleteNotes([noteId]);
 }
 
 /** Başlıksız ve tüm parağrafları boş not — listelerde gizlenir, çıkışta silinir */

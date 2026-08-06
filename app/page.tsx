@@ -14,6 +14,7 @@ import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { EntryCard } from "@/components/dashboard/entry-card";
+import { BackupReminder } from "@/components/dashboard/backup-reminder";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { cn, toLocalDateValue } from "@/lib/utils";
 
@@ -42,6 +43,8 @@ export default function HomePage() {
           {longDate()}
         </h1>
       </header>
+
+      <BackupReminder />
 
       {/* Bugün — günün özeti + doğrudan girdi ekleme */}
       <section className="mb-4 overflow-hidden rounded-2xl border border-border bg-card">

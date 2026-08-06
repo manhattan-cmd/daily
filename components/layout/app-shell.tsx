@@ -10,8 +10,11 @@ import {
   ensureDefaultModifiers,
   ensureStarterData,
 } from "@/lib/db/queries";
+import { purgeOldDeletions } from "@/lib/db/deletions";
+import { ensurePersistentStorage } from "@/lib/storage-health";
 import { BottomNav } from "./bottom-nav";
 import { StatusBar } from "./status-bar";
+import { UndoBar } from "./undo-bar";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const mainRef = useRef<HTMLElement>(null);
@@ -33,6 +36,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       await ensureDefaultModifiers();
       // En son: yerleşikler kurulduktan sonra ilk açılış örnekleri
       await ensureStarterData();
+      // Süresi dolmuş silme günlüğü satırları (payload'lar yer kaplar)
+      await purgeOldDeletions();
+      // IndexedDB varsayılan olarak atılabilir bir önbellek — kalıcılık iste
+      await ensurePersistentStorage();
     })().catch((err) => console.error("Init error", err));
   }, []);
 
@@ -78,6 +85,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           {children}
         </main>
+
+        {/* Silme sonrası geri alma şeridi — navigasyonun hemen üstünde */}
+        <UndoBar />
 
         {/* Bottom nav — flex'in altına yapışık */}
         <BottomNav />

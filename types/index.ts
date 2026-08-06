@@ -27,6 +27,7 @@ export interface EntryType {
   isBuiltIn: boolean;
   order: number;
   createdAt: number;
+  updatedAt: number;
 }
 
 export type GlobalDimensionType = "money" | "time";
@@ -98,6 +99,7 @@ export interface GlobalDimension {
   type: GlobalDimensionType;
   isBuiltIn?: boolean;
   createdAt: number;
+  updatedAt: number;
 }
 
 /**
@@ -111,6 +113,7 @@ export interface Mod {
   entryTypeId: string;
   isBuiltIn?: boolean;
   createdAt: number;
+  updatedAt: number;
 }
 
 /**
@@ -129,6 +132,7 @@ export interface CategoryModifier {
   entryTypeId: string;
   order: number;
   createdAt: number;
+  updatedAt: number;
 }
 
 /**
@@ -170,6 +174,8 @@ export interface EntryValue {
   /** Değerin bağlı olduğu isimli mod; girdiye özel eklenen ölçülerde boş olabilir */
   modId?: string;
   value: string;
+  /** Son değişiklik — yedek birleştirmede ve ileride senkronda "hangisi yeni" kararı */
+  updatedAt: number;
 }
 
 export type EntryValueWithType = EntryValue & {
@@ -215,6 +221,7 @@ export interface Goal {
   note?: string;
   completedEntryId?: string;
   createdAt: number;
+  updatedAt: number;
 }
 
 export interface GoalWithContext extends Omit<Goal, "targets"> {
@@ -258,6 +265,27 @@ export interface Note {
   /** Takma adlar — otomatik bağ önerisi bunlarla da eşleşir (indekssiz) */
   aliases?: string[];
   createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * Silme günlüğü satırı. İki işi var:
+ *  1. "Geri al" — payload kaydın tam kopyası olduğu için silinen geri konabilir.
+ *  2. Mezar taşı (tombstone) — cihazlar arası senkron geldiğinde "bu kayıt
+ *     silindi" bilgisi taşınmazsa silinen kayıt diğer cihazdan geri gelir.
+ * Süresi dolanlar (30 gün) uygulama açılışında temizlenir.
+ */
+export interface Deletion {
+  id: string;
+  /** Aynı kullanıcı eylemiyle silinenler tek grupta — geri alma grubu döndürür */
+  batchId: string;
+  /** Kaydın tablosu ("entries", "notes", ...) */
+  table: string;
+  /** Silinen kaydın id'si */
+  recordId: string;
+  deletedAt: number;
+  /** Kaydın tam kopyası */
+  payload: unknown;
   updatedAt: number;
 }
 

@@ -12,6 +12,7 @@ import type {
   Mod,
   Goal,
   Note,
+  Deletion,
 } from "@/types";
 
 export class RoutineDB extends Dexie {
@@ -27,6 +28,7 @@ export class RoutineDB extends Dexie {
   goals!: Table<Goal, string>;
   activities!: Table<Activity, string>;
   notes!: Table<Note, string>;
+  deletions!: Table<Deletion, string>;
 
   constructor() {
     super("RoutineDB");
@@ -134,6 +136,7 @@ export class RoutineDB extends Dexie {
             entryTypeId: t.id,
             isBuiltIn: t.isBuiltIn,
             createdAt: now,
+            updatedAt: now,
           };
           await modsTable.add(mod);
           poolByName.set(norm(t.name), mod);
@@ -159,6 +162,7 @@ export class RoutineDB extends Dexie {
                 name: altName,
                 entryTypeId: a.entryTypeId,
                 createdAt: now,
+                updatedAt: now,
               };
               await modsTable.add(mod);
               poolByName.set(norm(altName), mod);
@@ -169,6 +173,7 @@ export class RoutineDB extends Dexie {
               name: rawName.trim(),
               entryTypeId: a.entryTypeId,
               createdAt: now,
+              updatedAt: now,
             };
             await modsTable.add(mod);
             poolByName.set(norm(rawName), mod);
@@ -253,6 +258,107 @@ export class RoutineDB extends Dexie {
           await tx.table("notes").update(n.id, { blocks });
         }
       });
+    // v16 — Her kayıtta updatedAt. Bir kısım tabloda hiç yoktu (entryValues'ta
+    // createdAt bile yok). "Hangi kayıt daha yeni" sorusunu cevaplayamayan bir
+    // şema yedek birleştirmesini de ileride cihazlar arası senkronu da
+    // imkânsız kılıyor. Alan her tabloda indeksleniyor ki "şu tarihten sonra
+    // değişenler" ucuz bir sorgu olsun.
+    this.version(16)
+      .stores({
+        categories: "id, name, order, createdAt, updatedAt",
+        subcategories:
+          "id, categoryId, parentId, name, order, createdAt, updatedAt",
+        fields: "id, subcategoryId, type, order, createdAt, updatedAt",
+        globalDimensions: "id, name, type, updatedAt",
+        entries:
+          "id, subcategoryId, occurredAt, createdAt, title, linkedGroupId, activityId, updatedAt",
+        entryValues: "id, entryId, fieldId, entryTypeId, modId, updatedAt",
+        entryTypes: "id, name, isBuiltIn, order, createdAt, updatedAt",
+        categoryModifiers:
+          "id, targetType, targetId, entryTypeId, modId, createdAt, [targetType+targetId], updatedAt",
+        mods: "id, name, entryTypeId, createdAt, updatedAt",
+        goals: "id, date, subcategoryId, createdAt, updatedAt",
+        activities: "id, name, occurredAt, createdAt, updatedAt",
+        notes: "id, date, createdAt, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const now = Date.now();
+        const tables = [
+          "categories",
+          "subcategories",
+          "fields",
+          "globalDimensions",
+          "entries",
+          "entryValues",
+          "entryTypes",
+          "categoryModifiers",
+          "mods",
+          "goals",
+          "activities",
+          "notes",
+        ];
+        for (const name of tables) {
+          await tx
+            .table(name)
+            .toCollection()
+            .modify((r: { updatedAt?: number; createdAt?: number }) => {
+              if (typeof r.updatedAt !== "number") {
+                r.updatedAt = r.createdAt ?? now;
+              }
+            });
+        }
+      });
+    // v17 — Silme günlüğü. Silinen kayıt tam kopyasıyla burada durur:
+    // kullanıcı "Geri al" diyebilsin, ileride senkron da "bu kayıt silindi"
+    // bilgisini taşıyabilsin (yoksa silinen kayıt diğer cihazdan geri gelir).
+    this.version(17).stores({
+      deletions: "id, batchId, table, recordId, deletedAt, updatedAt",
+    });
+
+    this.stampTimestamps();
+  }
+
+  /**
+   * updatedAt'i tek yerden damgalar — 25 ayrı yazma noktasının hepsinin bunu
+   * elle yapmasını beklemek, er geç birinin unutulması demekti.
+   *
+   * Yaratmada: alan zaten doluysa dokunulmaz — yedek geri yüklemesi kendi
+   * damgalarını korumalı, yoksa "hangisi yeni" bilgisi ithal anında yanardı.
+   * Güncellemede: değişiklik seti updatedAt'i zaten taşıyorsa (yine geri
+   * yükleme) korunur, taşımıyorsa şimdiki zaman yazılır.
+   */
+  private stampTimestamps(): void {
+    for (const table of this.tables) {
+      table.hook("creating", this.stampCreating);
+      table.hook("updating", this.stampUpdating);
+    }
+  }
+
+  private stampCreating = (_pk: unknown, obj: { updatedAt?: number }): void => {
+    if (typeof obj.updatedAt !== "number") obj.updatedAt = Date.now();
+  };
+
+  private stampUpdating = (mods: object) =>
+    "updatedAt" in mods ? undefined : { updatedAt: Date.now() };
+
+  /**
+   * Damgalama kapalıyken çalıştırır — toplu içe aktarma için.
+   *
+   * İki sebep: (1) yedekteki kayıtlar kendi zaman damgalarını taşır, üzerine
+   * yazmak "hangisi yeni" bilgisini yok eder; (2) hook'lara abone olmak
+   * Dexie'nin toplu yazma optimizasyonunu devre dışı bırakıyor — 12 bin
+   * kayıtlık geri yükleme 9 sn'den saniyenin altına iniyor.
+   */
+  async withoutStamping<T>(fn: () => Promise<T>): Promise<T> {
+    for (const table of this.tables) {
+      table.hook("creating").unsubscribe(this.stampCreating);
+      table.hook("updating").unsubscribe(this.stampUpdating);
+    }
+    try {
+      return await fn();
+    } finally {
+      this.stampTimestamps();
+    }
   }
 }
 

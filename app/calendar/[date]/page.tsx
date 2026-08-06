@@ -8,9 +8,7 @@ import { ArrowLeft, ArrowRight, Boxes, CalendarDays, MoonStar, NotebookPen, Targ
 import { db } from "@/lib/db";
 import {
   createNote,
-  deleteEntries,
-  deleteGoals,
-  deleteNotes,
+  deleteDayItems,
   listEntriesByDate,
   listGoalsByDate,
   listNotesByDate,
@@ -431,9 +429,12 @@ export default function CalendarDayPage({
             router.push(`/calendar/${target}`);
           }}
           onDelete={async () => {
-            await deleteEntries(idsOf("entry"));
-            await deleteGoals(idsOf("goal"));
-            await deleteNotes(idsOf("note"));
+            // Tek grupta silinir ki "Geri al" üçünü birden döndürsün
+            await deleteDayItems({
+              entryIds: idsOf("entry"),
+              goalIds: idsOf("goal"),
+              noteIds: idsOf("note"),
+            });
             setSelected(null);
           }}
         />

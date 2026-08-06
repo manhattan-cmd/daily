@@ -44,6 +44,7 @@ function toModifierLike(
     entryTypeId: m.entryTypeId,
     order: 0,
     createdAt: m.createdAt,
+    updatedAt: m.updatedAt,
     entryType: m.entryType,
     mod: m,
   };
