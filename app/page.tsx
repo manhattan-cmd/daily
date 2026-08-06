@@ -26,10 +26,15 @@ import { BackupReminder } from "@/components/dashboard/backup-reminder";
 import { WelcomeCard } from "@/components/dashboard/welcome-card";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { cn, toLocalDateValue } from "@/lib/utils";
+import { intlTag, translate, useLocale, useT } from "@/lib/i18n";
 
 const WEEKDAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function HomePage() {
+  const t = useT();
+  // Dil kancadan gelmeli: doğrudan getLocale() okumak sunucu çıktısıyla
+  // istemci ilk çizimini ayrıştırıp hydration uyuşmazlığı yaratıyor
+  const locale = useLocale();
   const today = toLocalDateValue();
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -48,14 +53,14 @@ export default function HomePage() {
     <>
       <header className="-mx-4 mb-5 flex items-end gap-3 px-4 pb-2 pt-12">
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-muted-foreground">{getGreeting()}</p>
+          <p className="text-sm text-muted-foreground">{getGreeting(t)}</p>
           <h1 className="mt-0.5 text-2xl font-semibold tracking-tight">
-            {longDate()}
+            {longDate(locale)}
           </h1>
         </div>
         <Link
           href="/settings"
-          aria-label="Settings"
+          aria-label={t("nav.settings")}
           className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
         >
           <Settings className="h-4 w-4" />
@@ -73,13 +78,13 @@ export default function HomePage() {
         >
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/60">
-              Today
+              {t("home.today")}
             </p>
             <p className="mt-0.5 flex items-baseline gap-1.5">
               <span className="text-2xl font-semibold tabular-nums leading-none">
                 {todayInfo?.count ?? 0}
               </span>
-              <span className="text-sm text-muted-foreground">entries</span>
+              <span className="text-sm text-muted-foreground">{t("home.entries")}</span>
             </p>
             {(todayInfo?.segments.length ?? 0) > 0 && (
               <span className="mt-1.5 flex items-center gap-1">
@@ -98,7 +103,7 @@ export default function HomePage() {
             <div className="shrink-0 text-right">
               <p className="flex items-center justify-end gap-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-400/70">
                 <Target className="h-3 w-3" />
-                Hedef
+                {t("home.goal")}
               </p>
               <p className="mt-0.5 text-sm font-semibold tabular-nums">
                 {doneGoals}
@@ -116,7 +121,7 @@ export default function HomePage() {
           className="flex w-full items-center justify-center gap-1.5 border-t border-border bg-primary/[0.07] py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/[0.12]"
         >
           <PenLine className="h-3.5 w-3.5" />
-          Add entry
+          {t("home.addEntry")}
         </button>
       </section>
 
@@ -124,7 +129,7 @@ export default function HomePage() {
       {week && week.some((d) => d.count > 0) && (
         <section className="mb-6">
           <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Son 7 Gün
+            {t("home.last7Days")}
           </h2>
           <div className="flex items-end justify-between gap-1.5 rounded-2xl border border-border bg-card px-3 py-3">
             {week.map((d) => (
@@ -140,7 +145,7 @@ export default function HomePage() {
       )}
 
       <h2 className="mb-3 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Recent entries
+        {t("home.recentEntries")}
       </h2>
 
       {recent === undefined ? (
@@ -148,23 +153,23 @@ export default function HomePage() {
       ) : recent.length === 0 ? (
         <EmptyState
           icon={Sparkles}
-          title="No entries yet"
+          title={t("home.empty.title")}
           description={
             hasCategories
-              ? "Ready to make your first entry?"
-              : "Build your structure first, then start logging."
+              ? t("home.empty.ready")
+              : t("home.empty.buildFirst")
           }
           action={
             hasCategories ? (
               <Button onClick={() => setSheetOpen(true)}>
                 <Plus className="h-4 w-4" />
-                Add entry
+                {t("home.addEntry")}
               </Button>
             ) : (
               <Button asChild>
                 <Link href="/structure">
                   <Plus className="h-4 w-4" />
-                  Yapı oluştur
+                  {t("home.empty.buildAction")}
                 </Link>
               </Button>
             )
@@ -238,16 +243,16 @@ function WeekBar({
   );
 }
 
-function getGreeting(): string {
+function getGreeting(t: (k: Parameters<typeof translate>[0]) => string): string {
   const h = new Date().getHours();
-  if (h < 5) return "Good night";
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
+  if (h < 5) return t("home.greeting.night");
+  if (h < 12) return t("home.greeting.morning");
+  if (h < 18) return t("home.greeting.afternoon");
+  return t("home.greeting.evening");
 }
 
-function longDate(): string {
-  return new Date().toLocaleDateString("en-US", {
+function longDate(locale: Parameters<typeof intlTag>[0]): string {
+  return new Date().toLocaleDateString(intlTag(locale), {
     day: "numeric",
     month: "long",
     weekday: "long",

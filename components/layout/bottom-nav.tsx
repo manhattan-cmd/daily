@@ -4,15 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, CalendarDays, BarChart3, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT, type MessageKey } from "@/lib/i18n";
 
 const leftItems = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/", key: "nav.home" as MessageKey, icon: Home },
+  { href: "/calendar", key: "nav.calendar", icon: CalendarDays },
 ] as const;
 
 const rightItems = [
-  { href: "/analytics", label: "Insights", icon: BarChart3 },
-  { href: "/structure", label: "Structure", icon: Layers },
+  { href: "/analytics", key: "nav.insights", icon: BarChart3 },
+  { href: "/structure", key: "nav.structure", icon: Layers },
 ] as const;
 
 function todayStr(): string {
@@ -49,6 +50,7 @@ function NavItem({
 
 export function BottomNav() {
   const pathname = usePathname();
+  const t = useT();
   const today = todayStr();
   const todayHref = `/calendar/${today}`;
   const todayActive = pathname === todayHref;
@@ -64,14 +66,20 @@ export function BottomNav() {
     <nav className="shrink-0 border-t border-border bg-background/85 backdrop-blur-xl pb-safe">
       <div className="flex items-stretch justify-around px-2">
         {leftItems.map((item) => (
-          <NavItem key={item.href} {...item} active={isActive(item.href)} />
+          <NavItem
+            key={item.href}
+            href={item.href}
+            icon={item.icon}
+            label={t(item.key)}
+            active={isActive(item.href)}
+          />
         ))}
 
         {/* Bugün — ortadaki yükseltilmiş buton */}
         <Link
           href={todayHref}
           className="relative flex flex-1 flex-col items-center justify-end gap-1 py-3 text-xs"
-          aria-label="Today's page"
+          aria-label={t("nav.todayPage")}
         >
           <span
             className={cn(
@@ -90,12 +98,18 @@ export function BottomNav() {
               todayActive ? "text-foreground" : "text-muted-foreground"
             )}
           >
-            Today
+            {t("nav.today")}
           </span>
         </Link>
 
         {rightItems.map((item) => (
-          <NavItem key={item.href} {...item} active={isActive(item.href)} />
+          <NavItem
+            key={item.href}
+            href={item.href}
+            icon={item.icon}
+            label={t(item.key)}
+            active={isActive(item.href)}
+          />
         ))}
       </div>
     </nav>

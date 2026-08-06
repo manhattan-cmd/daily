@@ -5,25 +5,26 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowRight, Layers, Sparkles, X } from "lucide-react";
 import { db } from "@/lib/db";
 import { useLocalFlag } from "@/lib/local-flag";
+import { useT, type MessageKey } from "@/lib/i18n";
 
 export const WELCOME_DISMISSED = "routine:welcomeDismissed";
 
 /** Zincirin üç halkası — örnek yapıdaki gerçek karşılıklarıyla */
-const CHAIN = [
+const CHAIN: { label: MessageKey; example: MessageKey; hint: MessageKey }[] = [
   {
-    label: "Category",
-    example: "Expenses, Fitness, Health",
-    hint: "the main headings of your life",
+    label: "welcome.category",
+    example: "welcome.categoryExample",
+    hint: "welcome.categoryHint",
   },
   {
-    label: "Subcategory",
-    example: "Bills › Electricity",
-    hint: "nests as deep as you want",
+    label: "welcome.subcategory",
+    example: "welcome.subcategoryExample",
+    hint: "welcome.subcategoryHint",
   },
   {
-    label: "Feature",
-    example: "Money $, Duration min, Weight kg",
-    hint: "what gets measured here",
+    label: "welcome.feature",
+    example: "welcome.featureExample",
+    hint: "welcome.featureHint",
   },
 ];
 
@@ -33,6 +34,7 @@ const CHAIN = [
  * kendiliğinden kavrıyor. İlk girdi girilince ya da kapatılınca bir daha çıkmaz.
  */
 export function WelcomeCard() {
+  const t = useT();
   const [dismissed, dismiss] = useLocalFlag(WELCOME_DISMISSED);
   const entryCount = useLiveQuery(() => db.entries.count(), []);
 
@@ -45,15 +47,15 @@ export function WelcomeCard() {
           <Sparkles className="h-4 w-4 text-primary" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold">Welcome</p>
+          <p className="text-sm font-semibold">{t("welcome.title")}</p>
           <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-            You decide what to track. The structure has three links:
+            {t("welcome.lead")}
           </p>
         </div>
         <button
           type="button"
           onClick={dismiss}
-          aria-label="Dismiss welcome"
+          aria-label={t("welcome.dismiss")}
           className="shrink-0 rounded-lg p-1 text-muted-foreground transition-colors hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" />
@@ -63,21 +65,21 @@ export function WelcomeCard() {
       <ol className="flex flex-col gap-px bg-white/[0.04]">
         {CHAIN.map((step, i) => (
           <li
-            key={step.label}
+            key={t(step.label)}
             className="flex items-baseline gap-2.5 bg-background/40 px-4 py-2"
           >
             <span className="flex h-4 w-4 shrink-0 items-center justify-center self-center rounded-full bg-primary/20 text-[9px] font-bold tabular-nums text-primary">
               {i + 1}
             </span>
             <span className="w-[74px] shrink-0 text-xs font-semibold">
-              {step.label}
+              {t(step.label)}
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-xs text-foreground/85">
-                {step.example}
+                {t(step.example)}
               </span>
               <span className="block truncate text-[10px] text-muted-foreground/70">
-                {step.hint}
+                {t(step.hint)}
               </span>
             </span>
           </li>
@@ -86,14 +88,14 @@ export function WelcomeCard() {
 
       <div className="px-4 pb-3.5 pt-3">
         <p className="mb-2.5 text-xs leading-relaxed text-muted-foreground">
-          A sample structure is ready — explore it, delete what you don&rsquo;t need, make it yours.
+          {t("welcome.sample")}
         </p>
         <Link
           href="/structure"
           className="flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
         >
           <Layers className="h-4 w-4" />
-          Explore the sample structure
+          {t("welcome.explore")}
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>

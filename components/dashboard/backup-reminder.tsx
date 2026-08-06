@@ -10,6 +10,7 @@ import {
   useBackupReminder,
   useLastBackupAt,
 } from "@/lib/storage-health";
+import { useT } from "@/lib/i18n";
 
 /**
  * Yedek hatırlatıcısı — ana sayfada, yalnızca kaybedilecek bir şey varken.
@@ -17,6 +18,7 @@ import {
  * kaybı sebebi; kullanıcının bunu kendiliğinden hatırlaması beklenmemeli.
  */
 export function BackupReminder() {
+  const t = useT();
   const lastBackupAt = useLastBackupAt();
   const state = useBackupReminder();
   // Kaybedilecek bir şey yoksa hatırlatma anlamsız
@@ -32,23 +34,23 @@ export function BackupReminder() {
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium">
           {state === "never" || lastBackupAt === null
-            ? "Your data has no backup"
-            : `Last backup ${agoLabel(lastBackupAt)}`}
+            ? t("backup.reminder.never")
+            : t("backup.reminder.stale", { when: agoLabel(lastBackupAt) })}
         </p>
         <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-          Everything lives on this device only. If you switch phones or clear browser data, it&rsquo;s gone.
+          {t("backup.reminder.body")}
         </p>
         <Link
           href="/structure/backup"
           className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-amber-400 transition-opacity hover:opacity-80"
         >
-          Yedek al
+          {t("backup.reminder.action")}
           <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
       <button
         type="button"
-        aria-label="Dismiss for now"
+        aria-label={t("backup.reminder.dismiss")}
         onClick={snoozeBackupReminder}
         className="shrink-0 rounded-lg p-1 text-muted-foreground transition-colors hover:text-foreground"
       >

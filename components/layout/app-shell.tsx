@@ -12,6 +12,7 @@ import {
 } from "@/lib/db/queries";
 import { purgeOldDeletions } from "@/lib/db/deletions";
 import { ensurePersistentStorage } from "@/lib/storage-health";
+import { useLocale } from "@/lib/i18n";
 import { BottomNav } from "./bottom-nav";
 import { StatusBar } from "./status-bar";
 import { UndoBar } from "./undo-bar";
