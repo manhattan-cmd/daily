@@ -16,6 +16,7 @@ import {
   type CategoryModifierWithType,
   type ParallelSub,
 } from "@/lib/db/queries";
+import { useT } from "@/lib/i18n";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
@@ -396,6 +397,7 @@ function ActivityNameStep({
   onConfirm: (name: string) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const [name, setName] = useState("");
   const suggestions = useLiveQuery(() => listActivityNameSuggestions(), []) ?? [];
 
@@ -418,7 +420,7 @@ function ActivityNameStep({
         <button
           onClick={onClose}
           className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors shrink-0"
-          aria-label="Close"
+          aria-label={t("action.close")}
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -428,7 +430,7 @@ function ActivityNameStep({
         <form onSubmit={submit} className="flex flex-col gap-4">
           {suggestions.length > 0 && (
             <div className="flex flex-col gap-2">
-              <p className="text-xs text-muted-foreground">Son aktiviteler</p>
+              <p className="text-xs text-muted-foreground">{t("entry.recentActivities")}</p>
               <div className="flex flex-wrap gap-2">
                 {suggestions.map((s) => (
                   <button
@@ -448,7 +450,7 @@ function ActivityNameStep({
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Activity name (e.g. Grocery run)"
+            placeholder={t("entry.activityName")}
             autoFocus={suggestions.length === 0}
             className="h-12 text-base"
           />
@@ -483,6 +485,7 @@ function PickStep({
   netFocus: NetFocus;
   onNetFocusChange: (focus: NetFocus) => void;
 }) {
+  const t = useT();
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   return (
@@ -499,12 +502,12 @@ function PickStep({
             </div>
           )}
           <h2 className="text-base font-semibold tracking-tight truncate">
-            {activity ? "Aktiviteye girdi ekle" : "What do you want to add?"}
+            {activity ? t("entry.addToActivity") : t("entry.whatToAdd")}
           </h2>
           <p className="text-[10px] text-muted-foreground/60 mt-0.5">
             {activity
               ? "Add as many as you like — tap Done when finished"
-              : "Pick where the entry belongs"}
+              : t("entry.pickPlace")}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -519,7 +522,7 @@ function PickStep({
           <button
             onClick={onClose}
             className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors"
-            aria-label="Close"
+            aria-label={t("action.close")}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -554,9 +557,13 @@ function PickStep({
 // ─── Form Step ───────────────────────────────────────────────────────────────
 
 /** Zaman çipinin etiketi — gün formun günüyse yalnız saat, değilse gün de */
-function occurredAtLabel(occurredAt: string, entryDate: string): string {
+function occurredAtLabel(
+  occurredAt: string,
+  entryDate: string,
+  emptyLabel: string
+): string {
   const [d = "", t = ""] = occurredAt.split("T");
-  if (!t) return "Zaman";
+  if (!t) return emptyLabel;
   if (d === entryDate) return t;
   const dt = new Date(d + "T00:00:00");
   return `${SHORT_MONTHS[dt.getMonth()]} ${dt.getDate()} · ${t}`;
@@ -618,6 +625,7 @@ function FormStep({
   saving: boolean;
   entryDate: string;
 }) {
+  const t = useT();
   const [modPickerOpen, setModPickerOpen] = useState(false);
   const [parallelPickerOpen, setParallelPickerOpen] = useState(false);
   const [panel, setPanel] = useState<Panel | null>(null);
@@ -637,14 +645,14 @@ function FormStep({
 
   const hasParallelSelected = selectedParallels.length > 0;
   const saveLabel = saving
-    ? "Kaydediliyor..."
+    ? t("entry.saving")
     : parallelContext
     ? parallelContext.index < parallelContext.total
-      ? "Save and continue →"
-      : "Save"
+      ? t("action.saveAndContinue")
+      : t("action.save")
     : hasParallelSelected
-    ? "Save and continue →"
-    : "Save";
+    ? t("action.saveAndContinue")
+    : t("action.save");
 
   return (
     <>
@@ -652,7 +660,7 @@ function FormStep({
         <button
           onClick={onBack}
           className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors shrink-0"
-          aria-label={parallelContext ? "Skip" : "Back"}
+          aria-label={parallelContext ? t("action.skip") : t("action.back")}
         >
           <ArrowLeft className="h-3.5 w-3.5" />
         </button>
@@ -694,8 +702,8 @@ function FormStep({
             {
               key: "time",
               icon: Clock,
-              title: "Zaman",
-              subtitle: occurredAtLabel(occurredAt, entryDate),
+              title: t("entry.time"),
+              subtitle: occurredAtLabel(occurredAt, entryDate, t("entry.time")),
               active: panel === "time",
               onSelect: () => togglePanel("time"),
             },
@@ -704,10 +712,10 @@ function FormStep({
                   {
                     key: "parallel",
                     icon: Link2,
-                    title: "Paralel perspektif",
+                    title: t("entry.parallel"),
                     subtitle: selectedParallels.length
                       ? `${selectedParallels.length} seçili`
-                      : "Also log in another category",
+                      : t("entry.alsoLog"),
                     active: panel === "parallel",
                     onSelect: () => togglePanel("parallel"),
                   },
@@ -728,7 +736,7 @@ function FormStep({
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary">
               <Plus className="h-5 w-5" strokeWidth={2.25} />
             </span>
-            <span className="text-sm font-semibold">Add feature</span>
+            <span className="text-sm font-semibold">{t("entry.addFeature")}</span>
             <span className="text-[11px] leading-snug text-muted-foreground">
               Neyin kaydını tutmak istersin? Boş da kaydedebilirsin.
             </span>
@@ -763,7 +771,7 @@ function FormStep({
           <div className="mt-5">
             <PanelBlock
               icon={Clock}
-              title="Zaman"
+              title={t("entry.time")}
               onClose={() => setPanel(null)}
             >
               <DateTimeInput value={occurredAt} onChange={onOccurredAtChange} />
@@ -775,7 +783,7 @@ function FormStep({
           <div className="mt-5">
           <PanelBlock
             icon={Link2}
-            title="Paralel perspektif"
+            title={t("entry.parallel")}
             onClose={() => setPanel(null)}
           >
             <div className="flex flex-col gap-2">
@@ -809,7 +817,7 @@ function FormStep({
                 className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-violet-500/30 py-2.5 text-sm font-medium text-violet-300/80 transition-colors hover:border-violet-500/50 hover:text-violet-200"
               >
                 <Plus className="h-3.5 w-3.5" />
-                {selectedParallels.length > 0 ? "Another perspective" : "Pick a perspective"}
+                {selectedParallels.length > 0 ? t("entry.anotherPerspective") : t("entry.pickPerspective")}
               </button>
             </div>
           </PanelBlock>
@@ -829,7 +837,7 @@ function FormStep({
             id="entry-note"
             value={notes}
             onChange={(e) => onNotesChange(e.target.value)}
-            placeholder="Bu girdiyle ilgili bir not..."
+            placeholder={t("entry.notePlaceholder")}
             rows={2}
             className="w-full resize-none rounded-xl border border-border bg-input px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
           />
@@ -894,6 +902,7 @@ export function ModInput({
   /** Yeni eklenen özellik: alan görünüme kaydırılır, yazı alanları odaklanır */
   autoFocus?: boolean;
 }) {
+  const t = useT();
   const vt = mod.entryType.valueType ?? "number";
   const today = toLocalDateValue();
   const scrolledRef = useRef(false);
@@ -975,7 +984,7 @@ export function ModInput({
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Metin gir..."
+          placeholder={t("entry.textPlaceholder")}
           autoFocus={autoFocus}
         />
       )}
