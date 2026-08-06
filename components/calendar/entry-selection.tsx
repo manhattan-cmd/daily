@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowLeft, CalendarDays, Check, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { intlTag, useLocale, useT } from "@/lib/i18n";
 
 /**
  * Bir kartın toplu seçim durumu. Kart birden çok girdi taşıyorsa (paralel
@@ -81,9 +82,9 @@ function shiftDate(dateStr: string, days: number): string {
   return toDateStr(new Date(y, m - 1, d + days));
 }
 
-function prettyDate(dateStr: string): string {
+function prettyDate(dateStr: string, locale: Parameters<typeof intlTag>[0]): string {
   const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+  return new Date(y, m - 1, d).toLocaleDateString(intlTag(locale), {
     day: "numeric",
     month: "long",
     weekday: "short",
@@ -115,14 +116,16 @@ export function EntrySelectionBar({
   onMove: (target: string) => Promise<void>;
   onDelete: () => Promise<void>;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [view, setView] = useState<View>("actions");
   const [target, setTarget] = useState(date);
   const [busy, setBusy] = useState(false);
 
   const quick = [
-    { label: "Previous day", value: shiftDate(date, -1) },
-    { label: "Next day", value: shiftDate(date, 1) },
-    { label: "Today", value: toDateStr(new Date()) },
+    { label: t("selection.previousDay"), value: shiftDate(date, -1) },
+    { label: t("selection.nextDay"), value: shiftDate(date, 1) },
+    { label: t("nav.today"), value: toDateStr(new Date()) },
   ].filter((q) => q.value !== date);
 
   async function run(fn: () => Promise<void>) {
@@ -150,19 +153,19 @@ export function EntrySelectionBar({
             <div className="flex items-center gap-2 px-4 pt-3 pb-2">
               <button
                 onClick={onCancel}
-                aria-label="Clear selection"
+                aria-label={t("selection.clear")}
                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
               <span className="flex-1 text-sm font-semibold">
-                {count} selected
+                {t("selection.count", { n: count })}
               </span>
               <button
                 onClick={onSelectAll}
                 className="shrink-0 rounded-full bg-white/8 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
               >
-                {allSelected ? "Clear selection" : "Select all"}
+                {allSelected ? t("selection.clear") : t("selection.selectAll")}
               </button>
             </div>
             <div className="flex gap-2 px-4 pb-7 pt-1">
@@ -174,14 +177,14 @@ export function EntrySelectionBar({
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-white/[0.04] py-3 text-sm font-medium transition-colors hover:bg-white/[0.08]"
               >
                 <CalendarDays className="h-4 w-4 text-primary" />
-                Başka güne taşı
+                {t("selection.move")}
               </button>
               <button
                 onClick={() => setView("delete")}
                 className="flex items-center justify-center gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-5 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20"
               >
                 <Trash2 className="h-4 w-4" />
-                Sil
+                {t("selection.delete")}
               </button>
             </div>
           </>
@@ -192,17 +195,17 @@ export function EntrySelectionBar({
             <div className="mb-3 flex items-center gap-2">
               <button
                 onClick={() => setView("actions")}
-                aria-label="Back"
+                aria-label={t("action.back")}
                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
               </button>
               <div className="min-w-0">
                 <p className="text-sm font-semibold leading-tight">
-                  Hangi güne taşınsın?
+                  {t("selection.moveTitle")}
                 </p>
                 <p className="text-[10px] text-muted-foreground/70">
-                  {count} items · times are kept
+                  {t("selection.moveHint", { n: count })}
                 </p>
               </div>
             </div>
@@ -238,10 +241,10 @@ export function EntrySelectionBar({
               className="h-11 w-full rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
             >
               {busy
-                ? "Moving..."
+                ? t("selection.moving")
                 : target === date
-                  ? "Pick a different day"
-                  : `${prettyDate(target)} gününe taşı`}
+                  ? t("selection.pickAnotherDay")
+                  : t("selection.moveTo", { date: prettyDate(target, locale) })}
             </button>
           </div>
         )}
@@ -258,10 +261,10 @@ export function EntrySelectionBar({
               </button>
               <div className="min-w-0">
                 <p className="text-sm font-semibold leading-tight">
-                  {count} items?
+                  {t("selection.deleteTitle", { n: count })}
                 </p>
                 <p className="text-[10px] text-muted-foreground/70">
-                  İçerikleriyle birlikte kalıcı olarak silinir.
+                  {t("selection.deleteBody")}
                 </p>
               </div>
             </div>
@@ -271,14 +274,14 @@ export function EntrySelectionBar({
                 disabled={busy}
                 className="h-11 flex-1 rounded-xl border border-border bg-white/[0.04] text-sm font-medium transition-colors hover:bg-white/[0.08]"
               >
-                Vazgeç
+                {t("action.cancel")}
               </button>
               <button
                 onClick={() => run(onDelete)}
                 disabled={busy}
                 className="h-11 flex-1 rounded-xl bg-destructive text-sm font-semibold text-destructive-foreground transition-opacity disabled:opacity-40"
               >
-                {busy ? "Deleting..." : "Delete"}
+                {busy ? t("selection.deleting") : t("action.delete")}
               </button>
             </div>
           </div>

@@ -177,7 +177,7 @@ export default function CalendarDayPage({
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground mb-5 -ml-0.5 hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span>Calendar</span>
+          <span>{t("nav.calendar")}</span>
         </Link>
 
         <div className="flex items-end justify-between gap-4">
@@ -210,7 +210,7 @@ export default function CalendarDayPage({
             items={[
               {
                 key: "entry",
-                label: "Entry",
+                label: t("add.entry"),
                 icon: PenLine,
                 iconClass: "text-primary",
                 onSelect: () => {
@@ -221,7 +221,7 @@ export default function CalendarDayPage({
               },
               {
                 key: "activity",
-                label: "Activity",
+                label: t("add.activity"),
                 icon: Boxes,
                 iconClass: "text-cyan-400",
                 onSelect: () => {
@@ -232,14 +232,14 @@ export default function CalendarDayPage({
               },
               {
                 key: "goal",
-                label: "Goal",
+                label: t("add.goal"),
                 icon: Target,
                 iconClass: "text-amber-400",
                 onSelect: () => setGoalSheetOpen(true),
               },
               {
                 key: "note",
-                label: "Note",
+                label: t("add.note"),
                 icon: NotebookPen,
                 iconClass: "text-rose-400",
                 onSelect: async () => {
@@ -251,7 +251,7 @@ export default function CalendarDayPage({
                 ? ([
                     {
                       key: "sleep",
-                      label: "Sleep",
+                      label: t("add.sleep"),
                       icon: MoonStar,
                       iconClass: "text-violet-400",
                       onSelect: () => setSleepSheetOpen(true),

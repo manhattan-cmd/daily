@@ -90,6 +90,12 @@ export const en = {
   "day.entries": "ENTRIES",
   "day.notes": "Notes",
   "day.goals": "Goals",
+  "day.add": "Add",
+  "add.entry": "Entry",
+  "add.activity": "Activity",
+  "add.goal": "Goal",
+  "add.note": "Note",
+  "add.sleep": "Sleep",
 
   // ── Toplu seçim ──────────────────────────────────────────────────────
   "selection.count": "{n} selected",
@@ -104,6 +110,9 @@ export const en = {
   "selection.deleting": "Deleting...",
   "selection.previousDay": "Previous day",
   "selection.nextDay": "Next day",
+  "selection.moveTo": "Move to {date}",
+  "selection.pickAnotherDay": "Pick a different day",
+  "selection.delete": "Delete",
 
   // ── Geri alma ────────────────────────────────────────────────────────
   "undo.deleted": "{what} deleted",
@@ -242,6 +251,12 @@ export const tr: Record<MessageKey, string> = {
   "day.entries": "GİRDİ",
   "day.notes": "Notlar",
   "day.goals": "Hedefler",
+  "day.add": "Ekle",
+  "add.entry": "Girdi",
+  "add.activity": "Aktivite",
+  "add.goal": "Hedef",
+  "add.note": "Not",
+  "add.sleep": "Uyku",
 
   "selection.count": "{n} öğe seçildi",
   "selection.clear": "Seçimi temizle",
@@ -255,6 +270,9 @@ export const tr: Record<MessageKey, string> = {
   "selection.deleting": "Siliniyor...",
   "selection.previousDay": "Önceki gün",
   "selection.nextDay": "Sonraki gün",
+  "selection.moveTo": "{date} gününe taşı",
+  "selection.pickAnotherDay": "Başka bir gün seç",
+  "selection.delete": "Sil",
 
   "undo.deleted": "{what} silindi",
   "undo.running": "Geri alınıyor…",

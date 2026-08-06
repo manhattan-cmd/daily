@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 export type AddMenuItem = {
   key: string;
@@ -19,6 +20,7 @@ export type AddMenuItem = {
  * Buton sağ üstte durduğu için yay sola-aşağı doğru açılır.
  */
 export function AddMenu({ items }: { items: AddMenuItem[] }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
 
   // Düzgün çeyrek yay: ilk daire tam solda (180°), son daire tam aşağıda (90°);
@@ -99,7 +101,7 @@ export function AddMenu({ items }: { items: AddMenuItem[] }) {
               : "bg-primary text-primary-foreground hover:bg-primary/90"
           )}
           aria-expanded={open}
-          aria-label={open ? "Close menu" : "Ekle"}
+          aria-label={open ? t("action.close") : t("day.add")}
         >
           <Plus
             className={cn(
@@ -107,7 +109,7 @@ export function AddMenu({ items }: { items: AddMenuItem[] }) {
               open && "rotate-45"
             )}
           />
-          Ekle
+          {t("day.add")}
         </button>
       </div>
     </>
