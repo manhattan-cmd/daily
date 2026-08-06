@@ -96,7 +96,7 @@ export function ModifierSection({
             onClick={() => setSelected(mod)}
           />
         ))}
-        <ModAtomAdd label="Özellik ekle" onClick={() => setPickerOpen(true)} />
+        <ModAtomAdd label="Add feature" onClick={() => setPickerOpen(true)} />
       </div>
 
       {/* Atom detayı — ölçüsü + buradan çıkarma */}

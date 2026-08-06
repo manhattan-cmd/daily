@@ -62,7 +62,7 @@ export function EntryIcon({
           )}
           style={{ color }}
         >
-          {(subcategory?.name ?? category.name).charAt(0).toLocaleUpperCase("tr-TR")}
+          {(subcategory?.name ?? category.name).charAt(0).toLocaleUpperCase("en-US")}
         </span>
       )}
     </div>

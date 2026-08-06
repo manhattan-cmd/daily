@@ -19,15 +19,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-const MONTHS_TR = [
-  "Oca", "Şub", "Mar", "Nis", "May", "Haz",
-  "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara",
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 function shortDate(date: string): string {
   const [, m, d] = date.split("-").map(Number);
-  return `${d} ${MONTHS_TR[m - 1]}`;
+  return `${d} ${MONTHS[m - 1]}`;
 }
-const norm = (s: string) => s.toLocaleLowerCase("tr-TR");
+const norm = (s: string) => s.toLocaleLowerCase("en-US");
 
 function dateNoon(date: string): number {
   const [y, m, d] = date.split("-").map(Number);
@@ -134,7 +134,7 @@ export function EntryPickerDialog({
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={mode === "existing" ? "Girdi ara…" : "Alt kategori ara…"}
+            placeholder={mode === "existing" ? "Search entries…" : "Search subcategories…"}
             className="h-9 pl-9 pr-8"
           />
           {query && (
@@ -153,8 +153,8 @@ export function EntryPickerDialog({
             entries === undefined ? null : filteredEntries.length === 0 ? (
               <p className="px-1 py-4 text-xs text-muted-foreground/70">
                 {(entries?.length ?? 0) === 0
-                  ? "Henüz girdi yok — “Yeni girdi” ile oluştur."
-                  : "Eşleşen girdi yok."}
+                  ? "No entries yet — create one with “New entry”."
+                  : "No matching entry."}
               </p>
             ) : (
               <ul className="flex flex-col gap-1">
@@ -188,8 +188,8 @@ export function EntryPickerDialog({
           ) : subs === undefined ? null : filteredSubs.length === 0 ? (
             <p className="px-1 py-4 text-xs text-muted-foreground/70">
               {(subs?.length ?? 0) === 0
-                ? "Önce Yapı’dan bir alt kategori oluştur."
-                : "Eşleşen alt kategori yok."}
+                ? "Create a subcategory in Structure first."
+                : "No matching subcategory."}
             </p>
           ) : (
             <ul className="flex flex-col gap-1">

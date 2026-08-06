@@ -37,7 +37,7 @@ export function UndoBar() {
         <Trash2 className="h-4 w-4 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate text-sm">
           <span className="font-medium">{batch.label}</span>
-          <span className="text-muted-foreground"> silindi</span>
+          <span className="text-muted-foreground"> deleted</span>
         </span>
         <button
           type="button"
@@ -53,12 +53,12 @@ export function UndoBar() {
           className="flex shrink-0 items-center gap-1.5 rounded-xl bg-primary/15 px-3 py-1.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/25 disabled:opacity-50"
         >
           <RotateCcw className="h-3.5 w-3.5" />
-          {busy ? "Geri alınıyor…" : "Geri al"}
+          {busy ? "Undoing…" : "Geri al"}
         </button>
         <button
           type="button"
           onClick={() => setHidden(batch.batchId)}
-          aria-label="Kapat"
+          aria-label="Close"
           className="shrink-0 rounded-lg px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
           Tamam

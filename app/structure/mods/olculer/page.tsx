@@ -98,8 +98,8 @@ export default function OlculerPage() {
   return (
     <>
       <PageHeader
-        title="Yapı"
-        description="Ölçüler — özelliklerin ölçüm araçları"
+        title="Structure"
+        description="Measures — how features are measured"
         action={
           <Button
             size="sm"
@@ -107,7 +107,7 @@ export default function OlculerPage() {
             className="gap-1.5"
           >
             <Plus className="h-3.5 w-3.5" />
-            Yeni Ölçü
+            New measure
           </Button>
         }
       />
@@ -172,7 +172,7 @@ export default function OlculerPage() {
                   {MEASURE_KIND_META[selected.valueType ?? "number"].label}
                   {" · "}
                   {measureSummary(selected)}
-                  {selected.isBuiltIn && " · yerleşik"}
+                  {selected.isBuiltIn && " · built-in"}
                 </DialogDescription>
               </DialogHeader>
               <div className="rounded-xl border border-border bg-card px-3 py-2.5 text-xs text-muted-foreground text-center">
@@ -190,7 +190,7 @@ export default function OlculerPage() {
                     {selectedUsage.valueCount} kayıt
                   </>
                 ) : (
-                  "henüz kullanılmadı"
+                  "not used yet"
                 )}
               </div>
               {!selected.isBuiltIn && (
@@ -247,7 +247,7 @@ function MeasureDialog({
         {dialog.mode === "kind" && (
           <>
             <DialogHeader>
-              <DialogTitle className="text-base">Yeni ölçü</DialogTitle>
+              <DialogTitle className="text-base">New measure</DialogTitle>
               <DialogDescription>Önce ilkel türünü seç</DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-2">
@@ -349,14 +349,14 @@ function MeasureConfig({
           <button
             onClick={onBack}
             className="h-6 w-6 -ml-1 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Geri"
+            aria-label="Back"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
           </button>
           <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
             <KindIcon className="h-3.5 w-3.5 text-primary" />
           </span>
-          {editing ? "Ölçüyü düzenle" : meta.label}
+          {editing ? "Edit measure" : meta.label}
         </DialogTitle>
         <DialogDescription>{meta.hint}</DialogDescription>
       </DialogHeader>
@@ -369,10 +369,10 @@ function MeasureConfig({
           onChange={(e) => setName(e.target.value)}
           placeholder={
             kind === "select"
-              ? "örn. Evet/Hayır/Belki"
+              ? "e.g. Yes/No/Maybe"
               : kind === "number"
-              ? "örn. Bardak"
-              : "örn. Ruh Hâli Notu"
+              ? "e.g. Glass"
+              : "e.g. Mood note"
           }
           autoFocus
         />
@@ -385,7 +385,7 @@ function MeasureConfig({
             id="measure-unit"
             value={unit}
             onChange={(e) => setUnit(e.target.value)}
-            placeholder="örn. bardak, sayfa, km"
+            placeholder="e.g. glass, page, km"
           />
         </div>
       )}
@@ -403,7 +403,7 @@ function MeasureConfig({
               id="measure-option"
               value={optionInput}
               onChange={(e) => setOptionInput(e.target.value)}
-              placeholder="Seçenek yaz, Enter'a bas"
+              placeholder="Type an option, press Enter"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -417,7 +417,7 @@ function MeasureConfig({
               size="icon"
               onClick={addOption}
               disabled={!optionInput.trim()}
-              aria-label="Seçenek ekle"
+              aria-label="Add option"
             >
               <Plus className="h-4 w-4" />
             </Button>
@@ -451,7 +451,7 @@ function MeasureConfig({
           İptal
         </Button>
         <Button onClick={handleSave} disabled={saving || !isValid}>
-          {editing ? "Kaydet" : "Oluştur"}
+          {editing ? "Save" : "Create"}
         </Button>
       </DialogFooter>
     </>

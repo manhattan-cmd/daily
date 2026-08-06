@@ -42,7 +42,7 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
       .equals(cat.id)
       .toArray();
     const sub =
-      subs.find((s) => s.name.toLocaleLowerCase("tr-TR") === "gece uykusu") ??
+      subs.find((s) => s.name.toLocaleLowerCase("en-US") === "night sleep") ??
       subs.find((s) => !s.parentId);
     if (!sub) return null;
     const mods = await listModifiersForTarget("subcategory", sub.id);
@@ -137,7 +137,7 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
           <button
             onClick={onClose}
             className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors"
-            aria-label="Kapat"
+            aria-label="Close"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -153,7 +153,7 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
               {target.rangeMod && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium">
-                    {target.rangeMod.name ?? "Uyku Süresi"}
+                    {target.rangeMod.name ?? "Sleep Duration"}
                   </label>
                   <DateTimeRangeInput
                     value={range}
@@ -166,7 +166,7 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
               {target.qualityMod && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium">
-                    {target.qualityMod.name ?? "Uyku Kalitesi"}
+                    {target.qualityMod.name ?? "Sleep Quality"}
                   </label>
                   <div className="flex gap-2">
                     {(target.qualityMod.entryType.choices ?? []).map((c) => (
@@ -198,7 +198,7 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
             onClick={handleSave}
             disabled={saving || !target}
           >
-            {saving ? "Kaydediliyor..." : "Kaydet"}
+            {saving ? "Kaydediliyor..." : "Save"}
           </Button>
         </div>
       </div>

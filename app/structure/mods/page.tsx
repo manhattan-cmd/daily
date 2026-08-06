@@ -116,7 +116,7 @@ export default function ModsHomePage() {
     try {
       const clash = await findModByName(name);
       if (clash) {
-        setError(`"${clash.name}" adında bir özellik zaten var — özellik adları tekildir.`);
+        setError(`A feature named "${clash.name}" already exists — feature names are unique.`);
         return;
       }
       await createMod(name, measureId);
@@ -160,14 +160,14 @@ export default function ModsHomePage() {
       u && (u.count > 0 || u.valueCount > 0)
         ? ` ${u.count} yerden kaldırılacak; ${u.valueCount} kayıt değeri ölçü adıyla kalacak.`
         : "";
-    if (!confirm(`"${mod.name}" özelliği havuzdan silinsin mi?${detail}`)) return;
+    if (!confirm(`Delete the "${mod.name}" feature from the pool?${detail}`)) return;
     await deleteMod(mod.id);
     setSelected(null);
   }
 
   const selectedUsage = selected ? usage?.get(selected.id) : undefined;
 
-  const norm = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
+  const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
   const visibleMods = (mods ?? []).filter(
     (m) => !search || norm(m.name).includes(norm(search))
   );
@@ -180,8 +180,8 @@ export default function ModsHomePage() {
           satıra taşınca başlık uzuyor ve sekme şeridi aşağı kayıyordu.
           Uzun anlatım sekmelerin altına indi. */}
       <PageHeader
-        title="Yapı"
-        description="Özellikler — ölçtüklerin"
+        title="Structure"
+        description="Features — what you measure"
         action={
           <div className="flex items-center gap-1.5">
             <button
@@ -195,13 +195,13 @@ export default function ModsHomePage() {
                   ? "bg-primary/15 text-primary"
                   : "bg-white/8 text-muted-foreground hover:bg-white/12 hover:text-foreground"
               )}
-              aria-label={searchOpen ? "Aramayı kapat" : "Özellik ara"}
+              aria-label={searchOpen ? "Close search" : "Search features"}
             >
               <Search className="h-3.5 w-3.5" />
             </button>
             <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-1.5">
               <Plus className="h-3.5 w-3.5" />
-              Yeni Özellik
+              New feature
             </Button>
           </div>
         }
@@ -210,7 +210,7 @@ export default function ModsHomePage() {
       <StructureTabs />
 
       <p className="mb-5 -mt-2 px-1 text-[11px] leading-snug text-muted-foreground/70">
-        Kilo, süre, para… Kategorilere ekleyip girdi sırasında değer girersin.
+        Weight, duration, money… attach them to categories and fill in values as you log.
       </p>
 
       {searchOpen && (
@@ -219,7 +219,7 @@ export default function ModsHomePage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Özellik ara..."
+            placeholder="Search features..."
             autoFocus
             className="h-9 pl-9 pr-8"
           />
@@ -227,7 +227,7 @@ export default function ModsHomePage() {
             <button
               onClick={() => setSearch("")}
               className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground/60 hover:text-foreground transition-colors"
-              aria-label="Aramayı temizle"
+              aria-label="Clear search"
             >
               <X className="h-3 w-3" />
             </button>
@@ -241,7 +241,7 @@ export default function ModsHomePage() {
           {builtIns.length > 0 && (
             <section className="mb-6">
               <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Yerleşik Özellikler
+                Built-in features
               </h2>
               <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
                 {builtIns.map((mod) => (
@@ -260,7 +260,7 @@ export default function ModsHomePage() {
           {(userMods.length > 0 || !search) && (
             <section className="mb-6">
               <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Senin Özelliklerin
+                Your features
               </h2>
               <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
                 {userMods.map((mod) => (
@@ -276,7 +276,7 @@ export default function ModsHomePage() {
                     label={
                       mods.some((m) => !m.isBuiltIn)
                         ? "Yeni yarat"
-                        : "İlk özelliğin"
+                        : "Your first feature"
                     }
                     onClick={() => setCreateOpen(true)}
                   />
@@ -288,7 +288,7 @@ export default function ModsHomePage() {
           {search && visibleMods.length === 0 && (
             <p className="px-1 text-xs text-muted-foreground/70">
               &bdquo;{search}&rdquo; adında bir özellik yok —{" "}
-              <span className="font-medium">Yeni Özellik</span> bu adla
+              <span className="font-medium">Yeni Features</span> bu adla
               yaratabilir.
             </p>
           )}
@@ -310,7 +310,7 @@ export default function ModsHomePage() {
                 </DialogTitle>
                 <DialogDescription>
                   {measureSummary(selected.entryType)}
-                  {selected.isBuiltIn && " · yerleşik"}
+                  {selected.isBuiltIn && " · built-in"}
                 </DialogDescription>
               </DialogHeader>
               <div className="rounded-xl border border-border bg-card px-3 py-2.5 text-xs text-muted-foreground text-center">
@@ -328,7 +328,7 @@ export default function ModsHomePage() {
                     {selectedUsage.valueCount} kayıt
                   </>
                 ) : (
-                  "henüz kullanılmadı"
+                  "not used yet"
                 )}
               </div>
               <div className="flex gap-2">
@@ -360,7 +360,7 @@ export default function ModsHomePage() {
                   <button
                     onClick={() => setDetailView("info")}
                     className="h-6 w-6 -ml-1 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label="Detaya dön"
+                    aria-label="Back to detail"
                   >
                     <ArrowLeft className="h-3.5 w-3.5" />
                   </button>
@@ -368,8 +368,8 @@ export default function ModsHomePage() {
                 </DialogTitle>
                 <DialogDescription>
                   {selected.isBuiltIn
-                    ? "Yerleşik özellik — adı sabit, ölçüsü değiştirilebilir"
-                    : "Ad her yerde değişir — özellik tektir"}
+                    ? "Built-in feature — the name is fixed, the measure can change"
+                    : "The name changes everywhere — a feature is unique"}
                 </DialogDescription>
               </DialogHeader>
 
@@ -379,7 +379,7 @@ export default function ModsHomePage() {
                   <Label>Özellik adı</Label>
                   <p className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
                     {selected.name}
-                    <span className="ml-1.5 text-xs opacity-70">· yerleşik</span>
+                    <span className="ml-1.5 text-xs opacity-70">· built-in</span>
                   </p>
                 </div>
               ) : (
@@ -479,7 +479,7 @@ export default function ModsHomePage() {
               id="pool-mod-name"
               value={name}
               onChange={(e) => { setName(e.target.value); setError(null); }}
-              placeholder="örn. Yürüyüş süresi"
+              placeholder="e.g. Walking duration"
               autoFocus
             />
           </div>

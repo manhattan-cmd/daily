@@ -89,7 +89,7 @@ export function ModPickDialog({
     (attached ?? []).map((a) => a.modId).filter(Boolean)
   );
   const available = (pool ?? []).filter((m) => !attachedModIds.has(m.id));
-  const norm = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
+  const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
   const filtered = search
     ? available.filter((m) => norm(m.name).includes(norm(search)))
     : available;
@@ -156,7 +156,7 @@ export function ModPickDialog({
                 <ArrowLeft className="h-3.5 w-3.5" />
               </button>
             )}
-            {mode === "create" ? "Yeni özellik yarat" : "Özellik ekle"}
+            {mode === "create" ? "Create a new feature" : "Add feature"}
           </DialogTitle>
           <DialogDescription>
             {mode === "create"
@@ -194,7 +194,7 @@ export function ModPickDialog({
                       ? "bg-primary/15 text-primary"
                       : "bg-white/8 text-muted-foreground hover:bg-white/12 hover:text-foreground"
                   )}
-                  aria-label={searchOpen ? "Aramayı kapat" : "Özellik ara"}
+                  aria-label={searchOpen ? "Close search" : "Search features"}
                 >
                   <Search className="h-3.5 w-3.5" />
                 </button>
@@ -207,7 +207,7 @@ export function ModPickDialog({
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Özellik ara..."
+                  placeholder="Search features..."
                   autoFocus
                   className="h-9 pl-9 pr-8"
                 />
@@ -215,7 +215,7 @@ export function ModPickDialog({
                   <button
                     onClick={() => setSearch("")}
                     className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground/60 hover:text-foreground transition-colors"
-                    aria-label="Aramayı temizle"
+                    aria-label="Clear search"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -255,7 +255,7 @@ export function ModPickDialog({
                 id="mod-name-input"
                 value={name}
                 onChange={(e) => { setName(e.target.value); setError(null); setExistingId(null); }}
-                placeholder="örn. Yürüyüş süresi"
+                placeholder="e.g. Walking duration"
                 autoFocus
               />
             </div>
@@ -291,7 +291,7 @@ export function ModPickDialog({
                   onClick={onGoToMeasures}
                   className="flex items-center gap-1 self-start text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Yeni ölçü türü oluştur
+                  Create a new measure type
                   <ArrowUpRight className="h-3 w-3" />
                 </button>
               )}

@@ -252,7 +252,7 @@ export function SubCategoryTree({
       {roots.length > 0 && !drag && (
         <p className="flex items-center gap-1.5 px-1 pb-1.5 text-[11px] leading-snug text-muted-foreground/50">
           <Move className="h-3 w-3 shrink-0" />
-          Basılı tutup sürükle: başka satırın altına taşı, köke al, sil
+          Hold and drag: move under another row, to the root, or delete
         </p>
       )}
 
@@ -573,7 +573,7 @@ function TreeNode({
           ))}
           <AddRow
             color={color}
-            label={`${sub.name} içine ekle`}
+            label={`${sub.name} add inside`}
             onClick={() => onAddChild(sub.id)}
           />
         </div>

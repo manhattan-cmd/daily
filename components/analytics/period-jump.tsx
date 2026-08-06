@@ -53,14 +53,14 @@ export function PeriodJump({ align = "right" }: { align?: "right" | "center" }) 
 
   const d = new Date(now);
   const quick: { label: string; key: string }[] = [
-    { label: "Dün", key: dayPeriod(now - 86400000).key },
-    { label: "Geçen Hafta", key: weekPeriod(now - 7 * 86400000).key },
+    { label: "Yesterday", key: dayPeriod(now - 86400000).key },
+    { label: "Last week", key: weekPeriod(now - 7 * 86400000).key },
     {
-      label: "Geçen Ay",
+      label: "Last month",
       key: monthPeriod(new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime()).key,
     },
     {
-      label: "Geçen Yıl",
+      label: "Last year",
       key: yearPeriod(new Date(d.getFullYear() - 1, 0, 1).getTime()).key,
     },
   ];

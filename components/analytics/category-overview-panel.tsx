@@ -175,13 +175,13 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
   if (computed.empty) {
     return (
       <p className="py-8 text-center text-xs text-muted-foreground/60">
-        Bu kategoride henüz girdi yok.
+        No entries in this category yet.
       </p>
     );
   }
 
   const unit = compute.unit || undefined;
-  const metricLabel = metric.type === "count" ? "girdi" : unit;
+  const metricLabel = metric.type === "count" ? "entries" : unit;
 
   return (
     <div className="flex flex-col gap-4 pb-6">
@@ -206,46 +206,46 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       {metric.type === "count" ? (
         <div className="grid grid-cols-2 gap-2">
           <StatTile
-            label="Girdi sayısı"
+            label="Entries"
             value={fmtNum(computed.withValueCount)}
-            sub="tüm zamanlar"
+            sub="all time"
           />
           <StatTile
-            label="Günlük ortalama"
+            label="Daily average"
             value={fmtNum(computed.dailyAvg)}
-            unit="girdi"
-            sub={`${computed.elapsedDays} gün üzerinden`}
+            unit="entries"
+            sub={`${computed.elapsedDays} days`}
           />
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-2">
           {compute.displayMode === "both" && (
             <StatTile
-              label="Toplam"
+              label="Total"
               value={fmtNum(computed.total)}
               unit={unit}
-              sub="tüm zamanlar"
+              sub="all time"
             />
           )}
           {compute.displayMode === "both" ? (
             <StatTile
-              label="Günlük ortalama"
+              label="Daily average"
               value={fmtNum(computed.dailyAvg)}
               unit={unit}
-              sub={`${computed.elapsedDays} gün üzerinden`}
+              sub={`${computed.elapsedDays} days`}
             />
           ) : (
             <StatTile
-              label="Ortalama"
+              label="Average"
               value={fmtNum(computed.avg)}
               unit={unit}
-              sub="girdi başına"
+              sub="per entry"
             />
           )}
           <StatTile
-            label="Girdi sayısı"
+            label="Entries"
             value={fmtNum(computed.withValueCount)}
-            sub={`${computed.elapsedDays} günde`}
+            sub={`${computed.elapsedDays} days`}
           />
         </div>
       )}
@@ -257,15 +257,15 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         </h3>
         <div className="grid grid-cols-3 gap-2">
           <StatTile
-            label="Aktif Gün"
+            label="Active days"
             value={`%${fmtNum(computed.activeRatio)}`}
             sub={`${computed.activeDayCount}/${computed.elapsedDays} gün`}
           />
           <StatTile
-            label="Güncel Seri"
+            label="Current streak"
             value={fmtNum(computed.streaks.current)}
             unit="gün"
-            sub="üst üste"
+            sub="in a row"
           />
           <StatTile
             label="Rekor Seri"
@@ -287,7 +287,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         </h3>
         <div className="grid grid-cols-2 gap-2">
           <StatTile
-            label="Son 4 Hafta"
+            label="Last 4 weeks"
             value={fmtNum(computed.recentValue)}
             unit={computed.isAvgMetric ? unit : metricLabel}
             sub={
@@ -295,14 +295,14 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
                 ? `önceki döneme göre %${computed.growthPct >= 0 ? "+" : "−"}${fmtNum(
                     Math.abs(computed.growthPct)
                   )}`
-                : "önceki dönemde veri yok"
+                : "no data in the previous period"
             }
           />
           <StatTile
-            label="Önceki 4 Hafta"
+            label="Previous 4 weeks"
             value={fmtNum(computed.prevValue)}
             unit={computed.isAvgMetric ? unit : metricLabel}
-            sub={computed.isAvgMetric ? "ortalama" : "toplam"}
+            sub={computed.isAvgMetric ? "average" : "total"}
           />
         </div>
       </div>
@@ -311,11 +311,11 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
           görülür, istenirse alt kategoriye inilir, sonra trend incelenir */}
       <div className="rounded-2xl border border-border bg-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-          Alt Kategori Dağılımı
+          Subcategory breakdown
           {metric.type === "mod" && (
             <span className="normal-case font-normal text-muted-foreground/60">
               {" "}
-              ({compute.bucketIsAvg ? "ortalama" : "toplam"})
+              ({compute.bucketIsAvg ? "average" : "total"})
             </span>
           )}
         </h3>
@@ -340,11 +340,11 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       <div className="rounded-2xl border border-border bg-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
           {GRANULARITY_TITLES[computed.granularity]}{" "}
-          {metric.type === "count" ? "girdi" : metric.mod.name}
+          {metric.type === "count" ? "entries" : metric.mod.name}
           {metric.type === "mod" && (
             <span className="normal-case font-normal text-muted-foreground/60">
               {" "}
-              ({compute.bucketIsAvg ? "ortalama" : "toplam"})
+              ({compute.bucketIsAvg ? "average" : "total"})
             </span>
           )}{" "}
           · Tüm Zamanlar
@@ -352,14 +352,14 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         <DailyBarChart
           data={computed.buckets}
           color={category.color}
-          unit={metric.type === "count" ? "girdi" : unit}
+          unit={metric.type === "count" ? "entries" : unit}
           caption={computed.seriesFrame?.caption}
         />
       </div>
 
       {/* Girdi listesi — son 50 */}
       <EntryListSection
-        title="Son Girdiler"
+        title="Recent entries"
         accent={category.color}
         rows={computed.entryRows}
         emptyText={

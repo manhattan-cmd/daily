@@ -12,13 +12,13 @@ export const newBatchId = () => nanoid(10);
 
 /** Kullanıcıya sayılırken anlamlı olan tablolar — entryValues gibi bağlı kayıtlar sayılmaz */
 const COUNTED: Record<string, [tekil: string, cogul: string]> = {
-  entries: ["girdi", "girdi"],
-  notes: ["not", "not"],
-  goals: ["hedef", "hedef"],
-  categories: ["kategori", "kategori"],
-  subcategories: ["alt kategori", "alt kategori"],
-  activities: ["aktivite", "aktivite"],
-  mods: ["özellik", "özellik"],
+  entries: ["entry", "entries"],
+  notes: ["note", "notes"],
+  goals: ["goal", "goals"],
+  categories: ["category", "categories"],
+  subcategories: ["subcategory", "subcategories"],
+  activities: ["activity", "activities"],
+  mods: ["feature", "features"],
 };
 
 /**
@@ -77,7 +77,7 @@ export async function latestUndoableBatch(): Promise<UndoableBatch | null> {
   return {
     batchId: newest.batchId,
     deletedAt: newest.deletedAt,
-    label: parts.length ? parts.join(" · ") : `${rows.length} kayıt`,
+    label: parts.length ? parts.join(" · ") : `${rows.length} records`,
   };
 }
 

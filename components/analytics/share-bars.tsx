@@ -20,7 +20,7 @@ export type ShareRow = {
  */
 export function ShareBars({
   rows,
-  emptyText = "Bu aralıkta veri yok",
+  emptyText = "No data in this range",
   onSelect,
 }: {
   rows: ShareRow[];

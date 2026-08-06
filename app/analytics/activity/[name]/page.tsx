@@ -29,7 +29,7 @@ import { ShareBars, type ShareRow } from "@/components/analytics/share-bars";
 import type { Entry } from "@/types";
 
 const ACTIVITY_COLOR = "#06b6d4";
-const norm = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
+const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
 
 /**
  * Aktivite analizi — aynı adı taşıyan tüm aktivite oturumlarını zaman içinde
@@ -72,7 +72,7 @@ export default function ActivityAnalyticsPage({
       .filter((m) => modIds.has(m.id))
       .map((m) => classifyNumericMod(m, typeMap.get(m.entryTypeId)))
       .filter((m): m is NonNullable<typeof m> => !!m)
-      .sort((a, b) => a.name.localeCompare(b.name, "tr"));
+      .sort((a, b) => a.name.localeCompare(b.name, "en"));
     return {
       activities,
       entries,
@@ -204,7 +204,7 @@ export default function ActivityAnalyticsPage({
   }, [data, metric]);
 
   const unit = metric.type === "mod" ? metric.mod.unit : "";
-  const metricLabel = metric.type === "count" ? "girdi" : unit || undefined;
+  const metricLabel = metric.type === "count" ? "entries" : unit || undefined;
 
   return (
     <>
@@ -229,19 +229,19 @@ export default function ActivityAnalyticsPage({
               <StatTile
                 label="Oturum"
                 value={fmtNum(computed.sessions.length)}
-                sub="toplam"
+                sub="total"
               />
               <StatTile
-                label={computed.isAvgMetric ? "Ortalama" : "Toplam"}
+                label={computed.isAvgMetric ? "Average" : "Total"}
                 value={fmtNum(computed.total)}
                 unit={metricLabel}
-                sub="tüm oturumlar"
+                sub="all sessions"
               />
               <StatTile
                 label="Oturum Ort."
                 value={fmtNum(computed.perSession)}
                 unit={metricLabel}
-                sub={computed.isAvgMetric ? "ortalama" : "oturum başına"}
+                sub={computed.isAvgMetric ? "average" : "per session"}
               />
             </div>
 
@@ -249,12 +249,12 @@ export default function ActivityAnalyticsPage({
             <div className="rounded-2xl border border-border bg-card p-4">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                 {GRANULARITY_TITLES[computed.granularity]}{" "}
-                {metric.type === "count" ? "girdi" : metric.mod.name}
+                {metric.type === "count" ? "entries" : metric.mod.name}
               </h3>
               <DailyBarChart
                 data={computed.buckets}
                 color={ACTIVITY_COLOR}
-                unit={metric.type === "count" ? "girdi" : unit}
+                unit={metric.type === "count" ? "entries" : unit}
                 caption={computed.seriesFrame?.caption}
               />
             </div>
@@ -262,7 +262,7 @@ export default function ActivityAnalyticsPage({
             {/* Kategori dağılımı */}
             <div className="rounded-2xl border border-border bg-card p-4">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                Kategori Dağılımı
+                Category breakdown
               </h3>
               <ShareBars rows={computed.catShare} emptyText="Veri yok" />
             </div>

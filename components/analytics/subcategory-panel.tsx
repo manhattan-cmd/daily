@@ -211,7 +211,7 @@ export function SubcategoryPanel({
 
   if (!data || !compute || !computed) return null;
 
-  const metricLabel = metric.type === "count" ? "girdi" : compute.unit || undefined;
+  const metricLabel = metric.type === "count" ? "entries" : compute.unit || undefined;
   const metricParam = metric.type === "count" ? "count" : metric.mod.id;
   const hasChildren = data.children.length > 0;
 
@@ -244,7 +244,7 @@ export function SubcategoryPanel({
 
       <div className="grid grid-cols-3 gap-2">
         <StatTile
-          label="Bugün"
+          label="Today"
           value={fmtNum(computed.today.value)}
           unit={metricLabel}
           sub={
@@ -253,7 +253,7 @@ export function SubcategoryPanel({
           }
         />
         <StatTile
-          label="Bu Hafta"
+          label="This week"
           value={fmtNum(computed.week.value)}
           unit={metricLabel}
           sub={
@@ -262,7 +262,7 @@ export function SubcategoryPanel({
           }
         />
         <StatTile
-          label="Bu Ay"
+          label="This month"
           value={fmtNum(computed.month.value)}
           unit={metricLabel}
           sub={
@@ -279,11 +279,11 @@ export function SubcategoryPanel({
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Alt Kategori Dağılımı
+              Subcategory breakdown
               {metric.type === "mod" && (
                 <span className="normal-case font-normal text-muted-foreground/60">
                   {" "}
-                  ({compute.bucketIsAvg ? "ortalama" : "toplam"})
+                  ({compute.bucketIsAvg ? "average" : "total"})
                 </span>
               )}
             </h3>
@@ -293,8 +293,8 @@ export function SubcategoryPanel({
             rows={computed.shareRows}
             emptyText={
               metric.type === "mod"
-                ? `Bu aralıkta ${metric.mod.name} verisi yok`
-                : "Bu aralıkta girdi yok"
+                ? `No ${metric.mod.name} data in this range`
+                : "No entries in this range"
             }
             onSelect={goTo}
           />
@@ -304,11 +304,11 @@ export function SubcategoryPanel({
       <div className="rounded-2xl border border-border bg-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
           {GRANULARITY_TITLES[computed.granularity]}{" "}
-          {metric.type === "count" ? "girdi" : metric.mod.name}
+          {metric.type === "count" ? "entries" : metric.mod.name}
           {metric.type === "mod" && (
             <span className="normal-case font-normal text-muted-foreground/60">
               {" "}
-              ({compute.bucketIsAvg ? "ortalama" : "toplam"})
+              ({compute.bucketIsAvg ? "average" : "total"})
             </span>
           )}{" "}
           · {RANGE_LABELS[range]}
@@ -323,13 +323,13 @@ export function SubcategoryPanel({
       </div>
 
       <EntryListSection
-        title="Girdi Listesi"
+        title="Entry list"
         accent={category.color}
         rows={computed.entryRows}
         emptyText={
           metric.type === "mod"
-            ? `Bu aralıkta ${metric.mod.name} verisi yok`
-            : "Bu aralıkta girdi yok"
+            ? `No ${metric.mod.name} data in this range`
+            : "No entries in this range"
         }
         action={
           hasChildren ? (

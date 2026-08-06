@@ -62,7 +62,7 @@ export function SleepCard({
           "transition-colors hover:border-violet-500/40 active:scale-[0.99]",
           selection?.selected && selectedCardClass
         )}
-        aria-label="Uyku kaydını düzenle"
+        aria-label="Edit sleep record"
       >
         <div className="flex items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/20">
@@ -118,7 +118,7 @@ export function SleepCard({
           <SelectionLayer
             selected={selection.selected}
             onToggle={selection.onToggle}
-            label="Uyku kaydını seç"
+            label="Select sleep record"
           />
         )}
       </div>

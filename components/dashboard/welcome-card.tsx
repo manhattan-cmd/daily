@@ -11,19 +11,19 @@ export const WELCOME_DISMISSED = "routine:welcomeDismissed";
 /** Zincirin üç halkası — örnek yapıdaki gerçek karşılıklarıyla */
 const CHAIN = [
   {
-    label: "Kategori",
-    example: "Harcamalar, Spor, Sağlık",
-    hint: "hayatının ana başlıkları",
+    label: "Category",
+    example: "Expenses, Fitness, Health",
+    hint: "the main headings of your life",
   },
   {
-    label: "Alt kategori",
-    example: "Fatura › Elektrik",
-    hint: "istediğin kadar derinleşir",
+    label: "Subcategory",
+    example: "Bills › Electricity",
+    hint: "nests as deep as you want",
   },
   {
-    label: "Özellik",
-    example: "Para ₺, Süre dk, Kilo kg",
-    hint: "kalemde ne ölçülüyor",
+    label: "Feature",
+    example: "Money $, Duration min, Weight kg",
+    hint: "what gets measured here",
   },
 ];
 
@@ -45,16 +45,15 @@ export function WelcomeCard() {
           <Sparkles className="h-4 w-4 text-primary" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold">Hoş geldin</p>
+          <p className="text-sm font-semibold">Welcome</p>
           <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-            Neyi takip edeceğine sen karar veriyorsun. Yapı üç halkadan
-            oluşuyor:
+            You decide what to track. The structure has three links:
           </p>
         </div>
         <button
           type="button"
           onClick={dismiss}
-          aria-label="Karşılamayı kapat"
+          aria-label="Dismiss welcome"
           className="shrink-0 rounded-lg p-1 text-muted-foreground transition-colors hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" />
@@ -87,15 +86,14 @@ export function WelcomeCard() {
 
       <div className="px-4 pb-3.5 pt-3">
         <p className="mb-2.5 text-xs leading-relaxed text-muted-foreground">
-          Örnek bir yapı hazır geldi — gez, işine yaramayanı sil, kendine göre
-          değiştir.
+          A sample structure is ready — explore it, delete what you don&rsquo;t need, make it yours.
         </p>
         <Link
           href="/structure"
           className="flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
         >
           <Layers className="h-4 w-4" />
-          Örnek yapıyı incele
+          Explore the sample structure
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>

@@ -31,21 +31,64 @@ const BUILT_IN_ENTRY_TYPES: Omit<
   EntryType,
   "id" | "createdAt" | "updatedAt"
 >[] = [
-  { name: "Para", unit: "₺", valueType: "number", isBuiltIn: true, order: 1 },
-  { name: "Miktar", unit: "adet", valueType: "number", isBuiltIn: true, order: 2 },
-  { name: "Süre", unit: "dk", valueType: "number", isBuiltIn: true, order: 3 },
-  { name: "Ağırlık", unit: "kg", valueType: "number", isBuiltIn: true, order: 4 },
-  { name: "Mesafe", unit: "km", valueType: "number", isBuiltIn: true, order: 5 },
-  { name: "1–5 Skala", unit: "", valueType: "select", choices: ["1", "2", "3", "4", "5"], isBuiltIn: true, order: 6 },
-  { name: "1–10 Skala", unit: "", valueType: "select", choices: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"], isBuiltIn: true, order: 7 },
-  { name: "Kalori", unit: "kcal", valueType: "number", isBuiltIn: true, order: 8 },
-  { name: "Evet / Hayır", unit: "", valueType: "boolean", isBuiltIn: true, order: 9 },
-  { name: "Adım", unit: "adım", valueType: "number", isBuiltIn: true, order: 10 },
-  { name: "Tekrar", unit: "tekrar", valueType: "number", isBuiltIn: true, order: 11 },
-  { name: "Tarih Aralığı", unit: "", valueType: "datetime-range", isBuiltIn: true, order: 12 },
+  { name: "Money", unit: "$", valueType: "number", isBuiltIn: true, order: 1 },
+  { name: "Quantity", unit: "pcs", valueType: "number", isBuiltIn: true, order: 2 },
+  { name: "Duration", unit: "min", valueType: "number", isBuiltIn: true, order: 3 },
+  { name: "Weight", unit: "kg", valueType: "number", isBuiltIn: true, order: 4 },
+  { name: "Distance", unit: "km", valueType: "number", isBuiltIn: true, order: 5 },
+  { name: "1–5 Scale", unit: "", valueType: "select", choices: ["1", "2", "3", "4", "5"], isBuiltIn: true, order: 6 },
+  { name: "1–10 Scale", unit: "", valueType: "select", choices: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"], isBuiltIn: true, order: 7 },
+  { name: "Calories", unit: "kcal", valueType: "number", isBuiltIn: true, order: 8 },
+  { name: "Yes / No", unit: "", valueType: "boolean", isBuiltIn: true, order: 9 },
+  { name: "Steps", unit: "steps", valueType: "number", isBuiltIn: true, order: 10 },
+  { name: "Reps", unit: "reps", valueType: "number", isBuiltIn: true, order: 11 },
+  { name: "Date Range", unit: "", valueType: "datetime-range", isBuiltIn: true, order: 12 },
 ];
 
+/**
+ * Arayüz İngilizceye geçerken yerleşik kayıtların ADI da değişti. Mevcut
+ * kurulumlarda bunlar YENİDEN ADLANDIRILMALI, yenisi eklenmemeli: aksi halde
+ * kullanıcının "Para ₺" ölçüsü dururken bir de "Money $" belirir, girdileri
+ * eski ölçüde kalır. Birim değişmez — kullanıcının kayıtlı verisinin anlamı
+ * ₺ ise ₺ kalır (para birimi ilerideki bir ayar).
+ */
+const RENAMED_ENTRY_TYPES: [from: string, to: string][] = [
+  ["Para", "Money"],
+  ["Miktar", "Quantity"],
+  ["Süre", "Duration"],
+  ["Ağırlık", "Weight"],
+  ["Mesafe", "Distance"],
+  ["1–5 Skala", "1–5 Scale"],
+  ["1–10 Skala", "1–10 Scale"],
+  ["Kalori", "Calories"],
+  ["Evet / Hayır", "Yes / No"],
+  ["Adım", "Steps"],
+  ["Tekrar", "Reps"],
+  ["Tarih Aralığı", "Date Range"],
+];
+
+/**
+ * from → to yeniden adlandırma. Hedef ad zaten varsa dokunulmaz (kopya
+ * oluşturmaz); kaynak yoksa yapacak bir şey yoktur.
+ */
+async function renameByName(
+  table: typeof db.entryTypes | typeof db.mods | typeof db.categories,
+  pairs: [string, string][]
+): Promise<void> {
+  for (const [from, to] of pairs) {
+    const rows = await table.toArray();
+    const target = rows.find((r) => r.name === to);
+    if (target) continue;
+    const source = rows.find((r) => r.name === from);
+    if (source) await table.update(source.id, { name: to });
+  }
+}
+
 export async function ensureBuiltInEntryTypes(): Promise<void> {
+  // Önce Türkçe adları taşı — yoksa aşağıdaki "eksikleri tamamla" adımı
+  // İngilizce karşılıklarını ikinci kopya olarak ekler
+  await renameByName(db.entryTypes, RENAMED_ENTRY_TYPES);
+
   const existing = await db.entryTypes.toArray();
 
   // Deduplicate: keep oldest of each name, delete the rest
@@ -126,7 +169,7 @@ export async function ensureBuiltInDimensions(): Promise<void> {
   if (!hasMoney) {
     toAdd.push({
       id: id(),
-      name: "Para",
+      name: "Money",
       type: "money",
       isBuiltIn: true,
       createdAt: now(),
@@ -136,7 +179,7 @@ export async function ensureBuiltInDimensions(): Promise<void> {
   if (!hasTime) {
     toAdd.push({
       id: id(),
-      name: "Zaman",
+      name: "Time",
       type: "time",
       isBuiltIn: true,
       createdAt: now(),
@@ -154,14 +197,38 @@ export async function listDimensions(): Promise<GlobalDimension[]> {
 
 const BUILT_IN_CATEGORIES = [
   {
-    name: "Uyku",
+    name: "Sleep",
     color: "#8b5cf6",
     icon: "Moon",
-    subcategories: [{ name: "Gece Uykusu", icon: "🌙" }],
+    subcategories: [{ name: "Night Sleep", icon: "🌙" }],
   },
 ] as const;
 
+/** Yerleşik kategori ve onun alt kaleminin Türkçe adları (mevcut kurulumlar) */
+const RENAMED_CATEGORIES: [string, string][] = [["Uyku", "Sleep"]];
+const RENAMED_SUBCATEGORIES: [string, string][] = [
+  ["Gece Uykusu", "Night Sleep"],
+];
+
 export async function ensureBuiltInCategories(): Promise<void> {
+  await renameByName(db.categories, RENAMED_CATEGORIES);
+  // Alt kalem adı yalnızca yerleşik kategorinin altındayken taşınır —
+  // kullanıcının kendi "Gece Uykusu" kalemine dokunulmaz
+  for (const cat of await db.categories.filter((c) => !!c.isBuiltIn).toArray()) {
+    const subs = await db.subcategories
+      .where("categoryId")
+      .equals(cat.id)
+      .toArray();
+    for (const [from, to] of RENAMED_SUBCATEGORIES) {
+      if (subs.some((s) => s.name === to)) continue;
+      const source = subs.find((s) => s.name === from);
+      if (source) await db.subcategories.update(source.id, { name: to });
+    }
+  }
+  await ensureBuiltInCategoryTemplates();
+}
+
+async function ensureBuiltInCategoryTemplates(): Promise<void> {
   for (const template of BUILT_IN_CATEGORIES) {
     let cat = await db.categories.where("name").equals(template.name).first();
     if (!cat) {
@@ -179,9 +246,9 @@ export async function ensureBuiltInCategories(): Promise<void> {
       .where("categoryId")
       .equals(cat.id)
       .toArray();
-    const subNames = new Set(subs.map((s) => s.name.toLocaleLowerCase("tr-TR")));
+    const subNames = new Set(subs.map((s) => s.name.toLocaleLowerCase("en-US")));
     for (const sub of template.subcategories) {
-      if (!subNames.has(sub.name.toLocaleLowerCase("tr-TR"))) {
+      if (!subNames.has(sub.name.toLocaleLowerCase("en-US"))) {
         await createSubCategory({ categoryId: cat.id, name: sub.name, icon: sub.icon });
       }
     }
@@ -234,97 +301,105 @@ const STARTER_CATEGORIES: {
   subs: StarterSub[];
 }[] = [
   {
-    name: "Harcamalar",
+    name: "Expenses",
     color: "#f59e0b",
     icon: "Wallet",
-    mods: ["Para"],
+    mods: ["Money"],
     subs: [
-      { name: "Market", icon: "ShoppingCart" },
+      { name: "Groceries", icon: "ShoppingCart" },
       {
-        name: "Yeme-İçme",
+        name: "Food & Drink",
         icon: "Utensils",
         subs: [
-          { name: "Kafe", icon: "Coffee" },
-          { name: "Restoran", icon: "Salad" },
-          { name: "Sipariş", icon: "Croissant" },
+          { name: "Cafe", icon: "Coffee" },
+          { name: "Restaurant", icon: "Salad" },
+          { name: "Takeaway", icon: "Croissant" },
         ],
       },
       {
-        name: "Ulaşım",
+        name: "Transport",
         icon: "Car",
         subs: [
-          { name: "Yakıt", icon: "Flame" },
-          { name: "Toplu Taşıma", icon: "Users" },
+          { name: "Fuel", icon: "Flame" },
+          { name: "Public Transit", icon: "Users" },
         ],
       },
       {
-        name: "Fatura",
+        name: "Bills",
         icon: "Zap",
         regular: true,
         subs: [
-          { name: "Elektrik", icon: "Zap" },
-          { name: "Su", icon: "Droplet" },
-          { name: "İnternet", icon: "Laptop" },
-          { name: "Telefon", icon: "Phone" },
+          { name: "Electricity", icon: "Zap" },
+          { name: "Water", icon: "Droplet" },
+          { name: "Internet", icon: "Laptop" },
+          { name: "Phone", icon: "Phone" },
         ],
       },
-      { name: "Kira", icon: "Home", regular: true },
-      { name: "Abonelik", icon: "Tv", regular: true },
+      { name: "Rent", icon: "Home", regular: true },
+      { name: "Subscriptions", icon: "Tv", regular: true },
     ],
   },
   {
-    name: "Spor",
+    name: "Fitness",
     color: "#10b981",
     icon: "Dumbbell",
-    mods: ["Süre"],
+    mods: ["Duration"],
     subs: [
       {
-        name: "Yürüyüş",
+        name: "Walking",
         icon: "Footprints",
-        mods: ["Mesafe", { name: "Adım", measure: "Adım" }],
+        mods: ["Distance", { name: "Steps", measure: "Steps" }],
       },
-      { name: "Koşu", icon: "Timer", mods: ["Mesafe"] },
-      { name: "Bisiklet", icon: "Bike", mods: ["Mesafe"] },
+      { name: "Running", icon: "Timer", mods: ["Distance"] },
+      { name: "Cycling", icon: "Bike", mods: ["Distance"] },
       {
-        name: "Antrenman",
+        name: "Workout",
         icon: "Dumbbell",
-        mods: [{ name: "Tekrar", measure: "Tekrar" }],
+        mods: [{ name: "Reps", measure: "Reps" }],
       },
     ],
   },
   {
-    name: "Çalışma",
+    name: "Study",
     color: "#6366f1",
     icon: "GraduationCap",
-    mods: ["Süre"],
+    mods: ["Duration"],
     subs: [
-      { name: "Ders", icon: "GraduationCap" },
-      { name: "Okuma", icon: "Book", mods: [{ name: "Sayfa", measure: "Miktar" }] },
-      { name: "Proje", icon: "Laptop" },
+      { name: "Lessons", icon: "GraduationCap" },
+      {
+        name: "Reading",
+        icon: "Book",
+        mods: [{ name: "Pages", measure: "Quantity" }],
+      },
+      { name: "Projects", icon: "Laptop" },
     ],
   },
   {
-    name: "Sağlık",
+    name: "Health",
     color: "#ec4899",
     icon: "HeartPulse",
     mods: [],
     subs: [
       {
-        name: "Kilo",
+        name: "Body Weight",
         icon: "Stethoscope",
-        mods: [{ name: "Kilo", measure: "Ağırlık" }],
+        mods: [{ name: "Body Weight", measure: "Weight" }],
       },
-      { name: "Su", icon: "Droplet", mods: [{ name: "Su", measure: "Miktar" }] },
       {
-        name: "Ruh Hali",
+        name: "Water",
+        icon: "Droplet",
+        mods: [{ name: "Glasses of Water", measure: "Quantity" }],
+      },
+      {
+        name: "Mood",
         icon: "Smile",
-        mods: [{ name: "Ruh Hali", measure: "1–5 Skala" }],
+        mods: [{ name: "Mood", measure: "1–5 Scale" }],
       },
       {
-        name: "İlaç",
+        name: "Medication",
         icon: "Pill",
         regular: true,
-        mods: [{ name: "İlaç Alındı", measure: "Evet / Hayır" }],
+        mods: [{ name: "Medication Taken", measure: "Yes / No" }],
       },
     ],
   },
@@ -376,7 +451,7 @@ async function resolveStarterMod(ref: StarterMod): Promise<Mod | undefined> {
 
   const types = await db.entryTypes.toArray();
   const type = types.find(
-    (t) => t.name.toLocaleLowerCase("tr-TR") === ref.measure.toLocaleLowerCase("tr-TR")
+    (t) => t.name.toLocaleLowerCase("en-US") === ref.measure.toLocaleLowerCase("en-US")
   );
   if (!type) return undefined;
   const { mod } = await createMod(name, type.id);
@@ -782,7 +857,7 @@ export async function moveSubCategory(
 
 // ============ Mod Havuzu (global atomlar) ============
 
-const normModName = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
+const normModName = (s: string) => s.trim().toLocaleLowerCase("en-US");
 
 export type ModWithType = Mod & { entryType: EntryType };
 
@@ -793,20 +868,29 @@ export type ModWithType = Mod & { entryType: EntryType };
  * yerleşik OLMAZ.
  */
 const BUILT_IN_MODS: { name: string; typeName: string }[] = [
-  { name: "Para", typeName: "Para" },
-  { name: "Süre", typeName: "Süre" },
-  { name: "Mesafe", typeName: "Mesafe" },
-  { name: "Miktar", typeName: "Miktar" },
-  { name: "Ağırlık", typeName: "Ağırlık" },
-  { name: "Kalori", typeName: "Kalori" },
-  // Şablon Uyku kategorisinin yerleşik modları
-  { name: "Uyku Süresi", typeName: "Tarih Aralığı" },
-  { name: "Uyku Kalitesi", typeName: "1–5 Skala" },
+  { name: "Money", typeName: "Money" },
+  { name: "Duration", typeName: "Duration" },
+  { name: "Distance", typeName: "Distance" },
+  { name: "Quantity", typeName: "Quantity" },
+  { name: "Weight", typeName: "Weight" },
+  { name: "Calories", typeName: "Calories" },
+  // Şablon Sleep kategorisinin yerleşik modları
+  { name: "Sleep Duration", typeName: "Date Range" },
+  { name: "Sleep Quality", typeName: "1–5 Scale" },
 ];
 
 /** Eski kurulumlardaki adları yeni yerleşik adlara taşı */
 const RENAMED_BUILT_IN_MODS: { from: string; to: string }[] = [
   { from: "Uyku Aralığı", to: "Uyku Süresi" },
+  // Arayüz İngilizceye geçti — atomlar yerinde yeniden adlandırılır
+  { from: "Para", to: "Money" },
+  { from: "Süre", to: "Duration" },
+  { from: "Mesafe", to: "Distance" },
+  { from: "Miktar", to: "Quantity" },
+  { from: "Ağırlık", to: "Weight" },
+  { from: "Kalori", to: "Calories" },
+  { from: "Uyku Süresi", to: "Sleep Duration" },
+  { from: "Uyku Kalitesi", to: "Sleep Quality" },
 ];
 
 /** Seçilmiş yerleşik modları kur; liste dışı kalan eski yerleşikleri temizle/indirge. */
@@ -882,7 +966,7 @@ export async function listMods(): Promise<ModWithType[]> {
     .sort(
       (a, b) =>
         Number(b.isBuiltIn ?? false) - Number(a.isBuiltIn ?? false) ||
-        a.name.localeCompare(b.name, "tr")
+        a.name.localeCompare(b.name, "en")
     );
 }
 
@@ -1263,7 +1347,7 @@ export async function listActivityNameSuggestions(limit = 8): Promise<string[]> 
   const seen = new Set<string>();
   const out: string[] = [];
   for (const a of all) {
-    const key = a.name.trim().toLocaleLowerCase("tr-TR");
+    const key = a.name.trim().toLocaleLowerCase("en-US");
     if (!key || seen.has(key)) continue;
     seen.add(key);
     out.push(a.name);
@@ -2337,8 +2421,8 @@ export async function listSubcategoriesForPicker(): Promise<SubPick[]> {
     })
     .sort(
       (a, b) =>
-        a.catName.localeCompare(b.catName, "tr") ||
-        a.name.localeCompare(b.name, "tr")
+        a.catName.localeCompare(b.catName, "en") ||
+        a.name.localeCompare(b.name, "en")
     );
 }
 

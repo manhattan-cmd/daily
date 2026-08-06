@@ -67,8 +67,8 @@ export default function LifeMapPage() {
   return (
     <div className="flex flex-col" style={{ height: "100%" }}>
       <PageHeader
-        title="Hayat Haritası"
-        description="Notlar ve girdiler — kendi kurduğun bağlar"
+        title="Life map"
+        description="Notes and entries — the links you built"
         back="/structure/notes"
         className="mb-0"
       />
@@ -78,7 +78,7 @@ export default function LifeMapPage() {
           <div className="flex h-full items-center justify-center px-4">
             <EmptyState
               icon={Waypoints}
-              title="Henüz bağ yok"
+              title="No links yet"
               description="Bir notta bir kelimeyi seçip “Girdi iliştir” ya da bir öbeği seçip “Not aç” dediğinde kurduğun bağlar burada belirir."
             />
           </div>

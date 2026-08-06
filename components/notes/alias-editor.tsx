@@ -4,7 +4,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const norm = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
+const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
 
 /**
  * Takma ad (alias) editörü — çip olarak ekle/kaldır. Takma adlar otomatik bağ

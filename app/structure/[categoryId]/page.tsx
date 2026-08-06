@@ -45,7 +45,7 @@ export default function CategoryDetailPage({
     <>
       <PageHeader
         title={category?.name ?? "..."}
-        description="Alt kategoriler ve özellikler"
+        description="Subcategories and features"
         back="/structure"
         action={
           category && (
@@ -63,7 +63,7 @@ export default function CategoryDetailPage({
                 variant="ghost"
                 className="h-8 w-8 text-muted-foreground"
                 onClick={() => setCatFormOpen(true)}
-                aria-label="Kategoriyi düzenle"
+                aria-label="Edit category"
               >
                 <Pencil className="h-4 w-4" />
               </Button>

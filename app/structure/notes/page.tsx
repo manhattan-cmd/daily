@@ -13,20 +13,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Note } from "@/types";
 
-const MONTHS_TR = [
-  "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
-  "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 function dateLabel(date: string): string {
   const [y, m, d] = date.split("-").map(Number);
-  return `${d} ${MONTHS_TR[m - 1]} ${y}`;
+  return `${d} ${MONTHS[m - 1]} ${y}`;
 }
 function todayStr(): string {
   const t = new Date();
   const p = (n: number) => String(n).padStart(2, "0");
   return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())}`;
 }
-const norm = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
+const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
 const noteText = (n: Note) =>
   [n.title ?? "", ...(n.aliases ?? []), ...n.blocks.map((b) => b.text)].join(" ");
 
@@ -54,12 +54,12 @@ export default function StructureNotesPage() {
   return (
     <>
       <PageHeader
-        title="Yapı"
-        description="Notlar — günce, bağlar ve harita"
+        title="Structure"
+        description="Notes — journal, links and the map"
         action={
           <Button size="sm" onClick={handleNewNote} className="gap-1.5">
             <Plus className="h-3.5 w-3.5" />
-            Yeni Not
+            New note
           </Button>
         }
       />
@@ -75,9 +75,9 @@ export default function StructureNotesPage() {
           <Waypoints className="h-5 w-5 text-primary" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block font-medium">Hayat Haritası</span>
+          <span className="block font-medium">Life map</span>
           <span className="block text-xs text-muted-foreground">
-            Notlar ve girdiler arasında kurduğun bağları gör
+            See the links you built between notes and entries
           </span>
         </span>
         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -90,14 +90,14 @@ export default function StructureNotesPage() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Notlarda ara…"
+            placeholder="Search notes…"
             className="h-9 pl-9 pr-8"
           />
           {query && (
             <button
               onClick={() => setQuery("")}
               className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground/60 transition-colors hover:text-foreground"
-              aria-label="Aramayı temizle"
+              aria-label="Clear search"
             >
               <X className="h-3 w-3" />
             </button>
@@ -106,7 +106,7 @@ export default function StructureNotesPage() {
 
         <div className="mb-2.5 flex items-center gap-2 px-1">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {query.trim() ? "Sonuçlar" : "Notlar"}
+            {query.trim() ? "Results" : "Notes"}
           </h2>
           <span className="text-muted-foreground/50 text-xs">
             · {filtered.length}
@@ -115,7 +115,7 @@ export default function StructureNotesPage() {
 
         {notes === undefined ? null : notes.length === 0 ? (
           <p className="px-1 text-xs text-muted-foreground/70">
-            Henüz not yok — “Yeni Not” ile bugüne bir not ekle.
+            No notes yet — add one for today with “New note”.
           </p>
         ) : filtered.length === 0 ? (
           <p className="px-1 text-xs text-muted-foreground/70">

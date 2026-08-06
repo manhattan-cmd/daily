@@ -83,7 +83,7 @@ function shiftDate(dateStr: string, days: number): string {
 
 function prettyDate(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("tr-TR", {
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
     day: "numeric",
     month: "long",
     weekday: "short",
@@ -120,9 +120,9 @@ export function EntrySelectionBar({
   const [busy, setBusy] = useState(false);
 
   const quick = [
-    { label: "Önceki gün", value: shiftDate(date, -1) },
-    { label: "Sonraki gün", value: shiftDate(date, 1) },
-    { label: "Bugün", value: toDateStr(new Date()) },
+    { label: "Previous day", value: shiftDate(date, -1) },
+    { label: "Next day", value: shiftDate(date, 1) },
+    { label: "Today", value: toDateStr(new Date()) },
   ].filter((q) => q.value !== date);
 
   async function run(fn: () => Promise<void>) {
@@ -150,19 +150,19 @@ export function EntrySelectionBar({
             <div className="flex items-center gap-2 px-4 pt-3 pb-2">
               <button
                 onClick={onCancel}
-                aria-label="Seçimi bırak"
+                aria-label="Clear selection"
                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
               <span className="flex-1 text-sm font-semibold">
-                {count} öğe seçildi
+                {count} selected
               </span>
               <button
                 onClick={onSelectAll}
                 className="shrink-0 rounded-full bg-white/8 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
               >
-                {allSelected ? "Seçimi temizle" : "Tümünü seç"}
+                {allSelected ? "Clear selection" : "Select all"}
               </button>
             </div>
             <div className="flex gap-2 px-4 pb-7 pt-1">
@@ -192,7 +192,7 @@ export function EntrySelectionBar({
             <div className="mb-3 flex items-center gap-2">
               <button
                 onClick={() => setView("actions")}
-                aria-label="Geri"
+                aria-label="Back"
                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
@@ -202,7 +202,7 @@ export function EntrySelectionBar({
                   Hangi güne taşınsın?
                 </p>
                 <p className="text-[10px] text-muted-foreground/70">
-                  {count} öğe · girdilerin saati korunur
+                  {count} items · times are kept
                 </p>
               </div>
             </div>
@@ -228,7 +228,7 @@ export function EntrySelectionBar({
               type="date"
               value={target}
               onChange={(e) => setTarget(e.target.value)}
-              aria-label="Hedef tarih"
+              aria-label="Target date"
               className="mb-3 h-11 w-full rounded-xl border border-border bg-input px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
             />
 
@@ -238,9 +238,9 @@ export function EntrySelectionBar({
               className="h-11 w-full rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
             >
               {busy
-                ? "Taşınıyor..."
+                ? "Moving..."
                 : target === date
-                  ? "Başka bir gün seç"
+                  ? "Pick a different day"
                   : `${prettyDate(target)} gününe taşı`}
             </button>
           </div>
@@ -251,14 +251,14 @@ export function EntrySelectionBar({
             <div className="mb-3 flex items-center gap-2">
               <button
                 onClick={() => setView("actions")}
-                aria-label="Geri"
+                aria-label="Back"
                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
               </button>
               <div className="min-w-0">
                 <p className="text-sm font-semibold leading-tight">
-                  {count} öğe silinsin mi?
+                  {count} items?
                 </p>
                 <p className="text-[10px] text-muted-foreground/70">
                   İçerikleriyle birlikte kalıcı olarak silinir.
@@ -278,7 +278,7 @@ export function EntrySelectionBar({
                 disabled={busy}
                 className="h-11 flex-1 rounded-xl bg-destructive text-sm font-semibold text-destructive-foreground transition-opacity disabled:opacity-40"
               >
-                {busy ? "Siliniyor..." : "Sil"}
+                {busy ? "Deleting..." : "Delete"}
               </button>
             </div>
           </div>

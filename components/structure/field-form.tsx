@@ -176,15 +176,15 @@ export function FieldForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Alanı düzenle" : "Yeni alan"}</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit field" : "Yeni alan"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="flex flex-col gap-5">
           {!subcategoryId && subcategories && subcategories.length > 0 && (
             <div className="flex flex-col gap-2">
-              <Label>Alt Kategori</Label>
+              <Label>Alt Categories</Label>
               <Select value={selectedSubId} onValueChange={setSelectedSubId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Seç..." />
+                  <SelectValue placeholder="Select..." />
                 </SelectTrigger>
                 <SelectContent>
                   {subcategories.map((s) => (
@@ -201,7 +201,7 @@ export function FieldForm({
               id="field-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Örn. miktar, fiyat, kalite"
+              placeholder="e.g. amount, price, quality"
               autoFocus
             />
           </div>
@@ -253,7 +253,7 @@ export function FieldForm({
                 id="field-choices"
                 value={choicesText}
                 onChange={(e) => setChoicesText(e.target.value)}
-                placeholder="virgülle ayır: hafif, orta, ağır"
+                placeholder="comma separated: light, medium, heavy"
               />
             </div>
           ) : null}
@@ -330,7 +330,7 @@ export function FieldForm({
               İptal
             </Button>
             <Button type="submit" disabled={!name.trim() || saving || (!isEdit && !effectiveSubId)}>
-              {isEdit ? "Kaydet" : "Oluştur"}
+              {isEdit ? "Save" : "Create"}
             </Button>
           </DialogFooter>
         </form>

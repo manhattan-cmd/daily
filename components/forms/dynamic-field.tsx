@@ -102,7 +102,7 @@ function renderInput(
       return (
         <Select value={value} onValueChange={onChange}>
           <SelectTrigger id={id}>
-            <SelectValue placeholder="Seç" />
+            <SelectValue placeholder="Select" />
           </SelectTrigger>
           <SelectContent>
             {choices.map((c) => (
@@ -123,7 +123,7 @@ function renderInput(
             onCheckedChange={(b) => onChange(b ? "true" : "false")}
           />
           <span className="ml-3 text-sm text-muted-foreground">
-            {value === "true" ? "Evet" : "Hayır"}
+            {value === "true" ? "Yes" : "No"}
           </span>
         </div>
       );

@@ -11,11 +11,11 @@ export type FieldType =
 export type EntryValueType = "number" | "text" | "boolean" | "select" | "datetime-range";
 
 export const ENTRY_VALUE_TYPE_LABELS: Record<EntryValueType, string> = {
-  number: "Sayı",
-  text: "Metin",
+  number: "Number",
+  text: "Text",
   boolean: "Evet / Hayır",
-  select: "Seçenek",
-  "datetime-range": "Tarih-Saat Aralığı",
+  select: "Option",
+  "datetime-range": "Date-time range",
 };
 
 export interface EntryType {
@@ -191,13 +191,13 @@ export interface EntryWithContext extends Entry {
 }
 
 export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
-  number: "Sayı",
-  text: "Metin",
+  number: "Number",
+  text: "Text",
   rating: "Puan (1–10)",
   time: "Saat",
   duration: "Süre",
   money: "Para",
-  select: "Seçenek",
+  select: "Option",
   boolean: "Evet / Hayır",
 };
 

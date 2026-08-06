@@ -6,13 +6,13 @@ import { Home, CalendarDays, BarChart3, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const leftItems = [
-  { href: "/", label: "Ana Sayfa", icon: Home },
-  { href: "/calendar", label: "Takvim", icon: CalendarDays },
+  { href: "/", label: "Home", icon: Home },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
 ] as const;
 
 const rightItems = [
-  { href: "/analytics", label: "Analiz", icon: BarChart3 },
-  { href: "/structure", label: "Yapı", icon: Layers },
+  { href: "/analytics", label: "Insights", icon: BarChart3 },
+  { href: "/structure", label: "Structure", icon: Layers },
 ] as const;
 
 function todayStr(): string {
@@ -71,7 +71,7 @@ export function BottomNav() {
         <Link
           href={todayHref}
           className="relative flex flex-1 flex-col items-center justify-end gap-1 py-3 text-xs"
-          aria-label="Bugünün sayfası"
+          aria-label="Today's page"
         >
           <span
             className={cn(
@@ -90,7 +90,7 @@ export function BottomNav() {
               todayActive ? "text-foreground" : "text-muted-foreground"
             )}
           >
-            Bugün
+            Today
           </span>
         </Link>
 

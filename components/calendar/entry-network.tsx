@@ -71,9 +71,9 @@ function autoLayout(n: number): Layout {
 }
 
 const LAYOUT_OPTIONS: { key: Layout; icon: typeof Network; label: string }[] = [
-  { key: "poly", icon: Network, label: "Ağ görünümü" },
-  { key: "spiral", icon: Orbit, label: "Sarmal görünüm" },
-  { key: "list", icon: List, label: "Liste görünümü" },
+  { key: "poly", icon: Network, label: "Network view" },
+  { key: "spiral", icon: Orbit, label: "Spiral view" },
+  { key: "list", icon: List, label: "List view" },
 ];
 
 /** Kullanıcının sayfa bazlı görünüm tercihi (localStorage) */
@@ -350,7 +350,7 @@ export function EntryNetwork({
 
   const trail = useMemo(() => {
     const t: { label: string; focus: NetFocus }[] = [
-      { label: "Kategoriler", focus: null },
+      { label: "Categories", focus: null },
     ];
     if (focusObj == null) return t;
     if (focusObj.type === "cat") {
@@ -586,23 +586,23 @@ export function EntryNetwork({
               {
                 key: "add-entry",
                 icon: PenLine,
-                title: "Girdi ekle",
-                subtitle: "Bu sayfaya kayıt ekle",
+                title: "Add entry",
+                subtitle: "Add a record here",
                 emphasis: true,
                 onSelect: addEntryHere,
               },
               {
                 key: "add-sub",
                 icon: FolderPlus,
-                title: "Alt kategori aç",
-                subtitle: "İçine yeni alt kategori",
+                title: "Create subcategory",
+                subtitle: "New subcategory inside",
                 onSelect: openAddSub,
               },
               {
                 key: "structure",
                 icon: Layers,
-                title: "Yapı sayfası",
-                subtitle: "Düzenle / taşı / sil",
+                title: "Structure page",
+                subtitle: "Edit / move / delete",
                 onSelect: goStructure,
               },
             ]}
@@ -794,13 +794,13 @@ export function EntryNetwork({
           {focusObj != null ? (
             <p className="mt-1 text-center text-[11px] leading-snug text-muted-foreground/70">
               {hasNodes
-                ? "Dokun: içine gir · ortadaki: buraya ekle · basılı tutup sürükle: taşı"
-                : "Bu bir uç — ortadakine dokun ya da menüden “Girdi ekle”."}
+                ? "Tap: go inside · centre: add here · hold and drag: move"
+                : "This is a leaf — tap the centre or use “Add entry” in the menu."}
             </p>
           ) : (
             hasNodes && (
               <p className="mt-1 text-center text-[11px] leading-snug text-muted-foreground/70">
-                Dokun: içine gir · basılı tutup sürükle: yerini değiştir
+                Tap: go inside · hold and drag: reorder
               </p>
             )
           )}
@@ -880,11 +880,11 @@ function NodeList({
     }
     return [...m.entries()]
       .sort((a, b) =>
-        a[0] === "#" ? 1 : b[0] === "#" ? -1 : a[0].localeCompare(b[0], "tr")
+        a[0] === "#" ? 1 : b[0] === "#" ? -1 : a[0].localeCompare(b[0], "en")
       )
       .map(([key, items]) => ({
         key,
-        items: items.sort((x, y) => x.name.localeCompare(y.name, "tr")),
+        items: items.sort((x, y) => x.name.localeCompare(y.name, "en")),
       }));
   }, [filtered, query]);
 
@@ -928,7 +928,7 @@ function NodeList({
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Ara..."
+            placeholder="Search..."
             className="h-9 w-full rounded-xl border border-border bg-input pl-9 pr-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
@@ -970,7 +970,7 @@ function NodeList({
       </div>
 
       <p className="text-center text-[11px] leading-snug text-muted-foreground/70">
-        Dokun: içine gir · sıralamayı yapı sayfasından değiştir
+        Tap: go inside · reorder from the Structure page
       </p>
     </div>
   );

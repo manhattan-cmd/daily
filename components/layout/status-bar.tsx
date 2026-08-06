@@ -9,7 +9,7 @@ export function StatusBar() {
   useEffect(() => {
     function update() {
       setTime(
-        new Date().toLocaleTimeString("tr-TR", {
+        new Date().toLocaleTimeString("en-US", {
           hour: "2-digit",
           minute: "2-digit",
         })

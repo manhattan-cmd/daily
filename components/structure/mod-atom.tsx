@@ -18,14 +18,14 @@ import { cn } from "@/lib/utils";
 
 /** Yerleşik atomların simgeleri */
 const BUILT_IN_MOD_ICONS: Record<string, LucideIcon> = {
-  "Para": Wallet,
-  "Süre": Timer,
-  "Mesafe": Route,
-  "Miktar": Boxes,
-  "Ağırlık": Scale,
-  "Kalori": Flame,
-  "Uyku Süresi": MoonStar,
-  "Uyku Kalitesi": Star,
+  "Money": Wallet,
+  "Duration": Timer,
+  "Distance": Route,
+  "Quantity": Boxes,
+  "Weight": Scale,
+  "Calories": Flame,
+  "Sleep Duration": MoonStar,
+  "Sleep Quality": Star,
 };
 
 /** Özelliğin atom simgesi: yerleşikse özel simgesi, değilse ölçü türünün simgesi.

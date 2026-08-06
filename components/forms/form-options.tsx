@@ -51,7 +51,7 @@ export function OptionsMenu({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Seçenekler"
+        aria-label="Options"
         aria-expanded={open}
         className={cn(
           "relative flex h-7 w-7 items-center justify-center rounded-full transition-colors",

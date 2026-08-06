@@ -22,7 +22,7 @@ export default function CategoryAnalyticsPage({
     <>
       <PageHeader
         title={category?.name ?? "..."}
-        description="Kategori Analizi"
+        description="Category insights"
         back={`/analytics?cat=${categoryId}`}
       />
       {category && <CategoryOverviewPanel category={category} />}

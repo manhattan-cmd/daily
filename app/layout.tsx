@@ -14,8 +14,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Routine — Personal Data Engine",
-  description: "Kendi yaşam verilerinizi tanımlayın ve içgörüler üretin.",
+  title: "Routine",
+  description:
+    "Track your life with a structure you define yourself. Everything stays on your device.",
+  applicationName: "Routine",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -40,7 +42,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
-      lang="tr"
+      lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
       suppressHydrationWarning
     >

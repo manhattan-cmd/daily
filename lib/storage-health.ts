@@ -154,7 +154,7 @@ export function snoozeBackupReminder(): void {
 /** "3 gün önce" / "bugün" */
 export function agoLabel(ts: number): string {
   const d = daysSince(ts);
-  if (d <= 0) return "bugün";
-  if (d === 1) return "dün";
-  return `${d} gün önce`;
+  if (d <= 0) return "today";
+  if (d === 1) return "yesterday";
+  return `${d} days ago`;
 }

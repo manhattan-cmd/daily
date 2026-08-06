@@ -247,12 +247,12 @@ export function PeriodCategoryPanel({
   /** Girdi kutusunun alt yazısı — sayının kaç günü kapsadığı */
   const dayCountLabel = isDay
     ? periodShortLabel(period)
-    : `${progress.elapsedDays} günde`;
+    : `${progress.elapsedDays} days`;
   /** Derine inildiyse bölüm başlıkları hangi kaleme ait olduğunu yazar */
   const scopePrefix = focus ? (
     <span style={{ color: `${category.color}dd` }}>{focus.name} · </span>
   ) : null;
-  const metricLabel = metric.type === "count" ? "girdi" : unit;
+  const metricLabel = metric.type === "count" ? "entries" : unit;
 
   return (
     <div className="flex flex-col gap-4">
@@ -270,7 +270,7 @@ export function PeriodCategoryPanel({
           <button
             type="button"
             onClick={() => setPath(path.slice(0, -1))}
-            aria-label="Bir üst kaleme dön"
+            aria-label="Back to the level above"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/8 text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -340,22 +340,22 @@ export function PeriodCategoryPanel({
       {metric.type === "count" ? (
         isDay ? (
           <StatTile
-            label="Girdi sayısı"
+            label="Entries"
             value={fmtNum(computed.withValueCount)}
             sub={period.label}
           />
         ) : (
           <div className="grid grid-cols-2 gap-2">
             <StatTile
-              label="Girdi sayısı"
+              label="Entries"
               value={fmtNum(computed.withValueCount)}
               sub={dayCountLabel}
             />
             <StatTile
-              label="Günlük ortalama"
+              label="Daily average"
               value={fmtNum(computed.dailyAvg)}
-              unit="girdi"
-              sub={`${progress.elapsedDays} gün üzerinden`}
+              unit="entries"
+              sub={`${progress.elapsedDays} days`}
             />
           </div>
         )
@@ -363,7 +363,7 @@ export function PeriodCategoryPanel({
         <div className="grid grid-cols-3 gap-2">
           {compute.displayMode === "both" && (
             <StatTile
-              label="Toplam"
+              label="Total"
               value={fmtNum(computed.total)}
               unit={unit}
               // Ortalama zaten yandaki kutuda; burada hangi aralığın toplamı
@@ -373,21 +373,21 @@ export function PeriodCategoryPanel({
           )}
           {compute.displayMode === "both" && !isDay ? (
             <StatTile
-              label="Günlük ortalama"
+              label="Daily average"
               value={fmtNum(computed.dailyAvg)}
               unit={unit}
-              sub={`${progress.elapsedDays} gün üzerinden`}
+              sub={`${progress.elapsedDays} days`}
             />
           ) : (
             <StatTile
-              label="Ortalama"
+              label="Average"
               value={fmtNum(computed.avg)}
               unit={unit}
-              sub="girdi başına"
+              sub="per entry"
             />
           )}
           <StatTile
-            label="Girdi sayısı"
+            label="Entries"
             value={fmtNum(computed.withValueCount)}
             sub={dayCountLabel}
           />
@@ -397,19 +397,19 @@ export function PeriodCategoryPanel({
       {/* Gün dönemlerinde hafta bağlamı — bu gün haftalık ortalamaya göre nerede */}
       {isDay && weekContext && (
         <div className="rounded-2xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
-          Hafta ort.{" "}
+          Week avg.{" "}
           <span className="font-semibold text-foreground">
             {fmtNum(weekContext.ref)}
             {metricLabel ? ` ${metricLabel}` : ""}
             {weekContext.perDay ? "/gün" : ""}
           </span>{" "}
-          · bu gün{" "}
+          · this day{" "}
           <span
             className="font-semibold"
             style={{ color: category.color }}
           >
             %{fmtNum(Math.abs(weekContext.deltaPct))}{" "}
-            {weekContext.deltaPct >= 0 ? "üzerinde" : "altında"}
+            {weekContext.deltaPct >= 0 ? "above" : "below"}
           </span>
         </div>
       )}
@@ -424,11 +424,11 @@ export function PeriodCategoryPanel({
               kalemlerin dağılımı — başlık da aynı kalır */}
           <h3 className="mb-3 min-w-0 text-xs font-semibold uppercase leading-tight tracking-wider text-muted-foreground">
             {scopePrefix}
-            Alt Kategori Dağılımı
+            Subcategory breakdown
             {metric.type === "mod" && (
               <span className="normal-case font-normal text-muted-foreground/60">
                 {" "}
-                ({compute.bucketIsAvg ? "ortalama" : "toplam"})
+                ({compute.bucketIsAvg ? "average" : "total"})
               </span>
             )}
           </h3>
@@ -455,18 +455,18 @@ export function PeriodCategoryPanel({
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {scopePrefix}
             {GRANULARITY_TITLES[computed.granularity]}{" "}
-            {metric.type === "count" ? "girdi" : metric.mod.name}
+            {metric.type === "count" ? "entries" : metric.mod.name}
             {metric.type === "mod" && (
               <span className="normal-case font-normal text-muted-foreground/60">
                 {" "}
-                ({compute.bucketIsAvg ? "ortalama" : "toplam"})
+                ({compute.bucketIsAvg ? "average" : "total"})
               </span>
             )}
           </h3>
           <DailyBarChart
             data={computed.buckets}
             color={category.color}
-            unit={metric.type === "count" ? "girdi" : unit}
+            unit={metric.type === "count" ? "entries" : unit}
             caption={computed.seriesFrame?.caption}
             showAllTicks={computed.seriesFrame?.showAllTicks}
           />
@@ -475,13 +475,13 @@ export function PeriodCategoryPanel({
 
       {/* Girdi listesi */}
       <EntryListSection
-        title={focus ? `${focus.name} · Girdi Listesi` : "Girdi Listesi"}
+        title={focus ? `${focus.name} · Entry list` : "Entry list"}
         accent={category.color}
         rows={computed.entryRows}
         emptyText={
           metric.type === "mod"
-            ? `Bu dönemde ${metric.mod.name} verisi yok`
-            : "Bu dönemde girdi yok"
+            ? `No ${metric.mod.name} data in this period`
+            : "No entries in this period"
         }
       />
     </div>

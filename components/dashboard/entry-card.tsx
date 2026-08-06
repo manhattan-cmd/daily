@@ -178,7 +178,7 @@ function ValueChip({
   }
 
   let display = value;
-  if (vt === "boolean") display = value === "true" ? "Evet" : "Hayır";
+  if (vt === "boolean") display = value === "true" ? "Yes" : "No";
 
   return (
     <div className="flex items-baseline gap-1 rounded-md bg-muted/80 px-1.5 py-0.5">

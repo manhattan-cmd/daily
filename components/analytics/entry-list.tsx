@@ -78,7 +78,7 @@ export function EntryListSection({
  */
 export function EntryList({
   rows,
-  emptyText = "Bu aralıkta girdi yok",
+  emptyText = "No entries in this range",
   accent,
 }: {
   rows: EntryListRow[];
@@ -155,7 +155,7 @@ export function EntryList({
           onClick={() => setVisible((v) => v + PAGE_SIZE)}
           className="mt-2 rounded-lg py-2 text-center text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
-          Daha fazla göster ({remaining})
+          Show more ({remaining})
         </button>
       )}
 

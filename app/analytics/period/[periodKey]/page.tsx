@@ -22,11 +22,11 @@ export default function PeriodAnalyticsPage({
   if (!period) {
     return (
       <>
-        <PageHeader title="Dönem" back="/analytics" />
+        <PageHeader title="Period" back="/analytics" />
         <EmptyState
           icon={CalendarX}
-          title="Geçersiz dönem"
-          description="Bu adres tanınmadı — analiz sayfasından tekrar dene."
+          title="Invalid period"
+          description="This address wasn't recognised — try again from the insights page."
         />
       </>
     );

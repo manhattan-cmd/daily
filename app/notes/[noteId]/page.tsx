@@ -39,17 +39,17 @@ import type { Note, NoteBlock, NoteLink } from "@/types";
 
 const nid = () => nanoid(12);
 
-const MONTHS_TR = [
-  "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
-  "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
-const WEEKDAYS_TR = [
-  "Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi",
+const WEEKDAYS_LONG = [
+  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
 ];
 function dateLabel(date: string): string {
   const [y, m, d] = date.split("-").map(Number);
   const dt = new Date(y, m - 1, d);
-  return `${dt.getDate()} ${MONTHS_TR[dt.getMonth()]} ${WEEKDAYS_TR[dt.getDay()]}`;
+  return `${dt.getDate()} ${MONTHS[dt.getMonth()]} ${WEEKDAYS_LONG[dt.getDay()]}`;
 }
 
 type Selection = { blockId: string; start: number; end: number; text: string };
@@ -179,7 +179,7 @@ export default function NoteEditorPage({
 
   async function handleDelete() {
     if (!loaded) return;
-    if (!confirm("Bu not silinsin mi?")) return;
+    if (!confirm("Delete this note?")) return;
     await deleteNote(noteId);
     router.push(`/calendar/${loaded.date}`);
   }
@@ -358,7 +358,7 @@ export default function NoteEditorPage({
         <button
           onClick={handleBack}
           className="inline-flex items-center gap-1.5 -ml-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          aria-label="Geri — not kaydedilir"
+          aria-label="Back — the note is saved"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>{dateLabel(loaded.date)}</span>
@@ -376,7 +376,7 @@ export default function NoteEditorPage({
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder="Başlık"
+        placeholder="Title"
         className="w-full bg-transparent text-2xl font-bold tracking-tight outline-none placeholder:text-muted-foreground/30 mb-1.5"
         onKeyDown={(e) => {
           if (e.key === "Enter") {
@@ -414,7 +414,7 @@ export default function NoteEditorPage({
                     }}
                     rows={1}
                     value={block.text}
-                    placeholder={i === 0 && bodyEmpty ? "Bugüne dair yaz..." : ""}
+                    placeholder={i === 0 && bodyEmpty ? "Write about today..." : ""}
                     onChange={(e) => {
                       setBlockText(block.id, e.target.value);
                       autoResize(e.target);
@@ -445,7 +445,7 @@ export default function NoteEditorPage({
                       />
                     ) : (
                       <span className="text-muted-foreground/35">
-                        {i === 0 && bodyEmpty ? "Bugüne dair yaz..." : " "}
+                        {i === 0 && bodyEmpty ? "Write about today..." : " "}
                       </span>
                     )}
                   </div>
@@ -470,7 +470,7 @@ export default function NoteEditorPage({
                             <button
                               onClick={() => removeLink(block.id, l.id)}
                               className="ml-0.5 rounded-full p-0.5 text-muted-foreground/50 hover:text-destructive"
-                              aria-label="Bağı kaldır"
+                              aria-label="Remove link"
                             >
                               <X className="h-3 w-3" />
                             </button>
@@ -512,7 +512,7 @@ export default function NoteEditorPage({
                           <button
                             onClick={() => removeLink(block.id, l.id)}
                             className="ml-0.5 rounded-full p-0.5 text-muted-foreground/50 hover:text-destructive"
-                            aria-label="Bağı kaldır"
+                            aria-label="Remove link"
                           >
                             <X className="h-3 w-3" />
                           </button>
@@ -685,7 +685,7 @@ export default function NoteEditorPage({
                   {c.title}
                 </span>
                 <span className="shrink-0 text-[11px] text-muted-foreground/60">
-                  {c.type === "note" ? "not" : "girdi"}
+                  {c.type === "note" ? "not" : "entries"}
                 </span>
               </button>
             ))}
@@ -734,14 +734,14 @@ function buildMarks(
 
   // 2) Öneriler — bu blokta zaten bağlı olmayan hedeflerin ad eşleşmeleri
   const linkedIds = new Set(links.map((l) => l.targetId));
-  const lower = text.toLocaleLowerCase("tr-TR");
+  const lower = text.toLocaleLowerCase("en-US");
   const bySpan = new Map<
     string,
     { start: number; end: number; text: string; candidates: LinkTarget[] }
   >();
   for (const t of targets) {
     if (linkedIds.has(t.id)) continue;
-    const name = t.name.toLocaleLowerCase("tr-TR");
+    const name = t.name.toLocaleLowerCase("en-US");
     if (name.length < 3) continue;
     let from = 0;
     while (from <= lower.length) {
@@ -817,7 +817,7 @@ function SuggestSpan({ label, onClick }: { label: string; onClick: () => void })
         onClick();
       }}
       className="cursor-pointer rounded px-0.5 text-muted-foreground underline decoration-dotted decoration-muted-foreground/50 underline-offset-2 transition-colors hover:text-foreground"
-      title="Bağla?"
+      title="Link?"
     >
       {label}
     </span>

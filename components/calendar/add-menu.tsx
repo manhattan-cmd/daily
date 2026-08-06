@@ -99,7 +99,7 @@ export function AddMenu({ items }: { items: AddMenuItem[] }) {
               : "bg-primary text-primary-foreground hover:bg-primary/90"
           )}
           aria-expanded={open}
-          aria-label={open ? "Menüyü kapat" : "Ekle"}
+          aria-label={open ? "Close menu" : "Ekle"}
         >
           <Plus
             className={cn(

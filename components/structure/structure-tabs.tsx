@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation";
 import { SectionNav, chipClass } from "@/components/ui/section-nav";
 
 const TABS = [
-  { href: "/structure", label: "Kategoriler" },
-  { href: "/structure/mods", label: "Özellikler" },
-  { href: "/structure/mods/olculer", label: "Ölçüler" },
-  { href: "/structure/notes", label: "Notlar" },
-  { href: "/structure/galaxy", label: "Harita" },
+  { href: "/structure", label: "Categories" },
+  { href: "/structure/mods", label: "Features" },
+  { href: "/structure/mods/olculer", label: "Measures" },
+  { href: "/structure/notes", label: "Notes" },
+  { href: "/structure/galaxy", label: "Map" },
 ] as const;
 
 /**

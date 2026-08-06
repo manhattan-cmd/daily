@@ -13,21 +13,21 @@ import {
 import type { LifeGraph, LifeNode } from "@/lib/life-graph";
 import { cn } from "@/lib/utils";
 
-const MONTHS_TR = [
-  "Oca", "Şub", "Mar", "Nis", "May", "Haz",
-  "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara",
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 function shortDate(date?: string): string {
   if (!date) return "";
   const [, m, d] = date.split("-").map(Number);
-  return `${d} ${MONTHS_TR[m - 1]}`;
+  return `${d} ${MONTHS[m - 1]}`;
 }
 function nodeHref(node: LifeNode): string {
   return node.kind === "note"
     ? `/notes/${node.id}`
     : `/calendar/${node.date ?? ""}`;
 }
-const norm = (s: string) => s.toLocaleLowerCase("tr-TR");
+const norm = (s: string) => s.toLocaleLowerCase("en-US");
 
 const NOTE_COLOR = "#a78bfa";
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
@@ -505,7 +505,7 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
               ? "bg-primary/15 text-primary"
               : "bg-card/85 text-muted-foreground"
           )}
-          aria-label="Harita ayarları"
+          aria-label="Map settings"
         >
           <SlidersHorizontal className="h-4 w-4" />
         </button>
@@ -514,7 +514,7 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Ara…"
+              placeholder="Search…"
               className="mb-2 h-8 w-full rounded-lg border border-border bg-input px-2.5 text-xs outline-none placeholder:text-muted-foreground/50"
             />
             <div className="flex flex-wrap gap-1.5">
@@ -555,10 +555,10 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
             )}
             {/* Kuvvetler — Obsidian'daki gibi */}
             <div className="mt-2 flex flex-col gap-1.5 border-t border-border/60 pt-2">
-              <Slider label="İtme kuvveti" min={0.2} max={3} step={0.1} value={repel} onChange={setRepel} />
-              <Slider label="Bağ uzunluğu" min={30} max={160} step={5} value={linkDist} onChange={setLinkDist} />
+              <Slider label="Repulsion" min={0.2} max={3} step={0.1} value={repel} onChange={setRepel} />
+              <Slider label="Link length" min={30} max={160} step={5} value={linkDist} onChange={setLinkDist} />
               <Slider label="Merkez kuvveti" min={0} max={3} step={0.1} value={centerF} onChange={setCenterF} />
-              <Slider label="Metin görünürlüğü" min={0.4} max={2} step={0.1} value={textFade} onChange={setTextFade} />
+              <Slider label="Label visibility" min={0.4} max={2} step={0.1} value={textFade} onChange={setTextFade} />
             </div>
           </div>
         )}
@@ -596,7 +596,7 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
                 {" · "}
                 {selected.links.length > 0
                   ? `${selected.links.length} bağ`
-                  : "bağ yok"}
+                  : "no links"}
               </span>
             </Link>
             <button
@@ -613,8 +613,8 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
                   ? "bg-primary/15 text-primary"
                   : "text-muted-foreground hover:text-foreground"
               )}
-              aria-label="Yerelleştir"
-              title="Bu düğümün komşuluğuna odaklan"
+              aria-label="Focus"
+              title="Focus on this node's neighbourhood"
             >
               <Crosshair className="h-4 w-4" />
             </button>
@@ -624,7 +624,7 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
                 setSelectedId(null);
               }}
               className="rounded-full p-1 text-muted-foreground/70 hover:text-foreground"
-              aria-label="Kapat"
+              aria-label="Close"
             >
               <X className="h-4 w-4" />
             </button>

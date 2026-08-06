@@ -445,7 +445,7 @@ export default function ConnectionMap({
                     className="text-sm font-semibold"
                     style={{ color: cat.color }}
                   >
-                    {cat.name.charAt(0).toLocaleUpperCase("tr-TR")}
+                    {cat.name.charAt(0).toLocaleUpperCase("en-US")}
                   </span>
                 )}
               </span>
@@ -474,7 +474,7 @@ export default function ConnectionMap({
               </span>
               {selected.sharedMeasures.length > 0 ? (
                 <span className="flex items-center gap-1 overflow-hidden text-[11px] text-muted-foreground">
-                  <span className="shrink-0">Ortak özellik:</span>
+                  <span className="shrink-0">Shared feature:</span>
                   {selected.sharedMeasures.slice(0, 3).map((l) => (
                     <span
                       key={l.name}

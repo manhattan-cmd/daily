@@ -43,7 +43,7 @@ function TargetChip({ target, completed }: { target: GoalTargetWithContext; comp
   }
 
   let display = target.targetValue;
-  if (vt === "boolean") display = target.targetValue === "true" ? "Evet" : "Hayır";
+  if (vt === "boolean") display = target.targetValue === "true" ? "Yes" : "No";
 
   return (
     <div className="flex items-baseline gap-1">
@@ -92,7 +92,7 @@ export function GoalCard({
   }
 
   async function handleDelete() {
-    if (!confirm("Bu hedefi silmek istediğinden emin misin?")) return;
+    if (!confirm("Delete this goal?")) return;
     await deleteGoal(goal.id);
   }
 
@@ -118,7 +118,7 @@ export function GoalCard({
               ? "border-emerald-500 bg-emerald-500"
               : "border-border hover:border-primary active:scale-90"
           )}
-          aria-label={isCompleted ? "Tamamlandı — geri al" : "Tamamlandı olarak işaretle"}
+          aria-label={isCompleted ? "Completed — undo" : "Mark as completed"}
         >
           {isCompleted && <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />}
         </button>
@@ -166,7 +166,7 @@ export function GoalCard({
             <button
               onClick={() => setEditOpen(true)}
               className="h-7 w-7 flex items-center justify-center rounded-full text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-colors"
-              aria-label="Hedefi düzenle"
+              aria-label="Edit goal"
             >
               <Pencil className="h-3.5 w-3.5" />
             </button>

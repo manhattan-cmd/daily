@@ -27,7 +27,7 @@ import { WelcomeCard } from "@/components/dashboard/welcome-card";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { cn, toLocalDateValue } from "@/lib/utils";
 
-const WEEKDAYS_SHORT = ["Pz", "Pt", "Sa", "Çr", "Pe", "Cu", "Ct"];
+const WEEKDAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function HomePage() {
   const today = toLocalDateValue();
@@ -55,7 +55,7 @@ export default function HomePage() {
         </div>
         <Link
           href="/settings"
-          aria-label="Ayarlar"
+          aria-label="Settings"
           className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
         >
           <Settings className="h-4 w-4" />
@@ -73,13 +73,13 @@ export default function HomePage() {
         >
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/60">
-              Bugün
+              Today
             </p>
             <p className="mt-0.5 flex items-baseline gap-1.5">
               <span className="text-2xl font-semibold tabular-nums leading-none">
                 {todayInfo?.count ?? 0}
               </span>
-              <span className="text-sm text-muted-foreground">girdi</span>
+              <span className="text-sm text-muted-foreground">entries</span>
             </p>
             {(todayInfo?.segments.length ?? 0) > 0 && (
               <span className="mt-1.5 flex items-center gap-1">
@@ -116,7 +116,7 @@ export default function HomePage() {
           className="flex w-full items-center justify-center gap-1.5 border-t border-border bg-primary/[0.07] py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/[0.12]"
         >
           <PenLine className="h-3.5 w-3.5" />
-          Girdi ekle
+          Add entry
         </button>
       </section>
 
@@ -140,7 +140,7 @@ export default function HomePage() {
       )}
 
       <h2 className="mb-3 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Son girdiler
+        Recent entries
       </h2>
 
       {recent === undefined ? (
@@ -148,17 +148,17 @@ export default function HomePage() {
       ) : recent.length === 0 ? (
         <EmptyState
           icon={Sparkles}
-          title="Henüz girdi yok"
+          title="No entries yet"
           description={
             hasCategories
-              ? "İlk girdini yapmaya hazır mısın?"
-              : "Önce yapını oluştur, sonra girdi yap."
+              ? "Ready to make your first entry?"
+              : "Build your structure first, then start logging."
           }
           action={
             hasCategories ? (
               <Button onClick={() => setSheetOpen(true)}>
                 <Plus className="h-4 w-4" />
-                Girdi ekle
+                Add entry
               </Button>
             ) : (
               <Button asChild>
@@ -208,7 +208,7 @@ function WeekBar({
   return (
     <Link
       href={`/calendar/${day.date}`}
-      aria-label={`${dt.getDate()} ${WEEKDAYS_SHORT[dt.getDay()]} · ${day.count} girdi`}
+      aria-label={`${WEEKDAYS_SHORT[dt.getDay()]} ${dt.getDate()} · ${day.count} entries`}
       className="group flex flex-1 flex-col items-center gap-1.5"
     >
       <span
@@ -240,14 +240,14 @@ function WeekBar({
 
 function getGreeting(): string {
   const h = new Date().getHours();
-  if (h < 5) return "İyi geceler";
-  if (h < 12) return "Günaydın";
-  if (h < 18) return "İyi öğlenler";
-  return "İyi akşamlar";
+  if (h < 5) return "Good night";
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
 }
 
 function longDate(): string {
-  return new Date().toLocaleDateString("tr-TR", {
+  return new Date().toLocaleDateString("en-US", {
     day: "numeric",
     month: "long",
     weekday: "long",

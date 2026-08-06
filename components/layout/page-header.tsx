@@ -34,7 +34,7 @@ export function PageHeader({
           <Link
             href={back}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="Geri"
+            aria-label="Back"
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>

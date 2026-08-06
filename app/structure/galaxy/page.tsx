@@ -102,8 +102,8 @@ export default function GalaxyPage() {
     <div className="flex flex-col" style={{ height: "100%" }}>
       {/* Diğer Yapı sayfalarıyla aynı başlık + menü hizası */}
       <PageHeader
-        title="Yapı"
-        description="Harita — kategori ve özellik bağlantıları"
+        title="Structure"
+        description="Map — category and feature links"
       />
       <StructureTabs />
 
@@ -113,8 +113,8 @@ export default function GalaxyPage() {
             <div className="flex h-full items-center justify-center px-4">
               <EmptyState
                 icon={Waypoints}
-                title="Harita boş"
-                description="Bağlantı haritasını görmek için önce kategori oluştur."
+                title="The map is empty"
+                description="Create a category first to see the link map."
               />
             </div>
           ) : (
@@ -135,7 +135,7 @@ export default function GalaxyPage() {
                 <svg width="18" height="4" viewBox="0 0 18 4">
                   <line x1="0" y1="2" x2="18" y2="2" stroke="currentColor" className="text-muted-foreground" strokeWidth="1" strokeDasharray="3 3" />
                 </svg>
-                <span className="text-[10px] text-muted-foreground">ortak özellik</span>
+                <span className="text-[10px] text-muted-foreground">shared feature</span>
               </div>
             )}
             {data.connections.length > 0 && data.parallels.length > 0 && (

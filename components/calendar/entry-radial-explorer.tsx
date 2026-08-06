@@ -131,7 +131,7 @@ export function RadialExplorer({
           {parent ? (
             <button
               onClick={() => setFocus(parent)}
-              aria-label={`Yukarı: ${parent.type === "cat" ? parent.cat.name : parent.sub.name}`}
+              aria-label={`Up: ${parent.type === "cat" ? parent.cat.name : parent.sub.name}`}
               className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               <ChevronUp className="h-3.5 w-3.5" />

@@ -36,7 +36,7 @@ import {
 } from "@/lib/storage-health";
 import { Button } from "@/components/ui/button";
 
-const fmt = (n: number) => n.toLocaleString("tr-TR");
+const fmt = (n: number) => n.toLocaleString("en-US");
 
 export function DataSection() {
   const [exporting, setExporting] = useState(false);
@@ -78,11 +78,11 @@ export function DataSection() {
       downloadBackup(payload);
       markBackupTaken(payload.exportedAt);
       const { total } = summarizeBackup(payload);
-      setMessage({ type: "ok", text: `Yedek indirildi — ${fmt(total)} kayıt.` });
+      setMessage({ type: "ok", text: `Backup downloaded — ${fmt(total)} records.` });
     } catch (err) {
       setMessage({
         type: "error",
-        text: err instanceof Error ? err.message : "Yedek alınamadı.",
+        text: err instanceof Error ? err.message : "Could not create the backup.",
       });
     } finally {
       setExporting(false);
@@ -109,19 +109,19 @@ export function DataSection() {
         markBackupTaken(payload.exportedAt);
         setMessage({
           type: "ok",
-          text: "Bu cihazda paylaşma desteklenmiyor — yedek indirildi.",
+          text: "Sharing isn't supported on this device — the backup was downloaded.",
         });
         return;
       }
-      await navigator.share({ files: [file], title: "Routine yedeği" });
+      await navigator.share({ files: [file], title: "Routine backup" });
       markBackupTaken(payload.exportedAt);
-      setMessage({ type: "ok", text: "Yedek paylaşıldı." });
+      setMessage({ type: "ok", text: "Backup shared." });
     } catch (err) {
       // Kullanıcı paylaş menüsünü kapattıysa hata sayma
       if (err instanceof DOMException && err.name === "AbortError") return;
       setMessage({
         type: "error",
-        text: err instanceof Error ? err.message : "Yedek paylaşılamadı.",
+        text: err instanceof Error ? err.message : "Could not share the backup.",
       });
     } finally {
       setExporting(false);
@@ -139,7 +139,7 @@ export function DataSection() {
     } catch (err) {
       setMessage({
         type: "error",
-        text: err instanceof Error ? err.message : "Dosya okunamadı.",
+        text: err instanceof Error ? err.message : "Could not read the file.",
       });
     }
   }
@@ -155,16 +155,16 @@ export function DataSection() {
         type: "ok",
         text:
           mode === "replace"
-            ? `Yedek geri yüklendi — ${fmt(result.written)} kayıt.`
-            : `Birleştirildi — ${fmt(result.written)} kayıt yazıldı` +
+            ? `Backup restored — ${fmt(result.written)} records.`
+            : `Merged — ${fmt(result.written)} records written` +
               (result.skipped
-                ? `, ${fmt(result.skipped)} kayıt cihazdaki sürümü daha yeni olduğu için atlandı.`
+                ? `, ${fmt(result.skipped)} skipped because this device had a newer version.`
                 : "."),
       });
     } catch (err) {
       setMessage({
         type: "error",
-        text: err instanceof Error ? err.message : "Geri yüklenemedi.",
+        text: err instanceof Error ? err.message : "Could not restore.",
       });
     } finally {
       setImporting(false);
@@ -177,9 +177,7 @@ export function DataSection() {
     <>
       <div className="flex flex-col gap-5">
         <p className="text-sm leading-relaxed text-muted-foreground">
-          Tüm verilerin (kategoriler, özellikler, girdiler, notlar, hedefler)
-          yalnızca bu cihazda saklanıyor. Tarayıcı verisi silinirse ya da telefon
-          değişirse geri dönüşü olmaz — düzenli yedek almanı öneririz.
+          All of your data (categories, features, entries, notes, goals) is stored on this device only. If browser data is cleared or you switch phones, there is no way back — take backups regularly.
         </p>
 
         {/* Depolama sağlığı — verinin cihazda ne kadar güvende durduğu */}
@@ -190,7 +188,7 @@ export function DataSection() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="font-medium">Cihazdaki depolama</span>
+                <span className="font-medium">Device storage</span>
                 {health && (
                   <span
                     className={
@@ -200,32 +198,31 @@ export function DataSection() {
                         : "bg-amber-500/15 text-amber-400")
                     }
                   >
-                    {health.persisted ? "kalıcı" : "kalıcı değil"}
+                    {health.persisted ? "persistent" : "not persistent"}
                   </span>
                 )}
               </div>
               <div className="text-xs text-muted-foreground">
                 {health
-                  ? `${formatBytes(health.usage)} kullanılıyor${
-                      health.quota ? ` · kota ${formatBytes(health.quota)}` : ""
+                  ? `${formatBytes(health.usage)} used${
+                      health.quota ? ` · quota ${formatBytes(health.quota)}` : ""
                     }`
-                  : "Ölçülüyor..."}
+                  : "Measuring..."}
               </div>
             </div>
           </div>
 
           {health && !health.persisted && (
             <p className="mt-3 text-[11px] leading-relaxed text-amber-400/90">
-              Tarayıcı bu veriyi kalıcı saymıyor: yer daralırsa ya da uygulamayı
-              uzun süre açmazsan silinebilir.{" "}
+              The browser doesn&rsquo;t treat this data as persistent: it can be evicted if space runs low or you don&rsquo;t open the app for a while.{" "}
               {!health.standalone &&
-                "Uygulamayı ana ekrana eklersen kalıcı olur. "}
-              Yine de düzenli yedek al.
+                "Add the app to your home screen to make it persistent. "}
+              Take regular backups anyway.
             </p>
           )}
 
           <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3 text-xs">
-            <span className="text-muted-foreground">Son yedek</span>
+            <span className="text-muted-foreground">Last backup</span>
             <span
               className={
                 lastBackupAt === null || daysSince(lastBackupAt) >= 14
@@ -233,7 +230,7 @@ export function DataSection() {
                   : "font-medium"
               }
             >
-              {lastBackupAt === null ? "hiç alınmadı" : agoLabel(lastBackupAt)}
+              {lastBackupAt === null ? "never" : agoLabel(lastBackupAt)}
             </span>
           </div>
         </div>
@@ -245,11 +242,11 @@ export function DataSection() {
               <Download className="h-5 w-5 text-primary" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="font-medium">Yedek İndir</div>
+              <div className="font-medium">Download backup</div>
               <div className="text-xs text-muted-foreground">
                 {counts
-                  ? `${fmt(counts.categories)} kategori · ${fmt(counts.entries)} girdi · ${fmt(counts.notes)} not · ${fmt(counts.goals)} hedef`
-                  : "Yükleniyor..."}
+                  ? `${fmt(counts.categories)} categories · ${fmt(counts.entries)} entries · ${fmt(counts.notes)} notes · ${fmt(counts.goals)} goals`
+                  : "Loading..."}
               </div>
             </div>
           </div>
@@ -260,20 +257,20 @@ export function DataSection() {
               disabled={exporting}
             >
               <Share2 className="h-4 w-4" />
-              {exporting ? "Hazırlanıyor..." : "Paylaş / Buluta at"}
+              {exporting ? "Preparing..." : "Share / send to cloud"}
             </Button>
             <Button
               variant="outline"
               onClick={handleExport}
               disabled={exporting}
-              aria-label="JSON olarak indir"
+              aria-label="Download as JSON"
             >
               <Download className="h-4 w-4" />
             </Button>
           </div>
           <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-            Paylaş menüsünden Drive, iCloud ya da kendine mesaj — yedek senin
-            bulutunda durur, bizde bir kopyası olmaz.
+            Use the share sheet for Drive, iCloud or a message to yourself — the
+            backup lives in your cloud, we keep no copy.
           </p>
         </div>
 
@@ -284,9 +281,9 @@ export function DataSection() {
               <Upload className="h-5 w-5 text-amber-500" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="font-medium">Yedekten Geri Yükle</div>
+              <div className="font-medium">Restore from backup</div>
               <div className="text-xs text-muted-foreground">
-                Dosyayı seç, sonra nasıl yükleneceğine karar ver
+                Pick a file, then choose how to load it
               </div>
             </div>
           </div>
@@ -296,7 +293,7 @@ export function DataSection() {
             onClick={() => fileInputRef.current?.click()}
             disabled={importing}
           >
-            Dosya Seç
+            Choose file
           </Button>
           <input
             ref={fileInputRef}
@@ -313,19 +310,19 @@ export function DataSection() {
           <div className="animate-in rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] p-4">
             <div className="mb-3 flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <div className="font-medium">Yedek okundu</div>
+                <div className="font-medium">Backup loaded</div>
                 <div className="text-xs text-muted-foreground">
-                  {new Date(pending.exportedAt).toLocaleString("tr-TR", {
+                  {new Date(pending.exportedAt).toLocaleString("en-US", {
                     dateStyle: "long",
                     timeStyle: "short",
                   })}{" "}
-                  · sürüm {pending.version}
+                  · version {pending.version}
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setPending(null)}
-                aria-label="Vazgeç"
+                aria-label="Cancel"
                 disabled={importing}
                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
               >
@@ -339,7 +336,7 @@ export function DataSection() {
                   ["Kategori", summary.counts.categories],
                   ["Alt kategori", summary.counts.subcategories],
                   ["Girdi", summary.counts.entries],
-                  ["Değer", summary.counts.entryValues],
+                  ["Value", summary.counts.entryValues],
                   ["Not", summary.counts.notes],
                   ["Hedef", summary.counts.goals],
                   ["Özellik", summary.counts.mods],
@@ -355,9 +352,7 @@ export function DataSection() {
 
             {pending.version < 2 && (
               <p className="mb-3 text-[11px] leading-relaxed text-amber-400/90">
-                Bu eski bir yedek (sürüm {pending.version}) — notlar o sürümde
-                yedeklenmiyordu. Değiştirerek yüklersen cihazdaki notlar
-                silinir.
+                This is an older backup (version {pending.version}) — notes weren&rsquo;t included back then. Replacing will delete the notes on this device.
               </p>
             )}
 
@@ -371,14 +366,13 @@ export function DataSection() {
                 <GitMerge className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium">
-                    Birleştir{" "}
+                    Merge{" "}
                     <span className="text-xs font-normal text-muted-foreground">
-                      (önerilen)
+                      (recommended)
                     </span>
                   </span>
                   <span className="block text-[11px] leading-snug text-muted-foreground">
-                    Yedek mevcut verinin üzerine eklenir. Aynı kaydın yeni olanı
-                    kalır, cihazdaki fazladan kayıtlar silinmez.
+                    The backup is added on top of your data. The newer version of each record wins; extra records on this device are kept.
                   </span>
                 </span>
               </button>
@@ -392,11 +386,10 @@ export function DataSection() {
                 <Replace className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium text-destructive">
-                    Değiştir
+                    Replace
                   </span>
                   <span className="block text-[11px] leading-snug text-muted-foreground">
-                    Cihazdaki TÜM veri silinip yerine bu yedek konur. Geri
-                    alınamaz.
+                    ALL data on this device is deleted and replaced by this backup. Cannot be undone.
                   </span>
                 </span>
               </button>
@@ -404,7 +397,7 @@ export function DataSection() {
 
             {importing && (
               <p className="mt-3 text-center text-xs text-muted-foreground">
-                Yükleniyor…
+                Loading…
               </p>
             )}
           </div>

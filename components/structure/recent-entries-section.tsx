@@ -59,7 +59,7 @@ export function RecentEntriesSection({
   return (
     <section className="mb-6">
       <EntryListSection
-        title="Son Girdiler"
+        title="Recent entries"
         accent={color}
         rows={rows}
         emptyText="Henüz girdi yok"

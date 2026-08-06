@@ -38,7 +38,7 @@ function addDays(t: number, n: number): number {
 }
 
 const fmt = (t: number, opt: Intl.DateTimeFormatOptions) =>
-  new Date(t).toLocaleDateString("tr-TR", opt);
+  new Date(t).toLocaleDateString("en-US", opt);
 
 export function dayPeriod(t: number): Period {
   const start = startOfDayMs(new Date(t));
@@ -201,7 +201,7 @@ export function periodProgress(
  */
 export function periodShortLabel(p: Period, now: Date = new Date()): string {
   const t = now.getTime();
-  if (p.kind === "all") return "tüm zamanlar";
+  if (p.kind === "all") return "all time";
   if (p.kind === "day") return p.key === dayPeriod(t).key ? "bugün" : p.label;
   if (p.kind === "week") return p.key === weekPeriod(t).key ? "bu hafta" : p.label;
   if (p.kind === "month") return p.key === monthPeriod(t).key ? "bu ay" : p.label;

@@ -251,18 +251,18 @@ export function PeriodView({
       <>
         <PageHeader
           title={title ?? period.label}
-          description="Dönem Analizi"
+          description="Period insights"
           back={back}
         />
         <EmptyState
           icon={BarChart3}
-          title="Analiz için henüz veri yok"
-          description="Girdi girmeye başladığında toplamlar, günlük ortalamalar ve kategori dağılımı burada oluşur."
+          title="No data to analyse yet"
+          description="Once you start logging, totals, daily averages and the category breakdown appear here."
           action={
             <Button asChild>
               <Link href={`/calendar/${toLocalDateValue()}`}>
                 <PenLine className="h-4 w-4" />
-                İlk girdini yap
+                Make your first entry
               </Link>
             </Button>
           }
@@ -277,7 +277,7 @@ export function PeriodView({
       <>
         <PageHeader
           title={title ?? period.label}
-          description="Dönem Analizi"
+          description="Period insights"
           back={back}
         />
         <PeriodQuickNav activeKey={period.key} />
@@ -305,8 +305,8 @@ export function PeriodView({
         title={title ?? period.label}
         description={
           showProgress
-            ? `Devam ediyor · ${progress.elapsedDays}/${progress.totalDays} gün`
-            : "Dönem Analizi"
+            ? `In progress · ${progress.elapsedDays}/${progress.totalDays} days`
+            : "Period insights"
         }
         back={back}
       />
@@ -324,7 +324,7 @@ export function PeriodView({
               disabled={!prev}
               onClick={() => prev && router.push(`/analytics/period/${prev.key}`)}
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-              aria-label="Önceki dönem"
+              aria-label="Previous period"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -338,7 +338,7 @@ export function PeriodView({
                 nextP && router.push(`/analytics/period/${nextP.key}`)
               }
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-              aria-label="Sonraki dönem"
+              aria-label="Next period"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -348,12 +348,12 @@ export function PeriodView({
         {/* KPI'lar — her kutu neyin, hangi aralıkta sayısı olduğunu söyler */}
         <div className="grid grid-cols-3 gap-2">
           <StatTile
-            label="Girdi sayısı"
+            label="Entries"
             value={fmtNum(computed?.entryCount ?? 0)}
             sub={spanLabel}
           />
           <StatTile
-            label="Aktif gün"
+            label="Active days"
             value={fmtNum(computed?.activeDays ?? 0)}
             sub={
               progress
@@ -362,7 +362,7 @@ export function PeriodView({
             }
           />
           <StatTile
-            label="Kullanılan kategori"
+            label="Categories used"
             value={fmtNum(computed?.catCount ?? 0)}
             sub={spanLabel}
           />
@@ -377,7 +377,7 @@ export function PeriodView({
             <DailyBarChart
               data={computed.buckets}
               color="#6366f1"
-              unit="girdi"
+              unit="entries"
               caption={computed.seriesFrame?.caption}
               showAllTicks={computed.seriesFrame?.showAllTicks}
               onSelect={(k) => router.push(`/analytics/period/${k}`)}
@@ -390,11 +390,11 @@ export function PeriodView({
             tıklanan rakam dönemin, açılan sayfa tüm zamanlarındı. */}
         <div className="rounded-2xl border border-border bg-card p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-            Kategori Dağılımı
+            Category breakdown
           </h3>
           <ShareBars
             rows={computed?.catShare ?? []}
-            emptyText="Bu dönemde girdi yok"
+            emptyText="No entries in this period"
             onSelect={(id) => {
               setSelectedCatId(id);
               detailRef.current?.scrollIntoView({
@@ -412,14 +412,14 @@ export function PeriodView({
           <section ref={detailRef} className="mt-2 flex scroll-mt-32 flex-col gap-3">
             <div className="flex items-center justify-between gap-2 px-1">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Kategori Detayı
+                Category detail
               </h2>
               {/* Zaman penceresinden bağımsız, kategorinin tüm zamanlar analizi */}
               <Link
                 href={`/analytics/${selectedCat.id}`}
                 className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
-                Kategori Analizi
+                Category insights
                 <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
@@ -476,9 +476,9 @@ export function PeriodView({
 
         {/* Tüm kategorilerin girdileri */}
         <EntryListSection
-          title="Tüm Girdiler"
+          title="All entries"
           rows={computed?.entryRows ?? []}
-          emptyText="Bu dönemde girdi yok"
+          emptyText="No entries in this period"
         />
       </div>
     </>

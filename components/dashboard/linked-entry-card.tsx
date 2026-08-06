@@ -26,7 +26,7 @@ export function LinkedEntryCard({
   const [editingEntry, setEditingEntry] = useState<EntryWithContext | null>(null);
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
   const shared = entries[0];
-  const time = new Date(shared.occurredAt).toLocaleTimeString("tr-TR", {
+  const time = new Date(shared.occurredAt).toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -177,7 +177,7 @@ function ValueChip({
 }) {
   const vt = entryType.valueType ?? "number";
   let display = value;
-  if (vt === "boolean") display = value === "true" ? "Evet" : "Hayır";
+  if (vt === "boolean") display = value === "true" ? "Yes" : "No";
 
   return (
     <div className="flex items-baseline gap-1 rounded-lg bg-muted px-2 py-0.5">

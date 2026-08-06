@@ -202,7 +202,7 @@ export function useCategoryMetrics({
       .filter((m) => modIds.has(m.id))
       .map((m) => classifyNumericMod(m, typeMap.get(m.entryTypeId)))
       .filter((m): m is NumericMod => !!m)
-      .sort((a, b) => a.name.localeCompare(b.name, "tr"));
+      .sort((a, b) => a.name.localeCompare(b.name, "en"));
 
     return {
       subById,

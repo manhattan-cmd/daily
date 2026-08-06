@@ -188,7 +188,7 @@ export function ActivityCard({
                   className="flex items-center gap-1 text-xs font-medium text-cyan-300/80 hover:text-cyan-200 transition-colors"
                 >
                   <Plus className="h-3 w-3" />
-                  Girdi ekle
+                  Add entry
                 </button>
               ) : (
                 <span />
@@ -206,7 +206,7 @@ export function ActivityCard({
                   type="button"
                   onClick={() => setDeleteOpen(true)}
                   className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-destructive"
-                  aria-label="Aktiviteyi sil veya dağıt"
+                  aria-label="Delete or unpack the activity"
                 >
                   <Trash2 className="h-3 w-3" />
                   Sil
@@ -245,8 +245,8 @@ export function ActivityCard({
                       >
                         {(v.entryType!.valueType ?? "number") === "boolean"
                           ? v.value === "true"
-                            ? "Evet"
-                            : "Hayır"
+                            ? "Yes"
+                            : "No"
                           : v.value}
                         {v.entryType!.unit && (
                           <span className="ml-0.5 font-normal text-muted-foreground text-[10px]">
@@ -291,7 +291,7 @@ export function ActivityCard({
             <DialogTitle>{`"${name}" aktivitesi`}</DialogTitle>
             <DialogDescription>
               Dağıtırsan içindeki {entries.length} girdi bağımsız girdi olarak
-              günde kalır; girdilerle silersen hepsi kalıcı olarak silinir.
+              days kalır; girdilerle silersen hepsi kalıcı olarak silinir.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">

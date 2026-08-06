@@ -18,8 +18,8 @@ export default function StructurePage() {
   return (
     <>
       <PageHeader
-        title="Yapı"
-        description="Kategoriler — rutinin ana başlıkları"
+        title="Structure"
+        description="Categories — the main headings of your routine"
         action={<CategoryQuickAdd existingNames={existingNames} />}
       />
 
@@ -30,8 +30,8 @@ export default function StructurePage() {
       {categories === undefined ? null : categories.length === 0 ? (
         <EmptyState
           icon={Layers}
-          title="Henüz kategori yok"
-          description="+ butonuna bas, listeden seç ya da kendin yaz."
+          title="No categories yet"
+          description="Tap +, pick from the list or write your own."
         />
       ) : (
         /* Kategori rafları — atomlarla aynı ızgara, kare karolar */

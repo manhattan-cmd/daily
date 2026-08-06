@@ -105,10 +105,10 @@ export function QuickModAdd({
           "flex items-center gap-1 rounded-lg border border-dashed px-2 py-1 text-xs transition-all active:scale-95",
           "border-border/60 text-muted-foreground/60 hover:border-border hover:text-muted-foreground"
         )}
-        aria-label="Özellik ekle"
+        aria-label="Add feature"
       >
         <SlidersHorizontal className="h-3 w-3" />
-        <span>Özellik ekle</span>
+        <span>Add feature</span>
       </button>
 
       <ModPickDialog
@@ -158,7 +158,7 @@ export function QuickModAdd({
                 Şimdi değil
               </Button>
               <Button onClick={saveValue} disabled={!canSave || saving}>
-                {saving ? "Kaydediliyor..." : "Kaydet"}
+                {saving ? "Kaydediliyor..." : "Save"}
               </Button>
             </DialogFooter>
           </DialogContent>

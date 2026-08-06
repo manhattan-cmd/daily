@@ -25,25 +25,25 @@ import { cn } from "@/lib/utils";
 /** Bilinen üst alt kategorilere özel öneriler — "Market altına ne açılır?" */
 const NESTED_PRESETS: Record<string, string[]> = {
   // Harcamalar
-  "Market":        ["Manav", "Şarküteri", "Temizlik", "Atıştırmalık", "İçecek"],
+  "Market":        ["Manav", "Şarküteri", "Temizlik", "Atıştırmalık", "Drinks"],
   "Fatura":        ["Elektrik", "Su", "Doğalgaz", "İnternet", "Telefon"],
-  "Ulaşım":        ["Toplu Taşıma", "Taksi", "Yakıt", "Otopark"],
-  "Yemek":         ["Restoran", "Kafe", "Sipariş", "Tatlı"],
-  "Eğlence":       ["Sinema", "Konser", "Oyun", "Abonelik"],
+  "Transport":        ["Toplu Taşıma", "Taksi", "Yakıt", "Otopark"],
+  "Yemek":         ["Restoran", "Kafe", "Sipariş", "Dessert"],
+  "Fun":       ["Sinema", "Konser", "Oyun", "Abonelik"],
   // Spor & Fitness
   "Gym":           ["Göğüs", "Sırt", "Bacak", "Omuz", "Kol"],
-  "Koşu":          ["Tempo Koşusu", "Uzun Koşu", "İnterval"],
+  "Running":          ["Tempo Koşusu", "Uzun Koşu", "İnterval"],
   // Beslenme
-  "İçecek":        ["Su", "Kahve", "Çay"],
-  "Ara Öğün":      ["Meyve", "Kuruyemiş", "Tatlı"],
+  "Drinks":        ["Su", "Kahve", "Çay"],
+  "Snack":      ["Meyve", "Kuruyemiş", "Dessert"],
   // Sağlık
-  "İlaç":          ["Sabah", "Akşam", "Ağrı Kesici"],
+  "Medication":          ["Sabah", "Akşam", "Ağrı Kesici"],
   "Vitamin":       ["D Vitamini", "B12", "Omega 3", "Magnezyum"],
   // Çalışma
   "Proje":         ["Planlama", "Geliştirme", "Revizyon"],
   // Öğrenme
   "Kitap":         ["Roman", "Kişisel Gelişim", "Mesleki"],
-  "Dil Pratiği":   ["Kelime", "Dinleme", "Konuşma", "Gramer"],
+  "Language practice":   ["Kelime", "Dinleme", "Konuşma", "Gramer"],
   // Eğlence (kategori)
   "Dizi":          ["Yeni Bölüm", "Tekrar İzleme"],
   "Oyun":          ["PC", "Konsol", "Mobil"],
@@ -51,18 +51,18 @@ const NESTED_PRESETS: Record<string, string[]> = {
 
 const SUBCATEGORY_PRESETS: Record<string, string[]> = {
   "Uyku":          ["Gece Uykusu", "Şekerleme", "Uyku Kalitesi", "Gece Rutini", "Uyanış"],
-  "Spor & Fitness":["Koşu", "Gym", "Yürüyüş", "Yüzme", "Bisiklet"],
-  "Beslenme":      ["Yemek", "İçecek", "Ara Öğün", "Kahvaltı", "Akşam Yemeği"],
-  "Harcamalar":    ["Market", "Fatura", "Yemek", "Ulaşım", "Eğlence"],
+  "Sports & Fitness":["Running", "Gym", "Yürüyüş", "Yüzme", "Bisiklet"],
+  "Beslenme":      ["Yemek", "Drinks", "Snack", "Kahvaltı", "Akşam Yemeği"],
+  "Harcamalar":    ["Market", "Fatura", "Yemek", "Transport", "Fun"],
   "Ruh Hali":      ["Günlük Ruh Hali", "Motivasyon", "Stres", "Enerji", "Anksiyete"],
-  "Sağlık":        ["İlaç", "Vitamin", "Doktor Ziyareti", "Semptom", "Su"],
+  "Health":        ["Medication", "Vitamin", "Doktor Ziyareti", "Semptom", "Su"],
   "Sosyal Hayat":  ["Arkadaşlar", "Aile", "Randevu", "Sosyal Etkinlik", "İlişki"],
-  "Çalışma":       ["Proje", "Toplantı", "Odak Seansı", "Görev", "Mola"],
-  "Öğrenme":       ["Kitap", "Kurs", "Dil Pratiği", "Podcast", "Araştırma"],
-  "Eğlence":       ["Film", "Dizi", "Oyun", "Müzik", "Konser"],
-  "Seyahat":       ["Uçuş", "Otel", "Aktivite", "Yemek Keşfi", "Ulaşım"],
+  "Study":       ["Proje", "Toplantı", "Odak Seansı", "Görev", "Mola"],
+  "Learning":       ["Kitap", "Kurs", "Language practice", "Podcast", "Araştırma"],
+  "Fun":       ["Film", "Dizi", "Oyun", "Müzik", "Konser"],
+  "Seyahat":       ["Uçuş", "Otel", "Aktivite", "Yemek Keşfi", "Transport"],
   "Hobiler":       ["Fotoğrafçılık", "Müzik Aleti", "Resim", "Yazarlık", "Bahçe"],
-  "Kişisel Bakım": ["Cilt Bakımı", "Saç Bakımı", "Meditasyon", "Egzersiz", "Spa"],
+  "Self-care": ["Cilt Bakımı", "Saç Bakımı", "Meditasyon", "Egzersiz", "Spa"],
 };
 
 interface SubCategoryFormProps {
@@ -175,7 +175,7 @@ export function SubCategoryForm({
   // özel liste (yoksa öneri yok — kategori önerileri orada yanıltıcı olur),
   // ana seviyedeyse kategoriye özel liste. Zaten var olan kardeşler düşülür.
   const presets = useMemo(() => {
-    const norm = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
+    const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
     const base = parentSubcategoryId
       ? parentSub
         ? NESTED_PRESETS[parentSub.name] ?? []
@@ -218,7 +218,7 @@ export function SubCategoryForm({
     // Aynı kategoride (ağacın neresinde olursa olsun) aynı ad varsa uyar —
     // "Squat" hem Ağırlık Kaldırma altında hem kökte olursa karışıklık doğar
     if (!isEdit && !force) {
-      const norm = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
+      const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
       const existing = context?.subs.find(
         (s) => !s.isCategoryRoot && norm(s.name) === norm(nameToSave)
       );
@@ -275,7 +275,7 @@ export function SubCategoryForm({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Alt kategoriyi düzenle" : "Yeni alt kategori"}
+            {isEdit ? "Edit subcategory" : "Yeni alt kategori"}
           </DialogTitle>
           {/* Nereye eklendiği — kategori renk noktası + yol */}
           {!isEdit && targetPath && (
@@ -306,7 +306,7 @@ export function SubCategoryForm({
             {/* Düzenli/sabit işareti — analizlerde tek dokunuşla hariç tutulabilir */}
             <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-input px-3 py-2.5">
               <div className="min-w-0">
-                <p className="text-sm font-medium">Düzenli / sabit</p>
+                <p className="text-sm font-medium">Regular / fixed</p>
                 <p className="text-[11px] text-muted-foreground">
                   Kira, fatura gibi düzenli kalemler — analizlerde tek dokunuşla
                   hariç tutulabilir

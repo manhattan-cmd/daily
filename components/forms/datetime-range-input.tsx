@@ -7,7 +7,7 @@ import { SHORT_MONTHS } from "@/lib/analytics";
 
 function shortDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
-  return `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]}`;
+  return `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}`;
 }
 
 export function parseDTR(raw: string): { start: string; end: string } {
@@ -61,8 +61,8 @@ function offsetDate(entryDate: string, offset: number): string {
 }
 
 const SIDES = {
-  start: { label: "Başlangıç", offset: -1, time: "23:00" },
-  end: { label: "Bitiş", offset: 0, time: "07:00" },
+  start: { label: "Start", offset: -1, time: "23:00" },
+  end: { label: "End", offset: 0, time: "07:00" },
 } as const;
 
 type Side = keyof typeof SIDES;
@@ -257,15 +257,15 @@ export function DateTimeInput({
   const today = toLocalDateValue();
   const relative =
     datePart === today
-      ? "Bugün"
+      ? "Today"
       : datePart === offsetDate(today, -1)
-        ? "Dün"
+        ? "Yesterday"
         : datePart === offsetDate(today, 1)
-          ? "Yarın"
+          ? "Tomorrow"
           : null;
 
   const pretty = datePart
-    ? new Date(datePart + "T00:00:00").toLocaleDateString("tr-TR", {
+    ? new Date(datePart + "T00:00:00").toLocaleDateString("en-US", {
         weekday: "long",
         day: "numeric",
         month: "long",
@@ -281,7 +281,7 @@ export function DateTimeInput({
       <div className="flex items-center gap-1 px-2 py-2">
         <StepButton
           side="left"
-          label="Önceki gün"
+          label="Previous day"
           disabled={disabled || !datePart}
           onClick={() => shiftDay(-1)}
         />
@@ -303,7 +303,7 @@ export function DateTimeInput({
             type="date"
             value={datePart}
             disabled={disabled}
-            aria-label="Tarih seç"
+            aria-label="Pick a date"
             onChange={(e) =>
               e.target.value && onChange(`${e.target.value}T${timePart}`)
             }
@@ -312,7 +312,7 @@ export function DateTimeInput({
         </div>
         <StepButton
           side="right"
-          label="Sonraki gün"
+          label="Next day"
           disabled={disabled || !datePart}
           onClick={() => shiftDay(1)}
         />
@@ -339,7 +339,7 @@ export function DateTimeInput({
             type="button"
             disabled={disabled}
             onClick={() => setWheelOpen((o) => !o)}
-            aria-label="Saati seç"
+            aria-label="Pick a time"
             aria-expanded={wheelOpen}
             className={cn(
               "text-[1.6rem] font-bold leading-none tabular-nums transition-colors",

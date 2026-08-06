@@ -8,11 +8,11 @@ import { getMonthDaySummary } from "@/lib/db/queries";
 import { cn } from "@/lib/utils";
 import { swallowNextClick } from "@/lib/use-long-press";
 
-const MONTHS_TR = [
-  "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
-  "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
-const WEEKDAYS = ["Pt", "Sa", "Çr", "Pe", "Cu", "Ct", "Pz"];
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function CalendarPage() {
   const today = new Date();
@@ -166,14 +166,14 @@ export default function CalendarPage() {
         <button
           onClick={prevMonth}
           className="h-10 w-10 flex items-center justify-center rounded-2xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          aria-label="Önceki ay"
+          aria-label="Previous month"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
 
         <div className="text-center" style={glideStyle}>
           <h1 className="text-xl font-semibold tracking-tight">
-            {MONTHS_TR[month]}
+            {MONTHS[month]}
           </h1>
           <p className="text-sm text-muted-foreground tabular-nums">{year}</p>
         </div>
@@ -181,7 +181,7 @@ export default function CalendarPage() {
         <button
           onClick={nextMonth}
           className="h-10 w-10 flex items-center justify-center rounded-2xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          aria-label="Sonraki ay"
+          aria-label="Next month"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
@@ -220,8 +220,8 @@ export default function CalendarPage() {
               onDragStart={(e) => e.preventDefault()}
               aria-label={
                 hasEntries
-                  ? `${day} ${MONTHS_TR[month]} · ${info!.count} girdi`
-                  : `${day} ${MONTHS_TR[month]}`
+                  ? `${day} ${MONTHS[month]} · ${info!.count} girdi`
+                  : `${day} ${MONTHS[month]}`
               }
               className={cn(
                 "relative flex aspect-square flex-col items-center justify-center rounded-2xl transition-all active:scale-95",

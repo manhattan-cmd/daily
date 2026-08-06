@@ -261,7 +261,7 @@ export function EntryPickTree({
               )}
             >
               <Trash2 className="h-4 w-4" />
-              <span className="text-xs font-medium">Silmek için buraya bırak</span>
+              <span className="text-xs font-medium">Drop here to delete</span>
             </div>
           </div>,
           document.body

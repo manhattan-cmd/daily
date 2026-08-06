@@ -139,7 +139,7 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
           <button
             onClick={onClose}
             className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors shrink-0"
-            aria-label="Kapat"
+            aria-label="Close"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -263,7 +263,7 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
                           type="button"
                           onClick={() => toggleType(typeId)}
                           className="text-muted-foreground/40 hover:text-destructive transition-colors"
-                          aria-label="Kaldır"
+                          aria-label="Remove"
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -295,7 +295,7 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
                               [typeId]: e.target.value,
                             }))
                           }
-                          placeholder="Hedef değer gir..."
+                          placeholder="Enter a target value..."
                         />
                       )}
 
@@ -315,7 +315,7 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
                               : "border-border bg-input text-muted-foreground"
                           )}
                         >
-                          {val === "true" ? "Evet" : "Hayır"}
+                          {val === "true" ? "Yes" : "No"}
                         </button>
                       )}
 
@@ -369,7 +369,7 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
             onClick={handleSave}
             disabled={saving || !canSave}
           >
-            {saving ? "Kaydediliyor..." : "Kaydet"}
+            {saving ? "Kaydediliyor..." : "Save"}
           </Button>
         </div>
       </div>

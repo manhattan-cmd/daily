@@ -79,12 +79,12 @@ function groupEntries(entries: EntryWithContext[]): EntryItem[] {
   return result;
 }
 
-const MONTHS_TR = [
-  "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
-  "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
-const WEEKDAYS_TR = [
-  "Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi",
+const WEEKDAYS_LONG = [
+  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
 ];
 
 export default function CalendarDayPage({
@@ -175,20 +175,20 @@ export default function CalendarDayPage({
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground mb-5 -ml-0.5 hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span>Takvim</span>
+          <span>Calendar</span>
         </Link>
 
         <div className="flex items-end justify-between gap-4">
           <div className="flex-1 min-w-0">
             <p className="text-sm text-muted-foreground mb-0.5">
-              {WEEKDAYS_TR[d.getDay()]}
+              {WEEKDAYS_LONG[d.getDay()]}
             </p>
             <h1 className="text-3xl font-bold tracking-tight leading-none">
-              {d.getDate()} {MONTHS_TR[d.getMonth()]}
+              {d.getDate()} {MONTHS[d.getMonth()]}
             </h1>
             <div className="mt-1.5 flex items-center gap-2">
               {isToday ? (
-                <span className="text-xs font-semibold text-primary">Bugün</span>
+                <span className="text-xs font-semibold text-primary">Today</span>
               ) : (
                 <span className="text-xs text-muted-foreground">{d.getFullYear()}</span>
               )}
@@ -198,7 +198,7 @@ export default function CalendarDayPage({
                 href={`/analytics/period/d-${date}`}
                 className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
-                Gün Analizi
+                Day insights
                 <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
@@ -208,7 +208,7 @@ export default function CalendarDayPage({
             items={[
               {
                 key: "entry",
-                label: "Girdi",
+                label: "Entry",
                 icon: PenLine,
                 iconClass: "text-primary",
                 onSelect: () => {
@@ -219,7 +219,7 @@ export default function CalendarDayPage({
               },
               {
                 key: "activity",
-                label: "Aktivite",
+                label: "Activity",
                 icon: Boxes,
                 iconClass: "text-cyan-400",
                 onSelect: () => {
@@ -230,14 +230,14 @@ export default function CalendarDayPage({
               },
               {
                 key: "goal",
-                label: "Hedef",
+                label: "Goal",
                 icon: Target,
                 iconClass: "text-amber-400",
                 onSelect: () => setGoalSheetOpen(true),
               },
               {
                 key: "note",
-                label: "Not",
+                label: "Note",
                 icon: NotebookPen,
                 iconClass: "text-rose-400",
                 onSelect: async () => {
@@ -249,7 +249,7 @@ export default function CalendarDayPage({
                 ? ([
                     {
                       key: "sleep",
-                      label: "Uyku",
+                      label: "Sleep",
                       icon: MoonStar,
                       iconClass: "text-violet-400",
                       onSelect: () => setSleepSheetOpen(true),
@@ -334,11 +334,11 @@ export default function CalendarDayPage({
         (!notes || notes.length === 0) ? (
           <EmptyState
             icon={CalendarDays}
-            title="Bu gün boş"
+            title="Nothing logged today"
             description={
               isToday
-                ? "Henüz girdi yok — sağ üstteki Ekle ile başla."
-                : "Bu güne ait girdi yok — Ekle ile ekleyebilirsin."
+                ? "No entries yet — tap Add in the top right to start."
+                : "No entries for this day — use Add to create one."
             }
           />
         ) : null
@@ -370,7 +370,7 @@ export default function CalendarDayPage({
                   </span>
                   {!selectionActive && (
                     <span className="ml-auto text-[10px] text-muted-foreground/50">
-                      basılı tut: çoklu seçim
+                      hold to select multiple
                     </span>
                   )}
                 </div>

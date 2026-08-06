@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import type { Note } from "@/types";
 
-const norm = (s: string) => s.toLocaleLowerCase("tr-TR");
+const norm = (s: string) => s.toLocaleLowerCase("en-US");
 function noteTitle(n: Note): string {
   return (
     (n.title ?? "").trim() ||
@@ -85,7 +85,7 @@ export function NotePickerDialog({
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Var olan notlarda ara…"
+            placeholder="Search existing notes…"
             className="h-9 pl-9 pr-8"
           />
           {query && (
@@ -103,8 +103,8 @@ export function NotePickerDialog({
           {notes === undefined ? null : filtered.length === 0 ? (
             <p className="px-1 py-4 text-xs text-muted-foreground/70">
               {(notes?.length ?? 0) <= 1
-                ? "Bağlanacak başka not yok."
-                : "Eşleşen not yok."}
+                ? "No other note to link."
+                : "No matching note."}
             </p>
           ) : (
             <ul className="flex flex-col gap-1">

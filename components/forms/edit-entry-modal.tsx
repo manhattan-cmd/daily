@@ -79,7 +79,7 @@ function occurredAtLabel(occurredAt: string, entryDate: string): string {
   if (!t) return "Zaman";
   if (d === entryDate) return t;
   const dt = new Date(d + "T00:00:00");
-  return `${dt.getDate()} ${SHORT_MONTHS[dt.getMonth()]} · ${t}`;
+  return `${SHORT_MONTHS[dt.getMonth()]} ${dt.getDate()} · ${t}`;
 }
 
 export function EditEntryModal({
@@ -260,7 +260,7 @@ export function EditEntryModal({
   ]);
 
   async function removeSibling(sib: { id: string; subName: string }) {
-    if (!confirm(`"${sib.subName}" perspektifi ve girdisi silinsin mi?`)) return;
+    if (!confirm(`Delete the "${sib.subName}" perspective and its entry?`)) return;
     await deleteEntry(sib.id);
   }
 
@@ -479,8 +479,8 @@ export function EditEntryModal({
                       const display =
                         vt === "boolean"
                           ? carried === "true"
-                            ? "Evet"
-                            : "Hayır"
+                            ? "Yes"
+                            : "No"
                           : vt === "datetime-range"
                             ? formatDTRDisplay(carried)
                             : carried;
@@ -549,8 +549,8 @@ export function EditEntryModal({
                   {pSaving
                     ? "Kaydediliyor..."
                     : pStep.index < pStep.total
-                      ? "Kaydet ve devam →"
-                      : "Kaydet"}
+                      ? "Save and continue →"
+                      : "Save"}
                 </Button>
               </DialogFooter>
             </>
@@ -594,7 +594,7 @@ export function EditEntryModal({
                   {saving
                     ? "Kaydediliyor..."
                     : newParallels.length
-                      ? "Devam →"
+                      ? "Continue →"
                       : "Tamam"}
                 </Button>
               </DialogFooter>
@@ -649,7 +649,7 @@ export function EditEntryModal({
                     title: "Paralel perspektif",
                     subtitle: totalParallels
                       ? `${totalParallels} perspektif`
-                      : "Başka kategoride de kaydet",
+                      : "Also log in another category",
                     active: panel === "parallel",
                     onSelect: () => togglePanel("parallel"),
                   },
@@ -659,17 +659,17 @@ export function EditEntryModal({
                     title: "Takma adlar",
                     subtitle: aliases.length
                       ? aliases.join(", ")
-                      : "Notlarda bu girdiyi anan sözcükler",
+                      : "Words in notes that refer to this entry",
                     active: panel === "alias",
                     onSelect: () => togglePanel("alias"),
                   },
                   {
                     key: "regular",
                     icon: Repeat,
-                    title: "Düzenli / sabit",
+                    title: "Regular / fixed",
                     subtitle: isRegular
-                      ? "Açık — analizlerde hariç tutulabilir"
-                      : "Kapalı",
+                      ? "On — can be excluded from insights"
+                      : "Off",
                     active: panel === "regular",
                     onSelect: () => togglePanel("regular"),
                   },
@@ -677,7 +677,7 @@ export function EditEntryModal({
                     key: "delete",
                     icon: Trash2,
                     title: "Girdiyi sil",
-                    subtitle: "Değerleriyle birlikte, geri alınamaz",
+                    subtitle: "Together with its values; cannot be undone",
                     tone: "destructive",
                     active: panel === "delete",
                     onSelect: () => togglePanel("delete"),
@@ -804,7 +804,7 @@ export function EditEntryModal({
                     className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-violet-500/30 py-2.5 text-sm font-medium text-violet-300/80 transition-colors hover:border-violet-500/50 hover:text-violet-200"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    {totalParallels > 0 ? "Başka perspektif" : "Perspektif seç"}
+                    {totalParallels > 0 ? "Another perspective" : "Pick a perspective"}
                   </button>
                 </div>
               </PanelBlock>
@@ -823,7 +823,7 @@ export function EditEntryModal({
             {panel === "regular" && (
               <PanelBlock
                 icon={Repeat}
-                title="Düzenli / sabit"
+                title="Regular / fixed"
                 onClose={() => setPanel(null)}
               >
                 <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-input px-3 py-2.5">
@@ -863,7 +863,7 @@ export function EditEntryModal({
                     </span>{" "}
                     girdisi değerleriyle birlikte kalıcı olarak silinecek.
                     {siblings.length > 0 &&
-                      ` Paralel perspektifleri (${siblings.length}) yerinde kalır.`}
+                      ` Its parallel perspectives (${siblings.length}) stay in place.`}
                   </p>
                   <div className="mt-2.5 flex gap-2">
                     <Button
@@ -888,7 +888,7 @@ export function EditEntryModal({
                         }
                       }}
                     >
-                      {deleting ? "Siliniyor..." : "Sil"}
+                      {deleting ? "Deleting..." : "Delete"}
                     </Button>
                   </div>
                 </div>
@@ -958,8 +958,8 @@ export function EditEntryModal({
               {saving
                 ? "Kaydediliyor..."
                 : newParallels.length > 0
-                  ? "Kaydet ve devam →"
-                  : "Kaydet"}
+                  ? "Save and continue →"
+                  : "Save"}
             </Button>
           </DialogFooter>
             </>
@@ -1059,7 +1059,7 @@ function ModInput({
               type="button"
               onClick={onRemove}
               className="rounded-md p-0.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
-              aria-label="Bu girdiden kaldır"
+              aria-label="Remove from this entry"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -1099,7 +1099,7 @@ function ModInput({
               : "border-border bg-input text-muted-foreground"
           )}
         >
-          {value === "true" ? "Evet" : "Hayır"}
+          {value === "true" ? "Yes" : "No"}
         </button>
       )}
 

@@ -26,12 +26,12 @@ export const MEASURE_KIND_META: Record<
 > = {
   number: {
     icon: Hash,
-    label: "Sayı",
+    label: "Number",
     hint: "Sayısal değer ve birim — km, dk, ₺, kcal...",
   },
   select: {
     icon: ListChecks,
-    label: "Çoktan Seçmeli",
+    label: "Multiple choice",
     hint: "İsim ver, seçenekleri sırala — Evet/Hayır/Belki gibi",
   },
   boolean: {
@@ -41,12 +41,12 @@ export const MEASURE_KIND_META: Record<
   },
   text: {
     icon: Type,
-    label: "Metin",
+    label: "Text",
     hint: "Serbest kısa not",
   },
   "datetime-range": {
     icon: CalendarClock,
-    label: "Tarih Aralığı",
+    label: "Date range",
     hint: "Başlangıç → bitiş (uyku, seyahat...)",
   },
 };

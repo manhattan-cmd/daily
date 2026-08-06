@@ -418,7 +418,7 @@ function ActivityNameStep({
         <button
           onClick={onClose}
           className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors shrink-0"
-          aria-label="Kapat"
+          aria-label="Close"
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -448,7 +448,7 @@ function ActivityNameStep({
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Aktivite adı (örn. Market alışverişi)"
+            placeholder="Activity name (e.g. Grocery run)"
             autoFocus={suggestions.length === 0}
             className="h-12 text-base"
           />
@@ -499,12 +499,12 @@ function PickStep({
             </div>
           )}
           <h2 className="text-base font-semibold tracking-tight truncate">
-            {activity ? "Aktiviteye girdi ekle" : "Ne eklemek istersin?"}
+            {activity ? "Aktiviteye girdi ekle" : "What do you want to add?"}
           </h2>
           <p className="text-[10px] text-muted-foreground/60 mt-0.5">
             {activity
-              ? "İstediğin kadar ekle — bitince Bitti'ye bas"
-              : "Girdi eklemek istediğin yeri seç"}
+              ? "Add as many as you like — tap Done when finished"
+              : "Pick where the entry belongs"}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -519,7 +519,7 @@ function PickStep({
           <button
             onClick={onClose}
             className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors"
-            aria-label="Kapat"
+            aria-label="Close"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -559,7 +559,7 @@ function occurredAtLabel(occurredAt: string, entryDate: string): string {
   if (!t) return "Zaman";
   if (d === entryDate) return t;
   const dt = new Date(d + "T00:00:00");
-  return `${dt.getDate()} ${SHORT_MONTHS[dt.getMonth()]} · ${t}`;
+  return `${SHORT_MONTHS[dt.getMonth()]} ${dt.getDate()} · ${t}`;
 }
 
 
@@ -640,11 +640,11 @@ function FormStep({
     ? "Kaydediliyor..."
     : parallelContext
     ? parallelContext.index < parallelContext.total
-      ? "Kaydet ve devam →"
-      : "Kaydet"
+      ? "Save and continue →"
+      : "Save"
     : hasParallelSelected
-    ? "Kaydet ve devam →"
-    : "Kaydet";
+    ? "Save and continue →"
+    : "Save";
 
   return (
     <>
@@ -652,7 +652,7 @@ function FormStep({
         <button
           onClick={onBack}
           className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors shrink-0"
-          aria-label={parallelContext ? "Geç" : "Geri"}
+          aria-label={parallelContext ? "Skip" : "Back"}
         >
           <ArrowLeft className="h-3.5 w-3.5" />
         </button>
@@ -707,7 +707,7 @@ function FormStep({
                     title: "Paralel perspektif",
                     subtitle: selectedParallels.length
                       ? `${selectedParallels.length} seçili`
-                      : "Başka kategoride de kaydet",
+                      : "Also log in another category",
                     active: panel === "parallel",
                     onSelect: () => togglePanel("parallel"),
                   },
@@ -728,7 +728,7 @@ function FormStep({
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary">
               <Plus className="h-5 w-5" strokeWidth={2.25} />
             </span>
-            <span className="text-sm font-semibold">Özellik ekle</span>
+            <span className="text-sm font-semibold">Add feature</span>
             <span className="text-[11px] leading-snug text-muted-foreground">
               Neyin kaydını tutmak istersin? Boş da kaydedebilirsin.
             </span>
@@ -753,7 +753,7 @@ function FormStep({
               className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
             >
               <Plus className="h-3.5 w-3.5" />
-              Özellik ekle
+              Add feature
             </button>
           </div>
         )}
@@ -809,7 +809,7 @@ function FormStep({
                 className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-violet-500/30 py-2.5 text-sm font-medium text-violet-300/80 transition-colors hover:border-violet-500/50 hover:text-violet-200"
               >
                 <Plus className="h-3.5 w-3.5" />
-                {selectedParallels.length > 0 ? "Başka perspektif" : "Perspektif seç"}
+                {selectedParallels.length > 0 ? "Another perspective" : "Pick a perspective"}
               </button>
             </div>
           </PanelBlock>
@@ -939,7 +939,7 @@ export function ModInput({
   if (isLocked) {
     let display: string;
     if (vt === "boolean") {
-      display = value === "true" ? "Evet" : "Hayır";
+      display = value === "true" ? "Yes" : "No";
     } else if (vt === "datetime-range") {
       display = formatDTRDisplay(value);
     } else {
@@ -991,7 +991,7 @@ export function ModInput({
               : "border-border bg-input text-muted-foreground"
           )}
         >
-          {value === "true" ? "Evet" : "Hayır"}
+          {value === "true" ? "Yes" : "No"}
         </button>
       )}
 

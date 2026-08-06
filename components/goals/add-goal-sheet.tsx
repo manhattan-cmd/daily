@@ -202,7 +202,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
             <button
               onClick={handleBack}
               className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors shrink-0"
-              aria-label="Geri"
+              aria-label="Back"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
             </button>
@@ -210,7 +210,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
             <button
               onClick={onClose}
               className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors shrink-0"
-              aria-label="Kapat"
+              aria-label="Close"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -238,7 +238,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
             )}
             <h2 className="text-base font-semibold tracking-tight">
               {step.type === "cat" && "Hedef ekle"}
-              {step.type === "sub" && "Alt kategori seç"}
+              {step.type === "sub" && "Pick a subcategory"}
               {step.type === "mod" && "Hedefi belirle"}
             </h2>
           </div>
@@ -279,7 +279,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
                 className="flex items-center gap-3 rounded-2xl border border-dashed border-border/60 px-4 py-3.5 text-left text-muted-foreground hover:text-foreground hover:border-border transition-colors"
               >
                 <Plus className="h-4 w-4 shrink-0" />
-                <span className="text-sm">Yeni kategori oluştur</span>
+                <span className="text-sm">Create category</span>
               </button>
             </div>
           )}
@@ -427,8 +427,8 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
                   >
                     <Plus className="h-3.5 w-3.5" />
                     {selectedTypeIds.length === 0 && mods.length === 0
-                      ? "Özellik seç"
-                      : "Başka özellik"}
+                      ? "Pick a feature"
+                      : "Another feature"}
                   </button>
                 </div>
               </div>
@@ -456,7 +456,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
                             type="button"
                             onClick={() => toggleType(typeId)}
                             className="text-muted-foreground/40 hover:text-destructive transition-colors"
-                            aria-label="Kaldır"
+                            aria-label="Remove"
                           >
                             <X className="h-3.5 w-3.5" />
                           </button>
@@ -488,7 +488,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
                                 [typeId]: e.target.value,
                               }))
                             }
-                            placeholder="Hedef değer gir..."
+                            placeholder="Enter a target value..."
                           />
                         )}
 
@@ -508,7 +508,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
                                 : "border-border bg-input text-muted-foreground"
                             )}
                           >
-                            {val === "true" ? "Evet" : "Hayır"}
+                            {val === "true" ? "Yes" : "No"}
                           </button>
                         )}
 
@@ -567,7 +567,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
               onClick={handleSave}
               disabled={saving || !canSave}
             >
-              {saving ? "Ekleniyor..." : "Hedef Ekle"}
+              {saving ? "Ekleniyor..." : "Add goal"}
             </Button>
           </div>
         )}

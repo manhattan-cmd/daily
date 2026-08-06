@@ -8,13 +8,13 @@ import type { EntryType, Mod } from "@/types";
 export type RangeKey = "bugun" | "hafta" | "7" | "30" | "ay" | "yil" | "tum";
 
 export const RANGE_LABELS: Record<RangeKey, string> = {
-  bugun: "Bugün",
-  hafta: "Bu Hafta",
+  bugun: "Today",
+  hafta: "This week",
   "7": "7 Gün",
   "30": "30 Gün",
-  ay: "Bu Ay",
-  yil: "Bu Yıl",
-  tum: "Tümü",
+  ay: "This month",
+  yil: "This year",
+  tum: "All",
 };
 
 export const isRangeKey = (s: string | null | undefined): s is RangeKey =>
@@ -74,13 +74,13 @@ export function dayKey(t: number): string {
 }
 
 export const SHORT_MONTHS = [
-  "Oca", "Şub", "Mar", "Nis", "May", "Haz",
-  "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara",
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
 export const FULL_MONTHS = [
-  "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
-  "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 
 export type DayBucket = {
@@ -102,9 +102,9 @@ export type DayBucket = {
 export type Granularity = "day" | "week" | "month";
 
 export const GRANULARITY_TITLES: Record<Granularity, string> = {
-  day: "Günlük",
-  week: "Haftalık",
-  month: "Aylık",
+  day: "Daily",
+  week: "Weekly",
+  month: "Monthly",
 };
 
 export function chooseGranularity(startMs: number, endMs: number): Granularity {
@@ -165,12 +165,12 @@ export function buildSeriesBuckets(
         key,
         label: `${SHORT_MONTHS[d.getMonth()]} ${d.getFullYear()}`,
         axisLabel,
-        full: d.toLocaleDateString("tr-TR", { month: "long", year: "numeric" }),
+        full: d.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
         value: 0,
         periodKey: `m-${key}`,
       });
     } else {
-      const label = `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]}`;
+      const label = `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}`;
       // Ay değiştiğinde eksende ay adı, aynı ay içinde sade gün numarası (kalabalığı azaltır)
       const axisLabel = d.getMonth() !== lastMonth ? label : `${d.getDate()}`;
       lastMonth = d.getMonth();
@@ -181,7 +181,7 @@ export function buildSeriesBuckets(
           key,
           label,
           axisLabel,
-          full: `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]} – ${lastDay.getDate()} ${SHORT_MONTHS[lastDay.getMonth()]}`,
+          full: `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()} – ${SHORT_MONTHS[lastDay.getMonth()]} ${lastDay.getDate()}`,
           value: 0,
           periodKey: `w-${key}`,
         });
@@ -190,7 +190,7 @@ export function buildSeriesBuckets(
           key,
           label,
           axisLabel,
-          full: d.toLocaleDateString("tr-TR", {
+          full: d.toLocaleDateString("en-US", {
             day: "numeric",
             month: "long",
             weekday: "short",
@@ -246,8 +246,8 @@ export function framePeriodSeries(
       b.axisLabel = `${i + 1}. Hafta`;
       b.axisSub =
         s.getMonth() === e.getMonth()
-          ? `${s.getDate()}–${e.getDate()} ${SHORT_MONTHS[e.getMonth()]}`
-          : `${s.getDate()} ${SHORT_MONTHS[s.getMonth()]}–${e.getDate()} ${SHORT_MONTHS[e.getMonth()]}`;
+          ? `${SHORT_MONTHS[e.getMonth()]} ${s.getDate()}–${e.getDate()}`
+          : `${SHORT_MONTHS[s.getMonth()]} ${s.getDate()} – ${SHORT_MONTHS[e.getMonth()]} ${e.getDate()}`;
     });
     return {
       caption: FULL_MONTHS[new Date(periodStart).getMonth()],
@@ -323,12 +323,12 @@ export function computeStreaks(
 export function fmtNum(n: number): string {
   const abs = Math.abs(n);
   if (abs >= 10000) {
-    return n.toLocaleString("tr-TR", {
+    return n.toLocaleString("en-US", {
       notation: "compact",
       maximumFractionDigits: 1,
     });
   }
-  return n.toLocaleString("tr-TR", {
+  return n.toLocaleString("en-US", {
     maximumFractionDigits: abs >= 100 ? 0 : 1,
   });
 }
@@ -362,8 +362,8 @@ export function isNumericChoiceSet(choices?: string[]): boolean {
 /** Girdi listesinde tek satırlık tarih+saat: "7 Tem · 14:20" */
 export function fmtEntryDateTime(t: number): string {
   const d = new Date(t);
-  const date = `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]}`;
-  const time = d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  const date = `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}`;
+  const time = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
   return `${date} · ${time}`;
 }
 
@@ -424,7 +424,7 @@ export function statSub(
   avgValue: number | undefined,
   unit: string
 ): string | undefined {
-  if (displayMode === "avg") return "Ortalama";
+  if (displayMode === "avg") return "Average";
   if (avgValue !== undefined) {
     return `Ort. ${fmtNum(avgValue)}${unit ? ` ${unit}` : ""}`;
   }

@@ -32,12 +32,11 @@ export function BackupReminder() {
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium">
           {state === "never" || lastBackupAt === null
-            ? "Verinin yedeği yok"
-            : `Son yedeğin ${agoLabel(lastBackupAt)}`}
+            ? "Your data has no backup"
+            : `Last backup ${agoLabel(lastBackupAt)}`}
         </p>
         <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-          Her şey yalnızca bu cihazda. Telefon değişirse ya da tarayıcı verisi
-          silinirse geri dönüşü yok.
+          Everything lives on this device only. If you switch phones or clear browser data, it&rsquo;s gone.
         </p>
         <Link
           href="/structure/backup"
@@ -49,7 +48,7 @@ export function BackupReminder() {
       </div>
       <button
         type="button"
-        aria-label="Şimdilik kapat"
+        aria-label="Dismiss for now"
         onClick={snoozeBackupReminder}
         className="shrink-0 rounded-lg p-1 text-muted-foreground transition-colors hover:text-foreground"
       >

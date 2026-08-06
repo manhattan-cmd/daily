@@ -21,11 +21,11 @@ export function PeriodQuickNav({ activeKey }: { activeKey: string }) {
   const router = useRouter();
   const now = new Date().getTime();
   const chips: { label: string; key: string; href: string }[] = [
-    { label: "Bugün", key: dayPeriod(now).key, href: "" },
-    { label: "Bu Hafta", key: weekPeriod(now).key, href: "/analytics" },
-    { label: "Bu Ay", key: monthPeriod(now).key, href: "" },
-    { label: "Bu Yıl", key: yearPeriod(now).key, href: "" },
-    { label: "Tümü", key: allPeriod().key, href: "" },
+    { label: "Today", key: dayPeriod(now).key, href: "" },
+    { label: "This week", key: weekPeriod(now).key, href: "/analytics" },
+    { label: "This month", key: monthPeriod(now).key, href: "" },
+    { label: "This year", key: yearPeriod(now).key, href: "" },
+    { label: "All", key: allPeriod().key, href: "" },
   ];
 
   return (

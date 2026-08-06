@@ -26,12 +26,12 @@ export default function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Ayarlar" description="Veri, yedek ve uygulama" back="/" />
+      <PageHeader title="Settings" description="Data, backup and app" back="/" />
 
       <div className="flex flex-col gap-6 pb-6">
         <section>
           <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Veri ve Yedek
+            Data & backup
           </h2>
           <DataSection />
         </section>
@@ -48,11 +48,11 @@ export default function SettingsPage() {
               <Layers className="h-5 w-5 text-muted-foreground" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="font-medium">Kategoriler ve özellikler</div>
+              <div className="font-medium">Categories and features</div>
               <div className="text-xs text-muted-foreground">
                 {counts
-                  ? `${counts.categories} kategori · ${counts.subcategories} alt kategori · ${counts.mods} özellik`
-                  : "Yükleniyor..."}
+                  ? `${counts.categories} categories · ${counts.subcategories} subcategories · ${counts.mods} features`
+                  : "Loading..."}
               </div>
             </div>
             <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/40" />
@@ -73,15 +73,14 @@ export default function SettingsPage() {
                 <Sparkles className="h-5 w-5 text-primary" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-medium">Karşılamayı tekrar göster</div>
+                <div className="font-medium">Show the welcome again</div>
                 <div className="text-xs text-muted-foreground">
-                  Kategori → alt kategori → özellik anlatımı ana sayfada çıkar
+                  The category → subcategory → feature walkthrough reappears on the home page
                 </div>
               </div>
             </button>
             <div className="border-t border-border px-4 py-3 text-xs text-muted-foreground">
-              Routine · sürüm 0.1.0 — verilerin yalnızca bu cihazda tutulur,
-              hiçbir sunucuya gönderilmez.
+              Routine · version 0.1.0 — your data is kept on this device only and never sent to a server.
             </div>
           </div>
         </section>

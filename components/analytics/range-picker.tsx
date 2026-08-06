@@ -7,13 +7,13 @@ import { cn } from "@/lib/utils";
 
 const RANGES: RangeKey[] = ["bugun", "hafta", "7", "30", "ay", "yil", "tum"];
 const SHORT_LABELS: Record<RangeKey, string> = {
-  bugun: "Bugün",
+  bugun: "Today",
   hafta: "Hafta",
   "7": "7g",
   "30": "30g",
   ay: "Ay",
-  yil: "Yıl",
-  tum: "Tümü",
+  yil: "Year",
+  tum: "All",
 };
 
 /** Kart başlığının köşesine gömülen küçük süre seçici — kartın kendi bağımsız aralığı için */

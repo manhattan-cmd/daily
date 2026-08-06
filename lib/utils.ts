@@ -28,7 +28,7 @@ export function toLocalDateTimeValue(timestamp: number): string {
 
 export function formatTime(timestamp: number): string {
   const date = new Date(timestamp);
-  return date.toLocaleTimeString("tr-TR", {
+  return date.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -43,10 +43,10 @@ export function formatDate(timestamp: number): string {
   const isToday = date.toDateString() === today.toDateString();
   const isYesterday = date.toDateString() === yesterday.toDateString();
 
-  if (isToday) return "Bugün";
-  if (isYesterday) return "Dün";
+  if (isToday) return "Today";
+  if (isYesterday) return "Yesterday";
 
-  return date.toLocaleDateString("tr-TR", {
+  return date.toLocaleDateString("en-US", {
     day: "numeric",
     month: "short",
     year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
@@ -58,7 +58,7 @@ export function formatDateTime(timestamp: number): string {
 }
 
 export function formatNumber(n: number): string {
-  return new Intl.NumberFormat("tr-TR").format(n);
+  return new Intl.NumberFormat("en-US").format(n);
 }
 
 export function formatMoney(amount: number, currency: string = "TL"): string {

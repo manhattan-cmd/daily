@@ -205,7 +205,7 @@ export function ParallelPickDialog({
         />
 
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>Tamam</Button>
+          <Button onClick={() => onOpenChange(false)}>Got it</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -52,7 +52,7 @@ export function CategoryForm({
     if (!name.trim()) return;
     // Aynı adda kategori varsa uyar — bilerek isteniyorsa "Yine de oluştur"
     if (!isEdit && !force) {
-      const norm = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
+      const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
       const cats = await db.categories.toArray();
       const clash = cats.find((c) => norm(c.name) === norm(name));
       if (clash) {
@@ -84,7 +84,7 @@ export function CategoryForm({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Kategoriyi düzenle" : "Yeni kategori"}
+            {isEdit ? "Edit category" : "Yeni kategori"}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="flex flex-col gap-5">
@@ -97,7 +97,7 @@ export function CategoryForm({
                 setName(e.target.value);
                 setDuplicateName(null);
               }}
-              placeholder="Örn. Alkol, Uyku, Spor"
+              placeholder="e.g. Alcohol, Sleep, Fitness"
               autoFocus
             />
           </div>
@@ -152,7 +152,7 @@ export function CategoryForm({
               İptal
             </Button>
             <Button type="submit" disabled={!name.trim() || saving}>
-              {isEdit ? "Kaydet" : "Oluştur"}
+              {isEdit ? "Save" : "Create"}
             </Button>
           </DialogFooter>
         </form>

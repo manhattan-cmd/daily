@@ -44,7 +44,7 @@ export default function SubCategoryDetailPage({
     : `/structure/${categoryId}`;
 
   const deleteParentName = subcategory?.parentId
-    ? parentSub?.name ?? category?.name ?? "üst kategori"
+    ? parentSub?.name ?? category?.name ?? "parent category"
     : category?.name ?? "kategori";
 
   return (
@@ -72,7 +72,7 @@ export default function SubCategoryDetailPage({
                   setEditingSelf(true);
                   setSubFormOpen(true);
                 }}
-                aria-label="Alt kategoriyi düzenle"
+                aria-label="Edit subcategory"
               >
                 <Pencil className="h-4 w-4" />
               </Button>

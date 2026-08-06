@@ -117,7 +117,7 @@ export class RoutineDB extends Dexie {
           "id, targetType, targetId, entryTypeId, modId, createdAt, [targetType+targetId]",
       })
       .upgrade(async (tx) => {
-        const norm = (s: string) => s.trim().toLocaleLowerCase("tr-TR");
+        const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
         const nid = () =>
           Math.random().toString(36).slice(2, 10) +
           Math.random().toString(36).slice(2, 6);
