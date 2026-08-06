@@ -9,8 +9,10 @@ import { CategoryQuickAdd } from "@/components/structure/category-quick-add";
 import { CategoryTile } from "@/components/structure/category-tile";
 import { StructureTabs } from "@/components/structure/structure-tabs";
 import { ExampleHint } from "@/components/structure/example-hint";
+import { useT } from "@/lib/i18n";
 
 export default function StructurePage() {
+  const t = useT();
   const categories = useLiveQuery(() => listCategories(), []);
 
   const existingNames = new Set(categories?.map((c) => c.name) ?? []);
@@ -18,8 +20,8 @@ export default function StructurePage() {
   return (
     <>
       <PageHeader
-        title="Structure"
-        description="Categories — the main headings of your routine"
+        title={t("structure.title")}
+        description={t("structure.categoriesLead")}
         action={<CategoryQuickAdd existingNames={existingNames} />}
       />
 
@@ -30,8 +32,8 @@ export default function StructurePage() {
       {categories === undefined ? null : categories.length === 0 ? (
         <EmptyState
           icon={Layers}
-          title="No categories yet"
-          description="Tap +, pick from the list or write your own."
+          title={t("structure.empty.title")}
+          description={t("structure.empty.body")}
         />
       ) : (
         /* Kategori rafları — atomlarla aynı ızgara, kare karolar */

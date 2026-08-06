@@ -42,6 +42,7 @@ import {
 import { PeriodQuickNav } from "@/components/analytics/period-quick-nav";
 import { PeriodCategoryPanel } from "@/components/analytics/period-category-panel";
 import { HScroll } from "@/components/ui/h-scroll";
+import { useT } from "@/lib/i18n";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -67,6 +68,7 @@ export function PeriodView({
   /** Alt kategori sayfasından geri dönüşte seçili kategoriyi korur */
   initialCatId?: string | null;
 }) {
+  const t = useT();
   const router = useRouter();
   const [selectedCatId, setSelectedCatId] = useState<string | null>(
     initialCatId ?? null
@@ -251,18 +253,18 @@ export function PeriodView({
       <>
         <PageHeader
           title={title ?? period.label}
-          description="Period insights"
+          description={t("insights.period")}
           back={back}
         />
         <EmptyState
           icon={BarChart3}
-          title="No data to analyse yet"
-          description="Once you start logging, totals, daily averages and the category breakdown appear here."
+          title={t("insights.empty.title")}
+          description={t("insights.empty.body")}
           action={
             <Button asChild>
               <Link href={`/calendar/${toLocalDateValue()}`}>
                 <PenLine className="h-4 w-4" />
-                Make your first entry
+                {t("insights.empty.action")}
               </Link>
             </Button>
           }
@@ -277,7 +279,7 @@ export function PeriodView({
       <>
         <PageHeader
           title={title ?? period.label}
-          description="Period insights"
+          description={t("insights.period")}
           back={back}
         />
         <PeriodQuickNav activeKey={period.key} />
@@ -306,7 +308,7 @@ export function PeriodView({
         description={
           showProgress
             ? `In progress · ${progress.elapsedDays}/${progress.totalDays} days`
-            : "Period insights"
+            : t("insights.period")
         }
         back={back}
       />

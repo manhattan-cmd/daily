@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { weekPeriod } from "@/lib/period";
 import { PeriodView } from "@/components/analytics/period-view";
+import { useT } from "@/lib/i18n";
 
 /**
  * Analiz sekmesinin kökü — default görünüm içinde bulunulan haftanın dönem
@@ -19,6 +20,7 @@ export default function AnalyticsPage() {
 }
 
 function AnalyticsPageContent() {
+  const t = useT();
   const searchParams = useSearchParams();
   // Alt kategori detayından geri dönüşte seçili kategori korunur (?cat=)
   const initialCatId = searchParams.get("cat");
@@ -26,6 +28,6 @@ function AnalyticsPageContent() {
   const [period] = useState(() => weekPeriod(Date.now()));
 
   return (
-    <PeriodView period={period} title="Analiz" initialCatId={initialCatId} />
+    <PeriodView period={period} title={t("insights.title")} initialCatId={initialCatId} />
   );
 }

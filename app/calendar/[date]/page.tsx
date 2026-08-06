@@ -34,6 +34,7 @@ import {
   EntrySelectionBar,
   type EntrySelection,
 } from "@/components/calendar/entry-selection";
+import { useT } from "@/lib/i18n";
 
 type EntryItem =
   | { type: "single"; entry: EntryWithContext }
@@ -93,6 +94,7 @@ export default function CalendarDayPage({
   params: Promise<{ date: string }>;
 }) {
   const { date } = use(params);
+  const t = useT();
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetActivityMode, setSheetActivityMode] = useState(false);
@@ -198,7 +200,7 @@ export default function CalendarDayPage({
                 href={`/analytics/period/d-${date}`}
                 className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
-                Day insights
+                {t("day.insights")}
                 <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
@@ -334,7 +336,7 @@ export default function CalendarDayPage({
         (!notes || notes.length === 0) ? (
           <EmptyState
             icon={CalendarDays}
-            title="Nothing logged today"
+            title={t("day.empty.title")}
             description={
               isToday
                 ? "No entries yet — tap Add in the top right to start."
@@ -370,7 +372,7 @@ export default function CalendarDayPage({
                   </span>
                   {!selectionActive && (
                     <span className="ml-auto text-[10px] text-muted-foreground/50">
-                      hold to select multiple
+                      {t("day.holdToSelect")}
                     </span>
                   )}
                 </div>

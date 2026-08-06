@@ -20,6 +20,12 @@ import { UndoBar } from "./undo-bar";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const mainRef = useRef<HTMLElement>(null);
   const pathname = usePathname();
+  const locale = useLocale();
+
+  // Sunucu her zaman lang="en" basar; etkin dili belgeye yansıt
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   // Kaydırma document'te değil bu container'da — Next'in sayfa geçişindeki
   // otomatik başa alması burada işlemez, rota değişince kendimiz başa alırız
