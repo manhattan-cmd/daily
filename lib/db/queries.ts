@@ -199,13 +199,38 @@ export async function ensureBuiltInCategories(): Promise<void> {
  * alt kategorinin kendi `mods`'u ise ona özel eklenir (Yürüyüş'ün Mesafe'si
  * gibi) — böylece devralma ve özelleştirme birlikte görülür.
  */
-type StarterSub = { name: string; icon?: string; mods?: string[] };
+/**
+ * Özellik referansı. Düz metin: havuzdaki hazır atom ("Para").
+ * Nesne: havuzda yoksa o ölçüyle yaratılacak kendi adıyla bir atom
+ * ("Kilo" özelliği, "Ağırlık" ölçüsüyle) — özellik ile ölçünün ayrı şeyler
+ * olduğu en iyi böyle görülüyor.
+ */
+type StarterMod = string | { name: string; measure: string };
 
+type StarterSub = {
+  name: string;
+  icon?: string;
+  /** Sabit/düzenli kalem — analizde "düzenlileri hariç tut" anahtarını görünür kılar */
+  regular?: boolean;
+  mods?: StarterMod[];
+  subs?: StarterSub[];
+};
+
+/**
+ * Örnek yapı, tek başına bir öğretici: kullanıcı gezerken şunları görüyor —
+ *  • kategori → alt kategori → alt kategori derinliği (Harcamalar › Fatura › Elektrik)
+ *  • kategoriye bağlanan özelliğin alt ağaca inmesi (Harcamalar'ın "Para"sı)
+ *  • sadece bir kaleme takılan özellik (Yürüyüş'ün "Mesafe"si)
+ *  • kendi adıyla özellik, hazır bir ölçüyle (Sağlık › Kilo, ölçü: Ağırlık)
+ *  • sabit kalemler (Kira, Fatura, Abonelik)
+ *  • farklı ölçü türleri: ₺, dk, km, adım, kg, adet, 1–5 skala, evet/hayır
+ * Örnek GİRDİ yok — analizleri sahte veriyle kirletmemek için.
+ */
 const STARTER_CATEGORIES: {
   name: string;
   color: string;
   icon: string;
-  mods: string[];
+  mods: StarterMod[];
   subs: StarterSub[];
 }[] = [
   {
@@ -215,9 +240,36 @@ const STARTER_CATEGORIES: {
     mods: ["Para"],
     subs: [
       { name: "Market", icon: "ShoppingCart" },
-      { name: "Ulaşım", icon: "Car" },
-      { name: "Yeme-İçme", icon: "Utensils" },
-      { name: "Fatura", icon: "Zap" },
+      {
+        name: "Yeme-İçme",
+        icon: "Utensils",
+        subs: [
+          { name: "Kafe", icon: "Coffee" },
+          { name: "Restoran", icon: "Salad" },
+          { name: "Sipariş", icon: "Croissant" },
+        ],
+      },
+      {
+        name: "Ulaşım",
+        icon: "Car",
+        subs: [
+          { name: "Yakıt", icon: "Flame" },
+          { name: "Toplu Taşıma", icon: "Users" },
+        ],
+      },
+      {
+        name: "Fatura",
+        icon: "Zap",
+        regular: true,
+        subs: [
+          { name: "Elektrik", icon: "Zap" },
+          { name: "Su", icon: "Droplet" },
+          { name: "İnternet", icon: "Laptop" },
+          { name: "Telefon", icon: "Phone" },
+        ],
+      },
+      { name: "Kira", icon: "Home", regular: true },
+      { name: "Abonelik", icon: "Tv", regular: true },
     ],
   },
   {
@@ -226,9 +278,18 @@ const STARTER_CATEGORIES: {
     icon: "Dumbbell",
     mods: ["Süre"],
     subs: [
-      { name: "Yürüyüş", icon: "Footprints", mods: ["Mesafe"] },
+      {
+        name: "Yürüyüş",
+        icon: "Footprints",
+        mods: ["Mesafe", { name: "Adım", measure: "Adım" }],
+      },
+      { name: "Koşu", icon: "Timer", mods: ["Mesafe"] },
       { name: "Bisiklet", icon: "Bike", mods: ["Mesafe"] },
-      { name: "Antrenman", icon: "Dumbbell" },
+      {
+        name: "Antrenman",
+        icon: "Dumbbell",
+        mods: [{ name: "Tekrar", measure: "Tekrar" }],
+      },
     ],
   },
   {
@@ -238,8 +299,33 @@ const STARTER_CATEGORIES: {
     mods: ["Süre"],
     subs: [
       { name: "Ders", icon: "GraduationCap" },
-      { name: "Okuma", icon: "Book" },
+      { name: "Okuma", icon: "Book", mods: [{ name: "Sayfa", measure: "Miktar" }] },
       { name: "Proje", icon: "Laptop" },
+    ],
+  },
+  {
+    name: "Sağlık",
+    color: "#ec4899",
+    icon: "HeartPulse",
+    mods: [],
+    subs: [
+      {
+        name: "Kilo",
+        icon: "Stethoscope",
+        mods: [{ name: "Kilo", measure: "Ağırlık" }],
+      },
+      { name: "Su", icon: "Droplet", mods: [{ name: "Su", measure: "Miktar" }] },
+      {
+        name: "Ruh Hali",
+        icon: "Smile",
+        mods: [{ name: "Ruh Hali", measure: "1–5 Skala" }],
+      },
+      {
+        name: "İlaç",
+        icon: "Pill",
+        regular: true,
+        mods: [{ name: "İlaç Alındı", measure: "Evet / Hayır" }],
+      },
     ],
   },
 ];
@@ -271,25 +357,55 @@ export async function ensureStarterData(): Promise<void> {
         icon: template.icon,
       });
       // Önce kategoriye bağla: sonra açılan alt kategoriler devralır
-      for (const modName of template.mods) {
-        const mod = await findModByName(modName);
+      for (const ref of template.mods) {
+        const mod = await resolveStarterMod(ref);
         if (mod) await attachMod("category", cat.id, mod.id);
       }
-      for (const s of template.subs) {
-        const sub = await createSubCategory({
-          categoryId: cat.id,
-          name: s.name,
-          icon: s.icon,
-        });
-        for (const modName of s.mods ?? []) {
-          const mod = await findModByName(modName);
-          if (mod) await attachMod("subcategory", sub.id, mod.id);
-        }
-      }
+      await seedStarterSubs(cat.id, undefined, template.subs);
     }
   }
 
   localStorage.setItem(STARTER_FLAG, "1");
+}
+
+/** Havuzdaki atomu bulur; nesne referansında yoksa ölçüsüyle yaratır. */
+async function resolveStarterMod(ref: StarterMod): Promise<Mod | undefined> {
+  const name = typeof ref === "string" ? ref : ref.name;
+  const existing = await findModByName(name);
+  if (existing || typeof ref === "string") return existing;
+
+  const types = await db.entryTypes.toArray();
+  const type = types.find(
+    (t) => t.name.toLocaleLowerCase("tr-TR") === ref.measure.toLocaleLowerCase("tr-TR")
+  );
+  if (!type) return undefined;
+  const { mod } = await createMod(name, type.id);
+  return mod;
+}
+
+/** Alt kategori ağacını özyinelemeli kurar — çocuklar üstünün özelliklerini devralır. */
+async function seedStarterSubs(
+  categoryId: string,
+  parentId: string | undefined,
+  subs: StarterSub[]
+): Promise<void> {
+  for (const s of subs) {
+    const sub = await createSubCategory({
+      categoryId,
+      parentId,
+      name: s.name,
+      icon: s.icon,
+    });
+    if (s.regular) {
+      await db.subcategories.update(sub.id, { isRegular: true });
+    }
+    // Kaleme özel özellikler — çocuklar bunları da devralsın diye onlardan önce
+    for (const ref of s.mods ?? []) {
+      const mod = await resolveStarterMod(ref);
+      if (mod) await attachMod("subcategory", sub.id, mod.id);
+    }
+    if (s.subs?.length) await seedStarterSubs(categoryId, sub.id, s.subs);
+  }
 }
 
 // ============ Categories ============

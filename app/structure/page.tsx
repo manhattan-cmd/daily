@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { CategoryQuickAdd } from "@/components/structure/category-quick-add";
 import { CategoryTile } from "@/components/structure/category-tile";
 import { StructureTabs } from "@/components/structure/structure-tabs";
+import { ExampleHint } from "@/components/structure/example-hint";
 
 export default function StructurePage() {
   const categories = useLiveQuery(() => listCategories(), []);
@@ -23,6 +24,8 @@ export default function StructurePage() {
       />
 
       <StructureTabs />
+
+      <ExampleHint />
 
       {categories === undefined ? null : categories.length === 0 ? (
         <EmptyState

@@ -23,6 +23,7 @@ import { LinkedEntryCard } from "@/components/dashboard/linked-entry-card";
 import { GoalCard } from "@/components/goals/goal-card";
 import { AddGoalSheet } from "@/components/goals/add-goal-sheet";
 import { EmptyState } from "@/components/ui/empty-state";
+import { CardListSkeleton } from "@/components/ui/skeleton";
 import type { EntryWithContext } from "@/types";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { AddMenu, type AddMenuItem } from "@/components/calendar/add-menu";
@@ -325,7 +326,9 @@ export default function CalendarDayPage({
       )}
 
       {/* Girdiler */}
-      {entries === undefined ? null : otherEntries.length === 0 ? (
+      {entries === undefined ? (
+        <CardListSkeleton rows={3} />
+      ) : otherEntries.length === 0 ? (
         sleepEntries.length === 0 &&
         (!goals || goals.length === 0) &&
         (!notes || notes.length === 0) ? (

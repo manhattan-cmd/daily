@@ -10,7 +10,6 @@ const TABS = [
   { href: "/structure/mods/olculer", label: "Ölçüler" },
   { href: "/structure/notes", label: "Notlar" },
   { href: "/structure/galaxy", label: "Harita" },
-  { href: "/structure/backup", label: "Yedekleme" },
 ] as const;
 
 /**

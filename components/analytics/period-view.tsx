@@ -4,9 +4,15 @@ import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ArrowRight,
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  PenLine,
+} from "lucide-react";
 import { db } from "@/lib/db";
-import { cn } from "@/lib/utils";
+import { cn, toLocalDateValue } from "@/lib/utils";
 import {
   bucketKeyOf,
   buildSeriesBuckets,
@@ -36,6 +42,9 @@ import {
 import { PeriodQuickNav } from "@/components/analytics/period-quick-nav";
 import { PeriodCategoryPanel } from "@/components/analytics/period-category-panel";
 import { HScroll } from "@/components/ui/h-scroll";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * Dönem analiz görünümü — herhangi bir zaman penceresinin (gün/hafta/ay/yıl/özel/tümü)
@@ -64,6 +73,9 @@ export function PeriodView({
   );
   // Dağılımdan kategori seçilince detaya kaydır
   const detailRef = useRef<HTMLElement | null>(null);
+
+  /** Uygulamada hiç girdi var mı — dönemden bağımsız */
+  const totalEntries = useLiveQuery(() => db.entries.count(), []);
 
   const data = useLiveQuery(async () => {
     const [cats, subs, entries] = await Promise.all([
@@ -231,6 +243,56 @@ export function PeriodView({
   /** KPI alt yazısı — sayıların hangi aralığa ait olduğu ("bu hafta") */
   const spanLabel = periodShortLabel(period);
   const progress = computed?.progress;
+
+  // Hiç girdi yokken sıfırlardan bir duvar göstermek, yeni kullanıcıya
+  // "burada bir şey bozuk" hissi veriyordu — davet daha dürüst
+  if (totalEntries === 0) {
+    return (
+      <>
+        <PageHeader
+          title={title ?? period.label}
+          description="Dönem Analizi"
+          back={back}
+        />
+        <EmptyState
+          icon={BarChart3}
+          title="Analiz için henüz veri yok"
+          description="Girdi girmeye başladığında toplamlar, günlük ortalamalar ve kategori dağılımı burada oluşur."
+          action={
+            <Button asChild>
+              <Link href={`/calendar/${toLocalDateValue()}`}>
+                <PenLine className="h-4 w-4" />
+                İlk girdini yap
+              </Link>
+            </Button>
+          }
+        />
+      </>
+    );
+  }
+
+  // İlk yüklemede iskelet — boş görünüp sonra dolmaktansa şeklini göster
+  if (!data) {
+    return (
+      <>
+        <PageHeader
+          title={title ?? period.label}
+          description="Dönem Analizi"
+          back={back}
+        />
+        <PeriodQuickNav activeKey={period.key} />
+        <div className="flex flex-col gap-4 pb-6">
+          <div className="grid grid-cols-3 gap-2">
+            <Skeleton className="h-[76px] rounded-2xl" />
+            <Skeleton className="h-[76px] rounded-2xl" />
+            <Skeleton className="h-[76px] rounded-2xl" />
+          </div>
+          <Skeleton className="h-[220px] rounded-2xl" />
+          <Skeleton className="h-[140px] rounded-2xl" />
+        </div>
+      </>
+    );
+  }
   const showProgress =
     !!progress &&
     progress.inProgress &&

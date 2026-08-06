@@ -3,7 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowRight, PenLine, Plus, Sparkles, Target } from "lucide-react";
+import {
+  ArrowRight,
+  PenLine,
+  Plus,
+  Settings,
+  Sparkles,
+  Target,
+} from "lucide-react";
 import {
   getRecentDaySummaries,
   listGoalsByDate,
@@ -13,8 +20,10 @@ import {
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { CardListSkeleton } from "@/components/ui/skeleton";
 import { EntryCard } from "@/components/dashboard/entry-card";
 import { BackupReminder } from "@/components/dashboard/backup-reminder";
+import { WelcomeCard } from "@/components/dashboard/welcome-card";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { cn, toLocalDateValue } from "@/lib/utils";
 
@@ -37,13 +46,23 @@ export default function HomePage() {
 
   return (
     <>
-      <header className="-mx-4 mb-5 px-4 pb-2 pt-12">
-        <p className="text-sm text-muted-foreground">{getGreeting()}</p>
-        <h1 className="mt-0.5 text-2xl font-semibold tracking-tight">
-          {longDate()}
-        </h1>
+      <header className="-mx-4 mb-5 flex items-end gap-3 px-4 pb-2 pt-12">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-muted-foreground">{getGreeting()}</p>
+          <h1 className="mt-0.5 text-2xl font-semibold tracking-tight">
+            {longDate()}
+          </h1>
+        </div>
+        <Link
+          href="/settings"
+          aria-label="Ayarlar"
+          className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Settings className="h-4 w-4" />
+        </Link>
       </header>
 
+      <WelcomeCard />
       <BackupReminder />
 
       {/* Bugün — günün özeti + doğrudan girdi ekleme */}
@@ -124,7 +143,9 @@ export default function HomePage() {
         Son girdiler
       </h2>
 
-      {recent === undefined ? null : recent.length === 0 ? (
+      {recent === undefined ? (
+        <CardListSkeleton rows={3} />
+      ) : recent.length === 0 ? (
         <EmptyState
           icon={Sparkles}
           title="Henüz girdi yok"
