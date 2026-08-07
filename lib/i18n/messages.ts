@@ -370,6 +370,12 @@ export const en = {
   "structure.notesLead": "Notes — journal, links and the map",
   "selection.targetDate": "Target date",
   "datetime.hour": "Hour",
+  "period.custom": "Custom",
+  "period.analyse": "Analyse",
+  "period.yesterday": "Yesterday",
+  "period.lastWeek": "Last week",
+  "period.lastMonth": "Last month",
+  "period.lastYear": "Last year",
 
   // ── Arama ────────────────────────────────────────────────────────────
   "search.title": "Search",
@@ -789,6 +795,12 @@ export const tr: Record<MessageKey, string> = {
   "structure.notesLead": "Notlar — günce, bağlar ve harita",
   "selection.targetDate": "Hedef tarih",
   "datetime.hour": "Saat",
+  "period.custom": "Özel",
+  "period.analyse": "Analiz Et",
+  "period.yesterday": "Dün",
+  "period.lastWeek": "Geçen hafta",
+  "period.lastMonth": "Geçen ay",
+  "period.lastYear": "Geçen yıl",
 
   "search.title": "Ara",
   "search.lead": "Girdilerini bul",

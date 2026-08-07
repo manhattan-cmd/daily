@@ -8,6 +8,7 @@ için** kalıcı hale getirildi:
 |---|---|
 | `backup` | Notlar v12'de eklenmiş ama yedeğe hiç girmemişti. Birleştirmede "yeni olan kazanır" ve "fazladan kayıt silinmez" kuralları, bozuk dosyada açıklayıcı hata, dosya adında yerel tarih. |
 | `undo` | Toplu silme + geri alma: kayıtların değerleriyle birlikte dönmesi ve silme günlüğünün temizlenmesi. |
+| `move` | Başka güne taşıma: kaydın günü değişir, hedef güne yönlendirilir. Gün öğesi türü kaydı (`lib/db/day-items.ts`) refactor edilirken bu yol sessizce bozulabilirdi. |
 | `search` | Aramanın hem girdi metnini hem kalem adını görmesi; tarih aralığı süzgeci. |
 | `language` | Dil değişiminin anında uygulanması, tarih biçiminin de dile uyması, seçimin yeniden yüklemede korunması, `<html lang>`. |
 

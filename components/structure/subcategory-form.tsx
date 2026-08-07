@@ -100,7 +100,10 @@ export function SubCategoryForm({
   } | null>(null);
   const [locationOpen, setLocationOpen] = useState(false);
 
-  useEffect(() => {
+  // Açılışta formu prop'lardan tazele — render sırasında ayarlama kalıbı
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setName(subcategory?.name ?? "");
       setIcon(subcategory?.icon);
@@ -113,7 +116,7 @@ export function SubCategoryForm({
       );
       setLocationOpen(false);
     }
-  }, [open, subcategory]);
+  }
 
   // Konum seçici verisi — yalnız düzenleme diyaloğu açıkken çekilir
   const tree = useLiveQuery(async () => {

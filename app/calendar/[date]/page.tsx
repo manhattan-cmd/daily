@@ -8,15 +8,16 @@ import { ArrowLeft, ArrowRight, Boxes, CalendarDays, MoonStar, NotebookPen, Targ
 import { db } from "@/lib/db";
 import {
   createNote,
-  deleteDayItems,
   listEntriesByDate,
   listGoalsByDate,
   listNotesByDate,
-  moveEntriesToDate,
-  moveGoalsToDate,
-  moveNotesToDate,
   noteIsEmpty,
 } from "@/lib/db/queries";
+import {
+  dayItemKey,
+  deleteDayItems,
+  moveDayItems,
+} from "@/lib/db/day-items";
 import { NoteCard } from "@/components/notes/note-card";
 import { EntryCard } from "@/components/dashboard/entry-card";
 import { LinkedEntryCard } from "@/components/dashboard/linked-entry-card";
@@ -135,10 +136,10 @@ export default function CalendarDayPage({
   // birden çok girdi taşıyorsa (paralel grup, aktivite) hepsi birlikte seçilir.
   const selectionActive = selected !== null;
   const allKeys = [
-    ...sleepEntries.map((e) => `entry:${e.id}`),
-    ...otherEntries.map((e) => `entry:${e.id}`),
-    ...(goals ?? []).map((g) => `goal:${g.id}`),
-    ...(notes ?? []).map((n) => `note:${n.id}`),
+    ...sleepEntries.map((e) => dayItemKey("entry", e.id)),
+    ...otherEntries.map((e) => dayItemKey("entry", e.id)),
+    ...(goals ?? []).map((g) => dayItemKey("goal", g.id)),
+    ...(notes ?? []).map((n) => dayItemKey("note", n.id)),
   ];
   const allSelected =
     allKeys.length > 0 && !!selected && allKeys.every((k) => selected.has(k));
@@ -156,12 +157,6 @@ export default function CalendarDayPage({
         return next.size ? next : null;
       }),
   });
-  /** Seçimden bir türün id'lerini ayıkla */
-  const idsOf = (kind: "entry" | "goal" | "note") =>
-    [...(selected ?? [])]
-      .filter((k) => k.startsWith(`${kind}:`))
-      .map((k) => k.slice(kind.length + 1));
-
   const todayFlat = (() => {
     const t = new Date();
     return new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime();
@@ -426,20 +421,14 @@ export default function CalendarDayPage({
           }
           onCancel={() => setSelected(null)}
           onMove={async (target) => {
-            await moveEntriesToDate(idsOf("entry"), target);
-            await moveGoalsToDate(idsOf("goal"), target);
-            await moveNotesToDate(idsOf("note"), target);
+            await moveDayItems(selected ?? [], target);
             setSelected(null);
             // Nereye gittiklerini görsün diye hedef güne geç
             router.push(`/calendar/${target}`);
           }}
           onDelete={async () => {
-            // Tek grupta silinir ki "Geri al" üçünü birden döndürsün
-            await deleteDayItems({
-              entryIds: idsOf("entry"),
-              goalIds: idsOf("goal"),
-              noteIds: idsOf("note"),
-            });
+            // Tek grupta silinir ki "Geri al" hepsini birden döndürsün
+            await deleteDayItems(selected ?? []);
             setSelected(null);
           }}
         />

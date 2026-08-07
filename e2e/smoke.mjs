@@ -275,7 +275,66 @@ async function deleteAndUndo(browser) {
   await page.close();
 }
 
-// ─── 3. Arama ────────────────────────────────────────────────────────────────
+// ─── 3. Başka güne taşıma ────────────────────────────────────────────────────
+async function moveToAnotherDay(browser) {
+  const { page, errors } = await openApp(browser);
+  await seedEntries(page, "Cafe", [{ title: "Taşınacak", daysAgo: 0 }]);
+  await page.reload();
+  await page.waitForTimeout(2500);
+
+  const onDay = (d) =>
+    page.evaluate(async (date) => {
+      const db = await new Promise((res) => {
+        const r = indexedDB.open("RoutineDB");
+        r.onsuccess = () => res(r.result);
+      });
+      const entries = await new Promise((res) => {
+        const r = db.transaction("entries").objectStore("entries").getAll();
+        r.onsuccess = () => res(r.result);
+      });
+      const pad = (n) => String(n).padStart(2, "0");
+      const key = (t) => {
+        const x = new Date(t);
+        return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
+      };
+      return entries.filter((e) => key(e.occurredAt) === date).length;
+    }, d);
+
+  const yesterday = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  })();
+
+  eq("girdi bugünde", await onDay(today()), 1);
+
+  const card = page.locator("text=Cafe").first();
+  const box = await card.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(700);
+  await page.mouse.up();
+  await page.waitForTimeout(600);
+  await page.getByRole("button", { name: /another day|Başka güne/ }).click();
+  await page.waitForTimeout(500);
+  await page.getByRole("button", { name: /Previous day|Önceki gün/ }).click();
+  await page.waitForTimeout(400);
+  await page.getByRole("button", { name: /Move to|gününe taşı/ }).click();
+  await page.waitForTimeout(2000);
+
+  eq("girdi bugünden çıktı", await onDay(today()), 0);
+  eq("girdi düne taşındı", await onDay(yesterday), 1);
+  truthy(
+    "hedef güne yönlendirdi",
+    page.url().includes(yesterday),
+    `url: ${page.url()}`
+  );
+
+  check("taşıma: sayfa hatası yok", errors.length === 0, errors.join(" | "));
+  await page.close();
+}
+
+// ─── 4. Arama ────────────────────────────────────────────────────────────────
 async function search(browser) {
   const { page, errors } = await openApp(browser);
   await seedEntries(page, "Cafe", [
@@ -359,6 +418,7 @@ async function language(browser) {
 const SCENARIOS = {
   backup: backupRoundtrip,
   undo: deleteAndUndo,
+  move: moveToAnotherDay,
   search,
   language,
 };

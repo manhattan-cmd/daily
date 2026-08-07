@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarRange } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { chipClass } from "@/components/ui/section-nav";
 import { dayKey } from "@/lib/analytics";
 import {
@@ -29,13 +30,20 @@ function parseInputDate(v: string): Date | null {
  * sayfası gezinti satırı) "center" verilmeli, yoksa panel soldan taşar.
  */
 export function PeriodJump({ align = "right" }: { align?: "right" | "center" }) {
+  const t = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const now = Date.now();
-  const [startStr, setStartStr] = useState(() => dayKey(now - 6 * 86400000));
-  const [endStr, setEndStr] = useState(() => dayKey(now));
+  // Zaman okuması başlatıcı içinde: render gövdesinde Date.now() çağırmak
+  // bileşeni saf olmaktan çıkarır (her yeniden çizimde farklı sonuç).
+  const [startStr, setStartStr] = useState(() =>
+    dayKey(Date.now() - 6 * 86400000)
+  );
+  const [endStr, setEndStr] = useState(() => dayKey(Date.now()));
+  // Hızlı kısayolların dayandığı an — menü her açıldığında tazelenir.
+  // Render gövdesinde okunursa bileşen saf olmaktan çıkar.
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (!open) return;
@@ -53,14 +61,14 @@ export function PeriodJump({ align = "right" }: { align?: "right" | "center" }) 
 
   const d = new Date(now);
   const quick: { label: string; key: string }[] = [
-    { label: "Yesterday", key: dayPeriod(now - 86400000).key },
-    { label: "Last week", key: weekPeriod(now - 7 * 86400000).key },
+    { label: t("period.yesterday"), key: dayPeriod(now - 86400000).key },
+    { label: t("period.lastWeek"), key: weekPeriod(now - 7 * 86400000).key },
     {
-      label: "Last month",
+      label: t("period.lastMonth"),
       key: monthPeriod(new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime()).key,
     },
     {
-      label: "Last year",
+      label: t("period.lastYear"),
       key: yearPeriod(new Date(d.getFullYear() - 1, 0, 1).getTime()).key,
     },
   ];
@@ -81,11 +89,14 @@ export function PeriodJump({ align = "right" }: { align?: "right" | "center" }) 
     <div className="relative shrink-0" ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          setNow(Date.now());
+          setOpen((o) => !o);
+        }}
         className={cn(chipClass(false), "flex items-center gap-1.5")}
       >
         <CalendarRange className="h-3.5 w-3.5" />
-        Özel
+        {t("period.custom")}
       </button>
 
       {open && (
@@ -109,7 +120,7 @@ export function PeriodJump({ align = "right" }: { align?: "right" | "center" }) 
 
           <div className="flex flex-col gap-2">
             <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-              Başlangıç
+              {t("datetime.start")}
               <input
                 type="date"
                 value={startStr}
@@ -119,7 +130,7 @@ export function PeriodJump({ align = "right" }: { align?: "right" | "center" }) 
               />
             </label>
             <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-              Bitiş
+              {t("datetime.end")}
               <input
                 type="date"
                 value={endStr}
@@ -133,7 +144,7 @@ export function PeriodJump({ align = "right" }: { align?: "right" | "center" }) 
               onClick={submit}
               className="mt-1 rounded-xl bg-primary/15 border border-primary/60 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-primary/25"
             >
-              Analiz Et
+              {t("period.analyse")}
             </button>
           </div>
         </div>

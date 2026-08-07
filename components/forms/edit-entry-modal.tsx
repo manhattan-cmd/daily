@@ -167,8 +167,11 @@ export function EditEntryModal({
       [pStepSubId]
     ) ?? [];
 
-  // Modal kapanınca adım akışı sıfırlanır (component EntryCard'da hep mount)
-  useEffect(() => {
+  // Modal kapanınca adım akışı sıfırlanır (component EntryCard'da hep mount).
+  // Render sırasında ayarlama — effect'te setState kademeli render demek.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (!open) {
       setPStep(null);
       setPQueue([]);
@@ -176,7 +179,7 @@ export function EditEntryModal({
       setNewParallels([]);
       setPickerView(false);
     }
-  }, [open]);
+  }
 
   const pValueKey = (m: CategoryModifierWithType) => m.modId ?? m.id;
   const pSharedKey = (m: CategoryModifierWithType) => m.modId ?? m.entryTypeId;

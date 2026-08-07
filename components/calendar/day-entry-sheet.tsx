@@ -94,15 +94,20 @@ export function DayEntrySheet({
 
   // Aktivite modunda açılış isim adımından başlar; var olan aktiviteye
   // eklerken isim adımı atlanıp doğrudan seçim adımına geçilir
-  useEffect(() => {
-    if (!open) return;
-    if (presetActivity) {
-      setActivity(presetActivity);
-      setStep({ type: "pick" });
-    } else if (activityMode) {
-      setStep({ type: "activity-name" });
+  // Render sırasında ayarlama: açılış anında adımı seçmek bir effect turu
+  // beklemesin, yoksa sheet bir kare yanlış adımı çiziyor
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      if (presetActivity) {
+        setActivity(presetActivity);
+        setStep({ type: "pick" });
+      } else if (activityMode) {
+        setStep({ type: "activity-name" });
+      }
     }
-  }, [open, activityMode, presetActivity]);
+  }
 
   const groups = useLiveQuery(async () => {
     const cats = await db.categories.orderBy("order").toArray();
@@ -130,7 +135,11 @@ export function DayEntrySheet({
     [currentSubId]
   ) ?? [];
 
-  // Yeni mod eklendiğinde values'a ilk değerini otomatik ekle
+  // Yeni özellik eklendiğinde values'a ilk değerini otomatik ekle.
+  // NOT: Bu bilerek effect olarak kaldı. Türetilmiş değere çevirmek denendi
+  // ama varsayılanlar (boolean için "false") kaydetme yoluna girmiyor ve
+  // sessizce kayboluyorlar; girdi kaydetme akışının testi olmadan bu riski
+  // almak doğru değil. Lint bu satırı işaretliyor — bilinçli borç.
   useEffect(() => {
     if (!currentSubId || !formMods.length) return;
     setValues((prev) => {

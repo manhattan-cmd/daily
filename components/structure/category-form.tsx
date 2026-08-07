@@ -40,14 +40,19 @@ export function CategoryForm({
   // Aynı adda kategori uyarısı
   const [duplicateName, setDuplicateName] = useState<string | null>(null);
 
-  useEffect(() => {
+  // Açılışta formu prop'lardan tazele. Effect + setState yerine render
+  // sırasında ayarlama: React'in "prop değişince state'i düzelt" kalıbı —
+  // effect'te setState kademeli render tetikliyor ve bir kare eski değer çiziliyor.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setName(category?.name ?? "");
       setColor(category?.color ?? CATEGORY_COLORS[0]);
       setIcon(category?.icon);
       setDuplicateName(null);
     }
-  }, [open, category]);
+  }
 
   async function onSubmit(e: React.FormEvent, force = false) {
     e.preventDefault();

@@ -91,7 +91,10 @@ export function FieldForm({
   const effectiveSubId = subcategoryId ?? selectedSubId;
 
   // Reset form when opening for new field
-  useEffect(() => {
+  // Açılışta yeni alan formunu sıfırla — render sırasında ayarlama kalıbı
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open && !isEdit) {
       setName("");
       setType("number");
@@ -104,7 +107,7 @@ export function FieldForm({
       setLabel("");
       setSelectedSubId("");
     }
-  }, [open, isEdit]);
+  }
 
   // Auto-detect default linkable dimension
   const linkableDim =

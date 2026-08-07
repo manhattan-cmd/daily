@@ -1753,17 +1753,8 @@ export async function deleteEntries(
  * Gün sayfasındaki toplu silme — girdi, hedef ve notlar TEK grupta silinir ki
  * "Geri al" hepsini birden döndürsün.
  */
-export async function deleteDayItems(input: {
-  entryIds: string[];
-  goalIds: string[];
-  noteIds: string[];
-}): Promise<string> {
-  const batchId = newBatchId();
-  await deleteEntries(input.entryIds, batchId);
-  await deleteGoals(input.goalIds, batchId);
-  await deleteNotes(input.noteIds, batchId);
-  return batchId;
-}
+// Gün öğelerinin toplu taşınması/silinmesi lib/db/day-items.ts'te — tür
+// listesi orada tek yerde durur, buradaki üçlü elle çağrı kalkmıştı.
 
 export async function listEntriesByDate(dateStr: string): Promise<EntryWithContext[]> {
   const [year, month, day] = dateStr.split("-").map(Number);

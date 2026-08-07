@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { CircleSlash } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fmtNum } from "@/lib/analytics";
@@ -14,19 +14,33 @@ import { fmtNum } from "@/lib/analytics";
 
 const STORAGE_KEY = "analytics.excludeRegular";
 
+/**
+ * Tercih localStorage'da. Harici store olarak okunur: effect içinde setState
+ * yapmak (eski hâli) React'e göre kademeli render demek, ayrıca sunucu
+ * çıktısıyla istemcinin ilk çizimi de ayrışıyordu.
+ */
+const listeners = new Set<() => void>();
+const read = () => {
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+const subscribe = (fn: () => void) => {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+};
+
 export function useExcludeRegular(): [boolean, (v: boolean) => void] {
-  // SSR uyumu: ilk render false, mount'ta localStorage'dan okunur
-  const [value, setValue] = useState(false);
-  useEffect(() => {
-    try {
-      setValue(localStorage.getItem(STORAGE_KEY) === "1");
-    } catch {}
-  }, []);
+  const value = useSyncExternalStore(subscribe, read, () => false);
   const set = (v: boolean) => {
-    setValue(v);
     try {
       localStorage.setItem(STORAGE_KEY, v ? "1" : "0");
     } catch {}
+    for (const fn of listeners) fn();
   };
   return [value, set];
 }
