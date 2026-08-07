@@ -186,7 +186,7 @@ export function GoalCard({
           <SelectionLayer
             selected={selection.selected}
             onToggle={selection.onToggle}
-            label={`${goal.subcategory.name} hedefini seç`}
+            label={t("goal.select", { name: goal.subcategory.name })}
           />
         )}
       </div>

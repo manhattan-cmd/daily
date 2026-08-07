@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useMemo, useRef, useState } from "react";
+import { useT } from "@/lib/i18n";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { nanoid } from "nanoid";
@@ -56,8 +57,8 @@ type Selection = { blockId: string; start: number; end: number; text: string };
 
 /**
  * Not editörü — tam sayfa serbest yazım + kullanıcı-örgülü bağlar.
- * Bir kelime/öbek seçilince araç çubuğu çıkar: "Not aç" (öbek → yeni not,
- * wiki gibi) ya da "Girdi iliştir" (kelime → var olan girdi). Bağlar
+ * Bir kelime/öbek seçilince araç çubuğu çıkar: t("note.new") (öbek → yeni not,
+ * wiki gibi) ya da t("note.attachEntry") (kelime → var olan girdi). Bağlar
  * paragrafın altında çip olur; dokununca hedefe gidilir. Değişiklikler
  * kendiliğinden kaydedilir; bomboş bırakılan not çıkışta silinir. [[app-vision]]
  */
@@ -67,6 +68,7 @@ export default function NoteEditorPage({
   params: Promise<{ noteId: string }>;
 }) {
   const { noteId } = use(params);
+  const t = useT();
   const router = useRouter();
 
   const [loaded, setLoaded] = useState<Note | null | undefined>(undefined);
@@ -179,7 +181,7 @@ export default function NoteEditorPage({
 
   async function handleDelete() {
     if (!loaded) return;
-    if (!confirm("Delete this note?")) return;
+    if (!confirm(t("note.deleteConfirm"))) return;
     await deleteNote(noteId);
     router.push(`/calendar/${loaded.date}`);
   }
@@ -358,7 +360,7 @@ export default function NoteEditorPage({
         <button
           onClick={handleBack}
           className="inline-flex items-center gap-1.5 -ml-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          aria-label="Back — the note is saved"
+          aria-label={t("note.backSaved")}
         >
           <ArrowLeft className="h-4 w-4" />
           <span>{dateLabel(loaded.date)}</span>
@@ -366,7 +368,7 @@ export default function NoteEditorPage({
         <button
           onClick={handleDelete}
           className="rounded-lg p-1.5 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
-          aria-label="Notu sil"
+          aria-label={t("note.delete")}
         >
           <Trash2 className="h-4 w-4" />
         </button>
@@ -376,7 +378,7 @@ export default function NoteEditorPage({
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder="Title"
+        placeholder={t("note.title")}
         className="w-full bg-transparent text-2xl font-bold tracking-tight outline-none placeholder:text-muted-foreground/30 mb-1.5"
         onKeyDown={(e) => {
           if (e.key === "Enter") {
@@ -414,7 +416,7 @@ export default function NoteEditorPage({
                     }}
                     rows={1}
                     value={block.text}
-                    placeholder={i === 0 && bodyEmpty ? "Write about today..." : ""}
+                    placeholder={i === 0 && bodyEmpty ? t("note.placeholder") : ""}
                     onChange={(e) => {
                       setBlockText(block.id, e.target.value);
                       autoResize(e.target);
@@ -445,7 +447,7 @@ export default function NoteEditorPage({
                       />
                     ) : (
                       <span className="text-muted-foreground/35">
-                        {i === 0 && bodyEmpty ? "Write about today..." : " "}
+                        {i === 0 && bodyEmpty ? t("note.placeholder") : " "}
                       </span>
                     )}
                   </div>
@@ -470,7 +472,7 @@ export default function NoteEditorPage({
                             <button
                               onClick={() => removeLink(block.id, l.id)}
                               className="ml-0.5 rounded-full p-0.5 text-muted-foreground/50 hover:text-destructive"
-                              aria-label="Remove link"
+                              aria-label={t("note.removeLink")}
                             >
                               <X className="h-3 w-3" />
                             </button>
@@ -512,7 +514,7 @@ export default function NoteEditorPage({
                           <button
                             onClick={() => removeLink(block.id, l.id)}
                             className="ml-0.5 rounded-full p-0.5 text-muted-foreground/50 hover:text-destructive"
-                            aria-label="Remove link"
+                            aria-label={t("note.removeLink")}
                           >
                             <X className="h-3 w-3" />
                           </button>
@@ -659,7 +661,7 @@ export default function NoteEditorPage({
       >
         <DialogContent className="max-w-[340px] gap-3">
           <DialogHeader>
-            <DialogTitle className="text-base">Neye bağlansın?</DialogTitle>
+            <DialogTitle className="text-base">{t("note.linkTo")}</DialogTitle>
             <DialogDescription>
               &bdquo;{suggestPick?.text}&rdquo; için birden çok hedef var
             </DialogDescription>
@@ -810,6 +812,7 @@ function InlineText({
 
 /** Otomatik bağ önerisi — noktalı altı çizili, dokununca bağlanır. */
 function SuggestSpan({ label, onClick }: { label: string; onClick: () => void }) {
+  const t = useT();
   return (
     <span
       onClick={(e) => {
@@ -817,7 +820,7 @@ function SuggestSpan({ label, onClick }: { label: string; onClick: () => void })
         onClick();
       }}
       className="cursor-pointer rounded px-0.5 text-muted-foreground underline decoration-dotted decoration-muted-foreground/50 underline-offset-2 transition-colors hover:text-foreground"
-      title="Link?"
+      title={t("note.link")}
     >
       {label}
     </span>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, Moon, Sun } from "lucide-react";
 import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
+import { useT, type MessageKey } from "@/lib/i18n";
 import { SHORT_MONTHS } from "@/lib/analytics";
 
 function shortDate(dateStr: string): string {
@@ -60,10 +61,14 @@ function offsetDate(entryDate: string, offset: number): string {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
+/** Etiketler anahtar olarak durur; dile göre çözümleme render sırasında olur */
 const SIDES = {
-  start: { label: "Start", offset: -1, time: "23:00" },
-  end: { label: "End", offset: 0, time: "07:00" },
-} as const;
+  start: { labelKey: "datetime.start", offset: -1, time: "23:00" },
+  end: { labelKey: "datetime.end", offset: 0, time: "07:00" },
+} as const satisfies Record<
+  string,
+  { labelKey: MessageKey; offset: number; time: string }
+>;
 
 type Side = keyof typeof SIDES;
 
@@ -73,6 +78,7 @@ export function DateTimeRangeInput({
   entryDate,
   disabled = false,
 }: DateTimeRangeInputProps) {
+  const t = useT();
   const parsed = useMemo(() => parseDTR(value), [value]);
   // Çark iki panelin altında, kartın tamamı kadar geniş açılır — panelin
   // içine sıkıştırıldığında sütunlar 80px'e düşüyor ve çark gibi durmuyordu
@@ -129,7 +135,7 @@ export function DateTimeRangeInput({
       {editing && !disabled && (
         <TimeWheel
           key={editing}
-          label={`${SIDES[editing].label} saati`}
+          label={t("datetime.sideTime", { side: t(SIDES[editing].labelKey) })}
           time={editingTime}
           onChange={(t) => update(editing, `${editingDate}T${t}`)}
           onClose={() => setEditing(null)}
@@ -145,7 +151,7 @@ export function DateTimeRangeInput({
           </>
         ) : (
           <span className="text-xs text-muted-foreground/40">
-            Başlangıç ve bitiş girilince süre hesaplanır
+            {t("datetime.rangeHint")}
           </span>
         )}
       </div>
@@ -172,6 +178,7 @@ function DateTimePanel({
   onOpen: () => void;
   disabled?: boolean;
 }) {
+  const t = useT();
   const cfg = SIDES[side];
   const [datePart = "", timePart = ""] = value.split("T");
 
@@ -191,7 +198,7 @@ function DateTimePanel({
       <div className="flex items-center gap-1.5 text-muted-foreground/50">
         {icon}
         <span className="text-[9px] font-bold uppercase tracking-[0.15em]">
-          {cfg.label}
+          {t(cfg.labelKey)}
         </span>
       </div>
 
@@ -219,7 +226,7 @@ function DateTimePanel({
         type="button"
         disabled={disabled}
         onClick={onOpen}
-        aria-label={`${cfg.label} saatini seç`}
+        aria-label={t("datetime.pickSideTime", { side: t(cfg.labelKey) })}
         aria-expanded={open}
         className={cn(
           "w-full bg-transparent text-left outline-none",
@@ -237,7 +244,7 @@ function DateTimePanel({
 }
 
 /**
- * Tek tarih+saat alanı — girdi düzenlemedeki "Tarih & Saat". Yerini aldığı
+ * Tek tarih+saat alanı — girdi düzenlemedeki t("datetime.title"). Yerini aldığı
  * `<input type="datetime-local">` hem çirkindi hem de tarayıcının hantal
  * penceresini açıyordu. Gün ok tuşlarıyla ileri/geri alınır, takvimden
  * seçilebilir, saat aynı çarkla ayarlanır (burada dakika adımı 1).
@@ -251,17 +258,18 @@ export function DateTimeInput({
   onChange: (v: string) => void;
   disabled?: boolean;
 }) {
+  const t = useT();
   const [datePart = "", timePart = ""] = value.split("T");
   const [wheelOpen, setWheelOpen] = useState(false);
 
   const today = toLocalDateValue();
   const relative =
     datePart === today
-      ? "Today"
+      ? t("datetime.today")
       : datePart === offsetDate(today, -1)
-        ? "Yesterday"
+        ? t("datetime.yesterday")
         : datePart === offsetDate(today, 1)
-          ? "Tomorrow"
+          ? t("datetime.tomorrow")
           : null;
 
   const pretty = datePart
@@ -281,7 +289,7 @@ export function DateTimeInput({
       <div className="flex items-center gap-1 px-2 py-2">
         <StepButton
           side="left"
-          label="Previous day"
+          label={t("selection.previousDay")}
           disabled={disabled || !datePart}
           onClick={() => shiftDay(-1)}
         />
@@ -303,7 +311,7 @@ export function DateTimeInput({
             type="date"
             value={datePart}
             disabled={disabled}
-            aria-label="Pick a date"
+            aria-label={t("datetime.pickDate")}
             onChange={(e) =>
               e.target.value && onChange(`${e.target.value}T${timePart}`)
             }
@@ -312,7 +320,7 @@ export function DateTimeInput({
         </div>
         <StepButton
           side="right"
-          label="Next day"
+          label={t("selection.nextDay")}
           disabled={disabled || !datePart}
           onClick={() => shiftDay(1)}
         />
@@ -339,7 +347,7 @@ export function DateTimeInput({
             type="button"
             disabled={disabled}
             onClick={() => setWheelOpen((o) => !o)}
-            aria-label="Pick a time"
+            aria-label={t("datetime.pickTime")}
             aria-expanded={wheelOpen}
             className={cn(
               "text-[1.6rem] font-bold leading-none tabular-nums transition-colors",

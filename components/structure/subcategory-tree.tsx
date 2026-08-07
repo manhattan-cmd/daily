@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import type { EntryType, SubCategory } from "@/types";
 
 type SubMods = { name?: string; entryType: EntryType }[];
@@ -74,6 +75,7 @@ export function SubCategoryTree({
   /** parentSubId undefined ise kök seviyeye ekleme istenmiştir */
   onAddChild: (parentSubId?: string) => void;
 }) {
+  const t = useT();
   const data = useLiveQuery(async (): Promise<TreeData> => {
     const [subs, atts, mods, types] = await Promise.all([
       db.subcategories.where("categoryId").equals(categoryId).toArray(),
@@ -233,7 +235,7 @@ export function SubCategoryTree({
 
   if (!data) return null;
   const roots = data.childrenMap.get(parentId ?? "") ?? [];
-  const rootLabel = parentId ? "Bu dalın köküne taşı" : "Kategori köküne taşı";
+  const rootLabel = parentId ? t("tree.moveToBranchRoot") : t("tree.moveToCategoryRoot");
   const currentCatName =
     (categories ?? []).find((c) => c.id === categoryId)?.name ?? "kategori";
   const otherCategories = (categories ?? []).filter(
@@ -289,7 +291,7 @@ export function SubCategoryTree({
       <AddRow
         color={color}
         emphasis
-        label={`${parentName ?? categoryName ?? "Buraya"} altına alt kategori ekle`}
+        label={`${parentName ?? categoryName ?? t("tree.here")} altına alt kategori ekle`}
         onClick={() => onAddChild(undefined)}
       />
 
@@ -356,7 +358,7 @@ export function SubCategoryTree({
                 )}
               >
                 <FolderInput className="h-4 w-4" />
-                <span className="text-xs font-medium">Başka kategori</span>
+                <span className="text-xs font-medium">{t("tree.otherCategory")}</span>
               </div>
             </div>
           </div>,
@@ -381,7 +383,7 @@ export function SubCategoryTree({
       >
         <DialogContent className="max-w-[340px] gap-4">
           <DialogHeader>
-            <DialogTitle className="text-base">Başka kategoriye taşı</DialogTitle>
+            <DialogTitle className="text-base">{t("tree.moveToOtherCategory")}</DialogTitle>
             <DialogDescription>
               &bdquo;{movePickFor?.name}&rdquo; (ve altındakiler) seçtiğin
               kategorinin köküne taşınır.

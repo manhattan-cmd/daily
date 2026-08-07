@@ -73,7 +73,7 @@ export function SleepCard({
 
           <div className="flex-1 min-w-0">
             <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-300/70">
-              Uyku
+              {t("sleep.title")}
             </div>
             <div className="mt-0.5 flex items-baseline gap-2">
               {startTime || endTime ? (
@@ -86,7 +86,7 @@ export function SleepCard({
                 </span>
               ) : (
                 <span className="text-sm text-muted-foreground">
-                  Uyku kaydedildi
+                  {t("sleep.logged")}
                 </span>
               )}
               {duration && (
