@@ -42,6 +42,7 @@ import {
 } from "@/components/structure/mod-atom";
 import { StructureTabs } from "@/components/structure/structure-tabs";
 import { useT } from "@/lib/i18n";
+import { confirmDialog } from "@/components/ui/confirm";
 import { cn } from "@/lib/utils";
 
 type Usage = { count: number; places: string[]; valueCount: number };
@@ -158,11 +159,18 @@ export default function ModsHomePage() {
 
   async function handleDelete(mod: ModWithType) {
     const u = usage?.get(mod.id);
-    const detail =
-      u && (u.count > 0 || u.valueCount > 0)
-        ? ` ${u.count} yerden kaldırılacak; ${u.valueCount} kayıt değeri ölçü adıyla kalacak.`
-        : "";
-    if (!confirm(`Delete the "${mod.name}" feature from the pool?${detail}`)) return;
+    const ok = await confirmDialog({
+      title: t("confirm.deleteFeature", { name: mod.name }),
+      body:
+        u && (u.count > 0 || u.valueCount > 0)
+          ? t("confirm.deleteFeatureUsage", {
+              places: u.count,
+              values: u.valueCount,
+            })
+          : undefined,
+      destructive: true,
+    });
+    if (!ok) return;
     await deleteMod(mod.id);
     setSelected(null);
   }
@@ -327,7 +335,7 @@ export default function ModsHomePage() {
                         {" · "}
                       </>
                     )}
-                    {selectedUsage.valueCount} kayıt
+                    {t("features.recordCount", { n: selectedUsage.valueCount })}
                   </>
                 ) : (
                   "not used yet"
@@ -340,7 +348,7 @@ export default function ModsHomePage() {
                   onClick={() => openEdit(selected)}
                 >
                   <Pencil className="h-3.5 w-3.5" />
-                  Düzenle
+                  {t("action.edit")}
                 </Button>
                 {!selected.isBuiltIn && (
                   <Button
@@ -433,7 +441,7 @@ export default function ModsHomePage() {
                   selectedUsage.valueCount > 0 &&
                   editMeasureId !== selected.entryTypeId && (
                     <p className="text-xs text-amber-300/90">
-                      {selectedUsage.valueCount} eski kayıt önceki ölçüsüyle kalır;
+                      {t("features.oldRecordsKeep", { n: selectedUsage.valueCount })}
                       yeni girdiler seçtiğin ölçüyle kaydedilir.
                     </p>
                   )}

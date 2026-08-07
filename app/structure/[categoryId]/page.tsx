@@ -2,6 +2,7 @@
 
 import { use, useState } from "react";
 import { useT } from "@/lib/i18n";
+import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -33,12 +34,12 @@ export default function CategoryDetailPage({
 
   async function onDeleteCategory() {
     if (!category) return;
-    if (
-      !confirm(
-        `"${category.name}" kategorisini silmek istediğinden emin misin? Tüm alt kategoriler ve girdiler silinecek.`
-      )
-    )
-      return;
+    const ok = await confirmDialog({
+      title: t("confirm.deleteCategory", { name: category.name }),
+      body: `${t("confirm.deleteCategoryBody")} ${t("confirm.undoHint")}`,
+      destructive: true,
+    });
+    if (!ok) return;
     await deleteCategory(categoryId);
     router.push("/structure");
   }
@@ -97,7 +98,7 @@ export default function CategoryDetailPage({
       {category && (
         <section className="mb-6">
           <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Alt Kategoriler
+            {t("structure.subcategories")}
           </h2>
           <SubCategoryTree
             categoryId={categoryId}

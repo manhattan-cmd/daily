@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { EntryValueType } from "@/types";
+import { translate } from "@/lib/i18n";
 
 /**
  * Ölçülerin ilkel türleri. Bir ölçü = ilkel tür + yapılandırma
@@ -57,7 +58,13 @@ export function measureSummary(t: {
   choices?: string[];
 }): string {
   const vt = t.valueType ?? "number";
-  if (vt === "number") return t.unit ? `birim: ${t.unit}` : "birimsiz";
-  if (vt === "select") return t.choices?.length ? t.choices.join(" · ") : "seçeneksiz";
+  if (vt === "number")
+    return t.unit
+      ? translate("measures.unitOf", { unit: t.unit })
+      : translate("measures.noUnit");
+  if (vt === "select")
+    return t.choices?.length
+      ? t.choices.join(" · ")
+      : translate("measures.noOptions");
   return MEASURE_KIND_META[vt].label;
 }

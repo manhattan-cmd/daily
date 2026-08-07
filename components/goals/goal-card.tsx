@@ -12,6 +12,7 @@ import {
 } from "@/components/forms/datetime-range-input";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { confirmDialog } from "@/components/ui/confirm";
 import { useLongPress } from "@/lib/use-long-press";
 import {
   SelectionLayer,
@@ -94,7 +95,12 @@ export function GoalCard({
   }
 
   async function handleDelete() {
-    if (!confirm(t("goal.deleteConfirm"))) return;
+    const ok = await confirmDialog({
+      title: t("confirm.deleteGoal"),
+      body: `${t("confirm.deleteGoalBody")} ${t("confirm.undoHint")}`,
+      destructive: true,
+    });
+    if (!ok) return;
     await deleteGoal(goal.id);
   }
 

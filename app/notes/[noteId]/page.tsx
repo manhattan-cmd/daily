@@ -2,6 +2,7 @@
 
 import { use, useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
+import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { nanoid } from "nanoid";
@@ -181,7 +182,12 @@ export default function NoteEditorPage({
 
   async function handleDelete() {
     if (!loaded) return;
-    if (!confirm(t("note.deleteConfirm"))) return;
+    const ok = await confirmDialog({
+      title: t("confirm.deleteNote"),
+      body: t("confirm.deleteNoteBody"),
+      destructive: true,
+    });
+    if (!ok) return;
     await deleteNote(noteId);
     router.push(`/calendar/${loaded.date}`);
   }

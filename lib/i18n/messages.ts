@@ -73,6 +73,7 @@ export const en = {
   "structure.categories": "Categories",
   "structure.features": "Features",
   "structure.measures": "Measures",
+  "structure.subcategories": "Subcategories",
   "structure.notes": "Notes",
   "structure.map": "Map",
   "structure.categoriesLead": "Categories — the main headings of your routine",
@@ -381,6 +382,31 @@ export const en = {
   "search.startHint": "Search by title, note, category or subcategory name.",
   "search.limitNote": "Showing the {n} most recent matches",
 
+  // ── Onaylar ──────────────────────────────────────────────────────────
+  "confirm.deleteNote": "Delete this note?",
+  "confirm.deleteNoteBody": "The note and its links are removed.",
+  "confirm.deleteGoal": "Delete this goal?",
+  "confirm.deleteGoalBody":
+    "If an entry completed it, that entry is deleted too.",
+  "confirm.deleteCategory": "Delete “{name}”?",
+  "confirm.deleteCategoryBody":
+    "All its subcategories and entries are deleted with it.",
+  "confirm.deleteFeature": "Delete “{name}” from the pool?",
+  "confirm.deleteFeatureUsage":
+    "Removed from {places} places; {values} recorded values keep the measure name.",
+  "confirm.deleteMeasure": "Delete “{name}”?",
+  "confirm.deleteMeasureBody":
+    "Features measured with it are not affected.",
+  "confirm.deletePerspective": "Delete the “{name}” perspective?",
+  "confirm.deletePerspectiveBody": "Its entry and values are deleted.",
+  "confirm.undoHint": "You can undo this right after.",
+  "measures.unitOf": "unit: {unit}",
+  "measures.noUnit": "no unit",
+  "measures.noOptions": "no options",
+  "features.recordCount": "{n} records",
+  "features.oldRecordsKeep":
+    "{n} existing records keep their previous measure;",
+
   // ── Ayarlar ──────────────────────────────────────────────────────────
   "settings.title": "Settings",
   "settings.lead": "Data, backup and app",
@@ -475,6 +501,7 @@ export const tr: Record<MessageKey, string> = {
   "structure.categories": "Kategoriler",
   "structure.features": "Özellikler",
   "structure.measures": "Ölçüler",
+  "structure.subcategories": "Alt Kategoriler",
   "structure.notes": "Notlar",
   "structure.map": "Harita",
   "structure.categoriesLead": "Kategoriler — rutinin ana başlıkları",
@@ -768,6 +795,27 @@ export const tr: Record<MessageKey, string> = {
   "search.start": "Girdilerinde ara",
   "search.startHint": "Başlık, not, kategori ya da alt kategori adıyla ara.",
   "search.limitNote": "En yeni {n} eşleşme gösteriliyor",
+
+  "confirm.deleteNote": "Bu not silinsin mi?",
+  "confirm.deleteNoteBody": "Not ve içindeki bağlar kaldırılır.",
+  "confirm.deleteGoal": "Bu hedef silinsin mi?",
+  "confirm.deleteGoalBody": "Hedefi tamamlayan girdi varsa o da silinir.",
+  "confirm.deleteCategory": "“{name}” silinsin mi?",
+  "confirm.deleteCategoryBody":
+    "Tüm alt kategorileri ve girdileriyle birlikte silinir.",
+  "confirm.deleteFeature": "“{name}” havuzdan silinsin mi?",
+  "confirm.deleteFeatureUsage":
+    "{places} yerden kaldırılacak; {values} kayıt değeri ölçü adıyla kalacak.",
+  "confirm.deleteMeasure": "“{name}” silinsin mi?",
+  "confirm.deleteMeasureBody": "Bu ölçüyü kullanan özellikler etkilenmez.",
+  "confirm.deletePerspective": "“{name}” perspektifi silinsin mi?",
+  "confirm.deletePerspectiveBody": "Girdisi ve değerleri silinir.",
+  "confirm.undoHint": "Hemen ardından geri alabilirsin.",
+  "measures.unitOf": "birim: {unit}",
+  "measures.noUnit": "birimsiz",
+  "measures.noOptions": "seçeneksiz",
+  "features.recordCount": "{n} kayıt",
+  "features.oldRecordsKeep": "{n} eski kayıt önceki ölçüsüyle kalır;",
 
   "settings.title": "Ayarlar",
   "settings.lead": "Veri, yedek ve uygulama",

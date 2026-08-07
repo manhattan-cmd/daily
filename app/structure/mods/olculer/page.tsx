@@ -18,6 +18,7 @@ import {
 } from "@/components/structure/measure-particle";
 import { StructureTabs } from "@/components/structure/structure-tabs";
 import { useT } from "@/lib/i18n";
+import { confirmDialog } from "@/components/ui/confirm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -84,14 +85,14 @@ export default function OlculerPage() {
     return map;
   }, []);
 
-  async function handleDelete(t: EntryType) {
-    if (
-      !confirm(
-        `"${t.name}" ölçüsünü silmek istediğinden emin misin? Bu ölçüyü kullanan özellikler etkilenmez.`
-      )
-    )
-      return;
-    await deleteEntryType(t.id);
+  async function handleDelete(measure: EntryType) {
+    const ok = await confirmDialog({
+      title: t("confirm.deleteMeasure", { name: measure.name }),
+      body: t("confirm.deleteMeasureBody"),
+      destructive: true,
+    });
+    if (!ok) return;
+    await deleteEntryType(measure.id);
     setSelected(null);
   }
 
@@ -189,7 +190,7 @@ export default function OlculerPage() {
                         {" · "}
                       </>
                     )}
-                    {selectedUsage.valueCount} kayıt
+                    {t("features.recordCount", { n: selectedUsage.valueCount })}
                   </>
                 ) : (
                   "not used yet"

@@ -16,6 +16,7 @@ import { useLocale } from "@/lib/i18n";
 import { BottomNav } from "./bottom-nav";
 import { StatusBar } from "./status-bar";
 import { UndoBar } from "./undo-bar";
+import { ConfirmHost } from "@/components/ui/confirm";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const mainRef = useRef<HTMLElement>(null);
@@ -95,6 +96,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Silme sonrası geri alma şeridi — navigasyonun hemen üstünde */}
         <UndoBar />
+
+        {/* Onay katmanı — tek örnek; her yerden confirmDialog() ile çağrılır */}
+        <ConfirmHost />
 
         {/* Bottom nav — flex'in altına yapışık */}
         <BottomNav />

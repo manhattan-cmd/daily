@@ -105,7 +105,7 @@ export default function SubCategoryDetailPage({
       {category && (
         <section className="mb-6">
           <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Alt Kategoriler
+            {t("structure.subcategories")}
           </h2>
           <SubCategoryTree
             categoryId={categoryId}

@@ -87,7 +87,7 @@ export function ModifierSection({
   return (
     <section className="mb-6">
       <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Özellikler
+        {t("structure.features")}
       </h2>
       <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
         {(mods ?? []).map((mod) => (

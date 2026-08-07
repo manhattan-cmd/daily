@@ -49,6 +49,7 @@ import { Switch } from "@/components/ui/switch";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
 import { SHORT_MONTHS } from "@/lib/analytics";
 import { useT } from "@/lib/i18n";
+import { confirmDialog } from "@/components/ui/confirm";
 import { AliasEditor } from "@/components/notes/alias-editor";
 import {
   DateTimeInput,
@@ -266,7 +267,12 @@ export function EditEntryModal({
   ]);
 
   async function removeSibling(sib: { id: string; subName: string }) {
-    if (!confirm(`Delete the "${sib.subName}" perspective and its entry?`)) return;
+    const ok = await confirmDialog({
+      title: t("confirm.deletePerspective", { name: sib.subName }),
+      body: `${t("confirm.deletePerspectiveBody")} ${t("confirm.undoHint")}`,
+      destructive: true,
+    });
+    if (!ok) return;
     await deleteEntry(sib.id);
   }
 
