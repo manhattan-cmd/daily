@@ -8,6 +8,7 @@ import { MeasureParticleCore } from "@/components/structure/measure-particle";
 import { MEASURE_KIND_META } from "@/lib/measure-kinds";
 import type { EntryValueType } from "@/types";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 export type MapSub = { id: string; name: string; icon?: string };
 
@@ -96,6 +97,7 @@ export default function ConnectionMap({
   connections,
   parallels,
 }: ConnectionMapProps) {
+  const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
@@ -474,7 +476,7 @@ export default function ConnectionMap({
               </span>
               {selected.sharedMeasures.length > 0 ? (
                 <span className="flex items-center gap-1 overflow-hidden text-[11px] text-muted-foreground">
-                  <span className="shrink-0">Shared feature:</span>
+                  <span className="shrink-0">{t("map.sharedFeature")}</span>
                   {selected.sharedMeasures.slice(0, 3).map((l) => (
                     <span
                       key={l.name}

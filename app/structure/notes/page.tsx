@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/lib/i18n";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -31,6 +32,7 @@ const noteText = (n: Note) =>
   [n.title ?? "", ...(n.aliases ?? []), ...n.blocks.map((b) => b.text)].join(" ");
 
 export default function StructureNotesPage() {
+  const t = useT();
   const router = useRouter();
   const notes = useLiveQuery(() => listAllNotes(), []);
   const [query, setQuery] = useState("");
@@ -55,7 +57,7 @@ export default function StructureNotesPage() {
     <>
       <PageHeader
         title="Structure"
-        description="Notes — journal, links and the map"
+        description={t("structure.notesLead")}
         action={
           <Button size="sm" onClick={handleNewNote} className="gap-1.5">
             <Plus className="h-3.5 w-3.5" />
@@ -75,7 +77,7 @@ export default function StructureNotesPage() {
           <Waypoints className="h-5 w-5 text-primary" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block font-medium">Life map</span>
+          <span className="block font-medium">{t("structure.mapTitle")}</span>
           <span className="block text-xs text-muted-foreground">
             See the links you built between notes and entries
           </span>
@@ -90,7 +92,7 @@ export default function StructureNotesPage() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search notes…"
+            placeholder={t("note.searchNotes")}
             className="h-9 pl-9 pr-8"
           />
           {query && (

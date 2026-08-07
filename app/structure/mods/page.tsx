@@ -469,7 +469,7 @@ export default function ModsHomePage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="gap-4 max-h-[80dvh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-base">Yeni özellik yarat</DialogTitle>
+            <DialogTitle className="text-base">{t("features.createNew")}</DialogTitle>
             <DialogDescription>
               Havuza eklenir; kategorilere Yapı sayfasından ya da girdi
               formundan bağlanır
@@ -481,7 +481,7 @@ export default function ModsHomePage() {
               id="pool-mod-name"
               value={name}
               onChange={(e) => { setName(e.target.value); setError(null); }}
-              placeholder="e.g. Walking duration"
+              placeholder={t("features.namePlaceholder")}
               autoFocus
             />
           </div>

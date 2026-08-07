@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
 
@@ -19,6 +20,7 @@ export function AliasEditor({
   onChange: (a: string[]) => void;
   className?: string;
 }) {
+  const t = useT();
   const [input, setInput] = useState("");
 
   function add() {
@@ -30,7 +32,7 @@ export function AliasEditor({
 
   return (
     <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
-      <span className="text-[11px] text-muted-foreground/70">Takma ad:</span>
+      <span className="text-[11px] text-muted-foreground/70">{t("note.aliasPrefix")}</span>
       {aliases.map((a) => (
         <span
           key={a}

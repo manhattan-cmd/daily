@@ -444,7 +444,7 @@ function ActivityNameStep({
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">veya yenisini yaz</p>
+              <p className="text-xs text-muted-foreground mt-1">{t("tree.orTypeNew")}</p>
             </div>
           )}
           <Input

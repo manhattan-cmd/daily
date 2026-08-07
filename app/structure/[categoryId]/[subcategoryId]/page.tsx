@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
+import { useT } from "@/lib/i18n";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -19,6 +20,7 @@ export default function SubCategoryDetailPage({
 }: {
   params: Promise<{ categoryId: string; subcategoryId: string }>;
 }) {
+  const t = useT();
   const { categoryId, subcategoryId } = use(params);
   const router = useRouter();
 
@@ -72,7 +74,7 @@ export default function SubCategoryDetailPage({
                   setEditingSelf(true);
                   setSubFormOpen(true);
                 }}
-                aria-label="Edit subcategory"
+                aria-label={t("tree.editSubcategory")}
               >
                 <Pencil className="h-4 w-4" />
               </Button>
@@ -81,7 +83,7 @@ export default function SubCategoryDetailPage({
                 variant="ghost"
                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
                 onClick={() => setDeleteOpen(true)}
-                aria-label="Alt kategoriyi sil"
+                aria-label={t("tree.deleteSubcategory")}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

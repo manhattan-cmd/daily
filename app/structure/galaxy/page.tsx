@@ -1,6 +1,7 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
+import { useT } from "@/lib/i18n";
 import { Waypoints } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { StructureTabs } from "@/components/structure/structure-tabs";
@@ -13,6 +14,7 @@ import ConnectionMap, {
 import { EmptyState } from "@/components/ui/empty-state";
 
 export default function GalaxyPage() {
+  const t = useT();
   const data = useLiveQuery(async () => {
     const [cats, allSubs, attachments, poolMods, entryTypes] = await Promise.all([
       db.categories.orderBy("order").toArray(),
@@ -103,7 +105,7 @@ export default function GalaxyPage() {
       {/* Diğer Yapı sayfalarıyla aynı başlık + menü hizası */}
       <PageHeader
         title="Structure"
-        description="Map — category and feature links"
+        description={t("map.lead")}
       />
       <StructureTabs />
 
@@ -113,8 +115,8 @@ export default function GalaxyPage() {
             <div className="flex h-full items-center justify-center px-4">
               <EmptyState
                 icon={Waypoints}
-                title="The map is empty"
-                description="Create a category first to see the link map."
+                title={t("map.empty")}
+                description={t("map.emptyHint")}
               />
             </div>
           ) : (
@@ -135,7 +137,7 @@ export default function GalaxyPage() {
                 <svg width="18" height="4" viewBox="0 0 18 4">
                   <line x1="0" y1="2" x2="18" y2="2" stroke="currentColor" className="text-muted-foreground" strokeWidth="1" strokeDasharray="3 3" />
                 </svg>
-                <span className="text-[10px] text-muted-foreground">shared feature</span>
+                <span className="text-[10px] text-muted-foreground">{t("map.sharedFeature")}</span>
               </div>
             )}
             {data.connections.length > 0 && data.parallels.length > 0 && (

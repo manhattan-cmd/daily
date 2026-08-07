@@ -277,7 +277,7 @@ export function SubCategoryForm({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Edit subcategory" : "Yeni alt kategori"}
+            {isEdit ? t("tree.editSubcategory") : "Yeni alt kategori"}
           </DialogTitle>
           {/* Nereye eklendiği — kategori renk noktası + yol */}
           {!isEdit && targetPath && (
@@ -289,7 +289,7 @@ export function SubCategoryForm({
               <span className="truncate font-medium text-foreground/80">
                 {targetPath}
               </span>
-              <span className="shrink-0 text-muted-foreground/60">altına</span>
+              <span className="shrink-0 text-muted-foreground/60">{t("form.under")}</span>
             </div>
           )}
         </DialogHeader>
@@ -308,7 +308,7 @@ export function SubCategoryForm({
             {/* Düzenli/sabit işareti — analizlerde tek dokunuşla hariç tutulabilir */}
             <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-input px-3 py-2.5">
               <div className="min-w-0">
-                <p className="text-sm font-medium">Regular / fixed</p>
+                <p className="text-sm font-medium">{t("entry.regular")}</p>
                 <p className="text-[11px] text-muted-foreground">
                   Kira, fatura gibi düzenli kalemler — analizlerde tek dokunuşla
                   hariç tutulabilir
@@ -406,7 +406,7 @@ export function SubCategoryForm({
                   setName(e.target.value);
                   setDuplicate(null);
                 }}
-                placeholder="Alt kategori adı..."
+                placeholder={t("tree.subcategoryNamePlaceholder")}
                 autoFocus={presets.length === 0}
                 className="h-12 text-base"
               />

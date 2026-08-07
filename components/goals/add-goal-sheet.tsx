@@ -281,7 +281,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
                 className="flex items-center gap-3 rounded-2xl border border-dashed border-border/60 px-4 py-3.5 text-left text-muted-foreground hover:text-foreground hover:border-border transition-colors"
               >
                 <Plus className="h-4 w-4 shrink-0" />
-                <span className="text-sm">Create category</span>
+                <span className="text-sm">{tr("tree.newCategory")}</span>
               </button>
             </div>
           )}
@@ -347,7 +347,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
                 className="flex items-center gap-3 rounded-2xl border border-dashed border-border/60 px-4 py-3.5 text-left text-muted-foreground hover:text-foreground hover:border-border transition-colors"
               >
                 <Plus className="h-4 w-4 shrink-0" />
-                <span className="text-sm">Yeni alt kategori oluştur</span>
+                <span className="text-sm">{tr("tree.createSubcategory")}</span>
               </button>
             </div>
           )}
@@ -595,7 +595,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
       <Dialog open={typePickerOpen} onOpenChange={setTypePickerOpen}>
         <DialogContent className="max-h-[70dvh] overflow-y-auto gap-4">
           <DialogHeader>
-            <DialogTitle>Özellik seç</DialogTitle>
+            <DialogTitle>{tr("form.pickFeature")}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2">
             {availableInPicker.map((t) => (

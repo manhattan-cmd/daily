@@ -17,6 +17,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import type { SubCategory } from "@/types";
 
 /**
@@ -186,11 +187,12 @@ export function ParallelPickDialog({
   onAdd: (ps: ParallelSub) => void;
   onRemove: (id: string) => void;
 }) {
+  const t = useT();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[70dvh] overflow-y-auto gap-4">
         <DialogHeader>
-          <DialogTitle>Paralel perspektif seç</DialogTitle>
+          <DialogTitle>{t("entry.pickParallel")}</DialogTitle>
           <DialogDescription>
             Bu girdiyi hangi kategoride de takip etmek istersin?
           </DialogDescription>
@@ -205,7 +207,7 @@ export function ParallelPickDialog({
         />
 
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>Got it</Button>
+          <Button onClick={() => onOpenChange(false)}>{t("action.gotIt")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

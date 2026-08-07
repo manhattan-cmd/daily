@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { createCategory } from "@/lib/db/queries";
 import { CategoryIcon } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 const PRESETS: { name: string; color: string; icon: string }[] = [
   { name: "Uyku",          color: "#6366f1", icon: "Moon" },
@@ -31,6 +32,7 @@ const PALETTE = [
 ];
 
 export function TemplateSetup() {
+  const t = useT();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [customName, setCustomName] = useState("");
   const [customColor, setCustomColor] = useState(PALETTE[0]);
@@ -98,9 +100,9 @@ export function TemplateSetup() {
       </div>
 
       <div className="mb-4 rounded-2xl border border-border bg-card p-4">
-        <p className="mb-3 text-sm font-medium">Kendin ekle</p>
+        <p className="mb-3 text-sm font-medium">{t("tree.addYourOwn")}</p>
         <Input
-          placeholder="Kategori adı"
+          placeholder={t("tree.categoryName")}
           value={customName}
           onChange={(e) => setCustomName(e.target.value)}
           className="mb-3"

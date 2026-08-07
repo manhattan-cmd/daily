@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import type { Metric, NumericMod } from "@/lib/analytics";
 
 /**
@@ -18,6 +19,7 @@ export function MetricChips({
   color: string;
   onChange: (m: Metric) => void;
 }) {
+  const t = useT();
   return (
     <div className="flex flex-wrap gap-2">
       {numericMods.map((m) => (
@@ -30,7 +32,7 @@ export function MetricChips({
         />
       ))}
       <MetricChip
-        label="Girdi"
+        label={t("list.entry")}
         active={metric.type === "count"}
         color={color}
         onTap={() => onChange({ type: "count" })}

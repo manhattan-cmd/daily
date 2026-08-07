@@ -389,7 +389,7 @@ function MeasureConfig({
             id="measure-unit"
             value={unit}
             onChange={(e) => setUnit(e.target.value)}
-            placeholder="e.g. glass, page, km"
+            placeholder={t("measures.unitPlaceholder")}
           />
         </div>
       )}

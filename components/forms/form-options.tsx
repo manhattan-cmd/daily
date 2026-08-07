@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronRight, MoreHorizontal, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 /**
  * Girdi formlarının ikincil ayarları (zaman, paralel perspektif, takma ad...)
@@ -40,6 +41,7 @@ export function OptionsMenu({
   header?: React.ReactNode;
   className?: string;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   if (!items.length) return null;
   // Yıkıcı eylemler ayrı bölmede, en altta
@@ -51,7 +53,7 @@ export function OptionsMenu({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Options"
+        aria-label={t("form.options")}
         aria-expanded={open}
         className={cn(
           "relative flex h-7 w-7 items-center justify-center rounded-full transition-colors",

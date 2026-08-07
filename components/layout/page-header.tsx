@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 interface PageHeaderProps {
   title: string;
@@ -22,6 +23,7 @@ export function PageHeader({
   action,
   className,
 }: PageHeaderProps) {
+  const t = useT();
   return (
     <header
       className={cn(
@@ -34,7 +36,7 @@ export function PageHeader({
           <Link
             href={back}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="Back"
+            aria-label={t("action.back")}
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>

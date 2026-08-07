@@ -102,7 +102,7 @@ function renderInput(
       return (
         <Select value={value} onValueChange={onChange}>
           <SelectTrigger id={id}>
-            <SelectValue placeholder="Select" />
+            <SelectValue placeholder={"—"} />
           </SelectTrigger>
           <SelectContent>
             {choices.map((c) => (

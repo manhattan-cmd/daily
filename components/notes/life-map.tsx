@@ -516,7 +516,7 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search…"
+              placeholder={t("action.search")}
               className="mb-2 h-8 w-full rounded-lg border border-border bg-input px-2.5 text-xs outline-none placeholder:text-muted-foreground/50"
             />
             <div className="flex flex-wrap gap-1.5">
@@ -615,8 +615,8 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
                   ? "bg-primary/15 text-primary"
                   : "text-muted-foreground hover:text-foreground"
               )}
-              aria-label="Focus"
-              title="Focus on this node's neighbourhood"
+              aria-label={t("map.focus")}
+              title={t("map.focusHint")}
             >
               <Crosshair className="h-4 w-4" />
             </button>

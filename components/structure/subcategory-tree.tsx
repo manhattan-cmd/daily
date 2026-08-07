@@ -346,7 +346,7 @@ export function SubCategoryTree({
                 )}
               >
                 <Trash2 className="h-4 w-4" />
-                <span className="text-xs font-medium">Sil</span>
+                <span className="text-xs font-medium">{t("action.delete")}</span>
               </div>
               <div
                 data-drop-othercat

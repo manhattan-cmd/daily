@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/lib/i18n";
 import * as React from "react";
 import {
   Dialog,
@@ -26,11 +27,12 @@ export function AddTypeModal({
   onOpenChange,
   options,
 }: AddTypeModalProps) {
+  const t = useT();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-6">
         <DialogHeader>
-          <DialogTitle>Ne eklemek istiyorsun?</DialogTitle>
+          <DialogTitle>{t("tree.whatToAdd")}</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-3">

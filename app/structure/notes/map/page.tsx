@@ -1,6 +1,7 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
+import { useT } from "@/lib/i18n";
 import { Waypoints } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { getEntryBriefs, listAllNotes } from "@/lib/db/queries";
@@ -17,6 +18,7 @@ function noteTitleOf(title: string | undefined, blocks: { text: string }[]) {
 }
 
 export default function LifeMapPage() {
+  const t = useT();
   const graph = useLiveQuery(async (): Promise<LifeGraph> => {
     const notes = await listAllNotes();
     const noteIds = new Set(notes.map((n) => n.id));
@@ -67,8 +69,8 @@ export default function LifeMapPage() {
   return (
     <div className="flex flex-col" style={{ height: "100%" }}>
       <PageHeader
-        title="Life map"
-        description="Notes and entries — the links you built"
+        title={t("structure.mapTitle")}
+        description={t("note.mapLead")}
         back="/structure/notes"
         className="mb-0"
       />
@@ -78,7 +80,7 @@ export default function LifeMapPage() {
           <div className="flex h-full items-center justify-center px-4">
             <EmptyState
               icon={Waypoints}
-              title="No links yet"
+              title={t("note.noLinks")}
               description="Bir notta bir kelimeyi seçip “Girdi iliştir” ya da bir öbeği seçip “Not aç” dediğinde kurduğun bağlar burada belirir."
             />
           </div>

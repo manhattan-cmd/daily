@@ -11,6 +11,7 @@ import {
 } from "@/components/forms/datetime-range-input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 interface SleepSheetProps {
   date: string;
@@ -20,6 +21,7 @@ interface SleepSheetProps {
 
 /** Yerleşik Uyku akışı: Ekle → Uyku. Gece Uykusu altına süre + kalite kaydeder. */
 export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
+  const t = useT();
   const [range, setRange] = useState("");
   const [quality, setQuality] = useState("");
   const [saving, setSaving] = useState(false);
@@ -137,7 +139,7 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
           <button
             onClick={onClose}
             className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors"
-            aria-label="Close"
+            aria-label={t("action.close")}
           >
             <X className="h-3.5 w-3.5" />
           </button>

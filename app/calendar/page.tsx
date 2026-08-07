@@ -6,6 +6,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getMonthDaySummary } from "@/lib/db/queries";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { swallowNextClick } from "@/lib/use-long-press";
 
 const MONTHS = [
@@ -15,6 +16,7 @@ const MONTHS = [
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function CalendarPage() {
+  const t = useT();
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -166,7 +168,7 @@ export default function CalendarPage() {
         <button
           onClick={prevMonth}
           className="h-10 w-10 flex items-center justify-center rounded-2xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          aria-label="Previous month"
+          aria-label={t("selection.previousDay")}
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
@@ -181,7 +183,7 @@ export default function CalendarPage() {
         <button
           onClick={nextMonth}
           className="h-10 w-10 flex items-center justify-center rounded-2xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          aria-label="Next month"
+          aria-label={t("selection.nextDay")}
         >
           <ChevronRight className="h-5 w-5" />
         </button>

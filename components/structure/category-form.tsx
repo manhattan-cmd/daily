@@ -99,7 +99,7 @@ export function CategoryForm({
                 setName(e.target.value);
                 setDuplicateName(null);
               }}
-              placeholder="e.g. Alcohol, Sleep, Fitness"
+              placeholder={t("form.categoryPlaceholder")}
               autoFocus
             />
           </div>

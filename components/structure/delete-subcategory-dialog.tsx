@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/lib/i18n";
 import { useState } from "react";
 import { FolderUp, Trash2 } from "lucide-react";
 import { deleteSubCategory } from "@/lib/db/queries";
@@ -32,6 +33,7 @@ export function DeleteSubCategoryDialog({
   onOpenChange: (open: boolean) => void;
   onDeleted?: (mode: "all" | "promote") => void;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState<null | "all" | "promote">(null);
 
   async function run(mode: "all" | "promote") {
@@ -56,7 +58,7 @@ export function DeleteSubCategoryDialog({
       <DialogContent className="max-w-[340px] gap-4">
         <DialogHeader>
           <DialogTitle className="text-base">{`"${sub?.name ?? ""}" silinsin mi?`}</DialogTitle>
-          <DialogDescription>Nasıl silineceğini seç.</DialogDescription>
+          <DialogDescription>{t("tree.deleteHow")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-2">
@@ -71,7 +73,7 @@ export function DeleteSubCategoryDialog({
               <FolderUp className="h-4 w-4" />
             </span>
             <span className="min-w-0">
-              <span className="block text-sm font-medium">Sadece bunu sil</span>
+              <span className="block text-sm font-medium">{t("tree.deleteOnlyThis")}</span>
               <span className="block text-xs text-muted-foreground">
                 Girdileri ve alt kategorileri &bdquo;{parentName}&rdquo; içine
                 taşınır

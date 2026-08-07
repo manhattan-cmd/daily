@@ -264,7 +264,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
             sub={`${computed.activeDayCount}/${computed.elapsedDays} gün`}
           />
           <StatTile
-            label="Current streak"
+            label={t("insights.currentStreak")}
             value={fmtNum(computed.streaks.current)}
             unit="gün"
             sub="in a row"
@@ -289,7 +289,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         </h3>
         <div className="grid grid-cols-2 gap-2">
           <StatTile
-            label="Last 4 weeks"
+            label={t("insights.last4Weeks")}
             value={fmtNum(computed.recentValue)}
             unit={computed.isAvgMetric ? unit : metricLabel}
             sub={
@@ -301,7 +301,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
             }
           />
           <StatTile
-            label="Previous 4 weeks"
+            label={t("insights.prev4Weeks")}
             value={fmtNum(computed.prevValue)}
             unit={computed.isAvgMetric ? unit : metricLabel}
             sub={computed.isAvgMetric ? "average" : "total"}
@@ -361,7 +361,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
 
       {/* Girdi listesi — son 50 */}
       <EntryListSection
-        title="Recent entries"
+        title={t("home.recentEntries")}
         accent={category.color}
         rows={computed.entryRows}
         emptyText={

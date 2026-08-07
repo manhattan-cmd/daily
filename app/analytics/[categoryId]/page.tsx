@@ -1,6 +1,7 @@
 "use client";
 
 import { use } from "react";
+import { useT } from "@/lib/i18n";
 import { useLiveQuery } from "dexie-react-hooks";
 import { getCategory } from "@/lib/db/queries";
 import { PageHeader } from "@/components/layout/page-header";
@@ -15,6 +16,7 @@ export default function CategoryAnalyticsPage({
 }: {
   params: Promise<{ categoryId: string }>;
 }) {
+  const t = useT();
   const { categoryId } = use(params);
   const category = useLiveQuery(() => getCategory(categoryId), [categoryId]);
 
@@ -22,7 +24,7 @@ export default function CategoryAnalyticsPage({
     <>
       <PageHeader
         title={category?.name ?? "..."}
-        description="Category insights"
+        description={t("insights.categoryInsights")}
         back={`/analytics?cat=${categoryId}`}
       />
       {category && <CategoryOverviewPanel category={category} />}

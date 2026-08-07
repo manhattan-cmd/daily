@@ -8,20 +8,25 @@ import { HScroll } from "@/components/ui/h-scroll";
 import { createCategory } from "@/lib/db/queries";
 import { CategoryIcon, CATEGORY_ICON_MAP } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
+/**
+ * Hazır kategori önerileri. Bunlar KAYIT olur (kullanıcının verisi), o yüzden
+ * arayüz dilinden bağımsız tek bir dilde durur — örnek yapıyla aynı dilde.
+ */
 const PRESETS: { name: string; color: string; icon: string }[] = [
-  { name: "Uyku",          color: "#6366f1", icon: "Moon" },
-  { name: "Sports & Fitness",color: "#22c55e", icon: "Dumbbell" },
-  { name: "Beslenme",      color: "#f97316", icon: "Utensils" },
-  { name: "Harcamalar",    color: "#f59e0b", icon: "Wallet" },
-  { name: "Ruh Hali",      color: "#ec4899", icon: "Smile" },
-  { name: "Health",        color: "#ef4444", icon: "Heart" },
-  { name: "Sosyal Hayat",  color: "#f43f5e", icon: "Users" },
-  { name: "Study",       color: "#3b82f6", icon: "Briefcase" },
-  { name: "Learning",       color: "#84cc16", icon: "GraduationCap" },
-  { name: "Fun",       color: "#a855f7", icon: "Tv" },
-  { name: "Seyahat",       color: "#06b6d4", icon: "Plane" },
-  { name: "Hobiler",       color: "#eab308", icon: "Star" },
+  { name: "Sleep", color: "#6366f1", icon: "Moon" },
+  { name: "Fitness", color: "#22c55e", icon: "Dumbbell" },
+  { name: "Food", color: "#f97316", icon: "Utensils" },
+  { name: "Expenses", color: "#f59e0b", icon: "Wallet" },
+  { name: "Mood", color: "#ec4899", icon: "Smile" },
+  { name: "Health", color: "#ef4444", icon: "Heart" },
+  { name: "Social", color: "#f43f5e", icon: "Users" },
+  { name: "Work", color: "#3b82f6", icon: "Briefcase" },
+  { name: "Study", color: "#84cc16", icon: "GraduationCap" },
+  { name: "Fun", color: "#a855f7", icon: "Tv" },
+  { name: "Travel", color: "#06b6d4", icon: "Plane" },
+  { name: "Hobbies", color: "#eab308", icon: "Star" },
   { name: "Self-care", color: "#14b8a6", icon: "Sparkles" },
 ];
 
@@ -35,6 +40,7 @@ export function CategoryQuickAdd({
 }: {
   existingNames?: Set<string>;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [customName, setCustomName] = useState("");
   const [customColor, setCustomColor] = useState(PALETTE[0]);
@@ -74,7 +80,7 @@ export function CategoryQuickAdd({
       <Button
         size="icon"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Yeni kategori"
+        aria-label={t("tree.newCategory")}
       >
         <Plus className="h-5 w-5" />
       </Button>
@@ -112,7 +118,7 @@ export function CategoryQuickAdd({
           <div className="border-t border-border bg-muted/30 p-3">
             <div className="flex gap-2">
               <Input
-                placeholder="Kendin yaz..."
+                placeholder={t("tree.newCategoryPlaceholder")}
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") addCustom(); }}

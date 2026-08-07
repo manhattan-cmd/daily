@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/lib/i18n";
 import { useState } from "react";
 import { Unlink } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -38,6 +39,7 @@ export function ModifierSection({
   targetId,
   targetName,
 }: ModifierSectionProps) {
+  const t = useT();
   const [pickerOpen, setPickerOpen] = useState(false);
   // Atoma dokununca açılan detay — çıkarma da buradan
   const [selected, setSelected] = useState<CategoryModifierWithType | null>(
@@ -96,7 +98,7 @@ export function ModifierSection({
             onClick={() => setSelected(mod)}
           />
         ))}
-        <ModAtomAdd label="Add feature" onClick={() => setPickerOpen(true)} />
+        <ModAtomAdd label={t("entry.addFeature")} onClick={() => setPickerOpen(true)} />
       </div>
 
       {/* Atom detayı — ölçüsü + buradan çıkarma */}

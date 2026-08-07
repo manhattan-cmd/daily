@@ -478,7 +478,7 @@ export function PeriodView({
 
         {/* Tüm kategorilerin girdileri */}
         <EntryListSection
-          title="All entries"
+          title={t("insights.allEntries")}
           rows={computed?.entryRows ?? []}
           emptyText={t("insights.noEntriesInPeriod")}
         />

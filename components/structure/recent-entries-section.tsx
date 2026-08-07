@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/lib/i18n";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   listEntriesByCategory,
@@ -36,6 +37,7 @@ export function RecentEntriesSection({
   selfName?: string;
   color?: string;
 }) {
+  const t = useT();
   const entries = useLiveQuery(
     () =>
       scope === "subcategory" && subcategoryId
@@ -59,7 +61,7 @@ export function RecentEntriesSection({
   return (
     <section className="mb-6">
       <EntryListSection
-        title="Recent entries"
+        title={t("home.recentEntries")}
         accent={color}
         rows={rows}
         emptyText="Henüz girdi yok"

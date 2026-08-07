@@ -380,7 +380,7 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
       <Dialog open={typePickerOpen} onOpenChange={setTypePickerOpen}>
         <DialogContent className="max-h-[70dvh] overflow-y-auto gap-4">
           <DialogHeader>
-            <DialogTitle>Özellik seç</DialogTitle>
+            <DialogTitle>{tr("form.pickFeature")}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2">
             {availableInPicker.map((t) => (

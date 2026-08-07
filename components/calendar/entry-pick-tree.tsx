@@ -21,6 +21,7 @@ import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { DeleteSubCategoryDialog } from "@/components/structure/delete-subcategory-dialog";
 import { RadialExplorer } from "@/components/calendar/entry-radial-explorer";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import type { Category, SubCategory } from "@/types";
 
 export type PickGroup = {
@@ -54,6 +55,7 @@ export function EntryPickTree({
   onCategorySelect: (category: Category) => void;
   scrollParentRef?: React.RefObject<HTMLElement | null>;
 }) {
+  const t = useT();
   const [editMode, setEditMode] = useState(false);
   const [drag, setDrag] = useState<{
     sub: SubCategory;
@@ -261,7 +263,7 @@ export function EntryPickTree({
               )}
             >
               <Trash2 className="h-4 w-4" />
-              <span className="text-xs font-medium">Drop here to delete</span>
+              <span className="text-xs font-medium">{t("tree.dropToDelete")}</span>
             </div>
           </div>,
           document.body

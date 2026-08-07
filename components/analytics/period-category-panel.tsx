@@ -316,7 +316,7 @@ export function PeriodCategoryPanel({
             className="flex w-12 shrink-0 flex-col items-center gap-0.5 rounded-lg px-1 text-center text-[10px] font-medium leading-tight text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowRight className="h-3.5 w-3.5" />
-            <span>Tüm zamanlar</span>
+            <span>{t("stat.allTime")}</span>
           </Link>
         </div>
       )}

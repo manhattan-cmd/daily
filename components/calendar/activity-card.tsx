@@ -12,6 +12,7 @@ import {
   parseNumeric,
 } from "@/lib/analytics";
 import { formatTime } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { EntryIcon } from "@/components/dashboard/entry-icon";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ export function ActivityCard({
   onAddEntries?: (activity: Activity) => void;
   selection?: EntrySelection;
 }) {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState<EntryWithContext | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -206,7 +208,7 @@ export function ActivityCard({
                   type="button"
                   onClick={() => setDeleteOpen(true)}
                   className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-destructive"
-                  aria-label="Delete or unpack the activity"
+                  aria-label={t("activity.deleteOrUnpack")}
                 >
                   <Trash2 className="h-3 w-3" />
                   Sil

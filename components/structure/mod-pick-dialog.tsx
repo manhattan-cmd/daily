@@ -158,7 +158,7 @@ export function ModPickDialog({
                 <ArrowLeft className="h-3.5 w-3.5" />
               </button>
             )}
-            {mode === "create" ? "Create a new feature" : "Add feature"}
+            {mode === "create" ? "Create a new feature" : t("entry.addFeature")}
           </DialogTitle>
           <DialogDescription>
             {mode === "create"
@@ -245,25 +245,25 @@ export function ModPickDialog({
             )}
             {search && filtered.length === 0 && available.length > 0 && (
               <p className="text-xs text-muted-foreground/70 -mt-1">
-                &bdquo;{search}&rdquo; havuzda yok — <span className="font-medium">Yeni yarat</span> bu adla oluşturur.
+                &bdquo;{search}&rdquo; havuzda yok — <span className="font-medium">{t("features.addNew")}</span> bu adla oluşturur.
               </p>
             )}
           </>
         ) : (
           <>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="mod-name-input">Özellik adı</Label>
+              <Label htmlFor="mod-name-input">{t("features.name")}</Label>
               <Input
                 id="mod-name-input"
                 value={name}
                 onChange={(e) => { setName(e.target.value); setError(null); setExistingId(null); }}
-                placeholder="e.g. Walking duration"
+                placeholder={t("features.namePlaceholder")}
                 autoFocus
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label>Ölçüsü</Label>
+              <Label>{t("features.measure")}</Label>
               <div className="flex flex-wrap gap-2">
                 {(measures ?? []).map((t) => {
                   const KindIcon = MEASURE_KIND_META[t.valueType ?? "number"].icon;

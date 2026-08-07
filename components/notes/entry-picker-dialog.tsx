@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -35,7 +36,7 @@ function dateNoon(date: string): number {
 }
 
 /**
- * "Girdi iliştir" — nottaki bir kelimeye VAR OLAN bir girdiyi bağla ya da
+ * t("note.attachEntry") — nottaki bir kelimeye VAR OLAN bir girdiyi bağla ya da
  * kelime adıyla YENİ bir girdi oluşturup bağla (alt kategori seçilerek).
  */
 export function EntryPickerDialog({
@@ -52,6 +53,7 @@ export function EntryPickerDialog({
   defaultDate: string;
   onPick: (entry: EntryPick) => void;
 }) {
+  const t = useT();
   const [mode, setMode] = useState<"existing" | "new">("existing");
   const [query, setQuery] = useState("");
   const entries = useLiveQuery(() => listEntriesForPicker(), []);
@@ -105,7 +107,7 @@ export function EntryPickerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[380px] gap-3 max-h-[80dvh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-base">Girdi iliştir</DialogTitle>
+          <DialogTitle className="text-base">{t("note.attachEntry")}</DialogTitle>
           <DialogDescription>
             &bdquo;{anchor}&rdquo; kelimesine bir girdi bağla
           </DialogDescription>
@@ -141,7 +143,7 @@ export function EntryPickerDialog({
             <button
               onClick={() => setQuery("")}
               className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground/60 hover:text-foreground"
-              aria-label="Temizle"
+              aria-label={t("form.clear")}
             >
               <X className="h-3 w-3" />
             </button>

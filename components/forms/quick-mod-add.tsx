@@ -20,6 +20,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 interface QuickModAddProps {
   subcategoryId: string;
@@ -56,6 +57,7 @@ export function QuickModAdd({
   entryId,
   occurredAt,
 }: QuickModAddProps) {
+  const t = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   // Eklenen özellik için değer sorma adımı (isteğe bağlı — "Şimdi değil" geçer)
@@ -105,10 +107,10 @@ export function QuickModAdd({
           "flex items-center gap-1 rounded-lg border border-dashed px-2 py-1 text-xs transition-all active:scale-95",
           "border-border/60 text-muted-foreground/60 hover:border-border hover:text-muted-foreground"
         )}
-        aria-label="Add feature"
+        aria-label={t("entry.addFeature")}
       >
         <SlidersHorizontal className="h-3 w-3" />
-        <span>Add feature</span>
+        <span>{t("entry.addFeature")}</span>
       </button>
 
       <ModPickDialog
@@ -137,7 +139,7 @@ export function QuickModAdd({
         {valueFor && (
           <DialogContent className="gap-4">
             <DialogHeader>
-              <DialogTitle className="text-base">Değerini hemen gir</DialogTitle>
+              <DialogTitle className="text-base">{t("form.enterValueNow")}</DialogTitle>
               <DialogDescription>
                 &bdquo;{valueFor.name}&rdquo; eklendi — istersen bu girdi için
                 değerini de kaydet.

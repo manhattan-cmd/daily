@@ -183,10 +183,10 @@ export function FieldForm({
         <form onSubmit={onSubmit} className="flex flex-col gap-5">
           {!subcategoryId && subcategories && subcategories.length > 0 && (
             <div className="flex flex-col gap-2">
-              <Label>Alt Categories</Label>
+              <Label>{t("structure.categories")}</Label>
               <Select value={selectedSubId} onValueChange={setSelectedSubId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select..." />
+                  <SelectValue placeholder={t("form.selectPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   {subcategories.map((s) => (
@@ -203,7 +203,7 @@ export function FieldForm({
               id="field-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. amount, price, quality"
+              placeholder={t("form.namePlaceholder")}
               autoFocus
             />
           </div>
@@ -231,7 +231,7 @@ export function FieldForm({
                 id="field-unit"
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
-                placeholder="cl, kg, km..."
+                placeholder={t("form.unitPlaceholder")}
               />
             </div>
           ) : null}
@@ -255,14 +255,14 @@ export function FieldForm({
                 id="field-choices"
                 value={choicesText}
                 onChange={(e) => setChoicesText(e.target.value)}
-                placeholder="comma separated: light, medium, heavy"
+                placeholder={t("form.choicesPlaceholder")}
               />
             </div>
           ) : null}
 
           <div className="flex items-center justify-between rounded-lg border border-border bg-card/50 p-3">
             <div>
-              <Label className="text-foreground">Zorunlu</Label>
+              <Label className="text-foreground">{t("form.required")}</Label>
               <p className="text-xs text-muted-foreground">
                 Entry yaratırken doldurulması şart olsun
               </p>
@@ -291,7 +291,7 @@ export function FieldForm({
                 <>
                   {type === "money" ? (
                     <div className="flex flex-col gap-2">
-                      <Label>Sınıflandırma</Label>
+                      <Label>{t("form.classification")}</Label>
                       <Select
                         value={classification}
                         onValueChange={(v) =>
@@ -302,15 +302,15 @@ export function FieldForm({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="expense">Gider</SelectItem>
-                          <SelectItem value="income">Gelir</SelectItem>
-                          <SelectItem value="investment">Yatırım</SelectItem>
+                          <SelectItem value="expense">{t("form.expense")}</SelectItem>
+                          <SelectItem value="income">{t("form.income")}</SelectItem>
+                          <SelectItem value="investment">{t("form.investment")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   ) : null}
                   <div className="flex flex-col gap-2">
-                    <Label htmlFor="field-label">Etiket</Label>
+                    <Label htmlFor="field-label">{t("form.tag")}</Label>
                     <Input
                       id="field-label"
                       value={label}

@@ -617,7 +617,7 @@ export function EntryNetwork({
         ) : (
           <button
             onClick={() => setAddCatOpen(true)}
-            aria-label="Yeni kategori"
+            aria-label={t("tree.newCategory")}
             className="flex h-7 items-center gap-1 rounded-full bg-white/8 px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -857,6 +857,7 @@ function NodeList({
   onAddHere: () => void;
   onOpen: (node: Node) => void;
 }) {
+  const t = useT();
   const [q, setQ] = useState("");
   const query = norm(q);
   const filtered = query
@@ -935,7 +936,7 @@ function NodeList({
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search..."
+            placeholder={t("action.search")}
             className="h-9 w-full rounded-xl border border-border bg-input pl-9 pr-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>

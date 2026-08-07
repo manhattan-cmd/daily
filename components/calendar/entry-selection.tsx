@@ -231,7 +231,7 @@ export function EntrySelectionBar({
               type="date"
               value={target}
               onChange={(e) => setTarget(e.target.value)}
-              aria-label="Target date"
+              aria-label={t("selection.targetDate")}
               className="mb-3 h-11 w-full rounded-xl border border-border bg-input px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
             />
 
@@ -254,7 +254,7 @@ export function EntrySelectionBar({
             <div className="mb-3 flex items-center gap-2">
               <button
                 onClick={() => setView("actions")}
-                aria-label="Back"
+                aria-label={t("action.back")}
                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />

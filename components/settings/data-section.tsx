@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/lib/i18n";
 import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -39,6 +40,7 @@ import { Button } from "@/components/ui/button";
 const fmt = (n: number) => n.toLocaleString("en-US");
 
 export function DataSection() {
+  const t = useT();
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState<
@@ -188,7 +190,7 @@ export function DataSection() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="font-medium">Device storage</span>
+                <span className="font-medium">{t("backup.deviceStorage")}</span>
                 {health && (
                   <span
                     className={
@@ -222,7 +224,7 @@ export function DataSection() {
           )}
 
           <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3 text-xs">
-            <span className="text-muted-foreground">Last backup</span>
+            <span className="text-muted-foreground">{t("backup.lastBackup")}</span>
             <span
               className={
                 lastBackupAt === null || daysSince(lastBackupAt) >= 14
@@ -242,7 +244,7 @@ export function DataSection() {
               <Download className="h-5 w-5 text-primary" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="font-medium">Download backup</div>
+              <div className="font-medium">{t("backup.download")}</div>
               <div className="text-xs text-muted-foreground">
                 {counts
                   ? `${fmt(counts.categories)} categories · ${fmt(counts.entries)} entries · ${fmt(counts.notes)} notes · ${fmt(counts.goals)} goals`
@@ -263,7 +265,7 @@ export function DataSection() {
               variant="outline"
               onClick={handleExport}
               disabled={exporting}
-              aria-label="Download as JSON"
+              aria-label={t("backup.downloadJson")}
             >
               <Download className="h-4 w-4" />
             </Button>
@@ -281,7 +283,7 @@ export function DataSection() {
               <Upload className="h-5 w-5 text-amber-500" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="font-medium">Restore from backup</div>
+              <div className="font-medium">{t("backup.restore")}</div>
               <div className="text-xs text-muted-foreground">
                 Pick a file, then choose how to load it
               </div>
@@ -310,7 +312,7 @@ export function DataSection() {
           <div className="animate-in rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] p-4">
             <div className="mb-3 flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <div className="font-medium">Backup loaded</div>
+                <div className="font-medium">{t("backup.loaded")}</div>
                 <div className="text-xs text-muted-foreground">
                   {new Date(pending.exportedAt).toLocaleString("en-US", {
                     dateStyle: "long",

@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useMemo } from "react";
+import { useT } from "@/lib/i18n";
 import { CalendarX } from "lucide-react";
 import { parsePeriodKey } from "@/lib/period";
 import { PageHeader } from "@/components/layout/page-header";
@@ -13,6 +14,7 @@ export default function PeriodAnalyticsPage({
 }: {
   params: Promise<{ periodKey: string }>;
 }) {
+  const t = useT();
   const { periodKey } = use(params);
   const period = useMemo(
     () => parsePeriodKey(decodeURIComponent(periodKey)),
@@ -25,7 +27,7 @@ export default function PeriodAnalyticsPage({
         <PageHeader title="Period" back="/analytics" />
         <EmptyState
           icon={CalendarX}
-          title="Invalid period"
+          title={t("insights.invalidPeriod")}
           description="This address wasn't recognised — try again from the insights page."
         />
       </>

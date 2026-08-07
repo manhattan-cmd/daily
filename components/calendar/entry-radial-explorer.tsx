@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { ChevronUp, Folder, FolderOpen, Plus, X } from "lucide-react";
 import { CategoryTileCore } from "@/components/structure/category-tile";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import type { Category, SubCategory } from "@/types";
 
 type Focus =
@@ -45,6 +46,7 @@ export function RadialExplorer({
   onSelectCat: (cat: Category) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const [focus, setFocus] = useState<Focus>({ type: "sub", sub: initialSub });
   const [shown, setShown] = useState(false);
   useEffect(() => {
@@ -121,7 +123,7 @@ export function RadialExplorer({
         <button
           onClick={onClose}
           className="absolute right-3 top-3 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white/8 text-muted-foreground transition-colors hover:bg-white/12"
-          aria-label="Pencereyi kapat"
+          aria-label={t("tree.closeWindow")}
         >
           <X className="h-3.5 w-3.5" />
         </button>

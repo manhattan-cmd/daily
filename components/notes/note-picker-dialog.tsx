@@ -62,7 +62,7 @@ export function NotePickerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[380px] gap-3 max-h-[80dvh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-base">Not bağla</DialogTitle>
+          <DialogTitle className="text-base">{t("note.linkNote")}</DialogTitle>
           <DialogDescription>
             &bdquo;{anchor}&rdquo; öbeğini bir nota bağla
           </DialogDescription>
@@ -75,7 +75,7 @@ export function NotePickerDialog({
         >
           <Plus className="h-4 w-4 shrink-0" />
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-medium">Yeni not aç</span>
+            <span className="block text-sm font-medium">{t("note.startNew")}</span>
             <span className="block truncate text-[11px] opacity-80">
               &bdquo;{anchor}&rdquo; başlığıyla
             </span>
@@ -87,7 +87,7 @@ export function NotePickerDialog({
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search existing notes…"
+            placeholder={t("note.searchExisting")}
             className="h-9 pl-9 pr-8"
           />
           {query && (
