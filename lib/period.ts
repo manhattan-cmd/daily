@@ -5,6 +5,7 @@
  */
 
 import { dayKey, startOfDayMs, weekStartMs } from "./analytics";
+import { intlTag, translate } from "./i18n";
 
 export type PeriodKind = "day" | "week" | "month" | "year" | "custom" | "all";
 
@@ -38,7 +39,7 @@ function addDays(t: number, n: number): number {
 }
 
 const fmt = (t: number, opt: Intl.DateTimeFormatOptions) =>
-  new Date(t).toLocaleDateString("en-US", opt);
+  new Date(t).toLocaleDateString(intlTag(), opt);
 
 export function dayPeriod(t: number): Period {
   const start = startOfDayMs(new Date(t));
@@ -121,7 +122,7 @@ export function allPeriod(now: Date = new Date()): Period {
     start: 0,
     end: addDays(startOfDayMs(now), 1),
     key: "all",
-    label: "Tüm Zamanlar",
+    label: translate("stat.allTime"),
   };
 }
 
@@ -145,7 +146,11 @@ export function parsePeriodKey(
   if (kind === "m") {
     const m = /^(\d{4})-(\d{2})$/.exec(rest);
     if (!m) return null;
-    return monthPeriod(new Date(+m[1], +m[2] - 1, 1).getTime());
+    const month = +m[2];
+    // Ay 1–12 olmalı: Date "m-2026-13"ü sessizce Ocak 2027'ye taşıyordu,
+    // yani bozuk adres "geçersiz dönem" yerine yanlış bir dönem gösteriyordu
+    if (month < 1 || month > 12) return null;
+    return monthPeriod(new Date(+m[1], month - 1, 1).getTime());
   }
   if (kind === "y") {
     if (!/^\d{4}$/.test(rest)) return null;
@@ -201,11 +206,15 @@ export function periodProgress(
  */
 export function periodShortLabel(p: Period, now: Date = new Date()): string {
   const t = now.getTime();
-  if (p.kind === "all") return "all time";
-  if (p.kind === "day") return p.key === dayPeriod(t).key ? "bugün" : p.label;
-  if (p.kind === "week") return p.key === weekPeriod(t).key ? "bu hafta" : p.label;
-  if (p.kind === "month") return p.key === monthPeriod(t).key ? "bu ay" : p.label;
-  if (p.kind === "year") return p.key === yearPeriod(t).key ? "bu yıl" : p.label;
+  if (p.kind === "all") return translate("stat.allTime");
+  if (p.kind === "day")
+    return p.key === dayPeriod(t).key ? translate("period.today") : p.label;
+  if (p.kind === "week")
+    return p.key === weekPeriod(t).key ? translate("period.thisWeek") : p.label;
+  if (p.kind === "month")
+    return p.key === monthPeriod(t).key ? translate("period.thisMonth") : p.label;
+  if (p.kind === "year")
+    return p.key === yearPeriod(t).key ? translate("period.thisYear") : p.label;
   return p.label;
 }
 

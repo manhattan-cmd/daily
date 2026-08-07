@@ -319,7 +319,7 @@ export function computeStreaks(
   return { current, best };
 }
 
-/** tr-TR sayı biçimi; büyük sayılar kompakt (12,9 B) */
+/** Etkin dilin sayı biçimi; büyük sayılar kompakt (12.9K) */
 export function fmtNum(n: number): string {
   const abs = Math.abs(n);
   if (abs >= 10000) {
