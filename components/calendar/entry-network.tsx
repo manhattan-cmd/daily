@@ -28,6 +28,7 @@ import { CategoryForm } from "@/components/structure/category-form";
 import { HScroll } from "@/components/ui/h-scroll";
 import { OptionsMenu } from "@/components/forms/form-options";
 import { cn } from "@/lib/utils";
+import { useT, type MessageKey } from "@/lib/i18n";
 import type { Category, SubCategory } from "@/types";
 
 export type NetGroup = {
@@ -70,10 +71,15 @@ function autoLayout(n: number): Layout {
   return "poly";
 }
 
-const LAYOUT_OPTIONS: { key: Layout; icon: typeof Network; label: string }[] = [
-  { key: "poly", icon: Network, label: "Network view" },
-  { key: "spiral", icon: Orbit, label: "Spiral view" },
-  { key: "list", icon: List, label: "List view" },
+/** Etiketler anahtar; çözümleme render sırasında (modül düzeyinde kanca yok) */
+const LAYOUT_OPTIONS: {
+  key: Layout;
+  icon: typeof Network;
+  labelKey: MessageKey;
+}[] = [
+  { key: "poly", icon: Network, labelKey: "tree.networkView" },
+  { key: "spiral", icon: Orbit, labelKey: "tree.spiralView" },
+  { key: "list", icon: List, labelKey: "tree.listView" },
 ];
 
 /** Kullanıcının sayfa bazlı görünüm tercihi (localStorage) */
@@ -153,6 +159,7 @@ export function EntryNetwork({
   onCategorySelect: (category: Category) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const router = useRouter();
   const [addSub, setAddSub] = useState<{
     categoryId: string;
@@ -462,7 +469,7 @@ export function EntryNetwork({
 
   const focusName =
     focusObj == null
-      ? "Kategoriler"
+      ? t("structure.categories")
       : focusObj.type === "cat"
         ? focusObj.cat.name
         : focusObj.sub.name;
@@ -543,11 +550,11 @@ export function EntryNetwork({
         {/* Görünüm — kalabalıklaşmaya başlayan sayfalarda çıkar */}
         {nodes.length >= 6 && (
           <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-white/6 p-0.5">
-            {LAYOUT_OPTIONS.map(({ key, icon: Icon, label }) => (
+            {LAYOUT_OPTIONS.map(({ key, icon: Icon, labelKey }) => (
               <button
                 key={key}
                 onClick={() => setLayout(key)}
-                aria-label={label}
+                aria-label={t(labelKey)}
                 aria-pressed={layout === key}
                 className={cn(
                   "flex h-6 w-6 items-center justify-center rounded-full transition-colors",
@@ -586,22 +593,22 @@ export function EntryNetwork({
               {
                 key: "add-entry",
                 icon: PenLine,
-                title: "Add entry",
-                subtitle: "Add a record here",
+                title: t("tree.addEntry"),
+                subtitle: t("tree.addRecordHere"),
                 emphasis: true,
                 onSelect: addEntryHere,
               },
               {
                 key: "add-sub",
                 icon: FolderPlus,
-                title: "Create subcategory",
-                subtitle: "New subcategory inside",
+                title: t("tree.createSubcategory"),
+                subtitle: t("tree.newSubcategoryInside"),
                 onSelect: openAddSub,
               },
               {
                 key: "structure",
                 icon: Layers,
-                title: "Structure page",
+                title: t("tree.structurePage"),
                 subtitle: "Edit / move / delete",
                 onSelect: goStructure,
               },

@@ -16,6 +16,7 @@ import { CATEGORY_COLORS, type Category } from "@/types";
 import { createCategory, updateCategory } from "@/lib/db/queries";
 import { IconPicker } from "@/components/structure/icon-picker";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 interface CategoryFormProps {
   open: boolean;
@@ -31,6 +32,7 @@ export function CategoryForm({
   onSaved,
 }: CategoryFormProps) {
   const isEdit = !!category;
+  const t = useT();
   const [name, setName] = useState(category?.name ?? "");
   const [color, setColor] = useState(category?.color ?? CATEGORY_COLORS[0]);
   const [icon, setIcon] = useState<string | undefined>(category?.icon);
@@ -50,7 +52,7 @@ export function CategoryForm({
   async function onSubmit(e: React.FormEvent, force = false) {
     e.preventDefault();
     if (!name.trim()) return;
-    // Aynı adda kategori varsa uyar — bilerek isteniyorsa "Yine de oluştur"
+    // Aynı adda kategori varsa uyar — bilerek isteniyorsa t("tree.createAnyway")
     if (!isEdit && !force) {
       const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
       const cats = await db.categories.toArray();
@@ -84,12 +86,12 @@ export function CategoryForm({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Edit category" : "Yeni kategori"}
+            {isEdit ? t("tree.editCategory") : t("tree.newCategory")}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="cat-name">İsim</Label>
+            <Label htmlFor="cat-name">{t("tree.name")}</Label>
             <Input
               id="cat-name"
               value={name}
@@ -120,7 +122,7 @@ export function CategoryForm({
             </div>
           )}
           <div className="flex flex-col gap-2">
-            <Label>Renk</Label>
+            <Label>{t("tree.colour")}</Label>
             <div className="grid grid-cols-5 gap-2">
               {CATEGORY_COLORS.map((c) => (
                 <button
@@ -140,7 +142,7 @@ export function CategoryForm({
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            <Label>Sembol (isteğe bağlı)</Label>
+            <Label>{t("tree.icon")}</Label>
             <IconPicker value={icon} onChange={setIcon} color={color} />
           </div>
           <DialogFooter>
@@ -152,7 +154,7 @@ export function CategoryForm({
               İptal
             </Button>
             <Button type="submit" disabled={!name.trim() || saving}>
-              {isEdit ? "Save" : "Create"}
+              {isEdit ? t("action.save") : t("action.create")}
             </Button>
           </DialogFooter>
         </form>

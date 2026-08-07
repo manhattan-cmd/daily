@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
+import { useT } from "@/lib/i18n";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -20,6 +21,7 @@ export default function CategoryDetailPage({
   params: Promise<{ categoryId: string }>;
 }) {
   const { categoryId } = use(params);
+  const t = useT();
   const router = useRouter();
 
   const category = useLiveQuery(() => getCategory(categoryId), [categoryId]);
@@ -41,11 +43,12 @@ export default function CategoryDetailPage({
     router.push("/structure");
   }
 
+
   return (
     <>
       <PageHeader
         title={category?.name ?? "..."}
-        description="Subcategories and features"
+        description={t("tree.subcategoriesAndFeatures")}
         back="/structure"
         action={
           category && (
@@ -63,7 +66,7 @@ export default function CategoryDetailPage({
                 variant="ghost"
                 className="h-8 w-8 text-muted-foreground"
                 onClick={() => setCatFormOpen(true)}
-                aria-label="Edit category"
+                aria-label={t("tree.editCategory")}
               >
                 <Pencil className="h-4 w-4" />
               </Button>
@@ -72,7 +75,7 @@ export default function CategoryDetailPage({
                 variant="ghost"
                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
                 onClick={onDeleteCategory}
-                aria-label="Kategoriyi sil"
+                aria-label={t("tree.deleteCategory")}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

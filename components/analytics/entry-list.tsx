@@ -6,6 +6,7 @@ import { getEntryWithContext } from "@/lib/db/queries";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { fmtEntryDateTime } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 export type EntryListRow = {
   id: string;
@@ -78,7 +79,7 @@ export function EntryListSection({
  */
 export function EntryList({
   rows,
-  emptyText = "No entries in this range",
+  emptyText,
   accent,
 }: {
   rows: EntryListRow[];
@@ -86,6 +87,7 @@ export function EntryList({
   /** Değer etiketini boyayan vurgu rengi (yapı sayfasında kategori rengi) */
   accent?: string;
 }) {
+  const t = useT();
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [openId, setOpenId] = useState<string | null>(null);
   // Analiz satırları yalnız görünen alanları taşır; modal tam kaydı ister
@@ -97,7 +99,7 @@ export function EntryList({
   if (!rows.length) {
     return (
       <p className="py-4 text-center text-xs text-muted-foreground/60">
-        {emptyText}
+        {emptyText ?? t("list.noEntriesInRange")}
       </p>
     );
   }
@@ -112,7 +114,7 @@ export function EntryList({
           key={r.id}
           type="button"
           onClick={() => setOpenId(r.id)}
-          aria-label={`${r.subLabel ?? r.title ?? "Girdi"} — düzenle`}
+          aria-label={`${r.subLabel ?? r.title ?? t("list.entry")} — düzenle`}
           className={cn(
             "-mx-2 flex items-start gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-white/5 active:bg-white/[0.07]",
             i > 0 && "border-t border-border/60"
