@@ -41,11 +41,13 @@ import {
   modAtomIcon,
 } from "@/components/structure/mod-atom";
 import { StructureTabs } from "@/components/structure/structure-tabs";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 type Usage = { count: number; places: string[]; valueCount: number };
 
 export default function ModsHomePage() {
+  const t = useT();
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
   const [measureId, setMeasureId] = useState<string | null>(null);
@@ -180,8 +182,8 @@ export default function ModsHomePage() {
           satıra taşınca başlık uzuyor ve sekme şeridi aşağı kayıyordu.
           Uzun anlatım sekmelerin altına indi. */}
       <PageHeader
-        title="Structure"
-        description="Features — what you measure"
+        title={t("structure.title")}
+        description={t("features.lead")}
         action={
           <div className="flex items-center gap-1.5">
             <button
@@ -195,7 +197,7 @@ export default function ModsHomePage() {
                   ? "bg-primary/15 text-primary"
                   : "bg-white/8 text-muted-foreground hover:bg-white/12 hover:text-foreground"
               )}
-              aria-label={searchOpen ? "Close search" : "Search features"}
+              aria-label={searchOpen ? t("features.closeSearch") : t("features.search")}
             >
               <Search className="h-3.5 w-3.5" />
             </button>
@@ -219,7 +221,7 @@ export default function ModsHomePage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search features..."
+            placeholder={t("features.searchPlaceholder")}
             autoFocus
             className="h-9 pl-9 pr-8"
           />
@@ -227,7 +229,7 @@ export default function ModsHomePage() {
             <button
               onClick={() => setSearch("")}
               className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground/60 hover:text-foreground transition-colors"
-              aria-label="Clear search"
+              aria-label={t("features.clearSearch")}
             >
               <X className="h-3 w-3" />
             </button>
@@ -275,8 +277,8 @@ export default function ModsHomePage() {
                   <ModAtomAdd
                     label={
                       mods.some((m) => !m.isBuiltIn)
-                        ? "Yeni yarat"
-                        : "Your first feature"
+                        ? t("features.createNew")
+                        : t("features.first")
                     }
                     onClick={() => setCreateOpen(true)}
                   />
@@ -288,7 +290,7 @@ export default function ModsHomePage() {
           {search && visibleMods.length === 0 && (
             <p className="px-1 text-xs text-muted-foreground/70">
               &bdquo;{search}&rdquo; adında bir özellik yok —{" "}
-              <span className="font-medium">Yeni Features</span> bu adla
+              <span className="font-medium">{t("features.new")}</span> bu adla
               yaratabilir.
             </p>
           )}
@@ -360,7 +362,7 @@ export default function ModsHomePage() {
                   <button
                     onClick={() => setDetailView("info")}
                     className="h-6 w-6 -ml-1 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label="Back to detail"
+                    aria-label={t("features.backToDetail")}
                   >
                     <ArrowLeft className="h-3.5 w-3.5" />
                   </button>
@@ -376,7 +378,7 @@ export default function ModsHomePage() {
               {/* Ad — yalnızca kullanıcı özelliklerinde düzenlenir */}
               {selected.isBuiltIn ? (
                 <div className="flex flex-col gap-2">
-                  <Label>Özellik adı</Label>
+                  <Label>{t("features.name")}</Label>
                   <p className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
                     {selected.name}
                     <span className="ml-1.5 text-xs opacity-70">· built-in</span>
@@ -384,7 +386,7 @@ export default function ModsHomePage() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="edit-mod-name">Özellik adı</Label>
+                  <Label htmlFor="edit-mod-name">{t("features.name")}</Label>
                   <Input
                     id="edit-mod-name"
                     value={editName}
@@ -402,7 +404,7 @@ export default function ModsHomePage() {
 
               {/* Ölçü seçimi — mod tek bir ölçüyle ölçülür */}
               <div className="flex flex-col gap-2">
-                <Label>Ölçüsü</Label>
+                <Label>{t("features.measure")}</Label>
                 <div className="flex flex-wrap gap-2">
                   {(measures ?? []).map((t) => {
                     const KindIcon = MEASURE_KIND_META[t.valueType ?? "number"].icon;
@@ -474,7 +476,7 @@ export default function ModsHomePage() {
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="pool-mod-name">Özellik adı</Label>
+            <Label htmlFor="pool-mod-name">{t("features.name")}</Label>
             <Input
               id="pool-mod-name"
               value={name}
@@ -484,7 +486,7 @@ export default function ModsHomePage() {
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label>Ölçüsü</Label>
+            <Label>{t("features.measure")}</Label>
             <div className="flex flex-wrap gap-2">
               {(measures ?? []).map((t) => {
                 const KindIcon = MEASURE_KIND_META[t.valueType ?? "number"].icon;

@@ -9,6 +9,7 @@ import {
 } from "@/components/forms/datetime-range-input";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { useLongPress } from "@/lib/use-long-press";
 import {
   SelectionLayer,
@@ -28,6 +29,7 @@ export function SleepCard({
   entry: EntryWithContext;
   selection?: EntrySelection;
 }) {
+  const t = useT();
   const [editOpen, setEditOpen] = useState(false);
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
 
@@ -62,7 +64,7 @@ export function SleepCard({
           "transition-colors hover:border-violet-500/40 active:scale-[0.99]",
           selection?.selected && selectedCardClass
         )}
-        aria-label="Edit sleep record"
+        aria-label={t("sleep.edit")}
       >
         <div className="flex items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/20">
@@ -118,7 +120,7 @@ export function SleepCard({
           <SelectionLayer
             selected={selection.selected}
             onToggle={selection.onToggle}
-            label="Select sleep record"
+            label={t("sleep.select")}
           />
         )}
       </div>

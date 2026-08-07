@@ -26,7 +26,7 @@ export function StatTile({
             style={{ backgroundColor: accent }}
           />
         )}
-        {/* Etiket ve alt yazı kırpılmaz, sarar: dar kutularda "Günlük Ort."
+        {/* Etiket ve alt yazı kırpılmaz, sarar: dar kutularda "Daily avg."
             gibi kısaltmalara ya da yarım kalan yazıya gerek kalmasın */}
         <span className="text-[11px] font-medium leading-tight text-muted-foreground">
           {label}

@@ -52,7 +52,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  * tüm kategorileri kapsayan analizi. Hem /analytics (içinde bulunulan hafta, default)
  * hem /analytics/period/[periodKey] bunu render eder. Seri grafiği alt dönemlere
  * tıklanarak inilir (yıl → ay → hafta → gün); ay serisi haftalardan oluşur.
- * Devam eden dönemlerde seri bugünde kırpılır ve "şu ana kadar" rozeti gösterilir.
+ * Devam eden dönemlerde seri bugünde kırpılır ve t("insights.soFar") rozeti gösterilir.
  */
 export function PeriodView({
   period,
@@ -106,7 +106,7 @@ export function PeriodView({
       if (catId) usedCats.add(catId);
     }
 
-    // "Şu ana kadar" — devam eden dönemde günlük ortalamanın paydası geçen gün sayısı;
+    // t("insights.soFar") — devam eden dönemde günlük ortalamanın paydası geçen gün sayısı;
     // "Tümü"nde başlangıç ilk girdiye kıstırılır
     let minOcc: number | undefined;
     for (const e of entries) {
@@ -326,7 +326,7 @@ export function PeriodView({
               disabled={!prev}
               onClick={() => prev && router.push(`/analytics/period/${prev.key}`)}
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-              aria-label="Previous period"
+              aria-label={t("insights.previousPeriod")}
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -340,7 +340,7 @@ export function PeriodView({
                 nextP && router.push(`/analytics/period/${nextP.key}`)
               }
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-              aria-label="Next period"
+              aria-label={t("insights.nextPeriod")}
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -350,12 +350,12 @@ export function PeriodView({
         {/* KPI'lar — her kutu neyin, hangi aralıkta sayısı olduğunu söyler */}
         <div className="grid grid-cols-3 gap-2">
           <StatTile
-            label="Entries"
+            label={t("insights.entries")}
             value={fmtNum(computed?.entryCount ?? 0)}
             sub={spanLabel}
           />
           <StatTile
-            label="Active days"
+            label={t("insights.activeDays")}
             value={fmtNum(computed?.activeDays ?? 0)}
             sub={
               progress
@@ -364,7 +364,7 @@ export function PeriodView({
             }
           />
           <StatTile
-            label="Categories used"
+            label={t("insights.categoriesUsed")}
             value={fmtNum(computed?.catCount ?? 0)}
             sub={spanLabel}
           />
@@ -396,7 +396,7 @@ export function PeriodView({
           </h3>
           <ShareBars
             rows={computed?.catShare ?? []}
-            emptyText="No entries in this period"
+            emptyText={t("insights.noEntriesInPeriod")}
             onSelect={(id) => {
               setSelectedCatId(id);
               detailRef.current?.scrollIntoView({
@@ -410,7 +410,7 @@ export function PeriodView({
         {/* Kategori detayı — bu dönem penceresine kısıtlı mod bazlı analiz */}
         {data && data.cats.length > 0 && selectedCat && (
           /* scroll-mt: yapışkan sayfa başlığının altında kalmasın — kaydırma
-             "Kategori Detayı" başlığını da kapsayacak kadar yukarıda dursun */
+             t("insights.categoryDetail") başlığını da kapsayacak kadar yukarıda dursun */
           <section ref={detailRef} className="mt-2 flex scroll-mt-32 flex-col gap-3">
             <div className="flex items-center justify-between gap-2 px-1">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -480,7 +480,7 @@ export function PeriodView({
         <EntryListSection
           title="All entries"
           rows={computed?.entryRows ?? []}
-          emptyText="No entries in this period"
+          emptyText={t("insights.noEntriesInPeriod")}
         />
       </div>
     </>

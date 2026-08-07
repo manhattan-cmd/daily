@@ -11,6 +11,7 @@ import {
   parseDTR,
 } from "@/components/forms/datetime-range-input";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { useLongPress } from "@/lib/use-long-press";
 import {
   SelectionLayer,
@@ -73,6 +74,7 @@ export function GoalCard({
   goal: GoalWithContext;
   selection?: EntrySelection;
 }) {
+  const t = useT();
   const [loading, setLoading] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
@@ -92,7 +94,7 @@ export function GoalCard({
   }
 
   async function handleDelete() {
-    if (!confirm("Delete this goal?")) return;
+    if (!confirm(t("goal.deleteConfirm"))) return;
     await deleteGoal(goal.id);
   }
 
@@ -118,7 +120,7 @@ export function GoalCard({
               ? "border-emerald-500 bg-emerald-500"
               : "border-border hover:border-primary active:scale-90"
           )}
-          aria-label={isCompleted ? "Completed — undo" : "Mark as completed"}
+          aria-label={isCompleted ? t("goal.completedUndo") : t("goal.markComplete")}
         >
           {isCompleted && <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />}
         </button>
@@ -166,14 +168,14 @@ export function GoalCard({
             <button
               onClick={() => setEditOpen(true)}
               className="h-7 w-7 flex items-center justify-center rounded-full text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-colors"
-              aria-label="Edit goal"
+              aria-label={t("goal.edit")}
             >
               <Pencil className="h-3.5 w-3.5" />
             </button>
             <button
               onClick={handleDelete}
               className="h-7 w-7 flex items-center justify-center rounded-full text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
-              aria-label="Hedefi sil"
+              aria-label={t("goal.delete")}
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>

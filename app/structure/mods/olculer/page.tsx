@@ -17,6 +17,7 @@ import {
   MeasureParticleCore,
 } from "@/components/structure/measure-particle";
 import { StructureTabs } from "@/components/structure/structure-tabs";
+import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +45,7 @@ type DialogState =
 type MeasureUsage = { modCount: number; modNames: string[]; valueCount: number };
 
 export default function OlculerPage() {
+  const t = useT();
   const types = useLiveQuery(() => listEntryTypes(), []);
   const [dialog, setDialog] = useState<DialogState>({ mode: "closed" });
   // Parçacığa dokununca açılan detay — düzenleme ve silme buradan
@@ -98,8 +100,8 @@ export default function OlculerPage() {
   return (
     <>
       <PageHeader
-        title="Structure"
-        description="Measures — how features are measured"
+        title={t("structure.title")}
+        description={t("measures.lead")}
         action={
           <Button
             size="sm"
@@ -239,6 +241,7 @@ function MeasureDialog({
   dialog: DialogState;
   onChange: (s: DialogState) => void;
 }) {
+  const t = useT();
   const open = dialog.mode !== "closed";
 
   return (
@@ -247,8 +250,8 @@ function MeasureDialog({
         {dialog.mode === "kind" && (
           <>
             <DialogHeader>
-              <DialogTitle className="text-base">New measure</DialogTitle>
-              <DialogDescription>Önce ilkel türünü seç</DialogDescription>
+              <DialogTitle className="text-base">{t("measures.new")}</DialogTitle>
+              <DialogDescription>{t("measures.pickBaseType")}</DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-2">
               {MEASURE_KINDS.map((kind) => {
@@ -298,6 +301,7 @@ function MeasureConfig({
   onBack: () => void;
   onDone: () => void;
 }) {
+  const t = useT();
   const meta = MEASURE_KIND_META[kind];
   const KindIcon = meta.icon;
   const [name, setName] = useState(editing?.name ?? "");
@@ -349,20 +353,20 @@ function MeasureConfig({
           <button
             onClick={onBack}
             className="h-6 w-6 -ml-1 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Back"
+            aria-label={t("action.back")}
           >
             <ArrowLeft className="h-3.5 w-3.5" />
           </button>
           <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
             <KindIcon className="h-3.5 w-3.5 text-primary" />
           </span>
-          {editing ? "Edit measure" : meta.label}
+          {editing ? t("measures.edit") : meta.label}
         </DialogTitle>
         <DialogDescription>{meta.hint}</DialogDescription>
       </DialogHeader>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="measure-name">Ölçü adı</Label>
+        <Label htmlFor="measure-name">{t("measures.name")}</Label>
         <Input
           id="measure-name"
           value={name}
@@ -380,7 +384,7 @@ function MeasureConfig({
 
       {kind === "number" && (
         <div className="flex flex-col gap-2">
-          <Label htmlFor="measure-unit">Birim</Label>
+          <Label htmlFor="measure-unit">{t("measures.unit")}</Label>
           <Input
             id="measure-unit"
             value={unit}
@@ -403,7 +407,7 @@ function MeasureConfig({
               id="measure-option"
               value={optionInput}
               onChange={(e) => setOptionInput(e.target.value)}
-              placeholder="Type an option, press Enter"
+              placeholder={t("measures.optionHint")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -417,7 +421,7 @@ function MeasureConfig({
               size="icon"
               onClick={addOption}
               disabled={!optionInput.trim()}
-              aria-label="Add option"
+              aria-label={t("measures.addOption")}
             >
               <Plus className="h-4 w-4" />
             </Button>
@@ -451,7 +455,7 @@ function MeasureConfig({
           İptal
         </Button>
         <Button onClick={handleSave} disabled={saving || !isValid}>
-          {editing ? "Save" : "Create"}
+          {editing ? t("action.save") : t("action.create")}
         </Button>
       </DialogFooter>
     </>

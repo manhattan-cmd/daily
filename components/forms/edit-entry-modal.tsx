@@ -48,6 +48,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
 import { SHORT_MONTHS } from "@/lib/analytics";
+import { useT } from "@/lib/i18n";
 import { AliasEditor } from "@/components/notes/alias-editor";
 import {
   DateTimeInput,
@@ -74,9 +75,13 @@ interface EditEntryModalProps {
 type Panel = "time" | "parallel" | "alias" | "regular" | "delete";
 
 /** Zaman satırının etiketi — gün girdinin günüyse yalnız saat, değilse gün de */
-function occurredAtLabel(occurredAt: string, entryDate: string): string {
+function occurredAtLabel(
+  occurredAt: string,
+  entryDate: string,
+  emptyLabel: string
+): string {
   const [d = "", t = ""] = occurredAt.split("T");
-  if (!t) return "Zaman";
+  if (!t) return emptyLabel;
   if (d === entryDate) return t;
   const dt = new Date(d + "T00:00:00");
   return `${SHORT_MONTHS[dt.getMonth()]} ${dt.getDate()} · ${t}`;
@@ -87,6 +92,7 @@ export function EditEntryModal({
   open,
   onOpenChange,
 }: EditEntryModalProps) {
+  const t = useT();
   const router = useRouter();
   const mods = useLiveQuery(
     () => listModifiersForTarget("subcategory", entry.subcategoryId),
@@ -272,7 +278,7 @@ export function EditEntryModal({
   const [deleting, setDeleting] = useState(false);
   const togglePanel = (p: Panel) => setPanel((cur) => (cur === p ? null : p));
 
-  // "Düzenli / sabit" alt kategori özelliğidir; canlı okunur ve anında yazılır
+  // t("entry.regular") alt kategori özelliğidir; canlı okunur ve anında yazılır
   const liveSub = useLiveQuery(
     () => db.subcategories.get(entry.subcategoryId),
     [entry.subcategoryId]
@@ -448,7 +454,7 @@ export function EditEntryModal({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto gap-5">
           {pStep ? (
-            /* Perspektif adımı — ekleme akışındaki "Kaydet ve devam" davranışı */
+            /* Perspektif adımı — ekleme akışındaki t("action.saveAndContinue") davranışı */
             <>
               <DialogHeader>
                 <div className="flex items-center gap-1.5">
@@ -479,8 +485,8 @@ export function EditEntryModal({
                       const display =
                         vt === "boolean"
                           ? carried === "true"
-                            ? "Yes"
-                            : "No"
+                            ? t("entry.yes")
+                            : t("entry.no")
                           : vt === "datetime-range"
                             ? formatDTRDisplay(carried)
                             : carried;
@@ -547,10 +553,10 @@ export function EditEntryModal({
                   className="bg-violet-600 hover:bg-violet-700"
                 >
                   {pSaving
-                    ? "Kaydediliyor..."
+                    ? t("entry.saving")
                     : pStep.index < pStep.total
-                      ? "Save and continue →"
-                      : "Save"}
+                      ? t("action.saveAndContinue")
+                      : t("action.save")}
                 </Button>
               </DialogFooter>
             </>
@@ -558,7 +564,7 @@ export function EditEntryModal({
             /* Perspektif seçici görünümü — aynı dialog içinde, üst üste dialog yok */
             <>
               <DialogHeader>
-                <DialogTitle>Paralel perspektif seç</DialogTitle>
+                <DialogTitle>{t("entry.pickParallel")}</DialogTitle>
                 <DialogDescription>
                   Bu girdiyi hangi kategoride de takip etmek istersin?
                 </DialogDescription>
@@ -592,10 +598,10 @@ export function EditEntryModal({
                   }}
                 >
                   {saving
-                    ? "Kaydediliyor..."
+                    ? t("entry.saving")
                     : newParallels.length
-                      ? "Continue →"
-                      : "Tamam"}
+                      ? t("action.continue")
+                      : t("action.gotIt")}
                 </Button>
               </DialogFooter>
             </>
@@ -638,46 +644,46 @@ export function EditEntryModal({
                   {
                     key: "time",
                     icon: Clock,
-                    title: "Zaman",
-                    subtitle: occurredAtLabel(occurredAt, entryDate),
+                    title: t("entry.time"),
+                    subtitle: occurredAtLabel(occurredAt, entryDate, t("entry.time")),
                     active: panel === "time",
                     onSelect: () => togglePanel("time"),
                   },
                   {
                     key: "parallel",
                     icon: Link2,
-                    title: "Paralel perspektif",
+                    title: t("entry.parallel"),
                     subtitle: totalParallels
                       ? `${totalParallels} perspektif`
-                      : "Also log in another category",
+                      : t("entry.alsoLog"),
                     active: panel === "parallel",
                     onSelect: () => togglePanel("parallel"),
                   },
                   {
                     key: "alias",
                     icon: Tags,
-                    title: "Takma adlar",
+                    title: t("entry.aliases"),
                     subtitle: aliases.length
                       ? aliases.join(", ")
-                      : "Words in notes that refer to this entry",
+                      : t("entry.aliasesHint"),
                     active: panel === "alias",
                     onSelect: () => togglePanel("alias"),
                   },
                   {
                     key: "regular",
                     icon: Repeat,
-                    title: "Regular / fixed",
+                    title: t("entry.regular"),
                     subtitle: isRegular
-                      ? "On — can be excluded from insights"
-                      : "Off",
+                      ? t("entry.regularOn")
+                      : t("entry.regularOff"),
                     active: panel === "regular",
                     onSelect: () => togglePanel("regular"),
                   },
                   {
                     key: "delete",
                     icon: Trash2,
-                    title: "Girdiyi sil",
-                    subtitle: "Together with its values; cannot be undone",
+                    title: t("entry.delete"),
+                    subtitle: t("entry.deleteHint"),
                     tone: "destructive",
                     active: panel === "delete",
                     onSelect: () => togglePanel("delete"),
@@ -731,7 +737,7 @@ export function EditEntryModal({
             {panel === "time" && (
               <PanelBlock
                 icon={Clock}
-                title="Zaman"
+                title={t("entry.time")}
                 onClose={() => setPanel(null)}
               >
                 <DateTimeInput value={occurredAt} onChange={setOccurredAt} />
@@ -741,7 +747,7 @@ export function EditEntryModal({
             {panel === "parallel" && (
               <PanelBlock
                 icon={Link2}
-                title="Paralel perspektif"
+                title={t("entry.parallel")}
                 onClose={() => setPanel(null)}
               >
                 <div className="flex flex-col gap-2">
@@ -804,7 +810,7 @@ export function EditEntryModal({
                     className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-violet-500/30 py-2.5 text-sm font-medium text-violet-300/80 transition-colors hover:border-violet-500/50 hover:text-violet-200"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    {totalParallels > 0 ? "Another perspective" : "Pick a perspective"}
+                    {totalParallels > 0 ? t("entry.anotherPerspective") : t("entry.pickPerspective")}
                   </button>
                 </div>
               </PanelBlock>
@@ -813,7 +819,7 @@ export function EditEntryModal({
             {panel === "alias" && (
               <PanelBlock
                 icon={Tags}
-                title="Takma adlar"
+                title={t("entry.aliases")}
                 onClose={() => setPanel(null)}
               >
                 <AliasEditor aliases={aliases} onChange={setAliases} />
@@ -823,7 +829,7 @@ export function EditEntryModal({
             {panel === "regular" && (
               <PanelBlock
                 icon={Repeat}
-                title="Regular / fixed"
+                title={t("entry.regular")}
                 onClose={() => setPanel(null)}
               >
                 <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-input px-3 py-2.5">
@@ -853,7 +859,7 @@ export function EditEntryModal({
             {panel === "delete" && (
               <PanelBlock
                 icon={Trash2}
-                title="Girdiyi sil"
+                title={t("entry.delete")}
                 onClose={() => setPanel(null)}
               >
                 <div className="rounded-xl border border-destructive/30 bg-destructive/[0.07] p-3">
@@ -888,7 +894,7 @@ export function EditEntryModal({
                         }
                       }}
                     >
-                      {deleting ? "Deleting..." : "Delete"}
+                      {deleting ? t("entry.deleting") : t("action.delete")}
                     </Button>
                   </div>
                 </div>
@@ -908,7 +914,7 @@ export function EditEntryModal({
                 id="edit-entry-note"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Bu girdiyle ilgili bir not..."
+                placeholder={t("entry.notePlaceholder")}
                 rows={2}
                 className="w-full resize-none rounded-xl border border-border bg-input px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
               />
@@ -927,7 +933,7 @@ export function EditEntryModal({
                   const label =
                     (n.title ?? "").trim() ||
                     n.blocks.map((b) => b.text.trim()).find(Boolean) ||
-                    "Not";
+                    t("entry.note");
                   return (
                     <Link
                       key={n.id}
@@ -956,10 +962,10 @@ export function EditEntryModal({
             </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving
-                ? "Kaydediliyor..."
+                ? t("entry.saving")
                 : newParallels.length > 0
-                  ? "Save and continue →"
-                  : "Save"}
+                  ? t("action.saveAndContinue")
+                  : t("action.save")}
             </Button>
           </DialogFooter>
             </>
@@ -1027,6 +1033,7 @@ function ModInput({
   /** Yeni eklenen özellik: alan görünüme kaydırılır, yazı alanları odaklanır */
   autoFocus?: boolean;
 }) {
+  const t = useT();
   const vt = entryType.valueType ?? "number";
   const today = toLocalDateValue();
   const scrolledRef = useRef(false);
@@ -1059,7 +1066,7 @@ function ModInput({
               type="button"
               onClick={onRemove}
               className="rounded-md p-0.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
-              aria-label="Remove from this entry"
+              aria-label={t("entry.removeFromEntry")}
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -1083,7 +1090,7 @@ function ModInput({
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Metin gir..."
+          placeholder={t("entry.textPlaceholder")}
           autoFocus={autoFocus}
         />
       )}
@@ -1099,7 +1106,7 @@ function ModInput({
               : "border-border bg-input text-muted-foreground"
           )}
         >
-          {value === "true" ? "Yes" : "No"}
+          {value === "true" ? t("entry.yes") : t("entry.no")}
         </button>
       )}
 
