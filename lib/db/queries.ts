@@ -2146,6 +2146,84 @@ export async function deleteGoal(goalId: string): Promise<string> {
   return deleteGoals([goalId], batchId);
 }
 
+export interface SearchFilters {
+  /** Serbest metin — başlık, not, takma ad ve kalem/kategori adında aranır */
+  query: string;
+  /** Yalnızca bu kategorinin alt ağacı */
+  categoryId?: string;
+  /** [from, to) — yerel gün sınırlarıyla verilmeli */
+  from?: number;
+  to?: number;
+  limit?: number;
+}
+
+/**
+ * Girdi araması.
+ *
+ * Metin eşleşmesi iki yoldan olur: girdinin KENDİ metni (başlık, not, takma ad)
+ * ya da ait olduğu kalemin/kategorinin adı — "kahve" yazınca hem başlığında
+ * kahve geçen girdiler hem de Kafe kalemindekiler gelsin diye.
+ *
+ * Ad eşleşmesi önce küçük tablolarda (kategoriler, alt kategoriler) yapılır;
+ * girdiler occurredAt indeksinde yeniden eskiye taranır ve limit dolunca durur.
+ * Böylece tüm girdi tablosu belleğe alınmaz.
+ */
+export async function searchEntries(
+  filters: SearchFilters
+): Promise<EntryWithContext[]> {
+  const limit = filters.limit ?? 100;
+  const q = filters.query.trim().toLocaleLowerCase("en-US");
+
+  const [cats, subs] = await Promise.all([
+    db.categories.toArray(),
+    db.subcategories.toArray(),
+  ]);
+  const catById = new Map(cats.map((c) => [c.id, c]));
+
+  // Kapsam: kategori seçiliyse onun tüm alt ağacı
+  let scopeIds: Set<string> | null = null;
+  if (filters.categoryId) {
+    scopeIds = new Set(
+      subs.filter((s) => s.categoryId === filters.categoryId).map((s) => s.id)
+    );
+  }
+
+  // Adı sorguyla eşleşen kalemler — bu kalemlerin TÜM girdileri sonuçtadır
+  const nameMatched = new Set<string>();
+  if (q) {
+    for (const s of subs) {
+      const cat = catById.get(s.categoryId);
+      const hay = `${s.isCategoryRoot ? "" : s.name} ${cat?.name ?? ""}`
+        .toLocaleLowerCase("en-US");
+      if (hay.includes(q)) nameMatched.add(s.id);
+    }
+  }
+
+  const textOf = (e: Entry) =>
+    `${e.title ?? ""} ${e.notes ?? ""} ${(e.aliases ?? []).join(" ")}`
+      .toLocaleLowerCase("en-US");
+
+  const found: Entry[] = [];
+  const from = filters.from;
+  const to = filters.to;
+  let coll = db.entries.orderBy("occurredAt").reverse();
+  if (from !== undefined || to !== undefined) {
+    coll = db.entries
+      .where("occurredAt")
+      .between(from ?? -Infinity, to ?? Infinity, true, false)
+      .reverse();
+  }
+  await coll.until(() => found.length >= limit).each((e) => {
+    if (found.length >= limit) return;
+    if (scopeIds && !scopeIds.has(e.subcategoryId)) return;
+    if (q && !nameMatched.has(e.subcategoryId) && !textOf(e).includes(q)) return;
+    found.push(e);
+  });
+
+  found.sort((a, b) => b.occurredAt - a.occurredAt);
+  return hydrateEntries(found);
+}
+
 async function hydrateEntries(entries: Entry[]): Promise<EntryWithContext[]> {
   if (!entries.length) return [];
   const subIds = [...new Set(entries.map((e) => e.subcategoryId))];

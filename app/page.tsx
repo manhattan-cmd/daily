@@ -7,6 +7,7 @@ import {
   ArrowRight,
   PenLine,
   Plus,
+  Search,
   Settings,
   Sparkles,
   Target,
@@ -58,6 +59,13 @@ export default function HomePage() {
             {longDate(locale)}
           </h1>
         </div>
+        <Link
+          href="/search"
+          aria-label={t("search.title")}
+          className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Search className="h-4 w-4" />
+        </Link>
         <Link
           href="/settings"
           aria-label={t("nav.settings")}

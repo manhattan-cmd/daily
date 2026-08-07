@@ -366,6 +366,21 @@ export const en = {
   "selection.targetDate": "Target date",
   "datetime.hour": "Hour",
 
+  // ── Arama ────────────────────────────────────────────────────────────
+  "search.title": "Search",
+  "search.lead": "Find your entries",
+  "search.placeholder": "Title, note, category…",
+  "search.allCategories": "All",
+  "search.rangeAll": "All time",
+  "search.rangeYear": "This year",
+  "search.rangeMonth": "This month",
+  "search.results": "Results",
+  "search.empty": "No matching entries",
+  "search.emptyHint": "Try a different word, or widen the date range.",
+  "search.start": "Search your entries",
+  "search.startHint": "Search by title, note, category or subcategory name.",
+  "search.limitNote": "Showing the {n} most recent matches",
+
   // ── Ayarlar ──────────────────────────────────────────────────────────
   "settings.title": "Settings",
   "settings.lead": "Data, backup and app",
@@ -739,6 +754,20 @@ export const tr: Record<MessageKey, string> = {
   "structure.notesLead": "Notlar — günce, bağlar ve harita",
   "selection.targetDate": "Hedef tarih",
   "datetime.hour": "Saat",
+
+  "search.title": "Ara",
+  "search.lead": "Girdilerini bul",
+  "search.placeholder": "Başlık, not, kategori…",
+  "search.allCategories": "Tümü",
+  "search.rangeAll": "Tüm zamanlar",
+  "search.rangeYear": "Bu yıl",
+  "search.rangeMonth": "Bu ay",
+  "search.results": "Sonuçlar",
+  "search.empty": "Eşleşen girdi yok",
+  "search.emptyHint": "Başka bir kelime dene ya da tarih aralığını genişlet.",
+  "search.start": "Girdilerinde ara",
+  "search.startHint": "Başlık, not, kategori ya da alt kategori adıyla ara.",
+  "search.limitNote": "En yeni {n} eşleşme gösteriliyor",
 
   "settings.title": "Ayarlar",
   "settings.lead": "Veri, yedek ve uygulama",
