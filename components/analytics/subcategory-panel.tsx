@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useT } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import {
   bucketAncestorId,
@@ -53,6 +54,7 @@ export function SubcategoryPanel({
   /** URL'den gelen başlangıç metriği: "count" ya da bir mod id'si — üst sayfadaki seçimi devam ettirir */
   initialMetricId?: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const [shareRange, setShareRange] = useState<RangeKey>(range);
   const shareRangeStart = useMemo(
@@ -244,7 +246,7 @@ export function SubcategoryPanel({
 
       <div className="grid grid-cols-3 gap-2">
         <StatTile
-          label="Today"
+          label={t("stat.today")}
           value={fmtNum(computed.today.value)}
           unit={metricLabel}
           sub={
@@ -253,7 +255,7 @@ export function SubcategoryPanel({
           }
         />
         <StatTile
-          label="This week"
+          label={t("stat.thisWeek")}
           value={fmtNum(computed.week.value)}
           unit={metricLabel}
           sub={
@@ -262,7 +264,7 @@ export function SubcategoryPanel({
           }
         />
         <StatTile
-          label="This month"
+          label={t("stat.thisMonth")}
           value={fmtNum(computed.month.value)}
           unit={metricLabel}
           sub={
@@ -323,7 +325,7 @@ export function SubcategoryPanel({
       </div>
 
       <EntryListSection
-        title="Entry list"
+        title={t("list.entryList")}
         accent={category.color}
         rows={computed.entryRows}
         emptyText={

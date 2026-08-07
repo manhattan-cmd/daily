@@ -26,6 +26,7 @@ import {
 import { MEASURE_KIND_META } from "@/lib/measure-kinds";
 import { ModAtom, modAtomIcon } from "@/components/structure/mod-atom";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 /**
  * Mod ekleme: havuzdaki atomlardan seç ya da yeni atom yarat (isim tekildir).
@@ -50,6 +51,7 @@ export function ModPickDialog({
    * girdi kartı akışı bunu değer sorma adımına bağlar */
   onAttached?: (mod: ModWithType) => void;
 }) {
+  const t = useT();
   const [mode, setMode] = useState<"pick" | "create">("pick");
   const [name, setName] = useState("");
   const [measureId, setMeasureId] = useState<string | null>(null);
@@ -151,7 +153,7 @@ export function ModPickDialog({
               <button
                 onClick={() => { setMode("pick"); setError(null); setExistingId(null); }}
                 className="h-6 w-6 -ml-1 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Havuza dön"
+                aria-label={t("form.backToPool")}
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
               </button>
@@ -207,7 +209,7 @@ export function ModPickDialog({
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search features..."
+                  placeholder={t("features.searchPlaceholder")}
                   autoFocus
                   className="h-9 pl-9 pr-8"
                 />
@@ -215,7 +217,7 @@ export function ModPickDialog({
                   <button
                     onClick={() => setSearch("")}
                     className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground/60 hover:text-foreground transition-colors"
-                    aria-label="Clear search"
+                    aria-label={t("features.clearSearch")}
                   >
                     <X className="h-3 w-3" />
                   </button>

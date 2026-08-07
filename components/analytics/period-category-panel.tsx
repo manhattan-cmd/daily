@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useT } from "@/lib/i18n";
 import Link from "next/link";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import {
@@ -44,6 +45,7 @@ export function PeriodCategoryPanel({
   category: Category;
   period: Period;
 }) {
+  const t = useT();
   // Kırılımdan derine inme — dönemin İÇİNDE kalır. Eskiden alt kategori
   // sayfasına gidiliyordu; o sayfa "şimdi"ye göreli çalıştığından geçmiş bir
   // dönemden tıklandığında sessizce tüm zamanları gösteriyordu.
@@ -270,7 +272,7 @@ export function PeriodCategoryPanel({
           <button
             type="button"
             onClick={() => setPath(path.slice(0, -1))}
-            aria-label="Back to the level above"
+            aria-label={t("insights.backLevel")}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/8 text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -340,19 +342,19 @@ export function PeriodCategoryPanel({
       {metric.type === "count" ? (
         isDay ? (
           <StatTile
-            label="Entries"
+            label={t("insights.entries")}
             value={fmtNum(computed.withValueCount)}
             sub={period.label}
           />
         ) : (
           <div className="grid grid-cols-2 gap-2">
             <StatTile
-              label="Entries"
+              label={t("insights.entries")}
               value={fmtNum(computed.withValueCount)}
               sub={dayCountLabel}
             />
             <StatTile
-              label="Daily average"
+              label={t("stat.dailyAverage")}
               value={fmtNum(computed.dailyAvg)}
               unit="entries"
               sub={`${progress.elapsedDays} days`}
@@ -363,7 +365,7 @@ export function PeriodCategoryPanel({
         <div className="grid grid-cols-3 gap-2">
           {compute.displayMode === "both" && (
             <StatTile
-              label="Total"
+              label={t("stat.total")}
               value={fmtNum(computed.total)}
               unit={unit}
               // Ortalama zaten yandaki kutuda; burada hangi aralığın toplamı
@@ -373,21 +375,21 @@ export function PeriodCategoryPanel({
           )}
           {compute.displayMode === "both" && !isDay ? (
             <StatTile
-              label="Daily average"
+              label={t("stat.dailyAverage")}
               value={fmtNum(computed.dailyAvg)}
               unit={unit}
               sub={`${progress.elapsedDays} days`}
             />
           ) : (
             <StatTile
-              label="Average"
+              label={t("stat.average")}
               value={fmtNum(computed.avg)}
               unit={unit}
               sub="per entry"
             />
           )}
           <StatTile
-            label="Entries"
+            label={t("insights.entries")}
             value={fmtNum(computed.withValueCount)}
             sub={dayCountLabel}
           />

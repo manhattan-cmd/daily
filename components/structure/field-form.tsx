@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/i18n";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +59,7 @@ export function FieldForm({
   field,
   onSaved,
 }: FieldFormProps) {
+  const t = useT();
   const isEdit = !!field;
   const [name, setName] = useState(field?.name ?? "");
   const [type, setType] = useState<FieldType>(field?.type ?? "number");
@@ -196,7 +198,7 @@ export function FieldForm({
           )}
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="field-name">İsim</Label>
+            <Label htmlFor="field-name">{t("form.name")}</Label>
             <Input
               id="field-name"
               value={name}
@@ -207,7 +209,7 @@ export function FieldForm({
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label>Tip</Label>
+            <Label>{t("form.type")}</Label>
             <Select value={type} onValueChange={(v) => setType(v as FieldType)}>
               <SelectTrigger>
                 <SelectValue />
@@ -224,7 +226,7 @@ export function FieldForm({
 
           {type === "number" ? (
             <div className="flex flex-col gap-2">
-              <Label htmlFor="field-unit">Birim (opsiyonel)</Label>
+              <Label htmlFor="field-unit">{t("form.unit")}</Label>
               <Input
                 id="field-unit"
                 value={unit}
@@ -236,7 +238,7 @@ export function FieldForm({
 
           {type === "money" ? (
             <div className="flex flex-col gap-2">
-              <Label htmlFor="field-currency">Para birimi</Label>
+              <Label htmlFor="field-currency">{t("form.currency")}</Label>
               <Input
                 id="field-currency"
                 value={currency}
@@ -248,7 +250,7 @@ export function FieldForm({
 
           {type === "select" ? (
             <div className="flex flex-col gap-2">
-              <Label htmlFor="field-choices">Seçenekler</Label>
+              <Label htmlFor="field-choices">{t("form.options")}</Label>
               <Input
                 id="field-choices"
                 value={choicesText}

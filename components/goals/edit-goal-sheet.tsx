@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { ENTRY_VALUE_TYPE_LABELS } from "@/types";
 import type { GoalWithContext, EntryType } from "@/types";
 
@@ -28,6 +29,7 @@ interface EditGoalSheetProps {
 }
 
 export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
+  const tr = useT();
   const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>(
     () => goal.targets.map((t) => t.entryTypeId)
   );
@@ -68,9 +70,9 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
   }
 
   function isValueValid(typeId: string): boolean {
-    const type = typeMap.get(typeId);
+    const t = typeMap.get(typeId);
     const val = targetValues[typeId] ?? "";
-    if (type?.valueType === "datetime-range") {
+    if (t?.valueType === "datetime-range") {
       try {
         const { start, end } = JSON.parse(val);
         return !!(start || end);
@@ -139,7 +141,7 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
           <button
             onClick={onClose}
             className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors shrink-0"
-            aria-label="Close"
+            aria-label={tr("action.close")}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -263,7 +265,7 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
                           type="button"
                           onClick={() => toggleType(typeId)}
                           className="text-muted-foreground/40 hover:text-destructive transition-colors"
-                          aria-label="Remove"
+                          aria-label={tr("action.remove")}
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -295,7 +297,7 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
                               [typeId]: e.target.value,
                             }))
                           }
-                          placeholder="Enter a target value..."
+                          placeholder={tr("goal.targetPlaceholder")}
                         />
                       )}
 

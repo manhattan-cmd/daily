@@ -21,6 +21,7 @@ import {
 } from "@/lib/db/queries";
 import { EmojiPicker } from "@/components/structure/icon-picker";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 /** Bilinen üst alt kategorilere özel öneriler — "Market altına ne açılır?" */
 const NESTED_PRESETS: Record<string, string[]> = {
@@ -85,6 +86,7 @@ export function SubCategoryForm({
   onSaved,
 }: SubCategoryFormProps) {
   const isEdit = !!subcategory;
+  const t = useT();
   const [name, setName] = useState(subcategory?.name ?? "");
   const [icon, setIcon] = useState<string | undefined>(subcategory?.icon);
   const [isRegular, setIsRegular] = useState(!!subcategory?.isRegular);
@@ -265,7 +267,7 @@ export function SubCategoryForm({
 
   const iconSection = (
     <div className="flex flex-col gap-2">
-      <p className="text-xs text-muted-foreground">Sembol (isteğe bağlı)</p>
+      <p className="text-xs text-muted-foreground">{t("tree.icon")}</p>
       <EmojiPicker value={icon} onChange={setIcon} />
     </div>
   );
@@ -298,7 +300,7 @@ export function SubCategoryForm({
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Alt kategori adı"
+              placeholder={t("form.subcategoryName")}
               autoFocus
             />
             {iconSection}
@@ -318,7 +320,7 @@ export function SubCategoryForm({
             {/* Konum — başka bir kategorinin/alt kategorinin altına taşı */}
             {location && tree && (
               <div className="flex flex-col gap-2">
-                <p className="text-xs text-muted-foreground">Konum</p>
+                <p className="text-xs text-muted-foreground">{t("form.position")}</p>
                 <button
                   type="button"
                   onClick={() => setLocationOpen((v) => !v)}
@@ -396,7 +398,7 @@ export function SubCategoryForm({
             {/* Dominant custom input */}
             <form onSubmit={onSubmit} className="flex flex-col gap-3">
               {presets.length > 0 && (
-                <p className="text-xs text-muted-foreground">veya kendin yaz</p>
+                <p className="text-xs text-muted-foreground">{t("form.orWriteYourOwn")}</p>
               )}
               <Input
                 value={name}

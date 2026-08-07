@@ -21,6 +21,7 @@ import {
   type SeriesFrame,
 } from "@/lib/analytics";
 import { formatDate, formatTime } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatTile } from "@/components/analytics/stat-tile";
 import { MetricChips } from "@/components/analytics/metric-chips";
@@ -42,6 +43,7 @@ export default function ActivityAnalyticsPage({
 }: {
   params: Promise<{ name: string }>;
 }) {
+  const t = useT();
   const { name: rawName } = use(params);
   const name = decodeURIComponent(rawName);
   const [metricChoice, setMetricChoice] = useState<Metric | null>(null);
@@ -208,7 +210,7 @@ export default function ActivityAnalyticsPage({
 
   return (
     <>
-      <PageHeader title={name} description="Aktivite Analizi" back="/analytics" />
+      <PageHeader title={name} description={t("activity.insights")} back="/analytics" />
 
       {data && data.activities.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">

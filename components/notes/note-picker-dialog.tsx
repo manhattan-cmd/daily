@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useT } from "@/lib/i18n";
 import { useLiveQuery } from "dexie-react-hooks";
 import { FileText, Plus, Search, X } from "lucide-react";
 import { listAllNotes } from "@/lib/db/queries";
@@ -24,7 +25,7 @@ function noteTitle(n: Note): string {
 }
 
 /**
- * "Not bağla" — seçili öbeği YENİ bir nota (başlığı öbek) ya da VAR OLAN bir
+ * t("note.linkNote") — seçili öbeği YENİ bir nota (başlığı öbek) ya da VAR OLAN bir
  * nota bağlamak için. Üstte yeni-not seçeneği, altında aranabilir not listesi.
  */
 export function NotePickerDialog({
@@ -42,6 +43,7 @@ export function NotePickerDialog({
   onCreate: () => void;
   onPick: (note: Note) => void;
 }) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const notes = useLiveQuery(() => listAllNotes(), []);
 
@@ -92,7 +94,7 @@ export function NotePickerDialog({
             <button
               onClick={() => setQuery("")}
               className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground/60 hover:text-foreground"
-              aria-label="Temizle"
+              aria-label={t("form.clear")}
             >
               <X className="h-3 w-3" />
             </button>

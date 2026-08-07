@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { LifeGraph, LifeNode } from "@/lib/life-graph";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -42,6 +43,7 @@ type SimNode = { x: number; y: number; vx: number; vy: number };
  * kullanıcının kendi kurduğu bağlardır. [[app-vision]]
  */
 export function LifeMap({ graph }: { graph: LifeGraph }) {
+  const t = useT();
   // Filtre & odak
   const [search, setSearch] = useState("");
   const [showNotes, setShowNotes] = useState(true);
@@ -505,7 +507,7 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
               ? "bg-primary/15 text-primary"
               : "bg-card/85 text-muted-foreground"
           )}
-          aria-label="Map settings"
+          aria-label={t("map.settings")}
         >
           <SlidersHorizontal className="h-4 w-4" />
         </button>
@@ -530,7 +532,7 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
             </div>
             {focusId && (
               <div className="mt-2 flex items-center gap-1.5 border-t border-border/60 pt-2">
-                <span className="text-[11px] text-muted-foreground">Derinlik</span>
+                <span className="text-[11px] text-muted-foreground">{t("map.depth")}</span>
                 {[1, 2].map((d) => (
                   <button
                     key={d}
@@ -555,10 +557,10 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
             )}
             {/* Kuvvetler — Obsidian'daki gibi */}
             <div className="mt-2 flex flex-col gap-1.5 border-t border-border/60 pt-2">
-              <Slider label="Repulsion" min={0.2} max={3} step={0.1} value={repel} onChange={setRepel} />
-              <Slider label="Link length" min={30} max={160} step={5} value={linkDist} onChange={setLinkDist} />
+              <Slider label={t("map.repulsion")} min={0.2} max={3} step={0.1} value={repel} onChange={setRepel} />
+              <Slider label={t("map.linkLength")} min={30} max={160} step={5} value={linkDist} onChange={setLinkDist} />
               <Slider label="Merkez kuvveti" min={0} max={3} step={0.1} value={centerF} onChange={setCenterF} />
-              <Slider label="Label visibility" min={0.4} max={2} step={0.1} value={textFade} onChange={setTextFade} />
+              <Slider label={t("map.textVisibility")} min={0.4} max={2} step={0.1} value={textFade} onChange={setTextFade} />
             </div>
           </div>
         )}
@@ -624,7 +626,7 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
                 setSelectedId(null);
               }}
               className="rounded-full p-1 text-muted-foreground/70 hover:text-foreground"
-              aria-label="Close"
+              aria-label={t("action.close")}
             >
               <X className="h-4 w-4" />
             </button>

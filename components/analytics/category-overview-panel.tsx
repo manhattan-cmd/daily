@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useT } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import {
   bucketAncestorId,
@@ -35,6 +36,7 @@ const ENTRY_LIST_LIMIT = 50;
  * seriler), gelişim (son 4 hafta vs önceki 4 hafta), trend, kırılım, girdiler.
  */
 export function CategoryOverviewPanel({ category }: { category: Category }) {
+  const t = useT();
   const router = useRouter();
   const [excludeRegular, setExcludeRegular] = useExcludeRegular();
   const { data, metric, setMetricChoice, compute } = useCategoryMetrics({
@@ -206,12 +208,12 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       {metric.type === "count" ? (
         <div className="grid grid-cols-2 gap-2">
           <StatTile
-            label="Entries"
+            label={t("insights.entries")}
             value={fmtNum(computed.withValueCount)}
             sub="all time"
           />
           <StatTile
-            label="Daily average"
+            label={t("stat.dailyAverage")}
             value={fmtNum(computed.dailyAvg)}
             unit="entries"
             sub={`${computed.elapsedDays} days`}
@@ -221,7 +223,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         <div className="grid grid-cols-3 gap-2">
           {compute.displayMode === "both" && (
             <StatTile
-              label="Total"
+              label={t("stat.total")}
               value={fmtNum(computed.total)}
               unit={unit}
               sub="all time"
@@ -229,21 +231,21 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
           )}
           {compute.displayMode === "both" ? (
             <StatTile
-              label="Daily average"
+              label={t("stat.dailyAverage")}
               value={fmtNum(computed.dailyAvg)}
               unit={unit}
               sub={`${computed.elapsedDays} days`}
             />
           ) : (
             <StatTile
-              label="Average"
+              label={t("stat.average")}
               value={fmtNum(computed.avg)}
               unit={unit}
               sub="per entry"
             />
           )}
           <StatTile
-            label="Entries"
+            label={t("insights.entries")}
             value={fmtNum(computed.withValueCount)}
             sub={`${computed.elapsedDays} days`}
           />
@@ -257,7 +259,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         </h3>
         <div className="grid grid-cols-3 gap-2">
           <StatTile
-            label="Active days"
+            label={t("insights.activeDays")}
             value={`%${fmtNum(computed.activeRatio)}`}
             sub={`${computed.activeDayCount}/${computed.elapsedDays} gün`}
           />
