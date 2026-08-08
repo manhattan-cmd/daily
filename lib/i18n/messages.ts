@@ -268,6 +268,8 @@ export const en = {
   "list.entry": "Entry",
   "list.entryList": "Entry list",
   "list.showMore": "Show more",
+  "list.searchInList": "Search in this list",
+  "list.searchPlaceholder": "Filter these entries…",
 
   // ── Analiz ortak ─────────────────────────────────────────────────────
   "stat.total": "Total",
@@ -696,6 +698,8 @@ export const tr: Record<MessageKey, string> = {
   "list.entry": "Girdi",
   "list.entryList": "Girdi Listesi",
   "list.showMore": "Daha fazla göster",
+  "list.searchInList": "Bu listede ara",
+  "list.searchPlaceholder": "Bu girdileri süz…",
 
   "stat.total": "Toplam",
   "stat.average": "Ortalama",

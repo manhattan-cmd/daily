@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { db } from "./index";
 import { logDeletions, newBatchId } from "./deletions";
 import { toLocalDateValue } from "@/lib/utils";
+import { matchesSearch, normalizeSearch } from "@/lib/search";
 import type {
   Activity,
   Category,
@@ -2163,7 +2164,9 @@ export async function searchEntries(
   filters: SearchFilters
 ): Promise<EntryWithContext[]> {
   const limit = filters.limit ?? 100;
-  const q = filters.query.trim().toLocaleLowerCase("en-US");
+  // Karşılaştırma kuralı lib/search.ts'te — liste içi süzme de aynısını
+  // kullanıyor ki aynı sorgu iki yerde farklı sonuç vermesin
+  const q = normalizeSearch(filters.query.trim());
 
   const [cats, subs] = await Promise.all([
     db.categories.toArray(),
@@ -2184,15 +2187,13 @@ export async function searchEntries(
   if (q) {
     for (const s of subs) {
       const cat = catById.get(s.categoryId);
-      const hay = `${s.isCategoryRoot ? "" : s.name} ${cat?.name ?? ""}`
-        .toLocaleLowerCase("en-US");
-      if (hay.includes(q)) nameMatched.add(s.id);
+      const hay = `${s.isCategoryRoot ? "" : s.name} ${cat?.name ?? ""}`;
+      if (matchesSearch(hay, q)) nameMatched.add(s.id);
     }
   }
 
   const textOf = (e: Entry) =>
-    `${e.title ?? ""} ${e.notes ?? ""} ${(e.aliases ?? []).join(" ")}`
-      .toLocaleLowerCase("en-US");
+    `${e.title ?? ""} ${e.notes ?? ""} ${(e.aliases ?? []).join(" ")}`;
 
   const found: Entry[] = [];
   const from = filters.from;
@@ -2207,7 +2208,8 @@ export async function searchEntries(
   await coll.until(() => found.length >= limit).each((e) => {
     if (found.length >= limit) return;
     if (scopeIds && !scopeIds.has(e.subcategoryId)) return;
-    if (q && !nameMatched.has(e.subcategoryId) && !textOf(e).includes(q)) return;
+    if (q && !nameMatched.has(e.subcategoryId) && !matchesSearch(textOf(e), q))
+      return;
     found.push(e);
   });
 

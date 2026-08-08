@@ -163,7 +163,13 @@ export default function SearchPage() {
         />
       ) : (
         <div className="pb-6">
-          <EntryListSection title={t("search.results")} rows={rows} />
+          {/* Sonucun içinde ikinci bir arama kutusu kafa karıştırır —
+              daraltma yukarıdaki alanla yapılır */}
+          <EntryListSection
+            title={t("search.results")}
+            rows={rows}
+            searchable={false}
+          />
           {rows.length >= LIMIT && (
             <p className="mt-2 px-1 text-[11px] text-muted-foreground/60">
               {t("search.limitNote", { n: LIMIT })}

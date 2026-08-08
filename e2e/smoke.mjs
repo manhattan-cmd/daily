@@ -368,6 +368,9 @@ async function search(browser) {
   eq("kalem adı da eşleşiyor", await rows(), 2);
   await type("zzzz");
   eq("eşleşme yoksa boş", await rows(), 0);
+  // Not "üçüncü dalga kahve" — kimse aramada şapka yazmak zorunda kalmasın
+  await type("ucuncu");
+  eq("aksansız sorgu şapkalı notu buluyor", await rows(), 1);
 
   await type("cafe");
   await page.getByRole("button", { name: /This month|Bu ay/ }).click();
@@ -375,6 +378,83 @@ async function search(browser) {
   eq("tarih aralığı süzüyor", await rows(), 1);
 
   check("arama: sayfa hatası yok", errors.length === 0, errors.join(" | "));
+  await page.close();
+}
+
+// ─── 5. Liste içi arama ──────────────────────────────────────────────────────
+/**
+ * Girdi listelerinin kendi büyüteci — /search'ten farkı kapsamı: yalnız
+ * bakılan kalemin girdilerini süzer. Aksan duyarsızlığı burada da sınanıyor
+ * çünkü kural (lib/search.ts) iki aramada da ortak.
+ */
+async function listSearch(browser) {
+  const { page, errors } = await openApp(browser);
+
+  // Eşik 8 satır — altında büyüteç bilerek çıkmaz
+  await seedEntries(
+    page,
+    "Cafe",
+    [
+      "İstanbul kahvesi", "Işık Kafe", "Kronotrop", "Petra",
+      "Öğle molası", "Sabah espresso", "Filtre kahve", "Latte",
+      "Cortado", "Türk kahvesi",
+    ].map((title, i) => ({ title, daysAgo: i }))
+  );
+  const catId = await page.evaluate(async () => {
+    const db = await new Promise((res) => {
+      const r = indexedDB.open("RoutineDB");
+      r.onsuccess = () => res(r.result);
+    });
+    const subs = await new Promise((res) => {
+      const r = db.transaction("subcategories").objectStore("subcategories").getAll();
+      r.onsuccess = () => res(r.result);
+    });
+    return subs.find((s) => s.name === "Cafe")?.categoryId;
+  });
+
+  await page.goto(`${BASE}/analytics/${catId}`);
+  await page.waitForTimeout(2600);
+  await page.mouse.move(195, 500);
+  await page.mouse.wheel(0, 8000);
+  await page.waitForTimeout(900);
+
+  /** Süzülen/toplam rozeti — "3/10" ya da "10" */
+  const badge = () =>
+    page.evaluate(() => {
+      const h = [...document.querySelectorAll("h3")].find((x) =>
+        /Recent entries/i.test(x.textContent)
+      );
+      return h?.querySelector("span")?.textContent ?? null;
+    });
+
+  const toggle = page.getByRole("button", { name: "Search in this list" });
+  eq("analiz listesinde büyüteç var", await toggle.count(), 1);
+  await toggle.first().click();
+  await page.waitForTimeout(400);
+
+  const box = page.locator('input[placeholder="Filter these entries…"]');
+  const type = async (q) => {
+    await box.fill(q);
+    await page.waitForTimeout(600);
+  };
+
+  await type("kahve");
+  eq("liste içi süzme çalışıyor", await badge(), "3/10");
+  // Kullanıcı "İ" ve "ı" yazmak zorunda kalmasın
+  await type("istanbul");
+  eq("aksansız sorgu İ'yi buluyor", await badge(), "1/10");
+  await type("isik");
+  eq("aksansız sorgu ı/ş'yi buluyor", await badge(), "1/10");
+  await type("zzzz");
+  eq("eşleşme yoksa liste boş", await badge(), "0/10");
+
+  // Kapatmak süzgeci kaldırmalı — süzülü liste eksik veri sanılır
+  await toggle.first().click();
+  await page.waitForTimeout(500);
+  eq("kapatınca süzgeç kalkıyor", await badge(), "10");
+  eq("kapatınca kutu gidiyor", await box.count(), 0);
+
+  check("liste içi arama: sayfa hatası yok", errors.length === 0, errors.join(" | "));
   await page.close();
 }
 
@@ -420,6 +500,7 @@ const SCENARIOS = {
   undo: deleteAndUndo,
   move: moveToAnotherDay,
   search,
+  listSearch,
   language,
 };
 
