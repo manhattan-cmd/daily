@@ -18,14 +18,25 @@ export function HScroll({
   children,
   className,
   wrapperClassName,
+  followEnd,
 }: {
   children: React.ReactNode;
   /** Kaydırılan satıra verilir — hizalama/boşluk sınıfları buraya */
   className?: string;
   wrapperClassName?: string;
+  /** Değişince sıra sonuna kaydırılır — derinleşen bir yolda son basamak
+   *  ekrandan çıkıyordu, kullanıcı nerede olduğunu göremiyordu */
+  followEnd?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ left: false, right: false });
+
+  useEffect(() => {
+    if (followEnd === undefined) return;
+    const el = ref.current;
+    if (!el) return;
+    el.scrollTo({ left: el.scrollWidth, behavior: "smooth" });
+  }, [followEnd]);
 
   const sync = useCallback(() => {
     const el = ref.current;

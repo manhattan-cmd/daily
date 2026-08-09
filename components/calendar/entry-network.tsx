@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ChevronRight,
   Folder,
@@ -120,7 +120,6 @@ export function EntryNetwork({
   const t = useT();
   // Nerede olduğumuz burada tutulur; sheet'in bilmesi gereken bir şey değil
   const [focus, onFocusChange] = useState<NetFocus>(null);
-  const router = useRouter();
   const [addSub, setAddSub] = useState<{
     categoryId: string;
     parentId?: string;
@@ -424,15 +423,13 @@ export function EntryNetwork({
         parentId: focusObj.sub.id,
       });
   }
-  function goStructure() {
-    if (focusObj == null) return;
-    const path =
-      focusObj.type === "cat"
+  /** Bulunulan kalemin yapı sayfası — düğme Link olduğu için önden çekilir */
+  const structureHref =
+    focusObj == null
+      ? ""
+      : focusObj.type === "cat"
         ? `/structure/${focusObj.cat.id}`
         : `/structure/${focusObj.sub.categoryId}/${focusObj.sub.id}`;
-    onClose();
-    router.push(path);
-  }
 
   const focusName =
     focusObj == null
@@ -478,7 +475,11 @@ export function EntryNetwork({
           ve yapı sayfasına gitmek menünün arkasında kalınca bulunmuyordu. */}
       <div className="mb-3 flex flex-col gap-2">
         <div className="flex items-center gap-1.5">
-          <HScroll wrapperClassName="min-w-0 flex-1" className="items-center gap-1">
+          <HScroll
+            wrapperClassName="min-w-0 flex-1"
+            className="items-center gap-1"
+            followEnd={focusKey}
+          >
             {trail.map((tr, i) => {
               const last = i === trail.length - 1;
               return (
@@ -559,12 +560,15 @@ export function EntryNetwork({
                 onClick={openAddSub}
                 primary
               />
-              {/* Bulunulan kalemin yapı sayfası — düzenle/taşı/sil oraya ait */}
+              {/* Bulunulan kalemin yapı sayfası — düzenle/taşı/sil oraya ait.
+                  router.push yerine Link: dokunulduğunda sayfa çoktan çekilmiş
+                  oluyor, eskiden tıklayıp beklemek gerekiyordu. */}
               <ActionButton
                 icon={Layers}
                 label={focusName}
                 color={centerColor}
-                onClick={goStructure}
+                href={structureHref}
+                onClick={onClose}
               />
             </>
           )}
@@ -1105,36 +1109,49 @@ function ActionButton({
   label,
   color,
   onClick,
+  href,
   primary,
 }: {
   icon: typeof Plus;
   label: string;
   color: string;
   onClick: () => void;
+  /** Verilirse Link olarak çizilir — Next rotayı önden çeker, dokunuş anında
+   *  bekleme olmaz. Düğme olarak kalırsa gezinme tıklamadan sonra başlıyor. */
+  href?: string;
   primary?: boolean;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex min-w-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all active:scale-[0.97]",
+  const cls = cn(
+        "flex min-w-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-all active:scale-[0.97]",
         primary ? "text-white" : "text-muted-foreground hover:text-foreground"
-      )}
-      style={
-        primary
-          ? {
-              background: `linear-gradient(135deg, ${color}, ${color}bb)`,
-              boxShadow: `0 4px 14px ${color}40`,
-            }
-          : {
-              background: `${color}12`,
-              boxShadow: `inset 0 0 0 1px ${color}40`,
-            }
+  );
+  const style = primary
+    ? {
+        background: `linear-gradient(135deg, ${color}, ${color}bb)`,
+        boxShadow: `0 3px 10px ${color}38`,
       }
-    >
-      <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+    : {
+        background: `${color}12`,
+        boxShadow: `inset 0 0 0 1px ${color}40`,
+      };
+  const body = (
+    <>
+      <Icon className="h-3 w-3 shrink-0" strokeWidth={2.25} />
       <span className="truncate">{label}</span>
+    </>
+  );
+  if (href) {
+    return (
+      // prefetch acıkça: sheet içinde açılan bağlantıda görünürlük tabanlı
+      // varsayılan önden çekme tetiklenmiyordu, tıklamada 8 istek gidiyordu
+      <Link href={href} prefetch onClick={onClick} className={cls} style={style}>
+        {body}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} className={cls} style={style}>
+      {body}
     </button>
   );
 }
