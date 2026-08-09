@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, ArrowUpRight, Check, Plus, Search, X } from "lucide-react";
+import { ArrowLeft, Check, Plus, Search, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,13 +17,14 @@ import { Label } from "@/components/ui/label";
 import {
   listMods,
   listModifiersForTarget,
-  listEntryTypes,
+  type ModMeasure,
   createMod,
+  measureOf,
   attachMod,
   findModByName,
   type ModWithType,
 } from "@/lib/db/queries";
-import { MEASURE_KIND_META } from "@/lib/measure-kinds";
+import { MeasureEditor, isMeasureComplete } from "@/components/structure/measure-editor";
 import { ModAtom, modAtomIcon } from "@/components/structure/mod-atom";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
@@ -38,7 +39,6 @@ export function ModPickDialog({
   targetType,
   targetId,
   targetName,
-  onGoToMeasures,
   onAttached,
 }: {
   open: boolean;
@@ -46,7 +46,6 @@ export function ModPickDialog({
   targetType: "category" | "subcategory";
   targetId: string;
   targetName: string;
-  onGoToMeasures?: () => void;
   /** Bir özellik eklendiğinde (seçilen ya da yeni yaratılan) çağrılır —
    * girdi kartı akışı bunu değer sorma adımına bağlar */
   onAttached?: (mod: ModWithType) => void;
@@ -54,7 +53,7 @@ export function ModPickDialog({
   const t = useT();
   const [mode, setMode] = useState<"pick" | "create">("pick");
   const [name, setName] = useState("");
-  const [measureId, setMeasureId] = useState<string | null>(null);
+  const [measure, setMeasure] = useState<ModMeasure>({ valueType: "number" });
   const [error, setError] = useState<string | null>(null);
   const [existingId, setExistingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -70,14 +69,16 @@ export function ModPickDialog({
     () => listModifiersForTarget(targetType, targetId),
     [targetType, targetId]
   );
-  const measures = useLiveQuery(() => listEntryTypes(), []);
+  const knownUnits = [
+    ...new Set((pool ?? []).map((m) => m.unit?.trim()).filter((u): u is string => !!u)),
+  ].sort((a, b) => a.localeCompare(b, "en"));
 
   useEffect(() => {
     if (!open) {
       const t = setTimeout(() => {
         setMode("pick");
         setName("");
-        setMeasureId(null);
+        setMeasure({ valueType: "number" });
         setError(null);
         setExistingId(null);
         setSearchOpen(false);
@@ -110,7 +111,7 @@ export function ModPickDialog({
   }
 
   async function handleCreate() {
-    if (!name.trim() || !measureId) return;
+    if (!name.trim() || !isMeasureComplete(measure)) return;
     setSaving(true);
     setError(null);
     setExistingId(null);
@@ -125,12 +126,11 @@ export function ModPickDialog({
         }
         return;
       }
-      const { mod } = await createMod(name, measureId);
+      const { mod } = await createMod(name, measure);
       await attachMod(targetType, targetId, mod.id);
       attachedRef.current = true;
       onOpenChange(false);
-      const measure = (measures ?? []).find((t) => t.id === measureId);
-      if (measure) onAttached?.({ ...mod, entryType: measure });
+      onAttached?.({ ...mod, entryType: measureOf(mod) });
     } finally {
       setSaving(false);
     }
@@ -262,42 +262,11 @@ export function ModPickDialog({
               />
             </div>
 
-            <div className="flex flex-col gap-2">
-              <Label>{t("features.measure")}</Label>
-              <div className="flex flex-wrap gap-2">
-                {(measures ?? []).map((t) => {
-                  const KindIcon = MEASURE_KIND_META[t.valueType ?? "number"].icon;
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setMeasureId(t.id)}
-                      className={cn(
-                        "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm transition-colors",
-                        measureId === t.id
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border bg-card text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <KindIcon className="h-3.5 w-3.5 opacity-60" />
-                      {t.name}
-                      {t.unit && (
-                        <span className="text-xs opacity-60">({t.unit})</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              {onGoToMeasures && (
-                <button
-                  onClick={onGoToMeasures}
-                  className="flex items-center gap-1 self-start text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Create a new measure type
-                  <ArrowUpRight className="h-3 w-3" />
-                </button>
-              )}
-            </div>
+            <MeasureEditor
+              value={measure}
+              onChange={setMeasure}
+              knownUnits={knownUnits}
+            />
 
             {error && (
               <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200/90">
@@ -324,7 +293,7 @@ export function ModPickDialog({
               </Button>
               <Button
                 onClick={handleCreate}
-                disabled={saving || !name.trim() || !measureId}
+                disabled={saving || !name.trim() || !isMeasureComplete(measure)}
               >
                 Yarat ve ekle
               </Button>

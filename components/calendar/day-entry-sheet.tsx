@@ -35,7 +35,7 @@ import type { Category, SubCategory } from "@/types";
 /** Değer state anahtarı: global mod id (legacy atamalarda atama id'si) */
 const valueKey = (m: CategoryModifierWithType) => m.modId ?? m.id;
 /** Paralel perspektifler arası taşıma anahtarı: aynı atom = aynı anahtar */
-const sharedKey = (m: CategoryModifierWithType) => m.modId ?? m.entryTypeId;
+const sharedKey = (m: CategoryModifierWithType) => m.modId ?? m.entryTypeId ?? m.id;
 
 interface DayEntrySheetProps {
   date: string;

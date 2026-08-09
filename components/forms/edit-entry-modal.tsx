@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { nanoid } from "nanoid";
@@ -114,7 +114,8 @@ export function EditEntryModal({
   const [values, setValues] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
     for (const v of entry.values) {
-      if (v.entryTypeId) init[v.modId ?? `t:${v.entryTypeId}`] = v.value;
+      if (v.modId || v.entryTypeId)
+        init[v.modId ?? `t:${v.entryTypeId}`] = v.value;
     }
     return init;
   });
@@ -182,7 +183,7 @@ export function EditEntryModal({
   }
 
   const pValueKey = (m: CategoryModifierWithType) => m.modId ?? m.id;
-  const pSharedKey = (m: CategoryModifierWithType) => m.modId ?? m.entryTypeId;
+  const pSharedKey = (m: CategoryModifierWithType) => m.modId ?? m.entryTypeId ?? m.id;
 
   async function advanceParallel(
     queue: ParallelSub[],
@@ -211,7 +212,7 @@ export function EditEntryModal({
     if (!pStep) return;
     setPSaving(true);
     try {
-      const typeValues: { entryTypeId: string; value: string; modId?: string }[] = [];
+      const typeValues: { entryTypeId?: string; value: string; modId?: string }[] = [];
       const carryNext = { ...pStep.carry };
       const used = new Set<string>();
       for (const m of stepMods) {
@@ -323,7 +324,7 @@ export function EditEntryModal({
   type Row = {
     key: string;
     modId?: string;
-    entryTypeId: string;
+    entryTypeId?: string;
     label: string;
     entryType: EntryType;
   };
@@ -351,9 +352,10 @@ export function EditEntryModal({
     }
     // Atanmamış ama bu girdide değeri olan havuz modları
     for (const v of entry.values) {
-      if (!v.modId || !v.entryTypeId) continue;
+      if (!v.modId) continue;
       if (removedKeys.has(v.modId) || seen.has(v.modId)) continue;
-      const t = v.entryType ?? entryTypeMap.get(v.entryTypeId);
+      const t =
+        v.entryType ?? (v.entryTypeId ? entryTypeMap.get(v.entryTypeId) : undefined);
       if (!t) continue;
       result.push({
         key: v.modId,
@@ -438,7 +440,8 @@ export function EditEntryModal({
         const groupId = entry.linkedGroupId ?? nanoid(12);
         pCreated.current = false;
         const carry: Record<string, string> = {};
-        for (const tv of typeValues) carry[tv.modId ?? tv.entryTypeId] = tv.value;
+        for (const tv of typeValues)
+          carry[tv.modId ?? tv.entryTypeId ?? ""] = tv.value;
         const queue = [...newParallels];
         setNewParallels([]);
         setPQueue(queue.slice(1));

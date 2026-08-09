@@ -18,7 +18,7 @@ import {
   setModMeasure,
   deleteMod,
   findModByName,
-  listEntryTypes,
+  type ModMeasure,
   type ModWithType,
 } from "@/lib/db/queries";
 import { PageHeader } from "@/components/layout/page-header";
@@ -33,7 +33,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { MEASURE_KIND_META, measureSummary } from "@/lib/measure-kinds";
+import { measureSummary } from "@/lib/measure-kinds";
+import { MeasureEditor, isMeasureComplete } from "@/components/structure/measure-editor";
 import {
   ModAtom,
   ModAtomAdd,
@@ -51,7 +52,7 @@ export default function ModsHomePage() {
   const t = useT();
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
-  const [measureId, setMeasureId] = useState<string | null>(null);
+  const [measure, setMeasure] = useState<ModMeasure>({ valueType: "number" });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // Atom detayı — dokununca açılır; düzenleme aynı diyalog içinde görünüm
@@ -59,7 +60,7 @@ export default function ModsHomePage() {
   const [selected, setSelected] = useState<ModWithType | null>(null);
   const [detailView, setDetailView] = useState<"info" | "edit">("info");
   const [editName, setEditName] = useState("");
-  const [editMeasureId, setEditMeasureId] = useState<string | null>(null);
+  const [editMeasure, setEditMeasure] = useState<ModMeasure>({ valueType: "number" });
   const [editError, setEditError] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   // Havuzda arama — büyüteç açar, yazdıkça iki bölüm birden süzülür
@@ -67,7 +68,11 @@ export default function ModsHomePage() {
   const [search, setSearch] = useState("");
 
   const mods = useLiveQuery(() => listMods(), []);
-  const measures = useLiveQuery(() => listEntryTypes(), []);
+  // Havuzda kullanılan birimler — yeni özellikte önce bunlar önerilir ki
+  // "adet / Adet / tane" diye ayrışıp toplanamaz hale gelmesin
+  const knownUnits = [
+    ...new Set((mods ?? []).map((m) => m.unit?.trim()).filter((u): u is string => !!u)),
+  ].sort((a, b) => a.localeCompare(b, "en"));
 
   const usage = useLiveQuery(async () => {
     const [attachments, cats, subs, values] = await Promise.all([
@@ -107,25 +112,25 @@ export default function ModsHomePage() {
 
   function openEdit(mod: ModWithType) {
     setEditName(mod.name);
-    setEditMeasureId(mod.entryTypeId);
+    setEditMeasure({ valueType: mod.valueType ?? "number", unit: mod.unit, choices: mod.choices });
     setEditError(false);
     setDetailView("edit");
   }
 
   async function handleCreate() {
-    if (!name.trim() || !measureId) return;
+    if (!name.trim() || !isMeasureComplete(measure)) return;
     setSaving(true);
     setError(null);
     try {
       const clash = await findModByName(name);
       if (clash) {
-        setError(`A feature named "${clash.name}" already exists — feature names are unique.`);
+        setError(t("features.nameClashOf", { name: clash.name }));
         return;
       }
-      await createMod(name, measureId);
+      await createMod(name, measure);
       setCreateOpen(false);
       setName("");
-      setMeasureId(null);
+      setMeasure({ valueType: "number" });
     } finally {
       setSaving(false);
     }
@@ -148,9 +153,7 @@ export default function ModsHomePage() {
         }
       }
       // Ölçü değişikliği — mod + tüm atamaları senkronlanır
-      if (editMeasureId && editMeasureId !== selected.entryTypeId) {
-        await setModMeasure(selected.id, editMeasureId);
-      }
+      await setModMeasure(selected.id, editMeasure);
       setSelected(null);
     } finally {
       setEditSaving(false);
@@ -211,7 +214,7 @@ export default function ModsHomePage() {
             </button>
             <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-1.5">
               <Plus className="h-3.5 w-3.5" />
-              New feature
+              {t("features.new")}
             </Button>
           </div>
         }
@@ -220,7 +223,7 @@ export default function ModsHomePage() {
       <StructureTabs />
 
       <p className="mb-5 -mt-2 px-1 text-[11px] leading-snug text-muted-foreground/70">
-        Weight, duration, money… attach them to categories and fill in values as you log.
+        {t("features.blurb")}
       </p>
 
       {searchOpen && (
@@ -251,7 +254,7 @@ export default function ModsHomePage() {
           {builtIns.length > 0 && (
             <section className="mb-6">
               <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Built-in features
+                {t("features.builtInSection")}
               </h2>
               <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
                 {builtIns.map((mod) => (
@@ -270,7 +273,7 @@ export default function ModsHomePage() {
           {(userMods.length > 0 || !search) && (
             <section className="mb-6">
               <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Your features
+                {t("features.yours")}
               </h2>
               <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
                 {userMods.map((mod) => (
@@ -297,9 +300,7 @@ export default function ModsHomePage() {
 
           {search && visibleMods.length === 0 && (
             <p className="px-1 text-xs text-muted-foreground/70">
-              &bdquo;{search}&rdquo; adında bir özellik yok —{" "}
-              <span className="font-medium">{t("features.new")}</span> bu adla
-              yaratabilir.
+              {t("features.noMatch", { q: search })}
             </p>
           )}
         </>
@@ -319,7 +320,7 @@ export default function ModsHomePage() {
                   {selected.name}
                 </DialogTitle>
                 <DialogDescription>
-                  {measureSummary(selected.entryType)}
+                  {measureSummary(selected)}
                   {selected.isBuiltIn && " · built-in"}
                 </DialogDescription>
               </DialogHeader>
@@ -338,7 +339,7 @@ export default function ModsHomePage() {
                     {t("features.recordCount", { n: selectedUsage.valueCount })}
                   </>
                 ) : (
-                  "not used yet"
+                  t("features.notUsedYet")
                 )}
               </div>
               <div className="flex gap-2">
@@ -357,7 +358,7 @@ export default function ModsHomePage() {
                     onClick={() => handleDelete(selected)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
-                    Sil
+                    {t("action.delete")}
                   </Button>
                 )}
               </div>
@@ -374,12 +375,12 @@ export default function ModsHomePage() {
                   >
                     <ArrowLeft className="h-3.5 w-3.5" />
                   </button>
-                  Özelliği düzenle
+                  {t("features.edit")}
                 </DialogTitle>
                 <DialogDescription>
                   {selected.isBuiltIn
-                    ? "Built-in feature — the name is fixed, the measure can change"
-                    : "The name changes everywhere — a feature is unique"}
+                    ? t("features.builtInHint")
+                    : t("features.renameHint")}
                 </DialogDescription>
               </DialogHeader>
 
@@ -404,48 +405,23 @@ export default function ModsHomePage() {
                   />
                   {editError && (
                     <p className="text-xs text-amber-300/90">
-                      Bu adda başka bir özellik var — özellik adları tekildir.
+                      {t("features.nameClash")}
                     </p>
                   )}
                 </div>
               )}
 
-              {/* Ölçü seçimi — mod tek bir ölçüyle ölçülür */}
-              <div className="flex flex-col gap-2">
-                <Label>{t("features.measure")}</Label>
-                <div className="flex flex-wrap gap-2">
-                  {(measures ?? []).map((t) => {
-                    const KindIcon = MEASURE_KIND_META[t.valueType ?? "number"].icon;
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setEditMeasureId(t.id)}
-                        className={cn(
-                          "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm transition-colors",
-                          editMeasureId === t.id
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border bg-card text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        <KindIcon className="h-3.5 w-3.5 opacity-60" />
-                        {t.name}
-                        {t.unit && (
-                          <span className="text-xs opacity-60">({t.unit})</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-                {selectedUsage &&
-                  selectedUsage.valueCount > 0 &&
-                  editMeasureId !== selected.entryTypeId && (
-                    <p className="text-xs text-amber-300/90">
-                      {t("features.oldRecordsKeep", { n: selectedUsage.valueCount })}
-                      yeni girdiler seçtiğin ölçüyle kaydedilir.
-                    </p>
-                  )}
-              </div>
+              {/* Nasıl ölçülüyor — ölçü artık ayrı bir nesne değil */}
+              <MeasureEditor
+                value={editMeasure}
+                onChange={setEditMeasure}
+                knownUnits={knownUnits}
+              />
+              {selectedUsage && selectedUsage.valueCount > 0 && (
+                <p className="text-xs text-amber-300/90">
+                  {t("measure.changeWarning", { n: selectedUsage.valueCount })}
+                </p>
+              )}
 
               <DialogFooter>
                 <Button
@@ -453,19 +429,17 @@ export default function ModsHomePage() {
                   onClick={() => setDetailView("info")}
                   disabled={editSaving}
                 >
-                  İptal
+                  {t("action.cancel")}
                 </Button>
                 <Button
                   onClick={handleSaveEdit}
                   disabled={
                     editSaving ||
-                    !editMeasureId ||
-                    (!selected.isBuiltIn && !editName.trim()) ||
-                    (editName.trim() === selected.name &&
-                      editMeasureId === selected.entryTypeId)
+                    !isMeasureComplete(editMeasure) ||
+                    (!selected.isBuiltIn && !editName.trim())
                   }
                 >
-                  Kaydet
+                  {t("action.save")}
                 </Button>
               </DialogFooter>
             </>
@@ -479,8 +453,7 @@ export default function ModsHomePage() {
           <DialogHeader>
             <DialogTitle className="text-base">{t("features.createNew")}</DialogTitle>
             <DialogDescription>
-              Havuza eklenir; kategorilere Yapı sayfasından ya da girdi
-              formundan bağlanır
+              {t("features.createHint")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">
@@ -493,33 +466,11 @@ export default function ModsHomePage() {
               autoFocus
             />
           </div>
-          <div className="flex flex-col gap-2">
-            <Label>{t("features.measure")}</Label>
-            <div className="flex flex-wrap gap-2">
-              {(measures ?? []).map((t) => {
-                const KindIcon = MEASURE_KIND_META[t.valueType ?? "number"].icon;
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setMeasureId(t.id)}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm transition-colors",
-                      measureId === t.id
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border bg-card text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <KindIcon className="h-3.5 w-3.5 opacity-60" />
-                    {t.name}
-                    {t.unit && (
-                      <span className="text-xs opacity-60">({t.unit})</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <MeasureEditor
+            value={measure}
+            onChange={setMeasure}
+            knownUnits={knownUnits}
+          />
           {error && (
             <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200/90">
               {error}
@@ -531,13 +482,13 @@ export default function ModsHomePage() {
               onClick={() => setCreateOpen(false)}
               disabled={saving}
             >
-              İptal
+              {t("action.cancel")}
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={saving || !name.trim() || !measureId}
+              disabled={saving || !name.trim() || !isMeasureComplete(measure)}
             >
-              Yarat
+              {t("action.create")}
             </Button>
           </DialogFooter>
         </DialogContent>

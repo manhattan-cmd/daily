@@ -5,7 +5,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { Check, Plus, X } from "lucide-react";
 import {
   listModifiersForTarget,
-  listEntryTypes,
+  targetKeyOf,
   updateGoal,
 } from "@/lib/db/queries";
 import { DateTimeRangeInput } from "@/components/forms/datetime-range-input";
@@ -31,11 +31,13 @@ interface EditGoalSheetProps {
 export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
   const tr = useT();
   const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>(
-    () => goal.targets.map((t) => t.entryTypeId)
+    () => goal.targets.map((t) => t.modId ?? t.entryTypeId ?? "")
   );
   const [targetValues, setTargetValues] = useState<Record<string, string>>(
     () =>
-      Object.fromEntries(goal.targets.map((t) => [t.entryTypeId, t.targetValue]))
+      Object.fromEntries(
+        goal.targets.map((t) => [t.modId ?? t.entryTypeId ?? "", t.targetValue])
+      )
   );
   const [saving, setSaving] = useState(false);
   const [typePickerOpen, setTypePickerOpen] = useState(false);
@@ -46,8 +48,10 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
       [goal.subcategoryId]
     ) ?? [];
 
-  const allTypes = useLiveQuery(() => listEntryTypes(), []);
-  const typeMap = new Map(allTypes?.map((t) => [t.id, t]) ?? []);
+  // Anahtar artık özellik (modId): ölçü ayrı bir nesne değil, ölçüm
+  // özelliğin üzerinde. Eski hedefler ölçü id'siyle yazılmıştı; v18 göçü
+  // onlara modId doldurdu.
+  const typeMap = new Map(mods.map((m) => [targetKeyOf(m), m.entryType]));
 
   function toggleType(typeId: string) {
     if (selectedTypeIds.includes(typeId)) {
@@ -92,10 +96,8 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
     try {
       await updateGoal(goal.id, {
         targets: selectedTypeIds.map((typeId) => {
-          const mod = mods.find((m) => m.entryTypeId === typeId);
           return {
-            entryTypeId: typeId,
-            ...(mod?.modId ? { modId: mod.modId } : {}),
+            modId: typeId,
             targetValue: targetValues[typeId] ?? "",
           };
         }),
@@ -107,7 +109,7 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
   }
 
   const selectedSet = new Set(selectedTypeIds);
-  const availableInPicker = (allTypes ?? []).filter((t) => !selectedSet.has(t.id));
+  const availableInPicker = mods.filter((m) => !selectedSet.has(targetKeyOf(m)));
 
   return (
     <>
@@ -178,12 +180,12 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
               </p>
               <div className="flex flex-wrap gap-2">
                 {mods.map((mod) => {
-                  const selected = selectedTypeIds.includes(mod.entryTypeId);
+                  const selected = selectedTypeIds.includes(targetKeyOf(mod));
                   return (
                     <button
                       key={mod.id}
                       type="button"
-                      onClick={() => toggleType(mod.entryTypeId)}
+                      onClick={() => toggleType(targetKeyOf(mod))}
                       className={cn(
                         "flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
                         selected
@@ -209,7 +211,7 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
 
                 {/* Extra selected types not in subcategory mods */}
                 {selectedTypeIds
-                  .filter((id) => !mods.some((m) => m.entryTypeId === id))
+                  .filter((id) => !mods.some((m) => targetKeyOf(m) === id))
                   .map((typeId) => {
                     const t = typeMap.get(typeId);
                     if (!t) return null;
@@ -383,20 +385,20 @@ export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
             <DialogTitle>{tr("form.pickFeature")}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2">
-            {availableInPicker.map((t) => (
+            {availableInPicker.map((m) => (
               <button
-                key={t.id}
-                onClick={() => addFromPicker(t.id)}
+                key={targetKeyOf(m)}
+                onClick={() => addFromPicker(targetKeyOf(m))}
                 className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-3 text-left transition-colors hover:bg-muted active:scale-[0.99]"
               >
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm">{t.name}</div>
+                  <div className="font-medium text-sm">{m.entryType.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    {ENTRY_VALUE_TYPE_LABELS[t.valueType ?? "number"]}
-                    {t.unit
-                      ? ` · ${t.unit}`
-                      : t.choices?.length
-                      ? ` · ${t.choices.join(", ")}`
+                    {ENTRY_VALUE_TYPE_LABELS[m.entryType.valueType ?? "number"]}
+                    {m.entryType.unit
+                      ? ` · ${m.entryType.unit}`
+                      : m.entryType.choices?.length
+                      ? ` · ${m.entryType.choices.join(", ")}`
                       : null}
                   </div>
                 </div>

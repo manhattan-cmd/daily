@@ -119,10 +119,6 @@ export function QuickModAdd({
         targetType="subcategory"
         targetId={subcategoryId}
         targetName={subcategoryName}
-        onGoToMeasures={() => {
-          setOpen(false);
-          router.push("/structure/mods/olculer");
-        }}
         onAttached={(m) => {
           setValue(m.entryType.valueType === "boolean" ? "false" : "");
           setValueFor(m);

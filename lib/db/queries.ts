@@ -21,7 +21,9 @@ import type {
   Mod,
   Note,
   NoteBlock,
+  EntryValueType,
 } from "@/types";
+import { SCALE_1_5 } from "@/types";
 
 const now = () => Date.now();
 const id = () => nanoid(12);
@@ -268,12 +270,12 @@ async function ensureBuiltInCategoryTemplates(): Promise<void> {
  * gibi) — böylece devralma ve özelleştirme birlikte görülür.
  */
 /**
- * Özellik referansı. Düz metin: havuzdaki hazır atom ("Para").
- * Nesne: havuzda yoksa o ölçüyle yaratılacak kendi adıyla bir atom
- * ("Kilo" özelliği, "Ağırlık" ölçüsüyle) — özellik ile ölçünün ayrı şeyler
- * olduğu en iyi böyle görülüyor.
+ * Özellik referansı. Düz metin: havuzdaki hazır özellik ("Money").
+ * Nesne: kendi adıyla, kendi ölçümüyle yaratılacak özellik ("Body Weight",
+ * sayıyla ölçülür, birimi kg) — özelliğin ölçümü kendi üzerinde taşıdığı
+ * en iyi böyle görülüyor.
  */
-type StarterMod = string | { name: string; measure: string };
+type StarterMod = string | ({ name: string } & ModMeasure);
 
 type StarterSub = {
   name: string;
@@ -349,14 +351,14 @@ const STARTER_CATEGORIES: {
       {
         name: "Walking",
         icon: "Footprints",
-        mods: ["Distance", { name: "Steps", measure: "Steps" }],
+        mods: ["Distance", { name: "Steps", valueType: "number" }],
       },
       { name: "Running", icon: "Timer", mods: ["Distance"] },
       { name: "Cycling", icon: "Bike", mods: ["Distance"] },
       {
         name: "Workout",
         icon: "Dumbbell",
-        mods: [{ name: "Reps", measure: "Reps" }],
+        mods: [{ name: "Reps", valueType: "number" }],
       },
     ],
   },
@@ -370,7 +372,7 @@ const STARTER_CATEGORIES: {
       {
         name: "Reading",
         icon: "Book",
-        mods: [{ name: "Pages", measure: "Quantity" }],
+        mods: [{ name: "Pages", valueType: "number" }],
       },
       { name: "Projects", icon: "Laptop" },
     ],
@@ -384,23 +386,23 @@ const STARTER_CATEGORIES: {
       {
         name: "Body Weight",
         icon: "Stethoscope",
-        mods: [{ name: "Body Weight", measure: "Weight" }],
+        mods: [{ name: "Body Weight", valueType: "number", unit: "kg" }],
       },
       {
         name: "Water",
         icon: "Droplet",
-        mods: [{ name: "Glasses of Water", measure: "Quantity" }],
+        mods: [{ name: "Glasses of Water", valueType: "number" }],
       },
       {
         name: "Mood",
         icon: "Smile",
-        mods: [{ name: "Mood", measure: "1–5 Scale" }],
+        mods: [{ name: "Mood", valueType: "select", choices: SCALE_1_5 }],
       },
       {
         name: "Medication",
         icon: "Pill",
         regular: true,
-        mods: [{ name: "Medication Taken", measure: "Yes / No" }],
+        mods: [{ name: "Medication Taken", valueType: "boolean" }],
       },
     ],
   },
@@ -449,13 +451,7 @@ async function resolveStarterMod(ref: StarterMod): Promise<Mod | undefined> {
   const name = typeof ref === "string" ? ref : ref.name;
   const existing = await findModByName(name);
   if (existing || typeof ref === "string") return existing;
-
-  const types = await db.entryTypes.toArray();
-  const type = types.find(
-    (t) => t.name.toLocaleLowerCase("en-US") === ref.measure.toLocaleLowerCase("en-US")
-  );
-  if (!type) return undefined;
-  const { mod } = await createMod(name, type.id);
+  const { mod } = await createMod(name, ref);
   return mod;
 }
 
@@ -863,21 +859,63 @@ const normModName = (s: string) => s.trim().toLocaleLowerCase("en-US");
 export type ModWithType = Mod & { entryType: EntryType };
 
 /**
+ * Özelliğin ölçümünü eski `EntryType` şeklinde sunar.
+ *
+ * v18'de ölçü ayrı nesne olmaktan çıktı ama onu okuyan ~200 nokta var (analiz,
+ * girdi formu, hedefler, kartlar). Hepsini aynı anda değiştirmek yerine, mod
+ * kendi ölçümünü bu şekille veriyor — okuyan taraf değişmiyor. Kaynak artık
+ * tek: modun kendisi.
+ */
+export function measureOf(mod: Mod): EntryType {
+  return {
+    id: mod.entryTypeId ?? mod.id,
+    name: mod.name,
+    unit: mod.unit ?? "",
+    valueType: mod.valueType ?? "number",
+    ...(mod.choices?.length ? { choices: mod.choices } : {}),
+    isBuiltIn: mod.isBuiltIn ?? false,
+    order: 0,
+    createdAt: mod.createdAt,
+    updatedAt: mod.updatedAt,
+  };
+}
+
+/**
+ * Hedef/form anahtarı: bir atamayı temsil eden özelliğin id'si.
+ * Eski (v9 öncesi) atamalarda modId yok — o zaman atamanın kendi id'si.
+ */
+export const targetKeyOf = (a: { modId?: string; id: string }): string =>
+  a.modId ?? a.id;
+
+/** Özelliğin ölçüm ayarı — yaratırken ve düzenlerken tek parça halinde gezer */
+export interface ModMeasure {
+  valueType: EntryValueType;
+  unit?: string;
+  choices?: string[];
+}
+
+export const measureFieldsOf = (m: ModMeasure) => ({
+  valueType: m.valueType,
+  unit: m.valueType === "number" ? m.unit?.trim() || undefined : undefined,
+  choices: m.valueType === "select" && m.choices?.length ? m.choices : undefined,
+});
+
+/**
  * Yerleşik atomlar — genel ölçüm kavramları. Amaçları mod fikrini öğretmek:
  * kullanıcı bunlara bakıp "Yatırım Parası", "Çalışma Süresi" gibi kendi
  * spesifik atomlarını yaratır. Spesifik şeyler (Adım, Uyku Aralığı...)
  * yerleşik OLMAZ.
  */
-const BUILT_IN_MODS: { name: string; typeName: string }[] = [
-  { name: "Money", typeName: "Money" },
-  { name: "Duration", typeName: "Duration" },
-  { name: "Distance", typeName: "Distance" },
-  { name: "Quantity", typeName: "Quantity" },
-  { name: "Weight", typeName: "Weight" },
-  { name: "Calories", typeName: "Calories" },
-  // Şablon Sleep kategorisinin yerleşik modları
-  { name: "Sleep Duration", typeName: "Date Range" },
-  { name: "Sleep Quality", typeName: "1–5 Scale" },
+const BUILT_IN_MODS: ({ name: string } & ModMeasure)[] = [
+  { name: "Money", valueType: "number", unit: "₺" },
+  { name: "Duration", valueType: "number", unit: "min" },
+  { name: "Distance", valueType: "number", unit: "km" },
+  { name: "Quantity", valueType: "number", unit: "pcs" },
+  { name: "Weight", valueType: "number", unit: "kg" },
+  { name: "Calories", valueType: "number", unit: "kcal" },
+  // Şablon Sleep kategorisinin yerleşik özellikleri
+  { name: "Sleep Duration", valueType: "datetime-range" },
+  { name: "Sleep Quality", valueType: "select", choices: SCALE_1_5 },
 ];
 
 /** Eski kurulumlardaki adları yeni yerleşik adlara taşı */
@@ -906,22 +944,16 @@ export async function ensureBuiltInMods(): Promise<void> {
     }
   }
 
-  const [types, mods] = await Promise.all([
-    db.entryTypes.toArray(),
-    db.mods.toArray(),
-  ]);
-  const typeByName = new Map(types.map((t) => [normModName(t.name), t]));
+  const mods = await db.mods.toArray();
   const existingNames = new Set(mods.map((m) => normModName(m.name)));
 
   const toAdd: Mod[] = [];
   for (const b of BUILT_IN_MODS) {
     if (existingNames.has(normModName(b.name))) continue;
-    const type = typeByName.get(normModName(b.typeName));
-    if (!type) continue;
     toAdd.push({
       id: id(),
       name: b.name,
-      entryTypeId: type.id,
+      ...measureFieldsOf(b),
       isBuiltIn: true,
       createdAt: now(),
       updatedAt: now(),
@@ -958,12 +990,8 @@ export async function ensureBuiltInMods(): Promise<void> {
 
 export async function listMods(): Promise<ModWithType[]> {
   const mods = await db.mods.toArray();
-  const typeIds = [...new Set(mods.map((m) => m.entryTypeId))];
-  const types = typeIds.length ? await db.entryTypes.bulkGet(typeIds) : [];
-  const typeMap = new Map(types.filter(Boolean).map((t) => [t!.id, t!]));
   return mods
-    .map((m) => ({ ...m, entryType: typeMap.get(m.entryTypeId)! }))
-    .filter((m) => m.entryType)
+    .map((m) => ({ ...m, entryType: measureOf(m) }))
     .sort(
       (a, b) =>
         Number(b.isBuiltIn ?? false) - Number(a.isBuiltIn ?? false) ||
@@ -979,14 +1007,14 @@ export async function findModByName(name: string): Promise<Mod | undefined> {
 /** İsim tekildir: aynı adla ikinci atom yaratılamaz — var olan döner. */
 export async function createMod(
   name: string,
-  entryTypeId: string
+  measure: ModMeasure
 ): Promise<{ mod: Mod; created: boolean }> {
   const existing = await findModByName(name);
   if (existing) return { mod: existing, created: false };
   const mod: Mod = {
     id: id(),
     name: name.trim(),
-    entryTypeId,
+    ...measureFieldsOf(measure),
     isBuiltIn: false,
     createdAt: now(),
     updatedAt: now(),
@@ -1004,24 +1032,20 @@ export async function renameMod(modId: string, name: string): Promise<boolean> {
 }
 
 /**
- * Özelliğin ölçüsünü değiştir — mod ile birlikte tüm atamaları (denormalize
- * entryTypeId) güncellenir; böylece bundan sonraki girdiler yeni ölçüyle
- * kaydedilir. Eskiden kaydedilmiş değerler kendi (eski) ölçülerini sakladığı
- * için geçmiş bozulmaz. Yerleşik modlarda da güvenli: ensureBuiltInMods var
- * olan modun ölçüsünü sıfırlamaz, yalnızca eksik olanı ekler.
+ * Özelliğin nasıl ölçüldüğünü değiştir. Ölçüm modun üzerinde durduğu için tek
+ * kayıt güncellenir — atamaların denormalize kopyasını senkronlama derdi bitti.
+ *
+ * Eskiden kaydedilmiş değerler ham metin olarak durur; tür değişince
+ * okunamayan değer olabileceği için arayüz kullanıcıyı uyarır.
  */
 export async function setModMeasure(
   modId: string,
-  entryTypeId: string
+  measure: ModMeasure
 ): Promise<void> {
-  await db.transaction("rw", [db.mods, db.categoryModifiers], async () => {
-    await db.mods.update(modId, { entryTypeId });
-    const attachments = await db.categoryModifiers
-      .filter((a) => a.modId === modId)
-      .toArray();
-    for (const a of attachments) {
-      await db.categoryModifiers.update(a.id, { entryTypeId });
-    }
+  await db.mods.update(modId, {
+    ...measureFieldsOf(measure),
+    // Havuza bağ artık anlamsız — bu özellik kendi ölçümünü taşıyor
+    entryTypeId: undefined,
   });
 }
 
@@ -1061,27 +1085,15 @@ export async function listModifiersForTarget(
   const mods = modIds.length ? await db.mods.bulkGet(modIds) : [];
   const modMap = new Map(mods.filter(Boolean).map((m) => [m!.id, m!]));
 
-  const typeIds = [
-    ...new Set(
-      attachments.map((a) => modMap.get(a.modId ?? "")?.entryTypeId ?? a.entryTypeId)
-    ),
-  ];
-  const types = typeIds.length ? await db.entryTypes.bulkGet(typeIds) : [];
-  const typeMap = new Map(types.filter(Boolean).map((t) => [t!.id, t!]));
-
-  return attachments
-    .map((a) => {
-      const mod = a.modId ? modMap.get(a.modId) : undefined;
-      const entryTypeId = mod?.entryTypeId ?? a.entryTypeId;
-      return {
-        ...a,
-        entryTypeId,
-        name: mod?.name ?? a.name ?? typeMap.get(entryTypeId)?.name,
-        mod,
-        entryType: typeMap.get(entryTypeId)!,
-      };
-    })
-    .filter((a) => a.entryType);
+  // Ölçüm modun kendi üzerinde; atamanın denormalize entryTypeId'si artık
+  // okunmuyor. Modu bulunamayan atama (bozuk kalıntı) listeye girmez.
+  const out: CategoryModifierWithType[] = [];
+  for (const a of attachments) {
+    const mod = a.modId ? modMap.get(a.modId) : undefined;
+    if (!mod) continue;
+    out.push({ ...a, name: mod.name, mod, entryType: measureOf(mod) });
+  }
+  return out;
 }
 
 /** Havuzdaki bir modu hedefe bağla (varsa dokunma) ve alt kategorilere yay. */
@@ -1107,7 +1119,6 @@ export async function attachMod(
     modId,
     targetType,
     targetId,
-    entryTypeId: mod.entryTypeId,
     order: existing.length + 1,
     createdAt: now(),
     updatedAt: now(),
@@ -1151,8 +1162,7 @@ async function propagateModToDescendants(
         modId: mod.id,
         targetType: "subcategory",
         targetId: child.id,
-        entryTypeId: mod.entryTypeId,
-        order: count + 1,
+            order: count + 1,
         createdAt: now(),
         updatedAt: now(),
       });
@@ -1406,7 +1416,7 @@ export async function findParallelSubcategories(subId: string): Promise<Parallel
 export async function createEntry(input: {
   subcategoryId: string;
   title?: string;
-  typeValues?: { entryTypeId: string; value: string; modId?: string }[];
+  typeValues?: { entryTypeId?: string; value: string; modId?: string }[];
   occurredAt?: number;
   notes?: string;
   linkedGroupId?: string;
@@ -1426,7 +1436,7 @@ export async function createEntry(input: {
   const values: EntryValue[] = (input.typeValues ?? []).map((v) => ({
     id: id(),
     entryId: entry.id,
-    entryTypeId: v.entryTypeId,
+    ...(v.entryTypeId ? { entryTypeId: v.entryTypeId } : {}),
     ...(v.modId ? { modId: v.modId } : {}),
     value: v.value,
     updatedAt: now(),
@@ -1442,7 +1452,7 @@ export async function createEntry(input: {
 /** Var olan girdiye tek değer ekler — girdi kartından özellik ekleme akışı */
 export async function addEntryValue(
   entryId: string,
-  input: { entryTypeId: string; modId?: string; value: string }
+  input: { entryTypeId?: string; modId?: string; value: string }
 ): Promise<void> {
   await db.transaction("rw", [db.entries, db.entryValues], async () => {
     await db.entryValues.add({
@@ -1461,7 +1471,7 @@ export async function updateEntry(
   entryId: string,
   input: {
     title?: string;
-    typeValues?: { entryTypeId: string; value: string; modId?: string }[];
+    typeValues?: { entryTypeId?: string; value: string; modId?: string }[];
     occurredAt?: number;
     notes?: string;
   }
@@ -1476,12 +1486,15 @@ export async function updateEntry(
     });
     // Replace entryType-based values only (keep legacy field-based ones)
     const existing = await db.entryValues.where("entryId").equals(entryId).toArray();
-    const typeValueIds = existing.filter((v) => v.entryTypeId).map((v) => v.id);
+    // Alan (Field) değeri olmayan her şey yeniden yazılır. Eskiden burada
+    // "entryTypeId taşıyanlar" deniyordu; v18'den sonra yeni değerler o alanı
+    // taşımıyor ve süzgeç onları atlayıp kayıt biriktirirdi.
+    const typeValueIds = existing.filter((v) => !v.fieldId).map((v) => v.id);
     if (typeValueIds.length) await db.entryValues.bulkDelete(typeValueIds);
     const newValues: EntryValue[] = (input.typeValues ?? []).map((v) => ({
       id: id(),
       entryId,
-      entryTypeId: v.entryTypeId,
+      ...(v.entryTypeId ? { entryTypeId: v.entryTypeId } : {}),
       ...(v.modId ? { modId: v.modId } : {}),
       value: v.value,
       updatedAt: now(),
@@ -2032,7 +2045,14 @@ async function hydrateGoals(goals: Goal[]): Promise<GoalWithContext[]> {
   const resolvedTargets = rawGoals.map((g) =>
     g.targets ?? (g.entryTypeId ? [{ entryTypeId: g.entryTypeId, targetValue: g.targetValue ?? "" }] : [])
   );
-  const typeIds = [...new Set(resolvedTargets.flat().map((t) => t.entryTypeId))];
+  const typeIds = [
+    ...new Set(
+      resolvedTargets
+        .flat()
+        .map((t) => t.entryTypeId)
+        .filter((x): x is string => !!x)
+    ),
+  ];
   const targetModIds = [
     ...new Set(
       resolvedTargets.flat().map((t) => t.modId).filter((x): x is string => !!x)
@@ -2060,8 +2080,14 @@ async function hydrateGoals(goals: Goal[]): Promise<GoalWithContext[]> {
     if (!cat) continue;
     const hydratedTargets = resolvedTargets[i]
       .map((t) => {
-        const entryType = typeMap.get(t.entryTypeId);
+        // Ölçüm önce özelliğin kendisinden; eski hedeflerde (modu silinmiş
+        // olabilir) ölçü havuzuna düşülür
         const mod = t.modId ? targetModMap.get(t.modId) : undefined;
+        const entryType = mod
+          ? measureOf(mod)
+          : t.entryTypeId
+            ? typeMap.get(t.entryTypeId)
+            : undefined;
         return entryType ? { ...t, entryType, mod } : null;
       })
       .filter(Boolean) as GoalWithContext["targets"];

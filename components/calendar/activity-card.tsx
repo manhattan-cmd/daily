@@ -74,8 +74,8 @@ export function ActivityCard({
         ? e.category.name
         : e.subcategory.name;
       for (const v of e.values) {
-        if (!v.modId || !v.mod || !v.entryType) continue;
-        const nm = classifyNumericMod(v.mod, v.entryType);
+        if (!v.modId || !v.mod) continue;
+        const nm = classifyNumericMod(v.mod);
         if (!nm || nm.kind === "scale") continue;
         const amount =
           nm.kind === "duration" ? dtrDurationHours(v.value) : parseNumeric(v.value);

@@ -62,17 +62,16 @@ export default function ActivityAnalyticsPage({
           .anyOf(entries.map((e) => e.id))
           .toArray()
       : [];
-    const [subs, cats, allMods, allTypes] = await Promise.all([
+    const [subs, cats, allMods] = await Promise.all([
       db.subcategories.toArray(),
       db.categories.toArray(),
       db.mods.toArray(),
-      db.entryTypes.toArray(),
     ]);
-    const typeMap = new Map(allTypes.map((t) => [t.id, t]));
+
     const modIds = new Set(values.map((v) => v.modId).filter((x): x is string => !!x));
     const numericMods = allMods
       .filter((m) => modIds.has(m.id))
-      .map((m) => classifyNumericMod(m, typeMap.get(m.entryTypeId)))
+      .map((m) => classifyNumericMod(m))
       .filter((m): m is NonNullable<typeof m> => !!m)
       .sort((a, b) => a.name.localeCompare(b.name, "en"));
     return {

@@ -63,7 +63,7 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
     if (!target) return;
     setSaving(true);
     try {
-      const typeValues: { entryTypeId: string; modId?: string; value: string }[] = [];
+      const typeValues: { entryTypeId?: string; modId?: string; value: string }[] = [];
       if (range && target.rangeMod) {
         typeValues.push({
           entryTypeId: target.rangeMod.entryTypeId,

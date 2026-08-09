@@ -193,14 +193,10 @@ export function useCategoryMetrics({
     );
     // bulkGet yerine tam tablo taraması — küçük tablolar (havuzdaki mod/ölçü sayısı sınırlı),
     // bulkGet'in ardışık yazımlardan hemen sonra bazı anahtarlar için null dönebildiği gözlendi
-    const [allMods, allTypes] = await Promise.all([
-      db.mods.toArray(),
-      db.entryTypes.toArray(),
-    ]);
-    const typeMap = new Map(allTypes.map((t) => [t.id, t]));
+    const allMods = await db.mods.toArray();
     const numericMods: NumericMod[] = allMods
       .filter((m) => modIds.has(m.id))
-      .map((m) => classifyNumericMod(m, typeMap.get(m.entryTypeId)))
+      .map((m) => classifyNumericMod(m))
       .filter((m): m is NumericMod => !!m)
       .sort((a, b) => a.name.localeCompare(b.name, "en"));
 

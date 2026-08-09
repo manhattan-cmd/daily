@@ -8,7 +8,7 @@ import { useT, type MessageKey } from "@/lib/i18n";
 const TABS: { href: string; key: MessageKey }[] = [
   { href: "/structure", key: "structure.categories" },
   { href: "/structure/mods", key: "structure.features" },
-  { href: "/structure/mods/olculer", key: "structure.measures" },
+  // Ölçüler sekmesi v18'de kalktı — ölçüm artık özelliğin kendi içinde
   { href: "/structure/notes", key: "structure.notes" },
   { href: "/structure/galaxy", key: "structure.map" },
 ];

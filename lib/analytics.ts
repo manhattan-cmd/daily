@@ -431,19 +431,17 @@ export function statSub(
   return undefined;
 }
 
-/** Bir Mod + ölçüsünü (EntryType) sayısal metrik adayına sınıflandırır; ölçülemezse null */
-export function classifyNumericMod(
-  mod: Mod,
-  type: EntryType | undefined
-): NumericMod | null {
-  const vt = type?.valueType ?? "number";
+/** Özelliği sayısal metrik adayına sınıflandırır; ölçülemezse null.
+ *  v18'den beri ölçüm özelliğin kendi üzerinde — ayrıca ölçü aramak gerekmiyor. */
+export function classifyNumericMod(mod: Mod): NumericMod | null {
+  const vt = mod.valueType ?? "number";
   if (vt === "number") {
-    return { id: mod.id, name: mod.name, unit: type?.unit ?? "", kind: "number" };
+    return { id: mod.id, name: mod.name, unit: mod.unit ?? "", kind: "number" };
   }
   if (vt === "datetime-range") {
     return { id: mod.id, name: mod.name, unit: "sa", kind: "duration" };
   }
-  if (vt === "select" && isNumericChoiceSet(type?.choices)) {
+  if (vt === "select" && isNumericChoiceSet(mod.choices)) {
     return { id: mod.id, name: mod.name, unit: "", kind: "scale" };
   }
   return null;

@@ -255,5 +255,59 @@ export async function restoreBackup(
     })
   );
 
+  await backfillAfterRestore(data);
+
   return { mode, written, skipped };
+}
+
+/**
+ * v18 öncesi yedeklerde özelliğin ölçümü yoktur — ayrı bir ölçü kaydına
+ * bağlıdır. Şema göçü yalnızca sürüm yükselirken çalıştığı için içe aktarılan
+ * bu kayıtlara hiç uğramaz; ölçümsüz kalan özelliğin türü "sayı" varsayılır ve
+ * uyku aralığı, skala, evet/hayır sessizce sayıya dönerdi.
+ *
+ * Göçün yaptığını burada da yapıyoruz: ölçüm, yedekteki ölçü kaydından
+ * özelliğin üzerine kopyalanır. Zaten ölçümü olan kayda dokunulmaz.
+ */
+async function backfillAfterRestore(data: BackupPayload["data"]): Promise<void> {
+  const types = rowsOf(data, "entryTypes") as unknown as EntryType[];
+  const byId = new Map(types.map((t) => [t.id, t]));
+
+  const mods = await db.mods.toArray();
+  const staleMods = types.length
+    ? mods.filter((m) => !m.valueType && m.entryTypeId)
+    : [];
+
+  // Hedefler de eskiden ölçü id'siyle anahtarlanmıştı; modId'si olmayan hedef
+  // düzenleme ekranında tanınmaz ve boş açılır
+  const modByType = new Map(
+    mods.filter((m) => m.entryTypeId).map((m) => [m.entryTypeId!, m.id])
+  );
+  const staleGoals = (await db.goals.toArray()).filter((g) =>
+    g.targets?.some((t) => !t.modId && t.entryTypeId && modByType.has(t.entryTypeId))
+  );
+
+  if (!staleMods.length && !staleGoals.length) return;
+
+  await db.withoutStamping(() =>
+    db.transaction("rw", [db.mods, db.goals], async () => {
+      for (const m of staleMods) {
+        const t = byId.get(m.entryTypeId!);
+        await db.mods.update(m.id, {
+          valueType: t?.valueType ?? "number",
+          ...(t?.unit ? { unit: t.unit } : {}),
+          ...(t?.choices?.length ? { choices: t.choices } : {}),
+          updatedAt: m.updatedAt,
+        });
+      }
+      for (const g of staleGoals) {
+        const targets = g.targets.map((t) =>
+          !t.modId && t.entryTypeId && modByType.has(t.entryTypeId)
+            ? { ...t, modId: modByType.get(t.entryTypeId) }
+            : t
+        );
+        await db.goals.update(g.id, { targets, updatedAt: g.updatedAt });
+      }
+    })
+  );
 }

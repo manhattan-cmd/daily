@@ -14,6 +14,7 @@
 import { chromium } from "playwright";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import fs from "node:fs";
 
 const BASE = process.env.E2E_BASE ?? "http://localhost:3000";
 const HEADLESS = process.env.E2E_HEADED !== "1";
@@ -458,6 +459,147 @@ async function listSearch(browser) {
   await page.close();
 }
 
+// ─── 6. Özellik: ölçüm özelliğin kendi üzerinde ──────────────────────────────
+/**
+ * v18: ölçü ayrı bir nesne olmaktan çıktı. İki şey sınanıyor —
+ *  1) Yeni özellik türünü/birimini kendi taşıyor, ölçü havuzuna bağ kurmuyor.
+ *  2) v18 ÖNCESİ bir yedeği geri yüklerken ölçüm özelliğin üzerine kopyalanıyor.
+ *     Şema göçü içe aktarılan kayıtlara uğramaz; bu kopyalama olmazsa uyku
+ *     aralığı, skala ve evet/hayır sessizce "sayı"ya dönerdi.
+ */
+async function featureMeasure(browser) {
+  const { page, errors } = await openApp(browser);
+  await page.goto(`${BASE}/structure/mods`);
+  await page.waitForTimeout(2500);
+
+  const newFeature = () =>
+    page.getByRole("button", { name: "New feature", exact: true }).click();
+  const readMods = (names) =>
+    page.evaluate(async (names) => {
+      const db = await new Promise((res) => {
+        const r = indexedDB.open("RoutineDB");
+        r.onsuccess = () => res(r.result);
+      });
+      const all = await new Promise((r) => {
+        const q = db.transaction("mods").objectStore("mods").getAll();
+        q.onsuccess = () => r(q.result);
+      });
+      return all
+        .filter((m) => names.includes(m.name))
+        .map((m) => ({
+          name: m.name,
+          vt: m.valueType,
+          unit: m.unit ?? null,
+          ch: m.choices ?? null,
+          etid: m.entryTypeId ?? null,
+        }));
+    }, names);
+
+  // Sayı, birimsiz — adı zaten birim olan özellik ("Set: 4 set" saçma olurdu)
+  await newFeature();
+  await page.waitForTimeout(500);
+  await page.locator("#pool-mod-name").fill("Sets");
+  await page.getByRole("button", { name: "Create" }).click();
+  await page.waitForTimeout(900);
+
+  // Skala — depoda sayısal seçenek kümesi, analiz bunu ortalar
+  await newFeature();
+  await page.waitForTimeout(500);
+  await page.locator("#pool-mod-name").fill("Focus");
+  await page.getByRole("button", { name: "Scale", exact: true }).click();
+  await page.getByRole("button", { name: "1 – 10" }).click();
+  await page.getByRole("button", { name: "Create" }).click();
+  await page.waitForTimeout(900);
+
+  // Çoktan seçmeli — kullanıcının kendi kelimeleri
+  await newFeature();
+  await page.waitForTimeout(500);
+  await page.locator("#pool-mod-name").fill("Trigger");
+  await page.getByRole("button", { name: "Multiple choice", exact: true }).click();
+  const opt = page.locator('input[placeholder="Add an option"]');
+  for (const o of ["stress", "coffee"]) {
+    await opt.fill(o);
+    await opt.press("Enter");
+    await page.waitForTimeout(200);
+  }
+  await page.getByRole("button", { name: "Create" }).click();
+  await page.waitForTimeout(900);
+
+  const made = await readMods(["Sets", "Focus", "Trigger"]);
+  const by = (n) => made.find((m) => m.name === n);
+  eq("üç özellik de yaratıldı", made.length, 3);
+  eq("sayı: birim boş bırakılabiliyor", by("Sets")?.unit, null);
+  eq("skala sayısal seçenek kümesi", by("Focus")?.ch?.length, 10);
+  eq("çoktan seçmeli kendi seçeneklerini taşıyor", by("Trigger")?.ch?.join(), "stress,coffee");
+  check(
+    "hiçbiri ölçü havuzuna bağlı değil",
+    made.every((m) => m.etid === null),
+    JSON.stringify(made)
+  );
+
+  // Birim önerisi havuzdakilerden gelmeli ("adet/Adet/tane" ayrışmasın)
+  await newFeature();
+  await page.waitForTimeout(600);
+  const units = await page.evaluate(() => {
+    const inp = document.querySelector('[role="dialog"] #measure-unit');
+    return inp
+      ? [...inp.parentElement.querySelectorAll("button")].map((b) => b.textContent.trim())
+      : [];
+  });
+  check("kullanılan birimler öneriliyor", units.includes("kg") && units.includes("km"), units.join(","));
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+
+  // v18 ÖNCESİ yedeği geri yükle: özelliklerde ölçüm alanı yok, ölçü kaydına
+  // bağlılar. Şema göçü içe aktarılan kayda uğramaz — geri yükleme yolu
+  // ölçümü kopyalamazsa hepsi sessizce "sayı" olur.
+  const legacy = {
+    app: "routine",
+    version: 2,
+    exportedAt: Date.now(),
+    data: {
+      categories: [], subcategories: [], fields: [], globalDimensions: [],
+      entries: [], entryValues: [], goals: [], activities: [], notes: [],
+      categoryModifiers: [],
+      entryTypes: [
+        { id: "t-dtr", name: "Date Range", unit: "", valueType: "datetime-range", isBuiltIn: true, order: 1, createdAt: 1, updatedAt: 1 },
+        { id: "t-sc", name: "1–5 Scale", unit: "", valueType: "select", choices: ["1","2","3","4","5"], isBuiltIn: true, order: 2, createdAt: 1, updatedAt: 1 },
+        { id: "t-yn", name: "Yes / No", unit: "", valueType: "boolean", isBuiltIn: true, order: 3, createdAt: 1, updatedAt: 1 },
+      ],
+      // valueType/unit/choices YOK — v18 öncesi şekil
+      mods: [
+        { id: "m-dtr", name: "Legacy Range", entryTypeId: "t-dtr", createdAt: 1, updatedAt: 1 },
+        { id: "m-sc", name: "Legacy Scale", entryTypeId: "t-sc", createdAt: 1, updatedAt: 1 },
+        { id: "m-yn", name: "Legacy Flag", entryTypeId: "t-yn", createdAt: 1, updatedAt: 1 },
+      ],
+    },
+  };
+  const legacyPath = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    ".legacy-backup.tmp.json"
+  );
+  fs.writeFileSync(legacyPath, JSON.stringify(legacy), "utf8");
+  try {
+    await page.goto(`${BASE}/settings`);
+    await page.waitForTimeout(2000);
+    await page.setInputFiles('input[type="file"]', legacyPath);
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: /Replace|Değiştir/i }).last().click();
+    await page.waitForTimeout(3000);
+
+    const back = await readMods(["Legacy Range", "Legacy Scale", "Legacy Flag"]);
+    const b = (n) => back.find((m) => m.name === n);
+    eq("eski yedek: tarih aralığı korundu", b("Legacy Range")?.vt, "datetime-range");
+    eq("eski yedek: skala korundu", b("Legacy Scale")?.ch?.length, 5);
+    eq("eski yedek: evet/hayır korundu", b("Legacy Flag")?.vt, "boolean");
+  } finally {
+    fs.rmSync(legacyPath, { force: true });
+  }
+
+  check("özellik: sayfa hatası yok", errors.length === 0, errors.join(" | "));
+  await page.close();
+}
+
 // ─── 4. Dil değişimi ─────────────────────────────────────────────────────────
 async function language(browser) {
   const { page, errors } = await openApp(browser);
@@ -501,6 +643,7 @@ const SCENARIOS = {
   move: moveToAnotherDay,
   search,
   listSearch,
+  featureMeasure,
   language,
 };
 

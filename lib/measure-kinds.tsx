@@ -4,67 +4,74 @@ import {
   ToggleLeft,
   Type,
   CalendarClock,
+  Gauge,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { EntryValueType } from "@/types";
-import { translate } from "@/lib/i18n";
+import { isScaleChoices, type EntryValueType } from "@/types";
+import { translate, type MessageKey } from "@/lib/i18n";
 
 /**
- * Ölçülerin ilkel türleri. Bir ölçü = ilkel tür + yapılandırma
- * (Sayı → birim; Çoktan Seçmeli → isim + seçenekler).
+ * Kullanıcıya gösterilen ölçüm türleri. Depolamadan tek farkı "skala":
+ * ayrı bir valueType değil, seçenekleri sayı olan bir "select". Analiz bu
+ * kuralı zaten tanıyor (toplamaz, ortalar); burada da tek kural çalışsın diye
+ * ayrı bir tür icat etmiyoruz, yalnız ayrı gösteriyoruz.
  */
-export const MEASURE_KINDS: EntryValueType[] = [
+export type MeasureUiKind = EntryValueType | "scale";
+
+export const MEASURE_UI_KINDS: MeasureUiKind[] = [
   "number",
-  "select",
+  "scale",
   "boolean",
-  "text",
+  "select",
   "datetime-range",
+  "text",
 ];
 
+export function uiKindOf(m: {
+  valueType?: EntryValueType;
+  choices?: string[];
+}): MeasureUiKind {
+  const vt = m.valueType ?? "number";
+  return vt === "select" && isScaleChoices(m.choices) ? "scale" : vt;
+}
+
 export const MEASURE_KIND_META: Record<
-  EntryValueType,
-  { icon: LucideIcon; label: string; hint: string }
+  MeasureUiKind,
+  { icon: LucideIcon; labelKey: MessageKey; hintKey: MessageKey }
 > = {
-  number: {
-    icon: Hash,
-    label: "Number",
-    hint: "Sayısal değer ve birim — km, dk, ₺, kcal...",
+  number: { icon: Hash, labelKey: "measure.number", hintKey: "measure.numberHint" },
+  scale: { icon: Gauge, labelKey: "measure.scale", hintKey: "measure.scaleHint" },
+  boolean: {
+    icon: ToggleLeft,
+    labelKey: "measure.boolean",
+    hintKey: "measure.booleanHint",
   },
   select: {
     icon: ListChecks,
-    label: "Multiple choice",
-    hint: "İsim ver, seçenekleri sırala — Evet/Hayır/Belki gibi",
-  },
-  boolean: {
-    icon: ToggleLeft,
-    label: "Evet / Hayır",
-    hint: "İki durumlu: yapıldı ya da yapılmadı",
-  },
-  text: {
-    icon: Type,
-    label: "Text",
-    hint: "Serbest kısa not",
+    labelKey: "measure.select",
+    hintKey: "measure.selectHint",
   },
   "datetime-range": {
     icon: CalendarClock,
-    label: "Date range",
-    hint: "Başlangıç → bitiş (uyku, seyahat...)",
+    labelKey: "measure.range",
+    hintKey: "measure.rangeHint",
   },
+  text: { icon: Type, labelKey: "measure.text", hintKey: "measure.textHint" },
 };
 
-export function measureSummary(t: {
+/** Özelliğin ölçümünün tek satırlık özeti — "Sayı · dk", "Skala 1–5" */
+export function measureSummary(m: {
   valueType?: EntryValueType;
   unit?: string;
   choices?: string[];
 }): string {
-  const vt = t.valueType ?? "number";
-  if (vt === "number")
-    return t.unit
-      ? translate("measures.unitOf", { unit: t.unit })
-      : translate("measures.noUnit");
-  if (vt === "select")
-    return t.choices?.length
-      ? t.choices.join(" · ")
-      : translate("measures.noOptions");
-  return MEASURE_KIND_META[vt].label;
+  const kind = uiKindOf(m);
+  const label = translate(MEASURE_KIND_META[kind].labelKey);
+  if (kind === "number") return m.unit ? `${label} · ${m.unit}` : label;
+  if (kind === "scale") {
+    const c = m.choices ?? [];
+    return `${label} ${c[0]}–${c[c.length - 1]}`;
+  }
+  if (kind === "select") return m.choices?.length ? m.choices.join(" · ") : label;
+  return label;
 }

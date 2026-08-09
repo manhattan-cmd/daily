@@ -10,6 +10,28 @@ export type FieldType =
 
 export type EntryValueType = "number" | "text" | "boolean" | "select" | "datetime-range";
 
+/**
+ * Skala ön ayarları. Skala ayrı bir depolama türü değil — seçenekleri hep sayı
+ * olan bir "select". Analiz bunu zaten tanıyor (`isNumericChoiceSet`) ve
+ * toplamak yerine ortalıyor; 5 günün uyku puanı toplanmaz, ortalanır.
+ * Arayüzde ayrı bir tür gibi sunulur, altta tek kural çalışır.
+ */
+export const SCALE_PRESETS: { key: string; label: string; choices: string[] }[] = [
+  { key: "1-5", label: "1 – 5", choices: ["1", "2", "3", "4", "5"] },
+  {
+    key: "1-10",
+    label: "1 – 10",
+    choices: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+  },
+  { key: "-2-2", label: "−2 … +2", choices: ["-2", "-1", "0", "1", "2"] },
+];
+
+export const SCALE_1_5 = SCALE_PRESETS[0].choices;
+
+/** Seçenekler tamamen sayıysa bu bir skaladır (ayrı bir tür değil, aynı select) */
+export const isScaleChoices = (c?: string[]): boolean =>
+  !!c?.length && c.every((x) => Number.isFinite(Number(x)));
+
 export const ENTRY_VALUE_TYPE_LABELS: Record<EntryValueType, string> = {
   number: "Number",
   text: "Text",
@@ -103,14 +125,26 @@ export interface GlobalDimension {
 }
 
 /**
- * Mod — hiyerarşinin atomu. Global havuzda yaşar, adı tekildir.
- * "Para", "Uyku Aralığı" (yerleşik) ya da "Yürüyüş süresi" (kullanıcı).
- * Bir ölçü türüyle (entryType) ölçülür; kategorilere/alt kategorilere atanarak paylaşılır.
+ * Mod (arayüzde "Özellik") — takip edilen şeyin kendisi. Global havuzda yaşar,
+ * adı tekildir: "Piyano çalma sürem", "Ağırlık", "Uyku Kalitesi".
+ * Kategorilere/alt kategorilere atanarak paylaşılır.
+ *
+ * v18'den beri NASIL ölçüldüğünü de kendi taşır — ayrı bir "ölçü" nesnesi yok.
+ * "Piyano çalma sürem" = sayıyla ölçülen, birimi dk olan bir özellik.
  */
 export interface Mod {
   id: string;
   name: string;
-  entryTypeId: string;
+  /** Nasıl ölçülüyor */
+  valueType: EntryValueType;
+  /** number'da sayının yanına gelen ek ("₺", "dk", "kg"). Özelliğin adı zaten
+   *  birimse (Set, Tekrar) boş bırakılır — "Set: 4 set" saçma olurdu. */
+  unit?: string;
+  /** select'te seçenekler; hepsi sayıysa skala sayılır (toplanmaz, ortalanır) */
+  choices?: string[];
+  /** @deprecated v18 öncesi ölçü havuzuna bağ. Yeni modlarda yok; eski
+   *  kayıtlarda dönüş yolu açık kalsın diye silinmedi. */
+  entryTypeId?: string;
   isBuiltIn?: boolean;
   createdAt: number;
   updatedAt: number;
@@ -128,8 +162,9 @@ export interface CategoryModifier {
   name?: string;
   targetType: "category" | "subcategory";
   targetId: string;
-  /** Modun ölçüsü (denormalize; mod.entryTypeId ile aynı) */
-  entryTypeId: string;
+  /** @deprecated v18 öncesi denormalize ölçü kopyası. Ölçüm artık modun
+   *  üzerinde tek kaynakta; yeni atamalar bu alanı yazmaz. */
+  entryTypeId?: string;
   order: number;
   createdAt: number;
   updatedAt: number;
@@ -202,9 +237,10 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
 };
 
 export interface GoalTarget {
-  entryTypeId: string;
-  /** Hedefin bağlı olduğu global mod (yeni kayıtlarda dolu) */
+  /** Hedefin bağlı olduğu özellik. v18 göçü eski hedeflerde de doldurdu. */
   modId?: string;
+  /** @deprecated v18 öncesi ölçü havuzu anahtarı — yeni hedefler yazmaz */
+  entryTypeId?: string;
   targetValue: string;
 }
 

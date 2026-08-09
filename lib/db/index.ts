@@ -80,7 +80,7 @@ export class RoutineDB extends Dexie {
           if (!mod.name) {
             await tx
               .table("categoryModifiers")
-              .update(mod.id, { name: typeName.get(mod.entryTypeId) ?? "Mod" });
+              .update(mod.id, { name: typeName.get(mod.entryTypeId!) ?? "Mod" });
           }
         }
 
@@ -127,12 +127,15 @@ export class RoutineDB extends Dexie {
         const typeById = new Map(types.map((t) => [t.id, t]));
 
         // 1) Her ölçü türünden 1:1 havuz modu (eski "listeden Mesafe seç" davranışını korur)
+        // valueType burada yer tutucu: bu sürümde ölçüm entryTypeId'den okunuyor,
+        // modun kendi üzerine v18 göçünde kopyalanacak.
         const poolByName = new Map<string, Mod>();
         const modsTable = tx.table<Mod, string>("mods");
         for (const t of types) {
           const mod: Mod = {
             id: nid(),
             name: t.name,
+            valueType: "number",
             entryTypeId: t.id,
             isBuiltIn: t.isBuiltIn,
             createdAt: now,
@@ -149,17 +152,18 @@ export class RoutineDB extends Dexie {
         const oldAttachmentToMod = new Map<string, string>();
         for (const a of attachments) {
           const rawName =
-            a.name ?? typeById.get(a.entryTypeId)?.name ?? "Mod";
+            a.name ?? typeById.get(a.entryTypeId!)?.name ?? "Mod";
           let mod = poolByName.get(norm(rawName));
-          if (mod && mod.entryTypeId !== a.entryTypeId) {
+          if (mod && mod.entryTypeId !== a.entryTypeId!) {
             // Aynı ad farklı ölçüyle çakışıyor — ölçü adıyla ayrıştır
-            const typeName = typeById.get(a.entryTypeId)?.name ?? "ölçü";
+            const typeName = typeById.get(a.entryTypeId!)?.name ?? "ölçü";
             const altName = `${rawName} (${typeName})`;
             mod = poolByName.get(norm(altName));
             if (!mod) {
               mod = {
                 id: nid(),
                 name: altName,
+                valueType: "number",
                 entryTypeId: a.entryTypeId,
                 createdAt: now,
                 updatedAt: now,
@@ -171,6 +175,7 @@ export class RoutineDB extends Dexie {
             mod = {
               id: nid(),
               name: rawName.trim(),
+              valueType: "number",
               entryTypeId: a.entryTypeId,
               createdAt: now,
               updatedAt: now,
@@ -314,6 +319,53 @@ export class RoutineDB extends Dexie {
     this.version(17).stores({
       deletions: "id, batchId, table, recordId, deletedAt, updatedAt",
     });
+    // v18 — Ölçü ayrı bir sistem olmaktan çıkar: nasıl ölçüldüğü (tür, birim,
+    // seçenekler) özelliğin KENDİ üzerinde durur.
+    //
+    // Sebep kullanıcının kendi verisinden çıktı: 16 özelliğin 6'sının adı
+    // ölçüsünün adının aynısıydı (Para→Para, Kalori→Kalori, Ağırlık→Ağırlık…)
+    // — form, cevabı olmayan bir isim soruyordu. Paylaşılan ölçülerin de
+    // analitik karşılığı yoktu; kategoriler arası toplama ölçüden değil,
+    // özelliğin birden çok yere takılı olmasından geliyor.
+    //
+    // entryTypes tablosu ve entryTypeId alanları BİLEREK duruyor: bu sürüm
+    // veri silmez, yalnızca ölçümü modun üzerine kopyalar. Beğenilmezse
+    // dönüş yolu açık kalsın (kod geri alınır + yedek geri yüklenir).
+    this.version(18)
+      .stores({
+        mods: "id, name, entryTypeId, valueType, createdAt, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const types = await tx.table<EntryType, string>("entryTypes").toArray();
+        const byId = new Map(types.map((t) => [t.id, t]));
+        await tx
+          .table("mods")
+          .toCollection()
+          .modify((m: Mod) => {
+            const t = m.entryTypeId ? byId.get(m.entryTypeId) : undefined;
+            m.valueType = t?.valueType ?? "number";
+            if (t?.unit) m.unit = t.unit;
+            if (t?.choices?.length) m.choices = t.choices;
+          });
+
+        // Hedefler de ölçü id'siyle anahtarlanmıştı. Artık anahtar özelliğin
+        // kendisi; modId'si eksik olan eski hedeflere onu doldur, yoksa
+        // düzenleme ekranı hedefi tanıyamaz ve boş açılır.
+        const mods = await tx.table<Mod, string>("mods").toArray();
+        const modByType = new Map(
+          mods.filter((m) => m.entryTypeId).map((m) => [m.entryTypeId!, m.id])
+        );
+        await tx
+          .table("goals")
+          .toCollection()
+          .modify((g: Goal) => {
+            for (const target of g.targets) {
+              if (target.modId || !target.entryTypeId) continue;
+              const modId = modByType.get(target.entryTypeId);
+              if (modId) target.modId = modId;
+            }
+          });
+      });
 
     this.stampTimestamps();
   }

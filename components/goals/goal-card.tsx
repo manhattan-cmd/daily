@@ -161,7 +161,7 @@ export function GoalCard({
           <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
             {goal.targets.map((target) => (
               <TargetChip
-                key={target.entryTypeId}
+                key={target.modId ?? target.entryTypeId}
                 target={target}
                 completed={isCompleted}
               />
