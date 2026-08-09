@@ -4,9 +4,8 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import {
   ensureBuiltInDimensions,
-  ensureBuiltInEntryTypes,
   ensureBuiltInCategories,
-  ensureBuiltInMods,
+  seedDefaultFeatures,
   ensureDefaultModifiers,
   ensureStarterData,
 } from "@/lib/db/queries";
@@ -38,8 +37,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       await ensureBuiltInDimensions();
-      await ensureBuiltInEntryTypes();
-      await ensureBuiltInMods();
+      // Ölçü havuzu v18'de görünmez oldu (ölçüm özelliğin üzerinde), artık
+      // beslenmiyor. Hazır özellikler yalnız bomboş kuruluma ekilir —
+      // silinen özellik geri gelmesin diye.
+      await seedDefaultFeatures();
       await ensureBuiltInCategories();
       await ensureDefaultModifiers();
       // En son: yerleşikler kurulduktan sonra ilk açılış örnekleri

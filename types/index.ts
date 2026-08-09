@@ -145,6 +145,8 @@ export interface Mod {
   /** @deprecated v18 öncesi ölçü havuzuna bağ. Yeni modlarda yok; eski
    *  kayıtlarda dönüş yolu açık kalsın diye silinmedi. */
   entryTypeId?: string;
+  /** @deprecated v19'da "yerleşik özellik" sınıfı kalktı — uygulamayla gelen
+   *  özellik de yeniden adlandırılır ve silinir. Göç işareti temizler. */
   isBuiltIn?: boolean;
   createdAt: number;
   updatedAt: number;

@@ -366,6 +366,43 @@ export class RoutineDB extends Dexie {
             }
           });
       });
+    // v19 — "Yerleşik özellik" sınıfı kalktı. Uygulamayla gelen özellikler de
+    // kullanıcının kendi yarattıkları gibi: adı değişir, ölçümü değişir,
+    // silinir. İşaret temizlenir.
+    //
+    // Türkçe→İngilizce ad devri de buraya taşındı. Eskiden her açılışta
+    // çalışıyordu; ad düzenlenebilir olunca kullanıcı "Money"yi "Para" yapsa
+    // bir sonraki açılışta geri alınırdı. Göç tek sefer çalışır.
+    this.version(19).upgrade(async (tx) => {
+      const table = tx.table<Mod, string>("mods");
+      const mods = await table.toArray();
+      const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
+      const taken = new Set(mods.map((m) => norm(m.name)));
+      const renameOf = new Map(
+        [
+          ["Uyku Aralığı", "Sleep Duration"],
+          ["Uyku Süresi", "Sleep Duration"],
+          ["Uyku Kalitesi", "Sleep Quality"],
+          ["Para", "Money"],
+          ["Süre", "Duration"],
+          ["Mesafe", "Distance"],
+          ["Miktar", "Quantity"],
+          ["Ağırlık", "Weight"],
+          ["Kalori", "Calories"],
+        ].map(([from, to]) => [norm(from), to])
+      );
+
+      for (const m of mods) {
+        const to = renameOf.get(norm(m.name));
+        // Hedef ad zaten kullanımdaysa dokunma — ad tekilliği bozulmasın
+        const rename = to && !taken.has(norm(to)) ? to : undefined;
+        if (rename) taken.add(norm(rename));
+        await table.update(m.id, {
+          isBuiltIn: undefined,
+          ...(rename ? { name: rename } : {}),
+        });
+      }
+    });
 
     this.stampTimestamps();
   }

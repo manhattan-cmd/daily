@@ -600,6 +600,110 @@ async function featureMeasure(browser) {
   await page.close();
 }
 
+// ─── 7. Uygulamayla gelen özelliklerin ayrıcalığı yok ────────────────────────
+/**
+ * v19: "yerleşik özellik" sınıfı kalktı. Hazır gelen özellik de kullanıcının
+ * yarattığı gibi yeniden adlandırılır ve silinir.
+ *
+ * İki kalıcı tuzak sınanıyor: (1) açılış rutini eskiden her seferinde ad
+ * devrini uyguluyordu — kullanıcının verdiği ad bir sonraki açılışta geri
+ * alınırdı; (2) eksik "yerleşik"i geri koyuyordu — silinen özellik dirilirdi.
+ */
+async function seededFeatures(browser) {
+  const { page, errors } = await openApp(browser);
+  const read = () =>
+    page.evaluate(async () => {
+      const db = await new Promise((res) => {
+        const r = indexedDB.open("RoutineDB");
+        r.onsuccess = () => res(r.result);
+      });
+      const g = (t) =>
+        new Promise((r) => {
+          const q = db.transaction(t).objectStore(t).getAll();
+          q.onsuccess = () => r(q.result);
+        });
+      const [mods, values] = await Promise.all([g("mods"), g("entryValues")]);
+      return {
+        names: mods.map((m) => m.name),
+        flagged: mods.filter((m) => m.isBuiltIn).length,
+        values: values.length,
+      };
+    });
+
+  await page.goto(`${BASE}/structure/mods`);
+  await page.waitForTimeout(2500);
+
+  const start = await read();
+  truthy("hazır özellikler kurulmuş", start.names.includes("Money"));
+  eq("yerleşik işareti kalmadı", start.flagged, 0);
+  eq(
+    "havuz tek parça (yerleşik/kendi başlığı yok)",
+    await page.evaluate(() => document.querySelectorAll("h2").length),
+    0
+  );
+
+  const openFeature = async (name) => {
+    await page.locator(`button:has-text("${name}")`).first().click();
+    await page.waitForTimeout(600);
+  };
+  const confirmDelete = async () => {
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await page.waitForTimeout(600);
+    await page.getByRole("button", { name: /Delete|Sil/ }).last().click();
+    await page.waitForTimeout(1400);
+  };
+
+  // Hazır gelen özellik yeniden adlandırılabilmeli — ve ad kalıcı olmalı
+  await openFeature("Money");
+  eq(
+    "hazır özellikte de Sil var",
+    await page.getByRole("button", { name: "Delete", exact: true }).count(),
+    1
+  );
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.waitForTimeout(500);
+  eq("adı düzenlenebilir", await page.locator("#edit-mod-name").count(), 1);
+  await page.locator("#edit-mod-name").fill("Para");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.waitForTimeout(1200);
+  await page.reload();
+  await page.waitForTimeout(3500);
+  const renamed = await read();
+  truthy("verilen ad yeniden yüklemede korundu", renamed.names.includes("Para"));
+  check(
+    "açılış rutini eski adı geri koymuyor",
+    !renamed.names.includes("Money"),
+    renamed.names.join(",")
+  );
+
+  // Silme geri alınabilir olmalı
+  await openFeature("Sleep Quality");
+  await confirmDelete();
+  const afterDelete = await read();
+  eq("silindi", afterDelete.names.length, renamed.names.length - 1);
+  const undo = page.getByRole("button", { name: /Undo|Geri al/ });
+  eq("geri al çubuğu çıktı", await undo.count(), 1);
+  await undo.first().click();
+  await page.waitForTimeout(1800);
+  const undone = await read();
+  truthy("geri alma özelliği döndürdü", undone.names.includes("Sleep Quality"));
+
+  // Silinen özellik açılışta dirilmemeli
+  await openFeature("Calories");
+  await confirmDelete();
+  await page.reload();
+  await page.waitForTimeout(4000);
+  const final = await read();
+  check(
+    "silinen özellik açılışta geri gelmiyor",
+    !final.names.includes("Calories"),
+    final.names.join(",")
+  );
+
+  check("hazır özellik: sayfa hatası yok", errors.length === 0, errors.join(" | "));
+  await page.close();
+}
+
 // ─── 4. Dil değişimi ─────────────────────────────────────────────────────────
 async function language(browser) {
   const { page, errors } = await openApp(browser);
@@ -644,6 +748,7 @@ const SCENARIOS = {
   search,
   listSearch,
   featureMeasure,
+  seededFeatures,
   language,
 };
 

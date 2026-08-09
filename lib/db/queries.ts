@@ -901,91 +901,46 @@ export const measureFieldsOf = (m: ModMeasure) => ({
 });
 
 /**
- * Yerleşik atomlar — genel ölçüm kavramları. Amaçları mod fikrini öğretmek:
- * kullanıcı bunlara bakıp "Yatırım Parası", "Çalışma Süresi" gibi kendi
- * spesifik atomlarını yaratır. Spesifik şeyler (Adım, Uyku Aralığı...)
- * yerleşik OLMAZ.
+ * Uygulamayla gelen özellikler — kurulumda hazır bulunsunlar diye. Ayrıcalıkları
+ * YOK: kullanıcının kendi yarattıklarıyla aynı kayıtlar, yeniden adlandırılır,
+ * ölçümü değiştirilir, silinir. "Yerleşik özellik" diye korunan bir sınıf
+ * bırakmadık — kullanıcı kendi uygulamasında neyi tutacağına kendi karar verir.
+ *
+ * Başlangıç yapısı (STARTER_TEMPLATE) bunlara ADIYLA başvurur, o yüzden örnek
+ * yapı kurulmadan önce ekilmeleri gerekir.
  */
-const BUILT_IN_MODS: ({ name: string } & ModMeasure)[] = [
+const SEED_FEATURES: ({ name: string } & ModMeasure)[] = [
   { name: "Money", valueType: "number", unit: "₺" },
   { name: "Duration", valueType: "number", unit: "min" },
   { name: "Distance", valueType: "number", unit: "km" },
   { name: "Quantity", valueType: "number", unit: "pcs" },
   { name: "Weight", valueType: "number", unit: "kg" },
   { name: "Calories", valueType: "number", unit: "kcal" },
-  // Şablon Sleep kategorisinin yerleşik özellikleri
   { name: "Sleep Duration", valueType: "datetime-range" },
   { name: "Sleep Quality", valueType: "select", choices: SCALE_1_5 },
+  { name: "Mood", valueType: "select", choices: SCALE_1_5 },
 ];
 
-/** Eski kurulumlardaki adları yeni yerleşik adlara taşı */
-const RENAMED_BUILT_IN_MODS: { from: string; to: string }[] = [
-  { from: "Uyku Aralığı", to: "Uyku Süresi" },
-  // Arayüz İngilizceye geçti — atomlar yerinde yeniden adlandırılır
-  { from: "Para", to: "Money" },
-  { from: "Süre", to: "Duration" },
-  { from: "Mesafe", to: "Distance" },
-  { from: "Miktar", to: "Quantity" },
-  { from: "Ağırlık", to: "Weight" },
-  { from: "Kalori", to: "Calories" },
-  { from: "Uyku Süresi", to: "Sleep Duration" },
-  { from: "Uyku Kalitesi", to: "Sleep Quality" },
-];
-
-/** Seçilmiş yerleşik modları kur; liste dışı kalan eski yerleşikleri temizle/indirge. */
-export async function ensureBuiltInMods(): Promise<void> {
-  // Ad devri: "Uyku Aralığı" → "Uyku Süresi" (atamalar ve değerler aynı modda kalır)
-  for (const r of RENAMED_BUILT_IN_MODS) {
-    const target = await findModByName(r.to);
-    if (target) continue;
-    const legacy = await findModByName(r.from);
-    if (legacy) {
-      await db.mods.update(legacy.id, { name: r.to, isBuiltIn: true });
-    }
-  }
-
-  const mods = await db.mods.toArray();
-  const existingNames = new Set(mods.map((m) => normModName(m.name)));
-
-  const toAdd: Mod[] = [];
-  for (const b of BUILT_IN_MODS) {
-    if (existingNames.has(normModName(b.name))) continue;
-    toAdd.push({
+/**
+ * Hazır özellikleri YALNIZCA boş kuruluma ek.
+ *
+ * Eskiden bu iş her açılışta çalışıyor, eksik olanı geri koyuyor ve listede
+ * olmayan "yerleşik" kaydı siliyordu. Özellikler artık düzenlenebilir ve
+ * silinebilir olduğuna göre bu davranış kullanıcıya karşı çalışırdı: sildiği
+ * özellik geri gelir, verdiği ad geri alınırdı. Bu yüzden tek kriter var —
+ * havuz tamamen boşsa ek, değilse hiç dokunma.
+ */
+export async function seedDefaultFeatures(): Promise<void> {
+  if ((await db.mods.count()) > 0) return;
+  await db.mods.bulkAdd(
+    SEED_FEATURES.map((f) => ({
       id: id(),
-      name: b.name,
-      ...measureFieldsOf(b),
-      isBuiltIn: true,
+      name: f.name,
+      ...measureFieldsOf(f),
       createdAt: now(),
       updatedAt: now(),
-    });
-  }
-  if (toAdd.length) await db.mods.bulkAdd(toAdd);
-
-  // Liste dışı kalan yerleşik işaretli modlar: kullanılmıyorsa sil,
-  // kullanılıyorsa kullanıcı moduna indirge (veri bozulmasın).
-  const curated = new Set(BUILT_IN_MODS.map((b) => normModName(b.name)));
-  const candidates = mods.filter(
-    (m) => m.isBuiltIn && !curated.has(normModName(m.name))
+    }))
   );
-  if (!candidates.length) return;
-  const candidateIds = candidates.map((m) => m.id);
-  const [usedInAttachments, usedInValues] = await Promise.all([
-    db.categoryModifiers
-      .filter((a) => !!a.modId && candidateIds.includes(a.modId))
-      .toArray(),
-    db.entryValues.where("modId").anyOf(candidateIds).toArray(),
-  ]);
-  const used = new Set([
-    ...usedInAttachments.map((a) => a.modId!),
-    ...usedInValues.map((v) => v.modId!),
-  ]);
-  for (const mid of candidateIds) {
-    if (used.has(mid)) {
-      await db.mods.update(mid, { isBuiltIn: false });
-    } else {
-      await db.mods.delete(mid);
-    }
-  }
 }
 
 export async function listMods(): Promise<ModWithType[]> {
@@ -1049,12 +1004,39 @@ export async function setModMeasure(
   });
 }
 
-/** Modu havuzdan sil — tüm atamalarıyla birlikte. Girdi değerleri ölçü adına düşer. */
-export async function deleteMod(modId: string): Promise<void> {
-  await db.transaction("rw", [db.mods, db.categoryModifiers], async () => {
-    await db.categoryModifiers.filter((a) => a.modId === modId).delete();
-    await db.mods.delete(modId);
-  });
+/**
+ * Özelliği sil — atamaları ve kayıtlı değerleriyle birlikte, tek geri
+ * alınabilir küme olarak.
+ *
+ * Değerler eskiden bırakılıyordu ("ölçü adına düşer"); ölçü ayrı bir nesneyken
+ * hâlâ bir adları vardı. Artık ölçüm özelliğin üzerinde, yani özellik gidince
+ * değer sahipsiz kalıyor: ne adı ne birimi olan, hiçbir yerde okunmayan bir
+ * satır. Sessiz çöp bırakmak yerine siliyoruz — silme günlüğü sayesinde
+ * "Geri al" hepsini birden geri getirir.
+ */
+export async function deleteMod(modId: string): Promise<string> {
+  const batchId = newBatchId();
+  await db.transaction(
+    "rw",
+    [db.mods, db.categoryModifiers, db.entryValues, db.deletions],
+    async () => {
+      const mod = await db.mods.get(modId);
+      if (!mod) return;
+      const attachments = await db.categoryModifiers
+        .filter((a) => a.modId === modId)
+        .toArray();
+      const values = await db.entryValues.where("modId").equals(modId).toArray();
+
+      await logDeletions("mods", [mod], batchId);
+      await logDeletions("categoryModifiers", attachments, batchId);
+      await logDeletions("entryValues", values, batchId);
+
+      await db.entryValues.bulkDelete(values.map((v) => v.id));
+      await db.categoryModifiers.bulkDelete(attachments.map((a) => a.id));
+      await db.mods.delete(modId);
+    }
+  );
+  return batchId;
 }
 
 // ============ Atamalar (mod ↔ kategori/alt kategori) ============

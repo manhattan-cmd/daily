@@ -140,16 +140,13 @@ export default function ModsHomePage() {
     if (!selected) return;
     setEditSaving(true);
     try {
-      // Ad değişikliği yalnızca kullanıcı özelliklerinde (yerleşiklerin adı sabit)
-      if (!selected.isBuiltIn) {
-        const trimmed = editName.trim();
-        if (!trimmed) return;
-        if (trimmed !== selected.name) {
-          const ok = await renameMod(selected.id, trimmed);
-          if (!ok) {
-            setEditError(true);
-            return;
-          }
+      const trimmed = editName.trim();
+      if (!trimmed) return;
+      if (trimmed !== selected.name) {
+        const ok = await renameMod(selected.id, trimmed);
+        if (!ok) {
+          setEditError(true);
+          return;
         }
       }
       // Ölçü değişikliği — mod + tüm atamaları senkronlanır
@@ -184,8 +181,6 @@ export default function ModsHomePage() {
   const visibleMods = (mods ?? []).filter(
     (m) => !search || norm(m.name).includes(norm(search))
   );
-  const builtIns = visibleMods.filter((m) => m.isBuiltIn);
-  const userMods = visibleMods.filter((m) => !m.isBuiltIn);
 
   return (
     <>
@@ -248,62 +243,33 @@ export default function ModsHomePage() {
         </div>
       )}
 
+      {/* Tek havuz: uygulamayla gelen özellikle kullanıcının yarattığı
+          arasında ayrım yok — ikisi de aynı şekilde düzenlenir ve silinir */}
       {mods === undefined ? null : (
-        <>
-          {/* Yerleşik atomlar — dairesel, sık ızgara */}
-          {builtIns.length > 0 && (
-            <section className="mb-6">
-              <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {t("features.builtInSection")}
-              </h2>
-              <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
-                {builtIns.map((mod) => (
-                  <ModAtom
-                    key={mod.id}
-                    icon={modAtomIcon(mod)}
-                    name={mod.name}
-                    onClick={() => openDetail(mod)}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Kullanıcı atomları */}
-          {(userMods.length > 0 || !search) && (
-            <section className="mb-6">
-              <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {t("features.yours")}
-              </h2>
-              <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
-                {userMods.map((mod) => (
-                  <ModAtom
-                    key={mod.id}
-                    icon={modAtomIcon(mod)}
-                    name={mod.name}
-                    onClick={() => openDetail(mod)}
-                  />
-                ))}
-                {!search && (
-                  <ModAtomAdd
-                    label={
-                      mods.some((m) => !m.isBuiltIn)
-                        ? t("features.createNew")
-                        : t("features.first")
-                    }
-                    onClick={() => setCreateOpen(true)}
-                  />
-                )}
-              </div>
-            </section>
-          )}
+        <section className="mb-6">
+          <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
+            {visibleMods.map((mod) => (
+              <ModAtom
+                key={mod.id}
+                icon={modAtomIcon(mod)}
+                name={mod.name}
+                onClick={() => openDetail(mod)}
+              />
+            ))}
+            {!search && (
+              <ModAtomAdd
+                label={mods.length ? t("features.createNew") : t("features.first")}
+                onClick={() => setCreateOpen(true)}
+              />
+            )}
+          </div>
 
           {search && visibleMods.length === 0 && (
-            <p className="px-1 text-xs text-muted-foreground/70">
+            <p className="mt-3 px-1 text-xs text-muted-foreground/70">
               {t("features.noMatch", { q: search })}
             </p>
           )}
-        </>
+        </section>
       )}
 
       {/* Atom detayı — bilgi + yeniden adlandırma tek diyalogda */}
@@ -321,7 +287,6 @@ export default function ModsHomePage() {
                 </DialogTitle>
                 <DialogDescription>
                   {measureSummary(selected)}
-                  {selected.isBuiltIn && " · built-in"}
                 </DialogDescription>
               </DialogHeader>
               <div className="rounded-xl border border-border bg-card px-3 py-2.5 text-xs text-muted-foreground text-center">
@@ -351,16 +316,14 @@ export default function ModsHomePage() {
                   <Pencil className="h-3.5 w-3.5" />
                   {t("action.edit")}
                 </Button>
-                {!selected.isBuiltIn && (
-                  <Button
-                    variant="outline"
-                    className="flex-1 gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => handleDelete(selected)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    {t("action.delete")}
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => handleDelete(selected)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {t("action.delete")}
+                </Button>
               </div>
             </>
           )}
@@ -377,24 +340,10 @@ export default function ModsHomePage() {
                   </button>
                   {t("features.edit")}
                 </DialogTitle>
-                <DialogDescription>
-                  {selected.isBuiltIn
-                    ? t("features.builtInHint")
-                    : t("features.renameHint")}
-                </DialogDescription>
+                <DialogDescription>{t("features.renameHint")}</DialogDescription>
               </DialogHeader>
 
-              {/* Ad — yalnızca kullanıcı özelliklerinde düzenlenir */}
-              {selected.isBuiltIn ? (
-                <div className="flex flex-col gap-2">
-                  <Label>{t("features.name")}</Label>
-                  <p className="rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
-                    {selected.name}
-                    <span className="ml-1.5 text-xs opacity-70">· built-in</span>
-                  </p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2">
                   <Label htmlFor="edit-mod-name">{t("features.name")}</Label>
                   <Input
                     id="edit-mod-name"
@@ -408,8 +357,7 @@ export default function ModsHomePage() {
                       {t("features.nameClash")}
                     </p>
                   )}
-                </div>
-              )}
+              </div>
 
               {/* Nasıl ölçülüyor — ölçü artık ayrı bir nesne değil */}
               <MeasureEditor
@@ -436,7 +384,7 @@ export default function ModsHomePage() {
                   disabled={
                     editSaving ||
                     !isMeasureComplete(editMeasure) ||
-                    (!selected.isBuiltIn && !editName.trim())
+                    !editName.trim()
                   }
                 >
                   {t("action.save")}
