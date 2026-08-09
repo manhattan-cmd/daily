@@ -4,46 +4,48 @@ import { useEffect, useRef, useState } from "react";
 import { Locate, Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const MIN_SCALE = 0.6;
-const MAX_SCALE = 2;
-/** Tuvalin bu kadarı hep ekranda kalır — tamamen kaçırılamaz */
-const KEEP_VISIBLE = 80;
+/** Sığdırılmış hale göre en çok bu kadar yakınlaşılır */
+const MAX_ZOOM = 2.5;
+/** Pencere yüksekliği — telefonda sheet'in geri kalanına yer bırakır */
+const FRAME_H = 360;
 
 /**
- * Ağın gezinilebilir penceresi — küçük bir uzay.
+ * Ağın gezinilebilir penceresi.
  *
- * Kalabalık bir kategoride çokgen ekrana sığmıyor, sığdırmak için küçültmek
- * de etiketleri okunmaz yapıyor. Onun yerine pencere: sürükle, iki parmakla
- * yakınlaştır, kaybolursan ortala.
- *
- * Sınırlar bilerek dar (0.6×–2×, kenarın bir kısmı hep görünür). Sınırsız
- * bırakınca kullanıcı boşlukta kayboluyor ve geri dönüş yolunu bulamıyor.
+ * Sınırın kuralı: AÇILIŞ HALİ EN UZAK HALDİR. Şekil pencereye sığdırılıp
+ * ortalanmış olarak gelir; daha fazla uzaklaşmak yok, çünkü uzaklaştıkça
+ * şekil küçülüp okunmaz hale geliyor ve kullanıcı boşlukta kayboluyordu.
+ * Yakınlaşmak serbest (2.5 katına kadar), kaydırma da yalnız yakınlaşılmış
+ * haldeyken anlamlı — sığan bir şekli kaydırmak onu ekrandan çıkarmaktan
+ * başka işe yaramaz, o yüzden o durumda kaydırma kilitli.
  *
  * Düğümlerin kendi dokunma/basılı-tutma davranışı var; kaydırma yalnız boş
- * alandan başlar (`data-net-node` taşıyanlar hariç), yoksa bir kalemi
- * taşımak isterken tuval kayıyordu.
+ * alandan başlar (`data-net-node` taşıyanlar hariç).
  */
 export function CanvasViewport({
-  /** Tuvalin kare kenarı (px) */
-  size,
+  width,
+  height,
   /** Değişince görünüm sıfırlanır — başka bir düğüme geçildi demektir */
   resetKey,
   children,
 }: {
-  size: number;
+  width: number;
+  height: number;
   resetKey: string;
   children: React.ReactNode;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
-  const [frameW, setFrameW] = useState(0);
-  const [scale, setScale] = useState(1);
+  const [frame, setFrame] = useState({ w: 0, h: FRAME_H });
+  /** Sığdırılmış hale göre kaç kat — 1 = açılış hali */
+  const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const el = frameRef.current;
     if (!el) return;
     const ro = new ResizeObserver(([e]) => {
-      if (e.contentRect.width > 0) setFrameW(e.contentRect.width);
+      const r = e.contentRect;
+      if (r.width > 0) setFrame({ w: r.width, h: r.height });
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -53,32 +55,49 @@ export function CanvasViewport({
   const [prevKey, setPrevKey] = useState(resetKey);
   if (prevKey !== resetKey) {
     setPrevKey(resetKey);
-    setScale(1);
+    setZoom(1);
     setPan({ x: 0, y: 0 });
   }
 
-  const clamp = (p: { x: number; y: number }, s: number) => {
-    const half = (size * s) / 2;
-    const limitX = Math.max(0, half + frameW / 2 - KEEP_VISIBLE);
-    const limitY = Math.max(0, half + frameW / 2 - KEEP_VISIBLE);
+  /** Şekli pencereye tam sığdıran ölçek — asla büyütmez, yalnız küçültür */
+  const fit =
+    frame.w > 0 && width > 0
+      ? Math.min(1, frame.w / width, frame.h / height)
+      : 1;
+  const scale = fit * zoom;
+
+  /** Taşan kısmın yarısı kadar kaydırılabilir; sığıyorsa hiç */
+  const clamp = (p: { x: number; y: number }) => {
+    const overX = Math.max(0, (width * scale - frame.w) / 2);
+    const overY = Math.max(0, (height * scale - frame.h) / 2);
     return {
-      x: Math.max(-limitX, Math.min(limitX, p.x)),
-      y: Math.max(-limitY, Math.min(limitY, p.y)),
+      x: Math.max(-overX, Math.min(overX, p.x)),
+      y: Math.max(-overY, Math.min(overY, p.y)),
     };
   };
 
   const zoomBy = (factor: number) =>
-    setScale((s) => {
-      const next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, s * factor));
-      setPan((p) => clamp(p, next));
+    setZoom((z) => {
+      const next = Math.max(1, Math.min(MAX_ZOOM, z * factor));
+      setPan((p) => clampAt(p, fit * next));
       return next;
     });
+
+  // clamp'in ölçeği parametreden alan hali — setZoom içinde güncel scale yok
+  const clampAt = (p: { x: number; y: number }, s: number) => {
+    const overX = Math.max(0, (width * s - frame.w) / 2);
+    const overY = Math.max(0, (height * s - frame.h) / 2);
+    return {
+      x: Math.max(-overX, Math.min(overX, p.x)),
+      y: Math.max(-overY, Math.min(overY, p.y)),
+    };
+  };
 
   // ── Sürükleme + iki parmakla yakınlaştırma ────────────────────────────
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const start = useRef<{
     pan: { x: number; y: number };
-    scale: number;
+    zoom: number;
     dist: number;
     mid: { x: number; y: number };
   } | null>(null);
@@ -102,7 +121,7 @@ export function CanvasViewport({
     e.currentTarget.setPointerCapture(e.pointerId);
     start.current = {
       pan,
-      scale,
+      zoom,
       dist: pointers.current.size === 2 ? distOf() : 0,
       mid: midOf(),
     };
@@ -116,25 +135,22 @@ export function CanvasViewport({
     const moved = { x: g.pan.x + mid.x - g.mid.x, y: g.pan.y + mid.y - g.mid.y };
 
     if (pointers.current.size === 2 && g.dist > 0) {
-      const next = Math.max(
-        MIN_SCALE,
-        Math.min(MAX_SCALE, g.scale * (distOf() / g.dist))
-      );
-      setScale(next);
-      setPan(clamp(moved, next));
+      const next = Math.max(1, Math.min(MAX_ZOOM, g.zoom * (distOf() / g.dist)));
+      setZoom(next);
+      setPan(clampAt(moved, fit * next));
       return;
     }
-    setPan(clamp(moved, scale));
+    setPan(clamp(moved));
   };
 
   const onUp = (e: React.PointerEvent) => {
     pointers.current.delete(e.pointerId);
     start.current = pointers.current.size
-      ? { pan, scale, dist: 0, mid: midOf() }
+      ? { pan, zoom, dist: 0, mid: midOf() }
       : null;
   };
 
-  const moved = pan.x !== 0 || pan.y !== 0 || scale !== 1;
+  const moved = zoom !== 1 || pan.x !== 0 || pan.y !== 0;
 
   return (
     <div className="relative">
@@ -144,13 +160,19 @@ export function CanvasViewport({
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
-        onWheel={(e) => zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1)}
+        onWheel={(e) => zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12)}
         className="relative overflow-hidden overscroll-contain touch-none"
-        style={{ height: size }}
+        style={{ height: FRAME_H }}
       >
+        {/* Şekil pencerenin ortasında durur; ölçek ve kaydırma onun üstüne
+            biner — böylece "ortala" gerçekten başlangıç haline döner */}
         <div
-          className="absolute inset-0 origin-center will-change-transform"
+          className="absolute left-1/2 top-1/2 will-change-transform"
           style={{
+            width,
+            height,
+            marginLeft: -width / 2,
+            marginTop: -height / 2,
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
           }}
         >
@@ -158,18 +180,16 @@ export function CanvasViewport({
         </div>
       </div>
 
-      {/* Parmakla da yapılabiliyor ama görünür bir çıkış yolu olmalı —
-          kaybolan kullanıcı buraya bakıyor */}
       <div className="pointer-events-none absolute bottom-1 right-1 flex flex-col gap-1">
-        <ViewBtn onClick={() => zoomBy(1.25)} label="+" off={scale >= MAX_SCALE}>
+        <ViewBtn onClick={() => zoomBy(1.3)} label="+" off={zoom >= MAX_ZOOM}>
           <Plus className="h-3.5 w-3.5" />
         </ViewBtn>
-        <ViewBtn onClick={() => zoomBy(0.8)} label="−" off={scale <= MIN_SCALE}>
+        <ViewBtn onClick={() => zoomBy(1 / 1.3)} label="−" off={zoom <= 1}>
           <Minus className="h-3.5 w-3.5" />
         </ViewBtn>
         <ViewBtn
           onClick={() => {
-            setScale(1);
+            setZoom(1);
             setPan({ x: 0, y: 0 });
           }}
           label="Ortala"

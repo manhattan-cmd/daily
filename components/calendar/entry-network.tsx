@@ -589,10 +589,10 @@ export function EntryNetwork({
       ) : (
         <>
           {/* Ağ — sürüklenip yakınlaştırılabilen küçük bir pencere */}
-          <CanvasViewport size={Math.max(hex.width, hex.height)} resetKey={focusKey}>
+          <CanvasViewport width={hex.width} height={hex.height} resetKey={focusKey}>
           <div
             key={focusKey}
-            className="relative mx-auto animate-zoom-in"
+            className="relative animate-zoom-in"
             style={{ width: hex.width, height: hex.height }}
           >
             <svg
@@ -601,13 +601,16 @@ export function EntryNetwork({
               width={hex.width}
               height={hex.height}
             >
-              {/* Merkez göz — çevresindekiler ona değer */}
-              <polygon
-                points={hexCorners(centerPos.x, centerPos.y, HEX_SIZE - 1)}
-                fill={`${centerColor}16`}
-                stroke={`${centerColor}55`}
-                strokeWidth={1.5}
-              />
+              {/* Merkez göz yalnız bir kaleme girildiğinde var; kökte
+                  ortada duracak bir şey yok, boş altıgen çizmek yanıltıcı */}
+              {focusObj != null && (
+                <polygon
+                  points={hexCorners(centerPos.x, centerPos.y, HEX_SIZE - 1)}
+                  fill={`${centerColor}26`}
+                  stroke={`${centerColor}80`}
+                  strokeWidth={2}
+                />
+              )}
               {positions.map((p, i) => (
                 <polygon
                   key={i}
@@ -648,42 +651,45 @@ export function EntryNetwork({
               )}
             </svg>
 
-            {/* Merkez düğüm — dokun: buraya ekle */}
+            {/* Merkez göz — nerede olduğun. Çevredekilerden parlak durur
+                ve dokununca buraya kayıt açılır. Eskiden kare karoydu:
+                altıgenin içinde kare durmak şekil dilini bozuyordu. */}
             {focusObj != null && (
               <button
                 onClick={addEntryHere}
                 data-net-node=""
-                aria-label={`${focusName} · buraya ekle`}
-                className="absolute z-10 flex flex-col items-center gap-1"
+                aria-label={`${focusName} · ${t("tree.addRecordHere")}`}
+                className="absolute z-10 flex items-center justify-center"
                 style={{
                   left: centerPos.x,
                   top: centerPos.y,
+                  width: HEX_SIZE * 2,
+                  height: HEX_SIZE * Math.sqrt(3),
                   transform: "translate(-50%,-50%)",
                 }}
               >
-                <span className="relative">
-                  {/* Sarmalda merkez bir tık küçülür — en içteki düğüme yer açar */}
-                  <CategoryTileCore
-                    color={centerColor}
+                <span
+                  className="flex h-full w-full flex-col items-center justify-center gap-0.5 px-2"
+                  style={{
+                    clipPath: HEX_CLIP,
+                    background: `linear-gradient(150deg, ${centerColor}7a, ${centerColor}2e)`,
+                  }}
+                >
+                  <CategoryIconOrFallback
+                    color="#fff"
                     icon={focusIcon}
-                    fallback={FolderOpen}
-                    size={dense ? "md" : "lg"}
+                    hasKids={hasNodes}
                   />
-                  <span
-                    className={cn(
-                      "absolute -bottom-1 -right-1 flex items-center justify-center rounded-full border-2 border-background text-white",
-                      dense ? "h-5 w-5" : "h-6 w-6"
-                    )}
-                    style={{ backgroundColor: centerColor }}
-                  >
-                    <Plus
-                      className={dense ? "h-3 w-3" : "h-3.5 w-3.5"}
-                      strokeWidth={2.75}
-                    />
+                  <span className="line-clamp-2 w-full text-center text-[10px] font-semibold leading-tight text-white">
+                    {focusName}
                   </span>
                 </span>
-                <span className="max-w-[104px] truncate text-center text-xs font-semibold">
-                  {focusName}
+                {/* Buraya kayıt işareti */}
+                <span
+                  className="pointer-events-none absolute -bottom-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-background text-white"
+                  style={{ backgroundColor: centerColor }}
+                >
+                  <Plus className="h-3 w-3" strokeWidth={2.75} />
                 </span>
               </button>
             )}
