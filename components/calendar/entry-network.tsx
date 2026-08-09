@@ -10,7 +10,6 @@ import {
   Layers,
   List,
   Network,
-  PenLine,
   Plus,
   Search,
   Sparkles,
@@ -25,7 +24,6 @@ import { CategoryTileCore } from "@/components/structure/category-tile";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { CategoryForm } from "@/components/structure/category-form";
 import { HScroll } from "@/components/ui/h-scroll";
-import { OptionsMenu } from "@/components/forms/form-options";
 import { CanvasViewport } from "@/components/calendar/canvas-viewport";
 import { hexCorners, hexLayout, HEX_CLIP } from "@/lib/hex";
 import { CategoryIcon, CATEGORY_ICON_MAP } from "@/lib/category-icons";
@@ -473,106 +471,104 @@ export function EntryNetwork({
 
   return (
     <div className="flex flex-col">
-      {/* Breadcrumb + görünüm seçici + sayfa menüsü */}
-      <div className="mb-2 flex items-center gap-1">
-        <HScroll wrapperClassName="min-w-0 flex-1" className="items-center">
-          {trail.map((t, i) => (
-            <span key={i} className="flex shrink-0 items-center">
-              {i > 0 && (
-                <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/40" />
-              )}
-              <button
-                onClick={() => onFocusChange(t.focus)}
-                className={cn(
-                  "max-w-[120px] truncate rounded px-1.5 py-0.5 text-xs transition-colors",
-                  i === trail.length - 1
-                    ? "font-semibold text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {t.label}
-              </button>
-            </span>
-          ))}
-        </HScroll>
+      {/* Yol + eylemler.
+          Yol artık düz metin değil: her basamak kendi rengini taşıyan bir çip,
+          bulunulan yer dolu, ataları soluk. Uzun ağaçta yatay kaydırılır.
+          Eylemler menüden çıkıp görünür düğmelere döndü — alt kategori açmak
+          ve yapı sayfasına gitmek menünün arkasında kalınca bulunmuyordu. */}
+      <div className="mb-3 flex flex-col gap-2">
+        <div className="flex items-center gap-1.5">
+          <HScroll wrapperClassName="min-w-0 flex-1" className="items-center gap-1">
+            {trail.map((tr, i) => {
+              const last = i === trail.length - 1;
+              return (
+                <span key={i} className="flex shrink-0 items-center gap-1">
+                  {i > 0 && (
+                    <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/30" />
+                  )}
+                  <button
+                    onClick={() => onFocusChange(tr.focus)}
+                    aria-current={last ? "page" : undefined}
+                    className={cn(
+                      "flex max-w-[130px] shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition-colors",
+                      last
+                        ? "font-semibold text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    style={
+                      last
+                        ? {
+                            background: `${centerColor}22`,
+                            boxShadow: `inset 0 0 0 1px ${centerColor}66`,
+                          }
+                        : { background: "rgba(255,255,255,0.05)" }
+                    }
+                  >
+                    {last && (
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: centerColor }}
+                      />
+                    )}
+                    <span className="truncate">{tr.label}</span>
+                  </button>
+                </span>
+              );
+            })}
+          </HScroll>
 
-        {/* Görünüm — kalabalıklaşmaya başlayan sayfalarda çıkar */}
-        {nodes.length >= 6 && (
-          <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-white/6 p-0.5">
-            {LAYOUT_OPTIONS.map(({ key, icon: Icon, labelKey }) => (
-              <button
-                key={key}
-                onClick={() => setLayout(key)}
-                aria-label={t(labelKey)}
-                aria-pressed={layout === key}
-                className={cn(
-                  "flex h-6 w-6 items-center justify-center rounded-full transition-colors",
-                  layout === key
-                    ? "bg-white/15 text-foreground"
-                    : "text-muted-foreground/50 hover:text-foreground"
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" />
-              </button>
-            ))}
-          </div>
-        )}
+          {/* Görünüm — kalabalıklaşmaya başlayan sayfalarda çıkar */}
+          {nodes.length >= 6 && (
+            <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-white/6 p-0.5">
+              {LAYOUT_OPTIONS.map(({ key, icon: Icon, labelKey }) => (
+                <button
+                  key={key}
+                  onClick={() => setLayout(key)}
+                  aria-label={t(labelKey)}
+                  aria-pressed={layout === key}
+                  className={cn(
+                    "flex h-6 w-6 items-center justify-center rounded-full transition-colors",
+                    layout === key
+                      ? "bg-white/15 text-foreground"
+                      : "text-muted-foreground/50 hover:text-foreground"
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
-        {focusObj != null ? (
-          <OptionsMenu
-            header={
-              <div className="flex items-center gap-2.5">
-                <CategoryTileCore
-                  color={centerColor}
-                  icon={focusIcon}
-                  fallback={FolderOpen}
-                  size="sm"
-                />
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold">
-                    {focusName}
-                  </div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
-                    {focusObj.type === "cat" ? "kategori" : "alt kategori"}
-                  </div>
-                </div>
-              </div>
-            }
-            items={[
-              {
-                key: "add-entry",
-                icon: PenLine,
-                title: t("tree.addEntry"),
-                subtitle: t("tree.addRecordHere"),
-                emphasis: true,
-                onSelect: addEntryHere,
-              },
-              {
-                key: "add-sub",
-                icon: FolderPlus,
-                title: t("tree.createSubcategory"),
-                subtitle: t("tree.newSubcategoryInside"),
-                onSelect: openAddSub,
-              },
-              {
-                key: "structure",
-                icon: Layers,
-                title: t("tree.structurePage"),
-                subtitle: "Edit / move / delete",
-                onSelect: goStructure,
-              },
-            ]}
-          />
-        ) : (
-          <button
-            onClick={() => setAddCatOpen(true)}
-            aria-label={t("tree.newCategory")}
-            className="flex h-7 items-center gap-1 rounded-full bg-white/8 px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {t("tree.newCategory")}
-          </button>
-        )}
+        {/* Eylem şeridi */}
+        <div className="flex items-center gap-1.5">
+          {focusObj == null ? (
+            <ActionButton
+              icon={Plus}
+              label={t("tree.newCategory")}
+              color={centerColor}
+              onClick={() => setAddCatOpen(true)}
+              primary
+            />
+          ) : (
+            <>
+              <ActionButton
+                icon={FolderPlus}
+                label={t("tree.createSubcategory")}
+                color={centerColor}
+                onClick={openAddSub}
+                primary
+              />
+              {/* Bulunulan kalemin yapı sayfası — düzenle/taşı/sil oraya ait */}
+              <ActionButton
+                icon={Layers}
+                label={focusName}
+                color={centerColor}
+                onClick={goStructure}
+              />
+            </>
+          )}
+        </div>
       </div>
 
       {layout === "list" ? (
@@ -1097,4 +1093,48 @@ function CategoryIconOrFallback({
   if (icon) return <span className="text-lg leading-none">{icon}</span>;
   const Fallback = hasKids ? FolderOpen : Folder;
   return <Fallback className="h-5 w-5" style={{ color }} strokeWidth={1.75} />;
+}
+
+/**
+ * Başlıktaki eylem düğmesi. `primary` olan kalemin renginde dolu durur —
+ * asıl eylem odur; ikincisi çerçeveli ve sakin. Eskiden ikisi de "…" menüsünün
+ * arkasındaydı ve kullanıcı alt kategori açmayı bulamıyordu.
+ */
+function ActionButton({
+  icon: Icon,
+  label,
+  color,
+  onClick,
+  primary,
+}: {
+  icon: typeof Plus;
+  label: string;
+  color: string;
+  onClick: () => void;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex min-w-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all active:scale-[0.97]",
+        primary ? "text-white" : "text-muted-foreground hover:text-foreground"
+      )}
+      style={
+        primary
+          ? {
+              background: `linear-gradient(135deg, ${color}, ${color}bb)`,
+              boxShadow: `0 4px 14px ${color}40`,
+            }
+          : {
+              background: `${color}12`,
+              boxShadow: `inset 0 0 0 1px ${color}40`,
+            }
+      }
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+      <span className="truncate">{label}</span>
+    </button>
+  );
 }
