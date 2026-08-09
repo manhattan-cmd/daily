@@ -419,6 +419,7 @@ export function PeriodView({
               {/* Zaman penceresinden bağımsız, kategorinin tüm zamanlar analizi */}
               <Link
                 href={`/analytics/${selectedCat.id}`}
+                prefetch={false}
                 className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
                 Category insights

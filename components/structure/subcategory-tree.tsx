@@ -470,6 +470,7 @@ function TreeNode({
       <div className="flex items-center gap-0.5">
         <Link
           href={`/structure/${categoryId}/${sub.id}`}
+          prefetch={false}
           data-drop-sub={sub.id}
           // Bağlantılar varsayılan olarak sürüklenebilir; tarayıcının yerel
           // sürükleme jesti başlayınca pointer olayları iptal edilip bizim

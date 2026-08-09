@@ -102,7 +102,9 @@ export function CategoryTile({
   );
   if (href) {
     return (
-      <Link href={href} className={tileWrapCls}>
+      // Kategori ızgarası bir liste: kullanıcı en fazla birine girer.
+      // Hepsini önden çekmek telefonda ağı doldurup gezinmeyi geciktiriyordu.
+      <Link href={href} prefetch={false} className={tileWrapCls}>
         {content}
       </Link>
     );

@@ -216,6 +216,9 @@ export default function CalendarPage() {
             <Link
               key={day}
               href={`/calendar/${dateStr(day)}`}
+              // Ay ızgarasında ~40 gün var; hepsini önden çekmek telefonda
+              // ağı doldurup asıl gidilen sayfayı geciktiriyordu
+              prefetch={false}
               // Bağlantılar varsayılan olarak sürüklenebilir; tarayıcının yerel
               // sürükleme jesti kaydırmayı yarıda kesiyordu
               draggable={false}

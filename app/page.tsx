@@ -227,6 +227,7 @@ function WeekBar({
   return (
     <Link
       href={`/calendar/${day.date}`}
+      prefetch={false}
       aria-label={`${WEEKDAYS_SHORT[dt.getDay()]} ${dt.getDate()} · ${day.count} entries`}
       className="group flex flex-1 flex-col items-center gap-1.5"
     >
