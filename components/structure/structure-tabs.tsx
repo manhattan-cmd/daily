@@ -28,6 +28,9 @@ export function StructureTabs() {
           <Link
             key={tab.href}
             href={tab.href}
+            // Zaten bu bölümdeyiz ve hepsi statik: sekmeleri önden çekmek
+            // her yeniden çizimde tekrar istek üretiyordu
+            prefetch={false}
             className={chipClass(active)}
             aria-current={active ? "page" : undefined}
           >
