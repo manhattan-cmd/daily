@@ -34,7 +34,9 @@ export function EntryCard({
   const isRoot = !!entry.subcategory.isCategoryRoot;
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
 
-  const typedValues = entry.values.filter((v) => v.entryTypeId && v.entryType);
+  // Ölçümü olan her değer çizilir. Eskiden entryTypeId de şarttı; v18'den
+  // sonra yeni değerler onu taşımadığı için hepsi görünmez olmuştu.
+  const typedValues = entry.values.filter((v) => !!v.entryType);
 
   return (
     <>

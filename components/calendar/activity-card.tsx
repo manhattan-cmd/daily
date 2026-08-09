@@ -217,7 +217,7 @@ export function ActivityCard({
             </div>
             {entries.map((e) => {
               const valueChips = e.values
-                .filter((v) => v.entryTypeId && v.entryType)
+                .filter((v) => !!v.entryType)
                 .slice(0, 3);
               return (
                 <button

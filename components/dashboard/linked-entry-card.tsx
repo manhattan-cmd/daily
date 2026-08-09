@@ -37,11 +37,14 @@ export function LinkedEntryCard({
   for (const entry of entries) {
     const seenInEntry = new Set<string>();
     for (const v of entry.values) {
-      if (!v.entryTypeId || !v.entryType) continue;
-      if (!seenInEntry.has(v.entryTypeId)) {
-        typeIdCount.set(v.entryTypeId, (typeIdCount.get(v.entryTypeId) ?? 0) + 1);
-        seenInEntry.add(v.entryTypeId);
-        if (!firstValueByTypeId.has(v.entryTypeId)) firstValueByTypeId.set(v.entryTypeId, v);
+      if (!v.entryType) continue;
+      // Anahtar özelliğin kendisi; entryTypeId yalnız v18 öncesi kayıtlarda var
+      const key = v.modId ?? v.entryTypeId;
+      if (!key) continue;
+      if (!seenInEntry.has(key)) {
+        typeIdCount.set(key, (typeIdCount.get(key) ?? 0) + 1);
+        seenInEntry.add(key);
+        if (!firstValueByTypeId.has(key)) firstValueByTypeId.set(key, v);
       }
     }
   }
@@ -106,7 +109,7 @@ export function LinkedEntryCard({
         <div className="px-3 py-2.5 flex flex-col gap-2.5">
           {entries.map((entry) => {
             const ownValues = entry.values.filter(
-              (v) => v.entryTypeId && v.entryType && !sharedTypeIds.has(v.entryTypeId)
+              (v) => v.entryType && !sharedTypeIds.has(v.modId ?? v.entryTypeId ?? "")
             );
             return (
               <div key={entry.id} className="group/row flex items-start gap-2.5">

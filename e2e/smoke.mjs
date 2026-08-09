@@ -750,6 +750,81 @@ async function seededFeatures(browser) {
   await page.close();
 }
 
+// ─── 8. Yeni biçimli değer ekranda görünüyor mu ──────────────────────────────
+/**
+ * v18'den beri girdi değerleri ölçü havuzuna bağ (entryTypeId) TAŞIMIYOR;
+ * ölçüm özelliğin üzerinde. "Değer entryTypeId taşır" varsayımı üç ayrı yerde
+ * sessiz hataya yol açtı — sonuncusu taze kurulumda girdi değerlerinin
+ * kartlarda hiç görünmemesiydi (kendi cihazında eski entryTypeId'ler durduğu
+ * için fark edilmiyordu, yeni kullanıcıda her girdi boş görünüyordu).
+ *
+ * Bu yüzden değer YALNIZCA modId ile tohumlanıyor: yeni kayıtların gerçek
+ * biçimi bu. Ekranda görünmüyorsa varsayım geri gelmiş demektir.
+ */
+async function newValueRenders(browser) {
+  const { page, errors } = await openApp(browser);
+
+  const seeded = await page.evaluate(async (date) => {
+    const db = await new Promise((res) => {
+      const r = indexedDB.open("RoutineDB");
+      r.onsuccess = () => res(r.result);
+    });
+    const g = (t) =>
+      new Promise((r) => {
+        const q = db.transaction(t).objectStore(t).getAll();
+        q.onsuccess = () => r(q.result);
+      });
+    const [subs, mods] = await Promise.all([g("subcategories"), g("mods")]);
+    const sub = subs.find((s) => !s.isCategoryRoot);
+    const mod = mods.find((m) => m.name === "Money");
+    if (!sub || !mod) throw new Error("tohum için kalem/özellik yok");
+    const [y, m, d] = date.split("-").map(Number);
+    const at = new Date(y, m - 1, d, 12, 0).getTime();
+    const now = Date.now();
+    const tx = db.transaction(["entries", "entryValues"], "readwrite");
+    tx.objectStore("entries").put({
+      id: "e2e-newval",
+      subcategoryId: sub.id,
+      occurredAt: at,
+      createdAt: now,
+      updatedAt: now,
+    });
+    // entryTypeId YOK — v18 sonrası gerçek biçim
+    tx.objectStore("entryValues").put({
+      id: "e2e-newval-v",
+      entryId: "e2e-newval",
+      modId: mod.id,
+      value: "480",
+      updatedAt: now,
+    });
+    await new Promise((r) => {
+      tx.oncomplete = r;
+    });
+    return { modHasLegacyLink: !!mod.entryTypeId, unit: mod.unit };
+  }, today());
+
+  check(
+    "tohum gerçekten yeni biçimde (özellik havuza bağlı değil)",
+    seeded.modHasLegacyLink === false,
+    JSON.stringify(seeded)
+  );
+
+  await page.reload();
+  await page.waitForTimeout(3000);
+  const dayText = await page.evaluate(() => document.body.innerText);
+  truthy("gün sayfasında değer görünüyor", dayText.includes("480"), dayText.slice(0, 200));
+  truthy("değerin özellik adı görünüyor", dayText.includes("Money"));
+  truthy("birim görünüyor", dayText.includes(seeded.unit));
+
+  await page.goto(BASE);
+  await page.waitForTimeout(2500);
+  const homeText = await page.evaluate(() => document.body.innerText);
+  truthy("ana sayfadaki son girdilerde de görünüyor", homeText.includes("480"));
+
+  check("yeni biçimli değer: sayfa hatası yok", errors.length === 0, errors.join(" | "));
+  await page.close();
+}
+
 // ─── 4. Dil değişimi ─────────────────────────────────────────────────────────
 async function language(browser) {
   const { page, errors } = await openApp(browser);
@@ -795,6 +870,7 @@ const SCENARIOS = {
   listSearch,
   featureMeasure,
   seededFeatures,
+  newValueRenders,
   language,
 };
 

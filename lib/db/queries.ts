@@ -2291,11 +2291,23 @@ async function hydrateEntries(entries: Entry[]): Promise<EntryWithContext[]> {
       (a, b) => a.order - b.order
     );
     const rawValues = valuesByEntry.get(e.id) ?? [];
-    const valuesWithType: EntryValueWithType[] = rawValues.map((v) => ({
-      ...v,
-      entryType: v.entryTypeId ? entryTypeMap.get(v.entryTypeId) : undefined,
-      mod: v.modId ? modMap.get(v.modId) : undefined,
-    }));
+    const valuesWithType: EntryValueWithType[] = rawValues.map((v) => {
+      const mod = v.modId ? modMap.get(v.modId) : undefined;
+      return {
+        ...v,
+        // Ölçüm önce özelliğin kendisinden. v18'den beri yeni değerler
+        // entryTypeId taşımıyor; havuza bakmak onları ölçümsüz bırakıyordu ve
+        // kartlar ölçümsüz değeri hiç çizmiyordu (taze kurulumda TÜM girdiler
+        // boş görünüyordu — kendi cihazında eski entryTypeId'ler durduğu için
+        // fark edilmiyordu).
+        entryType: mod
+          ? measureOf(mod)
+          : v.entryTypeId
+            ? entryTypeMap.get(v.entryTypeId)
+            : undefined,
+        mod,
+      };
+    });
     results.push({
       ...e,
       subcategory: sub,
