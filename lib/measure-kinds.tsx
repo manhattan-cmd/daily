@@ -35,6 +35,30 @@ export function uiKindOf(m: {
   return vt === "select" && isScaleChoices(m.choices) ? "scale" : vt;
 }
 
+/**
+ * Skala sınırları. Üst sınır keyfi değil: her basamak girdi ekranında bir
+ * düğme, 21'den fazlası telefon ekranında okunmaz bir duvara dönüşüyor.
+ * Alt sınır 2 — tek basamaklı skala seçim değil.
+ */
+export const SCALE_MIN_STEPS = 2;
+export const SCALE_MAX_STEPS = 21;
+
+/** min..max arasını basamaklara aç (sınırlar dahil) */
+export function scaleChoices(min: number, max: number): string[] {
+  const lo = Math.round(min);
+  const hi = Math.round(max);
+  if (hi <= lo) return [String(lo), String(lo + 1)];
+  const capped = Math.min(hi, lo + SCALE_MAX_STEPS - 1);
+  return Array.from({ length: capped - lo + 1 }, (_, i) => String(lo + i));
+}
+
+/** Kayıtlı basamaklardan aralığı geri oku (düzenlemeye açarken) */
+export function scaleRangeOf(choices?: string[]): { min: number; max: number } {
+  const nums = (choices ?? []).map(Number).filter(Number.isFinite);
+  if (nums.length < 2) return { min: 1, max: 5 };
+  return { min: Math.min(...nums), max: Math.max(...nums) };
+}
+
 export const MEASURE_KIND_META: Record<
   MeasureUiKind,
   { icon: LucideIcon; labelKey: MessageKey; hintKey: MessageKey }
@@ -53,7 +77,7 @@ export const MEASURE_KIND_META: Record<
   },
   "datetime-range": {
     icon: CalendarClock,
-    labelKey: "measure.range",
+    labelKey: "measure.dateRange",
     hintKey: "measure.rangeHint",
   },
   text: { icon: Type, labelKey: "measure.text", hintKey: "measure.textHint" },

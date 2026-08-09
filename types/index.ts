@@ -28,6 +28,16 @@ export const SCALE_PRESETS: { key: string; label: string; choices: string[] }[] 
 
 export const SCALE_1_5 = SCALE_PRESETS[0].choices;
 
+/**
+ * Skalanın uçlarına verilen anlam. Sayılar tek başına hangi yönün iyi olduğunu
+ * söylemiyor: "1–5" kötüden iyiye mi, tersi mi? Girdi ekranında basamakların
+ * altında görünür.
+ */
+export interface ScaleLabels {
+  low?: string;
+  high?: string;
+}
+
 /** Seçenekler tamamen sayıysa bu bir skaladır (ayrı bir tür değil, aynı select) */
 export const isScaleChoices = (c?: string[]): boolean =>
   !!c?.length && c.every((x) => Number.isFinite(Number(x)));
@@ -142,6 +152,8 @@ export interface Mod {
   unit?: string;
   /** select'te seçenekler; hepsi sayıysa skala sayılır (toplanmaz, ortalanır) */
   choices?: string[];
+  /** Skalanın uçlarının anlamı — girdi ekranında sayıların altında görünür */
+  scaleLabels?: ScaleLabels;
   /** @deprecated v18 öncesi ölçü havuzuna bağ. Yeni modlarda yok; eski
    *  kayıtlarda dönüş yolu açık kalsın diye silinmedi. */
   entryTypeId?: string;

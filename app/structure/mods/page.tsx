@@ -112,7 +112,12 @@ export default function ModsHomePage() {
 
   function openEdit(mod: ModWithType) {
     setEditName(mod.name);
-    setEditMeasure({ valueType: mod.valueType ?? "number", unit: mod.unit, choices: mod.choices });
+    setEditMeasure({
+      valueType: mod.valueType ?? "number",
+      unit: mod.unit,
+      choices: mod.choices,
+      scaleLabels: mod.scaleLabels,
+    });
     setEditError(false);
     setDetailView("edit");
   }

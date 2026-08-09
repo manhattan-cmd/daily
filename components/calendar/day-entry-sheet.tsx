@@ -29,8 +29,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SHORT_MONTHS } from "@/lib/analytics";
+import { ScaleInput } from "@/components/ui/scale-input";
 import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
-import type { Category, SubCategory } from "@/types";
+import { isScaleChoices, type Category, type SubCategory } from "@/types";
 
 /** Değer state anahtarı: global mod id (legacy atamalarda atama id'si) */
 const valueKey = (m: CategoryModifierWithType) => m.modId ?? m.id;
@@ -1013,13 +1014,24 @@ export function ModInput({
         </button>
       )}
 
-      {vt === "select" && (
+      {/* Skala sıralıdır: basamaklar eşit genişlikte tek şeritte, uçlarının
+          anlamı altında. Serbest çip bulutu bu sırayı göstermiyordu. */}
+      {vt === "select" && isScaleChoices(mod.entryType.choices) && (
+        <ScaleInput
+          choices={mod.entryType.choices ?? []}
+          labels={mod.mod?.scaleLabels}
+          value={value}
+          onChange={onChange}
+        />
+      )}
+
+      {vt === "select" && !isScaleChoices(mod.entryType.choices) && (
         <div className="flex flex-wrap gap-2">
           {(mod.entryType.choices ?? []).map((choice) => (
             <button
               key={choice}
               type="button"
-              onClick={() => onChange(choice)}
+              onClick={() => onChange(value === choice ? "" : choice)}
               className={cn(
                 "rounded-xl border px-4 py-2 text-sm font-medium transition-colors",
                 value === choice

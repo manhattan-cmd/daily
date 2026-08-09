@@ -22,8 +22,9 @@ import type {
   Note,
   NoteBlock,
   EntryValueType,
+  ScaleLabels,
 } from "@/types";
-import { SCALE_1_5 } from "@/types";
+import { SCALE_1_5, isScaleChoices } from "@/types";
 
 const now = () => Date.now();
 const id = () => nanoid(12);
@@ -892,13 +893,26 @@ export interface ModMeasure {
   valueType: EntryValueType;
   unit?: string;
   choices?: string[];
+  scaleLabels?: ScaleLabels;
 }
 
-export const measureFieldsOf = (m: ModMeasure) => ({
-  valueType: m.valueType,
-  unit: m.valueType === "number" ? m.unit?.trim() || undefined : undefined,
-  choices: m.valueType === "select" && m.choices?.length ? m.choices : undefined,
-});
+/** Türe uymayan alanları düşürerek kaydet — tür değişince eski yapılandırma
+ *  kayıtta asılı kalmasın (birim seçip çoktan seçmeliye dönmek gibi) */
+export const measureFieldsOf = (m: ModMeasure) => {
+  const choices =
+    m.valueType === "select" && m.choices?.length ? m.choices : undefined;
+  const low = m.scaleLabels?.low?.trim();
+  const high = m.scaleLabels?.high?.trim();
+  const labeled = isScaleChoices(choices) && (low || high);
+  return {
+    valueType: m.valueType,
+    unit: m.valueType === "number" ? m.unit?.trim() || undefined : undefined,
+    choices,
+    scaleLabels: labeled
+      ? { ...(low ? { low } : {}), ...(high ? { high } : {}) }
+      : undefined,
+  };
+};
 
 /**
  * Uygulamayla gelen özellikler — kurulumda hazır bulunsunlar diye. Ayrıcalıkları

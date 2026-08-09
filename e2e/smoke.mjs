@@ -491,6 +491,7 @@ async function featureMeasure(browser) {
           vt: m.valueType,
           unit: m.unit ?? null,
           ch: m.choices ?? null,
+          labels: m.scaleLabels ?? null,
           etid: m.entryTypeId ?? null,
         }));
     }, names);
@@ -502,12 +503,41 @@ async function featureMeasure(browser) {
   await page.getByRole("button", { name: "Create" }).click();
   await page.waitForTimeout(900);
 
-  // Skala — depoda sayısal seçenek kümesi, analiz bunu ortalar
+  // Skala — serbest aralık + uç anlamları. Depoda sayısal seçenek kümesi,
+  // analiz bunu toplamayıp ortalar.
   await newFeature();
   await page.waitForTimeout(500);
   await page.locator("#pool-mod-name").fill("Focus");
   await page.getByRole("button", { name: "Scale", exact: true }).click();
+  await page.waitForTimeout(400);
+  const stepText = () =>
+    page.evaluate(() => {
+      const p = [...document.querySelectorAll('[role="dialog"] p')].find((x) =>
+        /steps/.test(x.textContent)
+      );
+      return p?.textContent.trim() ?? null;
+    });
+  eq("skala varsayılanı 1–5", await stepText(), "5 steps");
+  // Hazır aralıkların dışına çıkabilmeli: 0'dan 7'ye
+  await page.getByRole("button", { name: "From −" }).click();
+  await page.waitForTimeout(250);
+  await page.getByRole("button", { name: "To +" }).click();
+  await page.waitForTimeout(250);
+  await page.getByRole("button", { name: "To +" }).click();
+  await page.waitForTimeout(300);
+  eq("aralık serbestçe genişliyor", await stepText(), "8 steps");
+  // Üst sınır: her basamak girdi ekranında bir düğme, sonsuz olamaz
+  for (let i = 0; i < 25; i++) {
+    const b = page.getByRole("button", { name: "To +" });
+    if (await b.isDisabled()) break;
+    await b.click();
+    await page.waitForTimeout(80);
+  }
+  eq("basamak üst sınırında duruyor", await stepText(), "21 steps");
+  await page.locator('input[placeholder="low end, e.g. poor"]').fill("scattered");
+  await page.locator('input[placeholder="high end, e.g. great"]').fill("sharp");
   await page.getByRole("button", { name: "1 – 10" }).click();
+  await page.waitForTimeout(400);
   await page.getByRole("button", { name: "Create" }).click();
   await page.waitForTimeout(900);
 
@@ -530,6 +560,11 @@ async function featureMeasure(browser) {
   eq("üç özellik de yaratıldı", made.length, 3);
   eq("sayı: birim boş bırakılabiliyor", by("Sets")?.unit, null);
   eq("skala sayısal seçenek kümesi", by("Focus")?.ch?.length, 10);
+  eq(
+    "skala uç anlamları kaydedildi",
+    `${by("Focus")?.labels?.low}→${by("Focus")?.labels?.high}`,
+    "scattered→sharp"
+  );
   eq("çoktan seçmeli kendi seçeneklerini taşıyor", by("Trigger")?.ch?.join(), "stress,coffee");
   check(
     "hiçbiri ölçü havuzuna bağlı değil",
