@@ -601,16 +601,14 @@ export function EntryNetwork({
               width={hex.width}
               height={hex.height}
             >
-              {/* Merkez göz yalnız bir kaleme girildiğinde var; kökte
-                  ortada duracak bir şey yok, boş altıgen çizmek yanıltıcı */}
-              {focusObj != null && (
-                <polygon
-                  points={hexCorners(centerPos.x, centerPos.y, HEX_SIZE - 1)}
-                  fill={`${centerColor}26`}
-                  stroke={`${centerColor}80`}
-                  strokeWidth={2}
-                />
-              )}
+              {/* Merkez göz — kökte "Kategoriler", içeride bulunulan kalem.
+                  Çevredekilerden parlak durur ki nerede olunduğu belli olsun. */}
+              <polygon
+                points={hexCorners(centerPos.x, centerPos.y, HEX_SIZE - 1)}
+                fill={`${centerColor}26`}
+                stroke={`${centerColor}80`}
+                strokeWidth={2}
+              />
               {positions.map((p, i) => (
                 <polygon
                   key={i}
@@ -654,6 +652,35 @@ export function EntryNetwork({
             {/* Merkez göz — nerede olduğun. Çevredekilerden parlak durur
                 ve dokununca buraya kayıt açılır. Eskiden kare karoydu:
                 altıgenin içinde kare durmak şekil dilini bozuyordu. */}
+            {focusObj == null && (
+              // Kökte tıklanacak bir şey yok — kategori köküne kayıt diye bir
+              // kavram yok. Yalnız nerede olduğunu söyleyen etiket.
+              <span
+                aria-hidden
+                className="absolute z-10 flex items-center justify-center"
+                style={{
+                  left: centerPos.x,
+                  top: centerPos.y,
+                  width: HEX_SIZE * 2,
+                  height: HEX_SIZE * Math.sqrt(3),
+                  transform: "translate(-50%,-50%)",
+                }}
+              >
+                <span
+                  className="flex h-full w-full flex-col items-center justify-center gap-0.5 px-2"
+                  style={{
+                    clipPath: HEX_CLIP,
+                    background: `linear-gradient(150deg, ${centerColor}7a, ${centerColor}2e)`,
+                  }}
+                >
+                  <Layers className="h-5 w-5 text-white" strokeWidth={1.75} />
+                  <span className="line-clamp-2 w-full text-center text-[10px] font-semibold leading-tight text-white">
+                    {t("structure.categories")}
+                  </span>
+                </span>
+              </span>
+            )}
+
             {focusObj != null && (
               <button
                 onClick={addEntryHere}

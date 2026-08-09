@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Locate, Minus, Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Locate } from "lucide-react";
 
 /** Sığdırılmış hale göre en çok bu kadar yakınlaşılır */
 const MAX_ZOOM = 2.5;
@@ -180,51 +179,22 @@ export function CanvasViewport({
         </div>
       </div>
 
-      <div className="pointer-events-none absolute bottom-1 right-1 flex flex-col gap-1">
-        <ViewBtn onClick={() => zoomBy(1.3)} label="+" off={zoom >= MAX_ZOOM}>
-          <Plus className="h-3.5 w-3.5" />
-        </ViewBtn>
-        <ViewBtn onClick={() => zoomBy(1 / 1.3)} label="−" off={zoom <= 1}>
-          <Minus className="h-3.5 w-3.5" />
-        </ViewBtn>
-        <ViewBtn
+      {/* Yakınlaştırma düğmesi yok — parmakla yapılıyor. Yalnız kullanıcı
+          şekli oynattığında bir dönüş yolu beliriyor; hiç oynatmadıysa
+          ekranda duracak bir şey de yok. */}
+      {moved && (
+        <button
+          type="button"
           onClick={() => {
             setZoom(1);
             setPan({ x: 0, y: 0 });
           }}
-          label="Ortala"
-          off={!moved}
+          aria-label="Ortala"
+          className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card/85 text-muted-foreground backdrop-blur transition-colors hover:text-foreground"
         >
-          <Locate className="h-3.5 w-3.5" />
-        </ViewBtn>
-      </div>
-    </div>
-  );
-}
-
-function ViewBtn({
-  onClick,
-  label,
-  off,
-  children,
-}: {
-  onClick: () => void;
-  label: string;
-  off?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={off}
-      aria-label={label}
-      className={cn(
-        "pointer-events-auto flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-card/85 text-muted-foreground backdrop-blur transition-colors",
-        off ? "opacity-25" : "hover:text-foreground"
+          <Locate className="h-4 w-4" />
+        </button>
       )}
-    >
-      {children}
-    </button>
+    </div>
   );
 }
