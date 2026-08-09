@@ -27,6 +27,8 @@ import { CategoryForm } from "@/components/structure/category-form";
 import { HScroll } from "@/components/ui/h-scroll";
 import { OptionsMenu } from "@/components/forms/form-options";
 import { CanvasViewport } from "@/components/calendar/canvas-viewport";
+import { hexCorners, hexLayout, HEX_CLIP } from "@/lib/hex";
+import { CategoryIcon, CATEGORY_ICON_MAP } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
 import type { Category, SubCategory } from "@/types";
@@ -60,6 +62,8 @@ const NO_COUNTS: ReadonlyMap<string, number> = new Map();
 
 /** Tuval genişliği (px) */
 const MAX_POLY = 300;
+/** Altıgen hücrenin merkezden köşesine uzaklığı (px) */
+const HEX_SIZE = 46;
 /** Bu sayıdan sonra çokgen okunmaz oluyor, liste devralır */
 const LIST_FROM = 17;
 
@@ -88,22 +92,6 @@ const LAYOUT_OPTIONS: {
 const LS_LAYOUT = "entrynet-layout";
 const focusKeyOf = (f: NetFocus) => (f == null ? "root" : `${f.type}:${f.id}`);
 
-/** Çokgen köşe açısı (ekran koordinatı) — 2 sağ/sol, 3 üçgen, 4 kare... */
-function angleFor(i: number, n: number): number {
-  if (n === 1) return Math.PI / 2;
-  const deg = -90 + 180 / n + (i * 360) / n;
-  return (deg * Math.PI) / 180;
-}
-
-/** Çokgen köşeleri — az sayıda düğüm için temiz ve okunur */
-function polyPositions(n: number, C: number) {
-  const R = C * (n <= 4 ? 0.69 : Math.min(0.85, 0.55 + n * 0.045));
-  return Array.from({ length: n }, (_, i) => {
-    const a = angleFor(i, n);
-    return { x: C + R * Math.cos(a), y: C + R * Math.sin(a) };
-  });
-}
-
 /** Türkçe duyarlı bölüm başlığı — ada göre A–Z gruplaması */
 function sectionKeyOf(name: string): string {
   const ch = name.trim().charAt(0).toLocaleUpperCase("tr");
@@ -122,20 +110,18 @@ const norm = (s: string) => s.toLocaleLowerCase("tr").trim();
  */
 export function EntryNetwork({
   groups,
-  focus,
-  onFocusChange,
   onSubSelect,
   onCategorySelect,
   onClose,
 }: {
   groups: NetGroup[] | undefined;
-  focus: NetFocus;
-  onFocusChange: (focus: NetFocus) => void;
   onSubSelect: (sub: SubCategory) => void;
   onCategorySelect: (category: Category) => void;
   onClose: () => void;
 }) {
   const t = useT();
+  // Nerede olduğumuz burada tutulur; sheet'in bilmesi gereken bir şey değil
+  const [focus, onFocusChange] = useState<NetFocus>(null);
   const router = useRouter();
   const [addSub, setAddSub] = useState<{
     categoryId: string;
@@ -299,14 +285,15 @@ export function EntryNetwork({
     ro.observe(el);
     return () => ro.disconnect();
   }, [layout, maxSize]);
-  const half = box / 2;
   const pad = dense ? 26 : 30;
 
-  const positions = useMemo(() => {
-    const n = nodes.length;
-    if (n === 0 || layout === "list") return [];
-    return polyPositions(n, half);
-  }, [nodes.length, layout, half]);
+  // Altıgen yuva düzeni — kural lib/hex.ts'te, testle sabit
+  const hex = useMemo(
+    () => hexLayout(layout === "list" ? 0 : nodes.length, HEX_SIZE),
+    [nodes.length, layout]
+  );
+  const positions = hex.nodes;
+  const centerPos = hex.center;
 
   const nodeId = (node: Node) => (node.kind === "cat" ? node.cat.id : node.sub.id);
   const nodeWeight = (node: Node) =>
@@ -462,8 +449,6 @@ export function EntryNetwork({
         ? focusObj.cat.icon
         : focusObj.sub.icon;
   const hasNodes = nodes.length > 0;
-  // Çokgen daima sabit köşelerden (temiz kalır); ışınlar sürükleneni takip eder
-  const polyPoints = positions.map((p) => `${p.x},${p.y}`).join(" ");
 
   // Liste satırları — ad, renk, çocuk sayısı
   const rows = useMemo(
@@ -604,56 +589,57 @@ export function EntryNetwork({
       ) : (
         <>
           {/* Ağ — sürüklenip yakınlaştırılabilen küçük bir pencere */}
-          <CanvasViewport size={box} resetKey={focusKey}>
+          <CanvasViewport size={Math.max(hex.width, hex.height)} resetKey={focusKey}>
           <div
-            ref={canvasRef}
             key={focusKey}
-            className="relative animate-zoom-in"
-            style={{ width: maxSize, maxWidth: "100%", aspectRatio: "1 / 1" }}
+            className="relative mx-auto animate-zoom-in"
+            style={{ width: hex.width, height: hex.height }}
           >
             <svg
               className="pointer-events-none absolute inset-0"
-              viewBox={`0 0 ${box} ${box}`}
-              width="100%"
-              height="100%"
+              viewBox={`0 0 ${hex.width} ${hex.height}`}
+              width={hex.width}
+              height={hex.height}
             >
-              {focusObj != null &&
-                effPositions.map((p, i) => (
-                  <line
-                    key={i}
-                    x1={half}
-                    y1={half}
-                    x2={p.x}
-                    y2={p.y}
-                    stroke={`${centerColor}40`}
-                    strokeWidth={1.5}
-                  />
-                ))}
-              {focusObj == null && effPositions.length === 2 && (
-                <line
-                  x1={effPositions[0].x}
-                  y1={effPositions[0].y}
-                  x2={effPositions[1].x}
-                  y2={effPositions[1].y}
-                  stroke={`${centerColor}45`}
-                  strokeWidth={1.5}
-                />
-              )}
-              {/* Merkezi saran çokgen — 3 alt kalem üçgen, 4'ü kare çizer */}
-              {positions.length >= 3 && (
+              {/* Merkez göz — çevresindekiler ona değer */}
+              <polygon
+                points={hexCorners(centerPos.x, centerPos.y, HEX_SIZE - 1)}
+                fill={`${centerColor}16`}
+                stroke={`${centerColor}55`}
+                strokeWidth={1.5}
+              />
+              {positions.map((p, i) => (
                 <polygon
-                  points={polyPoints}
-                  fill={`${centerColor}0f`}
-                  stroke={`${centerColor}50`}
-                  strokeWidth={1.5}
+                  key={i}
+                  points={hexCorners(p.x, p.y, HEX_SIZE - 1)}
+                  fill={`${centerColor}0b`}
+                  stroke={`${centerColor}30`}
+                  strokeWidth={1.25}
                 />
-              )}
+              ))}
+              {drag &&
+                effPositions.map((p, i) =>
+                  drag.id === nodeId(nodes[i]) ? (
+                    <line
+                      key={`d${i}`}
+                      x1={positions[i].x}
+                      y1={positions[i].y}
+                      x2={p.x}
+                      y2={p.y}
+                      stroke={`${centerColor}40`}
+                      strokeWidth={1.5}
+                      strokeDasharray="4 4"
+                    />
+                  ) : null
+                )}
               {/* Sürüklerken oturacağı yuva vurgusu */}
               {drag && targetSlot >= 0 && positions[targetSlot] && (
-                <circle
-                  cx={positions[targetSlot].x}
-                  cy={positions[targetSlot].y}
-                  r={30}
+                <polygon
+                  points={hexCorners(
+                    positions[targetSlot].x,
+                    positions[targetSlot].y,
+                    HEX_SIZE - 1
+                  )}
                   fill="none"
                   stroke={centerColor}
                   strokeWidth={2}
@@ -670,8 +656,8 @@ export function EntryNetwork({
                 aria-label={`${focusName} · buraya ekle`}
                 className="absolute z-10 flex flex-col items-center gap-1"
                 style={{
-                  left: half,
-                  top: half,
+                  left: centerPos.x,
+                  top: centerPos.y,
                   transform: "translate(-50%,-50%)",
                 }}
               >
@@ -719,7 +705,6 @@ export function EntryNetwork({
                   icon={isCat ? node.cat.icon : node.sub.icon}
                   name={isCat ? node.cat.name : node.sub.name}
                   hasKids={hasKids}
-                  dense={dense}
                   glow={glowOf(node)}
                   isDragging={drag?.id === id}
                   onTap={() => drill(node)}
@@ -956,7 +941,6 @@ function NetNode({
   icon,
   name,
   hasKids,
-  dense,
   glow,
   isDragging,
   onTap,
@@ -968,7 +952,6 @@ function NetNode({
   icon?: string;
   name: string;
   hasKids: boolean;
-  dense: boolean;
   /** 0–1: sayfadaki en sık kullanılana göre oran */
   glow: number;
   isDragging: boolean;
@@ -1014,51 +997,71 @@ function NetNode({
       onContextMenu={(e) => e.preventDefault()}
       data-net-node=""
       className={cn(
-        "absolute flex select-none flex-col items-center gap-0.5 transition-transform",
+        "absolute flex select-none items-center justify-center transition-transform",
         isDragging ? "z-20 scale-110" : "z-0"
       )}
-      style={{ left: x, top: y, transform: "translate(-50%,-50%)" }}
+      style={{
+        left: x,
+        top: y,
+        width: HEX_SIZE * 2,
+        height: HEX_SIZE * Math.sqrt(3),
+        transform: "translate(-50%,-50%)",
+      }}
     >
-      <span className="relative">
-        <span
-          className="block rounded-xl"
-          style={
-            isDragging
-              ? { outline: `2px solid ${color}`, outlineOffset: "2px" }
-              : undefined
-          }
-        >
-          <CategoryTileCore
-            color={color}
-            icon={icon}
-            fallback={hasKids ? FolderOpen : Folder}
-            size={dense ? "sm" : "md"}
-            glow={glow}
-          />
-        </span>
-        {hasKids && (
-          <span
-            className={cn(
-              "absolute -bottom-1 -right-1 rounded-full border-2 border-background",
-              dense ? "h-3 w-3" : "h-3.5 w-3.5"
-            )}
-            style={{ backgroundColor: color }}
-          />
-        )}
-      </span>
+      {/* Ad hücrenin İÇİNDE: gözler birbirine değdiği için dışarıdaki etiket
+          komşusunun üstüne biniyordu */}
       <span
-        className={cn(
-          "truncate text-center leading-tight",
-          dense ? "max-w-[64px] text-[9px]" : "max-w-[80px] text-[10px]",
-          glow > 0.5
-            ? "font-semibold text-foreground"
-            : glow > 0.15
-              ? "font-medium text-foreground/75"
-              : "font-medium text-muted-foreground"
-        )}
+        className="flex h-full w-full flex-col items-center justify-center gap-0.5 px-2"
+        style={{
+          clipPath: HEX_CLIP,
+          background: `linear-gradient(150deg, ${color}${Math.round(0x26 + 0x3a * glow)
+            .toString(16)
+            .padStart(2, "0")}, ${color}0d)`,
+          outline: isDragging ? `2px solid ${color}` : undefined,
+        }}
       >
-        {name}
+        <CategoryIconOrFallback
+          color={color}
+          icon={icon}
+          hasKids={hasKids}
+        />
+        <span
+          className={cn(
+            "line-clamp-2 w-full text-center text-[9px] leading-tight",
+            glow > 0.5
+              ? "font-semibold text-foreground"
+              : glow > 0.15
+                ? "font-medium text-foreground/80"
+                : "font-medium text-muted-foreground"
+          )}
+        >
+          {name}
+        </span>
       </span>
+      {hasKids && (
+        <span
+          className="pointer-events-none absolute right-3 top-2 h-1.5 w-1.5 rounded-full"
+          style={{ backgroundColor: color }}
+        />
+      )}
     </button>
   );
+}
+
+/** Hücrenin içindeki ikon — kare çerçeve yok, altıgenin kendisi çerçeve */
+function CategoryIconOrFallback({
+  color,
+  icon,
+  hasKids,
+}: {
+  color: string;
+  icon?: string;
+  hasKids: boolean;
+}) {
+  const isLucide = !!icon && icon in CATEGORY_ICON_MAP;
+  if (isLucide)
+    return <CategoryIcon name={icon} className="h-5 w-5" style={{ color }} />;
+  if (icon) return <span className="text-lg leading-none">{icon}</span>;
+  const Fallback = hasKids ? FolderOpen : Folder;
+  return <Fallback className="h-5 w-5" style={{ color }} strokeWidth={1.75} />;
 }

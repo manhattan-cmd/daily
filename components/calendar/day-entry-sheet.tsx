@@ -20,7 +20,7 @@ import { useT } from "@/lib/i18n";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
-import { EntryNetwork, type NetFocus } from "@/components/calendar/entry-network";
+import { EntryNetwork } from "@/components/calendar/entry-network";
 import {
   DateTimeInput,
   DateTimeRangeInput,
@@ -74,8 +74,6 @@ export function DayEntrySheet({
   // Aktivite akışı: id bellekte üretilir, DB kaydı ilk girdiyle yazılır (ensureActivity)
   const [activity, setActivity] = useState<{ id: string; name: string } | null>(null);
   const [activityCount, setActivityCount] = useState(0);
-  // v2 ağ odağı — sheet'te tutulur ki form→geri bulunulan düğüme dönsün
-  const [netFocus, setNetFocus] = useState<NetFocus>(null);
 
   useEffect(() => {
     if (!open) {
@@ -88,7 +86,6 @@ export function DayEntrySheet({
         setLockedTypeIds(new Set());
         setActivity(null);
         setActivityCount(0);
-        setNetFocus(null);
       }, 300);
     }
   }, [open]);
@@ -354,8 +351,6 @@ export function DayEntrySheet({
             onCategorySelect={handleCategorySelect}
             onClose={onClose}
             activity={activity ? { name: activity.name, count: activityCount } : null}
-            netFocus={netFocus}
-            onNetFocusChange={setNetFocus}
           />
         ) : (
           <FormStep
@@ -481,8 +476,6 @@ function PickStep({
   onCategorySelect,
   onClose,
   activity,
-  netFocus,
-  onNetFocusChange,
 }: {
   groups:
     | { category: Category; topSubs: SubCategory[]; allSubs: SubCategory[] }[]
@@ -492,8 +485,6 @@ function PickStep({
   onClose: () => void;
   /** Aktivite akışında başlık bandı + Bitti butonu */
   activity?: { name: string; count: number } | null;
-  netFocus: NetFocus;
-  onNetFocusChange: (focus: NetFocus) => void;
 }) {
   const t = useT();
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -552,8 +543,6 @@ function PickStep({
         ) : (
           <EntryNetwork
             groups={groups}
-            focus={netFocus}
-            onFocusChange={onNetFocusChange}
             onSubSelect={onSubSelect}
             onCategorySelect={onCategorySelect}
             onClose={onClose}
