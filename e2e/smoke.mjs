@@ -510,22 +510,31 @@ async function featureMeasure(browser) {
   await page.locator("#pool-mod-name").fill("Focus");
   await page.getByRole("button", { name: "Scale", exact: true }).click();
   await page.waitForTimeout(400);
-  const stepText = () =>
+  // Basamak sayısı artık ayrı bir metin değil; şeridin kendisinden okunur
+  const stepCount = () =>
     page.evaluate(() => {
-      const p = [...document.querySelectorAll('[role="dialog"] p')].find((x) =>
-        /steps/.test(x.textContent)
-      );
-      return p?.textContent.trim() ?? null;
+      const strip = document.querySelector('[role="dialog"] [data-scale-strip]');
+      return strip ? strip.children.length : 0;
     });
-  eq("skala varsayılanı 1–5", await stepText(), "5 steps");
-  // Hazır aralıkların dışına çıkabilmeli: 0'dan 7'ye
+  eq("skala varsayılanı 1–5", await stepCount(), 5);
+
+  // Serbest aralık hazırların ARKASINDA duruyor: çoğu kişi 1–5 isteyip geçer,
+  // sayaçları herkesin önüne koymak formu kalabalıklaştırıyordu
+  eq(
+    "sayaçlar varsayılanda gizli",
+    await page.getByRole("button", { name: "From −" }).count(),
+    0
+  );
+  await page.getByRole("button", { name: "Custom", exact: true }).click();
+  await page.waitForTimeout(400);
   await page.getByRole("button", { name: "From −" }).click();
   await page.waitForTimeout(250);
   await page.getByRole("button", { name: "To +" }).click();
   await page.waitForTimeout(250);
   await page.getByRole("button", { name: "To +" }).click();
   await page.waitForTimeout(300);
-  eq("aralık serbestçe genişliyor", await stepText(), "8 steps");
+  eq("aralık serbestçe genişliyor", await stepCount(), 8);
+
   // Üst sınır: her basamak girdi ekranında bir düğme, sonsuz olamaz
   for (let i = 0; i < 25; i++) {
     const b = page.getByRole("button", { name: "To +" });
@@ -533,9 +542,11 @@ async function featureMeasure(browser) {
     await b.click();
     await page.waitForTimeout(80);
   }
-  eq("basamak üst sınırında duruyor", await stepText(), "21 steps");
-  await page.locator('input[placeholder="low end, e.g. poor"]').fill("scattered");
-  await page.locator('input[placeholder="high end, e.g. great"]').fill("sharp");
+  eq("basamak üst sınırında duruyor", await stepCount(), 21);
+
+  // Uç adları skalanın altına, yerinde yazılır
+  await page.locator('input[aria-label="name the low end"]').fill("scattered");
+  await page.locator('input[aria-label="name the high end"]').fill("sharp");
   await page.getByRole("button", { name: "1 – 10" }).click();
   await page.waitForTimeout(400);
   await page.getByRole("button", { name: "Create" }).click();

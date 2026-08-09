@@ -31,6 +31,9 @@ export function ScaleInput({
   return (
     <div className="flex flex-col gap-1.5">
       <div
+        // Sarmalanınca yerleşim sınıfları değişiyor; testler biçime değil
+        // bu kancaya baksın
+        data-scale-strip=""
         className={cn(
           "gap-1",
           wrap ? "flex flex-wrap" : "grid",

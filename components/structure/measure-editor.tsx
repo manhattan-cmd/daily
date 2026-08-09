@@ -23,13 +23,15 @@ import { cn } from "@/lib/utils";
 /**
  * Özelliğin "nasıl ölçülüyor" bölümü.
  *
- * v18'e kadar burada havuzdan bir ölçü seçiliyordu; ölçü ayrı bir nesneydi ve
- * kullanıcı özelliğe ondan başka verecek isim bulamadığı için 16 özelliğin
- * 6'sı ölçüsüyle aynı adı taşıyordu. Artık ölçüm özelliğin kendi üzerinde.
+ * Tasarım kararı: her tür için TEK bir kart. Ayarlar ve o ayarın sonucu aynı
+ * yüzeyde duruyor, ayrı bir "önizleme" bölümü yok. Skalada bu en çok fark
+ * eden yer — eskiden üç başlık (aralık / uçların anlamı / önizleme), beş
+ * kontrol ve kesikli çerçeveli bir kutu vardı; sıradan bir kullanıcı için
+ * form doldurma işine benziyordu. Şimdi skalanın kendisi görsel, uç adları
+ * doğrudan uçların altına yazılıyor.
  *
- * Tasarımın ana fikri ÖNİZLEME: seçtiğin türün girdi ekranında nasıl
- * görüneceğini burada, dokunabildiğin halde görüyorsun. Skalanın "1–10 mu
- * olsun 0–100 mü" sorusu soyut kaldığı sürece cevaplanamıyordu.
+ * Serbest aralık kaybolmadı ama öne çıkmıyor: hazır aralıklar kısayol,
+ * "Özel" dokunulunca sayaçlar açılıyor. Çoğu kişi 1–5 isteyip geçiyor.
  */
 export function MeasureEditor({
   value,
@@ -45,11 +47,20 @@ export function MeasureEditor({
   const t = useT();
   const kind = uiKindOf(value);
   const [choiceDraft, setChoiceDraft] = useState("");
-  /** Yalnızca önizleme için — kaydedilmez, dokunma hissini vermek adına */
-  const [preview, setPreview] = useState("");
+  /** Yalnızca hissi vermek için — kaydedilmez */
+  const [demo, setDemo] = useState("");
+  const [customOpen, setCustomOpen] = useState(false);
+
+  const choices = value.choices ?? [];
+  const range = scaleRangeOf(choices);
+  const steps = choices.length;
+  const activePreset = SCALE_PRESETS.find(
+    (p) => p.choices.join() === choices.join()
+  );
 
   function pickKind(k: MeasureUiKind) {
-    setPreview("");
+    setDemo("");
+    setCustomOpen(false);
     if (k === "scale") {
       onChange({ valueType: "select", choices: SCALE_PRESETS[0].choices });
       return;
@@ -57,12 +68,11 @@ export function MeasureEditor({
     onChange({ valueType: k as EntryValueType });
   }
 
-  const choices = value.choices ?? [];
-  const range = scaleRangeOf(choices);
-  const steps = choices.length;
-
   const setRange = (min: number, max: number) =>
     onChange({ ...value, choices: scaleChoices(min, max) });
+
+  const setLabel = (end: "low" | "high", v: string) =>
+    onChange({ ...value, scaleLabels: { ...value.scaleLabels, [end]: v } });
 
   const addChoice = () => {
     const v = choiceDraft.trim();
@@ -72,301 +82,295 @@ export function MeasureEditor({
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-2">
-        <Label>{t("measure.howMeasured")}</Label>
-        <div className="grid grid-cols-3 gap-1.5">
-          {MEASURE_UI_KINDS.map((k) => {
-            const meta = MEASURE_KIND_META[k];
-            const Icon = meta.icon;
-            const active = kind === k;
-            return (
-              <button
-                key={k}
-                type="button"
-                onClick={() => pickKind(k)}
-                aria-pressed={active}
-                className={cn(
-                  "flex flex-col items-center gap-1 rounded-xl border px-1 py-2.5 transition-colors",
-                  active
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-card text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                <span className="text-[10px] font-medium leading-tight">
-                  {t(meta.labelKey)}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        {/* Seçilenin ne olduğu tek satırda — her kutuya sıkıştırmak yerine */}
-        <p className="px-0.5 text-[11px] leading-snug text-muted-foreground/70">
-          {t(MEASURE_KIND_META[kind].hintKey)}
-        </p>
+    <div className="flex flex-col gap-2.5">
+      <Label>{t("measure.howMeasured")}</Label>
+      <div className="grid grid-cols-3 gap-1.5">
+        {MEASURE_UI_KINDS.map((k) => {
+          const meta = MEASURE_KIND_META[k];
+          const Icon = meta.icon;
+          const active = kind === k;
+          return (
+            <button
+              key={k}
+              type="button"
+              onClick={() => pickKind(k)}
+              aria-pressed={active}
+              className={cn(
+                "flex flex-col items-center gap-1 rounded-xl border px-1 py-2.5 transition-colors",
+                active
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-card text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              <span className="text-[10px] font-medium leading-tight">
+                {t(meta.labelKey)}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {kind === "number" && (
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="measure-unit">{t("measure.unit")}</Label>
-          <Input
-            id="measure-unit"
-            value={value.unit ?? ""}
-            onChange={(e) => onChange({ ...value, unit: e.target.value })}
-            placeholder={t("measure.unitPlaceholder")}
-          />
-          {knownUnits.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {knownUnits.map((u) => (
-                <button
-                  key={u}
-                  type="button"
-                  onClick={() =>
-                    onChange({ ...value, unit: value.unit === u ? "" : u })
-                  }
-                  className={cn(
-                    "rounded-lg border px-2 py-1 text-[11px] transition-colors",
-                    value.unit === u
-                      ? "border-primary/50 bg-primary/10 text-primary"
-                      : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {u}
-                </button>
-              ))}
-            </div>
-          )}
-          {/* Kullanıcının kendi fark ettiği durum: "Set", "Tekrar" gibi
-              adlarda birim tekrar olur — "Set: 4 set" saçma */}
-          <p className="text-[11px] leading-snug text-muted-foreground/70">
-            {t("measure.unitOptional")}
-          </p>
-        </div>
-      )}
+      {/* Türe göre tek kart — ayar ve sonucu aynı yüzeyde */}
+      <div className="rounded-2xl border border-border bg-muted/20 p-3">
+        <p className="mb-2.5 text-[11px] leading-snug text-muted-foreground/80">
+          {t(MEASURE_KIND_META[kind].hintKey)}
+        </p>
 
-      {kind === "scale" && (
-        <div className="flex flex-col gap-3">
+        {kind === "number" && (
           <div className="flex flex-col gap-2">
-            <Label>{t("measure.range")}</Label>
+            <Input
+              id="measure-unit"
+              value={value.unit ?? ""}
+              onChange={(e) => onChange({ ...value, unit: e.target.value })}
+              placeholder={t("measure.unitPlaceholder")}
+              className="h-10 text-center text-base"
+            />
+            {knownUnits.length > 0 && (
+              <div className="flex flex-wrap justify-center gap-1.5">
+                {knownUnits.map((u) => (
+                  <button
+                    key={u}
+                    type="button"
+                    onClick={() =>
+                      onChange({ ...value, unit: value.unit === u ? "" : u })
+                    }
+                    className={cn(
+                      "rounded-lg border px-2 py-1 text-[11px] transition-colors",
+                      value.unit === u
+                        ? "border-primary/50 bg-primary/10 text-primary"
+                        : "border-border bg-card text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {u}
+                  </button>
+                ))}
+              </div>
+            )}
+            {/* Kullanıcının kendi fark ettiği durum: "Set", "Tekrar" gibi
+                adlarda birim tekrar olur — "Set: 4 set" saçma */}
+            <p className="text-center text-[11px] leading-snug text-muted-foreground/60">
+              {t("measure.unitOptional")}
+            </p>
+          </div>
+        )}
+
+        {kind === "scale" && (
+          <div className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-1.5">
               {SCALE_PRESETS.map((p) => (
                 <button
                   key={p.key}
                   type="button"
-                  onClick={() =>
-                    onChange({ valueType: "select", choices: p.choices, scaleLabels: value.scaleLabels })
-                  }
+                  onClick={() => {
+                    setCustomOpen(false);
+                    onChange({
+                      valueType: "select",
+                      choices: p.choices,
+                      scaleLabels: value.scaleLabels,
+                    });
+                  }}
                   className={cn(
                     "rounded-lg border px-2.5 py-1 text-[11px] font-medium tabular-nums transition-colors",
-                    choices.join() === p.choices.join()
+                    !customOpen && activePreset?.key === p.key
                       ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
+                      : "border-border bg-card text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {p.label}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setCustomOpen((v) => !v)}
+                className={cn(
+                  "rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                  customOpen || !activePreset
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-card text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {t("measure.custom")}
+              </button>
             </div>
 
-            {/* Hazır aralıklar kısayol; asıl serbestlik burada */}
-            <div className="flex items-center gap-2">
-              {/* Bir ucu oynatmak basamak sayısını bir değiştirir; sınırlar
-                  o sayıya bakar, uçların kendisine değil */}
-              <Stepper
-                label={t("measure.from")}
-                value={range.min}
-                onChange={(n) => setRange(n, range.max)}
-                canDown={steps + 1 <= SCALE_MAX_STEPS}
-                canUp={steps - 1 >= SCALE_MIN_STEPS}
-              />
-              <Stepper
-                label={t("measure.to")}
-                value={range.max}
-                onChange={(n) => setRange(range.min, n)}
-                canDown={steps - 1 >= SCALE_MIN_STEPS}
-                canUp={steps + 1 <= SCALE_MAX_STEPS}
-              />
+            {(customOpen || !activePreset) && (
+              <div className="flex items-center gap-2 rounded-xl bg-black/20 px-2.5 py-2">
+                <Stepper
+                  value={range.min}
+                  onChange={(n) => setRange(n, range.max)}
+                  canDown={steps + 1 <= SCALE_MAX_STEPS}
+                  canUp={steps - 1 >= SCALE_MIN_STEPS}
+                  label={t("measure.from")}
+                />
+                <span className="text-muted-foreground/40">–</span>
+                <Stepper
+                  value={range.max}
+                  onChange={(n) => setRange(range.min, n)}
+                  canDown={steps - 1 >= SCALE_MIN_STEPS}
+                  canUp={steps + 1 <= SCALE_MAX_STEPS}
+                  label={t("measure.to")}
+                />
+              </div>
+            )}
+
+            {/* Skalanın kendisi + uç adları doğrudan uçların altında.
+                Ayrı bir "uçların anlamı" formu soyut kalıyordu. */}
+            <div className="flex flex-col gap-1.5">
+              <ScaleInput choices={choices} value={demo} onChange={setDemo} />
+              <div className="flex items-center gap-2">
+                <EndLabel
+                  value={value.scaleLabels?.low ?? ""}
+                  onChange={(v) => setLabel("low", v)}
+                  placeholder={t("measure.lowPlaceholder")}
+                />
+                <EndLabel
+                  value={value.scaleLabels?.high ?? ""}
+                  onChange={(v) => setLabel("high", v)}
+                  placeholder={t("measure.highPlaceholder")}
+                  align="right"
+                />
+              </div>
             </div>
-            <p className="text-[11px] leading-snug text-muted-foreground/70">
-              {t("measure.stepCount", { n: steps })}
-            </p>
           </div>
+        )}
 
-          {/* Uç anlamları — "1–5" tek başına hangi yönün iyi olduğunu söylemiyor */}
+        {kind === "select" && (
           <div className="flex flex-col gap-2">
-            <Label>{t("measure.endLabels")}</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                value={value.scaleLabels?.low ?? ""}
-                onChange={(e) =>
-                  onChange({
-                    ...value,
-                    scaleLabels: { ...value.scaleLabels, low: e.target.value },
-                  })
-                }
-                placeholder={t("measure.lowPlaceholder")}
-                className="h-9 text-sm"
-              />
-              <span className="shrink-0 text-xs text-muted-foreground/50">→</span>
-              <Input
-                value={value.scaleLabels?.high ?? ""}
-                onChange={(e) =>
-                  onChange({
-                    ...value,
-                    scaleLabels: { ...value.scaleLabels, high: e.target.value },
-                  })
-                }
-                placeholder={t("measure.highPlaceholder")}
-                className="h-9 text-sm"
-              />
-            </div>
-          </div>
-
-          <Preview label={t("measure.preview")}>
-            <ScaleInput
-              choices={choices}
-              labels={value.scaleLabels}
-              value={preview}
-              onChange={setPreview}
-            />
-          </Preview>
-        </div>
-      )}
-
-      {kind === "select" && (
-        <div className="flex flex-col gap-2">
-          <Label>{t("measure.options")}</Label>
-          {choices.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {choices.map((c) => (
-                <span
-                  key={c}
-                  className="flex items-center gap-1 rounded-lg border border-border bg-muted/40 py-1 pl-2.5 pr-1 text-xs"
-                >
-                  {c}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onChange({ ...value, choices: choices.filter((x) => x !== c) })
-                    }
-                    aria-label={t("measure.removeOption", { name: c })}
-                    className="rounded-full p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+            {choices.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {choices.map((c) => (
+                  <span
+                    key={c}
+                    className="flex items-center gap-1 rounded-lg border border-border bg-card py-1 pl-2.5 pr-1 text-xs"
                   >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
+                    {c}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onChange({ ...value, choices: choices.filter((x) => x !== c) })
+                      }
+                      aria-label={t("measure.removeOption", { name: c })}
+                      className="rounded-full p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-1.5">
+              <Input
+                value={choiceDraft}
+                onChange={(e) => setChoiceDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addChoice();
+                  }
+                }}
+                placeholder={t("measure.optionPlaceholder")}
+                className="h-9"
+              />
+              <button
+                type="button"
+                onClick={addChoice}
+                disabled={!choiceDraft.trim()}
+                aria-label={t("measure.addOption")}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
             </div>
-          )}
-          <div className="flex gap-1.5">
-            <Input
-              value={choiceDraft}
-              onChange={(e) => setChoiceDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addChoice();
-                }
-              }}
-              placeholder={t("measure.optionPlaceholder")}
-              className="h-9"
-            />
-            <button
-              type="button"
-              onClick={addChoice}
-              disabled={!choiceDraft.trim()}
-              aria-label={t("measure.addOption")}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {kind === "boolean" && (
-        <Preview label={t("measure.preview")}>
+        {kind === "boolean" && (
           <button
             type="button"
-            onClick={() => setPreview(preview === "true" ? "false" : "true")}
+            onClick={() => setDemo(demo === "true" ? "false" : "true")}
             className={cn(
               "flex h-10 w-full items-center justify-center rounded-xl border text-sm font-medium transition-colors",
-              preview === "true"
+              demo === "true"
                 ? "border-primary bg-primary/10 text-primary"
-                : "border-border bg-input text-muted-foreground"
+                : "border-border bg-card text-muted-foreground"
             )}
           >
-            {preview === "true" ? t("entry.yes") : t("entry.no")}
+            {demo === "true" ? t("entry.yes") : t("entry.no")}
           </button>
-        </Preview>
-      )}
-    </div>
-  );
-}
-
-/** Sayı artır/azalt — telefonda küçük bir alana rakam yazdırmaktan iyi */
-function Stepper({
-  label,
-  value,
-  onChange,
-  canDown,
-  canUp,
-}: {
-  label: string;
-  value: number;
-  onChange: (n: number) => void;
-  canDown: boolean;
-  canUp: boolean;
-}) {
-  const btn =
-    "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30";
-  return (
-    <div className="flex flex-1 flex-col gap-1">
-      <span className="px-0.5 text-[10px] uppercase tracking-wider text-muted-foreground/60">
-        {label}
-      </span>
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => onChange(value - 1)}
-          disabled={!canDown}
-          aria-label={`${label} −`}
-          className={btn}
-        >
-          <Minus className="h-3 w-3" />
-        </button>
-        <span className="flex-1 text-center text-sm font-semibold tabular-nums">
-          {value}
-        </span>
-        <button
-          type="button"
-          onClick={() => onChange(value + 1)}
-          disabled={!canUp}
-          aria-label={`${label} +`}
-          className={btn}
-        >
-          <Plus className="h-3 w-3" />
-        </button>
+        )}
       </div>
     </div>
   );
 }
 
-/** Girdi ekranında nasıl görüneceği — dokunulabilir, kaydedilmez */
-function Preview({
-  label,
-  children,
+/** Skalanın ucuna yazılan ad — çerçevesiz, yerinde yazılır */
+function EndLabel({
+  value,
+  onChange,
+  placeholder,
+  align = "left",
 }: {
-  label: string;
-  children: React.ReactNode;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  align?: "left" | "right";
 }) {
   return (
-    <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-2.5">
-      <span className="mb-2 block text-[10px] uppercase tracking-wider text-muted-foreground/60">
-        {label}
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      aria-label={placeholder}
+      className={cn(
+        "min-w-0 flex-1 rounded-md bg-transparent px-1 py-0.5 text-[11px] text-muted-foreground",
+        "border-b border-dashed border-border/60 outline-none transition-colors",
+        "placeholder:text-muted-foreground/35 focus:border-primary/60 focus:text-foreground",
+        align === "right" && "text-right"
+      )}
+    />
+  );
+}
+
+/** Sayı artır/azalt — telefonda küçük bir alana rakam yazdırmaktan iyi */
+function Stepper({
+  value,
+  onChange,
+  canDown,
+  canUp,
+  label,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  canDown: boolean;
+  canUp: boolean;
+  label: string;
+}) {
+  const btn =
+    "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30";
+  return (
+    <div className="flex flex-1 items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => onChange(value - 1)}
+        disabled={!canDown}
+        aria-label={`${label} −`}
+        className={btn}
+      >
+        <Minus className="h-3 w-3" />
+      </button>
+      <span className="flex-1 text-center text-sm font-semibold tabular-nums">
+        {value}
       </span>
-      {children}
+      <button
+        type="button"
+        onClick={() => onChange(value + 1)}
+        disabled={!canUp}
+        aria-label={`${label} +`}
+        className={btn}
+      >
+        <Plus className="h-3 w-3" />
+      </button>
     </div>
   );
 }

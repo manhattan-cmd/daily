@@ -33,7 +33,14 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { measureSummary } from "@/lib/measure-kinds";
+import {
+  MEASURE_KIND_META,
+  MEASURE_UI_KINDS,
+  measureSummary,
+  uiKindOf,
+  type MeasureUiKind,
+} from "@/lib/measure-kinds";
+import { chipClass } from "@/components/ui/section-nav";
 import { MeasureEditor, isMeasureComplete } from "@/components/structure/measure-editor";
 import {
   ModAtom,
@@ -66,6 +73,8 @@ export default function ModsHomePage() {
   // Havuzda arama — büyüteç açar, yazdıkça iki bölüm birden süzülür
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
+  // Ölçüm türü süzgeci — "hangileri skala" sorusu havuz büyüdükçe soruluyor
+  const [kindFilter, setKindFilter] = useState<MeasureUiKind | null>(null);
 
   const mods = useLiveQuery(() => listMods(), []);
   // Havuzda kullanılan birimler — yeni özellikte önce bunlar önerilir ki
@@ -184,7 +193,13 @@ export default function ModsHomePage() {
 
   const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
   const visibleMods = (mods ?? []).filter(
-    (m) => !search || norm(m.name).includes(norm(search))
+    (m) =>
+      (!search || norm(m.name).includes(norm(search))) &&
+      (!kindFilter || uiKindOf(m) === kindFilter)
+  );
+  // Havuzda gerçekten bulunan türler, sabit sırada
+  const presentKinds = MEASURE_UI_KINDS.filter((k) =>
+    (mods ?? []).some((m) => uiKindOf(m) === k)
   );
 
   return (
@@ -200,7 +215,10 @@ export default function ModsHomePage() {
             <button
               onClick={() => {
                 setSearchOpen((v) => !v);
-                if (searchOpen) setSearch("");
+                if (searchOpen) {
+                  setSearch("");
+                  setKindFilter(null);
+                }
               }}
               className={cn(
                 "flex h-8 w-8 items-center justify-center rounded-full transition-colors",
@@ -227,23 +245,54 @@ export default function ModsHomePage() {
       </p>
 
       {searchOpen && (
-        <div className="relative mb-5">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t("features.searchPlaceholder")}
-            autoFocus
-            className="h-9 pl-9 pr-8"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground/60 hover:text-foreground transition-colors"
-              aria-label={t("features.clearSearch")}
-            >
-              <X className="h-3 w-3" />
-            </button>
+        <div className="mb-5 flex flex-col gap-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t("features.searchPlaceholder")}
+              autoFocus
+              className="h-9 pl-9 pr-8"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground/60 hover:text-foreground transition-colors"
+                aria-label={t("features.clearSearch")}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Ölçüm türüne göre süzme — yalnız havuzda GERÇEKTEN bulunan
+              türler çipe dönüşür; boş süzgeç sunmak kalabalıktan ibaret */}
+          {presentKinds.length > 1 && (
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => setKindFilter(null)}
+                className={chipClass(kindFilter === null)}
+              >
+                {t("features.allKinds")}
+              </button>
+              {presentKinds.map((k) => {
+                const meta = MEASURE_KIND_META[k];
+                const Icon = meta.icon;
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setKindFilter(kindFilter === k ? null : k)}
+                    className={cn(chipClass(kindFilter === k), "gap-1.5")}
+                  >
+                    <Icon className="h-3 w-3 opacity-70" />
+                    {t(meta.labelKey)}
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
       )}
@@ -261,7 +310,7 @@ export default function ModsHomePage() {
                 onClick={() => openDetail(mod)}
               />
             ))}
-            {!search && (
+            {!search && !kindFilter && (
               <ModAtomAdd
                 label={mods.length ? t("features.createNew") : t("features.first")}
                 onClick={() => setCreateOpen(true)}
@@ -269,9 +318,11 @@ export default function ModsHomePage() {
             )}
           </div>
 
-          {search && visibleMods.length === 0 && (
+          {visibleMods.length === 0 && (search || kindFilter) && (
             <p className="mt-3 px-1 text-xs text-muted-foreground/70">
-              {t("features.noMatch", { q: search })}
+              {search
+                ? t("features.noMatch", { q: search })
+                : t("features.noneOfKind")}
             </p>
           )}
         </section>
