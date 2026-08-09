@@ -115,13 +115,13 @@ input[type="number"] {
   animation: fadeIn 0.2s ease-out;
 }
 
-/* Kovana giriş — bir kategoriye dokununca o gözün içine yaklaşma hissi.
-   Petek hafifçe büyüyerek ve netleşerek gelir; kullanıcı "içeri girdim"
-   duygusunu geçişten alır, yoksa iki petek birbirinin aynısı gibi görünüyor. */
-@keyframes hiveIn {
-  from { opacity: 0; transform: scale(0.82); }
+/* Bir düğüme girme — o kalemin içine yaklaşma hissi. Ağ hafifçe büyüyerek
+   ve netleşerek gelir; iki sayfa birbirinin aynısı göründüğü için "içeri
+   girdim" duygusunu geçişin kendisi veriyor. */
+@keyframes zoomIn {
+  from { opacity: 0; transform: scale(0.84); }
   to   { opacity: 1; transform: scale(1); }
 }
-.animate-hive-in {
-  animation: hiveIn 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+.animate-zoom-in {
+  animation: zoomIn 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }

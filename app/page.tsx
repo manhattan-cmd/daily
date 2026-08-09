@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   ArrowRight,
-  PenLine,
   Plus,
   Search,
   Settings,
@@ -128,14 +127,14 @@ export default function HomePage() {
         className="group mb-6 flex w-full items-center gap-3.5 overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent px-4 py-4 text-left transition-all hover:border-primary/60 hover:from-primary/25 active:scale-[0.99]"
       >
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform group-hover:scale-105">
-          <PenLine className="h-5 w-5" strokeWidth={2} />
+          <Plus className="h-6 w-6" strokeWidth={2.5} />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-base font-semibold leading-tight">
-            {t("home.prompt")}
+            {t("home.addEntry")}
           </span>
           <span className="mt-0.5 block text-xs text-muted-foreground">
-            {t("home.promptHint")}
+            {t("home.prompt")}
           </span>
         </span>
         <ArrowRight className="h-4 w-4 shrink-0 text-primary/70 transition-transform group-hover:translate-x-0.5" />

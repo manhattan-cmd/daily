@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Folder, Plus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { CategoryIcon, CATEGORY_ICON_MAP } from "@/lib/category-icons";
-import { hexCorners, HEX_CLIP } from "@/lib/hex";
 import { cn } from "@/lib/utils";
 
 /** 0–255 arası değeri iki haneli hex alfaya çevirir */
@@ -14,9 +13,8 @@ const alpha = (v: number) =>
     .padStart(2, "0");
 
 /**
- * Kategori gözü — peteğin altıgeni. Özellik atomlarıyla aynı boyut ve ızgara
- * düzeni; kategori kendi renginde parlar. Şekil dili: altıgen = kategori,
- * daire = özellik.
+ * Kategori rafı — atomların karesi. Özellik atomlarıyla aynı boyut ve
+ * ızgara düzeni; daire yerine yumuşak kare, kategori kendi renginde parlar.
  * `glow` (0–1) parlamayı güçlendirir: girdi ekleme ağında sık kullanılan
  * alt kategoriler bununla öne çıkar.
  */
@@ -40,31 +38,23 @@ export function CategoryTileCore({
   const iconCls = cn(
     size === "lg" ? "h-7 w-7" : size === "sm" ? "h-4 w-4" : "h-5 w-5"
   );
-  // Altıgen: kategorinin şekli artık kare değil, peteğin gözü. Kovan
-  // görünümüyle Yapı sayfasındaki ızgara aynı dili konuşsun diye tek yerde.
-  //
-  // Çerçeve clip-path'in dışında kalıyor (kırpılmış kenarda inset gölge
-  // görünmez), o yüzden kenar çizgisi altta duran ikinci bir altıgen katman.
-  const frame = `linear-gradient(145deg, ${color}${alpha(0x66 + 0x60 * g)}, ${color}30)`;
-  const face = `linear-gradient(145deg, ${color}${alpha(0x42 + 0x2e * g)}, ${color}14)`;
   return (
     <span
       className={cn(
-        "relative flex shrink-0 items-center justify-center",
-        size === "lg" ? "h-16 w-16" : size === "sm" ? "h-9 w-9" : "h-12 w-12"
+        "flex shrink-0 items-center justify-center transition-shadow",
+        size === "lg"
+          ? "h-16 w-16 rounded-2xl"
+          : size === "sm"
+          ? "h-9 w-9 rounded-lg"
+          : "h-12 w-12 rounded-xl"
       )}
       style={{
-        clipPath: HEX_CLIP,
-        background: frame,
-        filter: g > 0 ? `drop-shadow(0 0 ${5 + 9 * g}px ${color}${alpha(0x30 + 0x60 * g)})` : undefined,
+        background: `linear-gradient(145deg, ${color}${alpha(0x42 + 0x2e * g)}, ${color}14)`,
+        boxShadow: `inset 0 0 0 1px ${color}${alpha(0x55 + 0xaa * g)}, 0 0 ${
+          14 + 18 * g
+        }px ${color}${alpha(0x1f + 0x55 * g)}`,
       }}
     >
-      <span
-        aria-hidden
-        className="absolute inset-[1.5px]"
-        style={{ clipPath: HEX_CLIP, background: face }}
-      />
-      <span className="relative flex items-center justify-center">
       {isLucide ? (
         <CategoryIcon name={icon} className={iconCls} style={{ color }} />
       ) : icon ? (
@@ -79,7 +69,6 @@ export function CategoryTileCore({
       ) : (
         <Fallback className={iconCls} style={{ color }} strokeWidth={1.75} />
       )}
-      </span>
     </span>
   );
 }
@@ -141,20 +130,8 @@ export function CategoryTileAdd({
       onClick={onClick}
       className={cn(tileWrapCls, "group")}
     >
-      {/* Kesikli kenar clip-path ile çizilemiyor (kırpılan kenarda border
-          görünmez) — altıgen çerçeve SVG olarak çiziliyor */}
-      <span className="relative flex h-12 w-12 shrink-0 items-center justify-center text-primary/60 transition-colors group-hover:text-primary">
-        <svg viewBox="0 0 48 48" className="absolute inset-0 h-full w-full">
-          <polygon
-            points={hexCorners(24, 24, 23)}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            strokeDasharray="4 3"
-            opacity={0.55}
-          />
-        </svg>
-        <Plus className="relative h-5 w-5" strokeWidth={1.75} />
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-dashed border-primary/35 text-primary/60 transition-colors group-hover:border-primary/60 group-hover:text-primary">
+        <Plus className="h-5 w-5" strokeWidth={1.75} />
       </span>
       <span
         className={cn(
