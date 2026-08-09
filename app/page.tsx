@@ -116,15 +116,30 @@ export default function HomePage() {
           <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/40" />
         </Link>
 
-        <button
-          type="button"
-          onClick={() => setSheetOpen(true)}
-          className="flex w-full items-center justify-center gap-1.5 border-t border-border bg-primary/[0.07] py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/[0.12]"
-        >
-          <PenLine className="h-3.5 w-3.5" />
-          {t("home.addEntry")}
-        </button>
       </section>
+
+      {/* Uygulamanın asıl işi: bir şey kaydetmek. Eskiden bugün kartının
+          altında ince bir şeritti ve yeni kullanıcı ne yapacağını anlamıyordu.
+          Artık soruyla karşılıyor — "ne yapıyorsun" sorusu cevabı bir girdi
+          olan tek soru, kullanıcıyı düşünmeden forma sokuyor. */}
+      <button
+        type="button"
+        onClick={() => setSheetOpen(true)}
+        className="group mb-6 flex w-full items-center gap-3.5 overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent px-4 py-4 text-left transition-all hover:border-primary/60 hover:from-primary/25 active:scale-[0.99]"
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform group-hover:scale-105">
+          <PenLine className="h-5 w-5" strokeWidth={2} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-base font-semibold leading-tight">
+            {t("home.prompt")}
+          </span>
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            {t("home.promptHint")}
+          </span>
+        </span>
+        <ArrowRight className="h-4 w-4 shrink-0 text-primary/70 transition-transform group-hover:translate-x-0.5" />
+      </button>
 
       {/* Son 7 gün — ritim şeridi; sütuna dokun, o güne git */}
       {week && week.some((d) => d.count > 0) && (

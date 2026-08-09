@@ -10,7 +10,6 @@ import {
   Layers,
   List,
   Network,
-  Orbit,
   PenLine,
   Plus,
   Search,
@@ -27,6 +26,13 @@ import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { CategoryForm } from "@/components/structure/category-form";
 import { HScroll } from "@/components/ui/h-scroll";
 import { OptionsMenu } from "@/components/forms/form-options";
+import {
+  axialToPixel,
+  hexBounds,
+  hexCorners,
+  hexSpiral,
+  HEX_CLIP,
+} from "@/lib/hex";
 import { cn } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
 import type { Category, SubCategory } from "@/types";
@@ -53,22 +59,18 @@ type Node =
   | { kind: "sub"; sub: SubCategory };
 
 /** Yerleşim — düğüm sayısına göre otomatik seçilir, kullanıcı değiştirebilir */
-type Layout = "poly" | "spiral" | "list";
+type Layout = "hive" | "list";
 
 /** Sayım gelmeden önceki sabit boş harita — memo'ları her render'da bozmasın */
 const NO_COUNTS: ReadonlyMap<string, number> = new Map();
 
-/** Tuval genişliği (px) — sarmal daha geniş alan ister */
-const MAX_POLY = 300;
-const MAX_SPIRAL = 340;
-/** Otomatik geçiş eşikleri: 9'dan itibaren sarmal, 17'den itibaren liste */
-const SPIRAL_FROM = 9;
-const LIST_FROM = 17;
+/** Kovan hücresinin merkezden köşesine uzaklığı (px) */
+const HEX_SIZE = 44;
+/** Bu sayıdan sonra petek telefonda okunmaz oluyor, liste devralır */
+const LIST_FROM = 25;
 
 function autoLayout(n: number): Layout {
-  if (n >= LIST_FROM) return "list";
-  if (n >= SPIRAL_FROM) return "spiral";
-  return "poly";
+  return n >= LIST_FROM ? "list" : "hive";
 }
 
 /** Etiketler anahtar; çözümleme render sırasında (modül düzeyinde kanca yok) */
@@ -77,8 +79,7 @@ const LAYOUT_OPTIONS: {
   icon: typeof Network;
   labelKey: MessageKey;
 }[] = [
-  { key: "poly", icon: Network, labelKey: "tree.networkView" },
-  { key: "spiral", icon: Orbit, labelKey: "tree.spiralView" },
+  { key: "hive", icon: Network, labelKey: "tree.networkView" },
   { key: "list", icon: List, labelKey: "tree.listView" },
 ];
 
@@ -86,49 +87,33 @@ const LAYOUT_OPTIONS: {
 const LS_LAYOUT = "entrynet-layout";
 const focusKeyOf = (f: NetFocus) => (f == null ? "root" : `${f.type}:${f.id}`);
 
-/** Çokgen köşe açısı (ekran koordinatı) — 2 sağ/sol, 3 üçgen, 4 kare... */
-function angleFor(i: number, n: number): number {
-  if (n === 1) return Math.PI / 2;
-  const deg = -90 + 180 / n + (i * 360) / n;
-  return (deg * Math.PI) / 180;
-}
-
-/** Çokgen köşeleri — az sayıda düğüm için temiz ve okunur */
-function polyPositions(n: number, C: number) {
-  const R = C * (n <= 4 ? 0.69 : Math.min(0.85, 0.55 + n * 0.045));
-  return Array.from({ length: n }, (_, i) => {
-    const a = angleFor(i, n);
-    return { x: C + R * Math.cos(a), y: C + R * Math.sin(a) };
-  });
+/** Eski kayıtlarda "poly" ya da "spiral" olabilir — ikisi de kovana düşer */
+function normalizeLayout(v: unknown): Layout | undefined {
+  if (v === "list") return "list";
+  if (v === "hive" || v === "poly" || v === "spiral") return "hive";
+  return undefined;
 }
 
 /**
- * Arşimet sarmalı: r = r0 + b·θ. Düğümler yay uzunluğuna göre eşit aralıklı
- * dizilir, böylece merkeze yakın kısımda sıkışma olmaz. Tur sayısı düğüm
- * sayısıyla artar — halkalar arası boşluk karo+etiket yüksekliğinin (~48px)
- * altına inmesin diye 1.8 turda sınırlanır. r0, merkez karonun etiketiyle
- * çakışmayacak kadar dışarıdan başlar.
+ * Kovan hücrelerinin tuval içindeki konumları. Merkez düğüm peteğin
+ * ortasındaki hücre; çocuklar dıştaki halkalarda. Petek kutuya sığmıyorsa
+ * kaydırılarak gezilir (bkz. tuval sarmalayıcısı).
  */
-function spiralParams(n: number, C: number) {
-  const r0 = C * 0.34;
-  const r1 = C * 0.87;
-  const TH = Math.min(1.8, 0.85 + n * 0.07) * Math.PI * 2;
-  const b = (r1 - r0) / TH;
-  return { r0, TH, b, S: r0 * TH + (b * TH * TH) / 2 };
-}
-
-function spiralPositions(n: number, C: number) {
-  const { r0, b, S } = spiralParams(n, C);
-  return Array.from({ length: n }, (_, i) => {
-    const s = n === 1 ? 0 : (S * i) / (n - 1);
-    // s = r0·θ + b·θ²/2  →  θ (yay uzunluğundan açıyı çöz)
-    const th = (-r0 + Math.sqrt(r0 * r0 + 2 * b * s)) / b;
-    const r = r0 + b * th;
-    const a = -Math.PI / 2 + th;
-    return { x: C + r * Math.cos(a), y: C + r * Math.sin(a) };
+function hivePositions(n: number, withCenter: boolean) {
+  const total = n + (withCenter ? 1 : 0);
+  const cells = hexSpiral(total);
+  const bounds = hexBounds(total, HEX_SIZE);
+  const pts = cells.map((c) => {
+    const p = axialToPixel(c, HEX_SIZE);
+    return { x: p.x + bounds.offsetX, y: p.y + bounds.offsetY };
   });
+  return {
+    center: withCenter ? pts[0] : null,
+    nodes: withCenter ? pts.slice(1) : pts,
+    width: bounds.width,
+    height: bounds.height,
+  };
 }
-
 /** Türkçe duyarlı bölüm başlığı — ada göre A–Z gruplaması */
 function sectionKeyOf(name: string): string {
   const ch = name.trim().charAt(0).toLocaleUpperCase("tr");
@@ -285,7 +270,13 @@ export function EntryNetwork({
   const [overrides, setOverrides] = useState<Record<string, Layout>>(() => {
     if (typeof window === "undefined") return {};
     try {
-      return JSON.parse(localStorage.getItem(LS_LAYOUT) ?? "{}");
+      const raw = JSON.parse(localStorage.getItem(LS_LAYOUT) ?? "{}");
+      const out: Record<string, Layout> = {};
+      for (const [k, v] of Object.entries(raw)) {
+        const norm = normalizeLayout(v);
+        if (norm) out[k] = norm;
+      }
+      return out;
     } catch {
       return {}; // tercih okunamadıysa otomatik yerleşimle devam
     }
@@ -304,27 +295,22 @@ export function EntryNetwork({
     });
   }
 
-  const dense = layout === "spiral";
-  const maxSize = dense ? MAX_SPIRAL : MAX_POLY;
-  // Tuval, sığdığı gerçek genişlikte ölçülür — konumlar 1:1 ekran pikseli
-  const [box, setBox] = useState(maxSize);
-  useEffect(() => {
-    const el = canvasRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([e]) => {
-      if (e.contentRect.width > 0) setBox(e.contentRect.width);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [layout, maxSize]);
-  const half = box / 2;
-  const pad = dense ? 26 : 30;
+  const dense = false;
+  // Kovan kendi boyunu kendi belirler: hücreler sabit büyüklükte, petek
+  // büyüdükçe tuval büyür ve gerekirse kaydırılır. Böylece 4 kalemle 20 kalem
+  // aynı okunurlukta — eskiden çokgen büyüdükçe karolar birbirine giriyordu.
+  const hive = useMemo(
+    () => hivePositions(nodes.length, focusObj != null),
+    [nodes.length, focusObj]
+  );
+  const box = Math.max(hive.width, hive.height);
+  const pad = 30;
 
-  const positions = useMemo(() => {
-    const n = nodes.length;
-    if (n === 0 || layout === "list") return [];
-    return dense ? spiralPositions(n, half) : polyPositions(n, half);
-  }, [nodes.length, layout, dense, half]);
+  const positions = useMemo(
+    () => (layout === "list" ? [] : hive.nodes),
+    [layout, hive]
+  );
+  const centerPos = hive.center ?? { x: hive.width / 2, y: hive.height / 2 };
 
   const nodeId = (node: Node) => (node.kind === "cat" ? node.cat.id : node.sub.id);
   const nodeWeight = (node: Node) =>
@@ -480,26 +466,6 @@ export function EntryNetwork({
         ? focusObj.cat.icon
         : focusObj.sub.icon;
   const hasNodes = nodes.length > 0;
-  // Çokgen daima sabit köşelerden (temiz kalır); ışınlar sürükleneni takip eder
-  const polyPoints = positions.map((p) => `${p.x},${p.y}`).join(" ");
-  const spiralPath = useMemo(() => {
-    if (!dense || nodes.length === 0) return "";
-    const { r0, b, TH } = spiralParams(nodes.length, half);
-    const pts: string[] = [];
-    const STEPS = 96;
-    // Merkezin arkasından çıkıp son düğümün biraz ötesinde biter
-    const from = -0.6;
-    const to = TH + 0.4;
-    for (let k = 0; k <= STEPS; k++) {
-      const th = from + ((to - from) * k) / STEPS;
-      const r = Math.max(4, r0 + b * th);
-      const a = -Math.PI / 2 + th;
-      pts.push(
-        `${(half + r * Math.cos(a)).toFixed(1)},${(half + r * Math.sin(a)).toFixed(1)}`
-      );
-    }
-    return `M ${pts.join(" L ")}`;
-  }, [dense, nodes.length, half]);
 
   // Liste satırları — ad, renk, çocuk sayısı
   const rows = useMemo(
@@ -621,7 +587,7 @@ export function EntryNetwork({
             className="flex h-7 items-center gap-1 rounded-full bg-white/8 px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
           >
             <Plus className="h-3.5 w-3.5" />
-            Kategori
+            {t("tree.newCategory")}
           </button>
         )}
       </div>
@@ -639,84 +605,55 @@ export function EntryNetwork({
         />
       ) : (
         <>
-          {/* Ağ tuvali */}
+          {/* Kovan tuvali — petek kutuya sığmazsa kaydırılarak gezilir */}
+          <div className="-mx-4 overflow-auto px-4 pb-1">
           <div
             ref={canvasRef}
-            className="relative mx-auto touch-none"
-            style={{ width: maxSize, maxWidth: "100%", aspectRatio: "1 / 1" }}
+            key={focusKey}
+            className="relative mx-auto touch-pan-x touch-pan-y animate-hive-in"
+            style={{ width: hive.width, height: hive.height }}
           >
             <svg
               className="pointer-events-none absolute inset-0"
-              viewBox={`0 0 ${box} ${box}`}
-              width="100%"
-              height="100%"
+              viewBox={`0 0 ${hive.width} ${hive.height}`}
+              width={hive.width}
+              height={hive.height}
             >
-              {dense ? (
-                <>
-                  <path
-                    d={spiralPath}
-                    fill="none"
-                    stroke={`${centerColor}45`}
-                    strokeWidth={1.5}
-                    strokeLinecap="round"
-                  />
-                  {/* Düğümü sarmala bağlayan kısa iz — sürüklerken takip eder */}
-                  {drag &&
-                    effPositions.map((p, i) =>
-                      drag.id === nodeId(nodes[i]) ? (
-                        <line
-                          key={i}
-                          x1={positions[i].x}
-                          y1={positions[i].y}
-                          x2={p.x}
-                          y2={p.y}
-                          stroke={`${centerColor}40`}
-                          strokeWidth={1.5}
-                          strokeDasharray="4 4"
-                        />
-                      ) : null
-                    )}
-                </>
-              ) : (
-                <>
-                  {focusObj != null &&
-                    effPositions.map((p, i) => (
-                      <line
-                        key={i}
-                        x1={half}
-                        y1={half}
-                        x2={p.x}
-                        y2={p.y}
-                        stroke={`${centerColor}40`}
-                        strokeWidth={1.5}
-                      />
-                    ))}
-                  {focusObj == null && effPositions.length === 2 && (
-                    <line
-                      x1={effPositions[0].x}
-                      y1={effPositions[0].y}
-                      x2={effPositions[1].x}
-                      y2={effPositions[1].y}
-                      stroke={`${centerColor}45`}
-                      strokeWidth={1.5}
-                    />
-                  )}
-                  {positions.length >= 3 && (
-                    <polygon
-                      points={polyPoints}
-                      fill={`${centerColor}0f`}
-                      stroke={`${centerColor}50`}
-                      strokeWidth={1.5}
-                    />
-                  )}
-                </>
+              {/* Peteğin gözleri — dolu hücrelerin altındaki altıgen çerçeve.
+                  Boşluklar da çizilseydi "eksik" hissi verirdi; yalnız dolu
+                  olanlar çizilince yarım kalan halka doğal görünüyor. */}
+              {hive.center && (
+                <polygon
+                  points={hexCorners(hive.center.x, hive.center.y, HEX_SIZE - 2)}
+                  fill={`${centerColor}14`}
+                  stroke={`${centerColor}55`}
+                  strokeWidth={1.5}
+                />
               )}
+              {/* Sürüklenen düğümü yuvasına bağlayan iz */}
+              {drag &&
+                effPositions.map((p, i) =>
+                  drag.id === nodeId(nodes[i]) ? (
+                    <line
+                      key={`d${i}`}
+                      x1={positions[i].x}
+                      y1={positions[i].y}
+                      x2={p.x}
+                      y2={p.y}
+                      stroke={`${centerColor}40`}
+                      strokeWidth={1.5}
+                      strokeDasharray="4 4"
+                    />
+                  ) : null
+                )}
               {/* Sürüklerken oturacağı yuva vurgusu */}
               {drag && targetSlot >= 0 && positions[targetSlot] && (
-                <circle
-                  cx={positions[targetSlot].x}
-                  cy={positions[targetSlot].y}
-                  r={dense ? 24 : 30}
+                <polygon
+                  points={hexCorners(
+                    positions[targetSlot].x,
+                    positions[targetSlot].y,
+                    HEX_SIZE - 2
+                  )}
                   fill="none"
                   stroke={centerColor}
                   strokeWidth={2}
@@ -732,8 +669,8 @@ export function EntryNetwork({
                 aria-label={`${focusName} · buraya ekle`}
                 className="absolute z-10 flex flex-col items-center gap-1"
                 style={{
-                  left: half,
-                  top: half,
+                  left: centerPos.x,
+                  top: centerPos.y,
                   transform: "translate(-50%,-50%)",
                 }}
               >
@@ -781,7 +718,6 @@ export function EntryNetwork({
                   icon={isCat ? node.cat.icon : node.sub.icon}
                   name={isCat ? node.cat.name : node.sub.name}
                   hasKids={hasKids}
-                  dense={dense}
                   glow={glowOf(node)}
                   isDragging={drag?.id === id}
                   onTap={() => drill(node)}
@@ -796,21 +732,7 @@ export function EntryNetwork({
               </p>
             )}
           </div>
-
-          {/* İpucu */}
-          {focusObj != null ? (
-            <p className="mt-1 text-center text-[11px] leading-snug text-muted-foreground/70">
-              {hasNodes
-                ? "Tap: go inside · centre: add here · hold and drag: move"
-                : "This is a leaf — tap the centre or use “Add entry” in the menu."}
-            </p>
-          ) : (
-            hasNodes && (
-              <p className="mt-1 text-center text-[11px] leading-snug text-muted-foreground/70">
-                Tap: go inside · hold and drag: reorder
-              </p>
-            )
-          )}
+          </div>
         </>
       )}
 
@@ -1032,7 +954,6 @@ function NetNode({
   icon,
   name,
   hasKids,
-  dense,
   glow,
   isDragging,
   onTap,
@@ -1044,7 +965,6 @@ function NetNode({
   icon?: string;
   name: string;
   hasKids: boolean;
-  dense: boolean;
   /** 0–1: sayfadaki en sık kullanılana göre oran */
   glow: number;
   isDragging: boolean;
@@ -1089,51 +1009,54 @@ function NetNode({
       onPointerCancel={clearHold}
       onContextMenu={(e) => e.preventDefault()}
       className={cn(
-        "absolute flex select-none flex-col items-center gap-0.5 transition-transform",
+        "absolute flex select-none items-center justify-center transition-transform",
         isDragging ? "z-20 scale-110" : "z-0"
       )}
-      style={{ left: x, top: y, transform: "translate(-50%,-50%)" }}
+      style={{
+        left: x,
+        top: y,
+        width: HEX_SIZE * Math.sqrt(3),
+        height: HEX_SIZE * 2,
+        transform: "translate(-50%,-50%)",
+      }}
     >
-      <span className="relative">
-        <span
-          className="block rounded-xl"
-          style={
-            isDragging
-              ? { outline: `2px solid ${color}`, outlineOffset: "2px" }
-              : undefined
-          }
-        >
-          <CategoryTileCore
-            color={color}
-            icon={icon}
-            fallback={hasKids ? FolderOpen : Folder}
-            size={dense ? "sm" : "md"}
-            glow={glow}
-          />
-        </span>
-        {hasKids && (
-          <span
-            className={cn(
-              "absolute -bottom-1 -right-1 rounded-full border-2 border-background",
-              dense ? "h-3 w-3" : "h-3.5 w-3.5"
-            )}
-            style={{ backgroundColor: color }}
-          />
-        )}
-      </span>
+      {/* Ad hücrenin İÇİNDE. Petekte gözler birbirine değdiği için etiket
+          dışarıda kalınca alttaki gözün üstüne biniyordu. */}
       <span
-        className={cn(
-          "truncate text-center leading-tight",
-          dense ? "max-w-[64px] text-[9px]" : "max-w-[80px] text-[10px]",
-          glow > 0.5
-            ? "font-semibold text-foreground"
-            : glow > 0.15
-              ? "font-medium text-foreground/75"
-              : "font-medium text-muted-foreground"
-        )}
+        className="flex h-full w-full flex-col items-center justify-center gap-1 px-1.5"
+        style={{
+          clipPath: HEX_CLIP,
+          background: `linear-gradient(150deg, ${color}${Math.round(0x2a + 0x3c * glow).toString(16).padStart(2, "0")}, ${color}10)`,
+          outline: isDragging ? `2px solid ${color}` : undefined,
+        }}
       >
-        {name}
+        <CategoryTileCore
+          color={color}
+          icon={icon}
+          fallback={hasKids ? FolderOpen : Folder}
+          size="sm"
+          glow={glow}
+        />
+        <span
+          className={cn(
+            "line-clamp-2 w-full text-center text-[9px] leading-tight",
+            glow > 0.5
+              ? "font-semibold text-foreground"
+              : glow > 0.15
+                ? "font-medium text-foreground/80"
+                : "font-medium text-muted-foreground"
+          )}
+        >
+          {name}
+        </span>
       </span>
+      {/* Alt kalemi olan gözün köşesinde nokta — "burada devamı var" */}
+      {hasKids && (
+        <span
+          className="pointer-events-none absolute bottom-3 right-2 h-1.5 w-1.5 rounded-full"
+          style={{ backgroundColor: color }}
+        />
+      )}
     </button>
   );
 }
