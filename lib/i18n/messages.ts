@@ -337,6 +337,10 @@ export const en = {
   "stat.noPrevPeriod": "no data in the previous period",
   "stat.pctVsPrev": "{sign}{pct} vs previous",
   "stat.days": "days",
+  // Dağılım (çoktan seçmeli)
+  "stat.mostFrequent": "Most frequent",
+  "insights.optionDistribution": "Option distribution",
+  "insights.allOptions": "All options",
   "activity.insights": "Activity insights",
 
   // ── Form alanları ────────────────────────────────────────────────────
@@ -815,6 +819,9 @@ export const tr: Record<MessageKey, string> = {
   "stat.noPrevPeriod": "önceki dönemde veri yok",
   "stat.pctVsPrev": "önceki döneme göre {sign}{pct}",
   "stat.days": "gün",
+  "stat.mostFrequent": "En sık",
+  "insights.optionDistribution": "Seçenek dağılımı",
+  "insights.allOptions": "Tümü",
   "activity.insights": "Aktivite Analizi",
 
   "form.name": "İsim",

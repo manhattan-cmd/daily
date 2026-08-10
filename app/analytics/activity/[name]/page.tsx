@@ -9,7 +9,8 @@ import {
   boolToNumber,
   buildSeriesBuckets,
   bucketKeyOf,
-  classifyNumericMod,
+  classifyMod,
+  countByChoice,
   dayKey,
   dtrDurationHours,
   fmtNum,
@@ -21,6 +22,7 @@ import {
   sumOrAvg,
   textToNumber,
   type Metric,
+  type ModKind,
   type SeriesFrame,
 } from "@/lib/analytics";
 import { formatDate, formatTime } from "@/lib/utils";
@@ -30,6 +32,8 @@ import { StatTile } from "@/components/analytics/stat-tile";
 import { MetricChips } from "@/components/analytics/metric-chips";
 import { DailyBarChart } from "@/components/analytics/daily-bar-chart";
 import { ShareBars, type ShareRow } from "@/components/analytics/share-bars";
+import { ChoiceDistribution } from "@/components/analytics/choice-distribution";
+import { metricOf } from "@/components/analytics/use-category-metrics";
 import type { Entry } from "@/types";
 
 const ACTIVITY_COLOR = "#06b6d4";
@@ -50,13 +54,15 @@ export default function ActivityAnalyticsPage({
   const { name: rawName } = use(params);
   const name = decodeURIComponent(rawName);
   const [metricChoice, setMetricChoice] = useState<Metric | null>(null);
+  // Çoktan seçmelide seriyi süzen seçenek; metrik değişince sıfırlanır
+  const [choiceFilter, setChoiceFilter] = useState<string | null>(null);
 
   const data = useLiveQuery(async () => {
     const activities = (await db.activities.toArray()).filter(
       (a) => norm(a.name) === norm(name)
     );
     if (!activities.length)
-      return { activities, entries: [], values: [], numericMods: [], subById: new Map(), catById: new Map() };
+      return { activities, entries: [], values: [], mods: [], subById: new Map(), catById: new Map() };
     const ids = activities.map((a) => a.id);
     const entries = await db.entries.where("activityId").anyOf(ids).toArray();
     const values = entries.length
@@ -72,16 +78,16 @@ export default function ActivityAnalyticsPage({
     ]);
 
     const modIds = new Set(values.map((v) => v.modId).filter((x): x is string => !!x));
-    const numericMods = allMods
+    const mods = allMods
       .filter((m) => modIds.has(m.id))
-      .map((m) => classifyNumericMod(m))
+      .map((m) => classifyMod(m))
       .filter((m): m is NonNullable<typeof m> => !!m)
       .sort((a, b) => a.name.localeCompare(b.name, "en"));
     return {
       activities,
       entries,
       values,
-      numericMods,
+      mods,
       subById: new Map(subs.map((s) => [s.id, s])),
       catById: new Map(cats.map((c) => [c.id, c])),
     };
@@ -89,7 +95,7 @@ export default function ActivityAnalyticsPage({
 
   const metric = useMemo<Metric>(() => {
     if (metricChoice) return metricChoice;
-    if (data?.numericMods.length) return { type: "mod", mod: data.numericMods[0] };
+    if (data?.mods.length) return metricOf(data.mods[0]);
     return { type: "count" };
   }, [metricChoice, data]);
 
@@ -100,6 +106,8 @@ export default function ActivityAnalyticsPage({
 
     // Girdi başına metrik değeri (count'ta 1)
     const valueByEntry = new Map<string, number>();
+    // Dağılımda sayı yok, etiket var
+    const choiceByEntry = new Map<string, string>();
     if (metric.type === "mod") {
       for (const v of values) {
         if (v.modId !== metric.mod.id) continue;
@@ -113,20 +121,41 @@ export default function ActivityAnalyticsPage({
                 : parseNumeric(v.value);
         valueByEntry.set(v.entryId, (valueByEntry.get(v.entryId) ?? 0) + amount);
       }
+    } else if (metric.type === "choice") {
+      for (const v of values) {
+        if (v.modId === metric.mod.id && v.value.trim())
+          choiceByEntry.set(v.entryId, v.value.trim());
+      }
     }
-    const kind = metric.type === "mod" ? metric.mod.kind : "number";
+    const kind = metric.type === "count" ? "number" : metric.mod.kind;
     const isRate = kind === "rate";
+    const isChoice = metric.type === "choice";
     const valuesOf = (subset: Entry[]) =>
       subset
         .map((e) => valueByEntry.get(e.id))
         .filter((v): v is number => v !== undefined);
-    const aggregate = (subset: Entry[]): number =>
-      metric.type === "count" ? subset.length : sumOrAvg(valuesOf(subset), kind);
+    const choicesOf = (subset: Entry[]) =>
+      subset
+        .map((e) => choiceByEntry.get(e.id))
+        .filter((v): v is string => !!v);
     const filledCount = (subset: Entry[]): number =>
-      metric.type === "count" ? subset.length : valuesOf(subset).length;
+      metric.type === "count"
+        ? subset.length
+        : isChoice
+          ? choicesOf(subset).length
+          : valuesOf(subset).length;
+    const aggregate = (subset: Entry[]): number =>
+      metric.type === "count"
+        ? subset.length
+        : isChoice
+          ? choiceFilter
+            ? choicesOf(subset).filter((c) => c === choiceFilter).length
+            : choicesOf(subset).length
+          : sumOrAvg(valuesOf(subset), kind as ModKind);
 
     const total = aggregate(entries);
     const filled = filledCount(entries);
+    const distribution = isChoice ? countByChoice(choicesOf(entries)) : [];
 
     // Oturumlar — her aktivite kaydı bir oturum; en yeniden eskiye
     const byActivity = new Map<string, Entry[]>();
@@ -206,9 +235,12 @@ export default function ActivityAnalyticsPage({
       total,
       filled,
       rate: filled ? total / filled : 0,
+      distribution,
+      topChoice: distribution[0],
       sessions,
       perSession,
       isRate,
+      isChoice,
       isPresence: kind === "presence",
       isAvgMetric: kind === "scale",
       buckets,
@@ -217,7 +249,7 @@ export default function ActivityAnalyticsPage({
       catShare,
       entryCount: entries.length,
     };
-  }, [data, metric]);
+  }, [data, metric, choiceFilter]);
 
   const unit = metric.type === "mod" ? metric.mod.unit : "";
   const metricLabel = metric.type === "count" ? "entries" : unit || undefined;
@@ -234,10 +266,14 @@ export default function ActivityAnalyticsPage({
         computed && (
           <div className="flex flex-col gap-4 pb-6">
             <MetricChips
-              numericMods={data?.numericMods ?? []}
+              mods={data?.mods ?? []}
               metric={metric}
               color={ACTIVITY_COLOR}
-              onChange={setMetricChoice}
+              onChange={(m) => {
+                // Süzgeç önceki özelliğin seçeneğiydi — yenisinde karşılığı yok
+                setMetricChoice(m);
+                setChoiceFilter(null);
+              }}
             />
 
             {/* KPI'lar — oranda ana rakam yüzde, metinde "kaç girdide yazılmış" */}
@@ -251,34 +287,57 @@ export default function ActivityAnalyticsPage({
                 label={
                   computed.isRate
                     ? t("stat.yesRate")
-                    : computed.isPresence
-                      ? t("stat.written")
-                      : computed.isAvgMetric
-                        ? t("stat.average")
-                        : t("stat.total")
+                    : computed.isChoice
+                      ? t("stat.mostFrequent")
+                      : computed.isPresence
+                        ? t("stat.written")
+                        : computed.isAvgMetric
+                          ? t("stat.average")
+                          : t("stat.total")
                 }
                 value={
-                  computed.isRate ? fmtPct(computed.rate) : fmtNum(computed.total)
+                  computed.isChoice
+                    ? (computed.topChoice?.choice ?? "—")
+                    : computed.isRate
+                      ? fmtPct(computed.rate)
+                      : fmtNum(computed.total)
                 }
-                unit={computed.isRate ? undefined : metricLabel}
+                wordValue={computed.isChoice}
+                unit={computed.isRate || computed.isChoice ? undefined : metricLabel}
                 sub={
-                  computed.isRate
-                    ? `${fmtNum(computed.total)}/${fmtNum(computed.filled)}`
-                    : "all sessions"
+                  computed.isChoice
+                    ? computed.topChoice
+                      ? `${fmtPct(computed.topChoice.count / computed.filled)} · ${fmtNum(computed.topChoice.count)}`
+                      : t("stat.noData")
+                    : computed.isRate
+                      ? `${fmtNum(computed.total)}/${fmtNum(computed.filled)}`
+                      : "all sessions"
                 }
               />
               <StatTile
-                label={computed.isRate ? t("entry.yes") : t("stat.sessionAvg")}
+                label={
+                  computed.isRate
+                    ? t("entry.yes")
+                    : computed.isChoice
+                      ? t("insights.entries")
+                      : t("stat.sessionAvg")
+                }
                 value={fmtNum(
-                  computed.isRate ? computed.total : computed.perSession
+                  computed.isRate
+                    ? computed.total
+                    : computed.isChoice
+                      ? computed.filled
+                      : computed.perSession
                 )}
-                unit={computed.isRate ? undefined : metricLabel}
+                unit={computed.isRate || computed.isChoice ? undefined : metricLabel}
                 sub={
                   computed.isRate
                     ? t("stat.outOfEntries", { n: computed.filled })
-                    : computed.isAvgMetric
-                      ? "average"
-                      : "per session"
+                    : computed.isChoice
+                      ? `${computed.sessions.length} ${t("stat.session").toLocaleLowerCase()}`
+                      : computed.isAvgMetric
+                        ? "average"
+                        : "per session"
                 }
               />
             </div>
@@ -301,6 +360,17 @@ export default function ActivityAnalyticsPage({
                 }
               />
             </div>
+
+            {/* Çoktan seçmelide seçenek dağılımı — kategori kırılımının üstünde,
+                çünkü bu türde asıl soru "hangisi ne sıklıkla" */}
+            {computed.isChoice && (
+              <ChoiceDistribution
+                rows={computed.distribution}
+                color={ACTIVITY_COLOR}
+                selected={choiceFilter}
+                onSelect={setChoiceFilter}
+              />
+            )}
 
             {/* Kategori dağılımı */}
             <div className="rounded-2xl border border-border bg-card p-4">

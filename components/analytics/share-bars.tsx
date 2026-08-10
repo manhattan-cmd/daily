@@ -32,12 +32,15 @@ export function ShareBars({
   emptyText = "No data in this range",
   onSelect,
   mode = "share",
+  selectedId = null,
 }: {
   rows: ShareRow[];
   emptyText?: string;
   /** Verilirse satırlar tıklanabilir olur (örn. alt kategoriye drill-down) */
   onSelect?: (id: string) => void;
   mode?: "share" | "rate";
+  /** Süzgeç olarak seçili satır — diğerleri soluklaşır */
+  selectedId?: string | null;
 }) {
   const isRate = mode === "rate";
   const total = rows.reduce((s, r) => s + r.value, 0);
@@ -60,16 +63,18 @@ export function ShareBars({
         const pct = isRate ? ratioOf(r) * 100 : (r.value / total) * 100;
         // Kalemin kendi girdileri satırı tıklanabilir görünmesin
         const canDrill = !!onSelect && r.drillable !== false;
+        // Bir satır süzgeç olarak seçiliyse diğerleri geri çekilir
+        const dimmed = selectedId !== null && r.id !== selectedId;
         return (
           <button
             key={r.id}
             type="button"
             onClick={canDrill ? () => onSelect!(r.id) : undefined}
+            aria-pressed={selectedId !== null ? r.id === selectedId : undefined}
             className={cn(
-              "min-w-0 text-left",
-              canDrill
-                ? "cursor-pointer transition-opacity hover:opacity-70"
-                : "cursor-default"
+              "min-w-0 text-left transition-opacity",
+              canDrill ? "cursor-pointer hover:opacity-70" : "cursor-default",
+              dimmed && "opacity-40"
             )}
           >
             <div className="flex items-baseline gap-1.5 mb-1">

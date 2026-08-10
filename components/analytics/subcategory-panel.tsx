@@ -28,6 +28,7 @@ import { monthPeriod, weekPeriod, yearPeriod } from "@/lib/period";
 import { StatTile } from "./stat-tile";
 import { DailyBarChart } from "./daily-bar-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
+import { ChoiceDistribution } from "./choice-distribution";
 import { RangePicker } from "./range-picker";
 import { EntryListSection, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
@@ -69,7 +70,14 @@ export function SubcategoryPanel({
   }, [rangeStart, shareRangeStart]);
 
   const [excludeRegular, setExcludeRegular] = useExcludeRegular();
-  const { data, metric, setMetricChoice, compute } = useCategoryMetrics({
+  const {
+    data,
+    metric,
+    setMetricChoice,
+    compute,
+    choiceFilter,
+    setChoiceFilter,
+  } = useCategoryMetrics({
     category,
     rootSubId: subcategory.id,
     fetchStart,
@@ -87,10 +95,12 @@ export function SubcategoryPanel({
       filledCount,
       fillBucket,
       valueLabelOf,
+      distributionOf,
       valueByEntry,
       displayMode,
       unit,
       isRate,
+      isChoice,
     } = compute;
     const now = new Date();
 
@@ -212,6 +222,9 @@ export function SubcategoryPanel({
       today: statSince(startOfDayMs(now)),
       week: statSince(weekStartMs(now)),
       month: statSince(monthStartMs(now)),
+      // Dağılım kırılım aralığını (shareRange) izler — kırılımın yerini aldığı
+      // için aynı zaman penceresinde okunmalı
+      distribution: isChoice ? distributionOf(shareEntries) : [],
       buckets,
       granularity,
       seriesFrame,
@@ -237,7 +250,7 @@ export function SubcategoryPanel({
     <div className="flex flex-col gap-4">
       {/* Metrik seçici — bu ağacın sayısal modları + girdi sayısı */}
       <MetricChips
-        numericMods={data.numericMods}
+        mods={data.mods}
         metric={metric}
         color={category.color}
         onChange={setMetricChoice}
@@ -287,10 +300,22 @@ export function SubcategoryPanel({
         ))}
       </div>
 
+      {/* Çoktan seçmelide bu slot dağılıma ait — alt kategorisi olmayan
+          yaprak kalemlerde de gösterilir, çünkü anlattığı şey alt kalemler
+          değil seçeneklerin kendisi */}
+      {compute.isChoice && (
+        <ChoiceDistribution
+          rows={computed.distribution}
+          color={category.color}
+          selected={choiceFilter}
+          onSelect={setChoiceFilter}
+        />
+      )}
+
       {/* Alt kategori kırılımı — seriden ÖNCE: önce "ne nereye gitmiş"
           görülür, istenirse alt kategoriye inilir, sonra seri incelenir.
           Yalnızca alt kategorisi olan düğümlerde gösterilir */}
-      {hasChildren && (
+      {!compute.isChoice && hasChildren && (
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

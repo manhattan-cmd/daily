@@ -412,11 +412,25 @@ export function bucketAncestorId(
 export type ModKind = "number" | "duration" | "scale" | "rate" | "presence";
 export type NumericMod = { id: string; name: string; unit: string; kind: ModKind };
 
-/** Seçili metrik: girdi sayısı ya da sayısal bir modun toplamı/ortalaması */
-export type Metric = { type: "count" } | { type: "mod"; mod: NumericMod };
+/**
+ * Kelime seçenekli "çoktan seçmeli" — girdi başına bir sayı değil bir ETİKET
+ * taşır. Toplamı ve ortalaması yoktur; sorulan soru "ne kadar" değil
+ * "hangisi, ne sıklıkla, değişiyor mu". Bu yüzden sayısal boruya sokulmaz,
+ * kendi dalında dağılım olarak hesaplanır.
+ */
+export type ChoiceMod = { id: string; name: string; kind: "choice" };
+export type MetricMod = NumericMod | ChoiceMod;
+
+export const isChoiceMod = (m: MetricMod): m is ChoiceMod => m.kind === "choice";
+
+/** Seçili metrik: girdi sayısı, sayısal bir mod ya da bir dağılım modu */
+export type Metric =
+  | { type: "count" }
+  | { type: "mod"; mod: NumericMod }
+  | { type: "choice"; mod: ChoiceMod };
 
 /** Hangi KPI kutularının çıkacağını belirler — kind'ın gösterim karşılığı */
-export type DisplayMode = "avg" | "both" | "rate" | "presence";
+export type DisplayMode = "avg" | "both" | "rate" | "presence" | "choice";
 export const displayModeOf = (kind: ModKind): DisplayMode =>
   kind === "scale"
     ? "avg"
@@ -468,11 +482,8 @@ export function statSub(
 }
 
 /** Özelliği metrik adayına sınıflandırır; ölçülemezse null.
- *  v18'den beri ölçüm özelliğin kendi üzerinde — ayrıca ölçü aramak gerekmiyor.
- *
- *  Kelime seçenekli "çoktan seçmeli" hâlâ null: girdi başına sayı değil bir
- *  ETİKET taşıyor, toplamı/ortalaması yok. Dağılım metriği ayrı bir tur. */
-export function classifyNumericMod(mod: Mod): NumericMod | null {
+ *  v18'den beri ölçüm özelliğin kendi üzerinde — ayrıca ölçü aramak gerekmiyor. */
+export function classifyMod(mod: Mod): MetricMod | null {
   const vt = mod.valueType ?? "number";
   if (vt === "number") {
     return { id: mod.id, name: mod.name, unit: mod.unit ?? "", kind: "number" };
@@ -480,8 +491,11 @@ export function classifyNumericMod(mod: Mod): NumericMod | null {
   if (vt === "datetime-range") {
     return { id: mod.id, name: mod.name, unit: "sa", kind: "duration" };
   }
-  if (vt === "select" && isNumericChoiceSet(mod.choices)) {
-    return { id: mod.id, name: mod.name, unit: "", kind: "scale" };
+  if (vt === "select") {
+    // Seçenekleri tamamen sayıysa skala (ortalanır), değilse dağılım
+    return isNumericChoiceSet(mod.choices)
+      ? { id: mod.id, name: mod.name, unit: "", kind: "scale" }
+      : { id: mod.id, name: mod.name, kind: "choice" };
   }
   if (vt === "boolean") {
     return { id: mod.id, name: mod.name, unit: "", kind: "rate" };
@@ -490,4 +504,19 @@ export function classifyNumericMod(mod: Mod): NumericMod | null {
     return { id: mod.id, name: mod.name, unit: "", kind: "presence" };
   }
   return null;
+}
+
+/** Değerlerin seçeneklere göre dağılımı — çoktan seçmelinin ana görseli.
+ *  Yalnız GÖRÜLEN seçenekler döner: tanımlı ama hiç seçilmemiş bir seçeneği
+ *  sıfır uzunlukta bir barla göstermek "az seçilmiş" gibi okunuyordu. */
+export function countByChoice(values: string[]): { choice: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const v of values) {
+    const key = v.trim();
+    if (!key) continue;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([choice, count]) => ({ choice, count }))
+    .sort((a, b) => b.count - a.count || a.choice.localeCompare(b.choice, "en"));
 }

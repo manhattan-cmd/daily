@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
 /**
  * Tek sayılık istatistik kutusu — etiket + değer (+ dönem alt yazısı).
  * Değer orantılı rakamlarla (tabular değil) — büyük boyutta daha dengeli okunur.
@@ -10,12 +12,16 @@ export function StatTile({
   unit,
   sub,
   accent,
+  wordValue = false,
 }: {
   label: string;
   value: string;
   unit?: string;
   sub?: string;
   accent?: string;
+  /** Değer bir rakam değil bir kelime (örn. en sık seçenek) — puntoyu düşürür,
+   *  yoksa "yorgun" gibi bir sözcük rakam boyunda ezici duruyor */
+  wordValue?: boolean;
 }) {
   return (
     <div className="rounded-2xl border border-border bg-card px-3.5 py-3 min-w-0">
@@ -32,7 +38,12 @@ export function StatTile({
           {label}
         </span>
       </div>
-      <div className="mt-1 truncate text-xl font-semibold leading-none">
+      <div
+        className={cn(
+          "mt-1 truncate font-semibold leading-none",
+          wordValue ? "text-base" : "text-xl"
+        )}
+      >
         {value}
         {unit && (
           <span className="ml-1 text-xs font-normal text-muted-foreground">

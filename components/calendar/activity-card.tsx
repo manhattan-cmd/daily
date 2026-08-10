@@ -6,7 +6,7 @@ import { ArrowRight, Boxes, ChevronDown, Plus, Trash2 } from "lucide-react";
 import type { Activity, EntryWithContext } from "@/types";
 import { deleteActivity } from "@/lib/db/queries";
 import {
-  classifyNumericMod,
+  classifyMod,
   dtrDurationHours,
   fmtNum,
   parseNumeric,
@@ -75,8 +75,10 @@ export function ActivityCard({
         : e.subcategory.name;
       for (const v of e.values) {
         if (!v.modId || !v.mod) continue;
-        const nm = classifyNumericMod(v.mod);
-        if (!nm || nm.kind === "scale") continue;
+        const nm = classifyMod(v.mod);
+        // Kart TOPLAM gösteriyor; yalnız toplanabilir türler girer. Skala
+        // ortalanır, oran/doluluk/dağılım ise toplanacak bir sayı taşımaz.
+        if (!nm || (nm.kind !== "number" && nm.kind !== "duration")) continue;
         const amount =
           nm.kind === "duration" ? dtrDurationHours(v.value) : parseNumeric(v.value);
         if (!amount) continue;

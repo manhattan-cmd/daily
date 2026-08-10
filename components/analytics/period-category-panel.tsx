@@ -27,6 +27,7 @@ import {
 import { StatTile } from "./stat-tile";
 import { DailyBarChart } from "./daily-bar-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
+import { ChoiceDistribution } from "./choice-distribution";
 import { EntryListSection, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
@@ -60,7 +61,14 @@ export function PeriodCategoryPanel({
   );
 
   const [excludeRegular, setExcludeRegular] = useExcludeRegular();
-  const { data, metric, setMetricChoice, compute } = useCategoryMetrics({
+  const {
+    data,
+    metric,
+    setMetricChoice,
+    compute,
+    choiceFilter,
+    setChoiceFilter,
+  } = useCategoryMetrics({
     category,
     rootSubId: focus?.id,
     fetchStart: containingWeek ? containingWeek.start : period.start,
@@ -78,10 +86,12 @@ export function PeriodCategoryPanel({
       filledCount,
       fillBucket,
       valueLabelOf,
+      distributionOf,
       valueByEntry,
       unit,
       kind,
       isRate,
+      isChoice,
     } = compute;
     const now = new Date();
 
@@ -229,10 +239,16 @@ export function PeriodCategoryPanel({
         };
       });
 
+    // Dağılım süzgeçten bağımsız — bir seçenek seçiliyken de bütün görünür kalır
+    const distribution = distributionOf(entries);
+
     return {
       total,
       avg,
       rate,
+      distribution,
+      topChoice: distribution[0],
+      choiceTotal: isChoice ? filledCount(entries) : 0,
       withValueCount,
       progress,
       dailyAvg,
@@ -332,7 +348,7 @@ export function PeriodCategoryPanel({
       )}
 
       <MetricChips
-        numericMods={data.numericMods}
+        mods={data.mods}
         metric={metric}
         color={category.color}
         onChange={setMetricChoice}
@@ -387,6 +403,24 @@ export function PeriodCategoryPanel({
           <StatTile
             label={t("insights.entries")}
             value={fmtNum(computed.withValueCount)}
+            sub={dayCountLabel}
+          />
+        </div>
+      ) : compute.displayMode === "choice" ? (
+        <div className="grid grid-cols-2 gap-2">
+          <StatTile
+            label={t("stat.mostFrequent")}
+            value={computed.topChoice?.choice ?? "—"}
+            wordValue
+            sub={
+              computed.topChoice
+                ? `${fmtPct(computed.topChoice.count / computed.choiceTotal)} · ${fmtNum(computed.topChoice.count)}`
+                : t("stat.noData")
+            }
+          />
+          <StatTile
+            label={t("insights.entries")}
+            value={fmtNum(computed.choiceTotal)}
             sub={dayCountLabel}
           />
         </div>
@@ -458,11 +492,22 @@ export function PeriodCategoryPanel({
         </div>
       )}
 
+      {/* Çoktan seçmelide bu slot dağılıma ait */}
+      {compute.isChoice && (
+        <ChoiceDistribution
+          rows={computed.distribution}
+          color={category.color}
+          selected={choiceFilter}
+          onSelect={setChoiceFilter}
+          title={scopePrefix}
+        />
+      )}
+
       {/* Alt kategori kırılımı — seriden ÖNCE: önce "ne nereye gitmiş"
           görülür, istenirse bir kademe derine inilir (dönemden çıkılmadan),
           sonra o kapsamın zaman serisi incelenir. İnilecek kademe kalmadıysa
           bölüm hiç açılmaz */}
-      {computed.hasBreakdown && (
+      {!compute.isChoice && computed.hasBreakdown && (
         <div className="rounded-2xl border border-border bg-card p-4">
           {/* Odaklıyken de gösterilen şey aynı: bu kalemin altındaki
               kalemlerin dağılımı — başlık da aynı kalır */}

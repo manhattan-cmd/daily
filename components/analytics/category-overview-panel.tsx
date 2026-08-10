@@ -19,6 +19,7 @@ import {
 import { StatTile } from "./stat-tile";
 import { DailyBarChart } from "./daily-bar-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
+import { ChoiceDistribution } from "./choice-distribution";
 import { EntryListSection, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
@@ -40,12 +41,13 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
   const t = useT();
   const router = useRouter();
   const [excludeRegular, setExcludeRegular] = useExcludeRegular();
-  const { data, metric, setMetricChoice, compute } = useCategoryMetrics({
-    category,
-    fetchStart: 0,
-    resetKey: category.id,
-    excludeRegular,
-  });
+  const { data, metric, setMetricChoice, compute, choiceFilter, setChoiceFilter } =
+    useCategoryMetrics({
+      category,
+      fetchStart: 0,
+      resetKey: category.id,
+      excludeRegular,
+    });
 
   const computed = useMemo(() => {
     if (!data || !compute) return null;
@@ -56,10 +58,12 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       filledCount,
       fillBucket,
       valueLabelOf,
+      distributionOf,
       valueByEntry,
       unit,
       kind,
       isRate,
+      isChoice,
     } = compute;
     const now = new Date();
     const today = startOfDayMs(now);
@@ -179,10 +183,18 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         };
       });
 
+    // Dağılım — kırılım kutusunun yerini alır. Süzgeçten bağımsız hesaplanır:
+    // bir seçenek seçiliyken de bütünün dağılımı görünür kalmalı.
+    const distribution = distributionOf(entries);
+    const topChoice = distribution[0];
+
     return {
       empty: false as const,
       total,
       avg,
+      distribution,
+      topChoice,
+      choiceTotal: isChoice ? filledCount(entries) : 0,
       rate: filledCount(entries) ? total / filledCount(entries) : 0,
       withValueCount,
       elapsedDays,
@@ -221,7 +233,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
   return (
     <div className="flex flex-col gap-4 pb-6">
       <MetricChips
-        numericMods={data.numericMods}
+        mods={data.mods}
         metric={metric}
         color={category.color}
         onChange={setMetricChoice}
@@ -272,6 +284,25 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
             value={fmtNum(computed.yesStreaks?.current ?? 0)}
             unit={t("stat.days")}
             sub={t("stat.best", { n: computed.yesStreaks?.best ?? 0 })}
+          />
+        </div>
+      ) : compute.displayMode === "choice" ? (
+        /* Dağılım — toplam/ortalama diye bir şey yok; sorulan soru "hangisi" */
+        <div className="grid grid-cols-2 gap-2">
+          <StatTile
+            label={t("stat.mostFrequent")}
+            value={computed.topChoice?.choice ?? "—"}
+            wordValue
+            sub={
+              computed.topChoice
+                ? `${fmtPct(computed.topChoice.count / computed.choiceTotal)} · ${fmtNum(computed.topChoice.count)}`
+                : t("stat.noData")
+            }
+          />
+          <StatTile
+            label={t("insights.entries")}
+            value={fmtNum(computed.choiceTotal)}
+            sub={`${computed.elapsedDays} ${t("stat.days")}`}
           />
         </div>
       ) : compute.displayMode === "presence" ? (
@@ -348,7 +379,10 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         </div>
       </div>
 
-      {/* Gelişim — son 4 hafta vs önceki 4 hafta */}
+      {/* Gelişim — son 4 hafta vs önceki 4 hafta. Dağılımda yalnız bir seçenek
+          süzgeci varken anlamlı ("gergin günlerim artıyor mu"); süzgeçsizken
+          gösterdiği şey girdi sayısı olurdu, o da yukarıdaki kutuda zaten var. */}
+      {!(compute.isChoice && !choiceFilter) && (
       <div className="flex flex-col gap-2">
         <h3 className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Gelişim
@@ -409,43 +443,52 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
                 ? computed.hasPrev
                   ? t("stat.yesRate")
                   : t("stat.noData")
-                : computed.isAvgMetric
-                  ? "average"
-                  : "total"
+                : compute.aggregateNote
             }
           />
         </div>
       </div>
+      )}
 
-      {/* Alt kategori kırılımı — trendden ÖNCE: önce "ne nereye gitmiş"
-          görülür, istenirse alt kategoriye inilir, sonra trend incelenir */}
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-          Subcategory breakdown
-          {compute.aggregateNote && (
-            <span className="normal-case font-normal text-muted-foreground/60">
-              {" "}
-              ({compute.aggregateNote})
-            </span>
-          )}
-        </h3>
-        <ShareBars
-          rows={computed.shareRows}
-          mode={compute.isRate ? "rate" : "share"}
-          emptyText={
-            metric.type === "mod"
-              ? `${metric.mod.name} verisi yok`
-              : "Girdi yok"
-          }
-          onSelect={(subId) =>
-            router.push(
-              `/analytics/${category.id}/${subId}?range=tum&metric=${
-                metric.type === "count" ? "count" : metric.mod.id
-              }`
-            )
-          }
+      {/* Çoktan seçmelide bu slot dağılıma ait: sorulan soru "ne nereye
+          gitmiş" değil "hangisi ne sıklıkla". Diğer metriklerde alt kategori
+          kırılımı — trendden ÖNCE, istenirse alt kategoriye inilir. */}
+      {compute.isChoice ? (
+        <ChoiceDistribution
+          rows={computed.distribution}
+          color={category.color}
+          selected={choiceFilter}
+          onSelect={setChoiceFilter}
         />
-      </div>
+      ) : (
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+            Subcategory breakdown
+            {compute.aggregateNote && (
+              <span className="normal-case font-normal text-muted-foreground/60">
+                {" "}
+                ({compute.aggregateNote})
+              </span>
+            )}
+          </h3>
+          <ShareBars
+            rows={computed.shareRows}
+            mode={compute.isRate ? "rate" : "share"}
+            emptyText={
+              metric.type === "count"
+                ? "Girdi yok"
+                : `${metric.mod.name} verisi yok`
+            }
+            onSelect={(subId) =>
+              router.push(
+                `/analytics/${category.id}/${subId}?range=tum&metric=${
+                  metric.type === "count" ? "count" : metric.mod.id
+                }`
+              )
+            }
+          />
+        </div>
+      )}
 
       {/* Trend — ilk girdiden bugüne */}
       <div className="rounded-2xl border border-border bg-card p-4">

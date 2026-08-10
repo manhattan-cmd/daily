@@ -2,19 +2,20 @@
 
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import type { Metric, NumericMod } from "@/lib/analytics";
+import { isChoiceMod, type Metric, type MetricMod } from "@/lib/analytics";
+import { metricOf } from "./use-category-metrics";
 
 /**
  * Metrik seçici satırı — modlar önce, "Girdi" (sayım) her zaman en sonda.
  * Varsayılan seçim ilk moddur (bkz. useCategoryMetrics).
  */
 export function MetricChips({
-  numericMods,
+  mods,
   metric,
   color,
   onChange,
 }: {
-  numericMods: NumericMod[];
+  mods: MetricMod[];
   metric: Metric;
   color: string;
   onChange: (m: Metric) => void;
@@ -22,13 +23,13 @@ export function MetricChips({
   const t = useT();
   return (
     <div className="flex flex-wrap gap-2">
-      {numericMods.map((m) => (
+      {mods.map((m) => (
         <MetricChip
           key={m.id}
-          label={m.unit ? `${m.name} (${m.unit})` : m.name}
-          active={metric.type === "mod" && metric.mod.id === m.id}
+          label={!isChoiceMod(m) && m.unit ? `${m.name} (${m.unit})` : m.name}
+          active={metric.type !== "count" && metric.mod.id === m.id}
           color={color}
-          onTap={() => onChange({ type: "mod", mod: m })}
+          onTap={() => onChange(metricOf(m))}
         />
       ))}
       <MetricChip

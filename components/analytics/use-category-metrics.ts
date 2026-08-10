@@ -6,18 +6,20 @@ import { db } from "@/lib/db";
 import {
   average,
   boolToNumber,
-  classifyNumericMod,
+  classifyMod,
+  countByChoice,
   displayModeOf,
   dtrDurationHours,
   fmtNum,
+  isChoiceMod,
   parseNumeric,
   sumOrAvg,
   textToNumber,
   type DayBucket,
   type DisplayMode,
   type Metric,
+  type MetricMod,
   type ModKind,
-  type NumericMod,
 } from "@/lib/analytics";
 import { useT } from "@/lib/i18n";
 import type { Category, Entry, EntryValue, SubCategory } from "@/types";
@@ -33,7 +35,7 @@ export interface CategoryMetricsData {
    * (excludeRegular açıksa düzenli/sabit alt ağaçların girdileri çıkarılmış) */
   entries: Entry[];
   values: EntryValue[];
-  numericMods: NumericMod[];
+  mods: MetricMod[];
   /** Kapsamda düzenli/sabit işaretli alt kategori var mı ("hariç tut" anahtarı
    * yalnızca varsa gösterilir; kök alt kategorinin kendisi düzenliyse false —
    * onu doğrudan analiz eden sayfayı boşaltmak anlamsız) */
@@ -59,13 +61,18 @@ export interface MetricCompute {
   /** Girdi listesinde gösterilecek okunur değer: sayıda birimli rakam, oranda
    *  Evet/Hayır, metinde metnin kendisi. Metrik "girdi sayısı" ise undefined. */
   valueLabelOf: (entryId: string) => string | undefined;
-  kind: ModKind;
+  /** Alt kümedeki seçenek dağılımı — yalnız çoktan seçmelide dolu.
+   *  Seçenek süzgeci UYGULANMAZ; dağılım her zaman bütünü gösterir. */
+  distributionOf: (subset: Entry[]) => { choice: string; count: number }[];
+  kind: ModKind | "choice";
   unit: string;
   displayMode: DisplayMode | undefined;
   /** Başlıklardaki parantez içi not — "(ortalama)" / "(toplam)" / "(evet)" */
   aggregateNote: string | undefined;
   /** Oran metriği mi — panellerde KPI ve kırılım biçimini belirler */
   isRate: boolean;
+  /** Dağılım metriği mi — kırılım kutusunun yerini seçenek dağılımı alır */
+  isChoice: boolean;
 }
 
 /**
@@ -102,12 +109,15 @@ export function useCategoryMetrics({
   // null = kullanıcı henüz seçmedi → varsayılan render sırasında senkron türetilir,
   // effect'le sonradan set edilirse "Girdi" bir an seçili görünüp titreme yaratıyor
   const [metricChoice, setMetricChoice] = useState<Metric | null>(null);
+  // Çoktan seçmelide seriyi süzen seçenek; null = tüm girdiler
+  const [choiceFilter, setChoiceFilter] = useState<string | null>(null);
 
   // Kapsam değişiminde seçimi render sırasında sıfırla (remount'suz geçişler için)
   const [prevResetKey, setPrevResetKey] = useState(resetKey);
   if (prevResetKey !== resetKey) {
     setPrevResetKey(resetKey);
     setMetricChoice(null);
+    setChoiceFilter(null);
   }
 
   const data = useLiveQuery(async (): Promise<CategoryMetricsData | null> => {
@@ -174,7 +184,7 @@ export function useCategoryMetrics({
         children,
         entries: [],
         values: [],
-        numericMods: [],
+        mods: [],
         hasRegular,
         regularSubNames,
         excludedEntryCount: 0,
@@ -201,7 +211,7 @@ export function useCategoryMetrics({
           .toArray()
       : [];
 
-    // Sayısal modlar: yalnızca kapsamdaki girdilerde GERÇEKTEN kullanılanlar.
+    // Metrik adayları: yalnızca kapsamdaki girdilerde GERÇEKTEN kullanılanlar.
     // Atanmış ama hiç veri girilmemiş özellikler metrik çipi olarak
     // gösterilmez — analiz edilecek bir şeyleri yok, kalabalık yapıyorlardı.
     const modIds = new Set(
@@ -210,10 +220,10 @@ export function useCategoryMetrics({
     // bulkGet yerine tam tablo taraması — küçük tablolar (havuzdaki mod/ölçü sayısı sınırlı),
     // bulkGet'in ardışık yazımlardan hemen sonra bazı anahtarlar için null dönebildiği gözlendi
     const allMods = await db.mods.toArray();
-    const numericMods: NumericMod[] = allMods
+    const mods: MetricMod[] = allMods
       .filter((m) => modIds.has(m.id))
-      .map((m) => classifyNumericMod(m))
-      .filter((m): m is NumericMod => !!m)
+      .map((m) => classifyMod(m))
+      .filter((m): m is MetricMod => !!m)
       .sort((a, b) => a.name.localeCompare(b.name, "en"));
 
     return {
@@ -222,7 +232,7 @@ export function useCategoryMetrics({
       children,
       entries,
       values,
-      numericMods,
+      mods,
       hasRegular,
       regularSubNames,
       excludedEntryCount,
@@ -235,11 +245,11 @@ export function useCategoryMetrics({
     if (metricChoice) return metricChoice;
     if (data) {
       if (initialMetricId && initialMetricId !== "count") {
-        const found = data.numericMods.find((m) => m.id === initialMetricId);
-        if (found) return { type: "mod", mod: found };
+        const found = data.mods.find((m) => m.id === initialMetricId);
+        if (found) return metricOf(found);
       }
-      if (initialMetricId === undefined && data.numericMods.length > 0) {
-        return { type: "mod", mod: data.numericMods[0] };
+      if (initialMetricId === undefined && data.mods.length > 0) {
+        return metricOf(data.mods[0]);
       }
     }
     return { type: "count" };
@@ -267,20 +277,47 @@ export function useCategoryMetrics({
         valueByEntry.set(v.entryId, (valueByEntry.get(v.entryId) ?? 0) + amount);
         rawByEntry.set(v.entryId, v.value);
       }
+    } else if (metric.type === "choice") {
+      // Dağılımda sayıya çevrilecek bir şey yok; etiketin kendisi taşınır
+      for (const v of data.values) {
+        if (v.modId === metric.mod.id) rawByEntry.set(v.entryId, v.value);
+      }
     }
 
-    const kind: ModKind = metric.type === "mod" ? metric.mod.kind : "number";
+    const kind: ModKind | "choice" =
+      metric.type === "count" ? "number" : metric.mod.kind;
     const unit = metric.type === "mod" ? metric.mod.unit : "";
     const isRate = kind === "rate";
+    const isChoice = metric.type === "choice";
     const valuesOf = (subset: Entry[]) =>
       subset
         .map((e) => valueByEntry.get(e.id))
         .filter((v): v is number => v !== undefined);
-    const aggregate = (subset: Entry[]): number =>
-      metric.type === "count" ? subset.length : sumOrAvg(valuesOf(subset), kind);
-    const averageOf = (subset: Entry[]): number => average(valuesOf(subset));
+    const choicesOf = (subset: Entry[]) =>
+      subset
+        .map((e) => rawByEntry.get(e.id)?.trim())
+        .filter((v): v is string => !!v);
+
+    // Dağılımda "ne kadar" diye bir rakam yok; sayılan şey GİRDİ. Bir seçenek
+    // süzgeci açıksa seri ve kırılım o seçeneğin adedini gösterir — "gergin
+    // günlerim artıyor mu" sorusu tam bu.
     const filledCount = (subset: Entry[]): number =>
-      metric.type === "count" ? subset.length : valuesOf(subset).length;
+      metric.type === "count"
+        ? subset.length
+        : isChoice
+          ? choicesOf(subset).length
+          : valuesOf(subset).length;
+    const aggregate = (subset: Entry[]): number =>
+      metric.type === "count"
+        ? subset.length
+        : isChoice
+          ? choiceFilter
+            ? choicesOf(subset).filter((c) => c === choiceFilter).length
+            : choicesOf(subset).length
+          : sumOrAvg(valuesOf(subset), kind as ModKind);
+    const averageOf = (subset: Entry[]): number => average(valuesOf(subset));
+    const distributionOf = (subset: Entry[]) =>
+      isChoice ? countByChoice(choicesOf(subset)) : [];
 
     const fillBucket = (bucket: DayBucket, subset: Entry[]) => {
       bucket.value = aggregate(subset);
@@ -289,8 +326,10 @@ export function useCategoryMetrics({
     };
 
     const valueLabelOf = (entryId: string): string | undefined => {
-      if (metric.type !== "mod") return undefined;
+      if (metric.type === "count") return undefined;
       const raw = rawByEntry.get(entryId);
+      // Dağılımda ve metinde okunacak şey sayı değil değerin kendisi
+      if (isChoice || kind === "presence") return raw?.trim() || undefined;
       if (kind === "rate") {
         return raw === undefined
           ? undefined
@@ -298,8 +337,6 @@ export function useCategoryMetrics({
             ? t("entry.yes")
             : t("entry.no");
       }
-      // Metinde okunacak şey sayı değil yazının kendisi
-      if (kind === "presence") return raw?.trim() || undefined;
       const n = valueByEntry.get(entryId);
       if (n === undefined) return undefined;
       return `${fmtNum(n)}${unit ? ` ${unit}` : ""}`;
@@ -312,23 +349,48 @@ export function useCategoryMetrics({
       filledCount,
       fillBucket,
       valueLabelOf,
+      distributionOf,
       kind,
       unit,
       displayMode:
-        metric.type === "mod" ? displayModeOf(metric.mod.kind) : undefined,
+        metric.type === "mod"
+          ? displayModeOf(metric.mod.kind)
+          : isChoice
+            ? "choice"
+            : undefined,
       aggregateNote:
-        metric.type !== "mod"
+        metric.type === "count"
           ? undefined
-          : kind === "scale"
-            ? t("stat.average")
-            : isRate
-              ? t("entry.yes")
-              : kind === "presence"
-                ? t("stat.written")
-                : t("stat.total"),
+          : isChoice
+            ? (choiceFilter ?? t("list.entry"))
+            : kind === "scale"
+              ? t("stat.average")
+              : isRate
+                ? t("entry.yes")
+                : kind === "presence"
+                  ? t("stat.written")
+                  : t("stat.total"),
       isRate,
+      isChoice,
     };
-  }, [data, metric, t]);
+  }, [data, metric, choiceFilter, t]);
 
-  return { data, metric, setMetricChoice, compute };
+  return {
+    data,
+    metric,
+    // Başka bir özelliğe geçince seçenek süzgeci kalmasın — o süzgeç
+    // önceki özelliğin seçeneğiydi, yenisinde karşılığı yok
+    setMetricChoice: (m: Metric) => {
+      setMetricChoice(m);
+      setChoiceFilter(null);
+    },
+    compute,
+    choiceFilter,
+    setChoiceFilter,
+  };
+}
+
+/** Modun kendi türüne göre doğru metrik dalını kurar */
+export function metricOf(mod: MetricMod): Metric {
+  return isChoiceMod(mod) ? { type: "choice", mod } : { type: "mod", mod };
 }
