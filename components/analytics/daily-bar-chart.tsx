@@ -21,6 +21,10 @@ const BALLOON_H = 72;
  * Seri kolon grafiği (günlük/haftalık/aylık kovalar) — tek seri, tek renk.
  * İnce barlar, 4px yuvarlak uç (taban düz), hairline yatay grid, hover tooltip.
  * onSelect verilirse grafik tıklanabilir olur — kovanın dönem sayfasına gidilir.
+ *
+ * `stack` verilirse kova ikiye bölünür: altta dolu parça (value), üstünde soluk
+ * parça (rest). Oran metriği için: tek başına "3 evet" 3/3 mü 3/10 mu belli
+ * etmiyor, payda çubuğun içinde durunca hem adet hem oran tek bakışta okunuyor.
  */
 export function DailyBarChart({
   data,
@@ -29,6 +33,7 @@ export function DailyBarChart({
   onSelect,
   caption,
   showAllTicks,
+  stack,
 }: {
   data: DayBucket[];
   color: string;
@@ -38,13 +43,16 @@ export function DailyBarChart({
   caption?: string;
   /** Eksende her kovanın etiketini göster (dönem serilerinde yer hep ayrılır) */
   showAllTicks?: boolean;
+  /** Yığılmış ikinci seri — parçaların adları lejantta ve balonda görünür */
+  stack?: { valueLabel: string; restLabel: string };
 }) {
-  const allZero = data.every((d) => d.value === 0);
+  // Yığılmışta "hepsi hayır" bir kova doludur — boş sayılmamalı
+  const allZero = data.every((d) => !d.value && !d.rest);
 
   // Y ekseni genişliği en uzun etikete göre — sabit 40px + negatif sol margin
   // büyük değerleri kırpıyordu ("1.100" → ".100"). Rakam ~7px, artı iç boşluk;
   // recharts eksen üst sınırını yukarı yuvarlayabildiği için bir hane pay.
-  const maxVal = data.reduce((m, d) => Math.max(m, d.value), 0);
+  const maxVal = data.reduce((m, d) => Math.max(m, d.value + (d.rest ?? 0)), 0);
   const Y_AXIS_WIDTH = Math.min(
     68,
     Math.max(30, (fmtNum(maxVal).length + 1) * 7 + 8)
@@ -187,17 +195,30 @@ export function DailyBarChart({
             <Tooltip
               cursor={false}
               active={tipDismissed ? false : undefined}
-              content={<ChartTip unit={unit} />}
+              content={<ChartTip unit={unit} stack={stack} />}
             />
           )}
+          {/* Yığında dolu parça altta durur; yuvarlak uç en üstteki parçanın */}
           <Bar
             dataKey="value"
+            stackId={stack ? "s" : undefined}
             fill={color}
             fillOpacity={0.85}
-            radius={[4, 4, 0, 0]}
+            radius={stack ? [0, 0, 0, 0] : [4, 4, 0, 0]}
             maxBarSize={18}
             activeBar={{ fill: color, fillOpacity: 1 }}
           />
+          {stack && (
+            <Bar
+              dataKey="rest"
+              stackId="s"
+              fill={color}
+              fillOpacity={0.18}
+              radius={[4, 4, 0, 0]}
+              maxBarSize={18}
+              activeBar={{ fill: color, fillOpacity: 0.28 }}
+            />
+          )}
         </BarChart>
       </ResponsiveContainer>
 
@@ -247,6 +268,25 @@ export function DailyBarChart({
         </div>
       )}
     </div>
+    {/* Yığının hangi parçasının ne olduğu — renk tek başına anlatmaz */}
+    {stack && (
+      <div className="mt-1.5 flex justify-center gap-4 text-[10px] text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span
+            className="h-2 w-2 rounded-[2px]"
+            style={{ backgroundColor: color, opacity: 0.85 }}
+          />
+          {stack.valueLabel}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span
+            className="h-2 w-2 rounded-[2px]"
+            style={{ backgroundColor: color, opacity: 0.18 }}
+          />
+          {stack.restLabel}
+        </span>
+      </div>
+    )}
     {caption && (
       <div className="mt-1 text-center text-[10px] font-medium text-muted-foreground">
         {caption}
@@ -289,25 +329,34 @@ function ChartTip({
   active,
   payload,
   unit,
+  stack,
 }: {
   active?: boolean;
   payload?: { value: number; payload: DayBucket }[];
   unit?: string;
+  stack?: { valueLabel: string; restLabel: string };
 }) {
   if (!active || !payload?.length) return null;
   const p = payload[0];
+  const rest = p.payload.rest ?? 0;
   // Boş kovada gösterilecek bir şey yok — "0 girdi" balonu gürültü
-  if (!p.value) return null;
+  if (!p.value && !rest) return null;
   return (
     <div className="rounded-xl border border-border bg-[#1c1c1f] px-3 py-2 shadow-xl">
-      <div className="text-sm font-semibold leading-tight">
-        {fmtNum(p.value)}
-        {unit && (
+      <div className="text-sm font-semibold leading-tight tabular-nums">
+        {/* Yığında rakam tek başına eksik — payı paydasıyla gösteriyoruz */}
+        {stack ? `${fmtNum(p.value)} / ${fmtNum(p.value + rest)}` : fmtNum(p.value)}
+        {unit && !stack && (
           <span className="ml-1 text-xs font-normal text-muted-foreground">
             {unit}
           </span>
         )}
       </div>
+      {stack && (
+        <div className="mt-0.5 text-[10px] text-muted-foreground">
+          {stack.valueLabel}
+        </div>
+      )}
       <div className="mt-0.5 text-[10px] text-muted-foreground">
         {p.payload.full}
       </div>

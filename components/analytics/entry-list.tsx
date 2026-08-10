@@ -228,9 +228,12 @@ export function EntryList({
               </div>
             )}
           </div>
+          {/* Metin özelliğinde değer bir cümle olabiliyor — yarı genişlikte
+              kırpılır, yoksa satırın adını dışarı itiyordu. Sayılar zaten kısa,
+              sınır onlara hiç değmiyor. */}
           {r.valueLabel && (
             <div
-              className="shrink-0 pt-0.5 text-xs font-semibold tabular-nums"
+              className="max-w-[52%] shrink-0 truncate pt-0.5 text-xs font-semibold tabular-nums"
               style={accent ? { color: accent } : undefined}
             >
               {r.valueLabel}

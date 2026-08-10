@@ -10,6 +10,7 @@ import {
   computeStreaks,
   dayKey,
   fmtNum,
+  fmtPct,
   frameDailySeries,
   GRANULARITY_TITLES,
   resolveSeriesWindow,
@@ -49,7 +50,17 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
   const computed = useMemo(() => {
     if (!data || !compute) return null;
     const { subById, entries } = data;
-    const { aggregate, averageOf, valueByEntry, unit, kind } = compute;
+    const {
+      aggregate,
+      averageOf,
+      filledCount,
+      fillBucket,
+      valueLabelOf,
+      valueByEntry,
+      unit,
+      kind,
+      isRate,
+    } = compute;
     const now = new Date();
     const today = startOfDayMs(now);
 
@@ -76,17 +87,37 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
     const activeRatio = (activeDayKeys.size / elapsedDays) * 100;
     const streaks = computeStreaks(activeDayKeys, now);
 
-    // Gelişim — son 28 gün (bugün dahil) vs önceki 28 gün, seçili metrikte
+    // Evet serisi — üst üste "evet" denen günler. Yukarıdaki seriden farkı:
+    // gün AKTİF değil, EVET olmalı. Aynı günde hem evet hem hayır varsa gün
+    // evet sayılır (alışkanlık en az bir kez yapılmış).
+    const yesStreaks = isRate
+      ? computeStreaks(
+          new Set(
+            entries
+              .filter((e) => (valueByEntry.get(e.id) ?? 0) > 0)
+              .map((e) => dayKey(e.occurredAt))
+          ),
+          now
+        )
+      : null;
+
+    // Gelişim — son 28 gün (bugün dahil) vs önceki 28 gün, seçili metrikte.
+    // Oranda karşılaştırılan şey adet değil oranın kendisi; farkı da yüzdenin
+    // yüzdesi olarak değil PUAN olarak veriyoruz ("%75 → %60, 15 puan").
     const recentStart = today - (TREND_WINDOW_DAYS - 1) * DAY_MS;
     const prevStart = recentStart - TREND_WINDOW_DAYS * DAY_MS;
     const recentEntries = entries.filter((e) => e.occurredAt >= recentStart);
     const prevEntries = entries.filter(
       (e) => e.occurredAt >= prevStart && e.occurredAt < recentStart
     );
-    const recentValue = aggregate(recentEntries);
-    const prevValue = aggregate(prevEntries);
+    const recentValue = isRate
+      ? averageOf(recentEntries)
+      : aggregate(recentEntries);
+    const prevValue = isRate ? averageOf(prevEntries) : aggregate(prevEntries);
+    const hasPrev = isRate ? filledCount(prevEntries) > 0 : prevValue > 0;
     const growthPct =
-      prevValue > 0 ? ((recentValue - prevValue) / prevValue) * 100 : null;
+      !isRate && hasPrev ? ((recentValue - prevValue) / prevValue) * 100 : null;
+    const growthPoints = isRate && hasPrev ? (recentValue - prevValue) * 100 : null;
 
     // Trend serisi — ilk girdiden bugüne, pencere büyüdükçe kova kabalaşır
     const win = resolveSeriesWindow(0, minOcc, now);
@@ -97,9 +128,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       const i = idx.get(bucketKeyOf(e.occurredAt, win.granularity));
       if (i !== undefined) bucketEntries[i].push(e);
     }
-    buckets.forEach((b, i) => {
-      b.value = aggregate(bucketEntries[i]);
-    });
+    buckets.forEach((b, i) => fillBucket(b, bucketEntries[i]));
     // Kısa geçmişli (gün kovalı) serilerde eksen sadeleşir: gün numaraları + ay caption'ı
     const seriesFrame =
       win.granularity === "day" ? frameDailySeries(buckets) : null;
@@ -113,16 +142,19 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       list.push(e);
       bySubEntries.set(topId, list);
     }
+    // Oranda satırlar birbirinin payı değil; her satır kendi oranını çizer ve
+    // "hiç evet yok" (value 0, payda dolu) da gösterilmesi gereken bir bilgi
     const shareRows: ShareRow[] = [...bySubEntries.entries()]
-      .map(([id, list]) => ({ id, value: aggregate(list) }))
-      .filter((r) => r.value > 0)
-      .map(({ id, value }) => {
+      .map(([id, list]) => ({ id, value: aggregate(list), outOf: filledCount(list) }))
+      .filter((r) => (isRate ? r.outOf > 0 : r.value > 0))
+      .map(({ id, value, outOf }) => {
         const s = subById.get(id)!;
         return {
           id,
           name: s.isCategoryRoot ? category.name : s.name,
           color: category.color,
           value,
+          outOf,
           display: unit ? `${fmtNum(value)} ${unit}` : fmtNum(value),
           drillable: !s.isCategoryRoot,
         };
@@ -143,10 +175,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
           title: e.title,
           notes: e.notes,
           subLabel: sub ? (sub.isCategoryRoot ? category.name : sub.name) : undefined,
-          valueLabel:
-            metric.type === "mod"
-              ? `${fmtNum(valueByEntry.get(e.id) ?? 0)}${unit ? ` ${unit}` : ""}`
-              : undefined,
+          valueLabel: valueLabelOf(e.id),
         };
       });
 
@@ -154,15 +183,19 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       empty: false as const,
       total,
       avg,
+      rate: filledCount(entries) ? total / filledCount(entries) : 0,
       withValueCount,
       elapsedDays,
       dailyAvg,
       activeDayCount: activeDayKeys.size,
       activeRatio,
       streaks,
+      yesStreaks,
       recentValue,
       prevValue,
       growthPct,
+      growthPoints,
+      hasPrev,
       isAvgMetric: kind === "scale",
       buckets,
       granularity: win.granularity,
@@ -219,6 +252,43 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
             sub={`${computed.elapsedDays} days`}
           />
         </div>
+      ) : compute.displayMode === "rate" ? (
+        /* Oran — ana rakam yüzde; ham adet dönem uzunluğuna bağlı olduğundan
+           tek başına karşılaştırılamaz. Üçüncü kutu "evet serisi": yukarıdaki
+           İstikrar bloğu girdi girilen günü sayar, bu evet denen günü. */
+        <div className="grid grid-cols-3 gap-2">
+          <StatTile
+            label={t("stat.yesRate")}
+            value={fmtPct(computed.rate)}
+            sub={`${fmtNum(computed.total)}/${fmtNum(computed.withValueCount)}`}
+          />
+          <StatTile
+            label={t("entry.yes")}
+            value={fmtNum(computed.total)}
+            sub={t("stat.outOfEntries", { n: computed.withValueCount })}
+          />
+          <StatTile
+            label={t("stat.yesStreak")}
+            value={fmtNum(computed.yesStreaks?.current ?? 0)}
+            unit={t("stat.days")}
+            sub={t("stat.best", { n: computed.yesStreaks?.best ?? 0 })}
+          />
+        </div>
+      ) : compute.displayMode === "presence" ? (
+        /* Metin — sayılacak tek şey "kaç girdide yazılmış"; asıl değer aşağıdaki
+           listede, metnin kendisini dönem süzgeciyle okuyabilmekte */
+        <div className="grid grid-cols-2 gap-2">
+          <StatTile
+            label={t("stat.written")}
+            value={fmtNum(computed.total)}
+            sub={t("stat.outOfEntries", { n: data.entries.length })}
+          />
+          <StatTile
+            label={t("stat.dailyAverage")}
+            value={fmtNum(computed.dailyAvg)}
+            sub={`${computed.elapsedDays} days`}
+          />
+        </div>
       ) : (
         <div className="grid grid-cols-3 gap-2">
           {compute.displayMode === "both" && (
@@ -241,7 +311,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
               label={t("stat.average")}
               value={fmtNum(computed.avg)}
               unit={unit}
-              sub="per entry"
+              sub={t("stat.perEntry")}
             />
           )}
           <StatTile
@@ -261,18 +331,18 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
           <StatTile
             label={t("insights.activeDays")}
             value={`%${fmtNum(computed.activeRatio)}`}
-            sub={`${computed.activeDayCount}/${computed.elapsedDays} gün`}
+            sub={`${computed.activeDayCount}/${computed.elapsedDays} ${t("stat.days")}`}
           />
           <StatTile
             label={t("insights.currentStreak")}
             value={fmtNum(computed.streaks.current)}
-            unit="gün"
+            unit={t("stat.days")}
             sub="in a row"
           />
           <StatTile
             label="Rekor Seri"
             value={fmtNum(computed.streaks.best)}
-            unit="gün"
+            unit={t("stat.days")}
             sub="en uzun"
           />
         </div>
@@ -290,21 +360,59 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         <div className="grid grid-cols-2 gap-2">
           <StatTile
             label={t("insights.last4Weeks")}
-            value={fmtNum(computed.recentValue)}
-            unit={computed.isAvgMetric ? unit : metricLabel}
+            value={
+              compute.isRate
+                ? fmtPct(computed.recentValue)
+                : fmtNum(computed.recentValue)
+            }
+            unit={
+              compute.isRate
+                ? undefined
+                : computed.isAvgMetric
+                  ? unit
+                  : metricLabel
+            }
             sub={
-              computed.growthPct !== null
-                ? `önceki döneme göre %${computed.growthPct >= 0 ? "+" : "−"}${fmtNum(
-                    Math.abs(computed.growthPct)
-                  )}`
-                : "no data in the previous period"
+              computed.growthPoints !== null
+                ? t("stat.pointsVsPrev", {
+                    sign: computed.growthPoints >= 0 ? "+" : "−",
+                    n: fmtNum(Math.abs(computed.growthPoints)),
+                  })
+                : computed.growthPct !== null
+                  ? t("stat.pctVsPrev", {
+                      sign: computed.growthPct >= 0 ? "+" : "−",
+                      pct: fmtPct(Math.abs(computed.growthPct) / 100),
+                    })
+                  : t("stat.noPrevPeriod")
             }
           />
           <StatTile
             label={t("insights.prev4Weeks")}
-            value={fmtNum(computed.prevValue)}
-            unit={computed.isAvgMetric ? unit : metricLabel}
-            sub={computed.isAvgMetric ? "average" : "total"}
+            /* Oranda veri yokluğu "%0" diye okunmamalı — 0 puan gerçek bir
+               değerdir, veri yokluğu değil */
+            value={
+              compute.isRate
+                ? computed.hasPrev
+                  ? fmtPct(computed.prevValue)
+                  : "—"
+                : fmtNum(computed.prevValue)
+            }
+            unit={
+              compute.isRate
+                ? undefined
+                : computed.isAvgMetric
+                  ? unit
+                  : metricLabel
+            }
+            sub={
+              compute.isRate
+                ? computed.hasPrev
+                  ? t("stat.yesRate")
+                  : t("stat.noData")
+                : computed.isAvgMetric
+                  ? "average"
+                  : "total"
+            }
           />
         </div>
       </div>
@@ -314,15 +422,16 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       <div className="rounded-2xl border border-border bg-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
           Subcategory breakdown
-          {metric.type === "mod" && (
+          {compute.aggregateNote && (
             <span className="normal-case font-normal text-muted-foreground/60">
               {" "}
-              ({compute.bucketIsAvg ? "average" : "total"})
+              ({compute.aggregateNote})
             </span>
           )}
         </h3>
         <ShareBars
           rows={computed.shareRows}
+          mode={compute.isRate ? "rate" : "share"}
           emptyText={
             metric.type === "mod"
               ? `${metric.mod.name} verisi yok`
@@ -343,10 +452,10 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
           {GRANULARITY_TITLES[computed.granularity]}{" "}
           {metric.type === "count" ? "entries" : metric.mod.name}
-          {metric.type === "mod" && (
+          {compute.aggregateNote && (
             <span className="normal-case font-normal text-muted-foreground/60">
               {" "}
-              ({compute.bucketIsAvg ? "average" : "total"})
+              ({compute.aggregateNote})
             </span>
           )}{" "}
           · Tüm Zamanlar
@@ -356,6 +465,11 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
           color={category.color}
           unit={metric.type === "count" ? "entries" : unit}
           caption={computed.seriesFrame?.caption}
+          stack={
+            compute.isRate
+              ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") }
+              : undefined
+          }
         />
       </div>
 

@@ -9,6 +9,7 @@ import {
   buildSeriesBuckets,
   chooseGranularity,
   fmtNum,
+  fmtPct,
   frameDailySeries,
   framePeriodSeries,
   GRANULARITY_TITLES,
@@ -80,7 +81,17 @@ export function SubcategoryPanel({
   const computed = useMemo(() => {
     if (!data || !compute) return null;
     const { subById, entries } = data;
-    const { aggregate, averageOf, valueByEntry, displayMode, unit } = compute;
+    const {
+      aggregate,
+      averageOf,
+      filledCount,
+      fillBucket,
+      valueLabelOf,
+      valueByEntry,
+      displayMode,
+      unit,
+      isRate,
+    } = compute;
     const now = new Date();
 
     const statSince = (start: number) => {
@@ -88,6 +99,8 @@ export function SubcategoryPanel({
       return {
         value: aggregate(subset),
         avg: displayMode === "both" ? averageOf(subset) : undefined,
+        // Oranın paydası — kutuda "13/20" olarak da okunur
+        filled: filledCount(subset),
       };
     };
 
@@ -137,9 +150,7 @@ export function SubcategoryPanel({
       const i = bucketIdx.get(bucketKeyOf(e.occurredAt, granularity));
       if (i !== undefined) bucketEntries[i].push(e);
     }
-    buckets.forEach((b, i) => {
-      b.value = aggregate(bucketEntries[i]);
-    });
+    buckets.forEach((b, i) => fillBucket(b, bucketEntries[i]));
     const seriesFrame: SeriesFrame | null = periodKind
       ? framePeriodSeries(periodKind, seriesStart, buckets)
       : granularity === "day"
@@ -158,9 +169,9 @@ export function SubcategoryPanel({
       bySubEntries.set(bucketId, list);
     }
     const shareRows: ShareRow[] = [...bySubEntries.entries()]
-      .map(([id, list]) => ({ id, value: aggregate(list) }))
-      .filter((r) => r.value > 0)
-      .map(({ id, value }) => {
+      .map(([id, list]) => ({ id, value: aggregate(list), outOf: filledCount(list) }))
+      .filter((r) => (isRate ? r.outOf > 0 : r.value > 0))
+      .map(({ id, value, outOf }) => {
         const isSelf = id === subcategory.id;
         const s = isSelf ? subcategory : subById.get(id);
         return {
@@ -168,6 +179,7 @@ export function SubcategoryPanel({
           name: s?.name ?? "—",
           color: category.color,
           value,
+          outOf,
           display: unit ? `${fmtNum(value)} ${unit}` : fmtNum(value),
           // Kalemin kendi doğrudan girdileri — inilecek bir kademe değil
           drillable: !isSelf,
@@ -192,10 +204,7 @@ export function SubcategoryPanel({
           title: e.title,
           notes: e.notes,
           subLabel: owner?.name,
-          valueLabel:
-            metric.type === "mod"
-              ? `${fmtNum(valueByEntry.get(e.id) ?? 0)}${unit ? ` ${unit}` : ""}`
-              : undefined,
+          valueLabel: valueLabelOf(e.id),
         };
       });
 
@@ -244,34 +253,38 @@ export function SubcategoryPanel({
         />
       )}
 
+      {/* Bugün / bu hafta / bu ay — oran metriğinde ana rakam yüzde olur,
+          payı alt satırda "13/20" diye durur; adet tek başına dönem uzunluğuna
+          bağlı olduğundan üç kutu birbiriyle karşılaştırılamazdı */}
       <div className="grid grid-cols-3 gap-2">
-        <StatTile
-          label={t("stat.today")}
-          value={fmtNum(computed.today.value)}
-          unit={metricLabel}
-          sub={
-            compute.displayMode &&
-            statSub(compute.displayMode, computed.today.avg, compute.unit)
-          }
-        />
-        <StatTile
-          label={t("stat.thisWeek")}
-          value={fmtNum(computed.week.value)}
-          unit={metricLabel}
-          sub={
-            compute.displayMode &&
-            statSub(compute.displayMode, computed.week.avg, compute.unit)
-          }
-        />
-        <StatTile
-          label={t("stat.thisMonth")}
-          value={fmtNum(computed.month.value)}
-          unit={metricLabel}
-          sub={
-            compute.displayMode &&
-            statSub(compute.displayMode, computed.month.avg, compute.unit)
-          }
-        />
+        {(
+          [
+            [t("stat.today"), computed.today],
+            [t("stat.thisWeek"), computed.week],
+            [t("stat.thisMonth"), computed.month],
+          ] as const
+        ).map(([label, s]) => (
+          <StatTile
+            key={label}
+            label={label}
+            value={
+              compute.isRate
+                ? s.filled
+                  ? fmtPct(s.value / s.filled)
+                  : "—"
+                : fmtNum(s.value)
+            }
+            unit={compute.isRate ? undefined : metricLabel}
+            sub={
+              compute.isRate
+                ? s.filled
+                  ? `${fmtNum(s.value)}/${fmtNum(s.filled)}`
+                  : t("stat.noData")
+                : compute.displayMode &&
+                  statSub(compute.displayMode, s.avg, compute.unit)
+            }
+          />
+        ))}
       </div>
 
       {/* Alt kategori kırılımı — seriden ÖNCE: önce "ne nereye gitmiş"
@@ -282,10 +295,10 @@ export function SubcategoryPanel({
           <div className="mb-3 flex items-center justify-between gap-2">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Subcategory breakdown
-              {metric.type === "mod" && (
+              {compute.aggregateNote && (
                 <span className="normal-case font-normal text-muted-foreground/60">
                   {" "}
-                  ({compute.bucketIsAvg ? "average" : "total"})
+                  ({compute.aggregateNote})
                 </span>
               )}
             </h3>
@@ -293,6 +306,7 @@ export function SubcategoryPanel({
           </div>
           <ShareBars
             rows={computed.shareRows}
+            mode={compute.isRate ? "rate" : "share"}
             emptyText={
               metric.type === "mod"
                 ? `No ${metric.mod.name} data in this range`
@@ -307,10 +321,10 @@ export function SubcategoryPanel({
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
           {GRANULARITY_TITLES[computed.granularity]}{" "}
           {metric.type === "count" ? "entries" : metric.mod.name}
-          {metric.type === "mod" && (
+          {compute.aggregateNote && (
             <span className="normal-case font-normal text-muted-foreground/60">
               {" "}
-              ({compute.bucketIsAvg ? "average" : "total"})
+              ({compute.aggregateNote})
             </span>
           )}{" "}
           · {RANGE_LABELS[range]}
@@ -321,6 +335,11 @@ export function SubcategoryPanel({
           unit={metricLabel}
           caption={computed.seriesFrame?.caption}
           showAllTicks={computed.seriesFrame?.showAllTicks}
+          stack={
+            compute.isRate
+              ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") }
+              : undefined
+          }
         />
       </div>
 

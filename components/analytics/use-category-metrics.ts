@@ -5,16 +5,21 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import {
   average,
+  boolToNumber,
   classifyNumericMod,
   displayModeOf,
   dtrDurationHours,
+  fmtNum,
   parseNumeric,
   sumOrAvg,
+  textToNumber,
+  type DayBucket,
   type DisplayMode,
   type Metric,
   type ModKind,
   type NumericMod,
 } from "@/lib/analytics";
+import { useT } from "@/lib/i18n";
 import type { Category, Entry, EntryValue, SubCategory } from "@/types";
 
 export interface CategoryMetricsData {
@@ -44,13 +49,23 @@ export interface MetricCompute {
   valueByEntry: Map<string, number>;
   /** Alt kümenin metrik toplamı (scale modda ortalaması), count metriğinde adedi */
   aggregate: (subset: Entry[]) => number;
-  /** Alt kümede değeri olan girdilerin ortalaması */
+  /** Alt kümede değeri olan girdilerin ortalaması. Oran metriğinde bu ORANIN
+   *  kendisidir (0–1) — evet=1/hayır=0 değerlerinin ortalaması. */
   averageOf: (subset: Entry[]) => number;
+  /** Alt kümede bu metriğin değeri OLAN girdi sayısı — oranın paydası */
+  filledCount: (subset: Entry[]) => number;
+  /** Kovayı doldur; oran metriğinde "hayır" payı da yığının üstüne yazılır */
+  fillBucket: (bucket: DayBucket, subset: Entry[]) => void;
+  /** Girdi listesinde gösterilecek okunur değer: sayıda birimli rakam, oranda
+   *  Evet/Hayır, metinde metnin kendisi. Metrik "girdi sayısı" ise undefined. */
+  valueLabelOf: (entryId: string) => string | undefined;
   kind: ModKind;
   unit: string;
   displayMode: DisplayMode | undefined;
-  /** Seri/kırılım rakamları ortalama mı (scale) toplam mı */
-  bucketIsAvg: boolean;
+  /** Başlıklardaki parantez içi not — "(ortalama)" / "(toplam)" / "(evet)" */
+  aggregateNote: string | undefined;
+  /** Oran metriği mi — panellerde KPI ve kırılım biçimini belirler */
+  isRate: boolean;
 }
 
 /**
@@ -83,6 +98,7 @@ export function useCategoryMetrics({
   /** Düzenli/sabit işaretli alt ağaçların girdilerini pencereden çıkar */
   excludeRegular?: boolean;
 }) {
+  const t = useT();
   // null = kullanıcı henüz seçmedi → varsayılan render sırasında senkron türetilir,
   // effect'le sonradan set edilirse "Girdi" bir an seçili görünüp titreme yaratıyor
   const [metricChoice, setMetricChoice] = useState<Metric | null>(null);
@@ -235,18 +251,27 @@ export function useCategoryMetrics({
     // Girdi başına metrik değeri: sadece bu modun değerine sahip girdiler dahil edilir
     // (skala modlarında ortalama, yalnızca değeri olan girdiler üzerinden hesaplanmalı)
     const valueByEntry = new Map<string, number>();
+    // Ham değer — listede okunur etiketi (Evet/Hayır, metnin kendisi) buradan çıkar
+    const rawByEntry = new Map<string, string>();
     if (metric.type === "mod") {
       for (const v of data.values) {
         if (v.modId !== metric.mod.id) continue;
         const amount =
           metric.mod.kind === "duration"
             ? dtrDurationHours(v.value)
-            : parseNumeric(v.value);
+            : metric.mod.kind === "rate"
+              ? boolToNumber(v.value)
+              : metric.mod.kind === "presence"
+                ? textToNumber(v.value)
+                : parseNumeric(v.value);
         valueByEntry.set(v.entryId, (valueByEntry.get(v.entryId) ?? 0) + amount);
+        rawByEntry.set(v.entryId, v.value);
       }
     }
 
     const kind: ModKind = metric.type === "mod" ? metric.mod.kind : "number";
+    const unit = metric.type === "mod" ? metric.mod.unit : "";
+    const isRate = kind === "rate";
     const valuesOf = (subset: Entry[]) =>
       subset
         .map((e) => valueByEntry.get(e.id))
@@ -254,18 +279,56 @@ export function useCategoryMetrics({
     const aggregate = (subset: Entry[]): number =>
       metric.type === "count" ? subset.length : sumOrAvg(valuesOf(subset), kind);
     const averageOf = (subset: Entry[]): number => average(valuesOf(subset));
+    const filledCount = (subset: Entry[]): number =>
+      metric.type === "count" ? subset.length : valuesOf(subset).length;
+
+    const fillBucket = (bucket: DayBucket, subset: Entry[]) => {
+      bucket.value = aggregate(subset);
+      // Oranda çubuk yığılır: alt parça evet, üstteki soluk parça hayır
+      if (isRate) bucket.rest = filledCount(subset) - bucket.value;
+    };
+
+    const valueLabelOf = (entryId: string): string | undefined => {
+      if (metric.type !== "mod") return undefined;
+      const raw = rawByEntry.get(entryId);
+      if (kind === "rate") {
+        return raw === undefined
+          ? undefined
+          : raw === "true"
+            ? t("entry.yes")
+            : t("entry.no");
+      }
+      // Metinde okunacak şey sayı değil yazının kendisi
+      if (kind === "presence") return raw?.trim() || undefined;
+      const n = valueByEntry.get(entryId);
+      if (n === undefined) return undefined;
+      return `${fmtNum(n)}${unit ? ` ${unit}` : ""}`;
+    };
 
     return {
       valueByEntry,
       aggregate,
       averageOf,
+      filledCount,
+      fillBucket,
+      valueLabelOf,
       kind,
-      unit: metric.type === "mod" ? metric.mod.unit : "",
+      unit,
       displayMode:
         metric.type === "mod" ? displayModeOf(metric.mod.kind) : undefined,
-      bucketIsAvg: kind === "scale",
+      aggregateNote:
+        metric.type !== "mod"
+          ? undefined
+          : kind === "scale"
+            ? t("stat.average")
+            : isRate
+              ? t("entry.yes")
+              : kind === "presence"
+                ? t("stat.written")
+                : t("stat.total"),
+      isRate,
     };
-  }, [data, metric]);
+  }, [data, metric, t]);
 
   return { data, metric, setMetricChoice, compute };
 }

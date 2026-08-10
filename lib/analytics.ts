@@ -4,6 +4,7 @@
  */
 
 import type { EntryType, Mod } from "@/types";
+import { intlTag } from "@/lib/i18n";
 
 export type RangeKey = "bugun" | "hafta" | "7" | "30" | "ay" | "yil" | "tum";
 
@@ -94,6 +95,10 @@ export type DayBucket = {
   /** Tooltip'teki uzun etiket: 29 Haziran Pzt */
   full: string;
   value: number;
+  /** Value'nun üstüne yığılan ikinci (soluk) parça — yalnız oran metriğinde
+   *  dolar: value "evet" adedi, rest "hayır" adedi. Tek başına "3 evet"
+   *  3/3 mü 3/10 mu belli etmediği için payda çubuğun içinde duruyor. */
+  rest?: number;
   /** Kovanın dönem sayfası anahtarı (d-/w-/m-) — bar tıklamasıyla o dönemin analizine gidilir */
   periodKey?: string;
 };
@@ -395,23 +400,54 @@ export function bucketAncestorId(
   return cur.id;
 }
 
-/** number (para, miktar...) ve duration (tarih-saat aralığı) → toplam + ortalama;
- * scale (sayısal skala, örn. 1–5 puanlama) → yalnızca ortalama, toplamak anlamsız */
-export type ModKind = "number" | "duration" | "scale";
+/**
+ * Özelliğin analizde nasıl davrandığı:
+ * - `number` (para, miktar…) ve `duration` (tarih-saat aralığı) → toplam + ortalama
+ * - `scale` (sayısal skala, 1–5 puanlama) → yalnız ortalama, toplamak anlamsız
+ * - `rate` (Evet/Hayır) → evet=1, hayır=0. Toplamı "kaç evet", ortalaması ORANIN
+ *   kendisi. Ham adet dönem uzunluğuna bağlı olduğundan ana rakam orandır.
+ * - `presence` (Metin) → yazıldı=1. Toplamı "kaç girdide yazılmış"; ortalaması
+ *   tanımsız (hep 1). Asıl değeri sayıda değil, metnin listede okunmasında.
+ */
+export type ModKind = "number" | "duration" | "scale" | "rate" | "presence";
 export type NumericMod = { id: string; name: string; unit: string; kind: ModKind };
 
 /** Seçili metrik: girdi sayısı ya da sayısal bir modun toplamı/ortalaması */
 export type Metric = { type: "count" } | { type: "mod"; mod: NumericMod };
 
-/** scale modlarda toplamın hiç anlamı yok (örn. 5 günün puanları toplanmaz); diğerlerinde ikisi de faydalı */
-export type DisplayMode = "avg" | "both";
+/** Hangi KPI kutularının çıkacağını belirler — kind'ın gösterim karşılığı */
+export type DisplayMode = "avg" | "both" | "rate" | "presence";
 export const displayModeOf = (kind: ModKind): DisplayMode =>
-  kind === "scale" ? "avg" : "both";
+  kind === "scale"
+    ? "avg"
+    : kind === "rate"
+      ? "rate"
+      : kind === "presence"
+        ? "presence"
+        : "both";
 
 export function sumOrAvg(values: number[], kind: ModKind): number {
   if (!values.length) return 0;
   const total = values.reduce((a, b) => a + b, 0);
   return kind === "scale" ? total / values.length : total;
+}
+
+/** Evet/Hayır değerinin sayısal karşılığı — oranın payı */
+export function boolToNumber(raw: string): number {
+  return raw === "true" ? 1 : 0;
+}
+
+/** Metin değerinin sayısal karşılığı — "yazılmış mı" */
+export function textToNumber(raw: string): number {
+  return raw.trim() ? 1 : 0;
+}
+
+/** Oran gösterimi — işaretin yeri dile göre değişir ("%65" / "65%") */
+export function fmtPct(ratio: number): string {
+  return new Intl.NumberFormat(intlTag(), {
+    style: "percent",
+    maximumFractionDigits: 0,
+  }).format(Number.isFinite(ratio) ? ratio : 0);
 }
 
 export function average(values: number[]): number {
@@ -425,14 +461,17 @@ export function statSub(
   unit: string
 ): string | undefined {
   if (displayMode === "avg") return "Average";
-  if (avgValue !== undefined) {
+  if (displayMode === "both" && avgValue !== undefined) {
     return `Ort. ${fmtNum(avgValue)}${unit ? ` ${unit}` : ""}`;
   }
   return undefined;
 }
 
-/** Özelliği sayısal metrik adayına sınıflandırır; ölçülemezse null.
- *  v18'den beri ölçüm özelliğin kendi üzerinde — ayrıca ölçü aramak gerekmiyor. */
+/** Özelliği metrik adayına sınıflandırır; ölçülemezse null.
+ *  v18'den beri ölçüm özelliğin kendi üzerinde — ayrıca ölçü aramak gerekmiyor.
+ *
+ *  Kelime seçenekli "çoktan seçmeli" hâlâ null: girdi başına sayı değil bir
+ *  ETİKET taşıyor, toplamı/ortalaması yok. Dağılım metriği ayrı bir tur. */
 export function classifyNumericMod(mod: Mod): NumericMod | null {
   const vt = mod.valueType ?? "number";
   if (vt === "number") {
@@ -443,6 +482,12 @@ export function classifyNumericMod(mod: Mod): NumericMod | null {
   }
   if (vt === "select" && isNumericChoiceSet(mod.choices)) {
     return { id: mod.id, name: mod.name, unit: "", kind: "scale" };
+  }
+  if (vt === "boolean") {
+    return { id: mod.id, name: mod.name, unit: "", kind: "rate" };
+  }
+  if (vt === "text") {
+    return { id: mod.id, name: mod.name, unit: "", kind: "presence" };
   }
   return null;
 }

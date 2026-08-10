@@ -6,17 +6,20 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { Boxes, ChevronRight } from "lucide-react";
 import { db } from "@/lib/db";
 import {
+  boolToNumber,
   buildSeriesBuckets,
   bucketKeyOf,
   classifyNumericMod,
   dayKey,
   dtrDurationHours,
   fmtNum,
+  fmtPct,
   frameDailySeries,
   GRANULARITY_TITLES,
   parseNumeric,
   resolveSeriesWindow,
   sumOrAvg,
+  textToNumber,
   type Metric,
   type SeriesFrame,
 } from "@/lib/analytics";
@@ -103,22 +106,27 @@ export default function ActivityAnalyticsPage({
         const amount =
           metric.mod.kind === "duration"
             ? dtrDurationHours(v.value)
-            : parseNumeric(v.value);
+            : metric.mod.kind === "rate"
+              ? boolToNumber(v.value)
+              : metric.mod.kind === "presence"
+                ? textToNumber(v.value)
+                : parseNumeric(v.value);
         valueByEntry.set(v.entryId, (valueByEntry.get(v.entryId) ?? 0) + amount);
       }
     }
     const kind = metric.type === "mod" ? metric.mod.kind : "number";
+    const isRate = kind === "rate";
+    const valuesOf = (subset: Entry[]) =>
+      subset
+        .map((e) => valueByEntry.get(e.id))
+        .filter((v): v is number => v !== undefined);
     const aggregate = (subset: Entry[]): number =>
-      metric.type === "count"
-        ? subset.length
-        : sumOrAvg(
-            subset
-              .map((e) => valueByEntry.get(e.id))
-              .filter((v): v is number => v !== undefined),
-            kind
-          );
+      metric.type === "count" ? subset.length : sumOrAvg(valuesOf(subset), kind);
+    const filledCount = (subset: Entry[]): number =>
+      metric.type === "count" ? subset.length : valuesOf(subset).length;
 
     const total = aggregate(entries);
+    const filled = filledCount(entries);
 
     // Oturumlar — her aktivite kaydı bir oturum; en yeniden eskiye
     const byActivity = new Map<string, Entry[]>();
@@ -161,6 +169,8 @@ export default function ActivityAnalyticsPage({
     }
     buckets.forEach((b, i) => {
       b.value = aggregate(bucketEntries[i]);
+      // Oranda çubuk yığılır: alt parça evet, üstteki soluk parça hayır
+      if (isRate) b.rest = filledCount(bucketEntries[i]) - b.value;
     });
     const seriesFrame: SeriesFrame | null =
       win.granularity === "day" ? frameDailySeries(buckets) : null;
@@ -175,15 +185,16 @@ export default function ActivityAnalyticsPage({
       byCat.set(catId, list);
     }
     const catShare: ShareRow[] = [...byCat.entries()]
-      .map(([id, list]) => ({ id, value: aggregate(list) }))
-      .filter((r) => r.value > 0)
-      .map(({ id, value }) => {
+      .map(([id, list]) => ({ id, value: aggregate(list), outOf: filledCount(list) }))
+      .filter((r) => (isRate ? r.outOf > 0 : r.value > 0))
+      .map(({ id, value, outOf }) => {
         const c = catById.get(id);
         return {
           id,
           name: c?.name ?? "—",
           color: c?.color ?? ACTIVITY_COLOR,
           value,
+          outOf,
           display:
             metric.type === "mod" && metric.mod.unit
               ? `${fmtNum(value)} ${metric.mod.unit}`
@@ -193,8 +204,12 @@ export default function ActivityAnalyticsPage({
 
     return {
       total,
+      filled,
+      rate: filled ? total / filled : 0,
       sessions,
       perSession,
+      isRate,
+      isPresence: kind === "presence",
       isAvgMetric: kind === "scale",
       buckets,
       granularity: win.granularity,
@@ -225,24 +240,46 @@ export default function ActivityAnalyticsPage({
               onChange={setMetricChoice}
             />
 
-            {/* KPI'lar */}
+            {/* KPI'lar — oranda ana rakam yüzde, metinde "kaç girdide yazılmış" */}
             <div className="grid grid-cols-3 gap-2">
               <StatTile
-                label="Oturum"
+                label={t("stat.session")}
                 value={fmtNum(computed.sessions.length)}
                 sub="total"
               />
               <StatTile
-                label={computed.isAvgMetric ? "Average" : "Total"}
-                value={fmtNum(computed.total)}
-                unit={metricLabel}
-                sub="all sessions"
+                label={
+                  computed.isRate
+                    ? t("stat.yesRate")
+                    : computed.isPresence
+                      ? t("stat.written")
+                      : computed.isAvgMetric
+                        ? t("stat.average")
+                        : t("stat.total")
+                }
+                value={
+                  computed.isRate ? fmtPct(computed.rate) : fmtNum(computed.total)
+                }
+                unit={computed.isRate ? undefined : metricLabel}
+                sub={
+                  computed.isRate
+                    ? `${fmtNum(computed.total)}/${fmtNum(computed.filled)}`
+                    : "all sessions"
+                }
               />
               <StatTile
-                label="Oturum Ort."
-                value={fmtNum(computed.perSession)}
-                unit={metricLabel}
-                sub={computed.isAvgMetric ? "average" : "per session"}
+                label={computed.isRate ? t("entry.yes") : t("stat.sessionAvg")}
+                value={fmtNum(
+                  computed.isRate ? computed.total : computed.perSession
+                )}
+                unit={computed.isRate ? undefined : metricLabel}
+                sub={
+                  computed.isRate
+                    ? t("stat.outOfEntries", { n: computed.filled })
+                    : computed.isAvgMetric
+                      ? "average"
+                      : "per session"
+                }
               />
             </div>
 
@@ -257,6 +294,11 @@ export default function ActivityAnalyticsPage({
                 color={ACTIVITY_COLOR}
                 unit={metric.type === "count" ? "entries" : unit}
                 caption={computed.seriesFrame?.caption}
+                stack={
+                  computed.isRate
+                    ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") }
+                    : undefined
+                }
               />
             </div>
 
@@ -265,7 +307,11 @@ export default function ActivityAnalyticsPage({
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
                 Category breakdown
               </h3>
-              <ShareBars rows={computed.catShare} emptyText="Veri yok" />
+              <ShareBars
+                rows={computed.catShare}
+                mode={computed.isRate ? "rate" : "share"}
+                emptyText={t("stat.noData")}
+              />
             </div>
 
             {/* Oturumlar — güne gider */}

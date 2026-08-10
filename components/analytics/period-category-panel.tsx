@@ -10,6 +10,7 @@ import {
   buildSeriesBuckets,
   chooseGranularity,
   fmtNum,
+  fmtPct,
   framePeriodSeries,
   GRANULARITY_TITLES,
   startOfDayMs,
@@ -71,7 +72,17 @@ export function PeriodCategoryPanel({
   const computed = useMemo(() => {
     if (!data || !compute) return null;
     const { subById } = data;
-    const { aggregate, averageOf, valueByEntry, unit, kind } = compute;
+    const {
+      aggregate,
+      averageOf,
+      filledCount,
+      fillBucket,
+      valueLabelOf,
+      valueByEntry,
+      unit,
+      kind,
+      isRate,
+    } = compute;
     const now = new Date();
 
     // Dönem penceresine düşen girdiler (hafta bağlamı için geniş çekildiyse filtrele)
@@ -87,6 +98,7 @@ export function PeriodCategoryPanel({
       metric.type === "mod"
         ? entries.filter((e) => valueByEntry.has(e.id)).length
         : entries.length;
+    const rate = withValueCount ? total / withValueCount : 0;
 
     // Günlük ortalama — devam eden dönemde payda geçen gün sayısı;
     // "Tümü"nde başlangıç kategorinin ilk girdisine kıstırılır
@@ -154,9 +166,7 @@ export function PeriodCategoryPanel({
         const i = idx.get(bucketKeyOf(e.occurredAt, granularity));
         if (i !== undefined) bucketEntries[i].push(e);
       }
-      buckets.forEach((b, i) => {
-        b.value = aggregate(bucketEntries[i]);
-      });
+      buckets.forEach((b, i) => fillBucket(b, bucketEntries[i]));
       if (
         period.kind === "week" ||
         period.kind === "month" ||
@@ -177,9 +187,9 @@ export function PeriodCategoryPanel({
       bySubEntries.set(topId, list);
     }
     const shareRows: ShareRow[] = [...bySubEntries.entries()]
-      .map(([id, list]) => ({ id, value: aggregate(list) }))
-      .filter((r) => r.value > 0)
-      .map(({ id, value }) => {
+      .map(([id, list]) => ({ id, value: aggregate(list), outOf: filledCount(list) }))
+      .filter((r) => (isRate ? r.outOf > 0 : r.value > 0))
+      .map(({ id, value, outOf }) => {
         const s = subById.get(id)!;
         // Kalemin KENDİ doğrudan girdileri (alt kalemine değil, doğrudan ona
         // yazılmış) kendi id'sinde toplanır. Adıyla listelenir ama inilecek
@@ -191,6 +201,7 @@ export function PeriodCategoryPanel({
           name: s.isCategoryRoot ? category.name : s.name,
           color: category.color,
           value,
+          outOf,
           display: unit ? `${fmtNum(value)} ${unit}` : fmtNum(value),
           drillable: !isSelf,
         };
@@ -214,16 +225,14 @@ export function PeriodCategoryPanel({
               ? category.name
               : sub.name
             : undefined,
-          valueLabel:
-            metric.type === "mod"
-              ? `${fmtNum(valueByEntry.get(e.id) ?? 0)}${unit ? ` ${unit}` : ""}`
-              : undefined,
+          valueLabel: valueLabelOf(e.id),
         };
       });
 
     return {
       total,
       avg,
+      rate,
       withValueCount,
       progress,
       dailyAvg,
@@ -362,6 +371,38 @@ export function PeriodCategoryPanel({
             />
           </div>
         )
+      ) : compute.displayMode === "rate" ? (
+        /* Oran — ana rakam yüzde, payı yanındaki kutuda */
+        <div className="grid grid-cols-3 gap-2">
+          <StatTile
+            label={t("stat.yesRate")}
+            value={fmtPct(computed.rate)}
+            sub={periodShortLabel(period)}
+          />
+          <StatTile
+            label={t("entry.yes")}
+            value={fmtNum(computed.total)}
+            sub={t("stat.outOfEntries", { n: computed.withValueCount })}
+          />
+          <StatTile
+            label={t("insights.entries")}
+            value={fmtNum(computed.withValueCount)}
+            sub={dayCountLabel}
+          />
+        </div>
+      ) : compute.displayMode === "presence" ? (
+        <div className="grid grid-cols-2 gap-2">
+          <StatTile
+            label={t("stat.written")}
+            value={fmtNum(computed.total)}
+            sub={periodShortLabel(period)}
+          />
+          <StatTile
+            label={t("stat.dailyAverage")}
+            value={fmtNum(computed.dailyAvg)}
+            sub={`${progress.elapsedDays} days`}
+          />
+        </div>
       ) : (
         <div className="grid grid-cols-3 gap-2">
           {compute.displayMode === "both" && (
@@ -386,7 +427,7 @@ export function PeriodCategoryPanel({
               label={t("stat.average")}
               value={fmtNum(computed.avg)}
               unit={unit}
-              sub="per entry"
+              sub={t("stat.perEntry")}
             />
           )}
           <StatTile
@@ -428,10 +469,10 @@ export function PeriodCategoryPanel({
           <h3 className="mb-3 min-w-0 text-xs font-semibold uppercase leading-tight tracking-wider text-muted-foreground">
             {scopePrefix}
             Subcategory breakdown
-            {metric.type === "mod" && (
+            {compute.aggregateNote && (
               <span className="normal-case font-normal text-muted-foreground/60">
                 {" "}
-                ({compute.bucketIsAvg ? "average" : "total"})
+                ({compute.aggregateNote})
               </span>
             )}
           </h3>
@@ -439,6 +480,7 @@ export function PeriodCategoryPanel({
           {/* Yol artık panelin tepesindeki kapsam şeridinde — burada tekrar etmez */}
           <ShareBars
             rows={computed.shareRows}
+            mode={compute.isRate ? "rate" : "share"}
             onSelect={(subId) => {
               const sub = data.subById.get(subId);
               if (!sub) return;
@@ -459,10 +501,10 @@ export function PeriodCategoryPanel({
             {scopePrefix}
             {GRANULARITY_TITLES[computed.granularity]}{" "}
             {metric.type === "count" ? "entries" : metric.mod.name}
-            {metric.type === "mod" && (
+            {compute.aggregateNote && (
               <span className="normal-case font-normal text-muted-foreground/60">
                 {" "}
-                ({compute.bucketIsAvg ? "average" : "total"})
+                ({compute.aggregateNote})
               </span>
             )}
           </h3>
@@ -472,6 +514,11 @@ export function PeriodCategoryPanel({
             unit={metric.type === "count" ? "entries" : unit}
             caption={computed.seriesFrame?.caption}
             showAllTicks={computed.seriesFrame?.showAllTicks}
+            stack={
+              compute.isRate
+                ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") }
+                : undefined
+            }
           />
         </div>
       )}
