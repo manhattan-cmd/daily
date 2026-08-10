@@ -587,9 +587,9 @@ async function featureMeasure(browser) {
   await newFeature();
   await page.waitForTimeout(600);
   const units = await page.evaluate(() => {
-    const inp = document.querySelector('[role="dialog"] #measure-unit');
-    return inp
-      ? [...inp.parentElement.querySelectorAll("button")].map((b) => b.textContent.trim())
+    const box = document.querySelector('[role="dialog"] [data-unit-suggestions]');
+    return box
+      ? [...box.querySelectorAll("button")].map((b) => b.textContent.trim())
       : [];
   });
   check("kullanılan birimler öneriliyor", units.includes("kg") && units.includes("km"), units.join(","));

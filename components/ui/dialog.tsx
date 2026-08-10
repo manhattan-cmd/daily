@@ -34,7 +34,12 @@ export const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 rounded-2xl border border-border bg-card p-6 shadow-2xl duration-200",
+        // grid-cols-[minmax(0,1fr)]: ızgara satırlarının varsayılan en küçük
+        // boyu "min-content" — içeride kendi asgari genişliği olan tek bir
+        // öğe (ör. size özniteliği olan bir <input>) sütunu şişirip tüm
+        // içeriği panelin sağ kenarından taşırıyordu. Sütunu 0'a
+        // sıkıştırılabilir yapmak paneli her koşulda aynı genişlikte tutar.
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-md grid-cols-[minmax(0,1fr)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-2xl border border-border bg-card p-6 shadow-2xl duration-200",
         className
       )}
       {...props}

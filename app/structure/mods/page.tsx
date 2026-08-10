@@ -333,7 +333,7 @@ export default function ModsHomePage() {
         open={selected !== null}
         onOpenChange={(o) => { if (!o) setSelected(null); }}
       >
-        <DialogContent className="max-w-[340px] gap-4">
+        <DialogContent className="max-w-[340px] gap-4 max-h-[85dvh] overflow-y-auto">
           {selected && detailView === "info" && (
             <>
               <DialogHeader className="items-center text-center">
@@ -401,11 +401,11 @@ export default function ModsHomePage() {
 
               <div className="flex flex-col gap-2">
                   <Label htmlFor="edit-mod-name">{t("features.name")}</Label>
+                  {/* autoFocus yok — düzenlemeye girer girmez klavye açılıyordu */}
                   <Input
                     id="edit-mod-name"
                     value={editName}
                     onChange={(e) => { setEditName(e.target.value); setEditError(false); }}
-                    autoFocus
                     onKeyDown={(e) => { if (e.key === "Enter") handleSaveEdit(); }}
                   />
                   {editError && (
@@ -451,23 +451,39 @@ export default function ModsHomePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Yeni mod */}
+      {/* Yeni mod — başlıktaki çekirdek seçilen ölçüm türüyle birlikte
+          değişir; yaratılan şeyin havuzdaki hâli daha ilk adımda görünür */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="gap-4 max-h-[80dvh] overflow-y-auto">
+        <DialogContent
+          className="gap-3.5 max-h-[85dvh] overflow-y-auto p-5"
+          // Açıklama satırı kaldırıldı; Radix'in aria-describedby uyarısı
+          // için bilinçli olarak yok deniyor
+          aria-describedby={undefined}
+          // Radix açılışta ilk odaklanabilir öğeye gider — o da ad alanı
+          // olduğu için telefonda klavye daha ölçüm türü seçilmeden fırlıyordu.
+          // Odağı panelin kendisinde bırakıyoruz (odak tuzağı korunur).
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            (e.currentTarget as HTMLElement | null)?.focus();
+          }}
+        >
           <DialogHeader>
-            <DialogTitle className="text-base">{t("features.createNew")}</DialogTitle>
-            <DialogDescription>
-              {t("features.createHint")}
-            </DialogDescription>
+            <DialogTitle className="flex items-center gap-2.5 text-base">
+              <ModAtomCore
+                icon={MEASURE_KIND_META[uiKindOf(measure)].icon}
+                size="sm"
+              />
+              {t("features.createNew")}
+            </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2">
             <Label htmlFor="pool-mod-name">{t("features.name")}</Label>
+            {/* autoFocus yok — diyalog açılır açılmaz telefon klavyesinin
+                fırlaması ölçüm türünü seçmeden önce ekranı yarıya indiriyordu */}
             <Input
               id="pool-mod-name"
               value={name}
               onChange={(e) => { setName(e.target.value); setError(null); }}
-              placeholder={t("features.namePlaceholder")}
-              autoFocus
             />
           </div>
           <MeasureEditor

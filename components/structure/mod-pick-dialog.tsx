@@ -25,7 +25,8 @@ import {
   type ModWithType,
 } from "@/lib/db/queries";
 import { MeasureEditor, isMeasureComplete } from "@/components/structure/measure-editor";
-import { ModAtom, modAtomIcon } from "@/components/structure/mod-atom";
+import { ModAtom, ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
+import { MEASURE_KIND_META, uiKindOf } from "@/lib/measure-kinds";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 
@@ -119,9 +120,11 @@ export function ModPickDialog({
       const clash = await findModByName(name);
       if (clash) {
         if (attachedModIds.has(clash.id)) {
-          setError(`"${clash.name}" zaten var ve ${targetName} içinde ekli.`);
+          setError(
+            t("features.clashAttached", { name: clash.name, target: targetName })
+          );
         } else {
-          setError(`"${clash.name}" adında bir özellik zaten var.`);
+          setError(t("features.nameClashOf", { name: clash.name }));
           setExistingId(clash.id);
         }
         return;
@@ -139,7 +142,12 @@ export function ModPickDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="gap-4 max-h-[80dvh] overflow-y-auto"
+        className="gap-3.5 max-h-[85dvh] overflow-y-auto p-5"
+        // Yaratma görünümünde açıklama satırı yok — Radix'in uyarısı sussun
+        // diye bağlantı bilinçli olarak boşa çekiliyor. Seçme görünümünde
+        // özniteliğin hiç geçilmemesi gerek, yoksa Radix'in kendi kimliği
+        // ezilir; bu yüzden koşullu yayma.
+        {...(mode === "create" ? { "aria-describedby": undefined } : {})}
         onCloseAutoFocus={(e) => {
           if (attachedRef.current) {
             e.preventDefault();
@@ -147,6 +155,8 @@ export function ModPickDialog({
           }
         }}
       >
+        {/* Yaratma görünümünde başlıktaki çekirdek seçilen ölçüm türüyle
+            değişir — havuz sayfasındaki "yeni özellik" ile aynı his */}
         <DialogHeader>
           <DialogTitle className="text-base flex items-center gap-2">
             {mode === "create" && (
@@ -158,13 +168,19 @@ export function ModPickDialog({
                 <ArrowLeft className="h-3.5 w-3.5" />
               </button>
             )}
-            {mode === "create" ? "Create a new feature" : t("entry.addFeature")}
+            {mode === "create" && (
+              <ModAtomCore
+                icon={MEASURE_KIND_META[uiKindOf(measure)].icon}
+                size="sm"
+              />
+            )}
+            {mode === "create" ? t("features.createNew") : t("entry.addFeature")}
           </DialogTitle>
-          <DialogDescription>
-            {mode === "create"
-              ? "Özellik adı tekildir — aynı özellik her yerde paylaşılır"
-              : `"${targetName}" ile ilgili kaydetmek ve takip etmek istediğin özellikleri seç ya da yarat.`}
-          </DialogDescription>
+          {mode === "pick" && (
+            <DialogDescription>
+              {t("features.pickHint", { name: targetName })}
+            </DialogDescription>
+          )}
         </DialogHeader>
 
         {mode === "pick" ? (
@@ -172,7 +188,7 @@ export function ModPickDialog({
             {/* Havuz başlığı + yeni yarat + arama */}
             <div className="flex items-center justify-between gap-2 -mb-1">
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Havuzdan seç
+                {t("features.pickFromPool")}
               </span>
               <div className="flex items-center gap-1.5">
                 <button
@@ -183,7 +199,7 @@ export function ModPickDialog({
                   className="flex h-7 items-center gap-1 rounded-full bg-primary/10 px-2.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
                 >
                   <Plus className="h-3 w-3" />
-                  Yeni yarat
+                  {t("features.addNew")}
                 </button>
                 <button
                   onClick={() => {
@@ -196,7 +212,9 @@ export function ModPickDialog({
                       ? "bg-primary/15 text-primary"
                       : "bg-white/8 text-muted-foreground hover:bg-white/12 hover:text-foreground"
                   )}
-                  aria-label={searchOpen ? "Close search" : "Search features"}
+                  aria-label={
+                    searchOpen ? t("features.closeSearch") : t("features.search")
+                  }
                 >
                   <Search className="h-3.5 w-3.5" />
                 </button>
@@ -240,12 +258,15 @@ export function ModPickDialog({
 
             {available.length === 0 && !search && (
               <p className="text-xs text-muted-foreground/70 -mt-1">
-                Havuzdaki tüm özellikler zaten ekli — yenisini yaratabilirsin.
+                {t("features.allAttached")}
               </p>
             )}
             {search && filtered.length === 0 && available.length > 0 && (
               <p className="text-xs text-muted-foreground/70 -mt-1">
-                &bdquo;{search}&rdquo; havuzda yok — <span className="font-medium">{t("features.addNew")}</span> bu adla oluşturur.
+                {t("features.notInPool", {
+                  q: search,
+                  action: t("features.addNew"),
+                })}
               </p>
             )}
           </>
@@ -253,12 +274,11 @@ export function ModPickDialog({
           <>
             <div className="flex flex-col gap-2">
               <Label htmlFor="mod-name-input">{t("features.name")}</Label>
+              {/* autoFocus yok — telefonda klavye ölçüm türü seçilmeden fırlıyordu */}
               <Input
                 id="mod-name-input"
                 value={name}
                 onChange={(e) => { setName(e.target.value); setError(null); setExistingId(null); }}
-                placeholder={t("features.namePlaceholder")}
-                autoFocus
               />
             </div>
 
@@ -277,7 +297,7 @@ export function ModPickDialog({
                     className="mt-1.5 flex items-center gap-1 font-medium text-amber-100 hover:underline"
                   >
                     <Check className="h-3 w-3" />
-                    Var olan özelliği ekle
+                    {t("features.attachExisting")}
                   </button>
                 )}
               </div>
@@ -289,13 +309,13 @@ export function ModPickDialog({
                 onClick={() => onOpenChange(false)}
                 disabled={saving}
               >
-                İptal
+                {t("action.cancel")}
               </Button>
               <Button
                 onClick={handleCreate}
                 disabled={saving || !name.trim() || !isMeasureComplete(measure)}
               >
-                Yarat ve ekle
+                {t("features.createAndAttach")}
               </Button>
             </DialogFooter>
           </>
