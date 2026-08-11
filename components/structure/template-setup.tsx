@@ -5,24 +5,24 @@ import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createCategory } from "@/lib/db/queries";
-import { CategoryIcon } from "@/lib/category-icons";
+import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 
 const PRESETS: { name: string; color: string; icon: string }[] = [
-  { name: "Uyku",          color: "#6366f1", icon: "Moon" },
-  { name: "Sports & Fitness",color: "#22c55e", icon: "Dumbbell" },
-  { name: "Beslenme",      color: "#f97316", icon: "Utensils" },
-  { name: "Harcamalar",    color: "#f59e0b", icon: "Wallet" },
-  { name: "Ruh Hali",      color: "#ec4899", icon: "Smile" },
-  { name: "Health",        color: "#ef4444", icon: "Heart" },
-  { name: "Sosyal Hayat",  color: "#f43f5e", icon: "Users" },
-  { name: "Study",       color: "#3b82f6", icon: "Briefcase" },
-  { name: "Learning",       color: "#84cc16", icon: "GraduationCap" },
-  { name: "Fun",       color: "#a855f7", icon: "Tv" },
-  { name: "Seyahat",       color: "#06b6d4", icon: "Plane" },
-  { name: "Hobiler",       color: "#eab308", icon: "Star" },
-  { name: "Self-care", color: "#14b8a6", icon: "Sparkles" },
+  { name: "Uyku",          color: "#6366f1", icon: "moon" },
+  { name: "Sports & Fitness",color: "#22c55e", icon: "lift" },
+  { name: "Beslenme",      color: "#f97316", icon: "meal" },
+  { name: "Harcamalar",    color: "#f59e0b", icon: "money" },
+  { name: "Ruh Hali",      color: "#ec4899", icon: "mood-ok" },
+  { name: "Health",        color: "#ef4444", icon: "pulse" },
+  { name: "Sosyal Hayat",  color: "#f43f5e", icon: "people" },
+  { name: "Study",       color: "#3b82f6", icon: "work" },
+  { name: "Learning",       color: "#84cc16", icon: "book" },
+  { name: "Fun",       color: "#a855f7", icon: "game" },
+  { name: "Seyahat",       color: "#06b6d4", icon: "plane" },
+  { name: "Hobiler",       color: "#eab308", icon: "art" },
+  { name: "Self-care", color: "#14b8a6", icon: "bath" },
 ];
 
 const PALETTE = [
@@ -86,12 +86,10 @@ export function TemplateSetup() {
               )}
               style={isSelected ? { backgroundColor: p.color } : undefined}
             >
-              <CategoryIcon
+              <SymbolIcon
                 name={p.icon}
-                className={cn(
-                  "h-3.5 w-3.5 shrink-0",
-                  !isSelected && "opacity-60"
-                )}
+                size={14}
+                className={cn("shrink-0", !isSelected && "opacity-60")}
               />
               {p.name}
             </button>

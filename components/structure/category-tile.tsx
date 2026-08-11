@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Folder, Plus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { CategoryIcon, CATEGORY_ICON_MAP } from "@/lib/category-icons";
+import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 /** 0–255 arası değeri iki haneli hex alfaya çevirir */
@@ -33,11 +33,8 @@ export function CategoryTileCore({
   /** 0: sönük · 1: en parlak (kardeşleri arasında en çok kullanılan) */
   glow?: number;
 }) {
-  const isLucide = !!icon && icon in CATEGORY_ICON_MAP;
   const g = Math.max(0, Math.min(1, glow));
-  const iconCls = cn(
-    size === "lg" ? "h-7 w-7" : size === "sm" ? "h-4 w-4" : "h-5 w-5"
-  );
+  const iconSize = size === "lg" ? 28 : size === "sm" ? 16 : 20;
   return (
     <span
       className={cn(
@@ -55,19 +52,18 @@ export function CategoryTileCore({
         }px ${color}${alpha(0x1f + 0x55 * g)}`,
       }}
     >
-      {isLucide ? (
-        <CategoryIcon name={icon} className={iconCls} style={{ color }} />
-      ) : icon ? (
-        <span
-          className={cn(
-            "leading-none select-none",
-            size === "lg" ? "text-2xl" : size === "sm" ? "text-base" : "text-xl"
-          )}
-        >
-          {icon}
-        </span>
+      {icon ? (
+        <SymbolIcon
+          name={icon}
+          size={iconSize}
+          className="select-none"
+          style={{ color }}
+        />
       ) : (
-        <Fallback className={iconCls} style={{ color }} strokeWidth={1.75} />
+        <Fallback
+          style={{ color, width: iconSize, height: iconSize }}
+          strokeWidth={1.75}
+        />
       )}
     </span>
   );

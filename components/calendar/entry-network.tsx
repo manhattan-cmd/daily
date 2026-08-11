@@ -26,7 +26,7 @@ import { CategoryForm } from "@/components/structure/category-form";
 import { HScroll } from "@/components/ui/h-scroll";
 import { CanvasViewport } from "@/components/calendar/canvas-viewport";
 import { hexCorners, hexLayout, HEX_CLIP } from "@/lib/hex";
-import { CategoryIcon, CATEGORY_ICON_MAP } from "@/lib/category-icons";
+import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
 import type { Category, SubCategory } from "@/types";
@@ -1091,10 +1091,7 @@ function CategoryIconOrFallback({
   icon?: string;
   hasKids: boolean;
 }) {
-  const isLucide = !!icon && icon in CATEGORY_ICON_MAP;
-  if (isLucide)
-    return <CategoryIcon name={icon} className="h-5 w-5" style={{ color }} />;
-  if (icon) return <span className="text-lg leading-none">{icon}</span>;
+  if (icon) return <SymbolIcon name={icon} size={20} style={{ color }} />;
   const Fallback = hasKids ? FolderOpen : Folder;
   return <Fallback className="h-5 w-5" style={{ color }} strokeWidth={1.75} />;
 }

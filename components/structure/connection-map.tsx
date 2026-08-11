@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import { CategoryIcon, CATEGORY_ICON_MAP } from "@/lib/category-icons";
+import { SymbolIcon } from "@/lib/icons";
 import { MeasureParticleCore } from "@/components/structure/measure-particle";
 import { MEASURE_KIND_META } from "@/lib/measure-kinds";
 import type { EntryValueType } from "@/types";
@@ -369,7 +369,6 @@ export default function ConnectionMap({
         {categories.map((cat) =>
           cat.subs.map((sub) => {
             const pos = subPos.get(sub.id)!;
-            const isLucide = !!sub.icon && sub.icon in CATEGORY_ICON_MAP;
             return (
               <button
                 key={sub.id}
@@ -387,14 +386,12 @@ export default function ConnectionMap({
                     borderColor: `${cat.color}55`,
                   }}
                 >
-                  {isLucide ? (
-                    <CategoryIcon
+                  {sub.icon ? (
+                    <SymbolIcon
                       name={sub.icon}
-                      className="h-2.5 w-2.5"
+                      size={11}
                       style={{ color: cat.color }}
                     />
-                  ) : sub.icon ? (
-                    <span className="text-[9px] leading-none">{sub.icon}</span>
                   ) : (
                     <span
                       className="h-1.5 w-1.5 rounded-full"
@@ -436,10 +433,10 @@ export default function ConnectionMap({
                     : {}),
                 }}
               >
-                {cat.icon && cat.icon in CATEGORY_ICON_MAP ? (
-                  <CategoryIcon
+                {cat.icon ? (
+                  <SymbolIcon
                     name={cat.icon}
-                    className="h-5 w-5"
+                    size={20}
                     style={{ color: cat.color }}
                   />
                 ) : (

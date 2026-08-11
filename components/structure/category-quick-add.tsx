@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HScroll } from "@/components/ui/h-scroll";
 import { createCategory } from "@/lib/db/queries";
-import { CategoryIcon, CATEGORY_ICON_MAP } from "@/lib/category-icons";
+import { SymbolIcon, ICON_NAMES } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 
@@ -15,19 +15,19 @@ import { useT } from "@/lib/i18n";
  * arayüz dilinden bağımsız tek bir dilde durur — örnek yapıyla aynı dilde.
  */
 const PRESETS: { name: string; color: string; icon: string }[] = [
-  { name: "Sleep", color: "#6366f1", icon: "Moon" },
-  { name: "Fitness", color: "#22c55e", icon: "Dumbbell" },
-  { name: "Food", color: "#f97316", icon: "Utensils" },
-  { name: "Expenses", color: "#f59e0b", icon: "Wallet" },
-  { name: "Mood", color: "#ec4899", icon: "Smile" },
-  { name: "Health", color: "#ef4444", icon: "Heart" },
-  { name: "Social", color: "#f43f5e", icon: "Users" },
-  { name: "Work", color: "#3b82f6", icon: "Briefcase" },
-  { name: "Study", color: "#84cc16", icon: "GraduationCap" },
-  { name: "Fun", color: "#a855f7", icon: "Tv" },
-  { name: "Travel", color: "#06b6d4", icon: "Plane" },
-  { name: "Hobbies", color: "#eab308", icon: "Star" },
-  { name: "Self-care", color: "#14b8a6", icon: "Sparkles" },
+  { name: "Sleep", color: "#6366f1", icon: "moon" },
+  { name: "Fitness", color: "#22c55e", icon: "lift" },
+  { name: "Food", color: "#f97316", icon: "meal" },
+  { name: "Expenses", color: "#f59e0b", icon: "money" },
+  { name: "Mood", color: "#ec4899", icon: "mood-ok" },
+  { name: "Health", color: "#ef4444", icon: "pulse" },
+  { name: "Social", color: "#f43f5e", icon: "people" },
+  { name: "Work", color: "#3b82f6", icon: "work" },
+  { name: "Study", color: "#84cc16", icon: "book" },
+  { name: "Fun", color: "#a855f7", icon: "game" },
+  { name: "Travel", color: "#06b6d4", icon: "plane" },
+  { name: "Hobbies", color: "#eab308", icon: "art" },
+  { name: "Self-care", color: "#14b8a6", icon: "bath" },
 ];
 
 const PALETTE = [
@@ -106,7 +106,7 @@ export function CategoryQuickAdd({
                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
                     style={{ backgroundColor: p.color }}
                   >
-                    <CategoryIcon name={p.icon} className="h-4 w-4 text-white" />
+                    <SymbolIcon name={p.icon} size={16} className="text-white" />
                   </div>
                   <span className="flex-1 text-left">{p.name}</span>
                   {exists && <Check className="h-3.5 w-3.5 text-muted-foreground/50" />}
@@ -148,7 +148,7 @@ export function CategoryQuickAdd({
               ))}
             </div>
             <HScroll wrapperClassName="mt-2" className="gap-1 pb-1">
-              {Object.keys(CATEGORY_ICON_MAP).map((iconName) => {
+              {ICON_NAMES.map((iconName) => {
                 const selected = customIcon === iconName;
                 return (
                   <button
@@ -163,12 +163,10 @@ export function CategoryQuickAdd({
                     style={selected ? { backgroundColor: customColor } : undefined}
                     aria-label={`Sembol ${iconName}`}
                   >
-                    <CategoryIcon
+                    <SymbolIcon
                       name={iconName}
-                      className={cn(
-                        "h-4 w-4",
-                        selected ? "text-white" : "text-muted-foreground"
-                      )}
+                      size={16}
+                      className={selected ? "text-white" : "text-muted-foreground"}
                     />
                   </button>
                 );
