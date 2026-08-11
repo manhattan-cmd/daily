@@ -101,6 +101,7 @@ export function SubcategoryPanel({
       unit,
       isRate,
       isChoice,
+      scale,
     } = compute;
     const now = new Date();
 
@@ -180,7 +181,7 @@ export function SubcategoryPanel({
     }
     const shareRows: ShareRow[] = [...bySubEntries.entries()]
       .map(([id, list]) => ({ id, value: aggregate(list), outOf: filledCount(list) }))
-      .filter((r) => (isRate ? r.outOf > 0 : r.value > 0))
+      .filter((r) => (isRate || scale ? r.outOf > 0 : r.value > 0))
       .map(({ id, value, outOf }) => {
         const isSelf = id === subcategory.id;
         const s = isSelf ? subcategory : subById.get(id);
@@ -280,21 +281,27 @@ export function SubcategoryPanel({
           <StatTile
             key={label}
             label={label}
+            /* Ortalama rakamlarda (oran, skala) boş pencere "0" değil "—":
+               0 gerçek bir puan olabilir, veri yokluğu değil */
             value={
-              compute.isRate
-                ? s.filled
+              compute.isAvgLike && !s.filled
+                ? "—"
+                : compute.isRate
                   ? fmtPct(s.value / s.filled)
-                  : "—"
-                : fmtNum(s.value)
+                  : fmtNum(s.value)
             }
-            unit={compute.isRate ? undefined : metricLabel}
+            unit={
+              compute.isRate || (compute.isAvgLike && !s.filled)
+                ? undefined
+                : metricLabel
+            }
             sub={
-              compute.isRate
-                ? s.filled
+              compute.isAvgLike && !s.filled
+                ? t("stat.noData")
+                : compute.isRate
                   ? `${fmtNum(s.value)}/${fmtNum(s.filled)}`
-                  : t("stat.noData")
-                : compute.displayMode &&
-                  statSub(compute.displayMode, s.avg, compute.unit)
+                  : compute.displayMode &&
+                    statSub(compute.displayMode, s.avg, compute.unit)
             }
           />
         ))}
@@ -331,7 +338,8 @@ export function SubcategoryPanel({
           </div>
           <ShareBars
             rows={computed.shareRows}
-            mode={compute.isRate ? "rate" : "share"}
+            mode={compute.isRate ? "rate" : compute.scale ? "level" : "share"}
+            range={compute.scale}
             emptyText={
               metric.type === "mod"
                 ? `No ${metric.mod.name} data in this range`
@@ -360,6 +368,7 @@ export function SubcategoryPanel({
           unit={metricLabel}
           caption={computed.seriesFrame?.caption}
           showAllTicks={computed.seriesFrame?.showAllTicks}
+          scale={compute.scale}
           stack={
             compute.isRate
               ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") }

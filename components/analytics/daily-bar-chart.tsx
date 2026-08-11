@@ -11,7 +11,8 @@ import {
   YAxis,
 } from "recharts";
 import { ArrowRight } from "lucide-react";
-import { fmtNum, type DayBucket } from "@/lib/analytics";
+import { fmtNum, type DayBucket, type ScaleRange } from "@/lib/analytics";
+import { translate } from "@/lib/i18n";
 
 const MARGIN_RIGHT = 4;
 /** Balon yüksekliği — sütunun üstünde bu kadar yer yoksa aşağı açılır */
@@ -34,6 +35,7 @@ export function DailyBarChart({
   caption,
   showAllTicks,
   stack,
+  scale,
 }: {
   data: DayBucket[];
   color: string;
@@ -45,14 +47,27 @@ export function DailyBarChart({
   showAllTicks?: boolean;
   /** Yığılmış ikinci seri — parçaların adları lejantta ve balonda görünür */
   stack?: { valueLabel: string; restLabel: string };
+  /** Skala metriği: eksen 0'dan değil skalanın kendi aralığından başlar ve
+   *  boş kovalar hiç çizilmez (0 puan diye okunmasın) */
+  scale?: ScaleRange;
 }) {
+  // Skalada çubuklar skalanın tabanından yükselir; boş kova çizilmez —
+  // recharts null değeri atlar, 0 ise gerçek bir puan olabilir
+  const chartData = scale
+    ? data.map((d) => ({ ...d, value: d.hasData === false ? null : d.value }))
+    : data;
+
   // Yığılmışta "hepsi hayır" bir kova doludur — boş sayılmamalı
-  const allZero = data.every((d) => !d.value && !d.rest);
+  const allZero = scale
+    ? data.every((d) => d.hasData === false)
+    : data.every((d) => !d.value && !d.rest);
 
   // Y ekseni genişliği en uzun etikete göre — sabit 40px + negatif sol margin
   // büyük değerleri kırpıyordu ("1.100" → ".100"). Rakam ~7px, artı iç boşluk;
   // recharts eksen üst sınırını yukarı yuvarlayabildiği için bir hane pay.
-  const maxVal = data.reduce((m, d) => Math.max(m, d.value + (d.rest ?? 0)), 0);
+  const maxVal = scale
+    ? Math.max(Math.abs(scale.min), Math.abs(scale.max))
+    : data.reduce((m, d) => Math.max(m, d.value + (d.rest ?? 0)), 0);
   const Y_AXIS_WIDTH = Math.min(
     68,
     Math.max(30, (fmtNum(maxVal).length + 1) * 7 + 8)
@@ -155,7 +170,7 @@ export function DailyBarChart({
       )}
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
-          data={data}
+          data={chartData}
           margin={{ top: 8, right: MARGIN_RIGHT, bottom: 0, left: MARGIN_LEFT }}
           barCategoryGap="30%"
           // Recharts 3'te varsayılan açık — grafiği odaklanabilir yapıp tıklamada
@@ -182,7 +197,12 @@ export function DailyBarChart({
             axisLine={false}
             tick={{ fill: "#a1a1aa", fontSize: 10 }}
             tickCount={3}
-            allowDecimals={false}
+            // Skalada eksen kendi aralığına sabitlenir: 1–5 skalası 0'dan
+            // çizilince çubuklar ezilip aralığın nerede başladığı kayboluyordu.
+            // −2…+2'de 0 aralığın ortasında kalır, çubuk aşağı da inebilir.
+            domain={scale ? [scale.min, scale.max] : undefined}
+            ticks={scale ? [scale.min, scale.max] : undefined}
+            allowDecimals={!!scale}
             tickFormatter={(v: number) => fmtNum(v)}
             width={Y_AXIS_WIDTH}
             className="tabular-nums"
@@ -206,6 +226,11 @@ export function DailyBarChart({
             fillOpacity={0.85}
             radius={stack ? [0, 0, 0, 0] : [4, 4, 0, 0]}
             maxBarSize={18}
+            // Skalada değeri tam tabanda olan kova (1–5'te 1, −2…+2'de 0)
+            // sıfır yükseklikte çizilir ve "veri yok"tan ayırt edilemezdi;
+            // ince bir iz bırakıyoruz. Diğer metriklerde boş kova gerçekten
+            // boş görünmeli, o yüzden yalnız skalada.
+            minPointSize={scale ? 2 : 0}
             activeBar={{ fill: color, fillOpacity: 1 }}
           />
           {stack && (
@@ -285,6 +310,18 @@ export function DailyBarChart({
           />
           {stack.restLabel}
         </span>
+      </div>
+    )}
+    {/* Skalanın uçlarının anlamı — sayının yönünü anlatan tek şey bu.
+        "3,4" tek başına iyi mi kötü mü söylemiyor. */}
+    {scale?.low && scale?.high && (
+      <div className="mt-1.5 text-center text-[10px] text-muted-foreground/70">
+        {translate("stat.scaleEnds", {
+          min: scale.min,
+          low: scale.low,
+          max: scale.max,
+          high: scale.high,
+        })}
       </div>
     )}
     {caption && (

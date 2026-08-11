@@ -20,6 +20,7 @@ import {
   type Metric,
   type MetricMod,
   type ModKind,
+  type ScaleRange,
 } from "@/lib/analytics";
 import { useT } from "@/lib/i18n";
 import type { Category, Entry, EntryValue, SubCategory } from "@/types";
@@ -73,6 +74,11 @@ export interface MetricCompute {
   isRate: boolean;
   /** Dağılım metriği mi — kırılım kutusunun yerini seçenek dağılımı alır */
   isChoice: boolean;
+  /** Skalanın aralığı ve uçları; skala metriği değilse undefined */
+  scale: ScaleRange | undefined;
+  /** Rakamı ortalama olan metrikler (skala ve oran). Bunlarda boş dönem "0"
+   *  diye okunamaz ve değişim yüzde değil PUAN farkıyla anlatılır. */
+  isAvgLike: boolean;
 }
 
 /**
@@ -321,6 +327,7 @@ export function useCategoryMetrics({
 
     const fillBucket = (bucket: DayBucket, subset: Entry[]) => {
       bucket.value = aggregate(subset);
+      bucket.hasData = filledCount(subset) > 0;
       // Oranda çubuk yığılır: alt parça evet, üstteki soluk parça hayır
       if (isRate) bucket.rest = filledCount(subset) - bucket.value;
     };
@@ -372,6 +379,8 @@ export function useCategoryMetrics({
                   : t("stat.total"),
       isRate,
       isChoice,
+      scale: metric.type === "mod" ? metric.mod.scale : undefined,
+      isAvgLike: kind === "scale" || isRate,
     };
   }, [data, metric, choiceFilter, t]);
 

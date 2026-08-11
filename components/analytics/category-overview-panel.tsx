@@ -64,6 +64,8 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       kind,
       isRate,
       isChoice,
+      isAvgLike,
+      scale,
     } = compute;
     const now = new Date();
     const today = startOfDayMs(now);
@@ -118,10 +120,21 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       ? averageOf(recentEntries)
       : aggregate(recentEntries);
     const prevValue = isRate ? averageOf(prevEntries) : aggregate(prevEntries);
-    const hasPrev = isRate ? filledCount(prevEntries) > 0 : prevValue > 0;
+    // "Önceki dönem 0" ile "önceki dönemde veri yok" farklı şeyler. Skalada
+    // 0 gerçek bir puan olabilir (−2…+2), toplamda da 0 dürüst bir rakam —
+    // ayrımı değere değil KAYIT olup olmadığına bakarak yapıyoruz.
+    const hasPrev =
+      metric.type === "count" ? prevValue > 0 : filledCount(prevEntries) > 0;
+    // Ortalama rakamlarda yüzde değişimi yanıltıcı: 3 → 3,6 "%20 arttı" değil
+    // "0,6 puan arttı". Oranda puan yüzde puanıdır (×100), skalada ham fark.
+    const growthPoints =
+      isAvgLike && hasPrev
+        ? (recentValue - prevValue) * (isRate ? 100 : 1)
+        : null;
     const growthPct =
-      !isRate && hasPrev ? ((recentValue - prevValue) / prevValue) * 100 : null;
-    const growthPoints = isRate && hasPrev ? (recentValue - prevValue) * 100 : null;
+      !isAvgLike && hasPrev && prevValue > 0
+        ? ((recentValue - prevValue) / prevValue) * 100
+        : null;
 
     // Trend serisi — ilk girdiden bugüne, pencere büyüdükçe kova kabalaşır
     const win = resolveSeriesWindow(0, minOcc, now);
@@ -146,11 +159,12 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       list.push(e);
       bySubEntries.set(topId, list);
     }
-    // Oranda satırlar birbirinin payı değil; her satır kendi oranını çizer ve
-    // "hiç evet yok" (value 0, payda dolu) da gösterilmesi gereken bir bilgi
+    // Oran ve skalada satırlar birbirinin payı değil; her satır kendi
+    // oranını/seviyesini çizer. "Hiç evet yok" ya da "ortalama tam alt uçta"
+    // (value 0, payda dolu) da gösterilmesi gereken bilgiler.
     const shareRows: ShareRow[] = [...bySubEntries.entries()]
       .map(([id, list]) => ({ id, value: aggregate(list), outOf: filledCount(list) }))
-      .filter((r) => (isRate ? r.outOf > 0 : r.value > 0))
+      .filter((r) => (isRate || scale ? r.outOf > 0 : r.value > 0))
       .map(({ id, value, outOf }) => {
         const s = subById.get(id)!;
         return {
@@ -342,7 +356,13 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
               label={t("stat.average")}
               value={fmtNum(computed.avg)}
               unit={unit}
-              sub={t("stat.perEntry")}
+              /* Skalada "girdi başına" demek yetmiyor — 3,4'ün hangi aralıkta
+                 olduğu bilinmeden iyi mi kötü mü anlaşılmıyor */
+              sub={
+                compute.scale
+                  ? `${fmtNum(compute.scale.min)}–${fmtNum(compute.scale.max)}`
+                  : t("stat.perEntry")
+              }
             />
           )}
           <StatTile
@@ -422,28 +442,28 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
           />
           <StatTile
             label={t("insights.prev4Weeks")}
-            /* Oranda veri yokluğu "%0" diye okunmamalı — 0 puan gerçek bir
-               değerdir, veri yokluğu değil */
+            /* Ortalama rakamlarda (skala, oran) veri yokluğu "0" diye
+               okunmamalı — 0 gerçek bir puan olabilir, veri yokluğu değil */
             value={
-              compute.isRate
-                ? computed.hasPrev
+              compute.isAvgLike && !computed.hasPrev
+                ? "—"
+                : compute.isRate
                   ? fmtPct(computed.prevValue)
-                  : "—"
-                : fmtNum(computed.prevValue)
+                  : fmtNum(computed.prevValue)
             }
             unit={
-              compute.isRate
+              compute.isRate || (compute.isAvgLike && !computed.hasPrev)
                 ? undefined
                 : computed.isAvgMetric
                   ? unit
                   : metricLabel
             }
             sub={
-              compute.isRate
-                ? computed.hasPrev
+              compute.isAvgLike && !computed.hasPrev
+                ? t("stat.noData")
+                : compute.isRate
                   ? t("stat.yesRate")
-                  : t("stat.noData")
-                : compute.aggregateNote
+                  : compute.aggregateNote
             }
           />
         </div>
@@ -473,7 +493,8 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
           </h3>
           <ShareBars
             rows={computed.shareRows}
-            mode={compute.isRate ? "rate" : "share"}
+            mode={compute.isRate ? "rate" : compute.scale ? "level" : "share"}
+            range={compute.scale}
             emptyText={
               metric.type === "count"
                 ? "Girdi yok"
@@ -508,6 +529,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
           color={category.color}
           unit={metric.type === "count" ? "entries" : unit}
           caption={computed.seriesFrame?.caption}
+          scale={compute.scale}
           stack={
             compute.isRate
               ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") }

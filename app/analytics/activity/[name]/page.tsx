@@ -198,6 +198,7 @@ export default function ActivityAnalyticsPage({
     }
     buckets.forEach((b, i) => {
       b.value = aggregate(bucketEntries[i]);
+      b.hasData = filledCount(bucketEntries[i]) > 0;
       // Oranda çubuk yığılır: alt parça evet, üstteki soluk parça hayır
       if (isRate) b.rest = filledCount(bucketEntries[i]) - b.value;
     });
@@ -243,6 +244,7 @@ export default function ActivityAnalyticsPage({
       isChoice,
       isPresence: kind === "presence",
       isAvgMetric: kind === "scale",
+      scale: metric.type === "mod" ? metric.mod.scale : undefined,
       buckets,
       granularity: win.granularity,
       seriesFrame,
@@ -353,6 +355,7 @@ export default function ActivityAnalyticsPage({
                 color={ACTIVITY_COLOR}
                 unit={metric.type === "count" ? "entries" : unit}
                 caption={computed.seriesFrame?.caption}
+                scale={metric.type === "mod" ? metric.mod.scale : undefined}
                 stack={
                   computed.isRate
                     ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") }
@@ -379,7 +382,14 @@ export default function ActivityAnalyticsPage({
               </h3>
               <ShareBars
                 rows={computed.catShare}
-                mode={computed.isRate ? "rate" : "share"}
+                mode={
+                  computed.isRate
+                    ? "rate"
+                    : computed.scale
+                      ? "level"
+                      : "share"
+                }
+                range={computed.scale}
                 emptyText={t("stat.noData")}
               />
             </div>

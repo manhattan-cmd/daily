@@ -89,9 +89,10 @@ export function PeriodCategoryPanel({
       distributionOf,
       valueByEntry,
       unit,
-      kind,
       isRate,
       isChoice,
+      isAvgLike,
+      scale,
     } = compute;
     const now = new Date();
 
@@ -126,22 +127,32 @@ export function PeriodCategoryPanel({
 
     // Hafta bağlamı (yalnız gün dönemleri) — haftanın şu ana kadarki günlük
     // ortalamasına göre bu gün nerede; scale metrikte gün ort. vs hafta ort.
-    let weekContext: { ref: number; deltaPct: number; perDay: boolean } | null =
-      null;
+    let weekContext: {
+      ref: number;
+      delta: number;
+      /** Fark puan mı yüzde mi — ortalama rakamlarda yüzde yanıltıcı */
+      inPoints: boolean;
+      perDay: boolean;
+    } | null = null;
     if (containingWeek) {
       const weekProgress = periodProgress(containingWeek, now);
-      const dayValue = aggregate(entries);
+      const dayValue = isAvgLike ? averageOf(entries) : aggregate(entries);
       let ref = 0;
-      if (kind === "scale") {
+      if (isAvgLike) {
         ref = averageOf(data.entries);
       } else if (weekProgress.elapsedDays > 0) {
         ref = aggregate(data.entries) / weekProgress.elapsedDays;
       }
-      if (ref > 0 && (metric.type === "count" || withValueCount > 0)) {
+      const hasRef = isAvgLike ? filledCount(data.entries) > 0 : ref > 0;
+      if (hasRef && (metric.type === "count" || withValueCount > 0)) {
         weekContext = {
           ref,
-          deltaPct: ((dayValue - ref) / ref) * 100,
-          perDay: kind !== "scale",
+          // 3,2 → 3,6 "%12 arttı" değil "0,4 puan arttı"
+          delta: isAvgLike
+            ? (dayValue - ref) * (isRate ? 100 : 1)
+            : ((dayValue - ref) / ref) * 100,
+          inPoints: isAvgLike,
+          perDay: !isAvgLike,
         };
       }
     }
@@ -198,7 +209,7 @@ export function PeriodCategoryPanel({
     }
     const shareRows: ShareRow[] = [...bySubEntries.entries()]
       .map(([id, list]) => ({ id, value: aggregate(list), outOf: filledCount(list) }))
-      .filter((r) => (isRate ? r.outOf > 0 : r.value > 0))
+      .filter((r) => (isRate || scale ? r.outOf > 0 : r.value > 0))
       .map(({ id, value, outOf }) => {
         const s = subById.get(id)!;
         // Kalemin KENDİ doğrudan girdileri (alt kalemine değil, doğrudan ona
@@ -477,8 +488,10 @@ export function PeriodCategoryPanel({
         <div className="rounded-2xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
           Week avg.{" "}
           <span className="font-semibold text-foreground">
-            {fmtNum(weekContext.ref)}
-            {metricLabel ? ` ${metricLabel}` : ""}
+            {compute.isRate
+              ? fmtPct(weekContext.ref)
+              : fmtNum(weekContext.ref)}
+            {metricLabel && !compute.isRate ? ` ${metricLabel}` : ""}
             {weekContext.perDay ? "/gün" : ""}
           </span>{" "}
           · this day{" "}
@@ -486,8 +499,10 @@ export function PeriodCategoryPanel({
             className="font-semibold"
             style={{ color: category.color }}
           >
-            %{fmtNum(Math.abs(weekContext.deltaPct))}{" "}
-            {weekContext.deltaPct >= 0 ? "above" : "below"}
+            {weekContext.inPoints
+              ? t("stat.points", { n: fmtNum(Math.abs(weekContext.delta)) })
+              : fmtPct(Math.abs(weekContext.delta) / 100)}{" "}
+            {weekContext.delta >= 0 ? "above" : "below"}
           </span>
         </div>
       )}
@@ -525,7 +540,8 @@ export function PeriodCategoryPanel({
           {/* Yol artık panelin tepesindeki kapsam şeridinde — burada tekrar etmez */}
           <ShareBars
             rows={computed.shareRows}
-            mode={compute.isRate ? "rate" : "share"}
+            mode={compute.isRate ? "rate" : compute.scale ? "level" : "share"}
+            range={compute.scale}
             onSelect={(subId) => {
               const sub = data.subById.get(subId);
               if (!sub) return;
@@ -559,6 +575,7 @@ export function PeriodCategoryPanel({
             unit={metric.type === "count" ? "entries" : unit}
             caption={computed.seriesFrame?.caption}
             showAllTicks={computed.seriesFrame?.showAllTicks}
+          scale={compute.scale}
             stack={
               compute.isRate
                 ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") }

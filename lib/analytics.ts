@@ -4,7 +4,7 @@
  */
 
 import type { EntryType, Mod } from "@/types";
-import { intlTag } from "@/lib/i18n";
+import { intlTag, translate } from "@/lib/i18n";
 
 export type RangeKey = "bugun" | "hafta" | "7" | "30" | "ay" | "yil" | "tum";
 
@@ -95,6 +95,10 @@ export type DayBucket = {
   /** Tooltip'teki uzun etiket: 29 Haziran Pzt */
   full: string;
   value: number;
+  /** Kovada gerçekten veri var mı. Skalada ayrım şart: boş kovanın "değeri" 0
+   *  çıkıyor ama −2…+2 gibi bir skalada 0 GERÇEK bir ortalama — ikisi aynı
+   *  çizilirse "veri yok" ile "ortası" birbirine karışır. */
+  hasData?: boolean;
   /** Value'nun üstüne yığılan ikinci (soluk) parça — yalnız oran metriğinde
    *  dolar: value "evet" adedi, rest "hayır" adedi. Tek başına "3 evet"
    *  3/3 mü 3/10 mu belli etmediği için payda çubuğun içinde duruyor. */
@@ -410,7 +414,18 @@ export function bucketAncestorId(
  *   tanımsız (hep 1). Asıl değeri sayıda değil, metnin listede okunmasında.
  */
 export type ModKind = "number" | "duration" | "scale" | "rate" | "presence";
-export type NumericMod = { id: string; name: string; unit: string; kind: ModKind };
+
+/** Skalanın aralığı ve uçlarının anlamı — grafiğin tabanı, kırılım barının
+ *  ölçeği ve "hangi uç iyi" ipucu bundan çıkar. Yalnız kind === "scale"da dolu. */
+export type ScaleRange = { min: number; max: number; low?: string; high?: string };
+
+export type NumericMod = {
+  id: string;
+  name: string;
+  unit: string;
+  kind: ModKind;
+  scale?: ScaleRange;
+};
 
 /**
  * Kelime seçenekli "çoktan seçmeli" — girdi başına bir sayı değil bir ETİKET
@@ -489,13 +504,33 @@ export function classifyMod(mod: Mod): MetricMod | null {
     return { id: mod.id, name: mod.name, unit: mod.unit ?? "", kind: "number" };
   }
   if (vt === "datetime-range") {
-    return { id: mod.id, name: mod.name, unit: "sa", kind: "duration" };
+    return {
+      id: mod.id,
+      name: mod.name,
+      unit: translate("stat.hoursShort"),
+      kind: "duration",
+    };
   }
   if (vt === "select") {
     // Seçenekleri tamamen sayıysa skala (ortalanır), değilse dağılım
-    return isNumericChoiceSet(mod.choices)
-      ? { id: mod.id, name: mod.name, unit: "", kind: "scale" }
-      : { id: mod.id, name: mod.name, kind: "choice" };
+    if (!isNumericChoiceSet(mod.choices)) {
+      return { id: mod.id, name: mod.name, kind: "choice" };
+    }
+    // Basamaklar zaten sayı (isNumericChoiceSet garanti ediyor); aralığı
+    // buradan okuyoruz ki grafik 0'dan değil skalanın tabanından çizsin
+    const nums = (mod.choices ?? []).map(Number).filter(Number.isFinite);
+    return {
+      id: mod.id,
+      name: mod.name,
+      unit: "",
+      kind: "scale",
+      scale: {
+        min: Math.min(...nums),
+        max: Math.max(...nums),
+        low: mod.scaleLabels?.low,
+        high: mod.scaleLabels?.high,
+      },
+    };
   }
   if (vt === "boolean") {
     return { id: mod.id, name: mod.name, unit: "", kind: "rate" };
