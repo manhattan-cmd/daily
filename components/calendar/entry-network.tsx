@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import {
   ChevronRight,
@@ -29,6 +29,7 @@ import { CategoryForm } from "@/components/structure/category-form";
 import { HScroll } from "@/components/ui/h-scroll";
 import { CanvasViewport } from "@/components/calendar/canvas-viewport";
 import { hexCorners, hexLayout, HEX_CLIP } from "@/lib/hex";
+import { neuronLayout } from "@/lib/neuron";
 import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
@@ -56,23 +57,26 @@ type Node =
   | { kind: "sub"; sub: SubCategory };
 
 /** Yerleşim — düğüm sayısına göre otomatik seçilir, kullanıcı değiştirebilir */
-type Layout = "poly" | "list";
+type Layout = "neuron" | "poly" | "list";
 
 /** Sayım gelmeden önceki sabit boş harita — memo'ları her render'da bozmasın */
 const NO_COUNTS: ReadonlyMap<string, number> = new Map();
 
 /** Altıgen hücrenin merkezden köşesine uzaklığı (px) */
 const HEX_SIZE = 46;
+/** Nöronda çocuksuz bir çekirdeğin yarıçapı (px) */
+const NEURON_BASE = 22;
 /** Bu sayıdan sonra çokgen okunmaz oluyor, liste devralır */
 const LIST_FROM = 17;
 
 function autoLayout(n: number): Layout {
-  return n >= LIST_FROM ? "list" : "poly";
+  return n >= LIST_FROM ? "list" : "neuron";
 }
 
 /** Eski kayıtlarda "spiral" olabilir — çokgene düşer */
 function normalizeLayout(v: unknown): Layout | undefined {
   if (v === "list") return "list";
+  if (v === "neuron") return "neuron";
   if (v === "poly" || v === "spiral") return "poly";
   return undefined;
 }
@@ -83,6 +87,7 @@ const LAYOUT_OPTIONS: {
   icon: typeof Network;
   labelKey: MessageKey;
 }[] = [
+  { key: "neuron", icon: Sparkles, labelKey: "tree.neuronView" },
   { key: "poly", icon: Network, labelKey: "tree.networkView" },
   { key: "list", icon: List, labelKey: "tree.listView" },
 ];
@@ -97,6 +102,12 @@ function sectionKeyOf(name: string): string {
   return /\p{L}/u.test(ch) ? ch : "#";
 }
 const norm = (s: string) => s.toLocaleLowerCase("tr").trim();
+
+/** 0–1 → iki haneli onaltılık alfa; "#rrggbb" + bu = saydam renk */
+const hexA = (v: number) =>
+  Math.round(Math.max(0, Math.min(1, v)) * 255)
+    .toString(16)
+    .padStart(2, "0");
 
 /**
  * Girdi ekleme v2 — ağ tabanlı gezinme. Kök: ana kategoriler ağ olarak. Bir
@@ -309,10 +320,50 @@ export function EntryNetwork({
     () => hexLayout(layout === "list" ? 0 : nodes.length, HEX_SIZE),
     [nodes.length, layout]
   );
-  const positions = hex.nodes;
-  const centerPos = hex.center;
+
+  /** Bir düğümün KENDİ çocuk sayısı — nöronda çekirdek boyu bundan çıkar */
+  const childCountOf = (node: Node) =>
+    node.kind === "cat"
+      ? (topSubsByCat.get(node.cat.id) ?? []).length
+      : (childrenMap.get(node.sub.id) ?? []).length;
+
+  // Nöron düzeni — kural lib/neuron.ts'te, testle sabit
+  const childCounts = nodes.map(childCountOf);
+  const childCountsKey = childCounts.join(",");
+  const neuron = useMemo(
+    () => neuronLayout(layout === "neuron" ? childCounts : [], NEURON_BASE),
+    // childCounts her render'da yeni dizi; içeriği anahtar olarak kullanılıyor
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [childCountsKey, layout]
+  );
+
+  const isNeuron = layout === "neuron";
+  const view = isNeuron ? neuron : hex;
+  const positions = view.nodes;
+  const centerPos = view.center;
+
+  /** Merkez gövdenin kutusu — nöronda daire, petekte altıgen */
+  const coreBox = isNeuron
+    ? { width: neuron.coreR * 2, height: neuron.coreR * 2 }
+    : { width: HEX_SIZE * 2, height: HEX_SIZE * Math.sqrt(3) };
+  const coreSkin: CSSProperties = isNeuron
+    ? {
+        borderRadius: "9999px",
+        background: `radial-gradient(circle at 32% 26%, ${centerColor}a8, ${centerColor}33)`,
+        boxShadow: `inset 0 0 0 1.5px ${centerColor}99, 0 0 26px ${centerColor}55`,
+      }
+    : {
+        clipPath: HEX_CLIP,
+        background: `linear-gradient(150deg, ${centerColor}7a, ${centerColor}2e)`,
+      };
+  const coreIconSize = isNeuron
+    ? Math.round(Math.min(26, Math.max(16, neuron.coreR * 0.5)))
+    : 20;
 
   const nodeId = (node: Node) => (node.kind === "cat" ? node.cat.id : node.sub.id);
+  /** Kategoriler kendi renginde; alt kalemler bulundukları dalın renginde */
+  const colorOf = (node: Node) =>
+    node.kind === "cat" ? node.cat.color : centerColor;
   const nodeWeight = (node: Node) =>
     node.kind === "cat"
       ? catCounts.get(node.cat.id) ?? 0
@@ -372,12 +423,12 @@ export function EntryNetwork({
     const onMove = (e: PointerEvent) => {
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect || !rect.width) return;
-      // Yuva konumları hex düzeninin koordinat uzayında (hex.width×hex.height);
+      // Yuva konumları etkin düzenin koordinat uzayında (view.width×view.height);
       // tuval ayrıca CanvasViewport tarafından ölçekleniyor. Ölçeği elemanın
-      // kendi genişliğinden okuyoruz: rect.width = hex.width × scale.
-      const scale = rect.width / hex.width;
-      const x = Math.max(pad, Math.min(hex.width - pad, (e.clientX - rect.left) / scale));
-      const y = Math.max(pad, Math.min(hex.height - pad, (e.clientY - rect.top) / scale));
+      // kendi genişliğinden okuyoruz: rect.width = view.width × scale.
+      const scale = rect.width / view.width;
+      const x = Math.max(pad, Math.min(view.width - pad, (e.clientX - rect.left) / scale));
+      const y = Math.max(pad, Math.min(view.height - pad, (e.clientY - rect.top) / scale));
       const np = { x, y };
       posRef.current = np;
       setDragPos(np);
@@ -418,7 +469,7 @@ export function EntryNetwork({
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("touchmove", prevent);
     };
-  }, [drag, nodes, positions, hex.width, hex.height, pad]);
+  }, [drag, nodes, positions, view.width, view.height, pad]);
 
   function startDrag(node: Node, p: { x: number; y: number }) {
     setDrag({ id: nodeId(node), kind: node.kind });
@@ -632,36 +683,54 @@ export function EntryNetwork({
       ) : (
         <>
           {/* Ağ — sürüklenip yakınlaştırılabilen küçük bir pencere */}
-          <CanvasViewport width={hex.width} height={hex.height} resetKey={focusKey}>
+          <CanvasViewport width={view.width} height={view.height} resetKey={focusKey}>
           <div
             key={focusKey}
             ref={canvasRef}
             className="relative animate-zoom-in"
-            style={{ width: hex.width, height: hex.height }}
+            style={{ width: view.width, height: view.height }}
           >
             <svg
               className="pointer-events-none absolute inset-0"
-              viewBox={`0 0 ${hex.width} ${hex.height}`}
-              width={hex.width}
-              height={hex.height}
+              viewBox={`0 0 ${view.width} ${view.height}`}
+              width={view.width}
+              height={view.height}
             >
-              {/* Merkez göz — kökte "Kategoriler", içeride bulunulan kalem.
-                  Çevredekilerden parlak durur ki nerede olunduğu belli olsun. */}
-              <polygon
-                points={hexCorners(centerPos.x, centerPos.y, HEX_SIZE - 1)}
-                fill={`${centerColor}26`}
-                stroke={`${centerColor}80`}
-                strokeWidth={2}
-              />
-              {positions.map((p, i) => (
-                <polygon
-                  key={i}
-                  points={hexCorners(p.x, p.y, HEX_SIZE - 1)}
-                  fill={`${centerColor}0b`}
-                  stroke={`${centerColor}30`}
-                  strokeWidth={1.25}
-                />
-              ))}
+              {isNeuron ? (
+                // Dendritler — gövdeden çekirdeğe. Sık kullanılan dal daha
+                // parlak: yol da ışıyınca "nereye çok gidiyorum" tek bakışta
+                // okunuyor.
+                neuron.nodes.map((n, i) => (
+                  <path
+                    key={i}
+                    d={n.path}
+                    fill="none"
+                    stroke={`${colorOf(nodes[i])}${hexA(0.32 + 0.55 * glowOf(nodes[i]))}`}
+                    strokeWidth={n.width}
+                    strokeLinecap="round"
+                  />
+                ))
+              ) : (
+                <>
+                  {/* Merkez göz — kökte "Kategoriler", içeride bulunulan kalem.
+                      Çevredekilerden parlak durur ki nerede olunduğu belli olsun. */}
+                  <polygon
+                    points={hexCorners(centerPos.x, centerPos.y, HEX_SIZE - 1)}
+                    fill={`${centerColor}26`}
+                    stroke={`${centerColor}80`}
+                    strokeWidth={2}
+                  />
+                  {positions.map((p, i) => (
+                    <polygon
+                      key={i}
+                      points={hexCorners(p.x, p.y, HEX_SIZE - 1)}
+                      fill={`${centerColor}0b`}
+                      stroke={`${centerColor}30`}
+                      strokeWidth={1.25}
+                    />
+                  ))}
+                </>
+              )}
               {drag &&
                 effPositions.map((p, i) =>
                   drag.id === nodeId(nodes[i]) ? (
@@ -678,19 +747,32 @@ export function EntryNetwork({
                   ) : null
                 )}
               {/* Sürüklerken oturacağı yuva vurgusu */}
-              {drag && targetSlot >= 0 && positions[targetSlot] && (
-                <polygon
-                  points={hexCorners(
-                    positions[targetSlot].x,
-                    positions[targetSlot].y,
-                    HEX_SIZE - 1
-                  )}
-                  fill="none"
-                  stroke={centerColor}
-                  strokeWidth={2}
-                  strokeDasharray="5 4"
-                />
-              )}
+              {drag &&
+                targetSlot >= 0 &&
+                positions[targetSlot] &&
+                (isNeuron ? (
+                  <circle
+                    cx={positions[targetSlot].x}
+                    cy={positions[targetSlot].y}
+                    r={neuron.nodes[targetSlot].r + 3}
+                    fill="none"
+                    stroke={centerColor}
+                    strokeWidth={2}
+                    strokeDasharray="5 4"
+                  />
+                ) : (
+                  <polygon
+                    points={hexCorners(
+                      positions[targetSlot].x,
+                      positions[targetSlot].y,
+                      HEX_SIZE - 1
+                    )}
+                    fill="none"
+                    stroke={centerColor}
+                    strokeWidth={2}
+                    strokeDasharray="5 4"
+                  />
+                ))}
             </svg>
 
             {/* Merkez göz — nerede olduğun. Çevredekilerden parlak durur
@@ -705,19 +787,19 @@ export function EntryNetwork({
                 style={{
                   left: centerPos.x,
                   top: centerPos.y,
-                  width: HEX_SIZE * 2,
-                  height: HEX_SIZE * Math.sqrt(3),
+                  ...coreBox,
                   transform: "translate(-50%,-50%)",
                 }}
               >
                 <span
-                  className="flex h-full w-full flex-col items-center justify-center gap-0.5 px-2"
-                  style={{
-                    clipPath: HEX_CLIP,
-                    background: `linear-gradient(150deg, ${centerColor}7a, ${centerColor}2e)`,
-                  }}
+                  className="flex h-full w-full flex-col items-center justify-center gap-0.5 px-1.5"
+                  style={coreSkin}
                 >
-                  <Layers className="h-5 w-5 text-white" strokeWidth={1.75} />
+                  <Layers
+                    className="text-white"
+                    style={{ width: coreIconSize, height: coreIconSize }}
+                    strokeWidth={1.75}
+                  />
                   <span className="line-clamp-2 w-full text-center text-[10px] font-semibold leading-tight text-white">
                     {t("structure.categories")}
                   </span>
@@ -734,22 +816,19 @@ export function EntryNetwork({
                 style={{
                   left: centerPos.x,
                   top: centerPos.y,
-                  width: HEX_SIZE * 2,
-                  height: HEX_SIZE * Math.sqrt(3),
+                  ...coreBox,
                   transform: "translate(-50%,-50%)",
                 }}
               >
                 <span
-                  className="flex h-full w-full flex-col items-center justify-center gap-0.5 px-2"
-                  style={{
-                    clipPath: HEX_CLIP,
-                    background: `linear-gradient(150deg, ${centerColor}7a, ${centerColor}2e)`,
-                  }}
+                  className="flex h-full w-full flex-col items-center justify-center gap-0.5 px-1.5"
+                  style={coreSkin}
                 >
                   <CategoryIconOrFallback
                     color="#fff"
                     icon={focusIcon}
                     hasKids={hasNodes}
+                    size={coreIconSize}
                   />
                   <span className="line-clamp-2 w-full text-center text-[10px] font-semibold leading-tight text-white">
                     {focusName}
@@ -773,21 +852,22 @@ export function EntryNetwork({
               const id = nodeId(node);
               const hasKids =
                 !isCat && (childrenMap.get(node.sub.id)?.length ?? 0) > 0;
-              return (
-                <NetNode
-                  key={id}
-                  x={p.x}
-                  y={p.y}
-                  color={isCat ? node.cat.color : centerColor}
-                  icon={isCat ? node.cat.icon : node.sub.icon}
-                  name={isCat ? node.cat.name : node.sub.name}
-                  hasKids={hasKids}
-                  mods={modsOf(isCat ? node.cat.id : node.sub.id)}
-                  glow={glowOf(node)}
-                  isDragging={drag?.id === id}
-                  onTap={() => drill(node)}
-                  onDragStart={() => startDrag(node, p)}
-                />
+              const common = {
+                x: p.x,
+                y: p.y,
+                color: colorOf(node),
+                icon: isCat ? node.cat.icon : node.sub.icon,
+                name: isCat ? node.cat.name : node.sub.name,
+                mods: modsOf(id),
+                glow: glowOf(node),
+                isDragging: drag?.id === id,
+                onTap: () => drill(node),
+                onDragStart: () => startDrag(node, p),
+              };
+              return isNeuron ? (
+                <NeuronCell key={id} {...common} r={neuron.nodes[i].r} />
+              ) : (
+                <NetNode key={id} {...common} hasKids={hasKids} />
               );
             })}
 
@@ -1097,6 +1177,50 @@ function ListRow({ row: r, onOpen }: { row: Row; onOpen: (node: Node) => void })
  * Erken hareket sürüklemeyi başlatmaz (dokunuş gibi kalır).
  * dense: sarmalda karolar küçülür, etiket tek satıra sığar.
  */
+/**
+ * Dokun/basılı tut ayrımı — iki görünüm de aynı davranışı paylaşıyor:
+ * dokunuş içeri girer, 350ms basılı tutmak sürüklemeyi başlatır, erken
+ * hareket sürüklemeyi iptal eder (kaydırmaya benzemesin).
+ */
+function useHold(onTap: () => void, onDragStart: () => void) {
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const downPos = useRef<{ x: number; y: number } | null>(null);
+  const started = useRef(false);
+  const clearHold = () => {
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+    holdTimer.current = null;
+  };
+  return {
+    onClick: () => {
+      if (started.current) {
+        started.current = false;
+        return;
+      }
+      onTap();
+    },
+    onPointerDown: (e: React.PointerEvent) => {
+      downPos.current = { x: e.clientX, y: e.clientY };
+      started.current = false;
+      clearHold();
+      holdTimer.current = setTimeout(() => {
+        started.current = true;
+        onDragStart();
+      }, 350);
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      if (!downPos.current || started.current) return;
+      if (
+        Math.abs(e.clientX - downPos.current.x) > 8 ||
+        Math.abs(e.clientY - downPos.current.y) > 8
+      )
+        clearHold();
+    },
+    onPointerUp: clearHold,
+    onPointerCancel: clearHold,
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+  };
+}
+
 function NetNode({
   x,
   y,
@@ -1124,43 +1248,11 @@ function NetNode({
   onTap: () => void;
   onDragStart: () => void;
 }) {
-  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const downPos = useRef<{ x: number; y: number } | null>(null);
-  const started = useRef(false);
-  const clearHold = () => {
-    if (holdTimer.current) clearTimeout(holdTimer.current);
-    holdTimer.current = null;
-  };
+  const hold = useHold(onTap, onDragStart);
 
   return (
     <button
-      onClick={() => {
-        if (started.current) {
-          started.current = false;
-          return;
-        }
-        onTap();
-      }}
-      onPointerDown={(e) => {
-        downPos.current = { x: e.clientX, y: e.clientY };
-        started.current = false;
-        clearHold();
-        holdTimer.current = setTimeout(() => {
-          started.current = true;
-          onDragStart();
-        }, 350);
-      }}
-      onPointerMove={(e) => {
-        if (!downPos.current || started.current) return;
-        if (
-          Math.abs(e.clientX - downPos.current.x) > 8 ||
-          Math.abs(e.clientY - downPos.current.y) > 8
-        )
-          clearHold();
-      }}
-      onPointerUp={clearHold}
-      onPointerCancel={clearHold}
-      onContextMenu={(e) => e.preventDefault()}
+      {...hold}
       data-net-node=""
       className={cn(
         "absolute flex select-none items-center justify-center transition-transform",
@@ -1232,19 +1324,134 @@ function NetNode({
   );
 }
 
+/**
+ * Nöron hücresi — çekirdek + adı.
+ *
+ * Altıgenden iki farkı var: BOY kendi alt kalemlerinin sayısını, PARLAKLIK
+ * ise kullanım sıklığını söylüyor. Yani sayfaya bakan kişi "buranın altı
+ * kalabalık" ile "burayı sık kullanıyorum"u aynı anda ama karıştırmadan
+ * görüyor. Ölçülen özellikler çekirdeğin üst kavisinde sinaps gibi duruyor —
+ * ileride kovan haritasında ortak özellikler bu noktalardan bağlanacak.
+ */
+function NeuronCell({
+  x,
+  y,
+  r,
+  color,
+  icon,
+  name,
+  mods,
+  glow,
+  isDragging,
+  onTap,
+  onDragStart,
+}: {
+  x: number;
+  y: number;
+  /** Çekirdek yarıçapı — çocuk sayısından gelir (lib/neuron.ts) */
+  r: number;
+  color: string;
+  icon?: string;
+  name: string;
+  mods: Mod[];
+  /** 0–1: sayfadaki en sık kullanılana göre oran */
+  glow: number;
+  isDragging: boolean;
+  onTap: () => void;
+  onDragStart: () => void;
+}) {
+  const hold = useHold(onTap, onDragStart);
+  const dots = mods.slice(0, 5);
+  // Sinapslar üst kavise yayılır; alt taraf ada ayrılmış
+  const step = dots.length > 1 ? 70 / (dots.length - 1) : 0;
+  const from = dots.length > 1 ? -125 : -90;
+
+  return (
+    <button
+      {...hold}
+      data-net-node=""
+      className={cn(
+        "absolute select-none transition-transform",
+        isDragging ? "z-20 scale-110" : "z-0"
+      )}
+      style={{
+        left: x,
+        top: y,
+        width: r * 2,
+        height: r * 2,
+        transform: "translate(-50%,-50%)",
+      }}
+    >
+      <span
+        className="relative flex h-full w-full items-center justify-center rounded-full"
+        style={{
+          background: `radial-gradient(circle at 32% 26%, ${color}${hexA(0.34 + 0.46 * glow)}, ${color}${hexA(0.08 + 0.16 * glow)})`,
+          boxShadow: `inset 0 0 0 1px ${color}${hexA(0.3 + 0.5 * glow)}, 0 0 ${Math.round(5 + 20 * glow)}px ${color}${hexA(0.1 + 0.35 * glow)}`,
+          outline: isDragging ? `2px solid ${color}` : undefined,
+        }}
+      >
+        <CategoryIconOrFallback
+          color={color}
+          icon={icon}
+          hasKids={false}
+          size={Math.round(Math.min(28, Math.max(16, r * 0.72)))}
+        />
+        {dots.map((m, i) => {
+          const rad = ((from + i * step) * Math.PI) / 180;
+          return (
+            <span
+              key={m.id}
+              className="absolute h-[5px] w-[5px] rounded-full"
+              style={{
+                left: r + Math.cos(rad) * r,
+                top: r + Math.sin(rad) * r,
+                transform: "translate(-50%,-50%)",
+                backgroundColor: color,
+                boxShadow: `0 0 4px ${color}`,
+              }}
+            />
+          );
+        })}
+      </span>
+      {/* Ad çekirdeğin altında — daireyi ada göre şişirmek boy dilini
+          (boy = çocuk sayısı) bozardı */}
+      <span
+        className={cn(
+          "pointer-events-none absolute left-1/2 top-full line-clamp-2 w-[84px] -translate-x-1/2 pt-1 text-center text-[9px] leading-tight",
+          glow > 0.5
+            ? "font-semibold text-foreground"
+            : glow > 0.15
+              ? "font-medium text-foreground/80"
+              : "font-medium text-muted-foreground"
+        )}
+      >
+        {name}
+      </span>
+    </button>
+  );
+}
+
 /** Hücrenin içindeki ikon — kare çerçeve yok, altıgenin kendisi çerçeve */
 function CategoryIconOrFallback({
   color,
   icon,
   hasKids,
+  size = 20,
 }: {
   color: string;
   icon?: string;
   hasKids: boolean;
+  /** Nöronda çekirdek boyu değişken — ikon onunla ölçekleniyor */
+  size?: number;
 }) {
-  if (icon) return <SymbolIcon name={icon} size={20} style={{ color }} />;
+  if (icon) return <SymbolIcon name={icon} size={size} style={{ color }} />;
   const Fallback = hasKids ? FolderOpen : Folder;
-  return <Fallback className="h-5 w-5" style={{ color }} strokeWidth={1.75} />;
+  return (
+    <Fallback
+      style={{ color, width: size, height: size }}
+      strokeWidth={1.75}
+    />
+  );
 }
 
 /**
