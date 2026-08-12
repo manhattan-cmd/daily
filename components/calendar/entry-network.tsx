@@ -866,18 +866,18 @@ export function EntryNetwork({
 
             <button
               onClick={commitQuick}
-              className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-semibold text-white transition-transform active:scale-[0.98]"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white transition-transform active:scale-[0.98]"
               style={{
                 background: `linear-gradient(150deg, ${centerColor}, ${centerColor}c4)`,
-                boxShadow: `0 8px 24px -10px ${centerColor}`,
+                boxShadow: `0 6px 20px -10px ${centerColor}`,
               }}
             >
-              <Plus className="h-5 w-5" strokeWidth={2.75} />
+              <Plus className="h-4 w-4" strokeWidth={2.75} />
               {t("entry.addNow")}
             </button>
             <button
               onClick={commitDetailed}
-              className="mt-2 flex h-11 w-full items-center justify-center gap-1.5 rounded-2xl border border-border bg-card text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="mt-2 flex h-10 w-full items-center justify-center gap-1.5 rounded-2xl border border-border bg-card text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               <Sparkles className="h-3.5 w-3.5" />
               {t("entry.addWithDetail")}

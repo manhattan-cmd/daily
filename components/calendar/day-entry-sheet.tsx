@@ -357,6 +357,9 @@ export function DayEntrySheet({
           Girdi eklemek uygulamanın asli eylemi; en çok yeri o hak ediyor. */}
       <div
         className={cn(
+          // `relative` EKLEME: tailwind-merge onu `fixed` ile çakıştırıp
+          // sonuncuyu seçiyor ve yüzey tam yüksekliğini kaybediyor. `fixed`
+          // zaten mutlak konumlu çocuklara kapsayıcı blok oluşturur.
           "fixed inset-y-0 z-50 left-1/2 -translate-x-1/2 w-full max-w-[390px]",
           "flex flex-col bg-background",
           "transition-transform duration-300 ease-out",
@@ -373,19 +376,35 @@ export function DayEntrySheet({
             }}
             onClose={onClose}
           />
-        ) : step.type === "pick" ? (
-          <PickStep
-            key={open ? "open" : "closed"}
-            groups={groups}
-            onSubSelect={handleSubSelect}
-            onCategorySelect={handleCategorySelect}
-            onQuickAdd={handleQuickAdd}
-            onQuickAddCategory={handleQuickAddCategory}
-            onClose={onClose}
-            activity={activity ? { name: activity.name, count: activityCount } : null}
-          />
         ) : (
-          <FormStep
+          <>
+            {/* Ağ hep ayakta kalır: "Detay ekle" seçimi değiştirmiyor,
+                ÜSTÜNE bir panel açıyor. Böylece kullanıcı nereye kayıt
+                yaptığını görmeye devam ediyor ve geri dönünce ağ aynı
+                yerde (odak EntryNetwork'ün içinde tutuluyor). */}
+            <PickStep
+              key={open ? "open" : "closed"}
+              groups={groups}
+              onSubSelect={handleSubSelect}
+              onCategorySelect={handleCategorySelect}
+              onQuickAdd={handleQuickAdd}
+              onQuickAddCategory={handleQuickAddCategory}
+              onClose={onClose}
+              activity={activity ? { name: activity.name, count: activityCount } : null}
+            />
+
+            {step.type !== "pick" && (
+              <>
+                <div
+                  className="absolute inset-0 z-40 bg-black/55 backdrop-blur-[1px]"
+                  onClick={handleBack}
+                />
+                {/* Ekle modülünün büyümüş hali — tam pencere değil, panel */}
+                <div className="animate-in absolute inset-x-0 bottom-0 z-50 flex max-h-[86%] flex-col rounded-t-3xl border-t border-white/10 bg-background shadow-[0_-8px_40px_rgba(0,0,0,0.6)]">
+                  <div className="flex justify-center pt-2.5 pb-0.5 shrink-0">
+                    <div className="h-[3px] w-10 rounded-full bg-white/15" />
+                  </div>
+                  <FormStep
             key={step.sub.id}
             sub={step.sub}
             category={
@@ -417,7 +436,11 @@ export function DayEntrySheet({
             onSave={handleFormSave}
             saving={saving}
             entryDate={date}
-          />
+                  />
+                </div>
+              </>
+            )}
+          </>
         )}
       </div>
     </>
