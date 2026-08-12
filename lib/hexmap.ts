@@ -113,8 +113,7 @@ export function hexMapLayout(root: HexSeed, size: number): HexMap {
   let R = 1;
   while (1 + 3 * R * (R + 1) < total) R++;
   let plan = attempt(R + 1);
-  for (let extra = 2; !plan && extra <= 5; extra++) plan = attempt(R + extra);
-  if (!plan) plan = { owner: new Map(), sets: [], capitals: [] };
+  for (let extra = 2; !plan && extra <= 6; extra++) plan = attempt(R + extra);
 
   /** Başkentleri koy, ülkeleri büyüt. Tahta yetmezse null. */
   function attempt(rings: number) {
@@ -122,6 +121,12 @@ export function hexMapLayout(root: HexSeed, size: number): HexMap {
     const owner = new Map<string, number>();
     owner.set(key(0, 0), -1);
 
+    // Başkentler HEPSİNİN sığdığı en küçük halkaya diziliyor. Altıdan çok
+    // kategoride bir kısmı içeri bir kısmı dışarı konunca içerideki ülke
+    // kuşatılıp büyüyemiyordu; hepsi aynı halkada olunca herkesin iki yanı
+    // ve dışı açık kalıyor, iç halkayı da büyürken kendileri dolduruyor.
+    let capRing = 1;
+    while (6 * capRing < kids.length) capRing++;
     const capitals: string[] = [];
     for (let i = 0; i < kids.length; i++) {
       const want = -Math.PI / 2 + (2 * Math.PI * i) / kids.length;
@@ -133,8 +138,9 @@ export function hexMapLayout(root: HexSeed, size: number): HexMap {
         const ring = hexDist(q, r);
         if (ring === 0) continue;
         const p = toPx(q, r, 1);
-        // İç halka baskın; aynı halkada istenen açıya en yakın hücre
-        const score = ring * 10 + angDiff(Math.atan2(p.y, p.x), want);
+        // Başkent halkası baskın; o halkada istenen açıya en yakın hücre
+        const score =
+          Math.abs(ring - capRing) * 10 + angDiff(Math.atan2(p.y, p.x), want);
         if (score < bestScore) {
           bestScore = score;
           best = k;
@@ -179,7 +185,23 @@ export function hexMapLayout(root: HexSeed, size: number): HexMap {
             }
           }
         }
-        if (!best) continue;
+        if (!best) {
+          // Ülke kuşatıldı: bitişik boş hücresi kalmadı. Bitişiklik güzellik,
+          // ama kalemin haritada YER BULMASI şart — en yakın boş hücreye
+          // taşınıyor. Tahta yeterince genişken bu duruma düşülmüyor.
+          let far = Infinity;
+          const [cq, cr] = capitals[i].split(",").map(Number);
+          for (const [q, r] of grid) {
+            const k = key(q, r);
+            if (owner.has(k)) continue;
+            const d = hexDist(q - cq, r - cr);
+            if (d < far) {
+              far = d;
+              best = k;
+            }
+          }
+          if (!best) continue;
+        }
         owner.set(best, i);
         sets[i].add(best);
         need[i]--;
@@ -205,7 +227,9 @@ export function hexMapLayout(root: HexSeed, size: number): HexMap {
    * uzak hücreler kalıyordu. Boş komşu yoksa ülkenin en yakın boş hücresi.
    */
   const placeSub = (node: HexSeed, set: Set<string>) => {
-    const [cq, cr] = cellOf.get(node.id)!.split(",").map(Number);
+    const here = cellOf.get(node.id);
+    if (!here) return;
+    const [cq, cr] = here.split(",").map(Number);
     for (const ch of node.children ?? []) {
       let target: string | null = null;
       // Boş komşular arasından DIŞA doğru olanı: derinleştikçe merkezden
@@ -239,9 +263,12 @@ export function hexMapLayout(root: HexSeed, size: number): HexMap {
   };
 
   kids.forEach((kid, i) => {
-    const set = plan!.sets[i] ?? new Set<string>();
-    put(kid.id, plan!.capitals[i]);
-    placeSub(kid, set);
+    const cap = plan?.capitals[i];
+    // Başkenti olmayan ülke olmamalı; olursa o dal haritaya girmiyor ama
+    // ekran da çökmüyor (eskiden burada tanımsız hücre patlıyordu)
+    if (!cap) return;
+    put(kid.id, cap);
+    placeSub(kid, plan!.sets[i] ?? new Set<string>());
   });
 
   // ── Piksel ve kutu ─────────────────────────────────────────────────────

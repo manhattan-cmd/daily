@@ -140,6 +140,47 @@ describe("hexMapLayout", () => {
     expect(new Set(l.cells.map((c) => `${c.q},${c.r}`)).size).toBe(12);
   });
 
+  /**
+   * Kalabalık tahtalar. Bir kez şu hatayla çıktık: altıdan çok kategoride
+   * başkentlerin bir kısmı iç bir kısmı dış halkaya düşüyor, içerideki ülke
+   * kuşatılıp büyüyemiyor, yerleşim boş dönüyor ve ekran çöküyordu
+   * ("this page couldn't load"). Artık başkentler hepsinin sığdığı tek
+   * halkaya diziliyor; burası o hatanın nöbetçisi.
+   */
+  it.each([
+    ["on kategori, her biri iki alt kalem", 10, 2],
+    ["yedi kategori, birer alt kalem", 7, 1],
+    ["on dört kategori, çocuksuz", 14, 0],
+    ["yirmi kategori, üçer alt kalem", 20, 3],
+  ])("kalabalık tahta yerleşiyor: %s", (_label, cats, subs) => {
+    const tree = n(
+      "root",
+      ...Array.from({ length: cats }, (_, i) =>
+        n("k" + i, ...Array.from({ length: subs }, (_, j) => n(`k${i}s${j}`)))
+      )
+    );
+    const l = hexMapLayout(tree, SIZE);
+    expect(l.cells).toHaveLength(flat(tree).length);
+    expect(new Set(l.cells.map((c) => `${c.q},${c.r}`)).size).toBe(
+      l.cells.length
+    );
+    // Her ülke tek parça kalıyor
+    for (const t of new Set(l.cells.map((c) => c.territory))) {
+      const own = l.cells.filter((c) => c.territory === t);
+      const seen = new Set([own[0]]);
+      const queue = [own[0]];
+      while (queue.length) {
+        const cur = queue.shift()!;
+        for (const o of own)
+          if (!seen.has(o) && adjacent(cur, o)) {
+            seen.add(o);
+            queue.push(o);
+          }
+      }
+      expect(seen.size).toBe(own.length);
+    }
+  });
+
   it("yalnız kök: tek hücre", () => {
     const l = hexMapLayout(n("root"), SIZE);
     expect(l.cells).toHaveLength(1);
