@@ -28,7 +28,8 @@ import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { CategoryForm } from "@/components/structure/category-form";
 import { HScroll } from "@/components/ui/h-scroll";
 import { CanvasViewport } from "@/components/calendar/canvas-viewport";
-import { hexCorners, hexLayout, HEX_CLIP } from "@/lib/hex";
+import { hexCorners, HEX_CLIP } from "@/lib/hex";
+import { hexMapLayout, type HexSeed } from "@/lib/hexmap";
 import {
   graphLayout,
   type GraphSeed,
@@ -122,6 +123,52 @@ function sectionKeyOf(name: string): string {
 const norm = (s: string) => s.toLocaleLowerCase("tr").trim();
 
 const noop = () => {};
+
+/**
+ * Rengi ton çemberinde kaydır — aynı ailenin komşu tonları. Petek
+ * haritasında bir dalın alt ülkeleri böyle ayrışıyor: hepsi o dalın rengi,
+ * ama her biri kendi tonunda.
+ */
+function shiftHue(hex: string, deg: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const num = parseInt(m[1], 16);
+  const r = (num >> 16) / 255;
+  const g = ((num >> 8) & 255) / 255;
+  const b = (num & 255) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  let h = 0;
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+  }
+  h = (h * 60 + deg + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const mm = l - c / 2;
+  const [rr, gg, bb] =
+    h < 60
+      ? [c, x, 0]
+      : h < 120
+        ? [x, c, 0]
+        : h < 180
+          ? [0, c, x]
+          : h < 240
+            ? [0, x, c]
+            : h < 300
+              ? [x, 0, c]
+              : [c, 0, x];
+  const hx = (v: number) =>
+    Math.round((v + mm) * 255)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${hx(rr)}${hx(gg)}${hx(bb)}`;
+}
 
 /** 0–1 → iki haneli onaltılık alfa; "#rrggbb" + bu = saydam renk */
 const hexA = (v: number) =>
@@ -340,16 +387,28 @@ export function EntryNetwork({
   const dense = false;
   const pad = dense ? 26 : 30;
 
-  // Altıgen yuva düzeni — kural lib/hex.ts'te, testle sabit
-  const hex = useMemo(
-    () => hexLayout(layout === "list" ? 0 : nodes.length, HEX_SIZE),
-    [nodes.length, layout]
-  );
+  // Petek haritası — kural lib/hexmap.ts'te, testle sabit. Ağacı burada
+  // kuruyoruz; özellikler haritaya girmiyor (kıta kategorilerin toprağı).
+  const mapSeed = useMemo(() => {
+    const subSeed = (s: SubCategory): HexSeed => ({
+      id: s.id,
+      children: (childrenMap.get(s.id) ?? []).map(subSeed),
+    });
+    const children: HexSeed[] =
+      focusObj == null
+        ? categories.map((c) => ({
+            id: c.id,
+            children: (topSubsByCat.get(c.id) ?? []).map(subSeed),
+          }))
+        : focusObj.type === "cat"
+          ? (topSubsByCat.get(focusObj.cat.id) ?? []).map(subSeed)
+          : (childrenMap.get(focusObj.sub.id) ?? []).map(subSeed);
+    return { id: "__core", children };
+  }, [focusObj, categories, topSubsByCat, childrenMap]);
+
+  const hexmap = useMemo(() => hexMapLayout(mapSeed, HEX_SIZE), [mapSeed]);
 
   const nodeId = (node: Node) => (node.kind === "cat" ? node.cat.id : node.sub.id);
-  /** Kategoriler kendi renginde; alt kalemler bulundukları dalın renginde */
-  const colorOf = (node: Node) =>
-    node.kind === "cat" ? node.cat.color : centerColor;
   const nodeWeight = (node: Node) =>
     node.kind === "cat"
       ? catCounts.get(node.cat.id) ?? 0
@@ -461,13 +520,38 @@ export function EntryNetwork({
   const metaGlow = (m?: GraphMeta) =>
     m && graphMax > 0 ? m.weight / graphMax : 0;
 
+  /**
+   * Ülke rengi. Kökte her kategori kendi rengini taşıyor. Bir kategorinin
+   * içine girildiğinde alt kalemlerin kendi rengi yok — hepsi dalın
+   * renginde olurdu ve ülkeler birbirinden ayırt edilemezdi; o yüzden dalın
+   * renginden komşu tonlar türetiliyor. Aile belli, ülkeler ayrı.
+   */
+  const terrColor = (id: string) => {
+    if (!id) return centerColor;
+    const cat = catById.get(id);
+    if (cat) return cat.color;
+    const i = nodes.findIndex((n) => nodeId(n) === id);
+    return i < 0
+      ? centerColor
+      : shiftHue(centerColor, (i - (nodes.length - 1) / 2) * 18);
+  };
+
   const isGraph = layout === "graph";
-  const view = isGraph ? graph : hex;
+  const view = isGraph ? graph : hexmap;
   // Sürükleme yalnız merkezin DOĞRUDAN çocukları için anlamlı: sıra onların
-  // arasında değişiyor. Yuvalar bu yüzden `nodes` ile aynı sırada olmalı.
-  const positions = isGraph
-    ? nodes.map((n) => graph.byId.get(nodeId(n)) ?? graph.center)
-    : hex.nodes;
+  // arasında değişiyor. Yuvalar bu yüzden `nodes` ile aynı sırada olmalı —
+  // haritada her kalemin kendi hücresi, ağda kendi düğümü.
+  const positions: { x: number; y: number }[] = useMemo(
+    () =>
+      nodes.map((n) => {
+        const id = n.kind === "cat" ? n.cat.id : n.sub.id;
+        return (
+          (isGraph ? graph.byId.get(id) : hexmap.byId.get(id)) ??
+          (isGraph ? graph.center : hexmap.center)
+        );
+      }),
+    [nodes, isGraph, graph, hexmap]
+  );
   const centerPos = view.center;
 
   /** Merkez gövdenin kutusu — haritada daire, petekte altıgen */
@@ -837,21 +921,30 @@ export function EntryNetwork({
                 })
               ) : (
                 <>
-                  {/* Merkez göz — kökte "Kategoriler", içeride bulunulan kalem.
-                      Çevredekilerden parlak durur ki nerede olunduğu belli olsun. */}
-                  <polygon
-                    points={hexCorners(centerPos.x, centerPos.y, HEX_SIZE - 1)}
-                    fill={`${centerColor}26`}
-                    stroke={`${centerColor}80`}
-                    strokeWidth={2}
-                  />
-                  {positions.map((p, i) => (
+                  {/* Kıta — her hücre bir kalem, her ülke bir kategori.
+                      Önce topraklar, sonra üstlerine kalın sınırlar. */}
+                  {hexmap.cells.map((c) => (
                     <polygon
-                      key={i}
-                      points={hexCorners(p.x, p.y, HEX_SIZE - 1)}
-                      fill={`${centerColor}0b`}
-                      stroke={`${centerColor}30`}
-                      strokeWidth={1.25}
+                      key={c.id}
+                      points={hexCorners(c.x, c.y, HEX_SIZE - 1)}
+                      fill={`${terrColor(c.territory)}${hexA(
+                        c.depth === 0 ? 0.22 : 0.2 - Math.min(0.1, 0.04 * (c.depth - 1))
+                      )}`}
+                      stroke={`${terrColor(c.territory)}2e`}
+                      strokeWidth={1}
+                    />
+                  ))}
+                  {hexmap.borders.map((b) => (
+                    <path
+                      key={b.territory || "__core"}
+                      d={b.path}
+                      fill="none"
+                      stroke={`${terrColor(b.territory)}${hexA(
+                        b.territory ? 0.85 : 1
+                      )}`}
+                      strokeWidth={b.territory ? 3 : 3.5}
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
                     />
                   ))}
                 </>
@@ -1009,32 +1102,39 @@ export function EntryNetwork({
                 );
               })}
 
-            {/* Petek düğümleri */}
+            {/* Kıtanın hücreleri — merkez hariç hepsi. Dokun: o ülkeye
+                yakınlaş ve merkeze al. Basılı tut: sırayı değiştir (yalnız
+                başkentler; sıra ancak kardeşler arasında anlamlı). */}
             {!isGraph &&
-              nodes.map((node, i) => {
-                const p = effPositions[i];
-                if (!p) return null;
-                const isCat = node.kind === "cat";
-                const id = nodeId(node);
-                const hasKids =
-                  !isCat && (childrenMap.get(node.sub.id)?.length ?? 0) > 0;
-                return (
-                  <NetNode
-                    key={id}
-                    x={p.x}
-                    y={p.y}
-                    color={colorOf(node)}
-                    icon={isCat ? node.cat.icon : node.sub.icon}
-                    name={isCat ? node.cat.name : node.sub.name}
-                    mods={modsOf(id)}
-                    glow={glowOf(node)}
-                    hasKids={hasKids}
-                    isDragging={drag?.id === id}
-                    onTap={() => drill(node)}
-                    onDragStart={() => startDrag(node, p)}
-                  />
-                );
-              })}
+              hexmap.cells
+                .filter((c) => c.depth > 0)
+                .map((c) => {
+                  const m = tree.meta.get(c.id);
+                  if (!m) return null;
+                  const dragging = drag?.id === c.id;
+                  const p = dragging && dragPos ? dragPos : c;
+                  return (
+                    <NetNode
+                      key={c.id}
+                      x={p.x}
+                      y={p.y}
+                      color={terrColor(c.territory)}
+                      icon={m.icon}
+                      name={m.name}
+                      mods={modsOf(c.id)}
+                      glow={metaGlow(m)}
+                      hasKids={(childrenMap.get(c.id)?.length ?? 0) > 0}
+                      capital={c.depth === 1}
+                      isDragging={dragging}
+                      onTap={m.node ? () => drill(m.node!) : undefined}
+                      onDragStart={
+                        m.node && c.depth === 1
+                          ? () => startDrag(m.node!, p)
+                          : undefined
+                      }
+                    />
+                  );
+                })}
 
             {focusObj == null && !hasNodes && (
               <p className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-muted-foreground">
@@ -1395,6 +1495,7 @@ function NetNode({
   hasKids,
   mods,
   glow,
+  capital,
   isDragging,
   onTap,
   onDragStart,
@@ -1409,15 +1510,18 @@ function NetNode({
   mods: Mod[];
   /** 0–1: sayfadaki en sık kullanılana göre oran */
   glow: number;
+  /** Ülkenin merkez hücresi — zemini daha dolu, öne çıkar */
+  capital?: boolean;
   isDragging: boolean;
-  onTap: () => void;
-  onDragStart: () => void;
+  onTap?: () => void;
+  /** Verilmezse sürüklenmez: sıra yalnız kardeşler arasında anlamlı */
+  onDragStart?: () => void;
 }) {
-  const hold = useHold(onTap, onDragStart);
+  const hold = useHold(onTap ?? noop, onDragStart ?? noop);
 
   return (
     <button
-      {...hold}
+      {...(onDragStart ? hold : { onClick: onTap })}
       data-net-node=""
       className={cn(
         "absolute flex select-none items-center justify-center transition-transform",
@@ -1437,9 +1541,13 @@ function NetNode({
         className="flex h-full w-full flex-col items-center justify-center gap-0.5 px-2"
         style={{
           clipPath: HEX_CLIP,
-          background: `linear-gradient(150deg, ${color}${Math.round(0x26 + 0x3a * glow)
+          // Başkent daha dolu bir zemin alıyor: haritada ülkenin merkezi
+          // hangi hücreyse dokunulacak yer de o
+          background: `linear-gradient(150deg, ${color}${Math.round(
+            (capital ? 0x3e : 0x1c) + 0x3a * glow
+          )
             .toString(16)
-            .padStart(2, "0")}, ${color}0d)`,
+            .padStart(2, "0")}, ${color}${capital ? "1a" : "0a"})`,
           outline: isDragging ? `2px solid ${color}` : undefined,
         }}
       >
