@@ -13,13 +13,16 @@ import {
   Plus,
   Search,
   Sparkles,
+  X,
 } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "@/lib/db";
 import {
   getEntryCountsBySubcategory,
   reorderCategories,
   reorderSubcategories,
 } from "@/lib/db/queries";
+import { MEASURE_KIND_META } from "@/lib/measure-kinds";
 import { CategoryTileCore } from "@/components/structure/category-tile";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { CategoryForm } from "@/components/structure/category-form";
@@ -29,7 +32,7 @@ import { hexCorners, hexLayout, HEX_CLIP } from "@/lib/hex";
 import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
-import type { Category, SubCategory } from "@/types";
+import type { Category, Mod, SubCategory } from "@/types";
 
 export type NetGroup = {
   category: Category;
@@ -110,11 +113,16 @@ export function EntryNetwork({
   groups,
   onSubSelect,
   onCategorySelect,
+  onQuickAdd,
+  onQuickAddCategory,
   onClose,
 }: {
   groups: NetGroup[] | undefined;
   onSubSelect: (sub: SubCategory) => void;
   onCategorySelect: (category: Category) => void;
+  /** Formu açmadan kaydet — "koştum" demek için detay şart değil */
+  onQuickAdd: (sub: SubCategory) => void;
+  onQuickAddCategory: (category: Category) => void;
   onClose: () => void;
 }) {
   const t = useT();
@@ -125,6 +133,8 @@ export function EntryNetwork({
     parentId?: string;
   } | null>(null);
   const [addCatOpen, setAddCatOpen] = useState(false);
+  // Yaprağa varınca açılan ekle modülü — hızlı kayıt mı, detaylı mı
+  const [commitOpen, setCommitOpen] = useState(false);
 
   // Sürükleme: basılı tut → serbest taşı → bırakınca en yakın yuvaya oturur
   const [drag, setDrag] = useState<{ id: string; kind: "cat" | "sub" } | null>(
@@ -173,6 +183,30 @@ export function EntryNetwork({
   // sayfalarda bile en sık kullanılan net biçimde öne çıksın.
   const entryCounts =
     useLiveQuery(() => getEntryCountsBySubcategory(), []) ?? NO_COUNTS;
+
+  /**
+   * Kalem → ona bağlı özellikler. Altıgenlerin altındaki noktalar bundan
+   * çıkıyor: kullanıcı daha içeri girmeden "burada ölçülen şeyler var"ı
+   * görüyor. Atamalar zaten alt ağaca yayıldığı için (attachMod) hedefin
+   * kendi kaydına bakmak yetiyor.
+   */
+  const modsByTarget = useLiveQuery(async () => {
+    const [atts, mods] = await Promise.all([
+      db.categoryModifiers.toArray(),
+      db.mods.toArray(),
+    ]);
+    const modById = new Map(mods.map((m) => [m.id, m]));
+    const map = new Map<string, Mod[]>();
+    for (const a of atts.sort((x, y) => x.order - y.order)) {
+      const m = a.modId ? modById.get(a.modId) : undefined;
+      if (!m) continue;
+      const arr = map.get(a.targetId) ?? [];
+      if (!arr.some((x) => x.id === m.id)) arr.push(m);
+      map.set(a.targetId, arr);
+    }
+    return map;
+  }, []);
+  const modsOf = (id: string): Mod[] => modsByTarget?.get(id) ?? [];
 
   const subtreeCounts = useMemo(() => {
     const all = (groups ?? []).flatMap((g) => g.allSubs);
@@ -409,8 +443,19 @@ export function EntryNetwork({
         : { type: "sub", id: node.sub.id }
     );
   }
+  /** Merkeze dokunmak doğrudan forma atlamıyor; önce ekle modülü açılıyor */
   function addEntryHere() {
+    if (focusObj != null) setCommitOpen(true);
+  }
+  function commitQuick() {
     if (focusObj == null) return;
+    setCommitOpen(false);
+    if (focusObj.type === "cat") onQuickAddCategory(focusObj.cat);
+    else onQuickAdd(focusObj.sub);
+  }
+  function commitDetailed() {
+    if (focusObj == null) return;
+    setCommitOpen(false);
     if (focusObj.type === "cat") onCategorySelect(focusObj.cat);
     else onSubSelect(focusObj.sub);
   }
@@ -443,6 +488,11 @@ export function EntryNetwork({
       : focusObj.type === "cat"
         ? focusObj.cat.icon
         : focusObj.sub.icon;
+  /** Odaktaki kalemde ölçülen özellikler — ekle modülü bunları gösteriyor */
+  const focusMods =
+    focusObj == null
+      ? []
+      : modsOf(focusObj.type === "cat" ? focusObj.cat.id : focusObj.sub.id);
   const hasNodes = nodes.length > 0;
 
   // Liste satırları — ad, renk, çocuk sayısı
@@ -467,7 +517,8 @@ export function EntryNetwork({
   );
 
   return (
-    <div className="flex flex-col">
+    // Tam pencerede ağ kutuyu doldursun diye zincir boyunca yükseklik akıyor
+    <div className="relative flex min-h-0 flex-1 flex-col">
       {/* Yol + eylemler.
           Yol artık düz metin değil: her basamak kendi rengini taşıyan bir çip,
           bulunulan yer dolu, ataları soluk. Uzun ağaçta yatay kaydırılır.
@@ -738,6 +789,7 @@ export function EntryNetwork({
                   icon={isCat ? node.cat.icon : node.sub.icon}
                   name={isCat ? node.cat.name : node.sub.name}
                   hasKids={hasKids}
+                  mods={modsOf(isCat ? node.cat.id : node.sub.id)}
                   glow={glowOf(node)}
                   isDragging={drag?.id === id}
                   onTap={() => drill(node)}
@@ -753,6 +805,91 @@ export function EntryNetwork({
             )}
           </div>
           </CanvasViewport>
+        </>
+      )}
+
+      {/* ── Ekle modülü ────────────────────────────────────────────────
+          Merkez altıgene dokununca açılır. Asli eylem TEK ve belirgin:
+          "Ekle". Ölçmek isteyen "Detay ekle"ye gidiyor — orada değerler,
+          özellik ekleme ve yeni özellik yaratma birlikte duruyor, kullanıcı
+          uygulamanın mantığını oradan öğreniyor. */}
+      {commitOpen && focusObj != null && (
+        <>
+          <div
+            className="absolute inset-0 z-30 bg-black/50 backdrop-blur-[1px]"
+            onClick={() => setCommitOpen(false)}
+          />
+          <div className="animate-in absolute inset-x-0 bottom-0 z-40 rounded-t-3xl border-t border-white/10 bg-background px-5 pb-6 pt-4">
+            <div className="mb-4 flex items-center gap-3">
+              <span
+                className="flex h-11 w-11 shrink-0 items-center justify-center"
+                style={{
+                  clipPath: HEX_CLIP,
+                  background: `linear-gradient(150deg, ${centerColor}9e, ${centerColor}3a)`,
+                }}
+              >
+                <SymbolIcon name={focusIcon} size={20} style={{ color: "#fff" }} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-base font-semibold leading-tight">
+                  {focusName}
+                </div>
+                <div className="text-[11px] leading-tight text-muted-foreground">
+                  {focusMods.length > 0
+                    ? focusMods.map((m) => m.name).join(" · ")
+                    : t("entry.noFeaturesYet")}
+                </div>
+              </div>
+              <button
+                onClick={() => setCommitOpen(false)}
+                aria-label={t("action.close")}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/8 text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Ölçülen şeyler — dokunulmadan da görünsün ki "sadece aktiviteyi
+                değil, ona ait özellikleri de tutuyorum" fark edilsin */}
+            {focusMods.length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-1.5">
+                {focusMods.map((m) => {
+                  const Icon = MEASURE_KIND_META[m.valueType ?? "number"].icon;
+                  return (
+                    <span
+                      key={m.id}
+                      className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1 text-[11px] text-muted-foreground"
+                    >
+                      <Icon className="h-3 w-3" style={{ color: centerColor }} />
+                      {m.name}
+                      {m.unit ? (
+                        <span className="text-muted-foreground/50">{m.unit}</span>
+                      ) : null}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            <button
+              onClick={commitQuick}
+              className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-semibold text-white transition-transform active:scale-[0.98]"
+              style={{
+                background: `linear-gradient(150deg, ${centerColor}, ${centerColor}c4)`,
+                boxShadow: `0 8px 24px -10px ${centerColor}`,
+              }}
+            >
+              <Plus className="h-5 w-5" strokeWidth={2.75} />
+              {t("entry.addNow")}
+            </button>
+            <button
+              onClick={commitDetailed}
+              className="mt-2 flex h-11 w-full items-center justify-center gap-1.5 rounded-2xl border border-border bg-card text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {t("entry.addWithDetail")}
+            </button>
+          </div>
         </>
       )}
 
@@ -974,6 +1111,7 @@ function NetNode({
   icon,
   name,
   hasKids,
+  mods,
   glow,
   isDragging,
   onTap,
@@ -985,6 +1123,8 @@ function NetNode({
   icon?: string;
   name: string;
   hasKids: boolean;
+  /** Bu kalemde ölçülen özellikler — adın altında nokta olarak çıkar */
+  mods: Mod[];
   /** 0–1: sayfadaki en sık kullanılana göre oran */
   glow: number;
   isDragging: boolean;
@@ -1069,6 +1209,24 @@ function NetNode({
           )}
         >
           {name}
+        </span>
+        {/* Ölçülen özellikler — kalemin içine girmeden görünür. İleride kovan
+            haritasında ortak özellikler bu noktalardan ışık yollarıyla
+            birbirine bağlanacak; şimdiden aynı dil kuruluyor. */}
+        <span className="flex h-1.5 items-center gap-[3px]">
+          {mods.slice(0, 5).map((m) => (
+            <span
+              key={m.id}
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: color, opacity: 0.85 }}
+            />
+          ))}
+          {mods.length > 5 && (
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: color, opacity: 0.35 }}
+            />
+          )}
         </span>
       </span>
       {hasKids && (

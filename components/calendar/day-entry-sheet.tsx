@@ -176,6 +176,38 @@ export function DayEntrySheet({
     handleSubSelect(rootSub);
   }
 
+  /**
+   * Değersiz kayıt — "koştum" demek için form açmaya gerek yok.
+   * Uygulamanın vaadi ölçmek ama ölçmeyi ZORUNLU kılmak girdi eklemeyi
+   * yavaşlatıyordu: kullanıcı önce üç boş alan görüyor, sonra kaydediyordu.
+   * Özellik doldurmak isteyen "Detay ekle"ye gidiyor.
+   */
+  async function handleQuickAdd(sub: SubCategory) {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const ts = new Date(defaultOccurredAt()).getTime();
+      if (activity) {
+        await ensureActivity({ id: activity.id, name: activity.name, occurredAt: ts });
+      }
+      await createEntry({
+        subcategoryId: sub.id,
+        typeValues: [],
+        occurredAt: ts,
+        activityId: activity?.id,
+      });
+      onClose();
+      router.push(`/calendar/${date}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleQuickAddCategory(category: Category) {
+    const rootSub = await getOrCreateCategoryRootSub(category.id);
+    await handleQuickAdd(rootSub);
+  }
+
   // vals: valueKey(mod) → değer. Değerler havuzdaki atoma (modId) bağlanır.
   async function persistEntry(
     subId: string,
@@ -319,21 +351,19 @@ export function DayEntrySheet({
         onClick={onClose}
       />
 
-      {/* Sheet */}
+      {/* Girdi yüzeyi — TAM pencere.
+          Yarım sheet'te ağ kendi kutusuna sığmıyordu: kökte ekranın üçte biri
+          boş kalıyor, yaprakta tek bir altıgen koca siyah alanda yüzüyordu.
+          Girdi eklemek uygulamanın asli eylemi; en çok yeri o hak ediyor. */}
       <div
         className={cn(
-          "fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[390px]",
-          "flex flex-col rounded-t-3xl bg-background border-t border-white/8",
-          "shadow-[0_-8px_40px_rgba(0,0,0,0.6)]",
+          "fixed inset-y-0 z-50 left-1/2 -translate-x-1/2 w-full max-w-[390px]",
+          "flex flex-col bg-background",
           "transition-transform duration-300 ease-out",
-          "max-h-[80vh]",
           open ? "translate-y-0" : "translate-y-full"
         )}
       >
-        {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1 shrink-0">
-          <div className="h-[3px] w-10 rounded-full bg-white/15" />
-        </div>
+        <div className="pt-safe shrink-0" />
 
         {step.type === "activity-name" ? (
           <ActivityNameStep
@@ -349,6 +379,8 @@ export function DayEntrySheet({
             groups={groups}
             onSubSelect={handleSubSelect}
             onCategorySelect={handleCategorySelect}
+            onQuickAdd={handleQuickAdd}
+            onQuickAddCategory={handleQuickAddCategory}
             onClose={onClose}
             activity={activity ? { name: activity.name, count: activityCount } : null}
           />
@@ -474,6 +506,8 @@ function PickStep({
   groups,
   onSubSelect,
   onCategorySelect,
+  onQuickAdd,
+  onQuickAddCategory,
   onClose,
   activity,
 }: {
@@ -482,6 +516,9 @@ function PickStep({
     | undefined;
   onSubSelect: (sub: SubCategory) => void;
   onCategorySelect: (category: Category) => void;
+  /** Formu hiç açmadan değersiz kayıt */
+  onQuickAdd: (sub: SubCategory) => void;
+  onQuickAddCategory: (category: Category) => void;
   onClose: () => void;
   /** Aktivite akışında başlık bandı + Bitti butonu */
   activity?: { name: string; count: number } | null;
@@ -532,7 +569,7 @@ function PickStep({
 
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto overscroll-contain px-5 pb-10"
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5 pb-6"
       >
         {!groups || groups.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-12 text-center">
@@ -545,6 +582,8 @@ function PickStep({
             groups={groups}
             onSubSelect={onSubSelect}
             onCategorySelect={onCategorySelect}
+            onQuickAdd={onQuickAdd}
+            onQuickAddCategory={onQuickAddCategory}
             onClose={onClose}
           />
         )}

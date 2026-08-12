@@ -5,8 +5,15 @@ import { Locate } from "lucide-react";
 
 /** Sığdırılmış hale göre en çok bu kadar yakınlaşılır */
 const MAX_ZOOM = 2.5;
-/** Pencere yüksekliği — telefonda sheet'in geri kalanına yer bırakır */
-const FRAME_H = 360;
+/** Pencere en az bu kadar yer kaplar; üstü kabın verdiği alandır */
+const MIN_FRAME_H = 300;
+/**
+ * Açılış ölçeği en çok bu kadar BÜYÜTÜR. Eskiden sığdırma yalnız küçültüyordu
+ * (`min(1, …)`): dört altıgenlik bir sayfa tam pencerede ortada ufacık kalıyor,
+ * altı bomboş duruyordu. Az düğümlü sayfalar artık kutuyu dolduruyor; sınır
+ * olmasa tek düğümlü yaprakta altıgen ekranı yutardı.
+ */
+const MAX_FIT = 2.2;
 
 /**
  * Ağın gezinilebilir penceresi.
@@ -34,7 +41,7 @@ export function CanvasViewport({
   children: React.ReactNode;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
-  const [frame, setFrame] = useState({ w: 0, h: FRAME_H });
+  const [frame, setFrame] = useState({ w: 0, h: MIN_FRAME_H });
   /** Sığdırılmış hale göre kaç kat — 1 = açılış hali */
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -61,7 +68,7 @@ export function CanvasViewport({
   /** Şekli pencereye tam sığdıran ölçek — asla büyütmez, yalnız küçültür */
   const fit =
     frame.w > 0 && width > 0
-      ? Math.min(1, frame.w / width, frame.h / height)
+      ? Math.min(MAX_FIT, frame.w / width, frame.h / height)
       : 1;
   const scale = fit * zoom;
 
@@ -152,7 +159,7 @@ export function CanvasViewport({
   const moved = zoom !== 1 || pan.x !== 0 || pan.y !== 0;
 
   return (
-    <div className="relative">
+    <div className="relative flex min-h-0 flex-1 flex-col">
       <div
         ref={frameRef}
         onPointerDown={onDown}
@@ -160,8 +167,8 @@ export function CanvasViewport({
         onPointerUp={onUp}
         onPointerCancel={onUp}
         onWheel={(e) => zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12)}
-        className="relative overflow-hidden overscroll-contain touch-none"
-        style={{ height: FRAME_H }}
+        className="relative min-h-0 flex-1 overflow-hidden overscroll-contain touch-none"
+        style={{ minHeight: MIN_FRAME_H }}
       >
         {/* Şekil pencerenin ortasında durur; ölçek ve kaydırma onun üstüne
             biner — böylece "ortala" gerçekten başlangıç haline döner */}
