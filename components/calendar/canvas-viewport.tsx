@@ -100,13 +100,23 @@ export function CanvasViewport({
   };
 
   // ── Sürükleme + iki parmakla yakınlaştırma ────────────────────────────
-  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  // Petek haritasında hücreler tuvalin tamamını kaplıyor; parmağın boş bir
+  // yere denk gelmesi neredeyse imkânsız. O yüzden jest, düğümlerin üstünde
+  // de başlıyor: iki parmak her zaman yakınlaştırır, tek parmak ise ancak
+  // HEMEN kaydırmaya başlarsa (basılı tutup sürükleme düğümün kendi
+  // işi — sıra değiştirme — ve 350ms sonra devreye giriyor).
+  const pointers = useRef(
+    new Map<number, { x: number; y: number; onNode: boolean }>()
+  );
   const start = useRef<{
     pan: { x: number; y: number };
     zoom: number;
     dist: number;
     mid: { x: number; y: number };
+    at: number;
   } | null>(null);
+  /** Kaydırma oldu mu — olduysa parmağı kaldırınca tıklama sayılmamalı */
+  const panned = useRef(false);
 
   const midOf = () => {
     const pts = [...pointers.current.values()];
@@ -122,20 +132,33 @@ export function CanvasViewport({
   };
 
   const onDown = (e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).closest("[data-net-node]")) return;
-    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    e.currentTarget.setPointerCapture(e.pointerId);
+    const onNode = !!(e.target as HTMLElement).closest("[data-net-node]");
+    pointers.current.set(e.pointerId, {
+      x: e.clientX,
+      y: e.clientY,
+      onNode,
+    });
+    // Düğümün üstündeki parmağı YAKALAMIYORUZ: yakalarsak dokunma ve basılı
+    // tutma düğüme hiç ulaşmaz. Olaylar zaten buraya kabarıyor.
+    if (!onNode) e.currentTarget.setPointerCapture(e.pointerId);
+    if (pointers.current.size === 1) panned.current = false;
     start.current = {
       pan,
       zoom,
       dist: pointers.current.size === 2 ? distOf() : 0,
       mid: midOf(),
+      at: Date.now(),
     };
   };
 
   const onMove = (e: React.PointerEvent) => {
     if (!pointers.current.has(e.pointerId) || !start.current) return;
-    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const prev = pointers.current.get(e.pointerId)!;
+    pointers.current.set(e.pointerId, {
+      x: e.clientX,
+      y: e.clientY,
+      onNode: prev.onNode,
+    });
     const g = start.current;
     const mid = midOf();
     const moved = { x: g.pan.x + mid.x - g.mid.x, y: g.pan.y + mid.y - g.mid.y };
@@ -144,15 +167,23 @@ export function CanvasViewport({
       const next = Math.max(1, Math.min(MAX_ZOOM, g.zoom * (distOf() / g.dist)));
       setZoom(next);
       setPan(clampAt(moved, fit * next));
+      panned.current = true;
       return;
     }
+    const only = [...pointers.current.values()][0];
+    const far = Math.abs(moved.x - g.pan.x) + Math.abs(moved.y - g.pan.y) > 6;
+    // Düğümden başlayan tek parmak: hareket geç başladıysa bu bir basılı
+    // tutma, tuvali kaydırmıyoruz
+    if (only?.onNode && !panned.current && (!far || Date.now() - g.at > 300))
+      return;
+    if (far) panned.current = true;
     setPan(clamp(moved));
   };
 
   const onUp = (e: React.PointerEvent) => {
     pointers.current.delete(e.pointerId);
     start.current = pointers.current.size
-      ? { pan, zoom, dist: 0, mid: midOf() }
+      ? { pan, zoom, dist: 0, mid: midOf(), at: Date.now() }
       : null;
   };
 
@@ -166,6 +197,14 @@ export function CanvasViewport({
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
+        // Kaydırdıktan sonra parmağı bir hücrenin üstünde kaldırmak o
+        // hücreye girmek anlamına gelmemeli
+        onClickCapture={(e) => {
+          if (!panned.current) return;
+          panned.current = false;
+          e.stopPropagation();
+          e.preventDefault();
+        }}
         onWheel={(e) => zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12)}
         className="relative min-h-0 flex-1 overflow-hidden overscroll-contain touch-none"
         style={{ minHeight: MIN_FRAME_H }}

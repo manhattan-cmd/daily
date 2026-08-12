@@ -9,12 +9,16 @@
  * Harcamalar'ın toprağı" tek bakışta okunuyor.
  *
  * Kurallar:
+ *  - Tahta DELİKSİZ. Hücreler merkezden dışa sarmal sırayla dolduruluyor ve
+ *    tam kalem sayısı kadar hücre kullanılıyor; yani içeride boş kalan bir
+ *    göze asla düşülmüyor, kıta tek parça.
  *  - Merkez hücre kökün (bulunulan yer).
- *  - Her çocuk bir başkent alıyor; ilk altısı merkeze bitişik halkada,
- *    sonrakiler dışarıda. Başkentler eşit açılara oturuyor.
- *  - Ülkeler başkentten büyüyor: sırayla, herkes bir hücre alarak. Bir ülke
- *    kendi alt ağacı kadar hücre alıyor — ne eksik ne fazla — ve her yeni
- *    hücre kendi toprağına bitişik seçiliyor, yani ülke hep tek parça.
+ *  - Her çocuk bir ülke: kendi alt ağacı kadar hücre, ne eksik ne fazla.
+ *    Ülkeler merkezden çıkan açı dilimlerine göre paylaşılıyor, o yüzden
+ *    her biri tek parça bir bölge oluyor.
+ *  - BAŞKENT ülkenin ortasındaki hücre (medoid): üst kalem hep altlarının
+ *    merkezinde durur. Önce başkent seçilip çevresi doldurulmuyor, tam
+ *    tersi — önce toprak belli oluyor, sonra ortası başkent ilan ediliyor.
  *  - Kalemler ülkenin içine yerleşirken çocuk, mümkünse anasının komşusuna
  *    konuyor; ağacın şekli haritada da duruyor.
  *
@@ -95,121 +99,192 @@ function cellsWithin(R: number): [number, number][] {
   return out;
 }
 
-/** İki açı arasındaki en kısa fark */
-function angDiff(a: number, b: number): number {
-  let d = a - b;
-  while (d > Math.PI) d -= 2 * Math.PI;
-  while (d < -Math.PI) d += 2 * Math.PI;
-  return Math.abs(d);
-}
-
 export function hexMapLayout(root: HexSeed, size: number): HexMap {
   const kids = root.children ?? [];
   const demand = kids.map(countAll);
   const total = 1 + demand.reduce((a, b) => a + b, 0);
 
-  // Yeterli halka: 1 + 3R(R+1) hücre. Büyümeye pay bırakılıyor, dar bir
-  // tahtada ülkeler birbirini kilitleyebiliyor.
+  // ── Tahta: merkezden dışa sarmal, tam kalem sayısı kadar hücre ──────────
+  // Deliksizliğin kaynağı bu: hücreler halka halka doluyor, bir dış hücre
+  // ancak bütün iç hücreler dolduktan sonra kullanılıyor.
   let R = 1;
   while (1 + 3 * R * (R + 1) < total) R++;
-  let plan = attempt(R + 1);
-  for (let extra = 2; !plan && extra <= 6; extra++) plan = attempt(R + extra);
+  /** 0 = tam yukarı, saat yönünde artan açı (ekran koordinatı: y aşağı) */
+  const angOf = (q: number, r: number) => {
+    const p = toPx(q, r, 1);
+    return (Math.atan2(p.y, p.x) + Math.PI * 2.5) % (Math.PI * 2);
+  };
+  const board = cellsWithin(R)
+    .sort((a, b) => {
+      const d = hexDist(a[0], a[1]) - hexDist(b[0], b[1]);
+      return Math.abs(d) > 1e-9 ? d : angOf(a[0], a[1]) - angOf(b[0], b[1]);
+    })
+    .slice(0, total);
 
-  /** Başkentleri koy, ülkeleri büyüt. Tahta yetmezse null. */
-  function attempt(rings: number) {
-    const grid = cellsWithin(rings);
-    const owner = new Map<string, number>();
-    owner.set(key(0, 0), -1);
+  // ── Bölüşüm: açı sırasına dizip ihtiyaç kadar bloklara kesmek ──────────
+  // Hücreler açıya göre diziliyor (eşitlikte içteki önce) ve sıra, ülkelerin
+  // alt ağaç boyu kadar ardışık bloklara kesiliyor. Blok = bir açı dilimi,
+  // dilim de merkezden dışa uzanan bitişik bir bölge; ülke kendiliğinden tek
+  // parça oluyor. İki yol denendi ve ikisi de ülkeyi bölüyordu: hücreyi tek
+  // tek "en yakın ihtiyaçlı ülkeye" vermek, ve halka halka sayıyla
+  // bölüştürmek (halkaların hücre sayısı farklı olduğu için dıştaki yay
+  // içtekinin üstüne denk gelmiyor).
+  const sorted = board
+    .filter(([q, r]) => !(q === 0 && r === 0))
+    .sort((a, b) => {
+      const d = angOf(a[0], a[1]) - angOf(b[0], b[1]);
+      return Math.abs(d) > 1e-9 ? d : hexDist(a[0], a[1]) - hexDist(b[0], b[1]);
+    })
+    .map(([q, r]) => key(q, r));
 
-    // Başkentler HEPSİNİN sığdığı en küçük halkaya diziliyor. Altıdan çok
-    // kategoride bir kısmı içeri bir kısmı dışarı konunca içerideki ülke
-    // kuşatılıp büyüyemiyordu; hepsi aynı halkada olunca herkesin iki yanı
-    // ve dışı açık kalıyor, iç halkayı da büyürken kendileri dolduruyor.
-    let capRing = 1;
-    while (6 * capRing < kids.length) capRing++;
-    const capitals: string[] = [];
-    for (let i = 0; i < kids.length; i++) {
-      const want = -Math.PI / 2 + (2 * Math.PI * i) / kids.length;
-      let best: string | null = null;
-      let bestScore = Infinity;
-      for (const [q, r] of grid) {
-        const k = key(q, r);
-        if (owner.has(k)) continue;
-        const ring = hexDist(q, r);
-        if (ring === 0) continue;
-        const p = toPx(q, r, 1);
-        // Başkent halkası baskın; o halkada istenen açıya en yakın hücre
-        const score =
-          Math.abs(ring - capRing) * 10 + angDiff(Math.atan2(p.y, p.x), want);
-        if (score < bestScore) {
-          bestScore = score;
-          best = k;
-        }
-      }
-      if (!best) return null;
-      owner.set(best, i);
-      capitals.push(best);
-    }
-
-    const sets = capitals.map((k) => new Set([k]));
-    const need = demand.map((d) => d - 1);
-    let progress = true;
-    while (need.some((n) => n > 0) && progress) {
-      progress = false;
-      for (let i = 0; i < kids.length; i++) {
-        if (need[i] <= 0) continue;
-        const cap = capitals[i].split(",").map(Number);
-        const capAngle = Math.atan2(
-          toPx(cap[0], cap[1], 1).y,
-          toPx(cap[0], cap[1], 1).x
-        );
-        let best: string | null = null;
-        let bestScore = Infinity;
-        for (const ck of sets[i]) {
-          const [cq, cr] = ck.split(",").map(Number);
-          for (const [dq, dr] of DIRS) {
-            const q = cq + dq;
-            const r = cr + dr;
-            const k = key(q, r);
-            if (owner.has(k) || hexDist(q, r) > rings) continue;
-            const p = toPx(q, r, 1);
-            // Başkente yakın, başkentin yönünden sapmayan hücre önce:
-            // ülkeler dışa doğru düzgün açılıyor, birbirine dolanmıyor
-            const score =
-              hexDist(q - cap[0], r - cap[1]) * 4 +
-              angDiff(Math.atan2(p.y, p.x), capAngle) * 2 +
-              hexDist(q, r) * 0.2;
-            if (score < bestScore - 1e-9) {
-              bestScore = score;
-              best = k;
-            }
+  // Kesim NEREDEN başlayacak? Aynı açıdaki hücreler merkezden dışa bir ışın
+  // oluşturuyor; blok sınırı böyle bir ışının ortasına düşerse tek hücre
+  // ülkesinden kopabiliyor. Liste açıca çembersel olduğu için başlangıcı
+  // kaydırmak bambaşka bir kesim veriyor: hepsi denenip ülkeleri tek parça
+  // bırakan ilk kesim seçiliyor.
+  const nbrs = (k: string) => {
+    const [q, r] = k.split(",").map(Number);
+    return DIRS.map(([dq, dr]) => key(q + dq, r + dr));
+  };
+  const componentsOf = (set: Set<string>): Set<string>[] => {
+    const left = new Set(set);
+    const out: Set<string>[] = [];
+    while (left.size) {
+      const start = [...left][0];
+      const comp = new Set([start]);
+      const queue = [start];
+      left.delete(start);
+      while (queue.length) {
+        const cur = queue.shift()!;
+        for (const nb of nbrs(cur))
+          if (left.has(nb)) {
+            left.delete(nb);
+            comp.add(nb);
+            queue.push(nb);
           }
-        }
-        if (!best) {
-          // Ülke kuşatıldı: bitişik boş hücresi kalmadı. Bitişiklik güzellik,
-          // ama kalemin haritada YER BULMASI şart — en yakın boş hücreye
-          // taşınıyor. Tahta yeterince genişken bu duruma düşülmüyor.
-          let far = Infinity;
-          const [cq, cr] = capitals[i].split(",").map(Number);
-          for (const [q, r] of grid) {
-            const k = key(q, r);
-            if (owner.has(k)) continue;
-            const d = hexDist(q - cq, r - cr);
-            if (d < far) {
-              far = d;
-              best = k;
-            }
-          }
-          if (!best) continue;
-        }
-        owner.set(best, i);
-        sets[i].add(best);
-        need[i]--;
-        progress = true;
       }
+      out.push(comp);
     }
-    return need.some((n) => n > 0) ? null : { owner, sets, capitals };
+    return out;
+  };
+  const onePiece = (set: Set<string>) =>
+    set.size === 0 || componentsOf(set).length === 1;
+
+  const cut = (offset: number) => {
+    const sets: Set<string>[] = kids.map(() => new Set<string>());
+    let at = 0;
+    kids.forEach((_, i) => {
+      for (let t = 0; t < demand[i] && at < sorted.length; t++, at++)
+        sets[i].add(sorted[(offset + at) % sorted.length]);
+    });
+    return { sets, broken: sets.filter((s) => !onePiece(s)).length };
+  };
+  let sets = cut(0).sets;
+  let bestBroken = cut(0).broken;
+  for (let off = 0; bestBroken > 0 && off < sorted.length; off++) {
+    const cand = cut(off);
+    if (cand.broken < bestBroken) {
+      bestBroken = cand.broken;
+      sets = cand.sets;
+    }
   }
+  const owner = new Map<string, number>();
+  owner.set(key(0, 0), -1);
+  sets.forEach((set, i) => {
+    for (const k of set) owner.set(k, i);
+  });
+
+  // ── Onarım: kopan hücreyi komşu ülkeyle takas et ───────────────────────
+  // Açı kesimi çoğu tahtada tek parça ülkeler veriyor, ama dilimler çok
+  // inceldiğinde (yirmi kategori gibi) aynı açıdaki "ışın" iki bloğa
+  // bölünüyor ve bir hücre ülkesinden kopuyor. Burası onu yerine oturtuyor:
+  // kopan hücre komşu ülkeye, o ülkenin ana parçaya değen bir hücresi de
+  // buraya geçiyor. Takas ancak İKİ ülke de tek parça kalıyorsa yapılıyor.
+  /** n elemanlı alt kümeler (küçük listeler için; arama tavanı var) */
+  const combos = (list: string[], n: number): string[][] => {
+    if (n === 0) return [[]];
+    const out: string[][] = [];
+    for (let i = 0; i <= list.length - n && out.length < 400; i++)
+      for (const rest of combos(list.slice(i + 1), n - 1)) {
+        out.push([list[i], ...rest]);
+        if (out.length >= 400) break;
+      }
+    return out;
+  };
+
+  for (let round = 0; round < 40; round++) {
+    let fixed = false;
+    for (let i = 0; i < kids.length && !fixed; i++) {
+      const comps = componentsOf(sets[i]).sort((a, b) => b.size - a.size);
+      if (comps.length <= 1) continue;
+      const main = comps[0];
+      for (let ci = 1; ci < comps.length && !fixed; ci++) {
+        const stray = [...comps[ci]];
+        if (stray.length > 4) continue;
+        // Kopan parçanın komşusu olan ülkeler; parça tümüyle onlardan birine
+        // geçiyor, karşılığında ana parçaya değen hücrelerini veriyorlar
+        const around = new Set<number>();
+        for (const s of stray)
+          for (const nb of nbrs(s)) {
+            const j = owner.get(nb);
+            if (j !== undefined && j >= 0 && j !== i) around.add(j);
+          }
+        for (const j of around) {
+          const cands = [...sets[j]]
+            .filter((k) => nbrs(k).some((x) => main.has(x)))
+            .sort()
+            .slice(0, 12);
+          for (const give of combos(cands, stray.length)) {
+            const si = new Set(sets[i]);
+            const sj = new Set(sets[j]);
+            for (const s of stray) {
+              si.delete(s);
+              sj.add(s);
+            }
+            for (const g of give) {
+              sj.delete(g);
+              si.add(g);
+            }
+            if (!onePiece(si) || !onePiece(sj)) continue;
+            sets[i] = si;
+            sets[j] = sj;
+            for (const s of stray) owner.set(s, j);
+            for (const g of give) owner.set(g, i);
+            fixed = true;
+            break;
+          }
+          if (fixed) break;
+        }
+      }
+    }
+    if (!fixed) break;
+  }
+
+  // ── Başkent: ülkenin ORTASINDAKİ hücre ─────────────────────────────────
+  // Üst kalem hep altlarının merkezinde dursun diye toprak belli olduktan
+  // sonra medoid seçiliyor: kendi ülkesinin bütün hücrelerine uzaklığı en
+  // küçük olan hücre. Eskiden başkent kenarda kalıyordu, çünkü ülke ondan
+  // dışa doğru büyüyordu.
+  const capitals = sets.map((set) => {
+    const list = [...set].sort();
+    let best = list[0];
+    let bestScore = Infinity;
+    for (const k of list) {
+      const [q, r] = k.split(",").map(Number);
+      let sum = 0;
+      for (const o of list) {
+        const [oq, or_] = o.split(",").map(Number);
+        sum += hexDist(q - oq, r - or_);
+      }
+      // Eşitlikte merkeze yakın olan: kıtanın içine bakan taraf
+      const score = sum * 10 + hexDist(q, r);
+      if (score < bestScore) {
+        bestScore = score;
+        best = k;
+      }
+    }
+    return best;
+  });
 
   // ── Kalemleri hücrelere otur ───────────────────────────────────────────
   const cellOf = new Map<string, string>();
@@ -263,12 +338,12 @@ export function hexMapLayout(root: HexSeed, size: number): HexMap {
   };
 
   kids.forEach((kid, i) => {
-    const cap = plan?.capitals[i];
+    const cap = capitals[i];
     // Başkenti olmayan ülke olmamalı; olursa o dal haritaya girmiyor ama
     // ekran da çökmüyor (eskiden burada tanımsız hücre patlıyordu)
     if (!cap) return;
     put(kid.id, cap);
-    placeSub(kid, plan!.sets[i] ?? new Set<string>());
+    placeSub(kid, sets[i] ?? new Set<string>());
   });
 
   // ── Piksel ve kutu ─────────────────────────────────────────────────────

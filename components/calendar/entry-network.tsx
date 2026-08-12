@@ -934,6 +934,20 @@ export function EntryNetwork({
                       strokeWidth={1}
                     />
                   ))}
+                  {/* Başkent nişanı — ülkenin ortasındaki hücrede içeriden
+                      ikinci bir çerçeve. Toprağın merkezi orası; dokunulacak
+                      yer de o olduğu için gözden kaçmamalı. */}
+                  {hexmap.cells
+                    .filter((c) => c.depth === 1)
+                    .map((c) => (
+                      <polygon
+                        key={`cap${c.id}`}
+                        points={hexCorners(c.x, c.y, HEX_SIZE - 8)}
+                        fill="none"
+                        stroke={`${terrColor(c.territory)}${hexA(0.75)}`}
+                        strokeWidth={1.75}
+                      />
+                    ))}
                   {hexmap.borders.map((b) => (
                     <path
                       key={b.territory || "__core"}
@@ -1555,15 +1569,22 @@ function NetNode({
           color={color}
           icon={icon}
           hasKids={hasKids}
+          size={capital ? 26 : 19}
         />
         <span
           className={cn(
-            "line-clamp-2 w-full text-center text-[9px] leading-tight",
-            glow > 0.5
-              ? "font-semibold text-foreground"
-              : glow > 0.15
-                ? "font-medium text-foreground/80"
-                : "font-medium text-muted-foreground"
+            "line-clamp-2 w-full text-center leading-tight",
+            // Başkent adı daha iri ve beyaz: ülkenin merkezi belli olsun
+            capital
+              ? "text-[10px] font-semibold text-foreground"
+              : "text-[9px]",
+            capital
+              ? ""
+              : glow > 0.5
+                ? "font-semibold text-foreground"
+                : glow > 0.15
+                  ? "font-medium text-foreground/80"
+                  : "font-medium text-muted-foreground"
           )}
         >
           {name}

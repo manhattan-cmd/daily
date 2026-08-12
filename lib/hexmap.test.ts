@@ -50,10 +50,48 @@ describe("hexMapLayout", () => {
     expect(c.y).toBeCloseTo(m.center.y, 5);
   });
 
-  it("altıya kadar kategori merkeze bitişik halkada", () => {
-    const core = m.byId.get("root")!;
-    for (const id of ["harcamalar", "hobiler", "beslenme", "spor"])
-      expect(adjacent(m.byId.get(id)!, core)).toBe(true);
+  it("başkent ülkesinin ORTASINDA — üst kalem hep altlarının merkezinde", () => {
+    const cost = (c: { q: number; r: number }, own: typeof m.cells) =>
+      own.reduce(
+        (s, o) =>
+          s +
+          (Math.abs(c.q - o.q) +
+            Math.abs(c.r - o.r) +
+            Math.abs(c.q - o.q + c.r - o.r)) /
+            2,
+        0
+      );
+    for (const t of new Set(m.cells.map((c) => c.territory).filter(Boolean))) {
+      const own = m.cells.filter((c) => c.territory === t);
+      const cap = m.byId.get(t)!;
+      // Başkentin kendi hücrelerine toplam uzaklığı en küçük olan hücre
+      expect(cost(cap, own)).toBe(Math.min(...own.map((c) => cost(c, own))));
+    }
+  });
+
+  it("tahta deliksiz — bir hücre doluysa daha içteki her hücre de dolu", () => {
+    const occ = new Set(m.cells.map((c) => `${c.q},${c.r}`));
+    const hd = (q: number, r: number) =>
+      (Math.abs(q) + Math.abs(r) + Math.abs(q + r)) / 2;
+    const maxRing = Math.max(...m.cells.map((c) => hd(c.q, c.r)));
+    for (let ring = 0; ring < maxRing; ring++)
+      for (let q = -ring; q <= ring; q++)
+        for (let r = Math.max(-ring, -q - ring); r <= Math.min(ring, -q + ring); r++)
+          if (hd(q, r) === ring) expect(occ.has(`${q},${r}`)).toBe(true);
+  });
+
+  it("kıta tek parça — her hücre bir diğerine bitişik", () => {
+    const seen = new Set([m.cells[0]]);
+    const queue = [m.cells[0]];
+    while (queue.length) {
+      const cur = queue.shift()!;
+      for (const o of m.cells)
+        if (!seen.has(o) && adjacent(cur, o)) {
+          seen.add(o);
+          queue.push(o);
+        }
+    }
+    expect(seen.size).toBe(m.cells.length);
   });
 
   it("ülke kendi alt ağacı kadar hücre alıyor", () => {
@@ -164,6 +202,15 @@ describe("hexMapLayout", () => {
     expect(new Set(l.cells.map((c) => `${c.q},${c.r}`)).size).toBe(
       l.cells.length
     );
+    // Kıta deliksiz
+    const occ = new Set(l.cells.map((c) => `${c.q},${c.r}`));
+    const hd = (q: number, r: number) =>
+      (Math.abs(q) + Math.abs(r) + Math.abs(q + r)) / 2;
+    const maxRing = Math.max(...l.cells.map((c) => hd(c.q, c.r)));
+    for (let ring = 0; ring < maxRing; ring++)
+      for (let q = -ring; q <= ring; q++)
+        for (let r = Math.max(-ring, -q - ring); r <= Math.min(ring, -q + ring); r++)
+          if (hd(q, r) === ring) expect(occ.has(`${q},${r}`)).toBe(true);
     // Her ülke tek parça kalıyor
     for (const t of new Set(l.cells.map((c) => c.territory))) {
       const own = l.cells.filter((c) => c.territory === t);
