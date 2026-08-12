@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import {
-  Brain,
   ChevronRight,
   Folder,
   FolderOpen,
@@ -31,10 +30,7 @@ import { HScroll } from "@/components/ui/h-scroll";
 import { CanvasViewport } from "@/components/calendar/canvas-viewport";
 import { hexCorners, hexLayout, HEX_CLIP } from "@/lib/hex";
 import {
-  blobPath,
   graphLayout,
-  ribbonPath,
-  spinePaths,
   type GraphSeed,
   type PlacedNode,
 } from "@/lib/graph";
@@ -79,7 +75,7 @@ type GraphMeta = {
 };
 
 /** Yerleşim — düğüm sayısına göre otomatik seçilir, kullanıcı değiştirebilir */
-type Layout = "graph" | "bio" | "poly" | "list";
+type Layout = "graph" | "poly" | "list";
 
 /** Sayım gelmeden önceki sabit boş harita — memo'ları her render'da bozmasın */
 const NO_COUNTS: ReadonlyMap<string, number> = new Map();
@@ -97,7 +93,6 @@ function autoLayout(n: number): Layout {
 function normalizeLayout(v: unknown): Layout | undefined {
   if (v === "list") return "list";
   if (v === "graph" || v === "neuron") return "graph";
-  if (v === "bio") return "bio";
   if (v === "poly" || v === "spiral") return "poly";
   return undefined;
 }
@@ -109,7 +104,6 @@ const LAYOUT_OPTIONS: {
   labelKey: MessageKey;
 }[] = [
   { key: "graph", icon: Sparkles, labelKey: "tree.graphView" },
-  { key: "bio", icon: Brain, labelKey: "tree.bioView" },
   { key: "poly", icon: Network, labelKey: "tree.networkView" },
   { key: "list", icon: List, labelKey: "tree.listView" },
 ];
@@ -467,9 +461,7 @@ export function EntryNetwork({
   const metaGlow = (m?: GraphMeta) =>
     m && graphMax > 0 ? m.weight / graphMax : 0;
 
-  // İki deri, tek iskelet: "graph" temiz çizgi, "bio" sivrilen dendritler
-  const isGraph = layout === "graph" || layout === "bio";
-  const isBio = layout === "bio";
+  const isGraph = layout === "graph";
   const view = isGraph ? graph : hex;
   // Sürükleme yalnız merkezin DOĞRUDAN çocukları için anlamlı: sıra onların
   // arasında değişiyor. Yuvalar bu yüzden `nodes` ile aynı sırada olmalı.
@@ -482,24 +474,17 @@ export function EntryNetwork({
   const coreBox = isGraph
     ? { width: graph.coreR * 2, height: graph.coreR * 2 }
     : { width: HEX_SIZE * 2, height: HEX_SIZE * Math.sqrt(3) };
-  const coreSkin: CSSProperties = isBio
-    ? // Gövdeyi SVG çiziyor (daire değil, hücre gibi düzensiz) — buradaki
-      // katman yalnız ikonu ve dokunmayı taşıyor
-      {}
-    : isGraph
-      ? {
-          borderRadius: "9999px",
-          background: `radial-gradient(circle at 32% 26%, ${centerColor}b0, ${centerColor}3a)`,
-          boxShadow: `inset 0 0 0 1.5px ${centerColor}aa, 0 0 30px ${centerColor}66`,
-        }
-      : {
+  const coreSkin: CSSProperties = isGraph
+    ? {
+        borderRadius: "9999px",
+        background: `radial-gradient(circle at 32% 26%, ${centerColor}b0, ${centerColor}3a)`,
+        boxShadow: `inset 0 0 0 1.5px ${centerColor}aa, 0 0 30px ${centerColor}66`,
+      }
+    : {
         clipPath: HEX_CLIP,
         background: `linear-gradient(150deg, ${centerColor}7a, ${centerColor}2e)`,
       };
   const coreIconSize = isGraph ? 18 : 20;
-  /** Sürüklenen düğüm parmağı takip ediyor; deri ve ikon aynı yeri kullansın */
-  const gpos = (g: PlacedNode): { x: number; y: number } =>
-    drag?.id === g.id && dragPos ? dragPos : g;
 
   /**
    * Gezilecek her kalem adını taşıyor: adsız daire dokunulacak yer değil,
@@ -833,80 +818,7 @@ export function EntryNetwork({
               width={view.width}
               height={view.height}
             >
-              {isBio ? (
-                // ── Sinir ağı derisi ──────────────────────────────────────
-                // Uzantılar çizgi değil, gövdede kalın uçta ince birer dolgu;
-                // üstlerinde dikenler var ve gövdeler kusursuz daire değil.
-                // Aynı iskelet, hücre gibi duran bir çizim.
-                <>
-                  {graph.edges.map((e) => {
-                    const m = tree.meta.get(e.id);
-                    const col = m?.color ?? centerColor;
-                    const g = metaGlow(m);
-                    return (
-                      <g key={e.id}>
-                        <path
-                          d={ribbonPath(e.from, e.ctl, e.to, e.w0, e.w1)}
-                          fill={`${col}${hexA(0.2 + 0.45 * g)}`}
-                        />
-                        {spinePaths(e).map((d, i) => (
-                          <path
-                            key={i}
-                            d={d}
-                            fill="none"
-                            stroke={`${col}${hexA(0.22 + 0.35 * g)}`}
-                            strokeWidth={1}
-                            strokeLinecap="round"
-                          />
-                        ))}
-                      </g>
-                    );
-                  })}
-                  {/* Işıma: gövdenin bulanık ikizi yerine bir beden büyüğü —
-                      SVG süzgeci olmadan aynı his, kalabalıkta da ucuz */}
-                  <path
-                    d={blobPath(
-                      centerPos.x,
-                      centerPos.y,
-                      graph.coreR * 1.5,
-                      "core-halo"
-                    )}
-                    fill={`${centerColor}22`}
-                  />
-                  {graph.nodes.map((n) => {
-                    const m = tree.meta.get(n.id);
-                    const p = gpos(n);
-                    return (
-                      <path
-                        key={`h${n.id}`}
-                        d={blobPath(p.x, p.y, n.r * 1.5, `${n.id}-halo`)}
-                        fill={`${m?.color ?? centerColor}${hexA(0.05 + 0.16 * metaGlow(m))}`}
-                      />
-                    );
-                  })}
-                  <path
-                    d={blobPath(centerPos.x, centerPos.y, graph.coreR, "core")}
-                    fill={`${centerColor}9e`}
-                    stroke={`${centerColor}dd`}
-                    strokeWidth={1.5}
-                  />
-                  {graph.nodes.map((n) => {
-                    const m = tree.meta.get(n.id);
-                    const col = m?.color ?? centerColor;
-                    const g = metaGlow(m);
-                    const p = gpos(n);
-                    return (
-                      <path
-                        key={`s${n.id}`}
-                        d={blobPath(p.x, p.y, n.r, n.id)}
-                        fill={`${col}${hexA(0.34 + 0.45 * g)}`}
-                        stroke={`${col}${hexA(0.45 + 0.5 * g)}`}
-                        strokeWidth={1}
-                      />
-                    );
-                  })}
-                </>
-              ) : isGraph ? (
+              {isGraph ? (
                 // Bağlar — gövdeden dala, daldan kılcala. Sık kullanılan yol
                 // daha parlak: "nereye çok gidiyorum" yolun kendisinden
                 // okunuyor.
@@ -1073,7 +985,7 @@ export function EntryNetwork({
                 const m = tree.meta.get(g.id);
                 if (!m) return null;
                 const dragging = drag?.id === g.id;
-                const p = gpos(g);
+                const p = dragging && dragPos ? dragPos : g;
                 return (
                   <GraphCell
                     key={g.id}
@@ -1085,7 +997,6 @@ export function EntryNetwork({
                     icon={m.icon}
                     name={m.name}
                     glow={metaGlow(m)}
-                    bare={isBio}
                     showLabel={showLabel(g)}
                     isDragging={dragging}
                     onTap={m.node ? () => drill(m.node!) : undefined}
@@ -1620,7 +1531,6 @@ function GraphCell({
   icon,
   name,
   glow,
-  bare,
   showLabel,
   isDragging,
   onTap,
@@ -1636,8 +1546,6 @@ function GraphCell({
   name: string;
   /** 0–1: haritanın en çok kullanılan kalemine göre oran */
   glow: number;
-  /** Sinir ağı derisinde gövdeyi SVG çiziyor; buradaki katman şeffaf kalır */
-  bare?: boolean;
   showLabel: boolean;
   isDragging: boolean;
   /** Verilmezse düğüm süs: özellik kılcalları gezilecek bir yer değil */
@@ -1655,12 +1563,8 @@ function GraphCell({
       style={{
         width: r * 2,
         height: r * 2,
-        background: bare
-          ? undefined
-          : `radial-gradient(circle at 32% 26%, ${color}${hexA(0.4 + 0.5 * glow)}, ${color}${hexA(0.12 + 0.2 * glow)})`,
-        boxShadow: bare
-          ? undefined
-          : `inset 0 0 0 1px ${color}${hexA(0.35 + 0.5 * glow)}, 0 0 ${Math.round(4 + 16 * glow)}px ${color}${hexA(0.1 + 0.4 * glow)}`,
+        background: `radial-gradient(circle at 32% 26%, ${color}${hexA(0.4 + 0.5 * glow)}, ${color}${hexA(0.12 + 0.2 * glow)})`,
+        boxShadow: `inset 0 0 0 1px ${color}${hexA(0.35 + 0.5 * glow)}, 0 0 ${Math.round(4 + 16 * glow)}px ${color}${hexA(0.1 + 0.4 * glow)}`,
         outline: isDragging ? `2px solid ${color}` : undefined,
       }}
     />

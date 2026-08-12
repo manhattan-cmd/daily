@@ -51,13 +51,6 @@ export interface GraphEdge {
   width: number;
   /** Çocuğun derinliği: gövdeye yakın kenar daha kalın */
   depth: number;
-  /** Eğrinin üç noktası — biyolojik deri bunlardan kendi şeridini kuruyor */
-  from: Point;
-  ctl: Point;
-  to: Point;
-  /** Uzantının gövde ucundaki ve uç noktadaki kalınlığı (px) */
-  w0: number;
-  w1: number;
 }
 
 export interface GraphLayout {
@@ -235,31 +228,17 @@ export function graphLayout(root: GraphSeed): GraphLayout {
       rp + (rc - rp) * 0.55,
       pm.depth === 0 ? ac + lean : ap + (ac - ap) * lean
     );
-    // Uçlar disklerin KENARINA değil İÇİNE giriyor: gövdeler kenardan
-    // sonra çizildiği için uzantı hücreden çıkmış gibi kaynıyor, uç uca
-    // eklenmiş gibi durmuyor.
     const parentP = polar(rp, ap);
-    const from = toward(parentP, ctl, pm.r * 0.55);
-    const to = toward({ x: child.x - center.x, y: child.y - center.y }, ctl, meta.r * 0.55);
-    // Kenar noktaları da kutuya taşınıyor — çizim hepsini aynı uzayda bekliyor
-    const box = (p: Point): Point => ({ x: p.x + center.x, y: p.y + center.y });
-    const f = box(from);
-    const c = box(ctl);
-    const tp = box(to);
-    const s = (p: Point) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+    const from = toward(parentP, ctl, pm.r * 0.95);
+    const to = toward({ x: child.x - center.x, y: child.y - center.y }, ctl, meta.r * 0.95);
+    const s = (p: Point) =>
+      `${(p.x + center.x).toFixed(2)} ${(p.y + center.y).toFixed(2)}`;
     return {
       id: meta.seed.id,
       parentId: meta.parentId,
-      path: `M ${s(f)} Q ${s(c)} ${s(tp)}`,
+      path: `M ${s(from)} Q ${s(ctl)} ${s(to)}`,
       width: Math.max(0.9, 2.5 - 0.5 * meta.depth),
       depth: meta.depth,
-      from: f,
-      ctl: c,
-      to: tp,
-      // Uzantı gövdesinden ne kadar kalın çıkıyorsa uçta o kadar inceliyor:
-      // kalınlık ana gövdenin çapına bağlı, incelik çocuğunkine
-      w0: Math.min(12, Math.max(3.2, pm.r * 0.34)),
-      w1: Math.max(1, meta.r * 0.24),
     };
   });
 
@@ -280,131 +259,4 @@ function toward(p: Point, q: Point, d: number): Point {
   const dy = q.y - p.y;
   const len = Math.hypot(dx, dy) || 1;
   return { x: p.x + (dx / len) * d, y: p.y + (dy / len) * d };
-}
-
-// ─── Biyolojik deri ─────────────────────────────────────────────────────────
-// Aynı iskelet, başka bir çizim dili. Sinir hücresinde hiçbir uzantı sabit
-// kalınlıkta değil: gövdeden kalın çıkıp uca doğru inceliyor, üstünde
-// dikenler var ve gövdenin kendisi de kusursuz bir daire değil. Aşağıdakiler
-// bunun geometrisi — hepsi saf, aynı girdiye hep aynı şekli veriyor.
-
-/** Dizgiden türetilen sabit tohum — aynı düğüm hep aynı şekli alsın */
-function seedOf(s: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-/** Küçük, deterministik sayı üreteci (mulberry32) */
-function rng(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-const bez = (p0: Point, c: Point, p1: Point, t: number): Point => {
-  const u = 1 - t;
-  return {
-    x: u * u * p0.x + 2 * u * t * c.x + t * t * p1.x,
-    y: u * u * p0.y + 2 * u * t * c.y + t * t * p1.y,
-  };
-};
-
-/** Birim dik vektör — şeridin kalınlığı bu yöne açılıyor */
-function normal(from: Point, to: Point): Point {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const len = Math.hypot(dx, dy) || 1;
-  return { x: -dy / len, y: dx / len };
-}
-
-/**
- * Sivrilen uzantı: gövdede `w0`, uçta `w1` kalınlığında kapalı bir şerit.
- * SVG çizgisi sabit kalınlıkta olduğu için uzantı DOLGU olarak çiziliyor —
- * akson/dendrit görüntüsünün tamamı bu incelmeden geliyor.
- */
-export function ribbonPath(
-  from: Point,
-  ctl: Point,
-  to: Point,
-  w0: number,
-  w1: number
-): string {
-  const n0 = normal(from, ctl);
-  const n1 = normal(ctl, to);
-  const nc = normal(from, to);
-  const h0 = w0 / 2;
-  const h1 = w1 / 2;
-  const hc = (h0 + h1) / 2;
-  const at = (p: Point, n: Point, h: number, sign: number) =>
-    `${(p.x + n.x * h * sign).toFixed(2)} ${(p.y + n.y * h * sign).toFixed(2)}`;
-  return [
-    `M ${at(from, n0, h0, 1)}`,
-    `Q ${at(ctl, nc, hc, 1)} ${at(to, n1, h1, 1)}`,
-    `L ${at(to, n1, h1, -1)}`,
-    `Q ${at(ctl, nc, hc, -1)} ${at(from, n0, h0, -1)}`,
-    "Z",
-  ].join(" ");
-}
-
-/**
- * Dendrit dikenleri — uzantının üstünden çıkan kısa kıllar. Sinyalin
- * toplandığı yer onlar; haritada da uzantıyı "çizgi" olmaktan çıkarıp
- * dokulu bir şeye çeviriyorlar. Kısa uzantıda diken çıkmıyor.
- */
-export function spinePaths(e: GraphEdge, count = 3): string[] {
-  const len = Math.hypot(e.to.x - e.from.x, e.to.y - e.from.y);
-  if (len < 46) return [];
-  const rand = rng(seedOf(e.id));
-  const out: string[] = [];
-  for (let i = 0; i < count; i++) {
-    const t = 0.26 + (0.55 * (i + rand() * 0.7)) / count;
-    const p = bez(e.from, e.ctl, e.to, t);
-    const q = bez(e.from, e.ctl, e.to, Math.min(1, t + 0.02));
-    const n = normal(p, q);
-    const side = rand() < 0.5 ? 1 : -1;
-    const l = 6 + rand() * 6;
-    out.push(
-      `M ${p.x.toFixed(2)} ${p.y.toFixed(2)} L ${(p.x + n.x * l * side).toFixed(2)} ${(p.y + n.y * l * side).toFixed(2)}`
-    );
-  }
-  return out;
-}
-
-/**
- * Gövde (soma) — daire değil, hafifçe düzensiz kapalı bir şekil. Kusursuz
- * daire "düğüm" gibi duruyor; bu şekil "hücre" gibi duruyor. Sapma dar
- * tutuluyor: yerleşim disklerin çakışmadığını yarıçapa göre garanti ediyor,
- * şekil o yarıçapı belirgin biçimde aşarsa o garanti bozulur.
- */
-export function blobPath(
-  cx: number,
-  cy: number,
-  r: number,
-  seed: string,
-  points = 7
-): string {
-  const rand = rng(seedOf(seed));
-  const pts: Point[] = [];
-  for (let i = 0; i < points; i++) {
-    const a = (i / points) * Math.PI * 2;
-    const rr = r * (0.8 + rand() * 0.28);
-    pts.push({ x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr });
-  }
-  const mid = (a: Point, b: Point): Point => ({
-    x: (a.x + b.x) / 2,
-    y: (a.y + b.y) / 2,
-  });
-  const s = (p: Point) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
-  let d = `M ${s(mid(pts[points - 1], pts[0]))}`;
-  for (let i = 0; i < points; i++)
-    d += ` Q ${s(pts[i])} ${s(mid(pts[i], pts[(i + 1) % points]))}`;
-  return d + " Z";
 }
