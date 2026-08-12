@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { graphLayout, nodeRadius, type GraphSeed } from "./graph";
+import {
+  blobPath,
+  graphLayout,
+  nodeRadius,
+  ribbonPath,
+  spinePaths,
+  type GraphEdge,
+  type GraphSeed,
+} from "./graph";
 
 /** kısa yazım: sub("a", sub("b"), mod("m")) */
 const sub = (id: string, ...children: GraphSeed[]): GraphSeed => ({
@@ -159,5 +167,58 @@ describe("graphLayout", () => {
 
   it("aynı ağaç aynı yerleşimi verir — harita dolaşırken oynamaz", () => {
     expect(graphLayout(SAMPLE)).toEqual(graphLayout(SAMPLE));
+  });
+});
+
+describe("biyolojik deri", () => {
+  const l = graphLayout(SAMPLE);
+  const e = l.edges.find((x) => x.depth === 1)!;
+
+  it("şerit kapalı ve sivriliyor", () => {
+    const d = ribbonPath(e.from, e.ctl, e.to, 6, 1);
+    expect(d.startsWith("M ")).toBe(true);
+    expect(d.trim().endsWith("Z")).toBe(true);
+    // İki yay: gidiş ve dönüş kenarı
+    expect(d.match(/Q/g)).toHaveLength(2);
+    // Gövde ucu uç ucundan kalın: ilk ve son noktanın eksenden sapması
+    const nums = d.match(/-?\d+(\.\d+)?/g)!.map(Number);
+    const startSide = Math.hypot(nums[0] - e.from.x, nums[1] - e.from.y);
+    const endSide = Math.hypot(nums[4] - e.to.x, nums[5] - e.to.y);
+    expect(startSide).toBeGreaterThan(endSide);
+  });
+
+  it("kısa uzantıda diken çıkmaz, uzununda çıkar", () => {
+    const near: GraphEdge = {
+      ...e,
+      from: { x: 0, y: 0 },
+      ctl: { x: 5, y: 0 },
+      to: { x: 10, y: 0 },
+    };
+    expect(spinePaths(near)).toHaveLength(0);
+    const far: GraphEdge = {
+      ...e,
+      from: { x: 0, y: 0 },
+      ctl: { x: 60, y: 10 },
+      to: { x: 120, y: 0 },
+    };
+    expect(spinePaths(far).length).toBeGreaterThan(0);
+    expect(spinePaths(far)).toEqual(spinePaths(far));
+  });
+
+  it("gövde şekli yarıçapın etrafında kalıyor — yerleşimin çakışma güvencesi bozulmasın", () => {
+    for (const seed of ["spor", "kosu", "hobi", "x"]) {
+      const d = blobPath(100, 100, 20, seed);
+      const nums = d.match(/-?\d+(\.\d+)?/g)!.map(Number);
+      for (let i = 0; i < nums.length; i += 2) {
+        const dist = Math.hypot(nums[i] - 100, nums[i + 1] - 100);
+        expect(dist).toBeLessThanOrEqual(20 * 1.09);
+        expect(dist).toBeGreaterThan(20 * 0.7);
+      }
+    }
+  });
+
+  it("aynı tohum aynı şekli verir", () => {
+    expect(blobPath(0, 0, 10, "kosu")).toBe(blobPath(0, 0, 10, "kosu"));
+    expect(blobPath(0, 0, 10, "kosu")).not.toBe(blobPath(0, 0, 10, "yuzme"));
   });
 });
