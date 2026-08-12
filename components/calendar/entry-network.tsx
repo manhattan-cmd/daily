@@ -29,7 +29,11 @@ import { CategoryForm } from "@/components/structure/category-form";
 import { HScroll } from "@/components/ui/h-scroll";
 import { CanvasViewport } from "@/components/calendar/canvas-viewport";
 import { hexCorners, hexLayout, HEX_CLIP } from "@/lib/hex";
-import { neuronLayout } from "@/lib/neuron";
+import {
+  graphLayout,
+  type GraphSeed,
+  type PlacedNode,
+} from "@/lib/graph";
 import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
@@ -56,27 +60,39 @@ type Node =
   | { kind: "cat"; cat: Category }
   | { kind: "sub"; sub: SubCategory };
 
+/**
+ * Haritadaki bir düğümün kimliği. Çizim bunu okuyor; yerleşim (lib/graph.ts)
+ * yalnız ağacın şeklini biliyor, adı rengi kullanımı burada duruyor.
+ */
+type GraphMeta = {
+  name: string;
+  icon?: string;
+  color: string;
+  /** Ham kullanım (girdi sayısı); parlaklık haritanın en ağırına oranla */
+  weight: number;
+  /** Dokunulabilir olanlar: kategori ve alt kategori. Özelliklerde yok. */
+  node?: Node;
+};
+
 /** Yerleşim — düğüm sayısına göre otomatik seçilir, kullanıcı değiştirebilir */
-type Layout = "neuron" | "poly" | "list";
+type Layout = "graph" | "poly" | "list";
 
 /** Sayım gelmeden önceki sabit boş harita — memo'ları her render'da bozmasın */
 const NO_COUNTS: ReadonlyMap<string, number> = new Map();
 
 /** Altıgen hücrenin merkezden köşesine uzaklığı (px) */
 const HEX_SIZE = 46;
-/** Nöronda çocuksuz bir çekirdeğin yarıçapı (px) */
-const NEURON_BASE = 22;
 /** Bu sayıdan sonra çokgen okunmaz oluyor, liste devralır */
 const LIST_FROM = 17;
 
 function autoLayout(n: number): Layout {
-  return n >= LIST_FROM ? "list" : "neuron";
+  return n >= LIST_FROM ? "list" : "graph";
 }
 
-/** Eski kayıtlarda "spiral" olabilir — çokgene düşer */
+/** Eski kayıtlarda "spiral"/"neuron" olabilir — bugünkü karşılıklarına düşer */
 function normalizeLayout(v: unknown): Layout | undefined {
   if (v === "list") return "list";
-  if (v === "neuron") return "neuron";
+  if (v === "graph" || v === "neuron") return "graph";
   if (v === "poly" || v === "spiral") return "poly";
   return undefined;
 }
@@ -87,7 +103,7 @@ const LAYOUT_OPTIONS: {
   icon: typeof Network;
   labelKey: MessageKey;
 }[] = [
-  { key: "neuron", icon: Sparkles, labelKey: "tree.neuronView" },
+  { key: "graph", icon: Sparkles, labelKey: "tree.graphView" },
   { key: "poly", icon: Network, labelKey: "tree.networkView" },
   { key: "list", icon: List, labelKey: "tree.listView" },
 ];
@@ -102,6 +118,8 @@ function sectionKeyOf(name: string): string {
   return /\p{L}/u.test(ch) ? ch : "#";
 }
 const norm = (s: string) => s.toLocaleLowerCase("tr").trim();
+
+const noop = () => {};
 
 /** 0–1 → iki haneli onaltılık alfa; "#rrggbb" + bu = saydam renk */
 const hexA = (v: number) =>
@@ -321,45 +339,6 @@ export function EntryNetwork({
     [nodes.length, layout]
   );
 
-  /** Bir düğümün KENDİ çocuk sayısı — nöronda çekirdek boyu bundan çıkar */
-  const childCountOf = (node: Node) =>
-    node.kind === "cat"
-      ? (topSubsByCat.get(node.cat.id) ?? []).length
-      : (childrenMap.get(node.sub.id) ?? []).length;
-
-  // Nöron düzeni — kural lib/neuron.ts'te, testle sabit
-  const childCounts = nodes.map(childCountOf);
-  const childCountsKey = childCounts.join(",");
-  const neuron = useMemo(
-    () => neuronLayout(layout === "neuron" ? childCounts : [], NEURON_BASE),
-    // childCounts her render'da yeni dizi; içeriği anahtar olarak kullanılıyor
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [childCountsKey, layout]
-  );
-
-  const isNeuron = layout === "neuron";
-  const view = isNeuron ? neuron : hex;
-  const positions = view.nodes;
-  const centerPos = view.center;
-
-  /** Merkez gövdenin kutusu — nöronda daire, petekte altıgen */
-  const coreBox = isNeuron
-    ? { width: neuron.coreR * 2, height: neuron.coreR * 2 }
-    : { width: HEX_SIZE * 2, height: HEX_SIZE * Math.sqrt(3) };
-  const coreSkin: CSSProperties = isNeuron
-    ? {
-        borderRadius: "9999px",
-        background: `radial-gradient(circle at 32% 26%, ${centerColor}a8, ${centerColor}33)`,
-        boxShadow: `inset 0 0 0 1.5px ${centerColor}99, 0 0 26px ${centerColor}55`,
-      }
-    : {
-        clipPath: HEX_CLIP,
-        background: `linear-gradient(150deg, ${centerColor}7a, ${centerColor}2e)`,
-      };
-  const coreIconSize = isNeuron
-    ? Math.round(Math.min(26, Math.max(16, neuron.coreR * 0.5)))
-    : 20;
-
   const nodeId = (node: Node) => (node.kind === "cat" ? node.cat.id : node.sub.id);
   /** Kategoriler kendi renginde; alt kalemler bulundukları dalın renginde */
   const colorOf = (node: Node) =>
@@ -372,6 +351,142 @@ export function EntryNetwork({
   /** 0–1: bu sayfanın en çok kullanılan düğümüne göre oran */
   const glowOf = (node: Node) =>
     maxWeight > 0 ? nodeWeight(node) / maxWeight : 0;
+
+  // ─── Bağ haritası ─────────────────────────────────────────────────────────
+  // Ağacın TAMAMI tek resimde: merkez, ona bağlı kalemler, onların altı ve
+  // en uçta özellikler. Ağacı burada kuruyoruz (kim kimin altında, hangi
+  // renkte, ne kadar kullanılmış); nereye oturacağını lib/graph.ts söylüyor.
+  const tree = useMemo(() => {
+    const meta = new Map<string, GraphMeta>();
+    const subSeed = (s: SubCategory, color: string): GraphSeed => {
+      const kids = childrenMap.get(s.id) ?? [];
+      const own = entryCounts.get(s.id) ?? 0;
+      // Kılcallar yalnız girdisi olan kalemde: özellik ancak kullanıldığında
+      // haritada yer tutuyor, yoksa boş kalemler kılcal çalısına dönüşüyor
+      const mods = own > 0 ? modsOf(s.id) : [];
+      meta.set(s.id, {
+        name: s.name,
+        icon: s.icon,
+        color,
+        weight: subtreeCounts.get(s.id) ?? 0,
+        node: { kind: "sub", sub: s },
+      });
+      for (const m of mods)
+        meta.set(`${s.id}:${m.id}`, { name: m.name, color, weight: own });
+      return {
+        id: s.id,
+        kind: "sub",
+        children: [
+          ...kids.map((k) => subSeed(k, color)),
+          ...mods.map((m) => ({ id: `${s.id}:${m.id}`, kind: "mod" as const })),
+        ],
+      };
+    };
+    /** Odaktaki kalemin kendi özellikleri — merkezden kılcallanır */
+    const focusModSeeds = (ownerId: string): GraphSeed[] =>
+      modsOf(ownerId).map((m) => {
+        const id = `${ownerId}:${m.id}`;
+        meta.set(id, {
+          name: m.name,
+          color: centerColor,
+          weight: maxWeight,
+        });
+        return { id, kind: "mod" as const };
+      });
+
+    let children: GraphSeed[];
+    if (focusObj == null) {
+      children = categories.map((c) => {
+        meta.set(c.id, {
+          name: c.name,
+          icon: c.icon,
+          color: c.color,
+          weight: catCounts.get(c.id) ?? 0,
+          node: { kind: "cat", cat: c },
+        });
+        return {
+          id: c.id,
+          kind: "cat" as const,
+          children: (topSubsByCat.get(c.id) ?? []).map((s) =>
+            subSeed(s, c.color)
+          ),
+        };
+      });
+    } else if (focusObj.type === "cat") {
+      children = [
+        ...(topSubsByCat.get(focusObj.cat.id) ?? []).map((s) =>
+          subSeed(s, centerColor)
+        ),
+        ...focusModSeeds(focusObj.cat.id),
+      ];
+    } else {
+      children = [
+        ...(childrenMap.get(focusObj.sub.id) ?? []).map((s) =>
+          subSeed(s, centerColor)
+        ),
+        ...focusModSeeds(focusObj.sub.id),
+      ];
+    }
+    return {
+      seed: { id: "__core", kind: "root" as const, children },
+      meta,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    focusObj,
+    categories,
+    topSubsByCat,
+    childrenMap,
+    centerColor,
+    entryCounts,
+    subtreeCounts,
+    catCounts,
+    maxWeight,
+    modsByTarget,
+  ]);
+
+  const graph = useMemo(() => graphLayout(tree.seed), [tree]);
+  /** Haritadaki en ağır kalem — parlaklık ona göre oranlanıyor */
+  const graphMax = useMemo(
+    () => [...tree.meta.values()].reduce((m, v) => Math.max(m, v.weight), 0),
+    [tree]
+  );
+  const metaGlow = (m?: GraphMeta) =>
+    m && graphMax > 0 ? m.weight / graphMax : 0;
+
+  const isGraph = layout === "graph";
+  const view = isGraph ? graph : hex;
+  // Sürükleme yalnız merkezin DOĞRUDAN çocukları için anlamlı: sıra onların
+  // arasında değişiyor. Yuvalar bu yüzden `nodes` ile aynı sırada olmalı.
+  const positions = isGraph
+    ? nodes.map((n) => graph.byId.get(nodeId(n)) ?? graph.center)
+    : hex.nodes;
+  const centerPos = view.center;
+
+  /** Merkez gövdenin kutusu — haritada daire, petekte altıgen */
+  const coreBox = isGraph
+    ? { width: graph.coreR * 2, height: graph.coreR * 2 }
+    : { width: HEX_SIZE * 2, height: HEX_SIZE * Math.sqrt(3) };
+  const coreSkin: CSSProperties = isGraph
+    ? {
+        borderRadius: "9999px",
+        background: `radial-gradient(circle at 32% 26%, ${centerColor}b0, ${centerColor}3a)`,
+        boxShadow: `inset 0 0 0 1.5px ${centerColor}aa, 0 0 30px ${centerColor}66`,
+      }
+    : {
+        clipPath: HEX_CLIP,
+        background: `linear-gradient(150deg, ${centerColor}7a, ${centerColor}2e)`,
+      };
+  const coreIconSize = isGraph ? 18 : 20;
+
+  /**
+   * Gezilecek her kalem adını taşıyor: adsız daire dokunulacak yer değil,
+   * süs oluyordu. Kılcallar ise ancak harita seyrekken adlanıyor — geniş
+   * bakışta yüzlerce olabiliyorlar, ucundaki kalemde ise "burada neyi
+   * ölçüyorum"un cevabı tam da onlar.
+   */
+  const airy = graph.nodes.length <= 12;
+  const showLabel = (g: PlacedNode) => g.kind !== "mod" || airy;
   // Sürüklenen düğüm anlık parmak konumunda gösterilir (ışın da takip eder)
   const effPositions = positions.map((p, i) => {
     if (drag && dragPos && drag.id === nodeId(nodes[i])) return dragPos;
@@ -696,20 +811,23 @@ export function EntryNetwork({
               width={view.width}
               height={view.height}
             >
-              {isNeuron ? (
-                // Dendritler — gövdeden çekirdeğe. Sık kullanılan dal daha
-                // parlak: yol da ışıyınca "nereye çok gidiyorum" tek bakışta
+              {isGraph ? (
+                // Bağlar — gövdeden dala, daldan kılcala. Sık kullanılan yol
+                // daha parlak: "nereye çok gidiyorum" yolun kendisinden
                 // okunuyor.
-                neuron.nodes.map((n, i) => (
-                  <path
-                    key={i}
-                    d={n.path}
-                    fill="none"
-                    stroke={`${colorOf(nodes[i])}${hexA(0.32 + 0.55 * glowOf(nodes[i]))}`}
-                    strokeWidth={n.width}
-                    strokeLinecap="round"
-                  />
-                ))
+                graph.edges.map((e) => {
+                  const m = tree.meta.get(e.id);
+                  return (
+                    <path
+                      key={e.id}
+                      d={e.path}
+                      fill="none"
+                      stroke={`${m?.color ?? centerColor}${hexA(0.18 + 0.5 * metaGlow(m))}`}
+                      strokeWidth={e.width}
+                      strokeLinecap="round"
+                    />
+                  );
+                })
               ) : (
                 <>
                   {/* Merkez göz — kökte "Kategoriler", içeride bulunulan kalem.
@@ -750,11 +868,11 @@ export function EntryNetwork({
               {drag &&
                 targetSlot >= 0 &&
                 positions[targetSlot] &&
-                (isNeuron ? (
+                (isGraph ? (
                   <circle
                     cx={positions[targetSlot].x}
                     cy={positions[targetSlot].y}
-                    r={neuron.nodes[targetSlot].r + 3}
+                    r={(graph.byId.get(nodeId(nodes[targetSlot]))?.r ?? 12) + 4}
                     fill="none"
                     stroke={centerColor}
                     strokeWidth={2}
@@ -800,10 +918,15 @@ export function EntryNetwork({
                     style={{ width: coreIconSize, height: coreIconSize }}
                     strokeWidth={1.75}
                   />
-                  <span className="line-clamp-2 w-full text-center text-[10px] font-semibold leading-tight text-white">
-                    {t("structure.categories")}
-                  </span>
+                  {!isGraph && (
+                    <span className="line-clamp-2 w-full text-center text-[10px] font-semibold leading-tight text-white">
+                      {t("structure.categories")}
+                    </span>
+                  )}
                 </span>
+                {/* Haritada ad diskin altında — daire dar, yazı içine
+                    sığdırılınca kırpılıyor ve gövde etiket kutusuna dönüyor */}
+                {isGraph && <CoreLabel>{t("structure.categories")}</CoreLabel>}
               </span>
             )}
 
@@ -830,10 +953,13 @@ export function EntryNetwork({
                     hasKids={hasNodes}
                     size={coreIconSize}
                   />
-                  <span className="line-clamp-2 w-full text-center text-[10px] font-semibold leading-tight text-white">
-                    {focusName}
-                  </span>
+                  {!isGraph && (
+                    <span className="line-clamp-2 w-full text-center text-[10px] font-semibold leading-tight text-white">
+                      {focusName}
+                    </span>
+                  )}
                 </span>
+                {isGraph && <CoreLabel>{focusName}</CoreLabel>}
                 {/* Buraya kayıt işareti */}
                 <span
                   className="pointer-events-none absolute -bottom-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-background text-white"
@@ -844,32 +970,64 @@ export function EntryNetwork({
               </button>
             )}
 
-            {/* Çevre düğümler — dokun: gir · basılı tut: sürükle */}
-            {nodes.map((node, i) => {
-              const p = effPositions[i];
-              if (!p) return null;
-              const isCat = node.kind === "cat";
-              const id = nodeId(node);
-              const hasKids =
-                !isCat && (childrenMap.get(node.sub.id)?.length ?? 0) > 0;
-              const common = {
-                x: p.x,
-                y: p.y,
-                color: colorOf(node),
-                icon: isCat ? node.cat.icon : node.sub.icon,
-                name: isCat ? node.cat.name : node.sub.name,
-                mods: modsOf(id),
-                glow: glowOf(node),
-                isDragging: drag?.id === id,
-                onTap: () => drill(node),
-                onDragStart: () => startDrag(node, p),
-              };
-              return isNeuron ? (
-                <NeuronCell key={id} {...common} r={neuron.nodes[i].r} />
-              ) : (
-                <NetNode key={id} {...common} hasKids={hasKids} />
-              );
-            })}
+            {/* Haritanın düğümleri — merkezin çocukları, onların altı ve en
+                uçta kılcallar. Dokun: gir · basılı tut: sürükle (yalnız
+                doğrudan çocuklarda; sıra ancak kardeşler arasında anlamlı) */}
+            {isGraph &&
+              graph.nodes.map((g) => {
+                const m = tree.meta.get(g.id);
+                if (!m) return null;
+                const dragging = drag?.id === g.id;
+                const p = dragging && dragPos ? dragPos : g;
+                return (
+                  <GraphCell
+                    key={g.id}
+                    x={p.x}
+                    y={p.y}
+                    r={g.r}
+                    angle={g.angle}
+                    color={m.color}
+                    icon={m.icon}
+                    name={m.name}
+                    glow={metaGlow(m)}
+                    showLabel={showLabel(g)}
+                    isDragging={dragging}
+                    onTap={m.node ? () => drill(m.node!) : undefined}
+                    onDragStart={
+                      m.node && g.depth === 1
+                        ? () => startDrag(m.node!, g)
+                        : undefined
+                    }
+                  />
+                );
+              })}
+
+            {/* Petek düğümleri */}
+            {!isGraph &&
+              nodes.map((node, i) => {
+                const p = effPositions[i];
+                if (!p) return null;
+                const isCat = node.kind === "cat";
+                const id = nodeId(node);
+                const hasKids =
+                  !isCat && (childrenMap.get(node.sub.id)?.length ?? 0) > 0;
+                return (
+                  <NetNode
+                    key={id}
+                    x={p.x}
+                    y={p.y}
+                    color={colorOf(node)}
+                    icon={isCat ? node.cat.icon : node.sub.icon}
+                    name={isCat ? node.cat.name : node.sub.name}
+                    mods={modsOf(id)}
+                    glow={glowOf(node)}
+                    hasKids={hasKids}
+                    isDragging={drag?.id === id}
+                    onTap={() => drill(node)}
+                    onDragStart={() => startDrag(node, p)}
+                  />
+                );
+              })}
 
             {focusObj == null && !hasNodes && (
               <p className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-muted-foreground">
@@ -1325,112 +1483,154 @@ function NetNode({
 }
 
 /**
- * Nöron hücresi — çekirdek + adı.
- *
- * Altıgenden iki farkı var: BOY kendi alt kalemlerinin sayısını, PARLAKLIK
- * ise kullanım sıklığını söylüyor. Yani sayfaya bakan kişi "buranın altı
- * kalabalık" ile "burayı sık kullanıyorum"u aynı anda ama karıştırmadan
- * görüyor. Ölçülen özellikler çekirdeğin üst kavisinde sinaps gibi duruyor —
- * ileride kovan haritasında ortak özellikler bu noktalardan bağlanacak.
+ * Adın diskin neresine yazılacağı — merkezden dışarı doğru. Yan taraftaki
+ * düğümlerde yazı yana, tepe/dipteki düğümlerde alta veya üste gider.
  */
-function NeuronCell({
+function labelPlacement(r: number, angle: number): CSSProperties {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const off = r + 5;
+  if (Math.abs(cos) > 0.42)
+    return cos > 0
+      ? { left: `calc(50% + ${off}px)`, top: "50%", transform: "translateY(-50%)", textAlign: "left" }
+      : { right: `calc(50% + ${off}px)`, top: "50%", transform: "translateY(-50%)", textAlign: "right" };
+  return sin > 0
+    ? { left: "50%", top: `calc(50% + ${off}px)`, transform: "translateX(-50%)", textAlign: "center" }
+    : { left: "50%", bottom: `calc(50% + ${off}px)`, transform: "translateX(-50%)", textAlign: "center" };
+}
+
+/** Haritada merkez gövdenin adı — diskin hemen altında, kırpılmadan */
+function CoreLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="pointer-events-none absolute left-1/2 top-full w-[104px] -translate-x-1/2 pt-1.5 text-center text-[11px] font-semibold leading-tight text-foreground">
+      {children}
+    </span>
+  );
+}
+
+/**
+ * Harita düğümü — yuvarlak bir gövde ve (yeri varsa) adı.
+ *
+ * Üç boyda geliyor ve boy bir şey söylüyor: kategori iri, alt kategori orta,
+ * özellik kılcal bir uç. Parlaklık ise kullanım sıklığı — sık gidilen yer
+ * ışıyor. Kılcallara dokunulmuyor; onlar bir yer değil, orada ölçülen şey.
+ */
+function GraphCell({
   x,
   y,
   r,
+  angle,
   color,
   icon,
   name,
-  mods,
   glow,
+  showLabel,
   isDragging,
   onTap,
   onDragStart,
 }: {
   x: number;
   y: number;
-  /** Çekirdek yarıçapı — çocuk sayısından gelir (lib/neuron.ts) */
   r: number;
+  /** Merkezden bakış açısı — ad bu yöne, dışarı doğru yazılıyor */
+  angle: number;
   color: string;
   icon?: string;
   name: string;
-  mods: Mod[];
-  /** 0–1: sayfadaki en sık kullanılana göre oran */
+  /** 0–1: haritanın en çok kullanılan kalemine göre oran */
   glow: number;
+  showLabel: boolean;
   isDragging: boolean;
-  onTap: () => void;
-  onDragStart: () => void;
+  /** Verilmezse düğüm süs: özellik kılcalları gezilecek bir yer değil */
+  onTap?: () => void;
+  /** Yalnız merkezin doğrudan çocukları sürüklenip sıralanabiliyor */
+  onDragStart?: () => void;
 }) {
-  const hold = useHold(onTap, onDragStart);
-  const dots = mods.slice(0, 5);
-  // Sinapslar üst kavise yayılır; alt taraf ada ayrılmış
-  const step = dots.length > 1 ? 70 / (dots.length - 1) : 0;
-  const from = dots.length > 1 ? -125 : -90;
+  const hold = useHold(onTap ?? noop, onDragStart ?? noop);
+  // Dokunma alanı diskten büyük olabilir: uçtaki kalemler görsel olarak küçük
+  // ama parmak onları da tutturabilmeli. Disk ortada, kutu etrafında büyür.
+  const hit = onTap ? Math.max(r * 2, 30) : r * 2;
+  const skin = (
+    <span
+      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+      style={{
+        width: r * 2,
+        height: r * 2,
+        background: `radial-gradient(circle at 32% 26%, ${color}${hexA(0.4 + 0.5 * glow)}, ${color}${hexA(0.12 + 0.2 * glow)})`,
+        boxShadow: `inset 0 0 0 1px ${color}${hexA(0.35 + 0.5 * glow)}, 0 0 ${Math.round(4 + 16 * glow)}px ${color}${hexA(0.1 + 0.4 * glow)}`,
+        outline: isDragging ? `2px solid ${color}` : undefined,
+      }}
+    />
+  );
+  // Ad DIŞARI yazılıyor: ışınsal ağaçta düğümün merkeze bakan tarafı hep
+  // dolu (bağlandığı ana orada), dışı ise boş. Yana düşen düğümlerde yazı
+  // sağa/sola kaçıyor, tepe ve dipte alta/üste — böylece komşu adlar da
+  // birbirinin üstüne binmiyor.
+  const label = showLabel ? (
+    <span
+      className={cn(
+        "pointer-events-none absolute line-clamp-2 w-[72px] text-[9px] leading-tight",
+        glow > 0.5
+          ? "font-semibold text-foreground"
+          : glow > 0.15
+            ? "font-medium text-foreground/80"
+            : "font-medium text-muted-foreground"
+      )}
+      style={labelPlacement(r, angle)}
+    >
+      {name}
+    </span>
+  ) : null;
+  // İkon ancak sığdığı yerde; küçük düğüm sade bir disk olarak kalıyor
+  const glyph =
+    r >= 12 && icon ? (
+      <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <SymbolIcon
+          name={icon}
+          size={Math.round(r * 1.05)}
+          style={{ color: "#fff" }}
+        />
+      </span>
+    ) : null;
+  const box: CSSProperties = {
+    left: x,
+    top: y,
+    width: hit,
+    height: hit,
+    transform: "translate(-50%,-50%)",
+  };
+
+  if (!onTap)
+    return (
+      <span
+        role="img"
+        aria-label={name}
+        title={name}
+        className="absolute z-0"
+        style={box}
+      >
+        {skin}
+        {label}
+      </span>
+    );
 
   return (
     <button
-      {...hold}
+      {...(onDragStart ? hold : { onClick: onTap })}
       data-net-node=""
+      title={name}
       className={cn(
         "absolute select-none transition-transform",
-        isDragging ? "z-20 scale-110" : "z-0"
+        isDragging ? "z-20 scale-110" : "z-10"
       )}
-      style={{
-        left: x,
-        top: y,
-        width: r * 2,
-        height: r * 2,
-        transform: "translate(-50%,-50%)",
-      }}
+      style={box}
     >
-      <span
-        className="relative flex h-full w-full items-center justify-center rounded-full"
-        style={{
-          background: `radial-gradient(circle at 32% 26%, ${color}${hexA(0.34 + 0.46 * glow)}, ${color}${hexA(0.08 + 0.16 * glow)})`,
-          boxShadow: `inset 0 0 0 1px ${color}${hexA(0.3 + 0.5 * glow)}, 0 0 ${Math.round(5 + 20 * glow)}px ${color}${hexA(0.1 + 0.35 * glow)}`,
-          outline: isDragging ? `2px solid ${color}` : undefined,
-        }}
-      >
-        <CategoryIconOrFallback
-          color={color}
-          icon={icon}
-          hasKids={false}
-          size={Math.round(Math.min(28, Math.max(16, r * 0.72)))}
-        />
-        {dots.map((m, i) => {
-          const rad = ((from + i * step) * Math.PI) / 180;
-          return (
-            <span
-              key={m.id}
-              className="absolute h-[5px] w-[5px] rounded-full"
-              style={{
-                left: r + Math.cos(rad) * r,
-                top: r + Math.sin(rad) * r,
-                transform: "translate(-50%,-50%)",
-                backgroundColor: color,
-                boxShadow: `0 0 4px ${color}`,
-              }}
-            />
-          );
-        })}
-      </span>
-      {/* Ad çekirdeğin altında — daireyi ada göre şişirmek boy dilini
-          (boy = çocuk sayısı) bozardı */}
-      <span
-        className={cn(
-          "pointer-events-none absolute left-1/2 top-full line-clamp-2 w-[84px] -translate-x-1/2 pt-1 text-center text-[9px] leading-tight",
-          glow > 0.5
-            ? "font-semibold text-foreground"
-            : glow > 0.15
-              ? "font-medium text-foreground/80"
-              : "font-medium text-muted-foreground"
-        )}
-      >
-        {name}
-      </span>
+      {skin}
+      {glyph}
+      {label}
     </button>
   );
 }
-
 /** Hücrenin içindeki ikon — kare çerçeve yok, altıgenin kendisi çerçeve */
 function CategoryIconOrFallback({
   color,
