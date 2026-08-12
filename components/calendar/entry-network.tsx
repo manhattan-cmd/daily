@@ -61,8 +61,6 @@ type Layout = "poly" | "list";
 /** Sayım gelmeden önceki sabit boş harita — memo'ları her render'da bozmasın */
 const NO_COUNTS: ReadonlyMap<string, number> = new Map();
 
-/** Tuval genişliği (px) */
-const MAX_POLY = 300;
 /** Altıgen hücrenin merkezden köşesine uzaklığı (px) */
 const HEX_SIZE = 46;
 /** Bu sayıdan sonra çokgen okunmaz oluyor, liste devralır */
@@ -304,18 +302,6 @@ export function EntryNetwork({
   }
 
   const dense = false;
-  const maxSize = MAX_POLY;
-  // Tuval, sığdığı gerçek genişlikte ölçülür — konumlar 1:1 ekran pikseli
-  const [box, setBox] = useState(maxSize);
-  useEffect(() => {
-    const el = canvasRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([e]) => {
-      if (e.contentRect.width > 0) setBox(e.contentRect.width);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [layout, maxSize]);
   const pad = dense ? 26 : 30;
 
   // Altıgen yuva düzeni — kural lib/hex.ts'te, testle sabit
@@ -385,9 +371,13 @@ export function EntryNetwork({
     if (!drag) return;
     const onMove = (e: PointerEvent) => {
       const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const x = Math.max(pad, Math.min(box - pad, e.clientX - rect.left));
-      const y = Math.max(pad, Math.min(box - pad, e.clientY - rect.top));
+      if (!rect || !rect.width) return;
+      // Yuva konumları hex düzeninin koordinat uzayında (hex.width×hex.height);
+      // tuval ayrıca CanvasViewport tarafından ölçekleniyor. Ölçeği elemanın
+      // kendi genişliğinden okuyoruz: rect.width = hex.width × scale.
+      const scale = rect.width / hex.width;
+      const x = Math.max(pad, Math.min(hex.width - pad, (e.clientX - rect.left) / scale));
+      const y = Math.max(pad, Math.min(hex.height - pad, (e.clientY - rect.top) / scale));
       const np = { x, y };
       posRef.current = np;
       setDragPos(np);
@@ -428,7 +418,7 @@ export function EntryNetwork({
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("touchmove", prevent);
     };
-  }, [drag, nodes, positions, box, pad]);
+  }, [drag, nodes, positions, hex.width, hex.height, pad]);
 
   function startDrag(node: Node, p: { x: number; y: number }) {
     setDrag({ id: nodeId(node), kind: node.kind });
@@ -569,8 +559,10 @@ export function EntryNetwork({
             })}
           </HScroll>
 
-          {/* Görünüm — kalabalıklaşmaya başlayan sayfalarda çıkar */}
-          {nodes.length >= 6 && (
+          {/* Görünüm — her sayfada durur. Eskiden yalnız 6+ düğümde çıkıyordu
+              ama seçenek sayfadan sayfaya kaybolunca kullanıcı onu arıyordu;
+              liste tercihi kişisel, kalabalığa bağlı değil. */}
+          {hasNodes && (
             <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-white/6 p-0.5">
               {LAYOUT_OPTIONS.map(({ key, icon: Icon, labelKey }) => (
                 <button
@@ -643,6 +635,7 @@ export function EntryNetwork({
           <CanvasViewport width={hex.width} height={hex.height} resetKey={focusKey}>
           <div
             key={focusKey}
+            ref={canvasRef}
             className="relative animate-zoom-in"
             style={{ width: hex.width, height: hex.height }}
           >
@@ -1057,7 +1050,7 @@ function NodeList({
       </div>
 
       <p className="text-center text-[11px] leading-snug text-muted-foreground/70">
-        Tap: go inside · reorder from the Structure page
+        {t("tree.listHint")}
       </p>
     </div>
   );

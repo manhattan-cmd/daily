@@ -8,12 +8,12 @@ const MAX_ZOOM = 2.5;
 /** Pencere en az bu kadar yer kaplar; üstü kabın verdiği alandır */
 const MIN_FRAME_H = 300;
 /**
- * Açılış ölçeği en çok bu kadar BÜYÜTÜR. Eskiden sığdırma yalnız küçültüyordu
- * (`min(1, …)`): dört altıgenlik bir sayfa tam pencerede ortada ufacık kalıyor,
- * altı bomboş duruyordu. Az düğümlü sayfalar artık kutuyu dolduruyor; sınır
- * olmasa tek düğümlü yaprakta altıgen ekranı yutardı.
+ * Sığdırma yalnız KÜÇÜLTÜR, asla büyütmez. Bir ara az düğümlü sayfaları
+ * kutuya doldurmak için büyütmeyi denedik; altıgenler kocaman oldu ve
+ * hücrelerin makul, sabit bir boyu olması tercih edildi. Boşluk kalması
+ * büyümeye yeğ.
  */
-const MAX_FIT = 2.2;
+const MAX_FIT = 1;
 
 /**
  * Ağın gezinilebilir penceresi.
