@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { graphLayout, nodeRadius, type GraphSeed } from "./graph";
+import {
+  graphLayout,
+  labelBox,
+  nodeRadius,
+  type GraphSeed,
+  type PlacedNode,
+} from "./graph";
 
 /** kısa yazım: sub("a", sub("b"), mod("m")) */
 const sub = (id: string, ...children: GraphSeed[]): GraphSeed => ({
@@ -263,5 +269,111 @@ describe("kümeleme — akrabalık ölçekli itiş", () => {
         }
       }
     expect(cross / crossN).toBeGreaterThan((same / sameN) * 2);
+  });
+});
+
+describe("adlar da yerleşimin parçası", () => {
+  /** Çizim tarafındaki yerleşimin aynısı — kutunun ekrandaki yeri */
+  const boxOf = (n: PlacedNode, text: string) => {
+    const { w, h } = labelBox(n.kind, text);
+    const g = 4;
+    const d = n.r + g;
+    const c = n.r * 0.71 + g;
+    switch (n.label) {
+      case "right":
+        return { x0: n.x + d, y0: n.y - h / 2, x1: n.x + d + w, y1: n.y + h / 2 };
+      case "left":
+        return { x0: n.x - d - w, y0: n.y - h / 2, x1: n.x - d, y1: n.y + h / 2 };
+      case "bottom":
+        return { x0: n.x - w / 2, y0: n.y + d, x1: n.x + w / 2, y1: n.y + d + h };
+      case "top":
+        return { x0: n.x - w / 2, y0: n.y - d - h, x1: n.x + w / 2, y1: n.y - d };
+      case "br":
+        return { x0: n.x + c, y0: n.y + c, x1: n.x + c + w, y1: n.y + c + h };
+      case "bl":
+        return { x0: n.x - c - w, y0: n.y + c, x1: n.x - c, y1: n.y + c + h };
+      case "tr":
+        return { x0: n.x + c, y0: n.y - c - h, x1: n.x + c + w, y1: n.y - c };
+      default:
+        return { x0: n.x - c - w, y0: n.y - c - h, x1: n.x - c, y1: n.y - c };
+    }
+  };
+  type Box = ReturnType<typeof boxOf>;
+  const area = (a: Box, b: Box) =>
+    Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) *
+    Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
+
+  const named = (t: GraphSeed) => {
+    const m = new Map<string, string>();
+    const walk = (s: GraphSeed) => {
+      m.set(s.id, s.label ?? "");
+      (s.children ?? []).forEach(walk);
+    };
+    walk(t);
+    return m;
+  };
+
+  /** Adları olan gerçekçi bir ağaç */
+  const NAMED = root(
+    cat(
+      "c1",
+      sub("s1", sub("s3"), sub("s4"), sub("s5")),
+      sub("s6", sub("s7"), sub("s8")),
+      sub("s9", sub("s10"), sub("s11")),
+      sub("s13")
+    ),
+    cat("c2", sub("s14", mod("m1")), sub("s15", mod("m2")), sub("s16")),
+    cat("c3", sub("s19"), sub("s20"), sub("s21")),
+    cat("c4", sub("s22"), sub("s23"))
+  );
+  /** Ağaca gerçekçi uzunlukta adlar tak */
+  const withNames = (t: GraphSeed, i = { n: 0 }): GraphSeed => {
+    const words = [
+      "Harcamalar",
+      "Market",
+      "Yemek",
+      "Toplu taşıma",
+      "Sabah koşusu",
+      "Su",
+      "Elektrik faturası",
+      "Kitap",
+    ];
+    return {
+      ...t,
+      label: t.kind === "root" ? "" : words[i.n++ % words.length],
+      children: (t.children ?? []).map((k) => withNames(k, i)),
+    };
+  };
+
+  it("hiçbir ad başka bir adın ya da bir diskin üstüne binmiyor", () => {
+    // Bir ara yazılar ve şekiller birbirine giriyordu: yerleşim yalnız
+    // diskleri hesaba katıyor, ad diskin dışına körlemesine yazılıyordu.
+    // Artık ad da kutusuyla hesaba katılıyor ve sekiz adaydan en az çakışanı
+    // seçiliyor.
+    for (const tree of [SAMPLE, withNames(NAMED)]) {
+      const l = graphLayout(tree);
+      const names = named(tree);
+      const boxes = l.nodes
+        .filter((n) => n.labelled)
+        .map((n) => ({ n, b: boxOf(n, names.get(n.id) ?? "") }));
+      for (let i = 0; i < boxes.length; i++) {
+        for (let j = i + 1; j < boxes.length; j++)
+          expect(area(boxes[i].b, boxes[j].b)).toBeLessThan(1);
+        for (const d of [
+          { x: l.center.x, y: l.center.y, r: l.coreR },
+          ...l.nodes,
+        ]) {
+          if (d === boxes[i].n) continue;
+          expect(
+            area(boxes[i].b, {
+              x0: d.x - d.r,
+              y0: d.y - d.r,
+              x1: d.x + d.r,
+              y1: d.y + d.r,
+            })
+          ).toBeLessThan(1);
+        }
+      }
+    }
   });
 });

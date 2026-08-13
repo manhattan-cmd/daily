@@ -34,7 +34,7 @@ import {
   graphLayout,
   type GraphKind,
   type GraphSeed,
-  type PlacedNode,
+  type LabelSide,
 } from "@/lib/graph";
 import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -443,9 +443,14 @@ export function EntryNetwork({
       return {
         id: s.id,
         kind: "sub",
+        label: s.name,
         children: [
           ...kids.map((k) => subSeed(k, color)),
-          ...mods.map((m) => ({ id: `${s.id}:${m.id}`, kind: "mod" as const })),
+          ...mods.map((m) => ({
+            id: `${s.id}:${m.id}`,
+            kind: "mod" as const,
+            label: m.name,
+          })),
         ],
       };
     };
@@ -458,7 +463,7 @@ export function EntryNetwork({
           color: centerColor,
           weight: maxWeight,
         });
-        return { id, kind: "mod" as const };
+        return { id, kind: "mod" as const, label: m.name };
       });
 
     let children: GraphSeed[];
@@ -474,6 +479,7 @@ export function EntryNetwork({
         return {
           id: c.id,
           kind: "cat" as const,
+          label: c.name,
           children: (topSubsByCat.get(c.id) ?? []).map((s) =>
             subSeed(s, c.color)
           ),
@@ -571,14 +577,8 @@ export function EntryNetwork({
       };
   const coreIconSize = isGraph ? 18 : 20;
 
-  /**
-   * Gezilecek her kalem adını taşıyor: adsız daire dokunulacak yer değil,
-   * süs oluyordu. Kılcallar ise ancak harita seyrekken adlanıyor — geniş
-   * bakışta yüzlerce olabiliyorlar, ucundaki kalemde ise "burada neyi
-   * ölçüyorum"un cevabı tam da onlar.
-   */
-  const airy = graph.nodes.length <= 12;
-  const showLabel = (g: PlacedNode) => g.kind !== "mod" || airy;
+  // Adın yazılıp yazılmayacağına ve hangi yana yazılacağına yerleşim karar
+  // veriyor (lib/graph.ts): yazılar da çakışma hesabının parçası.
   // Sürüklenen düğüm anlık parmak konumunda gösterilir (ışın da takip eder)
   const effPositions = positions.map((p, i) => {
     if (drag && dragPos && drag.id === nodeId(nodes[i])) return dragPos;
@@ -1116,13 +1116,13 @@ export function EntryNetwork({
                     x={p.x}
                     y={p.y}
                     r={g.r}
-                    angle={g.angle}
+                    side={g.label}
                     kind={g.kind}
                     color={m.color}
                     icon={m.icon}
                     name={m.name}
                     glow={metaGlow(m)}
-                    showLabel={showLabel(g)}
+                    showLabel={g.labelled}
                     isDragging={dragging}
                     onTap={m.node ? () => drill(m.node!) : undefined}
                     onDragStart={
@@ -1637,20 +1637,30 @@ function NetNode({
 }
 
 /**
- * Adın diskin neresine yazılacağı — merkezden dışarı doğru. Yan taraftaki
- * düğümlerde yazı yana, tepe/dipteki düğümlerde alta veya üste gider.
+ * Adın diskin neresine yazılacağı. Yanı yerleşim seçiyor (lib/graph.ts):
+ * dört adaydan başka disklere ve önce yerleşmiş adlara en az binen taraf.
  */
-function labelPlacement(r: number, angle: number): CSSProperties {
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-  const off = r + 5;
-  if (Math.abs(cos) > 0.42)
-    return cos > 0
-      ? { left: `calc(50% + ${off}px)`, top: "50%", transform: "translateY(-50%)", textAlign: "left" }
-      : { right: `calc(50% + ${off}px)`, top: "50%", transform: "translateY(-50%)", textAlign: "right" };
-  return sin > 0
-    ? { left: "50%", top: `calc(50% + ${off}px)`, transform: "translateX(-50%)", textAlign: "center" }
-    : { left: "50%", bottom: `calc(50% + ${off}px)`, transform: "translateX(-50%)", textAlign: "center" };
+function labelPlacement(r: number, side: LabelSide): CSSProperties {
+  const off = r + 4;
+  const c = r * 0.71 + 4;
+  switch (side) {
+    case "right":
+      return { left: `calc(50% + ${off}px)`, top: "50%", transform: "translateY(-50%)", textAlign: "left" };
+    case "left":
+      return { right: `calc(50% + ${off}px)`, top: "50%", transform: "translateY(-50%)", textAlign: "right" };
+    case "bottom":
+      return { left: "50%", top: `calc(50% + ${off}px)`, transform: "translateX(-50%)", textAlign: "center" };
+    case "top":
+      return { left: "50%", bottom: `calc(50% + ${off}px)`, transform: "translateX(-50%)", textAlign: "center" };
+    case "br":
+      return { left: `calc(50% + ${c}px)`, top: `calc(50% + ${c}px)`, textAlign: "left" };
+    case "bl":
+      return { right: `calc(50% + ${c}px)`, top: `calc(50% + ${c}px)`, textAlign: "right" };
+    case "tr":
+      return { left: `calc(50% + ${c}px)`, bottom: `calc(50% + ${c}px)`, textAlign: "left" };
+    default:
+      return { right: `calc(50% + ${c}px)`, bottom: `calc(50% + ${c}px)`, textAlign: "right" };
+  }
 }
 
 /** Haritada merkez gövdenin adı — diskin hemen altında, kırpılmadan */
@@ -1673,7 +1683,7 @@ function GraphCell({
   x,
   y,
   r,
-  angle,
+  side,
   kind,
   color,
   icon,
@@ -1687,8 +1697,8 @@ function GraphCell({
   x: number;
   y: number;
   r: number;
-  /** Merkezden bakış açısı — ad bu yöne, dışarı doğru yazılıyor */
-  angle: number;
+  /** Adın yazılacağı yan — yerleşim çakışmayanı seçiyor */
+  side: LabelSide;
   /** Kademe: yazı boyu buna göre */
   kind: GraphKind;
   color: string;
@@ -1743,7 +1753,7 @@ function GraphCell({
       )}
       // Ad hatların ve komşu disklerin üstüne binebiliyor; koyu bir gölge
       // onu her zeminde okunur tutuyor
-      style={{ ...labelPlacement(r, angle), textShadow: "0 1px 4px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)" }}
+      style={{ ...labelPlacement(r, side), textShadow: "0 1px 4px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)" }}
     >
       {name}
     </span>

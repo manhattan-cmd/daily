@@ -48,8 +48,24 @@ export type GraphKind = "root" | "cat" | "sub" | "mod";
 export interface GraphSeed {
   id: string;
   kind: GraphKind;
+  /** Ekranda yazacak ad — etiket kutusunun eni bundan kestiriliyor */
+  label?: string;
   children?: GraphSeed[];
 }
+
+/**
+ * Adın diskin hangi yanına yazıldığı. Dört ana yön çakışmayı çözmeye
+ * yetmiyordu; köşeler de aday, sıkışık kümede yazıya yer açıyorlar.
+ */
+export type LabelSide =
+  | "right"
+  | "left"
+  | "bottom"
+  | "top"
+  | "br"
+  | "bl"
+  | "tr"
+  | "tl";
 
 export interface PlacedNode extends Point {
   id: string;
@@ -60,6 +76,10 @@ export interface PlacedNode extends Point {
   r: number;
   /** Merkezden bakış açısı (radyan) — etiket yönü için işe yarar */
   angle: number;
+  /** Adın yazılacağı yan — çakışmayan taraf seçiliyor */
+  label: LabelSide;
+  /** Adı yazılıyor mu (kılcallar ancak seyrek haritada adlanıyor) */
+  labelled: boolean;
 }
 
 export interface GraphEdge {
@@ -85,7 +105,26 @@ export interface GraphLayout {
 }
 
 /** Diskler arasında bırakılan en az boşluk (px) */
-const GAP = 9;
+const GAP = 12;
+
+/**
+ * Adın kapladığı kutu. Yerleşim tarayıcıda ölçüm yapamadığı için harf
+ * genişliği punto üzerinden kestiriliyor; çizim tarafındaki sınıflarla aynı
+ * puntolar ve aynı en sınırları kullanılıyor (bkz. GraphCell).
+ */
+export function labelBox(kind: GraphKind, text: string): { w: number; h: number } {
+  const [font, maxW, line] =
+    kind === "cat" ? [10, 74, 12] : kind === "sub" ? [8.5, 66, 10] : [8, 56, 9.5];
+  const wide = Math.max(10, text.trim().length * font * 0.55);
+  const w = Math.min(maxW, wide);
+  const lines = Math.min(2, Math.max(1, Math.ceil(wide / maxW)));
+  return { w, h: lines * line + 2 };
+}
+
+/** Etiketli düğüm çevresinde ayrıca istenen pay — yazı komşuya binmesin */
+function labelPad(kind: GraphKind): number {
+  return kind === "cat" ? 11 : kind === "sub" ? 8 : 0;
+}
 /**
  * Kutu kenar payı. Adlar diskin DIŞINA yazıldığı için pay yatayda geniş:
  * yandaki düğümlerin yazısı kutunun dışına taşarsa pencere onu kırpıyor
@@ -180,8 +219,10 @@ export function graphLayout(root: GraphSeed): GraphLayout {
   // Denge kendi yerini bulacak ama işe yakın bir yerden başlamak hem daha
   // az turda oturuyor hem de sonucu belirli kılıyor: her düğüm kendi dal
   // yuvasının çevresine, kimliğinden gelen sabit bir sapmayla konuyor.
+  const labelOf = new Map<string, string>();
   const walk = (node: GraphSeed, depth: number, parentId: string, branch: string) => {
     const r = nodeRadius(node.kind, childCount(node));
+    labelOf.set(node.id, node.label ?? "");
     const home = anchor.get(branch);
     const spread = 12 + 14 * depth;
     all.push({
@@ -237,7 +278,13 @@ export function graphLayout(root: GraphSeed): GraphLayout {
         const dx = b.x - a.x;
         const dy = b.y - a.y;
         const d = Math.hypot(dx, dy) || 0.01;
-        const reach = (a.r + b.r + 48) * kinship(a, b);
+        const reach =
+          (a.r +
+            b.r +
+            48 +
+            labelPad(a.seed.kind) +
+            labelPad(b.seed.kind)) *
+          kinship(a, b);
         if (d > reach) continue;
         const f = ((reach - d) / reach) * 9 * kinship(a, b) * alpha;
         const ux = dx / d;
@@ -332,7 +379,120 @@ export function graphLayout(root: GraphSeed): GraphLayout {
     })(),
     x: p.x + center.x,
     y: p.y + center.y,
+    // Aşağıdaki geçişte belirleniyor
+    label: "bottom" as LabelSide,
+    labelled: false,
   }));
+
+  // ── Adların yeri ───────────────────────────────────────────────────────
+  // Yazılar da yerleşimin parçası. Her ad diskin dört yanından birine
+  // konabiliyor; hangi yana konacağı, o kutunun BAŞKA disklere ve ÖNCE
+  // yerleşmiş adlara ne kadar bindiğine bakılarak seçiliyor. Sıra sabit
+  // (önce kategoriler, sonra kimliğe göre): sonuç belirli.
+  //
+  // Kılcalların adı yalnız seyrek haritada yazılıyor — geniş bakışta
+  // yüzlerce olabiliyorlar ve harita yazı yığınına dönüyor.
+  const airy = nodes.length <= 12;
+  const discs = [{ x: center.x, y: center.y, r: rootR }, ...nodes];
+  const boxFor = (n: PlacedNode, side: LabelSide, w: number, h: number) => {
+    const gap = 4;
+    const d = n.r + gap;
+    // Köşelerde disk çeperine 45°'de değiliyor
+    const c = n.r * 0.71 + gap;
+    switch (side) {
+      case "right":
+        return { x0: n.x + d, y0: n.y - h / 2, x1: n.x + d + w, y1: n.y + h / 2 };
+      case "left":
+        return { x0: n.x - d - w, y0: n.y - h / 2, x1: n.x - d, y1: n.y + h / 2 };
+      case "bottom":
+        return { x0: n.x - w / 2, y0: n.y + d, x1: n.x + w / 2, y1: n.y + d + h };
+      case "top":
+        return { x0: n.x - w / 2, y0: n.y - d - h, x1: n.x + w / 2, y1: n.y - d };
+      case "br":
+        return { x0: n.x + c, y0: n.y + c, x1: n.x + c + w, y1: n.y + c + h };
+      case "bl":
+        return { x0: n.x - c - w, y0: n.y + c, x1: n.x - c, y1: n.y + c + h };
+      case "tr":
+        return { x0: n.x + c, y0: n.y - c - h, x1: n.x + c + w, y1: n.y - c };
+      default:
+        return { x0: n.x - c - w, y0: n.y - c - h, x1: n.x - c, y1: n.y - c };
+    }
+  };
+  const overlap = (
+    b: { x0: number; y0: number; x1: number; y1: number },
+    c: { x0: number; y0: number; x1: number; y1: number }
+  ) =>
+    Math.max(0, Math.min(b.x1, c.x1) - Math.max(b.x0, c.x0)) *
+    Math.max(0, Math.min(b.y1, c.y1) - Math.max(b.y0, c.y0));
+
+  const order = [...nodes].sort(
+    (a, b) => a.depth - b.depth || (a.id < b.id ? -1 : 1)
+  );
+  const size = new Map<string, { w: number; h: number }>();
+  const chosen = new Map<string, { x0: number; y0: number; x1: number; y1: number }>();
+  /** Bir düğüm için en az çakışan yanı seç (kendi kutusu hesaba katılmadan) */
+  const chooseSide = (n: PlacedNode) => {
+    const { w, h } = size.get(n.id)!;
+    // Yönü anasından dışa bakan yan önce denensin: harita o dili konuşuyor
+    const cos = Math.cos(n.angle);
+    const sin = Math.sin(n.angle);
+    const preferred: LabelSide =
+      Math.abs(cos) > Math.abs(sin)
+        ? cos > 0
+          ? "right"
+          : "left"
+        : sin > 0
+          ? "bottom"
+          : "top";
+    const sides: LabelSide[] = [
+      preferred,
+      ...([
+        "right",
+        "left",
+        "bottom",
+        "top",
+        "br",
+        "bl",
+        "tr",
+        "tl",
+      ] as LabelSide[]).filter((s) => s !== preferred),
+    ];
+    let best: LabelSide = preferred;
+    let bestCost = Infinity;
+    sides.forEach((side, i) => {
+      const box = boxFor(n, side, w, h);
+      let cost = i * 3; // eşitlikte tercih edilen yan kazansın
+      for (const d of discs) {
+        if (d === n) continue;
+        cost +=
+          overlap(box, {
+            x0: d.x - d.r,
+            y0: d.y - d.r,
+            x1: d.x + d.r,
+            y1: d.y + d.r,
+          }) * 3;
+      }
+      for (const [id, t] of chosen) if (id !== n.id) cost += overlap(box, t);
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = side;
+      }
+    });
+    n.label = best;
+    chosen.set(n.id, boxFor(n, best, w, h));
+  };
+
+  for (const n of order) {
+    if (n.kind === "mod" && !airy) continue;
+    n.labelled = true;
+    size.set(n.id, labelBox(n.kind, labelOf.get(n.id) ?? ""));
+  }
+  // İlk geçiş yalnız kendinden ÖNCEKİ adları görüyor; sonraki geçişler
+  // hepsini görüp yeniden seçiyor. Böylece sonradan gelen bir ad yüzünden
+  // sıkışan erken bir ad da yer değiştirebiliyor.
+  for (let round = 0; round < 3; round++)
+    for (const n of order) if (n.labelled) chooseSide(n);
+
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const posOf = (id: string): Point =>
     id === root.id ? center : byId.get(id) ?? center;
