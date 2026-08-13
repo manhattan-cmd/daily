@@ -139,26 +139,29 @@ input[type="number"] {
   from { stroke-dashoffset: 1; }
   to   { stroke-dashoffset: 0; }
 }
-/* Dalga: uçta belirir, hat boyunca akar, sonunda söner. Uçlarda opaklık
-   sıfırdan başlayıp sıfıra döndüğü için ışık "pat" diye girip çıkmıyor;
-   bir soluk alıp veriyor. Bekleme payı çerçevenin sonundaki düz kısımda —
-   böylece dalgalar arasında sessiz bir aralık kalıyor. */
-@keyframes nerveWave {
-  0%   { stroke-dashoffset: 1.25; opacity: 0; }
-  8%   { opacity: var(--wave-op, 0.6); }
-  46%  { opacity: var(--wave-op, 0.6); }
-  60%  { stroke-dashoffset: 0; opacity: 0; }
-  100% { stroke-dashoffset: 0; opacity: 0; }
+/* Dalgalanma. Hat boyunca TEKRAR EDEN kısa parlaklıklar var; desen bir tam
+   periyot kayınca başa döndüğü için akış kesintisiz — başı sonu belli tek
+   bir "paket" yok. Bir de hepsi birlikte soluk alıp veriyor (swell). İkisi
+   ayrı tempoda olduğu için ışık bir yerde toplanıp bir yerde inceliyor:
+   telde koşan bir nokta değil, suyun üstündeki gibi dalgalanma.
+
+   Tek paket denendi ve bırakıldı: ışık yol alıyor gibi duruyordu. */
+@keyframes nerveDrift {
+  from { stroke-dashoffset: var(--wave-period, 20px); }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes nerveSwell {
+  0%, 100% { opacity: calc(var(--wave-op, 0.5) * 0.3); }
+  50%      { opacity: var(--wave-op, 0.5); }
 }
 .nerve-fill {
   stroke-dasharray: 1 1;
   animation: nerveFill 0.55s cubic-bezier(0.3, 0.9, 0.4, 1) both;
 }
 .nerve-wave {
-  stroke-dasharray: 0.26 1.25;
-  opacity: 0;
-  animation: nerveWave var(--wave-dur, 7s) cubic-bezier(0.45, 0.05, 0.55, 0.95)
-    var(--wave-delay, 0s) infinite;
+  animation:
+    nerveDrift var(--wave-dur, 5s) linear var(--wave-delay, 0s) infinite,
+    nerveSwell var(--swell-dur, 4s) ease-in-out var(--wave-delay, 0s) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

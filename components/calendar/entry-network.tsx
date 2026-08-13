@@ -130,6 +130,14 @@ const noop = () => {};
 const gradId = (id: string) => `eg-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 
 /**
+ * Dalgalanmanın deseni (px): parlak kısım ve arası. Piksel cinsinden çünkü
+ * dalga boyu her hatta aynı olmalı — oransal verilince kısa hat tek bir
+ * parlaklık, uzun hat bir sürü parlaklık taşıyordu.
+ */
+const WAVE_DASH = 7;
+const WAVE_GAP = 13;
+
+/**
  * Kimlikten türeyen 0–1.2 sn arası sabit gecikme. Darbeler aynı anda
  * atmasın diye: hepsi birlikte yanıp sönünce harita nefes almıyor,
  * zonkluyordu.
@@ -983,29 +991,31 @@ export function EntryNetwork({
                         strokeLinecap="round"
                         style={{ animationDelay: `${delay}s` }}
                       />,
-                      // Dalga HER hatta dolaşıyor, ama temposu ve parlaklığı
-                      // yoğunlukla değişiyor: sık gidilen yolda sık ve
-                      // belirgin, seyrek yolda aralıklı ve soluk. Gecikme
-                      // kimlikten türüyor — hepsi aynı anda atınca harita
-                      // nefes almıyor, zonkluyordu.
+                      // Dalgalanma HER hatta var. Desen piksel cinsinden ve
+                      // tekrarlı: dalga boyu her hatta aynı, kısa hat da
+                      // uzun hat da aynı ritimde kıpırdıyor. Tempo ve
+                      // parlaklık yoğunlukla değişiyor; evreler kimlikten
+                      // dağıtılıyor, yoksa bütün harita tek ağızdan
+                      // zonkluyor.
                       <path
                         key={`p${e.id}`}
                         className="nerve-wave"
-                        pathLength={1}
                         d={e.path}
                         fill="none"
-                        stroke={col}
-                        strokeWidth={w * 0.9}
+                        // Beyaz: hattın kendi renginde parlaklık, rengin
+                        // koyusu üstünde fark edilmiyordu. Işık ışık gibi
+                        // görünsün diye üstten beyaz vuruyor.
+                        stroke="#ffffff"
+                        strokeWidth={w * 0.8}
                         strokeLinecap="round"
+                        strokeDasharray={`${WAVE_DASH} ${WAVE_GAP}`}
                         style={
                           {
-                            "--wave-op": 0.28 + 0.5 * g,
-                            "--wave-dur": `${9 - 4.5 * g}s`,
-                            // EKSİ gecikme: dalga çoktan yola çıkmış gibi
-                            // başlıyor. Artı gecikmeyle ilk dalgayı sekiz
-                            // saniye beklemek gerekiyordu; harita açılışta
-                            // ölü duruyordu.
-                            "--wave-delay": `${-jitterOf(e.id) * (9 - 4.5 * g)}s`,
+                            "--wave-op": 0.18 + 0.34 * g,
+                            "--wave-period": `${WAVE_DASH + WAVE_GAP}px`,
+                            "--wave-dur": `${2.6 - 0.9 * g}s`,
+                            "--swell-dur": `${5.5 - 1.6 * g}s`,
+                            "--wave-delay": `${-jitterOf(e.id) * 6}s`,
                           } as CSSProperties
                         }
                       />,
