@@ -37,6 +37,7 @@ import {
   type LabelSide,
 } from "@/lib/graph";
 import { SymbolIcon } from "@/lib/icons";
+import { levelRatio, usageLevel, usageSince } from "@/lib/usage";
 import { cn } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
 import type { Category, Mod, SubCategory } from "@/types";
@@ -127,6 +128,20 @@ const noop = () => {};
 
 /** Kimlikten geçerli bir SVG id'si — veritabanı kimlikleri doğrudan konamaz */
 const gradId = (id: string) => `eg-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+
+/**
+ * Kimlikten türeyen 0–1.2 sn arası sabit gecikme. Darbeler aynı anda
+ * atmasın diye: hepsi birlikte yanıp sönünce harita nefes almıyor,
+ * zonkluyordu.
+ */
+function jitterOf(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 1200) / 1000;
+}
 
 /**
  * Rengi ton çemberinde kaydır — aynı ailenin komşu tonları. Petek
@@ -258,11 +273,13 @@ export function EntryNetwork({
   );
 
   // ─── Sık kullanım ───────────────────────────────────────────────────────────
-  // Bir düğümün "ağırlığı" kendi girdileri + tüm torunlarınınki. Parlaklık,
-  // aynı sayfadaki en çok kullanılan kardeşe göre orandır: kalabalık
-  // sayfalarda bile en sık kullanılan net biçimde öne çıksın.
+  // Bir düğümün "ağırlığı" kendi girdileri + tüm torunlarınınki. Sayım
+  // SON 30 GÜNE bakıyor (lib/usage): harita şu anki hayatı göstermeli,
+  // arşivi değil — bıraktığın bir alışkanlık haritada parlak kalmasın,
+  // yeni edindiğin sönük durmasın.
   const entryCounts =
-    useLiveQuery(() => getEntryCountsBySubcategory(), []) ?? NO_COUNTS;
+    useLiveQuery(() => getEntryCountsBySubcategory(usageSince()), []) ??
+    NO_COUNTS;
 
   /**
    * Kalem → ona bağlı özellikler. Altıgenlerin altındaki noktalar bundan
@@ -498,13 +515,14 @@ export function EntryNetwork({
   ]);
 
   const graph = useMemo(() => graphLayout(tree.seed), [tree]);
-  /** Haritadaki en ağır kalem — parlaklık ona göre oranlanıyor */
-  const graphMax = useMemo(
-    () => [...tree.meta.values()].reduce((m, v) => Math.max(m, v.weight), 0),
-    [tree]
-  );
-  const metaGlow = (m?: GraphMeta) =>
-    m && graphMax > 0 ? m.weight / graphMax : 0;
+  /**
+   * Bir kalemin basamağı — son 30 gündeki girdi sayısından, MUTLAK eşiklerle
+   * (lib/usage). Eskiden oran haritanın en ağır kalemine bölünüyordu: tek
+   * bir yoğun dal bütün haritayı sönük bırakıyor, iki yakın dal da ayırt
+   * edilemiyordu. Basamak komşusuna değil, kendi ritmine bağlı.
+   */
+  const metaLevel = (m?: GraphMeta) => usageLevel(m?.weight ?? 0);
+  const metaGlow = (m?: GraphMeta) => levelRatio(metaLevel(m));
 
   /**
    * Ülke rengi. Kökte her kategori kendi rengini taşıyor. Bir kategorinin
@@ -936,6 +954,9 @@ export function EntryNetwork({
                     const col = m?.color ?? centerColor;
                     const g = metaGlow(m);
                     const w = e.width * (1 + 1.8 * g);
+                    // Işık gövdeden yaprağa akıyor: derinlik arttıkça
+                    // gecikme artıyor
+                    const delay = 0.06 + 0.16 * (e.depth - 1);
                     return [
                       g > 0.12 ? (
                         <path
@@ -949,12 +970,34 @@ export function EntryNetwork({
                       ) : null,
                       <path
                         key={e.id}
+                        className="nerve-fill"
+                        pathLength={1}
                         d={e.path}
                         fill="none"
                         stroke={`url(#${gradId(e.id)})`}
                         strokeWidth={w}
                         strokeLinecap="round"
+                        style={{ animationDelay: `${delay}s` }}
                       />,
+                      // Sık kullanılan hatta dolaşan darbe — sayfa durağan
+                      // kalmasın. Seyrek hatlarda yok: her yerde kıpırdayan
+                      // bir harita huzursuz ediyor.
+                      g >= 0.5 ? (
+                        <path
+                          key={`p${e.id}`}
+                          className="nerve-pulse"
+                          pathLength={1}
+                          d={e.path}
+                          fill="none"
+                          stroke={`${col}${hexA(0.35 + 0.45 * g)}`}
+                          strokeWidth={w * 0.8}
+                          strokeLinecap="round"
+                          style={{
+                            animationDelay: `${delay + 0.5 + jitterOf(e.id)}s`,
+                            animationDuration: `${3.2 - 0.5 * g}s`,
+                          }}
+                        />
+                      ) : null,
                     ];
                   })}
                 </>

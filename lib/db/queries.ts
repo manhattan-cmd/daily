@@ -1783,12 +1783,31 @@ export async function listEntriesByDate(dateStr: string): Promise<EntryWithConte
  * parlatmak için — tam kayıtları okumadan yalnız indeks anahtarları gezilir,
  * girdi sayısı büyüdükçe de ucuz kalır.
  */
-export async function getEntryCountsBySubcategory(): Promise<Map<string, number>> {
+/**
+ * Alt kategori → girdi sayısı.
+ *
+ * `since` verilirse yalnız o andan sonraki girdiler sayılıyor. Bağ haritası
+ * bunu kullanıyor: toplam sayı "şu anki hayatı" değil arşivi gösteriyor,
+ * bıraktığın bir alışkanlık haritada hep parlak kalıyordu (bkz. lib/usage).
+ */
+export async function getEntryCountsBySubcategory(
+  since?: number
+): Promise<Map<string, number>> {
   const counts = new Map<string, number>();
-  await db.entries.orderBy("subcategoryId").eachKey((key) => {
-    const id = String(key);
-    counts.set(id, (counts.get(id) ?? 0) + 1);
-  });
+  if (since === undefined) {
+    // Anahtar taraması: kaydın gövdesini hiç okumadan sayıyor
+    await db.entries.orderBy("subcategoryId").eachKey((key) => {
+      const id = String(key);
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    });
+    return counts;
+  }
+  await db.entries
+    .where("occurredAt")
+    .aboveOrEqual(since)
+    .each((e) => {
+      counts.set(e.subcategoryId, (counts.get(e.subcategoryId) ?? 0) + 1);
+    });
   return counts;
 }
 

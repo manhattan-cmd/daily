@@ -125,3 +125,40 @@ input[type="number"] {
 .animate-zoom-in {
   animation: zoomIn 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+/* ── Bağ haritasında ışık ────────────────────────────────────────────────
+   Sayfa açılınca merkezden başlayan bir dalga hatları uçlara doğru
+   dolduruyor: her hat kendi derinliğine göre gecikmeli başlıyor, yani ışık
+   gövdeden yaprağa akıyor. Sonrasında sık kullanılan hatlarda ince bir
+   darbe dolaşmaya devam ediyor — harita durağan kalmasın, "burada bir
+   akış var" hissi sürsün.
+
+   İkisi de `pathLength="1"` üzerine kurulu: yolun gerçek uzunluğunu
+   ölçmeye gerek kalmıyor, her hat 0–1 aralığında normalleniyor. */
+@keyframes nerveFill {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes nervePulse {
+  from { stroke-dashoffset: 1.14; }
+  to   { stroke-dashoffset: 0; }
+}
+.nerve-fill {
+  stroke-dasharray: 1 1;
+  animation: nerveFill 0.55s cubic-bezier(0.3, 0.9, 0.4, 1) both;
+}
+.nerve-pulse {
+  stroke-dasharray: 0.14 1;
+  animation: nervePulse 3.6s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nerve-fill,
+  .nerve-pulse {
+    animation: none;
+    stroke-dasharray: none;
+  }
+  .nerve-pulse {
+    opacity: 0;
+  }
+}
