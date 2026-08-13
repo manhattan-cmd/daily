@@ -73,15 +73,22 @@ describe("graphLayout", () => {
     }
   });
 
-  it("derinlik arttıkça merkezden uzaklaşır", () => {
+  it("kategoriler gövdenin dışında, dalın kendisi merkezden uzakta", () => {
+    // Kuvvet dengesinde çocuk anasının ÇEVRESİNE yerleşiyor, illa dışına
+    // değil — bir kılcal anasından biraz içeride kalabilir. Kuralın kendisi
+    // "derinleştikçe uzaklaş" değil, "çocuk anasının dibinde" (aşağıdaki
+    // hat testi). Merkezden uzaklık yalnız kategoriler için garanti.
     const l = graphLayout(SAMPLE);
     const dist = (id: string) => {
       const n = l.byId.get(id)!;
       return Math.hypot(n.x - l.center.x, n.y - l.center.y);
     };
-    expect(dist("kosu")).toBeGreaterThan(dist("spor"));
-    expect(dist("sabah")).toBeGreaterThan(dist("kosu"));
-    expect(dist("kosu:sure")).toBeGreaterThan(dist("kosu"));
+    for (const id of ["spor", "hobi", "egitim"])
+      expect(dist(id)).toBeGreaterThan(l.coreR + l.byId.get(id)!.r);
+    // Dalın altı, dalın kendisinden daha derinde: ortalama uzaklık artıyor
+    const avg = (ids: string[]) =>
+      ids.reduce((s, i) => s + dist(i), 0) / ids.length;
+    expect(avg(["sabah", "parkur"])).toBeGreaterThan(dist("spor"));
   });
 
   it("kalabalık dal daha geniş yelpaze açar", () => {
@@ -199,5 +206,62 @@ describe("derli toplu — harita pencereye sığmak için küçültülmemeli", (
       const pr = n.parentId === "root" ? l.coreR : l.byId.get(n.parentId)!.r;
       expect(d).toBeLessThan(pr + n.r + 90);
     }
+  });
+});
+
+describe("kümeleme — akrabalık ölçekli itiş", () => {
+  /** Bir düğümün bağlı olduğu kategori (birinci kademe ata) */
+  const branchMap = (t: GraphSeed) => {
+    const m = new Map<string, string>();
+    const walk = (s: GraphSeed, depth: number, branch: string) => {
+      m.set(s.id, branch);
+      for (const k of s.children ?? [])
+        walk(k, depth + 1, depth === 0 ? k.id : branch);
+    };
+    walk(t, 0, "");
+    return m;
+  };
+
+  it("her kalemin en yakın komşusu kendi kategorisinden", () => {
+    // Haritanın asıl vaadi bu: kategoriler ayrı kümeler hâlinde duruyor.
+    // Bir ara dallar birbirinin içinden geçiyordu ve harita yumak gibiydi.
+    const l = graphLayout(SAMPLE);
+    const branch = branchMap(SAMPLE);
+    for (const a of l.nodes) {
+      let best = Infinity;
+      let bestId = "";
+      for (const b of l.nodes) {
+        if (a.id === b.id) continue;
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (d < best) {
+          best = d;
+          bestId = b.id;
+        }
+      }
+      expect(branch.get(bestId)).toBe(branch.get(a.id));
+    }
+  });
+
+  it("yabancı kategoriler kendi içindekilerden çok daha uzak", () => {
+    const l = graphLayout(SAMPLE);
+    const branch = branchMap(SAMPLE);
+    let same = 0;
+    let sameN = 0;
+    let cross = 0;
+    let crossN = 0;
+    for (let i = 0; i < l.nodes.length; i++)
+      for (let j = i + 1; j < l.nodes.length; j++) {
+        const a = l.nodes[i];
+        const b = l.nodes[j];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (branch.get(a.id) === branch.get(b.id)) {
+          same += d;
+          sameN++;
+        } else {
+          cross += d;
+          crossN++;
+        }
+      }
+    expect(cross / crossN).toBeGreaterThan((same / sameN) * 2);
   });
 });

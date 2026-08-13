@@ -8,18 +8,28 @@
  * doğrudan gösteriliyor. Bir düğüme dokununca merkez o oluyor ve aynı resim
  * onun ağacı için yeniden kuruluyor.
  *
- * Yerleşim ışınsal HALKA değil, YAYILAN bir sinir yığını. Önce halka
- * denendi: her dal yaprak sayısı kadar açı alıyordu, dolayısıyla en dıştaki
- * halka bütün yaprakların sığacağı çevreye kadar büyüyordu — harita kocaman
- * oluyor, pencereye sığdırmak için küçültülünce de hiçbir şey okunmuyordu.
- * Şimdi her dal, anasının BAKTIĞI YÖNDE dar bir koni içinde açılıyor;
- * mesafeler derinlikle kısalıyor ve düğümler birbirini itip yer açıyor.
- * Sonuç hem çok daha küçük bir alan, hem de düzgün bir çarkın değil dağınık
- * bir sinir ağının görüntüsü.
+ * Yerleşim bir KUVVET DENGESİ (Obsidian'ın grafiği gibi), ama itiş herkese
+ * aynı şiddette değil — AKRABALIĞA göre:
  *
- * Dağınıklık rastgele DEĞİL: her sapma düğümün kimliğinden türetiliyor, yani
- * aynı yapı her açılışta aynı yerde duruyor. Dolaşırken yer değiştiren bir
- * harita güven vermiyordu.
+ *   - Farklı kategoriden iki kalem birbirini sert iter,
+ *   - Aynı kategorinin farklı alt dalları orta,
+ *   - Kardeşler en yumuşak.
+ *
+ * Buna bir de DAL YUVASI ekleniyor: her kategori merkez çevresinde kendi
+ * yönünü alıyor (pay büyüklüğüne göre), uzaklığı kendi kalabalığına göre
+ * belirleniyor ve üyeleri oraya doğru hafifçe çekiliyor. Sonuç: her kategori
+ * ayrı bir küme, kümeler birbirine karışmıyor, küme içinde ağacın şekli
+ * duruyor.
+ *
+ * İki yol denendi ve ikisi de bırakıldı: (1) ışınsal halka — her dal yaprak
+ * sayısı kadar açı alıyor, en dıştaki halka bütün yaprakların sığacağı
+ * çevreye kadar büyüyordu; harita kocaman oluyor, pencereye sığdırılınca
+ * hiçbir şey okunmuyordu. (2) anasının yönünde dar koni — alan daraldı ama
+ * dallar birbirinin içinden geçiyor, harita düğüm yumağına dönüyordu.
+ *
+ * Rastgelelik yok: başlangıç konumları ve sapmalar kimlikten türetiliyor,
+ * tur sayısı sabit. Aynı yapı her açılışta aynı yerde duruyor — dolaşırken
+ * yer değiştiren bir harita güven vermiyordu.
  *
  * Boy neyi söylüyor: kök > kategori > alt kategori > özellik. Kategorinin ve
  * alt kategorinin çapı kendi çocuk sayısıyla da biraz büyüyor. Kullanım
@@ -118,69 +128,144 @@ interface Placed {
   seed: GraphSeed;
   depth: number;
   parentId: string;
+  /** Bağlı olduğu kategori (birinci kademe atası); kökte boş */
+  branch: string;
   r: number;
   x: number;
   y: number;
-  /** Bu düğümün dışa bakış yönü — çocukları bu yönde açılıyor */
-  dir: number;
+}
+
+/** Ana ile çocuk arasındaki yay boyu — derinleştikçe kısalıyor */
+function stepOf(depth: number): number {
+  return [36, 28, 22, 17][Math.min(depth, 3)];
 }
 
 /**
- * Bir düğümün çocuklarının açıldığı koni. Kökte tam çember; aşağıda dar bir
- * yelpaze — sinir ucu geriye doğru dallanmaz, ileri doğru saçaklanır.
+ * İki kalem birbirini ne kadar itsin? Kural bu haritanın belkemiği:
+ * yabancılar sert, akrabalar yumuşak iter. Böylece kategoriler ayrı kümeler
+ * hâlinde durur, küme içinde kardeşler sıkışabilir.
  */
-function coneOf(depth: number, n: number): number {
-  if (depth === 0) return Math.PI * 2;
-  return Math.min(Math.PI * 1.15, 0.75 + 0.42 * n);
-}
-
-/** Ana ile çocuk arasındaki boşluk — derinleştikçe kısalıyor */
-function stepOf(depth: number): number {
-  return [34, 27, 21, 17][Math.min(depth, 3)];
+function kinship(a: Placed, b: Placed): number {
+  if (a.parentId && a.parentId === b.parentId) return 0.66;
+  if (a.branch && a.branch === b.branch) return 0.95;
+  return 1.9;
 }
 
 export function graphLayout(root: GraphSeed): GraphLayout {
   const all: Placed[] = [];
   const rootR = nodeRadius(root.kind, (root.children ?? []).length);
+  const childCount = (s: GraphSeed) => (s.children ?? []).length;
+  const countAll = (s: GraphSeed): number =>
+    1 + (s.children ?? []).reduce((n, k) => n + countAll(k), 0);
 
-  const walk = (
-    node: GraphSeed,
-    depth: number,
-    parentId: string,
-    x: number,
-    y: number,
-    dir: number,
-    r: number
-  ) => {
-    all.push({ seed: node, depth, parentId, r, x, y, dir });
-    const kids = node.children ?? [];
-    if (!kids.length) return;
-    const cone = coneOf(depth, kids.length);
-    // Tam çemberde ilk ve son çocuk çakışmasın diye pay bir eksik bölünür
-    const denom = depth === 0 ? kids.length : Math.max(1, kids.length - 1);
-    kids.forEach((kid, i) => {
-      const kr = nodeRadius(kid.kind, (kid.children ?? []).length);
-      const t = kids.length === 1 ? 0.5 : i / denom;
-      const base =
-        depth === 0
-          ? -Math.PI / 2 + t * Math.PI * 2
-          : dir - cone / 2 + t * cone;
-      // Sapmalar dağınıklığı veriyor: açı biraz kayıyor, mesafe biraz
-      // değişiyor. Kimlikten türedikleri için harita her açılışta aynı.
-      const a = base + jitter(kid.id, 1) * (cone / kids.length) * 0.28;
-      const dist =
-        (r + kr + stepOf(depth)) * (1 + jitter(kid.id, 2) * 0.16);
-      const nx = x + Math.cos(a) * dist;
-      const ny = y + Math.sin(a) * dist;
-      walk(kid, depth + 1, node.id, nx, ny, a + jitter(kid.id, 3) * 0.2, kr);
+  // ── Dal yuvaları ───────────────────────────────────────────────────────
+  // Her kategori merkez çevresinde kendi yönünü alıyor: pay, kalabalığıyla
+  // orantılı. Uzaklığı da kalabalığından geliyor — büyük dal daha uzağa
+  // oturuyor ki kendi içinde açılacak yeri olsun.
+  const branches = root.children ?? [];
+  const sizes = branches.map(countAll);
+  const totalSize = sizes.reduce((a, b) => a + b, 0) || 1;
+  const anchor = new Map<string, Point>();
+  let acc = 0;
+  branches.forEach((b, i) => {
+    const share = sizes[i] / totalSize;
+    const mid = acc + share / 2;
+    acc += share;
+    const a = -Math.PI / 2 + mid * Math.PI * 2;
+    const dist = rootR + 28 + 17 * Math.sqrt(sizes[i]);
+    anchor.set(b.id, { x: Math.cos(a) * dist, y: Math.sin(a) * dist });
+  });
+
+  // ── Başlangıç konumları ────────────────────────────────────────────────
+  // Denge kendi yerini bulacak ama işe yakın bir yerden başlamak hem daha
+  // az turda oturuyor hem de sonucu belirli kılıyor: her düğüm kendi dal
+  // yuvasının çevresine, kimliğinden gelen sabit bir sapmayla konuyor.
+  const walk = (node: GraphSeed, depth: number, parentId: string, branch: string) => {
+    const r = nodeRadius(node.kind, childCount(node));
+    const home = anchor.get(branch);
+    const spread = 12 + 14 * depth;
+    all.push({
+      seed: node,
+      depth,
+      parentId,
+      branch,
+      r,
+      x: (home?.x ?? 0) + jitter(node.id, 1) * spread,
+      y: (home?.y ?? 0) + jitter(node.id, 2) * spread,
     });
+    for (const kid of node.children ?? [])
+      walk(kid, depth + 1, node.id, depth === 0 ? kid.id : branch);
   };
-  walk(root, 0, "", 0, 0, -Math.PI / 2, rootR);
+  walk(root, 0, "", "");
+  all[0].x = 0;
+  all[0].y = 0;
 
-  // ── İtiş: üst üste binen diskler birbirini açıyor ───────────────────────
-  // Koni yerleşimi sıkı ama kusursuz değil; kalabalık dallar birbirinin
-  // üstüne binebiliyor. Sabit sayıda tur, sabit sırayla — sonuç yine
-  // belirli. Kök yerinden oynamıyor, merkez merkez kalsın.
+  // ── Denge ──────────────────────────────────────────────────────────────
+  // Üç kuvvet: hat yayları (çocuk anasının dibinde dursun), akrabalık
+  // ölçekli itiş (yabancı dallar birbirine karışmasın), ve dal yuvası
+  // çekimi (küme dağılmasın). Tur sayısı sabit, soğuma çizelgesi sabit.
+  const byIdRaw = new Map(all.map((p) => [p.seed.id, p]));
+  const ROUNDS = 220;
+  for (let pass = 0; pass < ROUNDS; pass++) {
+    const alpha = 0.85 * (1 - pass / ROUNDS) ** 1.4 + 0.05;
+
+    // Yaylar
+    for (const p of all) {
+      if (p.depth === 0) continue;
+      const parent = byIdRaw.get(p.parentId);
+      if (!parent) continue;
+      const dx = p.x - parent.x;
+      const dy = p.y - parent.y;
+      const d = Math.hypot(dx, dy) || 0.01;
+      const want = parent.r + p.r + stepOf(p.depth - 1);
+      const f = (d - want) * 0.22 * alpha;
+      const ux = dx / d;
+      const uy = dy / d;
+      p.x -= ux * f;
+      p.y -= uy * f;
+      if (parent.depth > 0) {
+        parent.x += ux * f * 0.5;
+        parent.y += uy * f * 0.5;
+      }
+    }
+
+    // İtiş — akrabalığa göre
+    for (let i = 0; i < all.length; i++)
+      for (let j = i + 1; j < all.length; j++) {
+        const a = all[i];
+        const b = all[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const d = Math.hypot(dx, dy) || 0.01;
+        const reach = (a.r + b.r + 48) * kinship(a, b);
+        if (d > reach) continue;
+        const f = ((reach - d) / reach) * 9 * kinship(a, b) * alpha;
+        const ux = dx / d;
+        const uy = dy / d;
+        if (a.depth > 0) {
+          a.x -= ux * f;
+          a.y -= uy * f;
+        }
+        if (b.depth > 0) {
+          b.x += ux * f;
+          b.y += uy * f;
+        }
+      }
+
+    // Dal yuvası çekimi — küme kendi yerinde kalsın
+    for (const p of all) {
+      if (p.depth === 0) continue;
+      const home = anchor.get(p.branch);
+      if (!home) continue;
+      p.x += (home.x - p.x) * 0.035 * alpha;
+      p.y += (home.y - p.y) * 0.035 * alpha;
+    }
+  }
+
+  // ── Son söz: hiçbir disk bir diğerine girmesin ─────────────────────────
+  // Denge yumuşak bir kuvvet; kalabalık kümede birkaç piksel binme kalabiliyor.
+  // Burası sert kural: çakışan iki disk kalan farkı yarı yarıya paylaşıp
+  // açılıyor. Kök yerinden oynamıyor, merkez merkez kalsın.
   const pushApart = (times: number) => {
     for (let pass = 0; pass < times; pass++) {
       let moved = false;
@@ -212,28 +297,7 @@ export function graphLayout(root: GraphSeed): GraphLayout {
       if (!moved) break;
     }
   };
-  pushApart(70);
-
-  // ── Toparlama: çocuk anasından fazla uzaklaştıysa geri çekiliyor ────────
-  // İtiş dalları savurabiliyor; bu yay hattı kısa tutuyor, harita da dar
-  // kalıyor. Çakışmayı bozmayacak kadar zayıf.
-  const byIdRaw = new Map(all.map((p) => [p.seed.id, p]));
-  for (let pass = 0; pass < 12; pass++)
-    for (const p of all) {
-      if (p.depth === 0) continue;
-      const parent = byIdRaw.get(p.parentId);
-      if (!parent) continue;
-      const dx = p.x - parent.x;
-      const dy = p.y - parent.y;
-      const d = Math.hypot(dx, dy) || 1;
-      const want = parent.r + p.r + stepOf(p.depth - 1);
-      if (d <= want * 1.25) continue;
-      const pull = (d - want * 1.25) * 0.35;
-      p.x -= (dx / d) * pull;
-      p.y -= (dy / d) * pull;
-    }
-  // Toparlama diskleri yeniden üst üste bindirmiş olabilir; son söz itişin
-  pushApart(40);
+  pushApart(80);
 
   // ── Kutu ───────────────────────────────────────────────────────────────
   const kids = all.filter((p) => p.depth > 0);
@@ -255,7 +319,17 @@ export function graphLayout(root: GraphSeed): GraphLayout {
     depth: p.depth,
     parentId: p.parentId,
     r: p.r,
-    angle: Math.atan2(p.y, p.x),
+    // Ad bu yöne yazılıyor: ANASINDAN dışa doğru. Merkezden bakınca doğru
+    // görünen yön, kümenin içinde kalan bir düğümde yanlış tarafı gösteriyor
+    // — komşusunun üstüne yazıyordu.
+    angle: (() => {
+      const parent = byIdRaw.get(p.parentId);
+      const dx = p.x - (parent?.x ?? 0);
+      const dy = p.y - (parent?.y ?? 0);
+      return Math.hypot(dx, dy) < 0.01
+        ? Math.atan2(p.y, p.x)
+        : Math.atan2(dy, dx);
+    })(),
     x: p.x + center.x,
     y: p.y + center.y,
   }));
