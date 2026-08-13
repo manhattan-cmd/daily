@@ -161,3 +161,43 @@ describe("graphLayout", () => {
     expect(graphLayout(SAMPLE)).toEqual(graphLayout(SAMPLE));
   });
 });
+
+describe("derli toplu — harita pencereye sığmak için küçültülmemeli", () => {
+  /**
+   * Bir ara yerleşim ışınsal halkaydı: en dıştaki halka bütün yaprakların
+   * sığacağı çevreye kadar büyüdüğü için harita 600px'i aşıyor, telefon
+   * penceresine sığdırılırken yarı yarıya küçülüyor ve hiçbir şey
+   * okunmuyordu. Burası o hatanın nöbetçisi: gerçekçi ağaçlar telefon
+   * genişliğine yakın bir kutuda durmalı.
+   */
+  it("otuz düğümlük gerçekçi ağaç dar bir kutuya sığıyor", () => {
+    const big = root(
+      cat(
+        "harcama",
+        sub("market"),
+        sub("yemek", sub("kafe"), sub("restoran"), sub("paket")),
+        sub("ulasim", sub("yakit"), sub("toplu")),
+        sub("fatura", sub("elektrik"), sub("su"), sub("internet")),
+        sub("kira")
+      ),
+      cat("spor", sub("yuruyus"), sub("kosu"), sub("bisiklet"), sub("salon", sub("agirlik"))),
+      cat("egitim", sub("okuma"), sub("kurs"), sub("pratik")),
+      cat("saglik", sub("uyku"), sub("su2"), sub("ilac"))
+    );
+    const l = graphLayout(big);
+    expect(l.nodes.length).toBe(28);
+    expect(l.width).toBeLessThan(520);
+    expect(l.height).toBeLessThan(520);
+  });
+
+  it("hat kısa: her çocuk anasının dibinde durur", () => {
+    const l = graphLayout(SAMPLE);
+    for (const n of l.nodes) {
+      const p =
+        n.parentId === "root" ? l.center : l.byId.get(n.parentId)!;
+      const d = Math.hypot(n.x - p.x, n.y - p.y);
+      const pr = n.parentId === "root" ? l.coreR : l.byId.get(n.parentId)!.r;
+      expect(d).toBeLessThan(pr + n.r + 90);
+    }
+  });
+});

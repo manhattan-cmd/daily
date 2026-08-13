@@ -79,11 +79,21 @@ export function SymbolIcon({
     );
   }
 
-  // Emoji: kendi rengini taşır, currentColor'a uymaz — punto ile ölçeklenir
+  // Emoji: kendi rengini taşır, currentColor'a uymaz — punto ile ölçeklenir.
+  // Kutusu diğer iki dal gibi tam `size` kadar ve emoji ortasına oturuyor;
+  // yazı olarak bırakılınca satır boşluğu yüzünden hücrede aşağı kayıyordu.
   return (
     <span
       className={className}
-      style={{ fontSize: size * 0.92, lineHeight: 1, ...style }}
+      style={{
+        display: "inline-grid",
+        placeItems: "center",
+        width: size,
+        height: size,
+        fontSize: size * 0.86,
+        lineHeight: 1,
+        ...style,
+      }}
     >
       {name}
     </span>

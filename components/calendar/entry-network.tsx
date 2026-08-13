@@ -32,6 +32,7 @@ import { hexCorners, HEX_CLIP } from "@/lib/hex";
 import { hexMapLayout, type HexSeed } from "@/lib/hexmap";
 import {
   graphLayout,
+  type GraphKind,
   type GraphSeed,
   type PlacedNode,
 } from "@/lib/graph";
@@ -903,21 +904,37 @@ export function EntryNetwork({
               height={view.height}
             >
               {isGraph ? (
-                // Bağlar — gövdeden dala, daldan kılcala. Sık kullanılan yol
-                // daha parlak: "nereye çok gidiyorum" yolun kendisinden
-                // okunuyor.
-                graph.edges.map((e) => {
+                /* Sinir hatları. Kalınlık ve parlaklık o hattan geçen girdi
+                   sayısından geliyor ve sayım birikimli: "Harcamalar > Yemek
+                   > Dışardan"a girdi girildikçe zincirin TAMAMI güçleniyor.
+                   Böylece kullanıcı çok gittiği yolu haritada görüp doğrudan
+                   oradan gidiyor. Her hattın altında soluk bir ikizi var —
+                   güçlü hat ışıyormuş gibi duruyor. */
+                graph.edges.flatMap((e) => {
                   const m = tree.meta.get(e.id);
-                  return (
+                  const col = m?.color ?? centerColor;
+                  const g = metaGlow(m);
+                  const w = e.width * (1 + 1.8 * g);
+                  return [
+                    g > 0.12 ? (
+                      <path
+                        key={`h${e.id}`}
+                        d={e.path}
+                        fill="none"
+                        stroke={`${col}${hexA(0.05 + 0.16 * g)}`}
+                        strokeWidth={w + 5 + 6 * g}
+                        strokeLinecap="round"
+                      />
+                    ) : null,
                     <path
                       key={e.id}
                       d={e.path}
                       fill="none"
-                      stroke={`${m?.color ?? centerColor}${hexA(0.18 + 0.5 * metaGlow(m))}`}
-                      strokeWidth={e.width}
+                      stroke={`${col}${hexA(0.16 + 0.66 * g)}`}
+                      strokeWidth={w}
                       strokeLinecap="round"
-                    />
-                  );
+                    />,
+                  ];
                 })
               ) : (
                 <>
@@ -1100,6 +1117,7 @@ export function EntryNetwork({
                     y={p.y}
                     r={g.r}
                     angle={g.angle}
+                    kind={g.kind}
                     color={m.color}
                     icon={m.icon}
                     name={m.name}
@@ -1656,6 +1674,7 @@ function GraphCell({
   y,
   r,
   angle,
+  kind,
   color,
   icon,
   name,
@@ -1670,6 +1689,8 @@ function GraphCell({
   r: number;
   /** Merkezden bakış açısı — ad bu yöne, dışarı doğru yazılıyor */
   angle: number;
+  /** Kademe: yazı boyu buna göre */
+  kind: GraphKind;
   color: string;
   icon?: string;
   name: string;
@@ -1702,28 +1723,39 @@ function GraphCell({
   // dolu (bağlandığı ana orada), dışı ise boş. Yana düşen düğümlerde yazı
   // sağa/sola kaçıyor, tepe ve dipte alta/üste — böylece komşu adlar da
   // birbirinin üstüne binmiyor.
+  // Yazı boyu kademeye göre: kategori okunur ve kalın, alt kalem daha ufak
+  // ve sakin. Hepsi aynı puntodayken kalabalık harita tek bir yazı yığını
+  // gibi duruyordu.
   const label = showLabel ? (
     <span
       className={cn(
-        "pointer-events-none absolute line-clamp-2 w-[72px] text-[9px] leading-tight",
+        "pointer-events-none absolute line-clamp-2 leading-tight",
+        kind === "cat"
+          ? "w-[74px] text-[10px] font-semibold"
+          : kind === "sub"
+            ? "w-[66px] text-[8.5px] font-medium"
+            : "w-[56px] text-[8px] font-medium",
         glow > 0.5
-          ? "font-semibold text-foreground"
+          ? "text-foreground"
           : glow > 0.15
-            ? "font-medium text-foreground/80"
-            : "font-medium text-muted-foreground"
+            ? "text-foreground/80"
+            : "text-muted-foreground"
       )}
-      style={labelPlacement(r, angle)}
+      // Ad hatların ve komşu disklerin üstüne binebiliyor; koyu bir gölge
+      // onu her zeminde okunur tutuyor
+      style={{ ...labelPlacement(r, angle), textShadow: "0 1px 4px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)" }}
     >
       {name}
     </span>
   ) : null;
-  // İkon ancak sığdığı yerde; küçük düğüm sade bir disk olarak kalıyor
+  // Sembol diskin içine oturuyor: çapın yaklaşık üçte ikisi. Daha ufak
+  // kalınca daire boş görünüyordu, daha irisi kenara taşıyor.
   const glyph =
-    r >= 12 && icon ? (
+    r >= 9 && icon ? (
       <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
         <SymbolIcon
           name={icon}
-          size={Math.round(r * 1.05)}
+          size={Math.round(r * 1.3)}
           style={{ color: "#fff" }}
         />
       </span>
