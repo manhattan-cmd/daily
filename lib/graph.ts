@@ -8,28 +8,34 @@
  * olarak duruyordu; harita kalabalıklaşıyordu ve onlara başka bir dil
  * aranıyor — bu haritada yerleri yok.)
  *
- * Yerleşim bir KUVVET DENGESİ (Obsidian'ın grafiği gibi), ama itiş herkese
- * aynı şiddette değil — AKRABALIĞA göre:
+ * YASA: iki hapis ve iki kuvvet.
  *
- *   - Farklı kategoriden iki kalem birbirini sert iter,
- *   - Aynı kategorinin farklı alt dalları orta,
- *   - Kardeşler en yumuşak.
+ *   1. SEKTÖR HAPSİ — her kategori merkez çevresinde kendi açı dilimini
+ *      alır ve hiçbir üyesi o dilimden çıkamaz. Dilimler ayrık olduğu için
+ *      farklı kategorilerin hatları birbirini KESEMEZ.
+ *   2. HALKA HAPSİ — kademe = halka. Kategoriler birinci halkada, alt
+ *      kategoriler ikincide, torunlar üçüncüde. "Hangisi kategori, hangisi
+ *      alt kategori" sorusu bakışta cevaplanır.
+ *   3. ÇEKİM — her kalem anasının açısına çekilir, hat kısa ve düz kalır.
+ *   4. İTİŞ — aynı halkadaki komşular açı ekseninde birbirini iter; itiş
+ *      sırayı asla bozmaz, o yüzden bir sektörün İÇİNDE de hatlar kesişmez.
  *
- * Buna bir de DAL YUVASI ekleniyor: her kategori merkez çevresinde kendi
- * yönünü alıyor (pay büyüklüğüne göre), uzaklığı kendi kalabalığına göre
- * belirleniyor ve üyeleri oraya doğru hafifçe çekiliyor. Sonuç: her kategori
- * ayrı bir küme, kümeler birbirine karışmıyor, küme içinde ağacın şekli
- * duruyor.
+ * Halkanın yarıçapı iki kuraldan büyük olanıdır: bir önceki halkayla arada
+ * disklerin ve bir satır yazının sığacağı yer kalsın; ve o halkadaki kalemler
+ * kendi sektörlerinin yayına yan yana sığsın. Yani harita ancak gerektiği
+ * kadar büyür.
  *
- * İki yol denendi ve ikisi de bırakıldı: (1) ışınsal halka — her dal yaprak
- * sayısı kadar açı alıyor, en dıştaki halka bütün yaprakların sığacağı
- * çevreye kadar büyüyordu; harita kocaman oluyor, pencereye sığdırılınca
- * hiçbir şey okunmuyordu. (2) anasının yönünde dar koni — alan daraldı ama
- * dallar birbirinin içinden geçiyor, harita düğüm yumağına dönüyordu.
+ * Üç yol denendi ve bırakıldı: (1) ışınsal halka, yaprak sayısına göre açı —
+ * en dıştaki halka bütün yaprakların sığacağı çevreye kadar büyüyor, harita
+ * pencereye sığmıyordu. (2) anasının yönünde dar koni — alan daraldı ama
+ * dallar birbirinin içinden geçiyordu. (3) serbest kuvvet dengesi (akrabalık
+ * ölçekli itiş + dal yuvası) — kümeler ayrıldı ama hiçbir garanti yoktu:
+ * hatlar birbirinin üstünden atlıyor, kademeler karışıyordu. Serbest denge
+ * "genelde iyi" verir; bu harita "her zaman doğru"ya ihtiyaç duyuyor.
  *
- * Rastgelelik yok: başlangıç konumları ve sapmalar kimlikten türetiliyor,
- * tur sayısı sabit. Aynı yapı her açılışta aynı yerde duruyor — dolaşırken
- * yer değiştiren bir harita güven vermiyordu.
+ * Rastgelelik yok: sıralar ve sapmalar kimlikten türetiliyor. Aynı yapı her
+ * açılışta aynı yerde duruyor — dolaşırken yer değiştiren bir harita güven
+ * vermiyordu.
  *
  * Boy neyi söylüyor: kök > kategori > alt kategori. Kategorinin ve
  * alt kategorinin çapı kendi çocuk sayısıyla da biraz büyüyor. Kullanım
@@ -127,20 +133,11 @@ export function labelBox(kind: GraphKind, text: string): { w: number; h: number 
 }
 
 /**
- * Etiketli düğüm çevresinde ayrıca istenen pay. Adın UZUNLUĞUNA bağlı:
- * "Toplu taşıma" yazan bir kalem, "Su" yazandan çok daha fazla yer ister.
- * Sabit paydayken uzun adlı düğümler komşusunun üstüne taşıyordu.
+ * Kutu kenar payı — yalnız başlangıç payı. Adlar yerleştikten sonra dışarı
+ * taşan varsa kutu zaten o kadar büyütülüyor, o yüzden burası dar tutulabilir.
  */
-function labelPad(kind: GraphKind, text: string): number {
-  return 5 + labelBox(kind, text).w * 0.32;
-}
-/**
- * Kutu kenar payı. Adlar diskin DIŞINA yazıldığı için pay yatayda geniş:
- * yandaki düğümlerin yazısı kutunun dışına taşarsa pencere onu kırpıyor
- * ("Sabah koşusu" → "koşusu"). Dikeyde tek satır yettiği için dar.
- */
-const PAD_X = 54;
-const PAD_Y = 24;
+const PAD_X = 16;
+const PAD_Y = 14;
 
 /** Düğüm çapı türden gelir; kategori ve alt kategori çocuk sayısıyla büyür */
 export function nodeRadius(kind: GraphKind, childCount: number): number {
@@ -149,9 +146,9 @@ export function nodeRadius(kind: GraphKind, childCount: number): number {
     case "root":
       return 25;
     case "cat":
-      return Math.min(24, 14 + 3.4 * Math.sqrt(c));
+      return Math.min(26, 17 + 3.2 * Math.sqrt(c));
     case "sub":
-      return Math.min(18, 11 + 2.4 * Math.sqrt(c));
+      return Math.min(15, 10 + 2 * Math.sqrt(c));
   }
 }
 
@@ -181,180 +178,161 @@ interface Placed {
   y: number;
 }
 
-/** Ana ile çocuk arasındaki yay boyu — derinleştikçe kısalıyor */
-function stepOf(depth: number): number {
-  return [40, 31, 25, 20][Math.min(depth, 3)];
-}
-
-/**
- * İki kalem birbirini ne kadar itsin? Kural bu haritanın belkemiği:
- * yabancılar sert, akrabalar yumuşak iter. Böylece kategoriler ayrı kümeler
- * hâlinde durur, küme içinde kardeşler sıkışabilir.
- */
-function kinship(a: Placed, b: Placed): number {
-  if (a.parentId && a.parentId === b.parentId) return 0.66;
-  if (a.branch && a.branch === b.branch) return 0.95;
-  return 1.9;
-}
-
 export function graphLayout(root: GraphSeed): GraphLayout {
   const all: Placed[] = [];
   const rootR = nodeRadius(root.kind, (root.children ?? []).length);
   const childCount = (s: GraphSeed) => (s.children ?? []).length;
-  const countAll = (s: GraphSeed): number =>
-    1 + (s.children ?? []).reduce((n, k) => n + countAll(k), 0);
 
-  // ── Dal yuvaları ───────────────────────────────────────────────────────
-  // Her kategori merkez çevresinde kendi yönünü alıyor: pay, kalabalığıyla
-  // orantılı. Uzaklığı da kalabalığından geliyor — büyük dal daha uzağa
-  // oturuyor ki kendi içinde açılacak yeri olsun.
-  const branches = root.children ?? [];
-  const sizes = branches.map(countAll);
-  const totalSize = sizes.reduce((a, b) => a + b, 0) || 1;
-  const anchor = new Map<string, Point>();
-  let acc = 0;
-  branches.forEach((b, i) => {
-    const share = sizes[i] / totalSize;
-    const mid = acc + share / 2;
-    acc += share;
-    const a = -Math.PI / 2 + mid * Math.PI * 2;
-    const dist = rootR + 20 + 13 * Math.sqrt(sizes[i]);
-    anchor.set(b.id, { x: Math.cos(a) * dist, y: Math.sin(a) * dist });
-  });
-
-  // ── Başlangıç konumları ────────────────────────────────────────────────
-  // Denge kendi yerini bulacak ama işe yakın bir yerden başlamak hem daha
-  // az turda oturuyor hem de sonucu belirli kılıyor: her düğüm kendi dal
-  // yuvasının çevresine, kimliğinden gelen sabit bir sapmayla konuyor.
+  // ── Ağacı düz listeye aç ───────────────────────────────────────────────
   const labelOf = new Map<string, string>();
-  const walk = (node: GraphSeed, depth: number, parentId: string, branch: string) => {
-    const r = nodeRadius(node.kind, childCount(node));
+  const walk = (
+    node: GraphSeed,
+    depth: number,
+    parentId: string,
+    branch: string
+  ) => {
     labelOf.set(node.id, node.label ?? "");
-    const home = anchor.get(branch);
-    const spread = 12 + 14 * depth;
     all.push({
       seed: node,
       depth,
       parentId,
       branch,
-      r,
-      x: (home?.x ?? 0) + jitter(node.id, 1) * spread,
-      y: (home?.y ?? 0) + jitter(node.id, 2) * spread,
+      r: nodeRadius(node.kind, childCount(node)),
+      x: 0,
+      y: 0,
     });
     for (const kid of node.children ?? [])
       walk(kid, depth + 1, node.id, depth === 0 ? kid.id : branch);
   };
   walk(root, 0, "", "");
-  all[0].x = 0;
-  all[0].y = 0;
-
-  // ── Denge ──────────────────────────────────────────────────────────────
-  // Üç kuvvet: hat yayları (çocuk anasının dibinde dursun), akrabalık
-  // ölçekli itiş (yabancı dallar birbirine karışmasın), ve dal yuvası
-  // çekimi (küme dağılmasın). Tur sayısı sabit, soğuma çizelgesi sabit.
   const byIdRaw = new Map(all.map((p) => [p.seed.id, p]));
-  const ROUNDS = 220;
-  for (let pass = 0; pass < ROUNDS; pass++) {
-    const alpha = 0.85 * (1 - pass / ROUNDS) ** 1.4 + 0.05;
+  const kids = all.filter((p) => p.depth > 0);
+  const maxDepth = kids.reduce((d, p) => Math.max(d, p.depth), 0);
+  const at = (d: number) => kids.filter((p) => p.depth === d);
 
-    // Yaylar
-    for (const p of all) {
-      if (p.depth === 0) continue;
-      const parent = byIdRaw.get(p.parentId);
-      if (!parent) continue;
-      const dx = p.x - parent.x;
-      const dy = p.y - parent.y;
-      const d = Math.hypot(dx, dy) || 0.01;
-      const want = parent.r + p.r + stepOf(p.depth - 1);
-      const f = (d - want) * 0.22 * alpha;
-      const ux = dx / d;
-      const uy = dy / d;
-      p.x -= ux * f;
-      p.y -= uy * f;
-      if (parent.depth > 0) {
-        parent.x += ux * f * 0.5;
-        parent.y += uy * f * 0.5;
-      }
+  /**
+   * Bir kalemin halkada kapladığı yarım yer (px). Diskin yarıçapı, aralık
+   * payı, bir de adın eninden bir pay: uzun adlı kalem yanına daha çok yer
+   * ister, yoksa yazılar komşusunun üstüne düşüyor.
+   */
+  const slot = (p: Placed) =>
+    p.r + GAP / 2 + labelBox(p.seed.kind, p.seed.label ?? "").w * 0.22;
+
+  // ── 1. SEKTÖR HAPSİ ────────────────────────────────────────────────────
+  // Her kategori merkez çevresinde kendi açı dilimini alıyor ve hiçbir üyesi
+  // o dilimden çıkamıyor. Dilimler ayrık olduğu için farklı kategorilerin
+  // hatları BİRBİRİNİ KESEMİYOR — serbest kuvvet dengesinde bu garanti yoktu,
+  // dallar birbirinin üstünden atlıyordu.
+  //
+  // Pay, kategorinin EN KALABALIK halkasına göre: asıl yer isteyen şey bir
+  // kademede yan yana durması gereken kalem sayısı.
+  const branches = root.children ?? [];
+  const widthOf = (b: GraphSeed) => {
+    let width = 1;
+    for (let d = 2; d <= maxDepth; d++)
+      width = Math.max(
+        width,
+        kids.filter((p) => p.branch === b.id && p.depth === d).length
+      );
+    return width;
+  };
+  const widths = branches.map(widthOf);
+  const totalWidth = widths.reduce((a, b) => a + b, 0) || 1;
+  const sector = new Map<string, { from: number; to: number; mid: number }>();
+  {
+    // Küçük kategoriler de nefes alsın: hiçbiri toplamın altıda birinden az
+    // pay almasın diye taban pay eklenip yeniden normalleniyor
+    const floor = 0.55 / Math.max(1, branches.length);
+    const shares = widths.map((w) =>
+      Math.max(floor, w / totalWidth)
+    );
+    const sum = shares.reduce((a, b) => a + b, 0);
+    let acc = -Math.PI / 2 - (shares[0] / sum) * Math.PI;
+    branches.forEach((b, i) => {
+      const span = (shares[i] / sum) * Math.PI * 2;
+      sector.set(b.id, { from: acc, to: acc + span, mid: acc + span / 2 });
+      acc += span;
+    });
+  }
+
+  // ── 2. HALKA HAPSİ ─────────────────────────────────────────────────────
+  // Kademe = halka. Kategoriler birinci halkada, alt kategoriler ikincide,
+  // torunlar üçüncüde. "Hangisi kategori hangisi alt kategori" sorusu
+  // böylece bakışta cevaplanıyor; serbest dengede kademeler birbirine
+  // karışıyordu.
+  //
+  // Halkanın yarıçapı iki kuraldan büyük olanı: (a) bir önceki halkayla
+  // arasında disklerin ve bir satır yazının sığacağı yer kalsın, (b) o
+  // halkadaki kalemler kendi sektörlerinin yayına yan yana sığsın.
+  const BAND = 20;
+  const R: number[] = [0];
+  for (let d = 1; d <= maxDepth; d++) {
+    const here = at(d);
+    const prevMax =
+      d === 1 ? rootR : at(d - 1).reduce((m, p) => Math.max(m, p.r), 0);
+    const curMax = here.reduce((m, p) => Math.max(m, p.r), 0);
+    let need = R[d - 1] + prevMax + curMax + BAND;
+    for (const b of branches) {
+      const s = sector.get(b.id)!;
+      const span = s.to - s.from;
+      const mine = here.filter((p) => p.branch === b.id);
+      if (!mine.length) continue;
+      const arc = mine.reduce((sum, p) => sum + slot(p) * 2, 0);
+      need = Math.max(need, arc / span);
     }
+    R[d] = need;
+  }
 
-    // İtiş — akrabalığa göre
-    for (let i = 0; i < all.length; i++)
-      for (let j = i + 1; j < all.length; j++) {
-        const a = all[i];
-        const b = all[j];
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const d = Math.hypot(dx, dy) || 0.01;
-        const reach =
-          (a.r +
-            b.r +
-            52 +
-            labelPad(a.seed.kind, a.seed.label ?? "") +
-            labelPad(b.seed.kind, b.seed.label ?? "")) *
-          kinship(a, b);
-        if (d > reach) continue;
-        const f = ((reach - d) / reach) * 9 * kinship(a, b) * alpha;
-        const ux = dx / d;
-        const uy = dy / d;
-        if (a.depth > 0) {
-          a.x -= ux * f;
-          a.y -= uy * f;
+  // ── 3. AÇI: ana ile aynı hizada, kardeşle çakışmadan ───────────────────
+  // Her kalem anasının açısına ÇEKİLİYOR (hat kısa ve düz kalsın), aynı
+  // halkadaki komşular ise birbirini İTİYOR (üst üste binmesin). İkisi tek
+  // boyutlu bir problem: sıralamayı bozmadan çözülüyor, sıra korunduğu için
+  // aynı sektörün içinde de hatlar kesişmiyor.
+  const angle = new Map<string, number>();
+  for (let d = 1; d <= maxDepth; d++) {
+    for (const b of branches) {
+      const s = sector.get(b.id)!;
+      const mine = at(d).filter((p) => p.branch === b.id);
+      if (!mine.length) continue;
+      // Sıra: ananın açısına göre; böylece çocuklar analarıyla aynı sırada
+      const want = (p: Placed) =>
+        d === 1 ? s.mid : angle.get(p.parentId) ?? s.mid;
+      const order = mine
+        .map((p, i) => ({ p, i, want: want(p) }))
+        .sort((a, c) => a.want - c.want || a.i - c.i);
+      const half = order.map(({ p }) => slot(p) / R[d]);
+      const pos = order.map(({ want }) => want);
+      // İki yönlü itiş: soldan sağa ve sağdan sola. Sıra hiç değişmiyor.
+      for (let pass = 0; pass < 4; pass++) {
+        for (let i = 0; i < pos.length; i++) {
+          const lo =
+            i === 0
+              ? s.from + half[i]
+              : pos[i - 1] + half[i - 1] + half[i];
+          pos[i] = Math.max(pos[i], lo);
         }
-        if (b.depth > 0) {
-          b.x += ux * f;
-          b.y += uy * f;
+        for (let i = pos.length - 1; i >= 0; i--) {
+          const hi =
+            i === pos.length - 1
+              ? s.to - half[i]
+              : pos[i + 1] - half[i + 1] - half[i];
+          pos[i] = Math.min(pos[i], hi);
         }
       }
-
-    // Dal yuvası çekimi — küme kendi yerinde kalsın
-    for (const p of all) {
-      if (p.depth === 0) continue;
-      const home = anchor.get(p.branch);
-      if (!home) continue;
-      p.x += (home.x - p.x) * 0.035 * alpha;
-      p.y += (home.y - p.y) * 0.035 * alpha;
+      order.forEach(({ p }, i) => angle.set(p.seed.id, pos[i]));
     }
   }
 
-  // ── Son söz: hiçbir disk bir diğerine girmesin ─────────────────────────
-  // Denge yumuşak bir kuvvet; kalabalık kümede birkaç piksel binme kalabiliyor.
-  // Burası sert kural: çakışan iki disk kalan farkı yarı yarıya paylaşıp
-  // açılıyor. Kök yerinden oynamıyor, merkez merkez kalsın.
-  const pushApart = (times: number) => {
-    for (let pass = 0; pass < times; pass++) {
-      let moved = false;
-      for (let i = 0; i < all.length; i++)
-        for (let j = i + 1; j < all.length; j++) {
-          const a = all[i];
-          const b = all[j];
-          const dx = b.x - a.x;
-          const dy = b.y - a.y;
-          const want = a.r + b.r + GAP;
-          const d = Math.hypot(dx, dy);
-          if (d >= want) continue;
-          // Üst üste tam oturmuşlarsa kimliğe göre sabit bir yöne aç
-          const ux =
-            d > 0.01 ? dx / d : Math.cos(jitter(b.seed.id, 4) * Math.PI);
-          const uy =
-            d > 0.01 ? dy / d : Math.sin(jitter(b.seed.id, 4) * Math.PI);
-          const push = (want - d) / 2 + 0.01;
-          if (a.depth > 0) {
-            a.x -= ux * push;
-            a.y -= uy * push;
-          }
-          if (b.depth > 0) {
-            b.x += ux * push;
-            b.y += uy * push;
-          }
-          moved = true;
-        }
-      if (!moved) break;
-    }
-  };
-  pushApart(80);
-
+  // ── Konumlar ───────────────────────────────────────────────────────────
+  // Halkalar tam çember olsa harita çarka benziyor; yarıçapa kimlikten gelen
+  // ufak bir sapma ekleniyor. Sapma banttan küçük, hiçbir garantiyi bozmuyor.
+  for (const p of kids) {
+    const a = angle.get(p.seed.id) ?? 0;
+    const rr = R[p.depth] + jitter(p.seed.id, 7) * 3.5;
+    p.x = Math.cos(a) * rr;
+    p.y = Math.sin(a) * rr;
+  }
   // ── Kutu ───────────────────────────────────────────────────────────────
-  const kids = all.filter((p) => p.depth > 0);
   let minX = -rootR;
   let maxX = rootR;
   let minY = -rootR;
@@ -366,6 +344,8 @@ export function graphLayout(root: GraphSeed): GraphLayout {
     maxY = Math.max(maxY, p.y + p.r);
   }
   const center: Point = { x: -minX + PAD_X, y: -minY + PAD_Y };
+  let width0 = maxX - minX + PAD_X * 2;
+  let height0 = maxY - minY + PAD_Y * 2;
 
   const nodes: PlacedNode[] = kids.map((p) => ({
     id: p.seed.id,
@@ -513,6 +493,38 @@ export function graphLayout(root: GraphSeed): GraphLayout {
   for (let round = 0; round < 3; round++)
     for (const n of order) if (n.labelled) chooseSide(n);
 
+  // ── Kutuyu adlara göre büyüt ───────────────────────────────────────────
+  // Kutu önce yalnız disklere göre hesaplanıyor; adlar yerleştikten sonra
+  // dışarı taşan varsa kutu o kadar büyüyor ve her şey kaydırılıyor. Sabit
+  // bir kenar payı vermek iki türlü de yanlıştı: dar kalınca "Sabah koşusu"
+  // pencerede kırpılıyordu, geniş verince harita boşuna küçülüyordu.
+  {
+    let l = 0;
+    let t = 0;
+    let r = width0;
+    let b = height0;
+    for (const n of nodes) {
+      if (!n.labelled) continue;
+      const { w, h } = labelBox(n.kind, labelOf.get(n.id) ?? "");
+      const box = boxFor(n, n.label, w, h, n.labelGap);
+      l = Math.min(l, box.x0);
+      t = Math.min(t, box.y0);
+      r = Math.max(r, box.x1);
+      b = Math.max(b, box.y1);
+    }
+    const dx = -l;
+    const dy = -t;
+    if (dx || dy)
+      for (const n of nodes) {
+        n.x += dx;
+        n.y += dy;
+      }
+    center.x += dx;
+    center.y += dy;
+    width0 = r - l;
+    height0 = b - t;
+  }
+
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const posOf = (id: string): Point =>
     id === root.id ? center : byId.get(id) ?? center;
@@ -550,8 +562,8 @@ export function graphLayout(root: GraphSeed): GraphLayout {
   });
 
   return {
-    width: maxX - minX + PAD_X * 2,
-    height: maxY - minY + PAD_Y * 2,
+    width: width0,
+    height: height0,
     center,
     coreR: rootR,
     nodes,

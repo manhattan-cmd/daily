@@ -153,19 +153,29 @@ describe("graphLayout", () => {
     }
   });
 
-  it("kutu içeriğe oturur — bir yana yığılan ağaç boşluk bırakmaz", () => {
-    // Tek dallı ağaç: tüm içerik yukarı doğru gider, kutu da öyle olmalı
-    const l = graphLayout(root(cat("tek", sub("a", sub("b")))));
-    const discs = [{ x: l.center.x, y: l.center.y, r: l.coreR }, ...l.nodes];
-    const left = Math.min(...discs.map((d) => d.x - d.r));
-    const right = Math.max(...discs.map((d) => d.x + d.r));
-    const top = Math.min(...discs.map((d) => d.y - d.r));
-    const bottom = Math.max(...discs.map((d) => d.y + d.r));
-    // Her kenarda yalnız etiket payı kadar boşluk kalır
-    expect(left).toBeCloseTo(l.width - right, 5);
-    expect(top).toBeCloseTo(l.height - bottom, 5);
-    expect(left).toBeLessThan(70);
-    expect(top).toBeLessThan(40);
+  it("kutu içeriğe oturur — boşluğa kutu harcanmıyor", () => {
+    // Kutu artık adlar yerleştikten SONRA onları da kapsayacak kadar
+    // büyütülüyor; bu yüzden simetrik değil, ama her kenarda içeriğe değecek
+    // kadar dar. Eskiden sabit bir kenar payı vardı: dar kalınca uzun adlar
+    // kırpılıyor, geniş verilince harita boşuna küçülüyordu.
+    for (const t of [root(cat("tek", sub("a", sub("b")))), SAMPLE]) {
+      const l = graphLayout(t);
+      const edges: number[][] = [
+        [l.center.x - l.coreR, l.center.y - l.coreR, l.center.x + l.coreR, l.center.y + l.coreR],
+        ...l.nodes.map((n) => [n.x - n.r, n.y - n.r, n.x + n.r, n.y + n.r]),
+      ];
+      const left = Math.min(...edges.map((e) => e[0]));
+      const top = Math.min(...edges.map((e) => e[1]));
+      const right = Math.max(...edges.map((e) => e[2]));
+      const bottom = Math.max(...edges.map((e) => e[3]));
+      expect(left).toBeGreaterThanOrEqual(0);
+      expect(top).toBeGreaterThanOrEqual(0);
+      expect(right).toBeLessThanOrEqual(l.width);
+      expect(bottom).toBeLessThanOrEqual(l.height);
+      // Diskler kutuya değmiyorsa aradaki fark yalnız adların payı kadardır
+      expect(left).toBeLessThan(90);
+      expect(top).toBeLessThan(60);
+    }
   });
 
   it("aynı ağaç aynı yerleşimi verir — harita dolaşırken oynamaz", () => {
@@ -386,5 +396,119 @@ describe("adlar da yerleşimin parçası", () => {
         }
       }
     }
+  });
+});
+
+describe("yasa: sektör ve halka hapsi", () => {
+  /** İki doğru parçası kesişiyor mu (uç paylaşımı sayılmaz) */
+  const crosses = (
+    a1: { x: number; y: number },
+    a2: { x: number; y: number },
+    b1: { x: number; y: number },
+    b2: { x: number; y: number }
+  ) => {
+    const side = (
+      p: { x: number; y: number },
+      q: { x: number; y: number },
+      r: { x: number; y: number }
+    ) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+    const d1 = side(b1, b2, a1);
+    const d2 = side(b1, b2, a2);
+    const d3 = side(a1, a2, b1);
+    const d4 = side(a1, a2, b2);
+    return (
+      ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+      ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
+    );
+  };
+
+  const TREES: GraphSeed[] = [
+    SAMPLE,
+    root(
+      cat("harcama", sub("market"), sub("yemek", sub("kafe"), sub("restoran")), sub("fatura", sub("su"), sub("net")), sub("kira")),
+      cat("spor", sub("kosu", sub("sabah")), sub("yuzme"), sub("salon")),
+      cat("egitim", sub("okuma"), sub("kurs")),
+      cat("saglik", sub("uyku"))
+    ),
+    root(...Array.from({ length: 9 }, (_, i) => cat("k" + i, sub("a" + i), sub("b" + i)))),
+    root(cat("tek", sub("z", sub("zz", sub("zzz"))))),
+  ];
+
+  it("hiçbir hat bir diğerini kesmiyor", () => {
+    // Serbest kuvvet dengesinde hatlar birbirinin üstünden atlıyordu; bu
+    // yasanın asıl vaadi bu. Sektörler ayrık, sektör içindeki itiş de sırayı
+    // bozmuyor — kesişme geometrik olarak imkânsız.
+    for (const t of TREES) {
+      const l = graphLayout(t);
+      const pos = (id: string) =>
+        id === t.id ? l.center : l.byId.get(id)!;
+      const segs = l.nodes.map((n) => ({
+        id: n.id,
+        pid: n.parentId,
+        a: pos(n.parentId),
+        b: { x: n.x, y: n.y },
+      }));
+      for (let i = 0; i < segs.length; i++)
+        for (let j = i + 1; j < segs.length; j++) {
+          // Ortak uçlu hatlar (ana-çocuk, kardeş) sayılmaz
+          if (
+            segs[i].id === segs[j].pid ||
+            segs[j].id === segs[i].pid ||
+            segs[i].pid === segs[j].pid
+          )
+            continue;
+          expect(
+            crosses(segs[i].a, segs[i].b, segs[j].a, segs[j].b)
+          ).toBe(false);
+        }
+    }
+  });
+
+  it("kademe = halka: aynı derinlikteki kalemler aynı uzaklıkta", () => {
+    // "Hangisi kategori hangisi alt kategori" sorusunun cevabı bu.
+    for (const t of TREES) {
+      const l = graphLayout(t);
+      const rings = new Map<number, number[]>();
+      for (const n of l.nodes) {
+        const d = Math.hypot(n.x - l.center.x, n.y - l.center.y);
+        rings.set(n.depth, [...(rings.get(n.depth) ?? []), d]);
+      }
+      const mids = [...rings.entries()].sort((a, b) => a[0] - b[0]);
+      for (const [, ds] of mids) {
+        // Halka içinde yalnız ufak bir sapma var (harita çark gibi durmasın)
+        expect(Math.max(...ds) - Math.min(...ds)).toBeLessThan(8);
+      }
+      // Dış halka her zaman içtekinden uzakta
+      for (let i = 1; i < mids.length; i++)
+        expect(Math.min(...mids[i][1])).toBeGreaterThan(
+          Math.max(...mids[i - 1][1])
+        );
+    }
+  });
+
+  it("her kalem kendi kategorisinin diliminde kalıyor", () => {
+    const t = TREES[1];
+    const l = graphLayout(t);
+    const branchOf = new Map<string, string>();
+    const walk = (s: GraphSeed, depth: number, b: string) => {
+      branchOf.set(s.id, b);
+      for (const k of s.children ?? []) walk(k, depth + 1, depth === 0 ? k.id : b);
+    };
+    walk(t, 0, "");
+    // Bir kategorinin bütün üyelerinin açı aralığı, başka bir kategorininkiyle
+    // örtüşmemeli
+    const spans = new Map<string, { lo: number; hi: number }>();
+    for (const n of l.nodes) {
+      const b = branchOf.get(n.id)!;
+      const a = Math.atan2(n.y - l.center.y, n.x - l.center.x);
+      const cur = spans.get(b);
+      spans.set(b, {
+        lo: Math.min(cur?.lo ?? a, a),
+        hi: Math.max(cur?.hi ?? a, a),
+      });
+    }
+    const list = [...spans.values()].sort((a, b) => a.lo - b.lo);
+    for (let i = 1; i < list.length; i++)
+      expect(list[i].lo).toBeGreaterThanOrEqual(list[i - 1].hi - 1e-6);
   });
 });
