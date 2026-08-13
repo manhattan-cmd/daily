@@ -261,27 +261,42 @@ export function graphLayout(root: GraphSeed): GraphLayout {
   // böylece bakışta cevaplanıyor; serbest dengede kademeler birbirine
   // karışıyordu.
   //
-  // Halkanın yarıçapı iki kuraldan büyük olanı: (a) bir önceki halkayla
-  // arasında disklerin ve bir satır yazının sığacağı yer kalsın, (b) o
-  // halkadaki kalemler kendi sektörlerinin yayına yan yana sığsın.
-  const BAND = 20;
-  const R: number[] = [0];
-  for (let d = 1; d <= maxDepth; d++) {
-    const here = at(d);
-    const prevMax =
-      d === 1 ? rootR : at(d - 1).reduce((m, p) => Math.max(m, p.r), 0);
-    const curMax = here.reduce((m, p) => Math.max(m, p.r), 0);
-    let need = R[d - 1] + prevMax + curMax + BAND;
-    for (const b of branches) {
-      const s = sector.get(b.id)!;
-      const span = s.to - s.from;
-      const mine = here.filter((p) => p.branch === b.id);
-      if (!mine.length) continue;
+  // Halkalar KATEGORİYE ÖZEL. Küresel halka denendi: en kalabalık kategori
+  // halkayı dışarı itiyor, üç alt kalemi olan kategori de aynı uzaklığa
+  // uymak zorunda kalıyordu — hatlar boşuna uzuyor, ortada koca bir boşluk
+  // kalıyordu. Artık her kategori kendi halkasını kendi kalabalığından
+  // çıkarıyor: seyrek dalın alt kalemleri dibinde duruyor.
+  //
+  // Yarıçap iki kuraldan büyük olanı: (a) bir önceki halkayla arasında
+  // disklerin ve bir satır yazının sığacağı yer kalsın, (b) o halkadaki
+  // kalemler kendi sektörünün yayına yan yana sığsın.
+  const BAND = 18;
+  /** Halkalar SEKTÖRE ÖZEL: [kategori id][derinlik] → yarıçap */
+  const ring = new Map<string, number[]>();
+  // Birinci halka ortak: bütün kategoriler gövdenin hemen dibinde, aynı
+  // uzaklıkta. "Bunlar kategori" mesajı buradan geliyor.
+  const catMax = at(1).reduce((m, p) => Math.max(m, p.r), 0);
+  const R1 = rootR + catMax + BAND;
+  for (const b of branches) {
+    const s = sector.get(b.id)!;
+    const span = s.to - s.from;
+    const rs = [0, R1];
+    for (let d = 2; d <= maxDepth; d++) {
+      const mine = at(d).filter((p) => p.branch === b.id);
+      if (!mine.length) {
+        rs[d] = rs[d - 1];
+        continue;
+      }
+      const prevMax = at(d - 1)
+        .filter((p) => p.branch === b.id)
+        .reduce((m, p) => Math.max(m, p.r), 0);
+      const curMax = mine.reduce((m, p) => Math.max(m, p.r), 0);
       const arc = mine.reduce((sum, p) => sum + slot(p) * 2, 0);
-      need = Math.max(need, arc / span);
+      rs[d] = Math.max(rs[d - 1] + prevMax + curMax + BAND, arc / span);
     }
-    R[d] = need;
+    ring.set(b.id, rs);
   }
+  const R = (p: Placed) => ring.get(p.branch)?.[p.depth] ?? R1;
 
   // ── 3. AÇI: ana ile aynı hizada, kardeşle çakışmadan ───────────────────
   // Her kalem anasının açısına ÇEKİLİYOR (hat kısa ve düz kalsın), aynı
@@ -300,7 +315,7 @@ export function graphLayout(root: GraphSeed): GraphLayout {
       const order = mine
         .map((p, i) => ({ p, i, want: want(p) }))
         .sort((a, c) => a.want - c.want || a.i - c.i);
-      const half = order.map(({ p }) => slot(p) / R[d]);
+      const half = order.map(({ p }) => slot(p) / R(p));
       const pos = order.map(({ want }) => want);
       // İki yönlü itiş: soldan sağa ve sağdan sola. Sıra hiç değişmiyor.
       for (let pass = 0; pass < 4; pass++) {
@@ -328,7 +343,7 @@ export function graphLayout(root: GraphSeed): GraphLayout {
   // ufak bir sapma ekleniyor. Sapma banttan küçük, hiçbir garantiyi bozmuyor.
   for (const p of kids) {
     const a = angle.get(p.seed.id) ?? 0;
-    const rr = R[p.depth] + jitter(p.seed.id, 7) * 3.5;
+    const rr = R(p) + jitter(p.seed.id, 7) * 3.5;
     p.x = Math.cos(a) * rr;
     p.y = Math.sin(a) * rr;
   }

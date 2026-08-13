@@ -464,25 +464,41 @@ describe("yasa: sektör ve halka hapsi", () => {
     }
   });
 
-  it("kademe = halka: aynı derinlikteki kalemler aynı uzaklıkta", () => {
-    // "Hangisi kategori hangisi alt kategori" sorusunun cevabı bu.
+  it("kademe = halka: kategorinin İÇİNDE aynı derinlik aynı uzaklıkta", () => {
+    // "Hangisi kategori hangisi alt kategori" sorusunun cevabı bu. Halkalar
+    // kategoriye özel: küresel halkada en kalabalık dal halkayı dışarı itiyor,
+    // seyrek dalın alt kalemleri de boşuna uzaklaşıyordu. Kategoriler yine
+    // ortak birinci halkada — o mesaj korunuyor.
     for (const t of TREES) {
       const l = graphLayout(t);
-      const rings = new Map<number, number[]>();
-      for (const n of l.nodes) {
-        const d = Math.hypot(n.x - l.center.x, n.y - l.center.y);
-        rings.set(n.depth, [...(rings.get(n.depth) ?? []), d]);
+      const branchOf = new Map<string, string>();
+      const walk = (s: GraphSeed, depth: number, b: string) => {
+        branchOf.set(s.id, b);
+        for (const k of s.children ?? [])
+          walk(k, depth + 1, depth === 0 ? k.id : b);
+      };
+      walk(t, 0, "");
+      const dist = (n: PlacedNode) =>
+        Math.hypot(n.x - l.center.x, n.y - l.center.y);
+
+      // Kategoriler ortak halkada
+      const cats = l.nodes.filter((n) => n.depth === 1).map(dist);
+      expect(Math.max(...cats) - Math.min(...cats)).toBeLessThan(8);
+
+      // Her kategorinin içinde: aynı derinlik aynı halkada, dış halka uzakta
+      for (const b of new Set(l.nodes.map((n) => branchOf.get(n.id)!))) {
+        const mine = l.nodes.filter((n) => branchOf.get(n.id) === b);
+        const rings = new Map<number, number[]>();
+        for (const n of mine)
+          rings.set(n.depth, [...(rings.get(n.depth) ?? []), dist(n)]);
+        const ordered = [...rings.entries()].sort((a, c) => a[0] - c[0]);
+        for (const [, ds] of ordered)
+          expect(Math.max(...ds) - Math.min(...ds)).toBeLessThan(8);
+        for (let i = 1; i < ordered.length; i++)
+          expect(Math.min(...ordered[i][1])).toBeGreaterThan(
+            Math.max(...ordered[i - 1][1])
+          );
       }
-      const mids = [...rings.entries()].sort((a, b) => a[0] - b[0]);
-      for (const [, ds] of mids) {
-        // Halka içinde yalnız ufak bir sapma var (harita çark gibi durmasın)
-        expect(Math.max(...ds) - Math.min(...ds)).toBeLessThan(8);
-      }
-      // Dış halka her zaman içtekinden uzakta
-      for (let i = 1; i < mids.length; i++)
-        expect(Math.min(...mids[i][1])).toBeGreaterThan(
-          Math.max(...mids[i - 1][1])
-        );
     }
   });
 
