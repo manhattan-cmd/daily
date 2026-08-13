@@ -37,7 +37,7 @@ import {
   type LabelSide,
 } from "@/lib/graph";
 import { SymbolIcon } from "@/lib/icons";
-import { levelRatio, usageLevel, usageSince } from "@/lib/usage";
+import { usageIntensity, usageRate, usageSince } from "@/lib/usage";
 import { cn } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
 import type { Category, Mod, SubCategory } from "@/types";
@@ -516,13 +516,13 @@ export function EntryNetwork({
 
   const graph = useMemo(() => graphLayout(tree.seed), [tree]);
   /**
-   * Bir kalemin basamağı — son 30 gündeki girdi sayısından, MUTLAK eşiklerle
-   * (lib/usage). Eskiden oran haritanın en ağır kalemine bölünüyordu: tek
-   * bir yoğun dal bütün haritayı sönük bırakıyor, iki yakın dal da ayırt
-   * edilemiyordu. Basamak komşusuna değil, kendi ritmine bağlı.
+   * Bir kalemin ışık yoğunluğu (0–1): son 30 gündeki girdi sayısı önce
+   * GÜNLÜK RİTME çevriliyor, sonra logaritmik bir eğriden geçiyor
+   * (lib/usage). Ölçü mutlak — komşusunun ne yaptığına bağlı değil — ve
+   * pencereden bağımsız: pencere 90 güne çıksa aynı alışkanlık aynı
+   * yoğunluğu veriyor.
    */
-  const metaLevel = (m?: GraphMeta) => usageLevel(m?.weight ?? 0);
-  const metaGlow = (m?: GraphMeta) => levelRatio(metaLevel(m));
+  const metaGlow = (m?: GraphMeta) => usageIntensity(usageRate(m?.weight ?? 0));
 
   /**
    * Ülke rengi. Kökte her kategori kendi rengini taşıyor. Bir kategorinin
@@ -935,15 +935,18 @@ export function EntryNetwork({
                           x2={e.to.x}
                           y2={e.to.y}
                         >
+                          {/* Taban parlaklık yüksek: en seyrek hat bile
+                              görünür duruyor. Eskiden 0.3'ten başlıyordu ve
+                              haritanın yarısı kayboluyordu. */}
                           <stop
                             offset="0%"
                             stopColor={col}
-                            stopOpacity={0.3 + 0.62 * g}
+                            stopOpacity={0.52 + 0.44 * g}
                           />
                           <stop
                             offset="100%"
                             stopColor={col}
-                            stopOpacity={0.12 + 0.5 * g}
+                            stopOpacity={0.3 + 0.5 * g}
                           />
                         </linearGradient>
                       );
@@ -958,16 +961,17 @@ export function EntryNetwork({
                     // gecikme artıyor
                     const delay = 0.06 + 0.16 * (e.depth - 1);
                     return [
-                      g > 0.12 ? (
-                        <path
-                          key={`h${e.id}`}
-                          d={e.path}
-                          fill="none"
-                          stroke={`${col}${hexA(0.04 + 0.14 * g)}`}
-                          strokeWidth={w + 6 + 7 * g}
-                          strokeLinecap="round"
-                        />
-                      ) : null,
+                      // Işıma HER hatta var — yoğunlukla artıyor ama hiç
+                      // kaybolmuyor; harita ışıksız bir tel kafes gibi
+                      // durmasın
+                      <path
+                        key={`h${e.id}`}
+                        d={e.path}
+                        fill="none"
+                        stroke={`${col}${hexA(0.07 + 0.16 * g)}`}
+                        strokeWidth={w + 5 + 8 * g}
+                        strokeLinecap="round"
+                      />,
                       <path
                         key={e.id}
                         className="nerve-fill"
@@ -979,25 +983,32 @@ export function EntryNetwork({
                         strokeLinecap="round"
                         style={{ animationDelay: `${delay}s` }}
                       />,
-                      // Sık kullanılan hatta dolaşan darbe — sayfa durağan
-                      // kalmasın. Seyrek hatlarda yok: her yerde kıpırdayan
-                      // bir harita huzursuz ediyor.
-                      g >= 0.5 ? (
-                        <path
-                          key={`p${e.id}`}
-                          className="nerve-pulse"
-                          pathLength={1}
-                          d={e.path}
-                          fill="none"
-                          stroke={`${col}${hexA(0.35 + 0.45 * g)}`}
-                          strokeWidth={w * 0.8}
-                          strokeLinecap="round"
-                          style={{
-                            animationDelay: `${delay + 0.5 + jitterOf(e.id)}s`,
-                            animationDuration: `${3.2 - 0.5 * g}s`,
-                          }}
-                        />
-                      ) : null,
+                      // Dalga HER hatta dolaşıyor, ama temposu ve parlaklığı
+                      // yoğunlukla değişiyor: sık gidilen yolda sık ve
+                      // belirgin, seyrek yolda aralıklı ve soluk. Gecikme
+                      // kimlikten türüyor — hepsi aynı anda atınca harita
+                      // nefes almıyor, zonkluyordu.
+                      <path
+                        key={`p${e.id}`}
+                        className="nerve-wave"
+                        pathLength={1}
+                        d={e.path}
+                        fill="none"
+                        stroke={col}
+                        strokeWidth={w * 0.9}
+                        strokeLinecap="round"
+                        style={
+                          {
+                            "--wave-op": 0.28 + 0.5 * g,
+                            "--wave-dur": `${9 - 4.5 * g}s`,
+                            // EKSİ gecikme: dalga çoktan yola çıkmış gibi
+                            // başlıyor. Artı gecikmeyle ilk dalgayı sekiz
+                            // saniye beklemek gerekiyordu; harita açılışta
+                            // ölü duruyordu.
+                            "--wave-delay": `${-jitterOf(e.id) * (9 - 4.5 * g)}s`,
+                          } as CSSProperties
+                        }
+                      />,
                     ];
                   })}
                 </>
