@@ -399,7 +399,7 @@ describe("adlar da yerleşimin parçası", () => {
   });
 });
 
-describe("yasa: sektör ve halka hapsi", () => {
+describe("yasa: salkım", () => {
   /** İki doğru parçası kesişiyor mu (uç paylaşımı sayılmaz) */
   const crosses = (
     a1: { x: number; y: number },
@@ -464,67 +464,40 @@ describe("yasa: sektör ve halka hapsi", () => {
     }
   });
 
-  it("kademe = halka: kategorinin İÇİNDE aynı derinlik aynı uzaklıkta", () => {
-    // "Hangisi kategori hangisi alt kategori" sorusunun cevabı bu. Halkalar
-    // kategoriye özel: küresel halkada en kalabalık dal halkayı dışarı itiyor,
-    // seyrek dalın alt kalemleri de boşuna uzaklaşıyordu. Kategoriler yine
-    // ortak birinci halkada — o mesaj korunuyor.
+  it("her kalem anasının dibinde: bağ kısa", () => {
+    // Salkımda uzaklık YEREL: bir dal büyüdükçe kendi içinde büyüyor,
+    // komşusunu ve merkezi ilgilendirmiyor. Küresel halkada bir kalabalık
+    // kategori bütün haritayı dışarı itiyor, seyrek dalın bağı da boşuna
+    // uzuyordu.
     for (const t of TREES) {
       const l = graphLayout(t);
-      const branchOf = new Map<string, string>();
-      const walk = (s: GraphSeed, depth: number, b: string) => {
-        branchOf.set(s.id, b);
-        for (const k of s.children ?? [])
-          walk(k, depth + 1, depth === 0 ? k.id : b);
-      };
-      walk(t, 0, "");
-      const dist = (n: PlacedNode) =>
-        Math.hypot(n.x - l.center.x, n.y - l.center.y);
-
-      // Kategoriler ortak halkada
-      const cats = l.nodes.filter((n) => n.depth === 1).map(dist);
-      expect(Math.max(...cats) - Math.min(...cats)).toBeLessThan(8);
-
-      // Her kategorinin içinde: aynı derinlik aynı halkada, dış halka uzakta
-      for (const b of new Set(l.nodes.map((n) => branchOf.get(n.id)!))) {
-        const mine = l.nodes.filter((n) => branchOf.get(n.id) === b);
-        const rings = new Map<number, number[]>();
-        for (const n of mine)
-          rings.set(n.depth, [...(rings.get(n.depth) ?? []), dist(n)]);
-        const ordered = [...rings.entries()].sort((a, c) => a[0] - c[0]);
-        for (const [, ds] of ordered)
-          expect(Math.max(...ds) - Math.min(...ds)).toBeLessThan(8);
-        for (let i = 1; i < ordered.length; i++)
-          expect(Math.min(...ordered[i][1])).toBeGreaterThan(
-            Math.max(...ordered[i - 1][1])
-          );
+      for (const n of l.nodes) {
+        const p = n.parentId === t.id ? l.center : l.byId.get(n.parentId)!;
+        const pr = n.parentId === t.id ? l.coreR : l.byId.get(n.parentId)!.r;
+        const gap = Math.hypot(n.x - p.x, n.y - p.y) - pr - n.r;
+        expect(gap).toBeGreaterThan(0);
+        expect(gap).toBeLessThan(180);
       }
     }
   });
 
-  it("her kalem kendi kategorisinin diliminde kalıyor", () => {
-    const t = TREES[1];
-    const l = graphLayout(t);
-    const branchOf = new Map<string, string>();
-    const walk = (s: GraphSeed, depth: number, b: string) => {
-      branchOf.set(s.id, b);
-      for (const k of s.children ?? []) walk(k, depth + 1, depth === 0 ? k.id : b);
-    };
-    walk(t, 0, "");
-    // Bir kategorinin bütün üyelerinin açı aralığı, başka bir kategorininkiyle
-    // örtüşmemeli
-    const spans = new Map<string, { lo: number; hi: number }>();
-    for (const n of l.nodes) {
-      const b = branchOf.get(n.id)!;
-      const a = Math.atan2(n.y - l.center.y, n.x - l.center.x);
-      const cur = spans.get(b);
-      spans.set(b, {
-        lo: Math.min(cur?.lo ?? a, a),
-        hi: Math.max(cur?.hi ?? a, a),
-      });
+  it("salkım dışa doğru büyür: çocuk anasından daha uzakta", () => {
+    // Ağacın yönü okunabilsin diye: içeriden dışarıya. Tek tük kalem
+    // anasının yanına savrulabilir ama ortalama her zaman dışa doğru.
+    for (const t of TREES) {
+      const l = graphLayout(t);
+      const dist = (x: number, y: number) =>
+        Math.hypot(x - l.center.x, y - l.center.y);
+      let outward = 0;
+      let total = 0;
+      for (const n of l.nodes) {
+        if (n.parentId === t.id) continue;
+        const p = l.byId.get(n.parentId)!;
+        total++;
+        if (dist(n.x, n.y) > dist(p.x, p.y)) outward++;
+      }
+      if (total) expect(outward / total).toBeGreaterThan(0.7);
     }
-    const list = [...spans.values()].sort((a, b) => a.lo - b.lo);
-    for (let i = 1; i < list.length; i++)
-      expect(list[i].lo).toBeGreaterThanOrEqual(list[i - 1].hi - 1e-6);
   });
+
 });

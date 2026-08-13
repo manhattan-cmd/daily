@@ -8,39 +8,37 @@
  * olarak duruyordu; harita kalabalıklaşıyordu ve onlara başka bir dil
  * aranıyor — bu haritada yerleri yok.)
  *
- * YASA: iki hapis ve iki kuvvet.
+ * YASA: SALKIM. Her kalem çocuklarını kendi çevresine saçaklandırır; bir
+ * dal büyüdükçe KENDİ salkımı içinde büyür, ne komşusunu ne merkezi
+ * ilgilendirir. Bağlar kısadır, seyrek dal anasının dibinde durur.
  *
- *   1. SEKTÖR HAPSİ — her kategori merkez çevresinde kendi açı dilimini
- *      alır ve hiçbir üyesi o dilimden çıkamaz. Dilimler ayrık olduğu için
- *      farklı kategorilerin hatları birbirini KESEMEZ.
- *   2. HALKA HAPSİ — kademe = halka. Kategoriler birinci halkada, alt
- *      kategoriler ikincide, torunlar üçüncüde. "Hangisi kategori, hangisi
- *      alt kategori" sorusu bakışta cevaplanır.
- *   3. ÇEKİM — her kalem anasının açısına çekilir, hat kısa ve düz kalır.
- *   4. İTİŞ — aynı halkadaki komşular açı ekseninde birbirini iter; itiş
- *      sırayı asla bozmaz, o yüzden bir sektörün İÇİNDE de hatlar kesişmez.
+ *   1. Her salkımın bir EN'i (anasının yönüne dik yayılım) ve bir BOY'u
+ *      vardır; ikisi de aşağıdan yukarı hesaplanır. Bir ana, çocuğuna o
+ *      çocuğun KENDİ salkımının eni kadar yer ayırır.
+ *   2. Mesafe yereldir: önce en kısa hâli denenir (yarıçaplar + adım);
+ *      çocuklar o mesafede koniye sığmıyorsa yalnız o salkım açılır.
+ *   3. Kardeşlerin enleri örtüşmez, alt salkım da anasının payının içinde
+ *      kalır — iki dal birbirinin alanına giremez, hatlar KESİŞMEZ.
+ *   4. Koni tam çember değildir: geriye, anasına dönüş yolu boş bırakılır.
  *
- * Halkanın yarıçapı iki kuraldan büyük olanıdır: bir önceki halkayla arada
- * disklerin ve bir satır yazının sığacağı yer kalsın; ve o halkadaki kalemler
- * kendi sektörlerinin yayına yan yana sığsın. Yani harita ancak gerektiği
- * kadar büyür.
+ * Dört yol denendi ve bırakıldı: (1) ışınsal halka, yaprak sayısına göre açı
+ * — en dıştaki halka bütün yaprakların sığacağı çevreye kadar büyüyor,
+ * harita pencereye sığmıyordu. (2) anasının yönünde dar koni — alan daraldı
+ * ama dallar birbirinin içinden geçiyordu. (3) serbest kuvvet dengesi
+ * (akrabalık ölçekli itiş + dal yuvası) — kümeler ayrıldı ama hiçbir garanti
+ * yoktu; hatlar birbirinin üstünden atlıyordu. (4) sektör + halka hapsi —
+ * garantiler geldi ama halka küresel olduğu için en kalabalık kategori bütün
+ * haritayı dışarı itiyor, seyrek dalın bağı boşuna uzuyor, ortada koca bir
+ * boşluk kalıyordu. Salkımda uzaklık yerel olduğu için o sorun kökten yok.
  *
- * Üç yol denendi ve bırakıldı: (1) ışınsal halka, yaprak sayısına göre açı —
- * en dıştaki halka bütün yaprakların sığacağı çevreye kadar büyüyor, harita
- * pencereye sığmıyordu. (2) anasının yönünde dar koni — alan daraldı ama
- * dallar birbirinin içinden geçiyordu. (3) serbest kuvvet dengesi (akrabalık
- * ölçekli itiş + dal yuvası) — kümeler ayrıldı ama hiçbir garanti yoktu:
- * hatlar birbirinin üstünden atlıyor, kademeler karışıyordu. Serbest denge
- * "genelde iyi" verir; bu harita "her zaman doğru"ya ihtiyaç duyuyor.
  *
- * Rastgelelik yok: sıralar ve sapmalar kimlikten türetiliyor. Aynı yapı her
- * açılışta aynı yerde duruyor — dolaşırken yer değiştiren bir harita güven
- * vermiyordu.
+ * Boy neyi söylüyor: kök > kategori > alt kategori. Kategorinin ve alt
+ * kategorinin çapı kendi çocuk sayısıyla da biraz büyüyor. Kullanım sıklığı
+ * buraya karışmıyor — o, hattın kalınlığı ve parlaklığıyla anlatılıyor
+ * (çizim tarafında).
  *
- * Boy neyi söylüyor: kök > kategori > alt kategori. Kategorinin ve
- * alt kategorinin çapı kendi çocuk sayısıyla da biraz büyüyor. Kullanım
- * sıklığı buraya karışmıyor — o, hattın kalınlığı ve parlaklığıyla
- * anlatılıyor (çizim tarafında).
+ * Rastgelelik yok: sapmalar kimlikten türetiliyor. Aynı yapı her açılışta
+ * aynı yerde duruyor — dolaşırken yer değiştiren bir harita güven vermiyordu.
  */
 
 export interface Point {
@@ -207,8 +205,6 @@ export function graphLayout(root: GraphSeed): GraphLayout {
   walk(root, 0, "", "");
   const byIdRaw = new Map(all.map((p) => [p.seed.id, p]));
   const kids = all.filter((p) => p.depth > 0);
-  const maxDepth = kids.reduce((d, p) => Math.max(d, p.depth), 0);
-  const at = (d: number) => kids.filter((p) => p.depth === d);
 
   /**
    * Bir kalemin halkada kapladığı yarım yer (px). Diskin yarıçapı, aralık
@@ -218,134 +214,128 @@ export function graphLayout(root: GraphSeed): GraphLayout {
   const slot = (p: Placed) =>
     p.r + GAP / 2 + labelBox(p.seed.kind, p.seed.label ?? "").w * 0.22;
 
-  // ── 1. SEKTÖR HAPSİ ────────────────────────────────────────────────────
-  // Her kategori merkez çevresinde kendi açı dilimini alıyor ve hiçbir üyesi
-  // o dilimden çıkamıyor. Dilimler ayrık olduğu için farklı kategorilerin
-  // hatları BİRBİRİNİ KESEMİYOR — serbest kuvvet dengesinde bu garanti yoktu,
-  // dallar birbirinin üstünden atlıyordu.
+  // ── YASA: SALKIM ───────────────────────────────────────────────────────
+  // Halka mantığı bırakıldı. Her kalem çocuklarını KENDİ çevresine
+  // saçaklandırıyor: bir dal büyüdükçe kendi salkımı içinde büyüyor, ne
+  // komşusunu ne merkezi ilgilendiriyor. Bağlar kısa, kalabalık dal kendi
+  // içinde açılıyor, seyrek dal anasının dibinde duruyor.
   //
-  // Pay, kategorinin EN KALABALIK halkasına göre: asıl yer isteyen şey bir
-  // kademede yan yana durması gereken kalem sayısı.
-  const branches = root.children ?? [];
-  const widthOf = (b: GraphSeed) => {
-    let width = 1;
-    for (let d = 2; d <= maxDepth; d++)
-      width = Math.max(
-        width,
-        kids.filter((p) => p.branch === b.id && p.depth === d).length
-      );
-    return width;
-  };
-  const widths = branches.map(widthOf);
-  const totalWidth = widths.reduce((a, b) => a + b, 0) || 1;
-  const sector = new Map<string, { from: number; to: number; mid: number }>();
-  {
-    // Küçük kategoriler de nefes alsın: hiçbiri toplamın altıda birinden az
-    // pay almasın diye taban pay eklenip yeniden normalleniyor
-    const floor = 0.55 / Math.max(1, branches.length);
-    const shares = widths.map((w) =>
-      Math.max(floor, w / totalWidth)
-    );
-    const sum = shares.reduce((a, b) => a + b, 0);
-    let acc = -Math.PI / 2 - (shares[0] / sum) * Math.PI;
-    branches.forEach((b, i) => {
-      const span = (shares[i] / sum) * Math.PI * 2;
-      sector.set(b.id, { from: acc, to: acc + span, mid: acc + span / 2 });
-      acc += span;
+  // Ölçü şu: her salkımın bir EN'i (anasının yönüne dik yayılım) ve bir
+  // BOY'u (o yöndeki uzunluk) var, ikisi de aşağıdan yukarı hesaplanıyor.
+  // Bir ana, çocuklarına o çocuğun kendi salkımının eni kadar yer ayırıyor.
+  // "Yan yana dizilirler" varsayımıyla hesaplayınca sekiz kategorili tahtada
+  // mesafe üç katına çıkıyordu — salkımda çocuklar anayı SARIYOR, o yüzden
+  // koni geniş ve mesafe kısa.
+  //
+  // Kesişme yasağı buradan: kardeşlerin enleri örtüşmüyor, alt salkım da
+  // anasının payının içinde kalıyor. İki dal birbirinin alanına giremiyor.
+  const STEP = 24;
+  /** Bir salkımın açılabileceği koni. Kalanı anasına dönüş yolu için boş. */
+  const CONE = 5.0;
+
+  interface Fan {
+    /** Ana ile çocuklar arasındaki mesafe */
+    L: number;
+    /** Çocukların anasının yönüne göre açıları */
+    angles: number[];
+    /** Salkımın eni (yöne dik yarı yayılım) ve boyu (yön doğrultusunda) */
+    lat: number;
+    len: number;
+  }
+  const fan = new Map<string, Fan>();
+  const kidsOf = (p: Placed) => kids.filter((c) => c.parentId === p.seed.id);
+
+  const measure = (p: Placed, cone: number): { lat: number; len: number } => {
+    const mine = kidsOf(p);
+    const own = { lat: slot(p), len: p.r + GAP / 2 };
+    if (!mine.length) return own;
+
+    const ms = mine.map((c) => measure(c, CONE));
+    const maxKidR = mine.reduce((m, c) => Math.max(m, c.r), 0);
+    // Mesafe: kısa olan kazanır; çocuklar o mesafede koniye sığmıyorsa
+    // yalnız BU salkım açılıyor
+    const need = ms.reduce((a, m) => a + 2 * m.lat, 0);
+    const L = Math.max(p.r + maxKidR + STEP, need / cone);
+
+    // Açılar: her çocuk kendi eni kadar pay alıyor, artan yer eşit bölüşülüyor
+    const span = need / L;
+    const spare = Math.max(0, cone - span) / mine.length;
+    const angles: number[] = [];
+    let acc = -(span + spare * mine.length) / 2;
+    mine.forEach((c, i) => {
+      const w = (2 * ms[i].lat) / L + spare;
+      angles.push(acc + w / 2 + jitter(c.seed.id, 8) * spare * 0.25);
+      acc += w;
     });
-  }
 
-  // ── 2. HALKA HAPSİ ─────────────────────────────────────────────────────
-  // Kademe = halka. Kategoriler birinci halkada, alt kategoriler ikincide,
-  // torunlar üçüncüde. "Hangisi kategori hangisi alt kategori" sorusu
-  // böylece bakışta cevaplanıyor; serbest dengede kademeler birbirine
-  // karışıyordu.
-  //
-  // Halkalar KATEGORİYE ÖZEL. Küresel halka denendi: en kalabalık kategori
-  // halkayı dışarı itiyor, üç alt kalemi olan kategori de aynı uzaklığa
-  // uymak zorunda kalıyordu — hatlar boşuna uzuyor, ortada koca bir boşluk
-  // kalıyordu. Artık her kategori kendi halkasını kendi kalabalığından
-  // çıkarıyor: seyrek dalın alt kalemleri dibinde duruyor.
-  //
-  // Yarıçap iki kuraldan büyük olanı: (a) bir önceki halkayla arasında
-  // disklerin ve bir satır yazının sığacağı yer kalsın, (b) o halkadaki
-  // kalemler kendi sektörünün yayına yan yana sığsın.
-  const BAND = 18;
-  /** Halkalar SEKTÖRE ÖZEL: [kategori id][derinlik] → yarıçap */
-  const ring = new Map<string, number[]>();
-  // Birinci halka ortak: bütün kategoriler gövdenin hemen dibinde, aynı
-  // uzaklıkta. "Bunlar kategori" mesajı buradan geliyor.
-  const catMax = at(1).reduce((m, p) => Math.max(m, p.r), 0);
-  const R1 = rootR + catMax + BAND;
-  for (const b of branches) {
-    const s = sector.get(b.id)!;
-    const span = s.to - s.from;
-    const rs = [0, R1];
-    for (let d = 2; d <= maxDepth; d++) {
-      const mine = at(d).filter((p) => p.branch === b.id);
-      if (!mine.length) {
-        rs[d] = rs[d - 1];
-        continue;
-      }
-      const prevMax = at(d - 1)
-        .filter((p) => p.branch === b.id)
-        .reduce((m, p) => Math.max(m, p.r), 0);
-      const curMax = mine.reduce((m, p) => Math.max(m, p.r), 0);
-      const arc = mine.reduce((sum, p) => sum + slot(p) * 2, 0);
-      rs[d] = Math.max(rs[d - 1] + prevMax + curMax + BAND, arc / span);
-    }
-    ring.set(b.id, rs);
-  }
-  const R = (p: Placed) => ring.get(p.branch)?.[p.depth] ?? R1;
+    // Salkımın kapladığı yer: 90°'yi geçen çocuk yana değil geriye taşar,
+    // o yüzden en fazla L kadar en tutar
+    let lat = own.lat;
+    let len = own.len;
+    mine.forEach((m, i) => {
+      const a = angles[i];
+      const side = Math.abs(a) < Math.PI / 2 ? L * Math.abs(Math.sin(a)) : L;
+      lat = Math.max(lat, side + ms[i].lat);
+      len = Math.max(len, L * Math.cos(a) + ms[i].len);
+    });
+    fan.set(p.seed.id, { L, angles, lat, len });
+    return { lat, len };
+  };
 
-  // ── 3. AÇI: ana ile aynı hizada, kardeşle çakışmadan ───────────────────
-  // Her kalem anasının açısına ÇEKİLİYOR (hat kısa ve düz kalsın), aynı
-  // halkadaki komşular ise birbirini İTİYOR (üst üste binmesin). İkisi tek
-  // boyutlu bir problem: sıralamayı bozmadan çözülüyor, sıra korunduğu için
-  // aynı sektörün içinde de hatlar kesişmiyor.
   const angle = new Map<string, number>();
-  for (let d = 1; d <= maxDepth; d++) {
-    for (const b of branches) {
-      const s = sector.get(b.id)!;
-      const mine = at(d).filter((p) => p.branch === b.id);
-      if (!mine.length) continue;
-      // Sıra: ananın açısına göre; böylece çocuklar analarıyla aynı sırada
-      const want = (p: Placed) =>
-        d === 1 ? s.mid : angle.get(p.parentId) ?? s.mid;
-      const order = mine
-        .map((p, i) => ({ p, i, want: want(p) }))
-        .sort((a, c) => a.want - c.want || a.i - c.i);
-      const half = order.map(({ p }) => slot(p) / R(p));
-      const pos = order.map(({ want }) => want);
-      // İki yönlü itiş: soldan sağa ve sağdan sola. Sıra hiç değişmiyor.
-      for (let pass = 0; pass < 4; pass++) {
-        for (let i = 0; i < pos.length; i++) {
-          const lo =
-            i === 0
-              ? s.from + half[i]
-              : pos[i - 1] + half[i - 1] + half[i];
-          pos[i] = Math.max(pos[i], lo);
-        }
-        for (let i = pos.length - 1; i >= 0; i--) {
-          const hi =
-            i === pos.length - 1
-              ? s.to - half[i]
-              : pos[i + 1] - half[i + 1] - half[i];
-          pos[i] = Math.min(pos[i], hi);
-        }
-      }
-      order.forEach(({ p }, i) => angle.set(p.seed.id, pos[i]));
-    }
+  const place = (p: Placed, dir: number) => {
+    const f = fan.get(p.seed.id);
+    if (!f) return;
+    kidsOf(p).forEach((c, i) => {
+      const a = dir + f.angles[i];
+      const dist = f.L * (1 + jitter(c.seed.id, 9) * 0.05);
+      c.x = p.x + Math.cos(a) * dist;
+      c.y = p.y + Math.sin(a) * dist;
+      angle.set(c.seed.id, a);
+      place(c, a);
+    });
+  };
+
+  {
+    const core = all[0];
+    core.x = 0;
+    core.y = 0;
+    // Kökün çevresi tamamen boş: koni tam çember
+    measure(core, Math.PI * 2);
+    place(core, -Math.PI / 2);
   }
 
-  // ── Konumlar ───────────────────────────────────────────────────────────
-  // Halkalar tam çember olsa harita çarka benziyor; yarıçapa kimlikten gelen
-  // ufak bir sapma ekleniyor. Sapma banttan küçük, hiçbir garantiyi bozmuyor.
-  for (const p of kids) {
-    const a = angle.get(p.seed.id) ?? 0;
-    const rr = R(p) + jitter(p.seed.id, 7) * 3.5;
-    p.x = Math.cos(a) * rr;
-    p.y = Math.sin(a) * rr;
+  // ── Son söz: hiçbir disk bir diğerine girmesin ─────────────────────────
+  // Salkımın en/boy ölçüsü yaklaşık: 90°'yi aşarak geriye kıvrılan bir alt
+  // salkım komşusuna birkaç piksel değebiliyor. Burası o teması açıyor —
+  // düğüm ANASININ YÖNÜNDE dışarı kayıyor, yani hattın açısı korunuyor ve
+  // kesişme doğmuyor.
+  for (let pass = 0; pass < 30; pass++) {
+    let moved = false;
+    for (let i = 0; i < all.length; i++)
+      for (let j = i + 1; j < all.length; j++) {
+        const a = all[i];
+        const b = all[j];
+        const want = a.r + b.r + GAP;
+        const d = Math.hypot(b.x - a.x, b.y - a.y);
+        if (d >= want) continue;
+        // Dıştaki (anasından uzak olan) kayar; kök hiç kımıldamaz
+        const out = b.depth >= a.depth ? b : a;
+        const parent = byIdRaw.get(out.parentId);
+        if (!parent) continue;
+        const ux = out.x - parent.x;
+        const uy = out.y - parent.y;
+        const len = Math.hypot(ux, uy) || 1;
+        const push = want - d;
+        const shift = (p: Placed, by: number) => {
+          p.x += (ux / len) * by;
+          p.y += (uy / len) * by;
+          for (const c of kidsOf(p)) shift(c, by);
+        };
+        shift(out, push);
+        moved = true;
+      }
+    if (!moved) break;
   }
   // ── Kutu ───────────────────────────────────────────────────────────────
   let minX = -rootR;
