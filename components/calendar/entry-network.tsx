@@ -125,6 +125,9 @@ const norm = (s: string) => s.toLocaleLowerCase("tr").trim();
 
 const noop = () => {};
 
+/** Kimlikten geçerli bir SVG id'si — veritabanı kimlikleri doğrudan konamaz */
+const gradId = (id: string) => `eg-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+
 /**
  * Rengi ton çemberinde kaydır — aynı ailenin komşu tonları. Petek
  * haritasında bir dalın alt ülkeleri böyle ayrışıyor: hepsi o dalın rengi,
@@ -425,12 +428,10 @@ export function EntryNetwork({
   // renkte, ne kadar kullanılmış); nereye oturacağını lib/graph.ts söylüyor.
   const tree = useMemo(() => {
     const meta = new Map<string, GraphMeta>();
+    // Haritada yalnız gezilecek yerler var: kategoriler ve alt kategoriler.
+    // Özellikler bir ara uçlarda kılcal düğüm olarak duruyordu; harita
+    // kalabalıklaşıyordu ve onları anlatacak başka bir dil aranıyor.
     const subSeed = (s: SubCategory, color: string): GraphSeed => {
-      const kids = childrenMap.get(s.id) ?? [];
-      const own = entryCounts.get(s.id) ?? 0;
-      // Kılcallar yalnız girdisi olan kalemde: özellik ancak kullanıldığında
-      // haritada yer tutuyor, yoksa boş kalemler kılcal çalısına dönüşüyor
-      const mods = own > 0 ? modsOf(s.id) : [];
       meta.set(s.id, {
         name: s.name,
         icon: s.icon,
@@ -438,33 +439,13 @@ export function EntryNetwork({
         weight: subtreeCounts.get(s.id) ?? 0,
         node: { kind: "sub", sub: s },
       });
-      for (const m of mods)
-        meta.set(`${s.id}:${m.id}`, { name: m.name, color, weight: own });
       return {
         id: s.id,
         kind: "sub",
         label: s.name,
-        children: [
-          ...kids.map((k) => subSeed(k, color)),
-          ...mods.map((m) => ({
-            id: `${s.id}:${m.id}`,
-            kind: "mod" as const,
-            label: m.name,
-          })),
-        ],
+        children: (childrenMap.get(s.id) ?? []).map((k) => subSeed(k, color)),
       };
     };
-    /** Odaktaki kalemin kendi özellikleri — merkezden kılcallanır */
-    const focusModSeeds = (ownerId: string): GraphSeed[] =>
-      modsOf(ownerId).map((m) => {
-        const id = `${ownerId}:${m.id}`;
-        meta.set(id, {
-          name: m.name,
-          color: centerColor,
-          weight: maxWeight,
-        });
-        return { id, kind: "mod" as const, label: m.name };
-      });
 
     let children: GraphSeed[];
     if (focusObj == null) {
@@ -490,14 +471,12 @@ export function EntryNetwork({
         ...(topSubsByCat.get(focusObj.cat.id) ?? []).map((s) =>
           subSeed(s, centerColor)
         ),
-        ...focusModSeeds(focusObj.cat.id),
       ];
     } else {
       children = [
         ...(childrenMap.get(focusObj.sub.id) ?? []).map((s) =>
           subSeed(s, centerColor)
         ),
-        ...focusModSeeds(focusObj.sub.id),
       ];
     }
     return {
@@ -568,8 +547,16 @@ export function EntryNetwork({
   const coreSkin: CSSProperties = isGraph
     ? {
         borderRadius: "9999px",
-        background: `radial-gradient(circle at 32% 26%, ${centerColor}b0, ${centerColor}3a)`,
-        boxShadow: `inset 0 0 0 1.5px ${centerColor}aa, 0 0 30px ${centerColor}66`,
+        background: [
+          "radial-gradient(circle at 32% 24%, rgba(255,255,255,0.3), rgba(255,255,255,0) 54%)",
+          `linear-gradient(155deg, ${centerColor}d0, ${centerColor}55)`,
+        ].join(", "),
+        boxShadow: [
+          `inset 0 0 0 1.5px ${centerColor}cc`,
+          "inset 0 -4px 9px rgba(0,0,0,0.3)",
+          "0 4px 14px rgba(0,0,0,0.5)",
+          `0 0 34px ${centerColor}55`,
+        ].join(", "),
       }
     : {
         clipPath: HEX_CLIP,
@@ -908,34 +895,69 @@ export function EntryNetwork({
                    sayısından geliyor ve sayım birikimli: "Harcamalar > Yemek
                    > Dışardan"a girdi girildikçe zincirin TAMAMI güçleniyor.
                    Böylece kullanıcı çok gittiği yolu haritada görüp doğrudan
-                   oradan gidiyor. Her hattın altında soluk bir ikizi var —
-                   güçlü hat ışıyormuş gibi duruyor. */
-                graph.edges.flatMap((e) => {
-                  const m = tree.meta.get(e.id);
-                  const col = m?.color ?? centerColor;
-                  const g = metaGlow(m);
-                  const w = e.width * (1 + 1.8 * g);
-                  return [
-                    g > 0.12 ? (
+                   oradan gidiyor.
+
+                   Her hat gövde ucunda koyu, uçta soluk bir renk geçişiyle
+                   çiziliyor — düz tek renk çizgi düz ve cansız duruyordu.
+                   Güçlü hatların altında ayrıca soluk bir ikiz var, ışıyormuş
+                   gibi görünsün diye. */
+                <>
+                  <defs>
+                    {graph.edges.map((e) => {
+                      const m = tree.meta.get(e.id);
+                      const col = m?.color ?? centerColor;
+                      const g = metaGlow(m);
+                      return (
+                        <linearGradient
+                          key={e.id}
+                          id={gradId(e.id)}
+                          gradientUnits="userSpaceOnUse"
+                          x1={e.from.x}
+                          y1={e.from.y}
+                          x2={e.to.x}
+                          y2={e.to.y}
+                        >
+                          <stop
+                            offset="0%"
+                            stopColor={col}
+                            stopOpacity={0.3 + 0.62 * g}
+                          />
+                          <stop
+                            offset="100%"
+                            stopColor={col}
+                            stopOpacity={0.12 + 0.5 * g}
+                          />
+                        </linearGradient>
+                      );
+                    })}
+                  </defs>
+                  {graph.edges.flatMap((e) => {
+                    const m = tree.meta.get(e.id);
+                    const col = m?.color ?? centerColor;
+                    const g = metaGlow(m);
+                    const w = e.width * (1 + 1.8 * g);
+                    return [
+                      g > 0.12 ? (
+                        <path
+                          key={`h${e.id}`}
+                          d={e.path}
+                          fill="none"
+                          stroke={`${col}${hexA(0.04 + 0.14 * g)}`}
+                          strokeWidth={w + 6 + 7 * g}
+                          strokeLinecap="round"
+                        />
+                      ) : null,
                       <path
-                        key={`h${e.id}`}
+                        key={e.id}
                         d={e.path}
                         fill="none"
-                        stroke={`${col}${hexA(0.05 + 0.16 * g)}`}
-                        strokeWidth={w + 5 + 6 * g}
+                        stroke={`url(#${gradId(e.id)})`}
+                        strokeWidth={w}
                         strokeLinecap="round"
-                      />
-                    ) : null,
-                    <path
-                      key={e.id}
-                      d={e.path}
-                      fill="none"
-                      stroke={`${col}${hexA(0.16 + 0.66 * g)}`}
-                      strokeWidth={w}
-                      strokeLinecap="round"
-                    />,
-                  ];
-                })
+                      />,
+                    ];
+                  })}
+                </>
               ) : (
                 <>
                   {/* Kıta — her hücre bir kalem, her ülke bir kategori.
@@ -1117,6 +1139,7 @@ export function EntryNetwork({
                     y={p.y}
                     r={g.r}
                     side={g.label}
+                    gap={g.labelGap}
                     kind={g.kind}
                     color={m.color}
                     icon={m.icon}
@@ -1640,9 +1663,9 @@ function NetNode({
  * Adın diskin neresine yazılacağı. Yanı yerleşim seçiyor (lib/graph.ts):
  * dört adaydan başka disklere ve önce yerleşmiş adlara en az binen taraf.
  */
-function labelPlacement(r: number, side: LabelSide): CSSProperties {
-  const off = r + 4;
-  const c = r * 0.71 + 4;
+function labelPlacement(r: number, side: LabelSide, gap: number): CSSProperties {
+  const off = r + 4 + gap;
+  const c = r * 0.71 + 4 + gap;
   switch (side) {
     case "right":
       return { left: `calc(50% + ${off}px)`, top: "50%", transform: "translateY(-50%)", textAlign: "left" };
@@ -1684,6 +1707,7 @@ function GraphCell({
   y,
   r,
   side,
+  gap,
   kind,
   color,
   icon,
@@ -1699,6 +1723,8 @@ function GraphCell({
   r: number;
   /** Adın yazılacağı yan — yerleşim çakışmayanı seçiyor */
   side: LabelSide;
+  /** Adın diskten fazladan uzaklığı — sıkışık yerde yerleşim itiyor */
+  gap: number;
   /** Kademe: yazı boyu buna göre */
   kind: GraphKind;
   color: string;
@@ -1723,8 +1749,18 @@ function GraphCell({
       style={{
         width: r * 2,
         height: r * 2,
-        background: `radial-gradient(circle at 32% 26%, ${color}${hexA(0.4 + 0.5 * glow)}, ${color}${hexA(0.12 + 0.2 * glow)})`,
-        boxShadow: `inset 0 0 0 1px ${color}${hexA(0.35 + 0.5 * glow)}, 0 0 ${Math.round(4 + 16 * glow)}px ${color}${hexA(0.1 + 0.4 * glow)}`,
+        // Üç katman: üst soldan gelen ışık, kendi renginde gövde, ve
+        // dışa vuran ışıma. Tek renk düz daire yassı duruyordu.
+        background: [
+          `radial-gradient(circle at 32% 24%, rgba(255,255,255,${(0.2 + 0.12 * glow).toFixed(2)}), rgba(255,255,255,0) 54%)`,
+          `linear-gradient(155deg, ${color}${hexA(0.52 + 0.38 * glow)}, ${color}${hexA(0.16 + 0.2 * glow)})`,
+        ].join(", "),
+        boxShadow: [
+          `inset 0 0 0 1.25px ${color}${hexA(0.5 + 0.45 * glow)}`,
+          "inset 0 -3px 7px rgba(0,0,0,0.28)",
+          "0 3px 9px rgba(0,0,0,0.45)",
+          `0 0 ${Math.round(5 + 20 * glow)}px ${color}${hexA(0.08 + 0.4 * glow)}`,
+        ].join(", "),
         outline: isDragging ? `2px solid ${color}` : undefined,
       }}
     />
@@ -1740,11 +1776,11 @@ function GraphCell({
     <span
       className={cn(
         "pointer-events-none absolute line-clamp-2 leading-tight",
+        // Ölçüler lib/graph.ts'teki labelBox ile AYNI olmalı: çakışma hesabı
+        // orada bu enle ve bu puntoyla yapılıyor
         kind === "cat"
-          ? "w-[74px] text-[10px] font-semibold"
-          : kind === "sub"
-            ? "w-[66px] text-[8.5px] font-medium"
-            : "w-[56px] text-[8px] font-medium",
+          ? "w-[78px] text-[10.5px] font-semibold"
+          : "w-[68px] text-[9px] font-medium",
         glow > 0.5
           ? "text-foreground"
           : glow > 0.15
@@ -1753,7 +1789,7 @@ function GraphCell({
       )}
       // Ad hatların ve komşu disklerin üstüne binebiliyor; koyu bir gölge
       // onu her zeminde okunur tutuyor
-      style={{ ...labelPlacement(r, side), textShadow: "0 1px 4px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)" }}
+      style={{ ...labelPlacement(r, side, gap), textShadow: "0 1px 4px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)" }}
     >
       {name}
     </span>

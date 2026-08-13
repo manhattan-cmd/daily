@@ -3,10 +3,10 @@
  *
  * Ortada bulunulan yer duruyor; ona bağlı olan HER ŞEY tek bakışta görünüyor:
  * kategoriler gövdeden ayrılıyor, alt kategoriler kendi kategorilerinden
- * saçaklanıyor, girdisi olan kalemlerin özellikleri en uçta kılcal gibi
- * duruyor. Yani "kategori → alt kategori → özellik" zinciri anlatılmıyor,
- * doğrudan gösteriliyor. Bir düğüme dokununca merkez o oluyor ve aynı resim
- * onun ağacı için yeniden kuruluyor.
+ * saçaklanıyor. Bir düğüme dokununca merkez o oluyor ve aynı resim onun
+ * ağacı için yeniden kuruluyor. (Özellikler bir ara en uçta kılcal düğüm
+ * olarak duruyordu; harita kalabalıklaşıyordu ve onlara başka bir dil
+ * aranıyor — bu haritada yerleri yok.)
  *
  * Yerleşim bir KUVVET DENGESİ (Obsidian'ın grafiği gibi), ama itiş herkese
  * aynı şiddette değil — AKRABALIĞA göre:
@@ -31,7 +31,7 @@
  * tur sayısı sabit. Aynı yapı her açılışta aynı yerde duruyor — dolaşırken
  * yer değiştiren bir harita güven vermiyordu.
  *
- * Boy neyi söylüyor: kök > kategori > alt kategori > özellik. Kategorinin ve
+ * Boy neyi söylüyor: kök > kategori > alt kategori. Kategorinin ve
  * alt kategorinin çapı kendi çocuk sayısıyla da biraz büyüyor. Kullanım
  * sıklığı buraya karışmıyor — o, hattın kalınlığı ve parlaklığıyla
  * anlatılıyor (çizim tarafında).
@@ -42,7 +42,7 @@ export interface Point {
   y: number;
 }
 
-export type GraphKind = "root" | "cat" | "sub" | "mod";
+export type GraphKind = "root" | "cat" | "sub";
 
 /** Yerleşime verilen ağaç — sırası korunur */
 export interface GraphSeed {
@@ -78,8 +78,10 @@ export interface PlacedNode extends Point {
   angle: number;
   /** Adın yazılacağı yan — çakışmayan taraf seçiliyor */
   label: LabelSide;
-  /** Adı yazılıyor mu (kılcallar ancak seyrek haritada adlanıyor) */
+  /** Adı yazılıyor mu — bu haritada hepsinin adı var */
   labelled: boolean;
+  /** Adın diskten fazladan uzaklığı (px) — sıkışık yerde biraz itiliyor */
+  labelGap: number;
 }
 
 export interface GraphEdge {
@@ -90,6 +92,9 @@ export interface GraphEdge {
   width: number;
   /** Çocuğun derinliği: gövdeye yakın kenar daha kalın */
   depth: number;
+  /** Hattın iki ucu — çizim renk geçişini bu eksene kuruyor */
+  from: Point;
+  to: Point;
 }
 
 export interface GraphLayout {
@@ -105,7 +110,7 @@ export interface GraphLayout {
 }
 
 /** Diskler arasında bırakılan en az boşluk (px) */
-const GAP = 12;
+const GAP = 14;
 
 /**
  * Adın kapladığı kutu. Yerleşim tarayıcıda ölçüm yapamadığı için harf
@@ -114,16 +119,20 @@ const GAP = 12;
  */
 export function labelBox(kind: GraphKind, text: string): { w: number; h: number } {
   const [font, maxW, line] =
-    kind === "cat" ? [10, 74, 12] : kind === "sub" ? [8.5, 66, 10] : [8, 56, 9.5];
+    kind === "cat" ? [10.5, 78, 12.5] : [9, 68, 10.5];
   const wide = Math.max(10, text.trim().length * font * 0.55);
   const w = Math.min(maxW, wide);
   const lines = Math.min(2, Math.max(1, Math.ceil(wide / maxW)));
   return { w, h: lines * line + 2 };
 }
 
-/** Etiketli düğüm çevresinde ayrıca istenen pay — yazı komşuya binmesin */
-function labelPad(kind: GraphKind): number {
-  return kind === "cat" ? 11 : kind === "sub" ? 8 : 0;
+/**
+ * Etiketli düğüm çevresinde ayrıca istenen pay. Adın UZUNLUĞUNA bağlı:
+ * "Toplu taşıma" yazan bir kalem, "Su" yazandan çok daha fazla yer ister.
+ * Sabit paydayken uzun adlı düğümler komşusunun üstüne taşıyordu.
+ */
+function labelPad(kind: GraphKind, text: string): number {
+  return 5 + labelBox(kind, text).w * 0.32;
 }
 /**
  * Kutu kenar payı. Adlar diskin DIŞINA yazıldığı için pay yatayda geniş:
@@ -142,9 +151,7 @@ export function nodeRadius(kind: GraphKind, childCount: number): number {
     case "cat":
       return Math.min(24, 14 + 3.4 * Math.sqrt(c));
     case "sub":
-      return Math.min(17, 10 + 2.4 * Math.sqrt(c));
-    case "mod":
-      return 4.5;
+      return Math.min(18, 11 + 2.4 * Math.sqrt(c));
   }
 }
 
@@ -176,7 +183,7 @@ interface Placed {
 
 /** Ana ile çocuk arasındaki yay boyu — derinleştikçe kısalıyor */
 function stepOf(depth: number): number {
-  return [36, 28, 22, 17][Math.min(depth, 3)];
+  return [40, 31, 25, 20][Math.min(depth, 3)];
 }
 
 /**
@@ -211,7 +218,7 @@ export function graphLayout(root: GraphSeed): GraphLayout {
     const mid = acc + share / 2;
     acc += share;
     const a = -Math.PI / 2 + mid * Math.PI * 2;
-    const dist = rootR + 28 + 17 * Math.sqrt(sizes[i]);
+    const dist = rootR + 20 + 13 * Math.sqrt(sizes[i]);
     anchor.set(b.id, { x: Math.cos(a) * dist, y: Math.sin(a) * dist });
   });
 
@@ -281,9 +288,9 @@ export function graphLayout(root: GraphSeed): GraphLayout {
         const reach =
           (a.r +
             b.r +
-            48 +
-            labelPad(a.seed.kind) +
-            labelPad(b.seed.kind)) *
+            52 +
+            labelPad(a.seed.kind, a.seed.label ?? "") +
+            labelPad(b.seed.kind, b.seed.label ?? "")) *
           kinship(a, b);
         if (d > reach) continue;
         const f = ((reach - d) / reach) * 9 * kinship(a, b) * alpha;
@@ -382,6 +389,7 @@ export function graphLayout(root: GraphSeed): GraphLayout {
     // Aşağıdaki geçişte belirleniyor
     label: "bottom" as LabelSide,
     labelled: false,
+    labelGap: 0,
   }));
 
   // ── Adların yeri ───────────────────────────────────────────────────────
@@ -392,10 +400,15 @@ export function graphLayout(root: GraphSeed): GraphLayout {
   //
   // Kılcalların adı yalnız seyrek haritada yazılıyor — geniş bakışta
   // yüzlerce olabiliyorlar ve harita yazı yığınına dönüyor.
-  const airy = nodes.length <= 12;
   const discs = [{ x: center.x, y: center.y, r: rootR }, ...nodes];
-  const boxFor = (n: PlacedNode, side: LabelSide, w: number, h: number) => {
-    const gap = 4;
+  const boxFor = (
+    n: PlacedNode,
+    side: LabelSide,
+    w: number,
+    h: number,
+    extra = 0
+  ) => {
+    const gap = 4 + extra;
     const d = n.r + gap;
     // Köşelerde disk çeperine 45°'de değiliyor
     const c = n.r * 0.71 + gap;
@@ -458,32 +471,39 @@ export function graphLayout(root: GraphSeed): GraphLayout {
       ] as LabelSide[]).filter((s) => s !== preferred),
     ];
     let best: LabelSide = preferred;
+    let bestGap = 0;
     let bestCost = Infinity;
     sides.forEach((side, i) => {
-      const box = boxFor(n, side, w, h);
-      let cost = i * 3; // eşitlikte tercih edilen yan kazansın
-      for (const d of discs) {
-        if (d === n) continue;
-        cost +=
-          overlap(box, {
-            x0: d.x - d.r,
-            y0: d.y - d.r,
-            x1: d.x + d.r,
-            y1: d.y + d.r,
-          }) * 3;
-      }
-      for (const [id, t] of chosen) if (id !== n.id) cost += overlap(box, t);
-      if (cost < bestCost) {
-        bestCost = cost;
-        best = side;
+      // Yan seçilse de sıkışık bir yerde ad hâlâ değebiliyor; o zaman
+      // diskten birkaç piksel daha uzağa itiliyor. Hattı uzatmak, adı
+      // komşusunun üstüne bırakmaktan iyi.
+      for (const extra of [0, 5, 11, 18, 26]) {
+        const box = boxFor(n, side, w, h, extra);
+        let cost = i * 3 + extra * 0.35;
+        for (const d of discs) {
+          if (d === n) continue;
+          cost +=
+            overlap(box, {
+              x0: d.x - d.r,
+              y0: d.y - d.r,
+              x1: d.x + d.r,
+              y1: d.y + d.r,
+            }) * 3;
+        }
+        for (const [id, t] of chosen) if (id !== n.id) cost += overlap(box, t);
+        if (cost < bestCost) {
+          bestCost = cost;
+          best = side;
+          bestGap = extra;
+        }
       }
     });
     n.label = best;
-    chosen.set(n.id, boxFor(n, best, w, h));
+    n.labelGap = bestGap;
+    chosen.set(n.id, boxFor(n, best, w, h, bestGap));
   };
 
   for (const n of order) {
-    if (n.kind === "mod" && !airy) continue;
     n.labelled = true;
     size.set(n.id, labelBox(n.kind, labelOf.get(n.id) ?? ""));
   }
@@ -524,6 +544,8 @@ export function graphLayout(root: GraphSeed): GraphLayout {
       path: `M ${s(from)} Q ${s(ctl)} ${s(to)}`,
       width: Math.max(0.9, 2.4 - 0.45 * n.depth),
       depth: n.depth,
+      from,
+      to,
     };
   });
 
