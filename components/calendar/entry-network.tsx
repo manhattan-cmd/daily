@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import Link from "next/link";
 import {
   ChevronRight,
@@ -129,13 +136,8 @@ const noop = () => {};
 /** Kimlikten geçerli bir SVG id'si — veritabanı kimlikleri doğrudan konamaz */
 const gradId = (id: string) => `eg-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 
-/**
- * Dalgalanmanın deseni (px): parlak kısım ve arası. Piksel cinsinden çünkü
- * dalga boyu her hatta aynı olmalı — oransal verilince kısa hat tek bir
- * parlaklık, uzun hat bir sürü parlaklık taşıyordu.
- */
-const WAVE_DASH = 7;
-const WAVE_GAP = 13;
+/** Lifin içinden geçen ışığın renk geçişi */
+const flowId = (id: string) => `fl-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 
 /**
  * Kimlikten türeyen 0–1.2 sn arası sabit gecikme. Darbeler aynı anda
@@ -933,30 +935,88 @@ export function EntryNetwork({
                       const m = tree.meta.get(e.id);
                       const col = m?.color ?? centerColor;
                       const g = metaGlow(m);
+                      // Akış süresi yoğunlukla kısalıyor. Evre DERİNLİĞE
+                      // göre kayıyor: içteki hat dıştakinden önde, yani
+                      // ışık merkezden uçlara doğru ilerliyor gibi
+                      // okunuyor. Üstüne kimlikten gelen küçük bir sapma
+                      // var, yoksa aynı derinlikteki hatlar tek ağızdan
+                      // yanıyor.
+                      const dur = 4.6 - 2.2 * g;
+                      const phase = Math.max(
+                        0,
+                        0.82 - 0.24 * (e.depth - 1) - jitterOf(e.id) * 0.18
+                      );
+                      const begin = -phase * dur;
                       return (
-                        <linearGradient
-                          key={e.id}
-                          id={gradId(e.id)}
-                          gradientUnits="userSpaceOnUse"
-                          x1={e.from.x}
-                          y1={e.from.y}
-                          x2={e.to.x}
-                          y2={e.to.y}
-                        >
-                          {/* Taban parlaklık yüksek: en seyrek hat bile
-                              görünür duruyor. Eskiden 0.3'ten başlıyordu ve
-                              haritanın yarısı kayboluyordu. */}
-                          <stop
-                            offset="0%"
-                            stopColor={col}
-                            stopOpacity={0.52 + 0.44 * g}
-                          />
-                          <stop
-                            offset="100%"
-                            stopColor={col}
-                            stopOpacity={0.3 + 0.5 * g}
-                          />
-                        </linearGradient>
+                        <Fragment key={e.id}>
+                          <linearGradient
+                            id={gradId(e.id)}
+                            gradientUnits="userSpaceOnUse"
+                            x1={e.from.x}
+                            y1={e.from.y}
+                            x2={e.to.x}
+                            y2={e.to.y}
+                          >
+                            {/* Lifin kendi rengi: gövdede koyu, uçta soluk */}
+                            <stop
+                              offset="0%"
+                              stopColor={col}
+                              stopOpacity={0.6 + 0.38 * g}
+                            />
+                            <stop
+                              offset="100%"
+                              stopColor={col}
+                              stopOpacity={0.34 + 0.5 * g}
+                            />
+                          </linearGradient>
+                          {/*
+                            Işık lifin İÇİNDEN geçiyor: üç duraklı bir renk
+                            geçişi (saydam → parlak → saydam) hat boyunca
+                            kayıyor. Üstüne çizilen kesik çizgiler "telde
+                            koşan nokta" gibi duruyordu; burada parlayan şeyin
+                            kendisi lifin gövdesi, kenarları da yumuşak.
+                          */}
+                          <linearGradient
+                            id={flowId(e.id)}
+                            gradientUnits="userSpaceOnUse"
+                            x1={e.from.x}
+                            y1={e.from.y}
+                            x2={e.to.x}
+                            y2={e.to.y}
+                          >
+                            <stop offset="0" stopColor="#fff" stopOpacity="0">
+                              <animate
+                                attributeName="offset"
+                                values="0;0.75"
+                                dur={`${dur}s`}
+                                begin={`${begin}s`}
+                                repeatCount="indefinite"
+                              />
+                            </stop>
+                            <stop
+                              offset="0.12"
+                              stopColor="#fff"
+                              stopOpacity={0.16 + 0.4 * g}
+                            >
+                              <animate
+                                attributeName="offset"
+                                values="0.12;0.87"
+                                dur={`${dur}s`}
+                                begin={`${begin}s`}
+                                repeatCount="indefinite"
+                              />
+                            </stop>
+                            <stop offset="0.26" stopColor="#fff" stopOpacity="0">
+                              <animate
+                                attributeName="offset"
+                                values="0.26;1"
+                                dur={`${dur}s`}
+                                begin={`${begin}s`}
+                                repeatCount="indefinite"
+                              />
+                            </stop>
+                          </linearGradient>
+                        </Fragment>
                       );
                     })}
                   </defs>
@@ -964,10 +1024,6 @@ export function EntryNetwork({
                     const m = tree.meta.get(e.id);
                     const col = m?.color ?? centerColor;
                     const g = metaGlow(m);
-                    const w = e.width * (1 + 1.8 * g);
-                    // Işık gövdeden yaprağa akıyor: derinlik arttıkça
-                    // gecikme artıyor
-                    const delay = 0.06 + 0.16 * (e.depth - 1);
                     return [
                       // Işıma HER hatta var — yoğunlukla artıyor ama hiç
                       // kaybolmuyor; harita ışıksız bir tel kafes gibi
@@ -976,48 +1032,21 @@ export function EntryNetwork({
                         key={`h${e.id}`}
                         d={e.path}
                         fill="none"
-                        stroke={`${col}${hexA(0.07 + 0.16 * g)}`}
-                        strokeWidth={w + 5 + 8 * g}
+                        stroke={`${col}${hexA(0.06 + 0.15 * g)}`}
+                        strokeWidth={5 + 9 * g}
                         strokeLinecap="round"
                       />,
+                      // Lifin gövdesi: gövdede kalın, uçta ince bir dolgu
                       <path
                         key={e.id}
-                        className="nerve-fill"
-                        pathLength={1}
-                        d={e.path}
-                        fill="none"
-                        stroke={`url(#${gradId(e.id)})`}
-                        strokeWidth={w}
-                        strokeLinecap="round"
-                        style={{ animationDelay: `${delay}s` }}
+                        d={e.ribbon}
+                        fill={`url(#${gradId(e.id)})`}
                       />,
-                      // Dalgalanma HER hatta var. Desen piksel cinsinden ve
-                      // tekrarlı: dalga boyu her hatta aynı, kısa hat da
-                      // uzun hat da aynı ritimde kıpırdıyor. Tempo ve
-                      // parlaklık yoğunlukla değişiyor; evreler kimlikten
-                      // dağıtılıyor, yoksa bütün harita tek ağızdan
-                      // zonkluyor.
+                      // İçinden geçen ışık — aynı gövde, kayan parlaklık
                       <path
-                        key={`p${e.id}`}
-                        className="nerve-wave"
-                        d={e.path}
-                        fill="none"
-                        // Beyaz: hattın kendi renginde parlaklık, rengin
-                        // koyusu üstünde fark edilmiyordu. Işık ışık gibi
-                        // görünsün diye üstten beyaz vuruyor.
-                        stroke="#ffffff"
-                        strokeWidth={w * 0.8}
-                        strokeLinecap="round"
-                        strokeDasharray={`${WAVE_DASH} ${WAVE_GAP}`}
-                        style={
-                          {
-                            "--wave-op": 0.18 + 0.34 * g,
-                            "--wave-period": `${WAVE_DASH + WAVE_GAP}px`,
-                            "--wave-dur": `${2.6 - 0.9 * g}s`,
-                            "--swell-dur": `${5.5 - 1.6 * g}s`,
-                            "--wave-delay": `${-jitterOf(e.id) * 6}s`,
-                          } as CSSProperties
-                        }
+                        key={`f${e.id}`}
+                        d={e.ribbon}
+                        fill={`url(#${flowId(e.id)})`}
                       />,
                     ];
                   })}

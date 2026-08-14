@@ -96,6 +96,12 @@ export interface GraphEdge {
   width: number;
   /** Çocuğun derinliği: gövdeye yakın kenar daha kalın */
   depth: number;
+  /**
+   * Sivrilen lifin kapalı dış hattı (dolgu olarak çiziliyor). Bağ sabit
+   * kalınlıkta bir çizgi olarak duruyordu; gerçek bir uzantı gövdede kalın,
+   * uçta ince olur ve asıl doku hissi oradan geliyor.
+   */
+  ribbon: string;
   /** Hattın iki ucu — çizim renk geçişini bu eksene kuruyor */
   from: Point;
   to: Point;
@@ -552,13 +558,18 @@ export function graphLayout(root: GraphSeed): GraphLayout {
       x: (p0.x + p1.x) / 2 - (dy / len) * bend,
       y: (p0.y + p1.y) / 2 + (dx / len) * bend,
     };
-    const from = toward(p0, ctl, radiusOf(n.parentId) * 0.6);
-    const to = toward(p1, ctl, n.r * 0.6);
+    const from = toward(p0, ctl, radiusOf(n.parentId) * 0.62);
+    const to = toward(p1, ctl, n.r * 0.62);
     const s = (p: Point) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+    // Kalınlık gövdede anasının çapından, uçta çocuğunkinden geliyor:
+    // sabit kalınlıkta çizgi tel gibi duruyordu, bu lif gibi duruyor
+    const w0 = Math.min(13, Math.max(3.4, radiusOf(n.parentId) * 0.42));
+    const w1 = Math.max(1.3, n.r * 0.3);
     return {
       id: n.id,
       parentId: n.parentId,
       path: `M ${s(from)} Q ${s(ctl)} ${s(to)}`,
+      ribbon: ribbonPath(from, ctl, to, w0, w1),
       width: Math.max(0.9, 2.4 - 0.45 * n.depth),
       depth: n.depth,
       from,
@@ -575,6 +586,43 @@ export function graphLayout(root: GraphSeed): GraphLayout {
     byId,
     edges,
   };
+}
+
+/** Birim dik vektör — şeridin kalınlığı bu yöne açılıyor */
+function normal(from: Point, to: Point): Point {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.hypot(dx, dy) || 1;
+  return { x: -dy / len, y: dx / len };
+}
+
+/**
+ * Sivrilen lif: gövdede `w0`, uçta `w1` kalınlığında kapalı bir şerit.
+ * SVG çizgisi hep sabit kalınlıkta olduğu için uzantı DOLGU olarak
+ * çiziliyor — incelme buradan geliyor.
+ */
+export function ribbonPath(
+  from: Point,
+  ctl: Point,
+  to: Point,
+  w0: number,
+  w1: number
+): string {
+  const n0 = normal(from, ctl);
+  const n1 = normal(ctl, to);
+  const nc = normal(from, to);
+  const h0 = w0 / 2;
+  const h1 = w1 / 2;
+  const hc = (h0 + h1) / 2;
+  const at = (p: Point, n: Point, h: number, sign: number) =>
+    `${(p.x + n.x * h * sign).toFixed(2)} ${(p.y + n.y * h * sign).toFixed(2)}`;
+  return [
+    `M ${at(from, n0, h0, 1)}`,
+    `Q ${at(ctl, nc, hc, 1)} ${at(to, n1, h1, 1)}`,
+    `L ${at(to, n1, h1, -1)}`,
+    `Q ${at(ctl, nc, hc, -1)} ${at(from, n0, h0, -1)}`,
+    "Z",
+  ].join(" ");
 }
 
 /** p'den q yönünde d kadar ilerlemiş nokta */

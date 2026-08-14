@@ -127,50 +127,16 @@ input[type="number"] {
 }
 
 /* ── Bağ haritasında ışık ────────────────────────────────────────────────
-   Sayfa açılınca merkezden başlayan bir dalga hatları uçlara doğru
-   dolduruyor: her hat kendi derinliğine göre gecikmeli başlıyor, yani ışık
-   gövdeden yaprağa akıyor. Sonrasında sık kullanılan hatlarda ince bir
-   darbe dolaşmaya devam ediyor — harita durağan kalmasın, "burada bir
-   akış var" hissi sürsün.
+   Işık, bağın İÇİNDEN geçiyor: lifin dolgusu üç duraklı bir renk geçişiyle
+   boyanıyor (saydam → parlak → saydam) ve o geçiş hat boyunca kayıyor.
+   Hareketi SVG'nin kendi zamanlaması yürütüyor (bkz. entry-network, flowId),
+   o yüzden burada yalnız hareket kısıtlaması var.
 
-   İkisi de `pathLength="1"` üzerine kurulu: yolun gerçek uzunluğunu
-   ölçmeye gerek kalmıyor, her hat 0–1 aralığında normalleniyor. */
-@keyframes nerveFill {
-  from { stroke-dashoffset: 1; }
-  to   { stroke-dashoffset: 0; }
-}
-/* Dalgalanma. Hat boyunca TEKRAR EDEN kısa parlaklıklar var; desen bir tam
-   periyot kayınca başa döndüğü için akış kesintisiz — başı sonu belli tek
-   bir "paket" yok. Bir de hepsi birlikte soluk alıp veriyor (swell). İkisi
-   ayrı tempoda olduğu için ışık bir yerde toplanıp bir yerde inceliyor:
-   telde koşan bir nokta değil, suyun üstündeki gibi dalgalanma.
-
-   Tek paket denendi ve bırakıldı: ışık yol alıyor gibi duruyordu. */
-@keyframes nerveDrift {
-  from { stroke-dashoffset: var(--wave-period, 20px); }
-  to   { stroke-dashoffset: 0; }
-}
-@keyframes nerveSwell {
-  0%, 100% { opacity: calc(var(--wave-op, 0.5) * 0.3); }
-  50%      { opacity: var(--wave-op, 0.5); }
-}
-.nerve-fill {
-  stroke-dasharray: 1 1;
-  animation: nerveFill 0.55s cubic-bezier(0.3, 0.9, 0.4, 1) both;
-}
-.nerve-wave {
-  animation:
-    nerveDrift var(--wave-dur, 5s) linear var(--wave-delay, 0s) infinite,
-    nerveSwell var(--swell-dur, 4s) ease-in-out var(--wave-delay, 0s) infinite;
-}
-
+   İki yol denendi ve bırakıldı: tek bir parlak paketin hattın başından
+   sonuna koşması ("ışık yol alıyor" gibi duruyordu) ve üstten çizilen kesik
+   çizgilerin kayması (boyanmış gibi duruyordu, dokunun kendisi gibi değil). */
 @media (prefers-reduced-motion: reduce) {
-  .nerve-fill,
-  .nerve-wave {
-    animation: none;
-    stroke-dasharray: none;
-  }
-  .nerve-wave {
-    opacity: 0;
+  svg animate {
+    display: none;
   }
 }
