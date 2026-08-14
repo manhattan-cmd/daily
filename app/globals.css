@@ -134,7 +134,8 @@ input[type="number"] {
    başına renk geçişi + ışık paketi, ve lifin içinden geçen üç duraklı
    akış. Üçü de güzeldi ama kenar başına iki gradyan ve üç animasyon
    demekti; harita kasıyordu. Etkiyi katman sayısıyla değil, çizimin
-   kendisiyle (sivrilen lif) almak daha doğru. */
+   kendisiyle almak daha doğru — bugün o çizim ince bir iz ve yalnız
+   yaşayan hatların çevresindeki ışıma. */
 @keyframes linkBreathe {
   0%, 100% { opacity: 0.82; }
   50%      { opacity: 1; }

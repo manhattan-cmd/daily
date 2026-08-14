@@ -91,6 +91,13 @@ const NO_COUNTS: ReadonlyMap<string, number> = new Map();
 
 /** Altıgen hücrenin merkezden köşesine uzaklığı (px) */
 const HEX_SIZE = 46;
+/**
+ * Bir bağın "yaşıyor" sayıldığı en düşük yoğunluk. Bunun üstündekiler
+ * çevresine ışıma alıyor (bkz. bağ katmanı); altındakiler yalnız ince iz.
+ * Ölçü mutlak: ayda bir uğranan dal 0.17 civarında (lib/usage), yani eşik
+ * "ara sıra da olsa gerçekten kullanılıyor" diyor.
+ */
+const LINK_LIT = 0.12;
 /** Bu sayıdan sonra çokgen okunmaz oluyor, liste devralır */
 const LIST_FROM = 17;
 
@@ -516,6 +523,29 @@ export function EntryNetwork({
   const metaGlow = (m?: GraphMeta) => usageIntensity(usageRate(m?.weight ?? 0));
 
   /**
+   * Çizilecek bağlar. Kenar başına tek nesne: yol, renk, kalınlık ve
+   * parlaklık burada bir kez hesaplanıyor — çizim iki geçiş yaptığı için
+   * (ışıma + iz) aynı hesabın render sırasında iki kez dönmesini istemiyoruz.
+   * Kalınlık kademeden geliyor, kullanım onu ancak yarım piksel kımıldatıyor:
+   * kalınlık hiyerarşiyi, parlaklık hayatı anlatıyor.
+   */
+  const links = useMemo(
+    () =>
+      graph.edges.map((e) => {
+        const m = tree.meta.get(e.id);
+        const glow = usageIntensity(usageRate(m?.weight ?? 0));
+        return {
+          id: e.id,
+          d: e.path,
+          color: m?.color ?? centerColor,
+          w: e.width * (0.9 + 0.5 * glow),
+          glow,
+        };
+      }),
+    [graph, tree, centerColor]
+  );
+
+  /**
    * Ülke rengi. Kökte her kategori kendi rengini taşıyor. Bir kategorinin
    * içine girildiğinde alt kalemlerin kendi rengi yok — hepsi dalın
    * renginde olurdu ve ülkeler birbirinden ayırt edilemezdi; o yüzden dalın
@@ -899,29 +929,46 @@ export function EntryNetwork({
             >
               {isGraph ? (
                 /*
-                  Bağlar. Kenar başına TEK yol: gövdede kalın uçta ince bir
-                  lif, düz renkte. Bir ara her kenarda iki renk geçişi, üç
-                  animasyon ve üç yol vardı — telefonda kasıyordu. Estetik
-                  sivrilmeden geliyor, ondan vazgeçmeye gerek yok; pahalı
-                  olan katman sayısıydı.
+                  Bağlar — kılcal iz, boru değil.
 
-                  Renk yoğunluğu o hattan geçen girdi sayısından ve sayım
+                  Sivrilen dolgu şerit bırakıldı: gövdede 13px'e varan bir
+                  ağızla ağ sinir değil DAMAR gibi duruyordu, kalabalık
+                  sayfada da hatlar düğümleri yutuyordu. Bağ artık Obsidian
+                  grafiğindeki gibi ince ve sabit bir çizgi; anlam
+                  kalınlıkta değil PARLAKLIKTA:
+
+                    · sönük hat  = yapı böyle kuruluyor (görünür ama sessiz)
+                    · parlak hat = bu yol gerçekten kullanılıyor
+
+                  Parlaklık o hattan geçen girdi sayısından ve sayım
                   birikimli: "Harcamalar > Yemek > Dışardan"a girdi girildikçe
-                  zincirin tamamı koyulaşıyor, kullanıcı çok gittiği yolu
-                  haritada görüp doğrudan oradan gidiyor.
+                  zincirin tamamı ışıyor, kullanıcı çok gittiği yolu haritada
+                  görüp doğrudan oradan gidiyor.
+
+                  Işıma katmanı YALNIZ yaşayan hatlarda: her kenara ikinci
+                  bir yol vermek telefonu yoruyordu (bkz. globals.css), oysa
+                  parlaması gereken zaten bir avuç hat. Sönük hatlar tek yol
+                  kalıyor, masraf ışığın gittiği yere gidiyor.
                 */
-                <g className="link-breathe">
-                  {graph.edges.map((e) => {
-                    const m = tree.meta.get(e.id);
-                    const g = metaGlow(m);
-                    return (
+                <g className="link-breathe" fill="none" strokeLinecap="round">
+                  {links.map((l) =>
+                    l.glow > LINK_LIT ? (
                       <path
-                        key={e.id}
-                        d={e.ribbon}
-                        fill={`${m?.color ?? centerColor}${hexA(0.34 + 0.5 * g)}`}
+                        key={`h${l.id}`}
+                        d={l.d}
+                        stroke={`${l.color}${hexA(0.05 + 0.17 * l.glow)}`}
+                        strokeWidth={l.w * 3.4}
                       />
-                    );
-                  })}
+                    ) : null
+                  )}
+                  {links.map((l) => (
+                    <path
+                      key={l.id}
+                      d={l.d}
+                      stroke={`${l.color}${hexA(0.2 + 0.62 * l.glow)}`}
+                      strokeWidth={l.w}
+                    />
+                  ))}
                 </g>
               ) : (
                 <>

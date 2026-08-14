@@ -34,8 +34,9 @@
  *
  * Boy neyi söylüyor: kök > kategori > alt kategori. Kategorinin ve alt
  * kategorinin çapı kendi çocuk sayısıyla da biraz büyüyor. Kullanım sıklığı
- * buraya karışmıyor — o, hattın kalınlığı ve parlaklığıyla anlatılıyor
- * (çizim tarafında).
+ * buraya karışmıyor — o, hattın PARLAKLIĞIYLA anlatılıyor (çizim tarafında).
+ * Kalınlıkla anlatmak yanlış çıktı: kalınlaşan hat bağ olmaktan çıkıp bir
+ * boruya dönüşüyor, ağ da sinir değil damar gibi duruyordu.
  *
  * Rastgelelik yok: sapmalar kimlikten türetiliyor. Aynı yapı her açılışta
  * aynı yerde duruyor — dolaşırken yer değiştiren bir harita güven vermiyordu.
@@ -93,15 +94,16 @@ export interface GraphEdge {
   id: string;
   parentId: string;
   path: string;
-  width: number;
-  /** Çocuğun derinliği: gövdeye yakın kenar daha kalın */
-  depth: number;
   /**
-   * Sivrilen lifin kapalı dış hattı (dolgu olarak çiziliyor). Bağ sabit
-   * kalınlıkta bir çizgi olarak duruyordu; gerçek bir uzantı gövdede kalın,
-   * uçta ince olur ve asıl doku hissi oradan geliyor.
+   * Kılcal kalınlık (px). Bir ara bağ, gövdede 13px'e varan sivrilen bir
+   * DOLGU şeridiydi; ağ sinir değil damar gibi duruyordu. Bağ bir boru
+   * değil, iki şeyin birbirine değdiğini söyleyen ince bir iz: kalınlık
+   * yalnız kademeyi fısıldıyor, gerisini parlaklık söylüyor (çizim tarafı
+   * bunu kullanıma göre biraz daha kalınlaştırıyor).
    */
-  ribbon: string;
+  width: number;
+  /** Çocuğun derinliği: gövdeye yakın kenar bir tık kalın */
+  depth: number;
   /** Hattın iki ucu — çizim renk geçişini bu eksene kuruyor */
   from: Point;
   to: Point;
@@ -544,33 +546,35 @@ export function graphLayout(root: GraphSeed): GraphLayout {
 
   // ── Hatlar ─────────────────────────────────────────────────────────────
   // Düz çizgi tekerlek parmağı gibi duruyordu; her hat kimliğinden gelen
-  // sabit bir kavis alıyor. Uçlar disklerin İÇİNE giriyor: düğümler üstte
-  // çizildiği için hat oradan çıkmış gibi kaynıyor, uç uca eklenmiş gibi
-  // durmuyor.
+  // sabit bir kavis alıyor. Kavis ÖLÇÜLÜ: eskiden hattın beşte birine varan
+  // bir yay atıyordu ve kalın şeritle birleşince ağ damar gibi kıvrılıyordu.
+  // İnce izde az bir eğrilik zaten yetiyor — çizgi diri duruyor ama yol
+  // gözle takip edilebiliyor.
+  //
+  // Uçlar disklerin İÇİNE giriyor ama artık yalnız çeperin altına: düğümler
+  // üstte çizildiği için hat oradan çıkmış gibi kaynıyor, disk yarı saydam
+  // olduğundan yüzünün altından geçen çizgi de görünmüyor.
   const edges: GraphEdge[] = nodes.map((n) => {
     const p0 = posOf(n.parentId);
     const p1 = { x: n.x, y: n.y };
     const dx = p1.x - p0.x;
     const dy = p1.y - p0.y;
     const len = Math.hypot(dx, dy) || 1;
-    const bend = jitter(n.id, 5) * Math.min(26, len * 0.24);
+    const bend = jitter(n.id, 5) * Math.min(15, len * 0.14);
     const ctl = {
       x: (p0.x + p1.x) / 2 - (dy / len) * bend,
       y: (p0.y + p1.y) / 2 + (dx / len) * bend,
     };
-    const from = toward(p0, ctl, radiusOf(n.parentId) * 0.62);
-    const to = toward(p1, ctl, n.r * 0.62);
+    const from = toward(p0, ctl, radiusOf(n.parentId) * 0.92);
+    const to = toward(p1, ctl, n.r * 0.92);
     const s = (p: Point) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
-    // Kalınlık gövdede anasının çapından, uçta çocuğunkinden geliyor:
-    // sabit kalınlıkta çizgi tel gibi duruyordu, bu lif gibi duruyor
-    const w0 = Math.min(13, Math.max(3.4, radiusOf(n.parentId) * 0.42));
-    const w1 = Math.max(1.3, n.r * 0.3);
     return {
       id: n.id,
       parentId: n.parentId,
       path: `M ${s(from)} Q ${s(ctl)} ${s(to)}`,
-      ribbon: ribbonPath(from, ctl, to, w0, w1),
-      width: Math.max(0.9, 2.4 - 0.45 * n.depth),
+      // Kademeler arasında ancak yarım piksellik bir fark var: hiyerarşi
+      // sezilsin ama hiçbir hat "boru" olmasın
+      width: Math.max(0.75, 1.75 - 0.3 * n.depth),
       depth: n.depth,
       from,
       to,
@@ -586,43 +590,6 @@ export function graphLayout(root: GraphSeed): GraphLayout {
     byId,
     edges,
   };
-}
-
-/** Birim dik vektör — şeridin kalınlığı bu yöne açılıyor */
-function normal(from: Point, to: Point): Point {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const len = Math.hypot(dx, dy) || 1;
-  return { x: -dy / len, y: dx / len };
-}
-
-/**
- * Sivrilen lif: gövdede `w0`, uçta `w1` kalınlığında kapalı bir şerit.
- * SVG çizgisi hep sabit kalınlıkta olduğu için uzantı DOLGU olarak
- * çiziliyor — incelme buradan geliyor.
- */
-export function ribbonPath(
-  from: Point,
-  ctl: Point,
-  to: Point,
-  w0: number,
-  w1: number
-): string {
-  const n0 = normal(from, ctl);
-  const n1 = normal(ctl, to);
-  const nc = normal(from, to);
-  const h0 = w0 / 2;
-  const h1 = w1 / 2;
-  const hc = (h0 + h1) / 2;
-  const at = (p: Point, n: Point, h: number, sign: number) =>
-    `${(p.x + n.x * h * sign).toFixed(2)} ${(p.y + n.y * h * sign).toFixed(2)}`;
-  return [
-    `M ${at(from, n0, h0, 1)}`,
-    `Q ${at(ctl, nc, hc, 1)} ${at(to, n1, h1, 1)}`,
-    `L ${at(to, n1, h1, -1)}`,
-    `Q ${at(ctl, nc, hc, -1)} ${at(from, n0, h0, -1)}`,
-    "Z",
-  ].join(" ");
 }
 
 /** p'den q yönünde d kadar ilerlemiş nokta */
