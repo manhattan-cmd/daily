@@ -126,17 +126,25 @@ input[type="number"] {
   animation: zoomIn 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* ── Bağ haritasında ışık ────────────────────────────────────────────────
-   Işık, bağın İÇİNDEN geçiyor: lifin dolgusu üç duraklı bir renk geçişiyle
-   boyanıyor (saydam → parlak → saydam) ve o geçiş hat boyunca kayıyor.
-   Hareketi SVG'nin kendi zamanlaması yürütüyor (bkz. entry-network, flowId),
-   o yüzden burada yalnız hareket kısıtlaması var.
+/* ── Bağ haritasında hareket ─────────────────────────────────────────────
+   Bütün bağ katmanı yavaşça soluk alıp veriyor. Tek bir öğe, tek bir
+   özellik (opaklık) — telefonu yormuyor.
 
-   İki yol denendi ve bırakıldı: tek bir parlak paketin hattın başından
-   sonuna koşması ("ışık yol alıyor" gibi duruyordu) ve üstten çizilen kesik
-   çizgilerin kayması (boyanmış gibi duruyordu, dokunun kendisi gibi değil). */
+   Üç yol denendi ve bırakıldı: kenar başına kayan kesik çizgiler, kenar
+   başına renk geçişi + ışık paketi, ve lifin içinden geçen üç duraklı
+   akış. Üçü de güzeldi ama kenar başına iki gradyan ve üç animasyon
+   demekti; harita kasıyordu. Etkiyi katman sayısıyla değil, çizimin
+   kendisiyle (sivrilen lif) almak daha doğru. */
+@keyframes linkBreathe {
+  0%, 100% { opacity: 0.82; }
+  50%      { opacity: 1; }
+}
+.link-breathe {
+  animation: linkBreathe 7s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  svg animate {
-    display: none;
+  .link-breathe {
+    animation: none;
   }
 }

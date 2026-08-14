@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Fragment,
   useEffect,
   useMemo,
   useRef,
@@ -133,25 +132,7 @@ const norm = (s: string) => s.toLocaleLowerCase("tr").trim();
 
 const noop = () => {};
 
-/** Kimlikten geçerli bir SVG id'si — veritabanı kimlikleri doğrudan konamaz */
-const gradId = (id: string) => `eg-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 
-/** Lifin içinden geçen ışığın renk geçişi */
-const flowId = (id: string) => `fl-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-
-/**
- * Kimlikten türeyen 0–1.2 sn arası sabit gecikme. Darbeler aynı anda
- * atmasın diye: hepsi birlikte yanıp sönünce harita nefes almıyor,
- * zonkluyordu.
- */
-function jitterOf(id: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < id.length; i++) {
-    h ^= id.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return ((h >>> 0) % 1200) / 1000;
-}
 
 /**
  * Rengi ton çemberinde kaydır — aynı ailenin komşu tonları. Petek
@@ -581,9 +562,7 @@ export function EntryNetwork({
         ].join(", "),
         boxShadow: [
           `inset 0 0 0 1.5px ${centerColor}cc`,
-          "inset 0 -4px 9px rgba(0,0,0,0.3)",
-          "0 4px 14px rgba(0,0,0,0.5)",
-          `0 0 34px ${centerColor}55`,
+          `0 0 30px ${centerColor}55`,
         ].join(", "),
       }
     : {
@@ -919,138 +898,31 @@ export function EntryNetwork({
               height={view.height}
             >
               {isGraph ? (
-                /* Sinir hatları. Kalınlık ve parlaklık o hattan geçen girdi
-                   sayısından geliyor ve sayım birikimli: "Harcamalar > Yemek
-                   > Dışardan"a girdi girildikçe zincirin TAMAMI güçleniyor.
-                   Böylece kullanıcı çok gittiği yolu haritada görüp doğrudan
-                   oradan gidiyor.
+                /*
+                  Bağlar. Kenar başına TEK yol: gövdede kalın uçta ince bir
+                  lif, düz renkte. Bir ara her kenarda iki renk geçişi, üç
+                  animasyon ve üç yol vardı — telefonda kasıyordu. Estetik
+                  sivrilmeden geliyor, ondan vazgeçmeye gerek yok; pahalı
+                  olan katman sayısıydı.
 
-                   Her hat gövde ucunda koyu, uçta soluk bir renk geçişiyle
-                   çiziliyor — düz tek renk çizgi düz ve cansız duruyordu.
-                   Güçlü hatların altında ayrıca soluk bir ikiz var, ışıyormuş
-                   gibi görünsün diye. */
-                <>
-                  <defs>
-                    {graph.edges.map((e) => {
-                      const m = tree.meta.get(e.id);
-                      const col = m?.color ?? centerColor;
-                      const g = metaGlow(m);
-                      // Akış süresi yoğunlukla kısalıyor. Evre DERİNLİĞE
-                      // göre kayıyor: içteki hat dıştakinden önde, yani
-                      // ışık merkezden uçlara doğru ilerliyor gibi
-                      // okunuyor. Üstüne kimlikten gelen küçük bir sapma
-                      // var, yoksa aynı derinlikteki hatlar tek ağızdan
-                      // yanıyor.
-                      const dur = 4.6 - 2.2 * g;
-                      const phase = Math.max(
-                        0,
-                        0.82 - 0.24 * (e.depth - 1) - jitterOf(e.id) * 0.18
-                      );
-                      const begin = -phase * dur;
-                      return (
-                        <Fragment key={e.id}>
-                          <linearGradient
-                            id={gradId(e.id)}
-                            gradientUnits="userSpaceOnUse"
-                            x1={e.from.x}
-                            y1={e.from.y}
-                            x2={e.to.x}
-                            y2={e.to.y}
-                          >
-                            {/* Lifin kendi rengi: gövdede koyu, uçta soluk */}
-                            <stop
-                              offset="0%"
-                              stopColor={col}
-                              stopOpacity={0.6 + 0.38 * g}
-                            />
-                            <stop
-                              offset="100%"
-                              stopColor={col}
-                              stopOpacity={0.34 + 0.5 * g}
-                            />
-                          </linearGradient>
-                          {/*
-                            Işık lifin İÇİNDEN geçiyor: üç duraklı bir renk
-                            geçişi (saydam → parlak → saydam) hat boyunca
-                            kayıyor. Üstüne çizilen kesik çizgiler "telde
-                            koşan nokta" gibi duruyordu; burada parlayan şeyin
-                            kendisi lifin gövdesi, kenarları da yumuşak.
-                          */}
-                          <linearGradient
-                            id={flowId(e.id)}
-                            gradientUnits="userSpaceOnUse"
-                            x1={e.from.x}
-                            y1={e.from.y}
-                            x2={e.to.x}
-                            y2={e.to.y}
-                          >
-                            <stop offset="0" stopColor="#fff" stopOpacity="0">
-                              <animate
-                                attributeName="offset"
-                                values="0;0.75"
-                                dur={`${dur}s`}
-                                begin={`${begin}s`}
-                                repeatCount="indefinite"
-                              />
-                            </stop>
-                            <stop
-                              offset="0.12"
-                              stopColor="#fff"
-                              stopOpacity={0.16 + 0.4 * g}
-                            >
-                              <animate
-                                attributeName="offset"
-                                values="0.12;0.87"
-                                dur={`${dur}s`}
-                                begin={`${begin}s`}
-                                repeatCount="indefinite"
-                              />
-                            </stop>
-                            <stop offset="0.26" stopColor="#fff" stopOpacity="0">
-                              <animate
-                                attributeName="offset"
-                                values="0.26;1"
-                                dur={`${dur}s`}
-                                begin={`${begin}s`}
-                                repeatCount="indefinite"
-                              />
-                            </stop>
-                          </linearGradient>
-                        </Fragment>
-                      );
-                    })}
-                  </defs>
-                  {graph.edges.flatMap((e) => {
+                  Renk yoğunluğu o hattan geçen girdi sayısından ve sayım
+                  birikimli: "Harcamalar > Yemek > Dışardan"a girdi girildikçe
+                  zincirin tamamı koyulaşıyor, kullanıcı çok gittiği yolu
+                  haritada görüp doğrudan oradan gidiyor.
+                */
+                <g className="link-breathe">
+                  {graph.edges.map((e) => {
                     const m = tree.meta.get(e.id);
-                    const col = m?.color ?? centerColor;
                     const g = metaGlow(m);
-                    return [
-                      // Işıma HER hatta var — yoğunlukla artıyor ama hiç
-                      // kaybolmuyor; harita ışıksız bir tel kafes gibi
-                      // durmasın
-                      <path
-                        key={`h${e.id}`}
-                        d={e.path}
-                        fill="none"
-                        stroke={`${col}${hexA(0.06 + 0.15 * g)}`}
-                        strokeWidth={5 + 9 * g}
-                        strokeLinecap="round"
-                      />,
-                      // Lifin gövdesi: gövdede kalın, uçta ince bir dolgu
+                    return (
                       <path
                         key={e.id}
                         d={e.ribbon}
-                        fill={`url(#${gradId(e.id)})`}
-                      />,
-                      // İçinden geçen ışık — aynı gövde, kayan parlaklık
-                      <path
-                        key={`f${e.id}`}
-                        d={e.ribbon}
-                        fill={`url(#${flowId(e.id)})`}
-                      />,
-                    ];
+                        fill={`${m?.color ?? centerColor}${hexA(0.34 + 0.5 * g)}`}
+                      />
+                    );
                   })}
-                </>
+                </g>
               ) : (
                 <>
                   {/* Kıta — her hücre bir kalem, her ülke bir kategori.
@@ -1848,11 +1720,12 @@ function GraphCell({
           `radial-gradient(circle at 32% 24%, rgba(255,255,255,${(0.2 + 0.12 * glow).toFixed(2)}), rgba(255,255,255,0) 54%)`,
           `linear-gradient(155deg, ${color}${hexA(0.52 + 0.38 * glow)}, ${color}${hexA(0.16 + 0.2 * glow)})`,
         ].join(", "),
+        // İki gölge yetiyor: çeper ve dışa vuran ışıma. Dört katman
+        // (ayrıca iç vinyet ve zemin gölgesi) telefonda boyamayı
+        // ağırlaştırıyordu, gözle farkı da yoktu.
         boxShadow: [
           `inset 0 0 0 1.25px ${color}${hexA(0.5 + 0.45 * glow)}`,
-          "inset 0 -3px 7px rgba(0,0,0,0.28)",
-          "0 3px 9px rgba(0,0,0,0.45)",
-          `0 0 ${Math.round(5 + 20 * glow)}px ${color}${hexA(0.08 + 0.4 * glow)}`,
+          `0 0 ${Math.round(6 + 18 * glow)}px ${color}${hexA(0.1 + 0.38 * glow)}`,
         ].join(", "),
         outline: isDragging ? `2px solid ${color}` : undefined,
       }}
