@@ -3,8 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Locate } from "lucide-react";
 
-/** Sığdırılmış hale göre en çok bu kadar yakınlaşılır */
-const MAX_ZOOM = 2.5;
+/**
+ * Sığdırılmış hale göre en çok bu kadar yakınlaşılır — ama en az DOĞAL BOYA
+ * kadar. Tavan yalnız sığdırmaya bağlıyken büyük tuvalde tuzak oluyordu:
+ * bin küsur düğümlü bir ağ %3,5'e sığıyor ve 2,5 katı bile %9 ediyor, yani
+ * kullanıcı hiçbir zaman yazıları okuyabileceği boya gelemiyordu. Takımada
+ * görünümünün bütün mantığı "uzaktan şekil, yakından ad" olduğu için o
+ * yakınlaşma mümkün olmak zorunda.
+ */
+const MIN_MAX_ZOOM = 2.5;
 /** Pencere en az bu kadar yer kaplar; üstü kabın verdiği alandır */
 const MIN_FRAME_H = 300;
 /**
@@ -21,7 +28,8 @@ const MAX_FIT = 1;
  * Sınırın kuralı: AÇILIŞ HALİ EN UZAK HALDİR. Şekil pencereye sığdırılıp
  * ortalanmış olarak gelir; daha fazla uzaklaşmak yok, çünkü uzaklaştıkça
  * şekil küçülüp okunmaz hale geliyor ve kullanıcı boşlukta kayboluyordu.
- * Yakınlaşmak serbest (2.5 katına kadar), kaydırma da yalnız yakınlaşılmış
+ * Yakınlaşmak serbest (en az 2.5 kat, büyük tuvalde doğal boya kadar),
+ * kaydırma da yalnız yakınlaşılmış
  * haldeyken anlamlı — sığan bir şekli kaydırmak onu ekrandan çıkarmaktan
  * başka işe yaramaz, o yüzden o durumda kaydırma kilitli.
  *
@@ -71,6 +79,8 @@ export function CanvasViewport({
       ? Math.min(MAX_FIT, frame.w / width, frame.h / height)
       : 1;
   const scale = fit * zoom;
+  /** Doğal boy (1:1) her zaman erişilebilir olsun; küçük şekilde 2,5 kat */
+  const maxZoom = Math.max(MIN_MAX_ZOOM, fit > 0 ? 1 / fit : MIN_MAX_ZOOM);
 
   /** Taşan kısmın yarısı kadar kaydırılabilir; sığıyorsa hiç */
   const clamp = (p: { x: number; y: number }) => {
@@ -84,7 +94,7 @@ export function CanvasViewport({
 
   const zoomBy = (factor: number) =>
     setZoom((z) => {
-      const next = Math.max(1, Math.min(MAX_ZOOM, z * factor));
+      const next = Math.max(1, Math.min(maxZoom, z * factor));
       setPan((p) => clampAt(p, fit * next));
       return next;
     });
@@ -164,7 +174,7 @@ export function CanvasViewport({
     const moved = { x: g.pan.x + mid.x - g.mid.x, y: g.pan.y + mid.y - g.mid.y };
 
     if (pointers.current.size === 2 && g.dist > 0) {
-      const next = Math.max(1, Math.min(MAX_ZOOM, g.zoom * (distOf() / g.dist)));
+      const next = Math.max(1, Math.min(maxZoom, g.zoom * (distOf() / g.dist)));
       setZoom(next);
       setPan(clampAt(moved, fit * next));
       panned.current = true;

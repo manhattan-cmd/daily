@@ -42,6 +42,14 @@
  * aynı yerde duruyor — dolaşırken yer değiştiren bir harita güven vermiyordu.
  */
 
+import {
+  boundsOf,
+  clipToWedge,
+  discHull,
+  smoothClosedPath,
+  type HullPoint,
+} from "./hull";
+
 export interface Point {
   x: number;
   y: number;
@@ -83,8 +91,14 @@ export interface PlacedNode extends Point {
   angle: number;
   /** Adın yazılacağı yan — çakışmayan taraf seçiliyor */
   label: LabelSide;
-  /** Adı yazılıyor mu — bu haritada hepsinin adı var */
+  /** Adı yazılıyor mu — takımadada yalnız adacık başlarının adı var */
   labelled: boolean;
+  /**
+   * Adı iri mi yazılıyor. Seyrek haritada kademe belirler (kategori iri,
+   * kalem ufak); takımadada adacık başları irileşiyor — orada onlar birer
+   * yer adı, haritanın tek yazısı.
+   */
+  labelBig: boolean;
   /** Adın diskten fazladan uzaklığı (px) — sıkışık yerde biraz itiliyor */
   labelGap: number;
 }
@@ -109,12 +123,43 @@ export interface GraphEdge {
   to: Point;
 }
 
+/**
+ * Bir adacık: merkezin doğrudan bir çocuğu ve onun bütün soyu. Kalabalık
+ * haritada dokunulan şey artık düğüm değil bu ALAN — sınırın içinde
+ * herhangi bir yere dokunmak adacığın başına giriyor.
+ */
+export interface GraphIsland {
+  /** Adacık başının kimliği — sınıra dokununca açılan yer */
+  id: string;
+  /** Sınırın kapalı, yumuşatılmış yolu (dolgu ve dokunma alanı) */
+  path: string;
+  /**
+   * Sınırın çokgen hali — dışbükey. Çizim `path`i kullanıyor; bu, iki
+   * ülkenin kesişmediğini sınayabilmek için duruyor (yumuşatma çokgenin
+   * dışına taşmıyor, o yüzden çokgende kesişme yoksa yolda da yoktur).
+   */
+  hull: Point[];
+  /** Adın yazılacağı nokta — sınırın merkezden UZAK yanında, dışarıda */
+  labelAt: Point;
+  /** Adın punto boyu — adacık ne kadar genişse o kadar iri */
+  fontSize: number;
+  /** Kaç düğüm kapsıyor — çizim bunu okumuyor, ayıklamak isteyen için */
+  count: number;
+}
+
 export interface GraphLayout {
   width: number;
   height: number;
+  /**
+   * Harita takımadaya döndü mü: adlar yalnız adacık başlarında. Çizim bunu
+   * biliyor olmalı — o adlar orada tek başına duruyor ve daha iri yazılıyor.
+   */
+  archipelago: boolean;
   center: Point;
   /** Merkezdeki gövdenin yarıçapı */
   coreR: number;
+  /** Adacık sınırları — yalnız takımada halinde dolu */
+  islands: GraphIsland[];
   /** Kök hariç tüm düğümler (kök merkezde ayrıca çiziliyor) */
   nodes: PlacedNode[];
   byId: Map<string, PlacedNode>;
@@ -123,6 +168,53 @@ export interface GraphLayout {
 
 /** Diskler arasında bırakılan en az boşluk (px) */
 const GAP = 14;
+
+/**
+ * TAKIMADA EŞİĞİ — bu sayıdan çok düğümü olan haritada adlar yalnız
+ * ADACIK BAŞLARINA yazılıyor (merkezin doğrudan çocukları: kökte
+ * kategoriler, bir dalın içinde o dalın kalemleri).
+ *
+ * Kalabalık harita zaten kendiliğinden şuna dönüşüyor: merkezin çevresinde
+ * birbirinden ayrık takımadalar. Her adı yazmaya çalışmak o resmi bozuyordu —
+ * yazılar birbirinin üstüne biniyor, harita okunmuyor ve üstelik yerleşimin
+ * neredeyse bütün zamanı oraya gidiyor (her ad sekiz yan × beş uzaklık
+ * denenip bütün disklere ve önce yerleşmiş adlara çakışması ölçülüyor).
+ *
+ * Adacığın adı yazılınca resim şunu söylüyor: "burası Harcamalar, ve içi
+ * bu kadar dolu." İçindekini görmek için adacığa dokunmak yetiyor — dokununca
+ * zaten o adacık merkeze gelip büyüyor ve orada bütün adlar yazılı.
+ */
+const ARCHIPELAGO_FROM = 70;
+
+/**
+ * Adacık sınırının en dıştaki disklere bıraktığı pay (px). Dar tutuluyor:
+ * yerleşim disklerin çakışmamasını garanti ediyor ama KABUKLARIN
+ * çakışmamasını edemiyor. Taşma dilim kırpmasıyla kesiliyor (clipToWedge),
+ * o yüzden pay cömert olabiliyor: sınır disklere yapışık durmuyor.
+ */
+const ISLAND_PAD = 10;
+/**
+ * Adacık adının puntosu iki ölçünün küçüğü:
+ *
+ *   TUVALE göre — harita pencereye sığdırılırken ad da onunla küçülüyor,
+ *   yani hangi ölçekte bakılırsa bakılsın ad EKRANDA aynı boyda duruyor.
+ *   Sabit punto verilseydi bin düğümlü haritada toz tanesi olurdu.
+ *
+ *   ADACIĞA göre — küçük adacığın adı da küçük. Yoksa üç düğümlü bir
+ *   ülkenin adı kendi sınırından taşıyor ve komşusunun üstüne düşüyor.
+ */
+const ISLAND_FONT_OF_CANVAS = 0.022;
+const ISLAND_FONT_OF_ISLAND = 0.18;
+/** Tek düğümlü bir adacıkta bile ad okunur kalsın */
+const ISLAND_FONT_MIN = 12;
+
+/**
+ * Adacık adının kaplayacağı en. Yerleşim tarayıcıda ölçüm yapamıyor; çizim
+ * tarafındaki puntoyla aynı kestirimi kullanıyoruz (bkz. labelBox).
+ */
+function islandLabelWidth(text: string, fontSize: number): number {
+  return Math.max(fontSize, text.trim().length * fontSize * 0.55);
+}
 
 /**
  * Adın kapladığı kutu. Yerleşim tarayıcıda ölçüm yapamadığı için harf
@@ -215,12 +307,23 @@ export function graphLayout(root: GraphSeed): GraphLayout {
   const kids = all.filter((p) => p.depth > 0);
 
   /**
+   * Kalabalık harita: düğümlerin tek tek adı yazılmıyor. Ad ADACIĞA ait
+   * oluyor — sınırının dışına, adacığın boyuyla orantılı bir puntoyla.
+   * Böylece harita ne kadar küçültülürse küçültülsün ad okunur kalıyor:
+   * ikisi birlikte ölçekleniyor.
+   */
+  const archipelago = kids.length > ARCHIPELAGO_FROM;
+
+  /**
    * Bir kalemin halkada kapladığı yarım yer (px). Diskin yarıçapı, aralık
    * payı, bir de adın eninden bir pay: uzun adlı kalem yanına daha çok yer
-   * ister, yoksa yazılar komşusunun üstüne düşüyor.
+   * ister, yoksa yazılar komşusunun üstüne düşüyor. Adı yazılmayan kalem o
+   * payı istemiyor — takımadada adacıklar bu yüzden derli toplu duruyor.
    */
   const slot = (p: Placed) =>
-    p.r + GAP / 2 + labelBox(p.seed.kind, p.seed.label ?? "").w * 0.22;
+    p.r +
+    GAP / 2 +
+    (archipelago ? 0 : labelBox(p.seed.kind, p.seed.label ?? "").w * 0.22);
 
   // ── YASA: SALKIM ───────────────────────────────────────────────────────
   // Halka mantığı bırakıldı. Her kalem çocuklarını KENDİ çevresine
@@ -251,7 +354,16 @@ export function graphLayout(root: GraphSeed): GraphLayout {
     len: number;
   }
   const fan = new Map<string, Fan>();
-  const kidsOf = (p: Placed) => kids.filter((c) => c.parentId === p.seed.id);
+  // Çocuk listesi bir kez kuruluyor. Her düğüm için bütün listeyi süzmek
+  // ağaç büyüdükçe karesel bir maliyetti; sıra aynı kalıyor (kids zaten
+  // ağacı önden dolaşarak kuruldu).
+  const kidsBy = new Map<string, Placed[]>();
+  for (const c of kids) {
+    const arr = kidsBy.get(c.parentId);
+    if (arr) arr.push(c);
+    else kidsBy.set(c.parentId, [c]);
+  }
+  const kidsOf = (p: Placed) => kidsBy.get(p.seed.id) ?? [];
 
   const measure = (p: Placed, cone: number): { lat: number; len: number } => {
     const mine = kidsOf(p);
@@ -382,6 +494,7 @@ export function graphLayout(root: GraphSeed): GraphLayout {
     // Aşağıdaki geçişte belirleniyor
     label: "bottom" as LabelSide,
     labelled: false,
+    labelBig: p.seed.kind === "cat",
     labelGap: 0,
   }));
 
@@ -497,8 +610,12 @@ export function graphLayout(root: GraphSeed): GraphLayout {
   };
 
   for (const n of order) {
-    n.labelled = true;
-    size.set(n.id, labelBox(n.kind, labelOf.get(n.id) ?? ""));
+    // Takımadada düğümlerin tek tek adı yok: ad adacığın, sınırının
+    // dışında duruyor. Düğümler adsız birer nokta — adacığın ne kadar
+    // dolu olduğunu şekilleriyle söylüyorlar.
+    n.labelled = !archipelago;
+    if (n.labelled)
+      size.set(n.id, labelBox(n.labelBig ? "cat" : "sub", labelOf.get(n.id) ?? ""));
   }
   // İlk geçiş yalnız kendinden ÖNCEKİ adları görüyor; sonraki geçişler
   // hepsini görüp yeniden seçiyor. Böylece sonradan gelen bir ad yüzünden
@@ -506,11 +623,133 @@ export function graphLayout(root: GraphSeed): GraphLayout {
   for (let round = 0; round < 3; round++)
     for (const n of order) if (n.labelled) chooseSide(n);
 
+  // ── Adacıklar ──────────────────────────────────────────────────────────
+  // Bir adacık = merkezin bir doğrudan çocuğu ve onun bütün soyu. Sınır
+  // disklere teğet bir kabuk (lib/hull.ts); ad sınırın MERKEZDEN UZAK
+  // yanında, dışarıda duruyor — o yan hep boş, çünkü adacığın merkeze
+  // bakan tarafında bağlandığı hat var.
+  //
+  // Punto adacığın enine bağlı: harita pencereye sığdırılırken ad da
+  // onunla birlikte küçülüyor, yani hangi ölçekte bakılırsa bakılsın ad
+  // adacığa göre aynı ağırlıkta duruyor. Sabit punto verilseydi bin
+  // düğümlü haritada okunmaz, on düğümlüde ise adacığı ezerdi.
+  interface RawIsland {
+    id: string;
+    hull: HullPoint[];
+    labelAt: Point;
+    fontSize: number;
+    count: number;
+  }
+  const islandsRaw: RawIsland[] = [];
+  /** Adların puntosu buna göre — kutu adlarla büyümeden ÖNCEKİ hali yeter */
+  const canvasDiag = Math.hypot(width0, height0);
+  if (archipelago) {
+    const branchOf = new Map(kids.map((p) => [p.seed.id, p.branch]));
+    const groups = new Map<string, PlacedNode[]>();
+    for (const n of nodes) {
+      const b = branchOf.get(n.id);
+      if (!b) continue;
+      const arr = groups.get(b);
+      if (arr) arr.push(n);
+      else groups.set(b, [n]);
+    }
+    // ── Dilimler ─────────────────────────────────────────────────────────
+    // Kabuk dışbükey olduğu için komşusunun girintisine taşabiliyor ve iki
+    // ülke üst üste biniyordu. Oysa yerleşim dalları merkezden bakınca
+    // zaten ayrı açı dilimlerine koyuyor (SALKIM yasası). Her adacığı kendi
+    // dilimine kırpınca bölgeler KESİŞEMEZ hale geliyor.
+    //
+    // Sınırın nereden geçeceği: iki komşunun açısal uçları arasında boşluk
+    // varsa tam ortasından — böylece kimseden bir şey kesilmiyor. Uçlar
+    // örtüşüyorsa merkez açılarının ortasından, yani zarar iki tarafa eşit
+    // bölünüyor.
+    const TAU = Math.PI * 2;
+    const norm = (a: number) => ((a % TAU) + TAU) % TAU;
+    const raw = [...groups].map(([id, members]) => {
+      const hull = discHull(
+        members.map((m) => ({ x: m.x, y: m.y, r: m.r })),
+        ISLAND_PAD
+      );
+      // Yön ortalaması vektörle: açıların ortalaması sarmalda yanlış çıkıyor
+      let sx = 0;
+      let sy = 0;
+      for (const m of members) {
+        sx += m.x - center.x;
+        sy += m.y - center.y;
+      }
+      const mid = Math.atan2(sy, sx);
+      let lo = 0;
+      let hi = 0;
+      for (const p of hull) {
+        // Merkez açıya göre sapma — [-π, π] aralığına indiriliyor
+        const d = norm(Math.atan2(p.y - center.y, p.x - center.x) - mid + Math.PI) - Math.PI;
+        lo = Math.min(lo, d);
+        hi = Math.max(hi, d);
+      }
+      return { id, members, hull, mid, lo: mid + lo, hi: mid + hi };
+    });
+    raw.sort((a, b) => norm(a.mid) - norm(b.mid));
+    /** i. adacıkla bir sonrakinin arasındaki sınır açısı */
+    const edgeAt = raw.map((cur, i) => {
+      const next = raw[(i + 1) % raw.length];
+      if (raw.length < 2) return cur.mid + Math.PI;
+      const gap = norm(next.lo - cur.hi);
+      // Boşluk varsa ortasından; yoksa merkez açıların ortasından
+      return gap > 0 && gap < Math.PI
+        ? cur.hi + gap / 2
+        : cur.mid + norm(next.mid - cur.mid) / 2;
+    });
+
+    for (let i = 0; i < raw.length; i++) {
+      const { id, members } = raw[i];
+      const hull =
+        raw.length < 3
+          ? raw[i].hull
+          : clipToWedge(
+              raw[i].hull,
+              center,
+              edgeAt[(i - 1 + raw.length) % raw.length],
+              edgeAt[i]
+            );
+      if (hull.length < 3) continue;
+      const bb = boundsOf(hull);
+      const islandDiag = Math.hypot(bb.x1 - bb.x0, bb.y1 - bb.y0);
+      const fontSize = Math.max(
+        ISLAND_FONT_MIN,
+        Math.min(
+          canvasDiag * ISLAND_FONT_OF_CANVAS,
+          islandDiag * ISLAND_FONT_OF_ISLAND
+        )
+      );
+      // Adacığın ağırlık merkezinden dışa bakan yön
+      const gx = members.reduce((s, m) => s + m.x, 0) / members.length;
+      const gy = members.reduce((s, m) => s + m.y, 0) / members.length;
+      const vx = gx - center.x;
+      const vy = gy - center.y;
+      const vl = Math.hypot(vx, vy) || 1;
+      const ux = vx / vl;
+      const uy = vy / vl;
+      // Sınırın o yöndeki en uç noktası + bir pay + yazının yarısı
+      let reach = 0;
+      for (const p of hull)
+        reach = Math.max(reach, (p.x - gx) * ux + (p.y - gy) * uy);
+      const out = reach + fontSize * 0.9;
+      islandsRaw.push({
+        id,
+        hull,
+        labelAt: { x: gx + ux * out, y: gy + uy * out },
+        fontSize,
+        count: members.length,
+      });
+    }
+  }
+
   // ── Kutuyu adlara göre büyüt ───────────────────────────────────────────
   // Kutu önce yalnız disklere göre hesaplanıyor; adlar yerleştikten sonra
   // dışarı taşan varsa kutu o kadar büyüyor ve her şey kaydırılıyor. Sabit
   // bir kenar payı vermek iki türlü de yanlıştı: dar kalınca "Sabah koşusu"
   // pencerede kırpılıyordu, geniş verince harita boşuna küçülüyordu.
+  // Takımadada aynı hesap adacık adları için dönüyor.
   {
     let l = 0;
     let t = 0;
@@ -518,25 +757,47 @@ export function graphLayout(root: GraphSeed): GraphLayout {
     let b = height0;
     for (const n of nodes) {
       if (!n.labelled) continue;
-      const { w, h } = labelBox(n.kind, labelOf.get(n.id) ?? "");
+      const { w, h } = labelBox(n.labelBig ? "cat" : "sub", labelOf.get(n.id) ?? "");
       const box = boxFor(n, n.label, w, h, n.labelGap);
       l = Math.min(l, box.x0);
       t = Math.min(t, box.y0);
       r = Math.max(r, box.x1);
       b = Math.max(b, box.y1);
     }
+    for (const isl of islandsRaw) {
+      const w = islandLabelWidth(labelOf.get(isl.id) ?? "", isl.fontSize);
+      const h = isl.fontSize * 1.3;
+      l = Math.min(l, isl.labelAt.x - w / 2);
+      t = Math.min(t, isl.labelAt.y - h / 2);
+      r = Math.max(r, isl.labelAt.x + w / 2);
+      b = Math.max(b, isl.labelAt.y + h / 2);
+    }
     const dx = -l;
     const dy = -t;
-    if (dx || dy)
+    if (dx || dy) {
       for (const n of nodes) {
         n.x += dx;
         n.y += dy;
       }
+      for (const isl of islandsRaw) {
+        isl.labelAt = { x: isl.labelAt.x + dx, y: isl.labelAt.y + dy };
+        isl.hull = isl.hull.map((p) => ({ x: p.x + dx, y: p.y + dy }));
+      }
+    }
     center.x += dx;
     center.y += dy;
     width0 = r - l;
     height0 = b - t;
   }
+
+  const islands: GraphIsland[] = islandsRaw.map((isl) => ({
+    id: isl.id,
+    path: smoothClosedPath(isl.hull),
+    hull: isl.hull,
+    labelAt: isl.labelAt,
+    fontSize: isl.fontSize,
+    count: isl.count,
+  }));
 
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const posOf = (id: string): Point =>
@@ -584,6 +845,8 @@ export function graphLayout(root: GraphSeed): GraphLayout {
   return {
     width: width0,
     height: height0,
+    archipelago,
+    islands,
     center,
     coreR: rootR,
     nodes,

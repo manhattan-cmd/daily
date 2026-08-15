@@ -38,7 +38,6 @@ import { hexCorners, HEX_CLIP } from "@/lib/hex";
 import { hexMapLayout, type HexSeed } from "@/lib/hexmap";
 import {
   graphLayout,
-  type GraphKind,
   type GraphSeed,
   type LabelSide,
 } from "@/lib/graph";
@@ -98,6 +97,10 @@ const HEX_SIZE = 46;
  * "ara sıra da olsa gerçekten kullanılıyor" diyor.
  */
 const LINK_LIT = 0.12;
+
+/** Gösterilmeyen görünüme verilen boş ağaç — yerleşim kurulmasın diye */
+const EMPTY_SHAPE: GraphSeed = { id: "__core", kind: "root", children: [] };
+const EMPTY_HEX: HexSeed = { id: "__core", children: [] };
 /** Bu sayıdan sonra çokgen okunmaz oluyor, liste devralır */
 const LIST_FROM = 17;
 
@@ -369,6 +372,27 @@ export function EntryNetwork({
     }));
   }, [focusObj, categories, topSubsByCat, childrenMap]);
 
+  /**
+   * Dalın kendi tonu. Kökte her kategorinin rengi kendinindir; bir kategorinin
+   * İÇİNE girildiğinde alt kalemlerin kendi rengi yok — hepsi dalın renginde
+   * olurdu ve sayfa tek renge boyanırdı. Kalın şerit varken kademe kalınlıktan
+   * okunuyordu; hat kılcala inince o ipucu da gitti, ayrımı renk taşıyor.
+   *
+   * Adım 18°, ama toplam yayılım iki yandan sınırlı. Üç ayar denendi:
+   * sınırsız 18° adım on iki çocuklu sayfada ±99° ediyor ve tonlar akraba
+   * olmaktan çıkıyor; toplamı sabitlemek (±36°) ise iki-üç çocuklu sayfada
+   * dalları kardeş değil yabancı yapıyor — amber bir kalemin altı kırmızı,
+   * amber ve yeşile bölünüyordu. Alt sınır iki çocukluyu ayırt edilir
+   * tutuyor, üst sınır kalabalıkta aileyi bir arada tutuyor.
+   *
+   * Bir dalın altı o dalın tonunu miras alıyor — aile belli, kardeşler ayrı.
+   */
+  const branchTint = (i: number, n: number) => {
+    if (n <= 1) return centerColor;
+    const spread = Math.max(28, Math.min(72, 18 * (n - 1)));
+    return shiftHue(centerColor, (i / (n - 1) - 0.5) * spread);
+  };
+
   // ─── Yerleşim seçimi ───────────────────────────────────────────────────────
   const [overrides, setOverrides] = useState<Record<string, Layout>>(() => {
     if (typeof window === "undefined") return {};
@@ -405,6 +429,8 @@ export function EntryNetwork({
 
   const dense = false;
   const pad = dense ? 26 : 30;
+  /** Hangi harita çiziliyor — yerleşim yalnız onun için kuruluyor */
+  const isGraph = layout === "graph";
 
   // Petek haritası — kural lib/hexmap.ts'te, testle sabit. Ağacı burada
   // kuruyoruz; özellikler haritaya girmiyor (kıta kategorilerin toprağı).
@@ -425,7 +451,10 @@ export function EntryNetwork({
     return { id: "__core", children };
   }, [focusObj, categories, topSubsByCat, childrenMap]);
 
-  const hexmap = useMemo(() => hexMapLayout(mapSeed, HEX_SIZE), [mapSeed]);
+  const hexmap = useMemo(
+    () => hexMapLayout(isGraph ? EMPTY_HEX : mapSeed, HEX_SIZE),
+    [isGraph, mapSeed]
+  );
 
   const nodeId = (node: Node) => (node.kind === "cat" ? node.cat.id : node.sub.id);
   const nodeWeight = (node: Node) =>
@@ -438,66 +467,77 @@ export function EntryNetwork({
     maxWeight > 0 ? nodeWeight(node) / maxWeight : 0;
 
   // ─── Bağ haritası ─────────────────────────────────────────────────────────
-  // Ağacın TAMAMI tek resimde: merkez, ona bağlı kalemler, onların altı ve
-  // en uçta özellikler. Ağacı burada kuruyoruz (kim kimin altında, hangi
-  // renkte, ne kadar kullanılmış); nereye oturacağını lib/graph.ts söylüyor.
-  const tree = useMemo(() => {
-    const meta = new Map<string, GraphMeta>();
+  // Ağacın TAMAMI tek resimde: merkez, ona bağlı kalemler ve onların altı.
+  // İki ayrı şey var ve AYRI DURMALARI gerekiyor:
+  //
+  //   ŞEKİL — kim kimin altında, adı ne. Yerleşimin bildiği tek şey bu.
+  //   KİMLİK — renk, sembol, ne kadar kullanılmış. Yalnız çizimin işi.
+  //
+  // Bir ara ikisi tek memo'daydı ve yerleşim kimliğe de bağlıydı. Kullanım
+  // sayımı canlı sorgudan geliyor ve bir sayfa açılışında birkaç kez
+  // tazeleniyor; her tazelemede bütün ağaç yeniden yerleşiyordu. Bin
+  // küsur düğümlü bir ağaçta tek açılış üç yerleşim demekti (7,3 + 8,7 +
+  // 7,6 sn). Şekil kullanımdan bağımsız olduğu için o iş tamamen boşunaydı.
+  const shape = useMemo<GraphSeed>(() => {
     // Haritada yalnız gezilecek yerler var: kategoriler ve alt kategoriler.
     // Özellikler bir ara uçlarda kılcal düğüm olarak duruyordu; harita
     // kalabalıklaşıyordu ve onları anlatacak başka bir dil aranıyor.
-    const subSeed = (s: SubCategory, color: string): GraphSeed => {
-      meta.set(s.id, {
+    const subSeed = (s: SubCategory): GraphSeed => ({
+      id: s.id,
+      kind: "sub",
+      label: s.name,
+      children: (childrenMap.get(s.id) ?? []).map(subSeed),
+    });
+    const children: GraphSeed[] =
+      focusObj == null
+        ? categories.map((c) => ({
+            id: c.id,
+            kind: "cat" as const,
+            label: c.name,
+            children: (topSubsByCat.get(c.id) ?? []).map(subSeed),
+          }))
+        : (focusObj.type === "cat"
+            ? topSubsByCat.get(focusObj.cat.id) ?? []
+            : childrenMap.get(focusObj.sub.id) ?? []
+          ).map(subSeed);
+    return { id: "__core", kind: "root", children };
+  }, [focusObj, categories, topSubsByCat, childrenMap]);
+
+  /** Düğümün kimliği — ad, sembol, renk, ağırlık. Yerleşim bunu görmüyor. */
+  const meta = useMemo(() => {
+    const m = new Map<string, GraphMeta>();
+    const walkSub = (s: SubCategory, color: string) => {
+      m.set(s.id, {
         name: s.name,
         icon: s.icon,
         color,
         weight: subtreeCounts.get(s.id) ?? 0,
         node: { kind: "sub", sub: s },
       });
-      return {
-        id: s.id,
-        kind: "sub",
-        label: s.name,
-        children: (childrenMap.get(s.id) ?? []).map((k) => subSeed(k, color)),
-      };
+      for (const k of childrenMap.get(s.id) ?? []) walkSub(k, color);
     };
-
-    let children: GraphSeed[];
     if (focusObj == null) {
-      children = categories.map((c) => {
-        meta.set(c.id, {
+      for (const c of categories) {
+        m.set(c.id, {
           name: c.name,
           icon: c.icon,
           color: c.color,
           weight: catCounts.get(c.id) ?? 0,
           node: { kind: "cat", cat: c },
         });
-        return {
-          id: c.id,
-          kind: "cat" as const,
-          label: c.name,
-          children: (topSubsByCat.get(c.id) ?? []).map((s) =>
-            subSeed(s, c.color)
-          ),
-        };
-      });
-    } else if (focusObj.type === "cat") {
-      children = [
-        ...(topSubsByCat.get(focusObj.cat.id) ?? []).map((s) =>
-          subSeed(s, centerColor)
-        ),
-      ];
+        for (const s of topSubsByCat.get(c.id) ?? []) walkSub(s, c.color);
+      }
     } else {
-      children = [
-        ...(childrenMap.get(focusObj.sub.id) ?? []).map((s) =>
-          subSeed(s, centerColor)
-        ),
-      ];
+      // Dal sayfası: her doğrudan çocuk kendi tonunu alıyor, altı da onu
+      // miras alıyor. Sıra `nodes` ile aynı olmalı — petek haritasındaki
+      // toprak rengi (terrColor) de aynı sırayla aynı tonu buluyor.
+      const kids =
+        focusObj.type === "cat"
+          ? topSubsByCat.get(focusObj.cat.id) ?? []
+          : childrenMap.get(focusObj.sub.id) ?? [];
+      kids.forEach((s, i) => walkSub(s, branchTint(i, kids.length)));
     }
-    return {
-      seed: { id: "__core", kind: "root" as const, children },
-      meta,
-    };
+    return m;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     focusObj,
@@ -505,14 +545,19 @@ export function EntryNetwork({
     topSubsByCat,
     childrenMap,
     centerColor,
-    entryCounts,
     subtreeCounts,
     catCounts,
-    maxWeight,
-    modsByTarget,
   ]);
 
-  const graph = useMemo(() => graphLayout(tree.seed), [tree]);
+  // Görünmeyen yerleşim kurulmuyor. İki harita da her zaman hesaplanıyordu;
+  // kalabalık bir ağaçta kullanıcı LİSTE görürken ağ yerleşiminin parası da
+  // ödeniyordu. Gösterilmeyen tarafa boş ağaç veriliyor: dönen nesne geçerli
+  // kalıyor (düğümü ve kenarı olmayan bir harita), aşağıdaki hiçbir okuma
+  // korumaya ihtiyaç duymuyor.
+  const graph = useMemo(
+    () => graphLayout(isGraph ? shape : EMPTY_SHAPE),
+    [isGraph, shape]
+  );
   /**
    * Bir kalemin ışık yoğunluğu (0–1): son 30 gündeki girdi sayısı önce
    * GÜNLÜK RİTME çevriliyor, sonra logaritmik bir eğriden geçiyor
@@ -532,7 +577,7 @@ export function EntryNetwork({
   const links = useMemo(
     () =>
       graph.edges.map((e) => {
-        const m = tree.meta.get(e.id);
+        const m = meta.get(e.id);
         const glow = usageIntensity(usageRate(m?.weight ?? 0));
         return {
           id: e.id,
@@ -542,26 +587,28 @@ export function EntryNetwork({
           glow,
         };
       }),
-    [graph, tree, centerColor]
+    [graph, meta, centerColor]
   );
 
   /**
-   * Ülke rengi. Kökte her kategori kendi rengini taşıyor. Bir kategorinin
-   * içine girildiğinde alt kalemlerin kendi rengi yok — hepsi dalın
-   * renginde olurdu ve ülkeler birbirinden ayırt edilemezdi; o yüzden dalın
-   * renginden komşu tonlar türetiliyor. Aile belli, ülkeler ayrı.
+   * Adacıklar büyükten küçüğe çiziliyor: dışbükey kabuklar komşusunun
+   * girintisine taşabildiği için küçük ülke büyüğün altında kalıp
+   * dokunulamaz hale gelebiliyordu. Küçük olan üstte.
    */
+  const islandsByArea = useMemo(
+    () => [...graph.islands].sort((a, b) => b.count - a.count),
+    [graph]
+  );
+
+  /** Ülke rengi — kökte kategorinin kendi rengi, dal sayfasında dalın tonu */
   const terrColor = (id: string) => {
     if (!id) return centerColor;
     const cat = catById.get(id);
     if (cat) return cat.color;
     const i = nodes.findIndex((n) => nodeId(n) === id);
-    return i < 0
-      ? centerColor
-      : shiftHue(centerColor, (i - (nodes.length - 1) / 2) * 18);
+    return i < 0 ? centerColor : branchTint(i, nodes.length);
   };
 
-  const isGraph = layout === "graph";
   const view = isGraph ? graph : hexmap;
   // Sürükleme yalnız merkezin DOĞRUDAN çocukları için anlamlı: sıra onların
   // arasında değişiyor. Yuvalar bu yüzden `nodes` ile aynı sırada olmalı —
@@ -770,14 +817,16 @@ export function EntryNetwork({
   // Liste satırları — ad, renk, çocuk sayısı
   const rows = useMemo(
     () =>
-      nodes.map((node) => {
+      nodes.map((node, i) => {
         const isCat = node.kind === "cat";
         return {
           node,
           id: nodeId(node),
           name: isCat ? node.cat.name : node.sub.name,
           icon: isCat ? node.cat.icon : node.sub.icon,
-          color: isCat ? node.cat.color : centerColor,
+          // Liste haritayla aynı tonu kullanıyor: görünüm değişince kalemin
+          // rengi de değişirse iki görünüm iki ayrı yer gibi duruyor
+          color: isCat ? node.cat.color : branchTint(i, nodes.length),
           kids: isCat
             ? topSubsByCat.get(node.cat.id)?.length ?? 0
             : childrenMap.get(node.sub.id)?.length ?? 0,
@@ -950,6 +999,40 @@ export function EntryNetwork({
                   parlaması gereken zaten bir avuç hat. Sönük hatlar tek yol
                   kalıyor, masraf ışığın gittiği yere gidiyor.
                 */
+                <>
+                {/* Adacık sınırları — bağların ALTINDA. Kalabalık haritada
+                    ağaç kendiliğinden takımadaya dönüşüyor; sınır o kümeyi
+                    bir ülkeye çeviriyor. Dolgu neredeyse saydam, sınır
+                    kendi renginde ince bir hat.
+
+                    Asıl mesele görüntü değil DOKUNMA: sınırın içi tek bir
+                    hedef. Bin küsur düğümlü haritada nokta nokta dokunmak
+                    imkânsız, alan olarak dokunmak kolay. */}
+                {islandsByArea.map((isl) => {
+                  const color = meta.get(isl.id)?.color ?? centerColor;
+                  const g = metaGlow(meta.get(isl.id));
+                  return (
+                    <path
+                      key={`isl${isl.id}`}
+                      d={isl.path}
+                      fill={`${color}${hexA(0.05 + 0.05 * g)}`}
+                      stroke={`${color}${hexA(0.22 + 0.3 * g)}`}
+                      strokeWidth={1.25}
+                      strokeLinejoin="round"
+                      className="cursor-pointer"
+                      // Tuval, üstünde düğüm OLMAYAN yerde işaretçiyi
+                      // yakalıyor (kaydırma için) ve yakalanan işaretçide
+                      // `click` sınıra hiç ulaşmıyor. Adacık burada bir
+                      // düğüm sayılıyor: dokunulacak şey zaten o.
+                      data-net-node=""
+                      style={{ pointerEvents: "auto" }}
+                      onClick={() => {
+                        const n = meta.get(isl.id)?.node;
+                        if (n) drill(n);
+                      }}
+                    />
+                  );
+                })}
                 <g className="link-breathe" fill="none" strokeLinecap="round">
                   {links.map((l) =>
                     l.glow > LINK_LIT ? (
@@ -970,6 +1053,7 @@ export function EntryNetwork({
                     />
                   ))}
                 </g>
+                </>
               ) : (
                 <>
                   {/* Kıta — her hücre bir kalem, her ülke bir kategori.
@@ -1140,7 +1224,7 @@ export function EntryNetwork({
                 doğrudan çocuklarda; sıra ancak kardeşler arasında anlamlı) */}
             {isGraph &&
               graph.nodes.map((g) => {
-                const m = tree.meta.get(g.id);
+                const m = meta.get(g.id);
                 if (!m) return null;
                 const dragging = drag?.id === g.id;
                 const p = dragging && dragPos ? dragPos : g;
@@ -1152,20 +1236,59 @@ export function EntryNetwork({
                     r={g.r}
                     side={g.label}
                     gap={g.labelGap}
-                    kind={g.kind}
+                    bigLabel={g.labelBig}
                     color={m.color}
                     icon={m.icon}
                     name={m.name}
                     glow={metaGlow(m)}
                     showLabel={g.labelled}
                     isDragging={dragging}
-                    onTap={m.node ? () => drill(m.node!) : undefined}
+                    // Takımadada dokunulan şey düğüm değil ADACIK. İçerideki
+                    // noktalar birer süs: hem o ölçekte parmakla tutulamazlar,
+                    // hem de her biri kendi dokunma kutusuyla dururken adacığın
+                    // içine dokunmak neredeyse hiç çalışmıyordu.
+                    onTap={
+                      m.node && !(graph.archipelago && g.depth > 1)
+                        ? () => drill(m.node!)
+                        : undefined
+                    }
                     onDragStart={
-                      m.node && g.depth === 1
+                      m.node && g.depth === 1 && !graph.archipelago
                         ? () => startDrag(m.node!, g)
                         : undefined
                     }
                   />
+                );
+              })}
+
+            {/* Adacık adları — sınırın dışında, adacığın boyuyla orantılı.
+                Harita küçüldükçe ad da küçülüyor; ikisi birlikte
+                ölçeklendiği için ad hangi uzaklıkta bakılırsa bakılsın
+                adacığa göre aynı ağırlıkta duruyor. Dokunma sınıra ait,
+                yazıya değil. */}
+            {isGraph &&
+              graph.islands.map((isl) => {
+                const m = meta.get(isl.id);
+                if (!m) return null;
+                const g = metaGlow(m);
+                return (
+                  <span
+                    key={`isll${isl.id}`}
+                    aria-hidden
+                    className="pointer-events-none absolute whitespace-nowrap text-center font-semibold leading-none"
+                    style={{
+                      left: isl.labelAt.x,
+                      top: isl.labelAt.y,
+                      transform: "translate(-50%,-50%)",
+                      fontSize: isl.fontSize,
+                      // Ad da kullanımı söylüyor: yaşayan ülke parlak, terk
+                      // edilmiş olan soluk
+                      color: `rgba(255,255,255,${(0.55 + 0.4 * g).toFixed(2)})`,
+                      textShadow: `0 ${isl.fontSize * 0.06}px ${isl.fontSize * 0.25}px rgba(0,0,0,0.95)`,
+                    }}
+                  >
+                    {m.name}
+                  </span>
                 );
               })}
 
@@ -1176,7 +1299,7 @@ export function EntryNetwork({
               hexmap.cells
                 .filter((c) => c.depth > 0)
                 .map((c) => {
-                  const m = tree.meta.get(c.id);
+                  const m = meta.get(c.id);
                   if (!m) return null;
                   const dragging = drag?.id === c.id;
                   const p = dragging && dragPos ? dragPos : c;
@@ -1720,7 +1843,7 @@ function GraphCell({
   r,
   side,
   gap,
-  kind,
+  bigLabel,
   color,
   icon,
   name,
@@ -1737,8 +1860,11 @@ function GraphCell({
   side: LabelSide;
   /** Adın diskten fazladan uzaklığı — sıkışık yerde yerleşim itiyor */
   gap: number;
-  /** Kademe: yazı boyu buna göre */
-  kind: GraphKind;
+  /**
+   * Ad iri mi yazılıyor. Kararı yerleşim veriyor (lib/graph.ts): seyrek
+   * haritada kategoriler iri, takımadada adacık başları.
+   */
+  bigLabel: boolean;
   color: string;
   icon?: string;
   name: string;
@@ -1791,7 +1917,7 @@ function GraphCell({
         "pointer-events-none absolute line-clamp-2 leading-tight",
         // Ölçüler lib/graph.ts'teki labelBox ile AYNI olmalı: çakışma hesabı
         // orada bu enle ve bu puntoyla yapılıyor
-        kind === "cat"
+        bigLabel
           ? "w-[78px] text-[10.5px] font-semibold"
           : "w-[68px] text-[9px] font-medium",
         glow > 0.5
@@ -1827,13 +1953,16 @@ function GraphCell({
     transform: "translate(-50%,-50%)",
   };
 
+  // Dokunulmayan düğüm olayları da GEÇİRMELİ: takımadada asıl hedef altta
+  // duran adacık sınırı ve içerisi bu noktalarla dolu — biri olayı yutarsa
+  // "sınırın içine dokun" hiç çalışmıyor.
   if (!onTap)
     return (
       <span
         role="img"
         aria-label={name}
         title={name}
-        className="absolute z-0"
+        className="pointer-events-none absolute z-0"
         style={box}
       >
         {skin}

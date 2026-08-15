@@ -5,6 +5,7 @@ import {
   nodeRadius,
   type GraphSeed,
   type PlacedNode,
+  type Point,
 } from "./graph";
 
 /** kısa yazım: cat("spor", sub("kosu", sub("sabah"))) */
@@ -500,4 +501,93 @@ describe("yasa: salkım", () => {
     }
   });
 
+});
+
+describe("takımada — kalabalık haritada adacıklar", () => {
+  /** 70 düğüm eşiğini geçen bir ağaç: n dal, her dalın altı zincirleme */
+  const crowded = (branches: number, perBranch: number): GraphSeed => {
+    const chain = (b: number, i: number): GraphSeed =>
+      i >= perBranch
+        ? sub(`b${b}:${i}`)
+        : sub(`b${b}:${i}`, chain(b, i + 1), sub(`b${b}:${i}x`));
+    return root(
+      ...Array.from({ length: branches }, (_, b) => cat(`k${b}`, chain(b, 0)))
+    );
+  };
+
+  it("seyrek haritada adacık yok, adlar düğümlerde", () => {
+    const l = graphLayout(SAMPLE);
+    expect(l.archipelago).toBe(false);
+    expect(l.islands).toHaveLength(0);
+    expect(l.nodes.every((n) => n.labelled)).toBe(true);
+  });
+
+  it("kalabalıkta her dal bir adacık, düğüm adları susuyor", () => {
+    const l = graphLayout(crowded(10, 6));
+    expect(l.archipelago).toBe(true);
+    expect(l.islands).toHaveLength(10);
+    expect(l.nodes.some((n) => n.labelled)).toBe(false);
+    // Adacığın kimliği dalın kendisi, yani merkezin doğrudan çocuğu
+    const depth1 = new Set(l.nodes.filter((n) => n.depth === 1).map((n) => n.id));
+    for (const isl of l.islands) expect(depth1.has(isl.id)).toBe(true);
+  });
+
+  it("İKİ ADACIK KESİŞMEZ — ülkeler ayrı bölgeler", () => {
+    // Ayırma ekseni: iki dışbükey çokgen, kenarlarından birinin normali
+    // ikisini ayırıyorsa kesişmiyor demektir. Kabuklar dışbükey (dilim
+    // kırpması dışbükeyliği bozmuyor), o yüzden sınama kesin.
+    const disjoint = (a: Point[], b: Point[]) => {
+      for (const poly of [a, b])
+        for (let i = 0; i < poly.length; i++) {
+          const p = poly[i];
+          const q = poly[(i + 1) % poly.length];
+          const nx = -(q.y - p.y);
+          const ny = q.x - p.x;
+          const proj = (pts: Point[]) => {
+            let lo = Infinity;
+            let hi = -Infinity;
+            for (const t of pts) {
+              const d = t.x * nx + t.y * ny;
+              lo = Math.min(lo, d);
+              hi = Math.max(hi, d);
+            }
+            return { lo, hi };
+          };
+          const pa = proj(a);
+          const pb = proj(b);
+          // Ortak kenarda değme serbest, örtüşme değil
+          if (pa.hi <= pb.lo + 1e-6 || pb.hi <= pa.lo + 1e-6) return true;
+        }
+      return false;
+    };
+
+    for (const tree of [crowded(10, 6), crowded(6, 12), crowded(20, 4)]) {
+      const l = graphLayout(tree);
+      expect(l.islands.length).toBeGreaterThan(2);
+      for (let i = 0; i < l.islands.length; i++)
+        for (let j = i + 1; j < l.islands.length; j++)
+          expect(
+            disjoint(l.islands[i].hull, l.islands[j].hull)
+          ).toBe(true);
+    }
+  });
+
+  it("adacık kendi düğümlerini kapsıyor", () => {
+    const l = graphLayout(crowded(8, 8));
+    const byId = new Map(l.nodes.map((n) => [n.id, n]));
+    for (const isl of l.islands) {
+      const head = byId.get(isl.id)!;
+      // Başın merkezi sınırın içinde: kırpma dalın kendisini kesmemeli
+      const poly = isl.hull;
+      let insideAll = true;
+      for (let i = 0; i < poly.length; i++) {
+        const a = poly[i];
+        const b = poly[(i + 1) % poly.length];
+        const cross =
+          (b.x - a.x) * (head.y - a.y) - (b.y - a.y) * (head.x - a.x);
+        if (cross < -1e-6) insideAll = false;
+      }
+      expect(insideAll).toBe(true);
+    }
+  });
 });
