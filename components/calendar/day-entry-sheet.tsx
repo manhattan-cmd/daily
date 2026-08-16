@@ -547,7 +547,7 @@ function PickStep({
 
   return (
     <>
-      <div className="flex items-center justify-between gap-2 px-5 pt-2 pb-3 shrink-0">
+      <div className="flex shrink-0 items-center justify-between gap-2 px-5 pb-1.5 pt-2">
         <div className="min-w-0">
           {activity && (
             <div className="flex items-center gap-1.5 mb-0.5">
@@ -559,15 +559,11 @@ function PickStep({
             </div>
           )}
           {/* Başlık sayfanın sahibi: yanındaki eylem düğmesinden büyük
-              durmalı, yoksa soru cümlesi yarım kalmış gibi görünüyor */}
-          <h2 className="truncate text-lg font-semibold leading-8 tracking-tight">
+              durmalı. KIRPILMIYOR — dar telefonda (320px) "Ne eklemek
+              istersi…" diye kalıyordu; sarması kesilmesinden iyi. */}
+          <h2 className="text-lg font-semibold leading-7 tracking-tight">
             {activity ? t("entry.addToActivity") : t("entry.whatToAdd")}
           </h2>
-          <p className="mt-0.5 truncate text-xs leading-5 text-muted-foreground">
-            {activity
-              ? "Add as many as you like — tap Done when finished"
-              : t("entry.pickPlace")}
-          </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {activity && (
@@ -584,14 +580,14 @@ function PickStep({
               kendi vurgu renginde dolu bir düğme olarak duruyor. */}
           <button
             onClick={() => setAddCatOpen(true)}
-            className="flex h-7 shrink-0 items-center gap-0.5 rounded-full bg-primary pl-1.5 pr-2.5 text-[11px] font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-transform active:scale-[0.96]"
+            className="flex h-7 shrink-0 items-center gap-0.5 rounded-full bg-primary pl-1.5 pr-2 text-[10.5px] font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-transform active:scale-[0.96]"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
             {t("entry.createCategory")}
           </button>
           <button
             onClick={onClose}
-            className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors"
+            className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors shrink-0"
             aria-label={t("action.close")}
           >
             <X className="h-3.5 w-3.5" />
@@ -599,14 +595,31 @@ function PickStep({
         </div>
       </div>
 
-      {/* Kaydırmayı seçicinin kendisi yönetiyor: yol izi ve "buraya ekle"
-          üstte sabit kalmalı, yalnız liste kaymalı */}
-      {/* `flex-1` YOK: yüzeyin yüksekliği içeriğe göre (max-h ile sınırlı).
+      {/* Alt yazı tam genişlikte: başlık satırında düğmelerle yer paylaşınca
+          dar ekranda kesiliyordu */}
+      <p className="shrink-0 px-5 pb-3 text-xs leading-5 text-muted-foreground">
+        {activity
+          ? "Add as many as you like — tap Done when finished"
+          : t("entry.pickPlace")}
+      </p>
+
+      {/* Gövde kendi PENCERESİNDE: başlık ve "Kategori yarat" üstte kalıyor,
+          altındaki her şey (hızlı ekle, arama, listeler) tek bir renkli
+          yüzeyin içinde toplanıyor. Gövde çıplakken sheet'in neresi başlık
+          neresi içerik ayırt edilmiyordu.
+
+          Kaydırmayı seçicinin kendisi yönetiyor: yol izi ve "buraya ekle"
+          üstte sabit kalmalı, yalnız liste kaymalı.
+
+          `flex-1` YOK: yüzeyin yüksekliği içeriğe göre (max-h ile sınırlı).
           flex-basis:0 veren bir flex-1 burada zinciri çökertiyor ve liste
           alttan kırpılıyordu. Doğru davranış küçülmeyle geliyor: içerik
           sığdığı sürece kutu kadar, taşınca min-h-0 sayesinde kısalıp
           kendi içinde kayıyor. */}
-      <div ref={scrollRef} className="flex min-h-0 flex-col">
+      <div
+        ref={scrollRef}
+        className="mx-3 mb-3 flex min-h-0 flex-col overflow-hidden rounded-2xl bg-primary/[0.04] pt-3 ring-1 ring-inset ring-primary/15"
+      >
         {!groups || groups.length === 0 ? (
           <div className="flex flex-col items-center gap-3 px-5 py-12 text-center">
             <p className="text-sm text-muted-foreground">

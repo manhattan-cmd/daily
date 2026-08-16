@@ -499,7 +499,7 @@ export function EntryPicker({
           Kökte hiç yazılmıyor: tek basamaklı bir yol iz değil, başlığın
           tekrarı. */}
       {focusObj != null && (
-        <div className="shrink-0 px-4 pb-2.5">
+        <div className="shrink-0 px-3 pb-2.5">
           <HScroll className="items-center gap-1" followEnd={focusName}>
             {trail.map((tr, i) => {
               const last = i === trail.length - 1;
@@ -547,7 +547,7 @@ export function EntryPicker({
       {/* Sabit üst bölüm: asli eylem, kısayollar ve arama listeyle birlikte
           kaymamalı — uzun listede aşağı inince arama kutusu kayboluyordu ve
           kullanıcı onu geri getirmek için başa dönüyordu. */}
-      <div className="flex shrink-0 flex-col gap-3 px-4 pb-3">
+      <div className="flex shrink-0 flex-col gap-3 px-3 pb-3">
         {/* Çocuğu olmayan kalemde yapılacak tek şey kayıt eklemek: orada
             asli eylem koca bir bant olarak duruyor. Çocuğu VARSA aynı bant
             "buraya mı ekleyeyim, aşağıdan mı seçeyim" ikilemini büyütüyordu
@@ -607,7 +607,7 @@ export function EntryPicker({
       </div>
 
       {/* Kayan bölüm: sık girilen kategoriler + gezinme listesi */}
-      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-4 pb-6">
+      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-3 pb-6">
         {/* Sık kullanılan kategoriler — ALTINDAKİ listenin aynı yapısında.
             Bir ara çipe çevrilmişti (tekrar gibi okunmasın diye); ama bu
             iki blok aynı şeyi seçtiriyor ve aynı görünmeleri doğru. Ayrımı
@@ -694,7 +694,7 @@ export function EntryPicker({
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-6">
+            <div className="min-h-0 overflow-y-auto overscroll-contain px-3 pb-6">
               <div className="overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.015]">
                 {pinCandidates.map((c) => {
                   const on = pins.includes(c.id);
@@ -939,7 +939,7 @@ function QuickRail({
       {/* Kartları kapsayan pencere — sade ama renkli. Şerit çıplakken
           listenin bir parçası gibi duruyordu; kendi zemini olunca "burası
           ayrı bir yol" diyor. */}
-      <div className="rounded-2xl bg-primary/[0.06] p-2 ring-1 ring-inset ring-primary/20">
+      <div className="rounded-2xl bg-primary/[0.09] p-2 ring-1 ring-inset ring-primary/25">
         {/* Kart kare: üst kategori adı kalktığı için ikinci satıra gerek
             kalmadı, kalan şey karo ve ad. Renk çıpası karoda — kartı da
             boyamak renkli dikdörtgen yığını demek. */}
