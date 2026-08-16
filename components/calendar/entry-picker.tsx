@@ -401,8 +401,14 @@ export function EntryPicker({
       });
   }, [visibleSubs, subById, catById, pins]);
 
+  /**
+   * A–Z bölümleri YALNIZ kökte. Bir kategorinin içinde kalemlerin sırası
+   * kullanıcının kendi sırası (haritada sürükleyerek dizdiği sıra) ve o sıra
+   * anlam taşıyor — alfabeye bölmek onu bozuyordu. Kökte ise kategori sayısı
+   * arttıkça harfe göre aramak işe yarıyor.
+   */
   const sections = useMemo(() => {
-    if (q || filtered.length < SECTIONS_FROM)
+    if (q || focus != null || filtered.length < SECTIONS_FROM)
       return [{ key: "", items: filtered }];
     const m = new Map<string, Row[]>();
     for (const r of filtered) {
@@ -419,7 +425,7 @@ export function EntryPicker({
         key,
         items: items.sort((x, y) => x.name.localeCompare(y.name, "en")),
       }));
-  }, [filtered, q]);
+  }, [filtered, q, focus]);
 
   const trail = useMemo(() => {
     const list: { label: string; focus: FocusRef }[] = [
@@ -509,40 +515,58 @@ export function EntryPicker({
 
   return (
     <div className="relative flex min-h-0 flex-col">
-      {/* Yol izi — nerede olduğun ve geri dönüş. Ata basamaklar düz metin,
-          bulunulan yer kaleminin renginde bir çip. Kökte yazılmıyor: tek
-          basamaklı bir yol iz değil, sheet başlığının tekrarı. */}
+      {/* Yol izi — nerede olduğun ve geri dönüş.
+          Her basamak bir çip: ataları düz metin bırakmak satırı yarım
+          bırakıyordu, çip olunca dokunulabilir oldukları da görünüyor.
+          Bulunulan yer kaleminin renginde ve önünde bir nokta var.
+          Yol derinleşince satır SONA kayıyor (HScroll followEnd) — son
+          basamak ekrandan çıkınca kullanıcı nerede olduğunu göremiyordu.
+          Kökte hiç yazılmıyor: tek basamaklı bir yol iz değil, başlığın
+          tekrarı. */}
       {focusObj != null && (
-      <div className="shrink-0 px-4 pb-2">
-        <HScroll className="items-center gap-0.5" followEnd={focusName}>
-          {trail.map((tr, i) => {
-            const last = i === trail.length - 1;
-            return (
-              <span key={i} className="flex shrink-0 items-center">
-                {i > 0 && (
-                  <ChevronRight className="mx-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
-                )}
-                <button
-                  onClick={() => {
-                    setQuery("");
-                    setFocus(tr.focus);
-                  }}
-                  aria-current={last ? "page" : undefined}
-                  className={cn(
-                    "max-w-[150px] shrink-0 truncate rounded-md px-2 py-1 text-[13px] transition-colors",
-                    last
-                      ? "font-semibold text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
+        <div className="shrink-0 px-4 pb-2.5">
+          <HScroll className="items-center gap-1" followEnd={focusName}>
+            {trail.map((tr, i) => {
+              const last = i === trail.length - 1;
+              return (
+                <span key={i} className="flex shrink-0 items-center gap-1">
+                  {i > 0 && (
+                    <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/35" />
                   )}
-                  style={last ? { background: `${centerColor}1f` } : undefined}
-                >
-                  {tr.label}
-                </button>
-              </span>
-            );
-          })}
-        </HScroll>
-      </div>
+                  <button
+                    onClick={() => {
+                      setQuery("");
+                      setFocus(tr.focus);
+                    }}
+                    aria-current={last ? "page" : undefined}
+                    className={cn(
+                      "flex max-w-[150px] shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] transition-colors",
+                      last
+                        ? "font-semibold text-foreground"
+                        : "border border-white/[0.09] bg-white/[0.04] font-medium text-muted-foreground hover:bg-white/[0.07] hover:text-foreground"
+                    )}
+                    style={
+                      last
+                        ? {
+                            background: `${centerColor}26`,
+                            boxShadow: `inset 0 0 0 1px ${centerColor}59`,
+                          }
+                        : undefined
+                    }
+                  >
+                    {last && (
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: centerColor }}
+                      />
+                    )}
+                    <span className="truncate">{tr.label}</span>
+                  </button>
+                </span>
+              );
+            })}
+          </HScroll>
+        </div>
       )}
 
       {/* Sabit üst bölüm: asli eylem, kısayollar ve arama listeyle birlikte

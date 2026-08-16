@@ -572,10 +572,12 @@ function PickStep({
               </span>
             </div>
           )}
-          <h2 className="text-base font-semibold tracking-tight truncate">
+          {/* Başlık sayfanın sahibi: yanındaki eylem düğmesinden büyük
+              durmalı, yoksa soru cümlesi yarım kalmış gibi görünüyor */}
+          <h2 className="truncate text-lg font-semibold tracking-tight">
             {activity ? t("entry.addToActivity") : t("entry.whatToAdd")}
           </h2>
-          <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {activity
               ? "Add as many as you like — tap Done when finished"
               : t("entry.pickPlace")}
@@ -596,9 +598,9 @@ function PickStep({
               kendi vurgu renginde dolu bir düğme olarak duruyor. */}
           <button
             onClick={() => setAddCatOpen(true)}
-            className="flex h-8 shrink-0 items-center gap-1 rounded-full bg-primary pl-2.5 pr-3.5 text-xs font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-transform active:scale-[0.96]"
+            className="flex h-7 shrink-0 items-center gap-0.5 rounded-full bg-primary pl-1.5 pr-2.5 text-[11px] font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-transform active:scale-[0.96]"
           >
-            <Plus className="h-4 w-4" strokeWidth={2.5} />
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
             {t("entry.createCategory")}
           </button>
           <button
