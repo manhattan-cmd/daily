@@ -550,10 +550,14 @@ function PickStep({
 
   return (
     <>
-      <div className="flex shrink-0 items-center justify-between gap-2 px-5 pb-1.5 pt-2">
+      {/* Başlıksız. "Ne eklemek istersin?" ve "Girdi eklemek istediğin yeri
+          seç" iki satır yer kaplıyordu ama altındaki yol izi ve liste zaten
+          aynı şeyi söylüyor — yüzeyi açan da kullanıcının kendisi. Satırda
+          kalan tek şey kapatma; aktivite akışında bir de bant ve Bitti. */}
+      <div className="flex shrink-0 items-center justify-between gap-2 px-5 pb-2 pt-1">
         <div className="min-w-0">
           {activity && (
-            <div className="flex items-center gap-1.5 mb-0.5">
+            <div className="flex items-center gap-1.5">
               <Boxes className="h-3 w-3 text-cyan-400" />
               <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan-400/80 truncate">
                 {activity.name}
@@ -561,12 +565,6 @@ function PickStep({
               </span>
             </div>
           )}
-          {/* Başlık sayfanın sahibi: yanındaki eylem düğmesinden büyük
-              durmalı. KIRPILMIYOR — dar telefonda (320px) "Ne eklemek
-              istersi…" diye kalıyordu; sarması kesilmesinden iyi. */}
-          <h2 className="text-lg font-semibold leading-7 tracking-tight">
-            {activity ? t("entry.addToActivity") : t("entry.whatToAdd")}
-          </h2>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {activity && (
@@ -577,17 +575,6 @@ function PickStep({
               Bitti
             </button>
           )}
-          {/* Kategori yaratmak listenin içinde bir satırdı ve seçim alanından
-              yer çalıyordu. Her kademede geçerli bir eylem olduğu için yeri
-              başlık hizası — ve orada sönük bir çip olarak değil, uygulamanın
-              kendi vurgu renginde dolu bir düğme olarak duruyor. */}
-          <button
-            onClick={() => setAddCatOpen(true)}
-            className="flex h-7 shrink-0 items-center gap-0.5 rounded-full bg-primary pl-1.5 pr-2 text-[10.5px] font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-transform active:scale-[0.96]"
-          >
-            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-            {t("entry.createCategory")}
-          </button>
           <button
             onClick={onClose}
             className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors shrink-0"
@@ -597,14 +584,6 @@ function PickStep({
           </button>
         </div>
       </div>
-
-      {/* Alt yazı tam genişlikte: başlık satırında düğmelerle yer paylaşınca
-          dar ekranda kesiliyordu */}
-      <p className="shrink-0 px-5 pb-3 text-xs leading-5 text-muted-foreground">
-        {activity
-          ? "Add as many as you like — tap Done when finished"
-          : t("entry.pickPlace")}
-      </p>
 
       {/* Gövdenin penceresi seçicinin İÇİNDE kuruluyor: yol izi pencerenin
           üstünde durmalı ve her kademede aynı yerde kalmalı.
@@ -629,6 +608,7 @@ function PickStep({
             onPick={onPick}
             onPickCategory={onPickCategory}
             onClose={onClose}
+            onCreateCategory={() => setAddCatOpen(true)}
           />
         )}
       </div>

@@ -153,6 +153,7 @@ export function EntryPicker({
   onPick,
   onPickCategory,
   onClose,
+  onCreateCategory,
 }: {
   groups: NetGroup[] | undefined;
   /**
@@ -162,6 +163,8 @@ export function EntryPicker({
   onPick: (sub: SubCategory) => void;
   onPickCategory: (category: Category) => void;
   onClose: () => void;
+  /** Ana kategori yaratma formunu aç — düğmesi kökteki yol izinin sağında */
+  onCreateCategory?: () => void;
 }) {
   const t = useT();
   const [focus, setFocus] = useState<FocusRef>(null);
@@ -501,8 +504,12 @@ export function EntryPicker({
           kademeye göre kayıyordu. Hep aynı yerde durunca göz onu arayacağı
           yeri öğreniyor. "Kategoriler" basamağı her zaman renkli —
           yolun kökü o. */}
-      <div className="shrink-0 px-3 pb-2.5">
-        <HScroll className="items-center gap-1" followEnd={focusName}>
+      <div className="flex shrink-0 items-center gap-2 px-3 pb-2.5">
+        <HScroll
+          className="items-center gap-1"
+          wrapperClassName="min-w-0 flex-1"
+          followEnd={focusName}
+        >
           {trail.map((tr, i) => {
             const last = i === trail.length - 1;
             const isRoot = i === 0;
@@ -546,6 +553,21 @@ export function EntryPicker({
             );
           })}
         </HScroll>
+
+        {/* Kategori yaratmak YALNIZ kökte. Bir ara her kademede duruyordu ve
+            yanıltıyordu: düğme ana kategori açıyor, oysa bir dalın içindeyken
+            beklenen şey oraya alt kategori açması. O iş zaten pencerenin
+            içindeki "Alt kategori aç" düğmesinde. Yeri yol izinin hizası:
+            kökte iz tek çipten ibaret, sağı boş duruyordu. */}
+        {focusObj == null && onCreateCategory && (
+          <button
+            onClick={onCreateCategory}
+            className="flex h-7 shrink-0 items-center gap-0.5 rounded-full bg-primary pl-1.5 pr-2 text-[10.5px] font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-transform active:scale-[0.96]"
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+            {t("entry.createCategory")}
+          </button>
+        )}
       </div>
 
       {/* Gövdenin penceresi. Yol izi dışarıda kaldığı için burada kuruluyor:

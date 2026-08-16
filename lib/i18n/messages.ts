@@ -165,9 +165,6 @@ export const en = {
   "undo.records": "{n} records",
 
   // ── Girdi ekleme ─────────────────────────────────────────────────────
-  "entry.whatToAdd": "What do you want to add?",
-  "entry.pickPlace": "Pick where the entry belongs",
-  "entry.addToActivity": "Add an entry to the activity",
   "entry.recentActivities": "Recent activities",
   "entry.activityName": "Activity name (e.g. Grocery run)",
   "entry.time": "Time",
@@ -688,9 +685,6 @@ export const tr: Record<MessageKey, string> = {
   "undo.features": "özellik",
   "undo.records": "{n} kayıt",
 
-  "entry.whatToAdd": "Ne eklemek istersin?",
-  "entry.pickPlace": "Girdi eklemek istediğin yeri seç",
-  "entry.addToActivity": "Aktiviteye girdi ekle",
   "entry.recentActivities": "Son aktiviteler",
   "entry.activityName": "Aktivite adı (örn. Market alışverişi)",
   "entry.time": "Zaman",
