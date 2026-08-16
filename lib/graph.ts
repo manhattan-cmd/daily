@@ -222,8 +222,11 @@ function islandLabelWidth(text: string, fontSize: number): number {
  * puntolar ve aynı en sınırları kullanılıyor (bkz. GraphCell).
  */
 export function labelBox(kind: GraphKind, text: string): { w: number; h: number } {
+  // Satır yüksekliği punto × 1.33: daha darında Türkçe alt uzantıları
+  // (ç, ş) `line-clamp`ın overflow:hidden'ıyla kesiliyor. Çizim tarafı
+  // AYNI değeri kullanmak zorunda (bkz. GraphCell).
   const [font, maxW, line] =
-    kind === "cat" ? [10.5, 78, 12.5] : [9, 68, 10.5];
+    kind === "cat" ? [10.5, 78, 14] : [9, 68, 12];
   const wide = Math.max(10, text.trim().length * font * 0.55);
   const w = Math.min(maxW, wide);
   const lines = Math.min(2, Math.max(1, Math.ceil(wide / maxW)));

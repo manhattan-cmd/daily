@@ -574,10 +574,10 @@ function PickStep({
           )}
           {/* Başlık sayfanın sahibi: yanındaki eylem düğmesinden büyük
               durmalı, yoksa soru cümlesi yarım kalmış gibi görünüyor */}
-          <h2 className="truncate text-lg font-semibold tracking-tight">
+          <h2 className="truncate text-lg font-semibold leading-8 tracking-tight">
             {activity ? t("entry.addToActivity") : t("entry.whatToAdd")}
           </h2>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+          <p className="mt-0.5 truncate text-xs leading-5 text-muted-foreground">
             {activity
               ? "Add as many as you like — tap Done when finished"
               : t("entry.pickPlace")}

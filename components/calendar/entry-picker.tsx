@@ -560,7 +560,7 @@ export function EntryPicker({
                         style={{ backgroundColor: centerColor }}
                       />
                     )}
-                    <span className="truncate">{tr.label}</span>
+                    <span className="truncate leading-5">{tr.label}</span>
                   </button>
                 </span>
               );
@@ -586,10 +586,10 @@ export function EntryPicker({
           >
             <Tile color={centerColor} icon={focusIcon} fallback={FolderOpen} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[15px] font-semibold leading-tight">
+              <span className="block truncate text-[15px] font-semibold leading-6">
                 {focusName}
               </span>
-              <span className="mt-0.5 block text-xs text-muted-foreground">
+              <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
                 {t("tree.addRecordHere")}
               </span>
             </span>
@@ -688,10 +688,10 @@ export function EntryPicker({
             <div className="mb-4 flex items-center gap-3">
               <Tile color={centerColor} icon={focusIcon} fallback={FolderOpen} />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-base font-semibold leading-tight">
+                <div className="truncate text-base font-semibold leading-6">
                   {focusName}
                 </div>
-                <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                <div className="mt-0.5 truncate text-xs leading-5 text-muted-foreground">
                   {focusMods.length > 0
                     ? focusMods.map((m) => m.name).join(" · ")
                     : t("entry.noFeaturesYet")}
@@ -786,10 +786,10 @@ export function EntryPicker({
                     >
                       <Tile color={c.color} icon={c.icon} size={34} />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium leading-tight text-foreground">
+                        <span className="block truncate text-sm font-medium leading-5 text-foreground">
                           {c.name}
                         </span>
-                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                        <span className="mt-0.5 block truncate text-xs leading-5 text-muted-foreground">
                           {c.path}
                         </span>
                       </span>
@@ -939,11 +939,11 @@ function PickRow({ row: r, onOpen }: { row: Row; onOpen: (node: Node) => void })
         fallback={r.kids > 0 ? FolderOpen : Folder}
       />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] font-medium leading-tight text-foreground">
+        <span className="block truncate text-[15px] font-medium leading-6 text-foreground">
           {r.name}
         </span>
         {r.kids > 0 && (
-          <span className="mt-0.5 block text-xs text-muted-foreground">
+          <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
             {t("tree.subItemCount", { count: r.kids })}
           </span>
         )}
@@ -1001,10 +1001,10 @@ function QuickRail({
           >
             <Tile color={it.color} icon={it.icon} size={30} />
             <span className="w-full">
-              <span className="block truncate text-[11px] font-semibold leading-tight text-foreground">
+              <span className="block truncate text-[11px] font-semibold leading-4 text-foreground">
                 {it.name}
               </span>
-              <span className="block truncate text-[9px] leading-tight text-muted-foreground">
+              <span className="block truncate text-[9px] leading-[14px] text-muted-foreground">
                 {it.parent}
               </span>
             </span>
@@ -1032,7 +1032,7 @@ function QuietButton({
   const body = (
     <>
       <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-      <span className="truncate">{children}</span>
+      <span className="truncate leading-5">{children}</span>
     </>
   );
   // prefetch açıkça: sheet içindeki bağlantıda görünürlük tabanlı varsayılan

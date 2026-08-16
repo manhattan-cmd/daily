@@ -756,7 +756,7 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
               <span
                 key={`isll${isl.id}`}
                 aria-hidden
-                className="pointer-events-none absolute whitespace-nowrap text-center font-semibold leading-none"
+                className="pointer-events-none absolute whitespace-nowrap text-center font-semibold leading-[1.3]"
                 style={{
                   left: isl.labelAt.x,
                   top: isl.labelAt.y,
@@ -913,11 +913,11 @@ function GraphCell({
   const label = showLabel ? (
     <span
       className={cn(
-        "pointer-events-none absolute line-clamp-2 leading-tight",
+        "pointer-events-none absolute line-clamp-2",
         // Ölçüler lib/graph.ts'teki labelBox ile AYNI olmalı
         bigLabel
-          ? "w-[78px] text-[10.5px] font-semibold"
-          : "w-[68px] text-[9px] font-medium",
+          ? "w-[78px] text-[10.5px] leading-[14px] font-semibold"
+          : "w-[68px] text-[9px] leading-[12px] font-medium",
         glow > 0.5
           ? "text-foreground"
           : glow > 0.15
