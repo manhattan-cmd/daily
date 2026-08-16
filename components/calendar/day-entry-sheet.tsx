@@ -726,6 +726,9 @@ function FormStep({
   const optionsTouched = timeChanged || selectedParallels.length > 0;
 
 
+  /** Bu sayfanın rengi — paralel perspektifte mor, yoksa kalemin kategorisi */
+  const accent = parallelContext ? "#7c3aed" : category?.color ?? "#6366f1";
+
   const hasParallelSelected = selectedParallels.length > 0;
   const saveLabel = saving
     ? t("entry.saving")
@@ -828,12 +831,24 @@ function FormStep({
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-6">
+      {/* Gövde kendi PENCERESİNDE: üstte kalem (karo + kategori + ad),
+          altındaki her şey tek bir renkli yüzeyde. Seçicideki dilin aynısı;
+          rengi buranın kaleminden geliyor. */}
+      <div
+        className="mx-3 mb-3 flex-1 overflow-y-auto overscroll-contain rounded-2xl px-3 pb-4 pt-3"
+        style={{
+          background: `${accent}0f`,
+          boxShadow: `inset 0 0 0 1px ${accent}2e`,
+        }}
+      >
         {/* ── Özellikler: formun ana gövdesi ──
             Başlık şart: alanlar başlıksızken "bunlar ne" sorusu ekranda
             cevapsız kalıyordu. Nottaki başlıkla aynı dil. */}
         {mods.length > 0 && (
-          <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <div
+            className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide"
+            style={{ color: accent }}
+          >
             {t("entry.features")}
           </div>
         )}
@@ -963,7 +978,8 @@ function FormStep({
         <div className="mt-6 border-t border-white/[0.06] pt-3">
           <label
             htmlFor="entry-note"
-            className="mb-2 block px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+            className="mb-2 block px-1 text-[11px] font-semibold uppercase tracking-wide"
+            style={{ color: accent }}
           >
             {t("entry.note")}
           </label>
@@ -973,7 +989,11 @@ function FormStep({
             onChange={(e) => onNotesChange(e.target.value)}
             placeholder={t("entry.notePlaceholder")}
             rows={2}
-            className="w-full resize-none rounded-xl border border-white/[0.09] bg-white/[0.02] px-3 py-2.5 text-sm leading-5 placeholder:text-muted-foreground/50 focus:border-white/20 focus:outline-none"
+            className="w-full resize-none rounded-xl px-3 py-2.5 text-sm leading-5 placeholder:text-muted-foreground/50 focus:outline-none"
+            style={{
+              background: `${accent}14`,
+              boxShadow: `inset 0 0 0 1px ${accent}33`,
+            }}
           />
         </div>
       </div>
@@ -988,7 +1008,7 @@ function FormStep({
           disabled={saving}
           className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-60"
           style={{
-            backgroundColor: parallelContext ? "#7c3aed" : (category?.color ?? "#6366f1"),
+            backgroundColor: accent,
           }}
         >
           {!saving && <Plus className="h-5 w-5" strokeWidth={2.75} />}
