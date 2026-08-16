@@ -595,12 +595,12 @@ export function EntryPicker({
 
         {rows.length >= SEARCH_FROM && (
           <div className="relative shrink-0">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/70" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("action.search")}
-              className="h-10 w-full rounded-xl border border-white/8 bg-white/[0.03] pl-9 pr-3 text-sm placeholder:text-muted-foreground/50 focus:border-white/15 focus:outline-none"
+              className="h-10 w-full rounded-xl border border-primary/20 bg-primary/[0.05] pl-9 pr-3 text-sm placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
             />
           </div>
         )}
@@ -613,7 +613,7 @@ export function EntryPicker({
             iki blok aynı şeyi seçtiriyor ve aynı görünmeleri doğru. Ayrımı
             başlık yapıyor, biçim değil. */}
         {hotCats.length > 0 && (
-          <Section label={t("entry.frequentCategories")}>
+          <Section label={t("entry.frequentCategories")} color={centerColor}>
             {hotCats.map((r) => (
               <PickRow key={`hot${r.id}`} row={r} onOpen={drill} />
             ))}
@@ -637,7 +637,10 @@ export function EntryPicker({
           <div className="flex shrink-0 flex-col gap-3">
             {listLabel && sections.length > 1 && (
               // A–Z'ye bölünmüş listede başlık bir kez, harflerin üstünde
-              <div className="px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/60">
+              <div
+                className="px-1 text-[11px] font-semibold uppercase tracking-wide"
+                style={{ color: centerColor }}
+              >
                 {listLabel}
               </div>
             )}
@@ -645,6 +648,7 @@ export function EntryPicker({
               <Section
                 key={sec.key}
                 label={sec.key || (sections.length === 1 ? listLabel : "")}
+                color={centerColor}
               >
                 {sec.items.map((r) => (
                   <PickRow key={r.id} row={r} onOpen={drill} />
@@ -815,16 +819,25 @@ function Tile({
 function Section({
   label,
   icon: Icon,
+  color,
   children,
 }: {
   label: string;
   icon?: typeof Sparkles;
+  /** Bulunulan yerin rengi — başlık onu taşıyor */
+  color?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="shrink-0">
       {label && (
-        <div className="mb-1.5 flex items-center gap-1.5 px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/60">
+        // Başlık bulunulan yerin renginde: kökte uygulamanın vurgusu, bir
+        // dalın içinde o dalın rengi. Gri başlıklar listeyle aynı tondaydı
+        // ve bölümlerin nerede başladığı seçilmiyordu.
+        <div
+          className="mb-1.5 flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide"
+          style={{ color: color ?? "var(--primary)" }}
+        >
           {Icon && <Icon className="h-3 w-3" />}
           {label}
         </div>
@@ -936,10 +949,12 @@ function QuickRail({
               key={it.id}
               onClick={() => onPick(it.sub)}
               title={`${it.parent} › ${it.name}`}
-              className="flex h-[62px] w-[62px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-white/[0.09] bg-white/[0.05] px-1 text-center transition-colors hover:bg-white/[0.09] active:bg-white/[0.12]"
+              className="flex h-[66px] w-[64px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-white/[0.09] bg-white/[0.05] px-1 text-center transition-colors hover:bg-white/[0.09] active:bg-white/[0.12]"
             >
-              <Tile color={it.color} icon={it.icon} size={26} />
-              <span className="w-full truncate text-[10.5px] font-semibold leading-4 text-foreground">
+              <Tile color={it.color} icon={it.icon} size={24} />
+              {/* İki satır: "Dışardan Yemek" tek satırda "Dışardan…" diye
+                  kalıyordu; sararak tamamı sığıyor */}
+              <span className="line-clamp-2 w-full text-[9.5px] font-semibold leading-[12px] text-foreground">
                 {it.name}
               </span>
             </button>
