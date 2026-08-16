@@ -603,10 +603,8 @@ function PickStep({
           : t("entry.pickPlace")}
       </p>
 
-      {/* Gövde kendi PENCERESİNDE: başlık ve "Kategori yarat" üstte kalıyor,
-          altındaki her şey (hızlı ekle, arama, listeler) tek bir renkli
-          yüzeyin içinde toplanıyor. Gövde çıplakken sheet'in neresi başlık
-          neresi içerik ayırt edilmiyordu.
+      {/* Gövdenin penceresi seçicinin İÇİNDE kuruluyor: yol izi pencerenin
+          üstünde durmalı ve her kademede aynı yerde kalmalı.
 
           Kaydırmayı seçicinin kendisi yönetiyor: yol izi ve "buraya ekle"
           üstte sabit kalmalı, yalnız liste kaymalı.
@@ -616,10 +614,7 @@ function PickStep({
           alttan kırpılıyordu. Doğru davranış küçülmeyle geliyor: içerik
           sığdığı sürece kutu kadar, taşınca min-h-0 sayesinde kısalıp
           kendi içinde kayıyor. */}
-      <div
-        ref={scrollRef}
-        className="mx-3 mb-3 flex min-h-0 flex-col overflow-hidden rounded-2xl bg-primary/[0.04] pt-3 ring-1 ring-inset ring-primary/15"
-      >
+      <div ref={scrollRef} className="flex min-h-0 flex-col">
         {!groups || groups.length === 0 ? (
           <div className="flex flex-col items-center gap-3 px-5 py-12 text-center">
             <p className="text-sm text-muted-foreground">

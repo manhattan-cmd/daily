@@ -496,175 +496,183 @@ export function EntryPicker({
           Bulunulan yer kaleminin renginde ve önünde bir nokta var.
           Yol derinleşince satır SONA kayıyor (HScroll followEnd) — son
           basamak ekrandan çıkınca kullanıcı nerede olduğunu göremiyordu.
-          Kökte hiç yazılmıyor: tek basamaklı bir yol iz değil, başlığın
-          tekrarı. */}
-      {focusObj != null && (
-        <div className="shrink-0 px-3 pb-2.5">
-          <HScroll className="items-center gap-1" followEnd={focusName}>
-            {trail.map((tr, i) => {
-              const last = i === trail.length - 1;
-              return (
-                <span key={i} className="flex shrink-0 items-center gap-1">
-                  {i > 0 && (
-                    <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/35" />
+          KÖKTE DE yazılıyor ve PENCERENİN ÜSTÜNDE duruyor: bir ara kökte
+          gizliydi ve bir kategoriye girince ortaya çıkıyordu, yani konum
+          kademeye göre kayıyordu. Hep aynı yerde durunca göz onu arayacağı
+          yeri öğreniyor. "Kategoriler" basamağı her zaman renkli —
+          yolun kökü o. */}
+      <div className="shrink-0 px-3 pb-2.5">
+        <HScroll className="items-center gap-1" followEnd={focusName}>
+          {trail.map((tr, i) => {
+            const last = i === trail.length - 1;
+            const isRoot = i === 0;
+            return (
+              <span key={i} className="flex shrink-0 items-center gap-1">
+                {i > 0 && (
+                  <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/35" />
+                )}
+                <button
+                  onClick={() => {
+                    setQuery("");
+                    setFocus(tr.focus);
+                  }}
+                  aria-current={last ? "page" : undefined}
+                  className={cn(
+                    "flex max-w-[150px] shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] font-medium transition-colors",
+                    last && "font-semibold text-foreground",
+                    !last && isRoot && "bg-primary/12 text-primary hover:bg-primary/20",
+                    !last &&
+                      !isRoot &&
+                      "border border-white/[0.09] bg-white/[0.04] text-muted-foreground hover:bg-white/[0.07] hover:text-foreground"
                   )}
-                  <button
-                    onClick={() => {
-                      setQuery("");
-                      setFocus(tr.focus);
-                    }}
-                    aria-current={last ? "page" : undefined}
-                    className={cn(
-                      "flex max-w-[150px] shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] transition-colors",
-                      last
-                        ? "font-semibold text-foreground"
-                        : "border border-white/[0.09] bg-white/[0.04] font-medium text-muted-foreground hover:bg-white/[0.07] hover:text-foreground"
-                    )}
-                    style={
-                      last
-                        ? {
-                            background: `${centerColor}26`,
-                            boxShadow: `inset 0 0 0 1px ${centerColor}59`,
-                          }
-                        : undefined
-                    }
-                  >
-                    {last && (
-                      <span
-                        className="h-1.5 w-1.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: centerColor }}
-                      />
-                    )}
-                    <span className="truncate leading-5">{tr.label}</span>
-                  </button>
-                </span>
-              );
-            })}
-          </HScroll>
-        </div>
-      )}
+                  style={
+                    last
+                      ? {
+                          background: `${centerColor}26`,
+                          boxShadow: `inset 0 0 0 1px ${centerColor}59`,
+                        }
+                      : undefined
+                  }
+                >
+                  {last && (
+                    <span
+                      className="h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: centerColor }}
+                    />
+                  )}
+                  <span className="truncate leading-5">{tr.label}</span>
+                </button>
+              </span>
+            );
+          })}
+        </HScroll>
+      </div>
 
-      {/* Sabit üst bölüm: asli eylem, kısayollar ve arama listeyle birlikte
-          kaymamalı — uzun listede aşağı inince arama kutusu kayboluyordu ve
-          kullanıcı onu geri getirmek için başa dönüyordu. */}
-      <div className="flex shrink-0 flex-col gap-3 px-3 pb-3">
-        {/* Çocuğu olmayan kalemde yapılacak tek şey kayıt eklemek: orada
-            asli eylem koca bir bant olarak duruyor. Çocuğu VARSA aynı bant
-            "buraya mı ekleyeyim, aşağıdan mı seçeyim" ikilemini büyütüyordu
-            — orada küçük bir düğmeye iniyor, sayfanın işi listeyi seçtirmek
-            oluyor. */}
+      {/* Gövdenin penceresi. Yol izi dışarıda kaldığı için burada kuruluyor:
+          böylece izin konumu kademeye göre kaymıyor. */}
+      <div className="mx-3 mb-3 flex min-h-0 flex-col overflow-hidden rounded-2xl bg-primary/[0.04] pt-3 ring-1 ring-inset ring-primary/15">
 
-        {/* Hızlı ekle en üstte ve sabit: en kısa yol o, listeyle birlikte
-            kaymamalı. Kökte var — bir dalın içine girmiş kullanıcı zaten
-            daraltmış oluyor. */}
-        {focusObj == null && (
-          <QuickRail
-            items={quick}
-            onPick={onPick}
-            onAdd={() => setPinOpen(true)}
-          />
-        )}
+        {/* Sabit üst bölüm: asli eylem, kısayollar ve arama listeyle birlikte
+            kaymamalı — uzun listede aşağı inince arama kutusu kayboluyordu ve
+            kullanıcı onu geri getirmek için başa dönüyordu. */}
+        <div className="flex shrink-0 flex-col gap-3 px-3 pb-3">
+          {/* Çocuğu olmayan kalemde yapılacak tek şey kayıt eklemek: orada
+              asli eylem koca bir bant olarak duruyor. Çocuğu VARSA aynı bant
+              "buraya mı ekleyeyim, aşağıdan mı seçeyim" ikilemini büyütüyordu
+              — orada küçük bir düğmeye iniyor, sayfanın işi listeyi seçtirmek
+              oluyor. */}
 
-        {/* Eylemler — yalnız bir dalın içinde. Kategori yaratmak sheet
-            başlığına taşındı: her kademede duran bir eylem oraya ait.
-            "Buraya ekle" burada kalemin renginde duruyor ki üç düğme
-            arasında hangisinin asli olduğu belli olsun. Yapı sayfası
-            yalnız simge: adı yazınca satır üç düğmeye yetmiyordu. */}
-        {focusObj != null && (
-          <div className="flex shrink-0 items-center gap-2">
-            {hasKids && (
-              <QuietButton
-                icon={Plus}
-                color={centerColor}
-                onClick={pickHere}
-              >
-                {t("entry.addHere")}
+          {/* Hızlı ekle en üstte ve sabit: en kısa yol o, listeyle birlikte
+              kaymamalı. Kökte var — bir dalın içine girmiş kullanıcı zaten
+              daraltmış oluyor. */}
+          {focusObj == null && (
+            <QuickRail
+              items={quick}
+              onPick={onPick}
+              onAdd={() => setPinOpen(true)}
+            />
+          )}
+
+          {/* Eylemler — yalnız bir dalın içinde. Kategori yaratmak sheet
+              başlığına taşındı: her kademede duran bir eylem oraya ait.
+              "Buraya ekle" burada kalemin renginde duruyor ki üç düğme
+              arasında hangisinin asli olduğu belli olsun. Yapı sayfası
+              yalnız simge: adı yazınca satır üç düğmeye yetmiyordu. */}
+          {focusObj != null && (
+            <div className="flex shrink-0 items-center gap-2">
+              {hasKids && (
+                <QuietButton
+                  icon={Plus}
+                  color={centerColor}
+                  onClick={pickHere}
+                >
+                  {t("entry.addHere")}
+                </QuietButton>
+              )}
+              <QuietButton icon={FolderPlus} onClick={openAddSub}>
+                {t("tree.createSubcategory")}
               </QuietButton>
-            )}
-            <QuietButton icon={FolderPlus} onClick={openAddSub}>
-              {t("tree.createSubcategory")}
-            </QuietButton>
-            <QuietButton
-              icon={Layers}
-              href={structureHref}
-              onClick={onClose}
-              label={t("tree.structurePage")}
-            />
-          </div>
-        )}
+              <QuietButton
+                icon={Layers}
+                href={structureHref}
+                onClick={onClose}
+                label={t("tree.structurePage")}
+              />
+            </div>
+          )}
 
-        {rows.length >= SEARCH_FROM && (
-          <div className="relative shrink-0">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/70" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("action.search")}
-              className="h-10 w-full rounded-xl border border-primary/20 bg-primary/[0.05] pl-9 pr-3 text-sm placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
-            />
-          </div>
-        )}
-      </div>
+          {rows.length >= SEARCH_FROM && (
+            <div className="relative shrink-0">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/70" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t("action.search")}
+                className="h-10 w-full rounded-xl border border-primary/20 bg-primary/[0.05] pl-9 pr-3 text-sm placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none"
+              />
+            </div>
+          )}
+        </div>
 
-      {/* Kayan bölüm: sık girilen kategoriler + gezinme listesi */}
-      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-3 pb-6">
-        {/* Sık kullanılan kategoriler — ALTINDAKİ listenin aynı yapısında.
-            Bir ara çipe çevrilmişti (tekrar gibi okunmasın diye); ama bu
-            iki blok aynı şeyi seçtiriyor ve aynı görünmeleri doğru. Ayrımı
-            başlık yapıyor, biçim değil. */}
-        {hotCats.length > 0 && (
-          <Section label={t("entry.frequentCategories")} color={centerColor}>
-            {hotCats.map((r) => (
-              <PickRow key={`hot${r.id}`} row={r} onOpen={drill} />
-            ))}
-          </Section>
-        )}
+        {/* Kayan bölüm: sık girilen kategoriler + gezinme listesi */}
+        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-3 pb-6">
+          {/* Sık kullanılan kategoriler — ALTINDAKİ listenin aynı yapısında.
+              Bir ara çipe çevrilmişti (tekrar gibi okunmasın diye); ama bu
+              iki blok aynı şeyi seçtiriyor ve aynı görünmeleri doğru. Ayrımı
+              başlık yapıyor, biçim değil. */}
+          {hotCats.length > 0 && (
+            <Section label={t("entry.frequentCategories")} color={centerColor}>
+              {hotCats.map((r) => (
+                <PickRow key={`hot${r.id}`} row={r} onOpen={drill} />
+              ))}
+            </Section>
+          )}
 
-        {filtered.length === 0 ? (
-          // Arama boş dönerse söylenecek bir şey var; alt kategorisi
-          // olmayan bir kalemde ise söylenecek bir şey YOK — orada
-          // "Eşleşen bir şey yok" demek uydurma bir eksiklik yaratıyordu.
-          q ? (
+          {filtered.length === 0 ? (
+            // Arama boş dönerse söylenecek bir şey var; alt kategorisi
+            // olmayan bir kalemde ise söylenecek bir şey YOK — orada
+            // "Eşleşen bir şey yok" demek uydurma bir eksiklik yaratıyordu.
+            q ? (
+              <p className="px-1 py-8 text-center text-sm text-muted-foreground">
+                {t("entry.noMatch")}
+              </p>
+            ) : null
+          ) : (
+            // Listenin başlığı KİMİN listesi olduğunu söylüyor: kökte "Tüm
+            // kategoriler" (üstündeki sık kullanılanlardan ayrılsın diye),
+            // bir dalın içinde "Spor alt kategorileri". Başlıksızken
+            // satırların neyin altı olduğu belli değildi.
+            <div className="flex shrink-0 flex-col gap-3">
+              {listLabel && sections.length > 1 && (
+                // A–Z'ye bölünmüş listede başlık bir kez, harflerin üstünde
+                <div
+                  className="px-1 text-[11px] font-semibold uppercase tracking-wide"
+                  style={{ color: centerColor }}
+                >
+                  {listLabel}
+                </div>
+              )}
+              {sections.map((sec) => (
+                <Section
+                  key={sec.key}
+                  label={sec.key || (sections.length === 1 ? listLabel : "")}
+                  color={centerColor}
+                >
+                  {sec.items.map((r) => (
+                    <PickRow key={r.id} row={r} onOpen={drill} />
+                  ))}
+                </Section>
+              ))}
+            </div>
+          )}
+
+          {focusObj == null && rows.length === 0 && (
             <p className="px-1 py-8 text-center text-sm text-muted-foreground">
-              {t("entry.noMatch")}
+              {t("tree.noCategoriesYet")}
             </p>
-          ) : null
-        ) : (
-          // Listenin başlığı KİMİN listesi olduğunu söylüyor: kökte "Tüm
-          // kategoriler" (üstündeki sık kullanılanlardan ayrılsın diye),
-          // bir dalın içinde "Spor alt kategorileri". Başlıksızken
-          // satırların neyin altı olduğu belli değildi.
-          <div className="flex shrink-0 flex-col gap-3">
-            {listLabel && sections.length > 1 && (
-              // A–Z'ye bölünmüş listede başlık bir kez, harflerin üstünde
-              <div
-                className="px-1 text-[11px] font-semibold uppercase tracking-wide"
-                style={{ color: centerColor }}
-              >
-                {listLabel}
-              </div>
-            )}
-            {sections.map((sec) => (
-              <Section
-                key={sec.key}
-                label={sec.key || (sections.length === 1 ? listLabel : "")}
-                color={centerColor}
-              >
-                {sec.items.map((r) => (
-                  <PickRow key={r.id} row={r} onOpen={drill} />
-                ))}
-              </Section>
-            ))}
-          </div>
-        )}
-
-        {focusObj == null && rows.length === 0 && (
-          <p className="px-1 py-8 text-center text-sm text-muted-foreground">
-            {t("tree.noCategoriesYet")}
-          </p>
-        )}
+          )}
+        </div>
       </div>
-
 
       {/* ── Şeride ekle ────────────────────────────────────────────────
           Ayrı bir diyalog değil, aynı yüzeyin üstünde bir panel: üst üste
@@ -860,20 +868,23 @@ function PickRow({ row: r, onOpen }: { row: Row; onOpen: (node: Node) => void })
     <button
       onClick={() => onOpen(r.node)}
       // Sabit en az yükseklik: alt kalemi olmayan satır tek satırlık kalıp
-      // listeyi tırtıklı gösteriyordu
-      className="flex min-h-[60px] w-full items-center gap-3 border-t border-white/[0.06] px-3 py-2.5 text-left transition-colors first:border-t-0 hover:bg-white/[0.05] active:bg-white/[0.08]"
+      // listeyi tırtıklı gösteriyordu. Ölçüler bir tık kısıldı: uzun listede
+      // iri satırlar sayfayı kabalaştırıyordu, artık daha çok kalem bir
+      // bakışta görünüyor.
+      className="flex min-h-[52px] w-full items-center gap-2.5 border-t border-white/[0.06] px-2.5 py-2 text-left transition-colors first:border-t-0 hover:bg-white/[0.05] active:bg-white/[0.08]"
     >
       <Tile
         color={r.color}
         icon={r.icon}
         fallback={r.kids > 0 ? FolderOpen : Folder}
+        size={34}
       />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] font-medium leading-6 text-foreground">
+        <span className="block truncate text-[14px] font-medium leading-5 text-foreground">
           {r.name}
         </span>
         {r.kids > 0 && (
-          <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+          <span className="mt-0.5 block truncate text-[11px] leading-4 text-muted-foreground">
             {t("tree.subItemCount", { count: r.kids })}
           </span>
         )}
