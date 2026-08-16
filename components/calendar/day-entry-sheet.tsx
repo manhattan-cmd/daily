@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Boxes, Clock, Link2, NotebookPen, Plus, X } from "lucide-react";
+import { ArrowLeft, Boxes, Clock, Link2, NotebookPen, Plus, Sparkles, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
 import {
@@ -21,7 +21,6 @@ import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
 import { EntryPicker } from "@/components/calendar/entry-picker";
-import { AddEntryPanel } from "@/components/calendar/add-entry-panel";
 import { CategoryForm } from "@/components/structure/category-form";
 import {
   DateTimeInput,
@@ -32,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SHORT_MONTHS } from "@/lib/analytics";
 import { ScaleInput } from "@/components/ui/scale-input";
+import { SymbolIcon } from "@/lib/icons";
 import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
 import { isScaleChoices, type Category, type SubCategory } from "@/types";
 
@@ -53,8 +53,6 @@ interface DayEntrySheetProps {
 type Step =
   | { type: "activity-name" }
   | { type: "pick" }
-  // Standart ekleme yüzeyi — nereden gelinirse gelinsin aynı pencere
-  | { type: "add"; sub: SubCategory }
   | { type: "form"; sub: SubCategory }
   | { type: "parallel-form"; sub: SubCategory; catName: string; queueIndex: number; queueTotal: number; groupId: string; carryover: Record<string, string> };
 
@@ -126,9 +124,7 @@ export function DayEntrySheet({
   }, []);
 
   const currentSubId =
-    step.type === "form" || step.type === "parallel-form" || step.type === "add"
-      ? step.sub.id
-      : "";
+    step.type === "form" || step.type === "parallel-form" ? step.sub.id : "";
 
   // Modifier'ları canlı izle — hem ana hem paralel form için
   const formMods = useLiveQuery(
@@ -159,20 +155,6 @@ export function DayEntrySheet({
     });
   }, [formMods, currentSubId]);
 
-  /** Kalemin okunur yolu — "Spor › Koşu" */
-  function pathOf(sub: SubCategory): string {
-    const all = (groups ?? []).flatMap((g) => g.allSubs);
-    const byId = new Map(all.map((s) => [s.id, s]));
-    const parts: string[] = [];
-    let cur: SubCategory | undefined = sub.parentId ? byId.get(sub.parentId) : undefined;
-    while (cur) {
-      parts.unshift(cur.name);
-      cur = cur.parentId ? byId.get(cur.parentId) : undefined;
-    }
-    const cat = (groups ?? []).find((g) => g.category.id === sub.categoryId)?.category.name;
-    return [cat, ...parts].filter(Boolean).join(" › ");
-  }
-
   /** Varsayılan: sayfanın günü + şu anki saat ("YYYY-MM-DDTHH:mm") */
   function defaultOccurredAt(): string {
     const [y, mo, d] = date.split("-").map(Number);
@@ -186,7 +168,9 @@ export function DayEntrySheet({
    * Bir yere kayıt açmak. Nereden gelinirse gelinsin (hızlı ekle şeridi,
    * listeden yaprak, "buraya ekle") aynı yüzey açılıyor — eskiden kimi
    * yerde iki düğmeli bir modül, kimi yerde doğrudan uzun form vardı ve
-   * aynı işi yapmanın yolu bulunduğun yere göre değişiyordu.
+   * aynı işi yapmanın yolu bulunduğun yere göre değişiyordu. Yüzey uzun
+   * formun kendisi: atomlu ayrı bir pencere denendi ve neyin ne olduğu
+   * anlaşılmıyordu — formda her ölçü kendi başlığı ve alanıyla duruyor.
    */
   function handlePick(sub: SubCategory) {
     setValues({});
@@ -195,7 +179,7 @@ export function DayEntrySheet({
     setParallelQueue([]);
     setLockedTypeIds(new Set());
     setOccurredAt(defaultOccurredAt());
-    setStep({ type: "add", sub });
+    setStep({ type: "form", sub });
   }
 
   // Üst kategoriye kayıt — gizli kök alt kategorisi üzerinden
@@ -204,25 +188,6 @@ export function DayEntrySheet({
     handlePick(rootSub);
   }
 
-  /** Ekleme yüzeyinden kaydet — girilen değerler varsa onlarla */
-  async function handleAddSave() {
-    if (saving || step.type !== "add") return;
-    setSaving(true);
-    try {
-      await persistEntry(step.sub.id, formMods, values);
-      if (activity) {
-        // Aktivite modunda seri giriş: kaydet → seçim adımına dön
-        setActivityCount((c) => c + 1);
-        setValues({});
-        setStep({ type: "pick" });
-        return;
-      }
-      onClose();
-      router.push(`/calendar/${date}`);
-    } finally {
-      setSaving(false);
-    }
-  }
 
   async function persistEntry(
     subId: string,
@@ -429,36 +394,13 @@ export function DayEntrySheet({
                   className="absolute inset-0 z-40 bg-black/55 backdrop-blur-[1px]"
                   onClick={handleBack}
                 />
-                {/* Seçimin üstüne açılan panel — hem ekleme yüzeyi hem
-                    uzun form burada. Seçim listesi altta duruyor: kullanıcı
-                    nereye kayıt yaptığını görmeye devam ediyor. */}
+                {/* Seçimin üstüne açılan form. Seçim listesi altta
+                    duruyor: kullanıcı nereye kayıt yaptığını görmeye
+                    devam ediyor. */}
                 <div className="animate-in absolute inset-x-0 bottom-0 z-50 flex max-h-[86%] flex-col rounded-t-3xl border-t border-white/10 bg-background shadow-[0_-8px_40px_rgba(0,0,0,0.6)]">
                   <div className="flex justify-center pt-2.5 pb-0.5 shrink-0">
                     <div className="h-[3px] w-10 rounded-full bg-white/15" />
                   </div>
-                  {step.type === "add" ? (
-                    <AddEntryPanel
-                      key={step.sub.id}
-                      name={step.sub.name}
-                      icon={step.sub.icon}
-                      color={
-                        (groups ?? []).find(
-                          (g) => g.category.id === step.sub.categoryId
-                        )?.category.color ?? "#818cf8"
-                      }
-                      path={pathOf(step.sub)}
-                      mods={formMods}
-                      valueOf={(m) => values[valueKey(m)] ?? ""}
-                      onChange={(m, v) =>
-                        setValues((prev) => ({ ...prev, [valueKey(m)]: v }))
-                      }
-                      onSave={handleAddSave}
-                      saving={saving}
-                      onDetail={() => setStep({ type: "form", sub: step.sub })}
-                      onClose={handleBack}
-                      entryDate={date}
-                    />
-                  ) : (
                   <FormStep
             key={step.sub.id}
             sub={step.sub}
@@ -492,7 +434,6 @@ export function DayEntrySheet({
             saving={saving}
             entryDate={date}
                   />
-                  )}
                 </div>
               </>
             )}
@@ -795,6 +736,26 @@ function FormStep({
         >
           <ArrowLeft className="h-3.5 w-3.5" />
         </button>
+        {/* Kalemin karosu — nereye kayıt yaptığın bir bakışta. Başlık
+            yalnız yazıyken form "hangi kalemdeyim" sorusunu zayıf
+            cevaplıyordu; seçici listesinde de aynı karo duruyor, göz
+            aynı şeyi tanıyor. */}
+        {!parallelContext && category && (
+          <span
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px]"
+            style={{
+              backgroundColor: category.color,
+              boxShadow:
+                "inset 0 1px 0 rgba(255,255,255,0.25), inset 0 0 0 1px rgba(0,0,0,0.14)",
+            }}
+          >
+            <SymbolIcon
+              name={sub.isCategoryRoot ? category.icon : sub.icon}
+              size={20}
+              style={{ color: "#fff" }}
+            />
+          </span>
+        )}
         <div className="flex-1 min-w-0">
           {parallelContext && (
             <div className="flex items-center gap-1.5 mb-0.5">
@@ -857,7 +818,15 @@ function FormStep({
       </div>
 
       <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-6">
-        {/* ── Özellikler: formun tek ana gövdesi ── */}
+        {/* ── Özellikler: formun ana gövdesi ──
+            Başlık şart: alanlar başlıksızken "bunlar ne" sorusu ekranda
+            cevapsız kalıyordu. Nottaki başlıkla aynı dil. */}
+        {mods.length > 0 && (
+          <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/50">
+            <Sparkles className="h-3 w-3" />
+            {t("entry.features")}
+          </div>
+        )}
         {mods.length === 0 ? (
           <button
             type="button"
@@ -869,7 +838,7 @@ function FormStep({
             </span>
             <span className="text-sm font-semibold">{t("entry.addFeature")}</span>
             <span className="text-[11px] leading-snug text-muted-foreground">
-              Neyin kaydını tutmak istersin? Boş da kaydedebilirsin.
+              {t("entry.featuresHint")}
             </span>
           </button>
         ) : (
@@ -892,7 +861,7 @@ function FormStep({
               className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
             >
               <Plus className="h-3.5 w-3.5" />
-              Add feature
+              {t("entry.addFeature")}
             </button>
           </div>
         )}
@@ -962,7 +931,7 @@ function FormStep({
             className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/50"
           >
             <NotebookPen className="h-3 w-3" />
-            Not
+            {t("entry.note")}
           </label>
           <textarea
             id="entry-note"
