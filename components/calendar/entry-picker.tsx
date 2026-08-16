@@ -580,31 +580,70 @@ export function EntryPicker({
             "buraya mı ekleyeyim, aşağıdan mı seçeyim" ikilemini büyütüyordu
             — orada küçük bir düğmeye iniyor, sayfanın işi listeyi seçtirmek
             oluyor. */}
+        {/* SON DURAK — altı olmayan kalem.
+            Burada gezinecek bir yer kalmadı, sayfanın tek işi kayıt almak.
+            O yüzden ekle modülünü açan bir bant değil, eylemin KENDİSİ
+            duruyor: bir dokunuş eksiliyor ve kullanıcı yolun bittiğini
+            görüyor. Ölçülen özellikler de burada yazılı — dokunmadan önce
+            "neyin kaydını tutuyorum" görünüyor. */}
         {focusObj != null && !hasKids && (
-          <button
-            onClick={() => setCommitOpen(true)}
-            className="flex shrink-0 items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors active:opacity-80"
+          <div
+            className="shrink-0 rounded-2xl px-4 pb-4 pt-5"
             style={{
-              background: `${centerColor}14`,
+              background: `${centerColor}12`,
               boxShadow: `inset 0 0 0 1px ${centerColor}33`,
             }}
           >
-            <Tile color={centerColor} icon={focusIcon} fallback={FolderOpen} />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[15px] font-semibold leading-6">
+            <div className="flex flex-col items-center text-center">
+              <Tile
+                color={centerColor}
+                icon={focusIcon}
+                fallback={FolderOpen}
+                size={56}
+              />
+              <div className="mt-3 max-w-full truncate text-xl font-semibold leading-8">
                 {focusName}
-              </span>
-              <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-                {t("tree.addRecordHere")}
-              </span>
-            </span>
-            <span
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white"
+              </div>
+              <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                {t("entry.endOfPath")}
+              </div>
+              {focusMods.length > 0 && (
+                <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+                  {focusMods.map((m) => {
+                    const Icon = MEASURE_KIND_META[m.valueType ?? "number"].icon;
+                    return (
+                      <span
+                        key={m.id}
+                        className="flex items-center gap-1.5 rounded-lg border border-white/10 px-2 py-1 text-[11px] leading-4 text-muted-foreground"
+                      >
+                        <Icon className="h-3 w-3" style={{ color: centerColor }} />
+                        {m.name}
+                        {m.unit ? (
+                          <span className="text-muted-foreground/50">{m.unit}</span>
+                        ) : null}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={commitQuick}
+              className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[15px] font-semibold text-white transition-opacity active:opacity-85"
               style={{ backgroundColor: centerColor }}
             >
               <Plus className="h-4 w-4" strokeWidth={2.5} />
-            </span>
-          </button>
+              {t("entry.addNow")}
+            </button>
+            <button
+              onClick={commitDetailed}
+              className="mt-2 flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-white/10 text-[13px] font-medium leading-5 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {t("entry.addWithDetail")}
+            </button>
+          </div>
         )}
 
         {/* Hızlı ekle en üstte ve sabit: en kısa yol o, listeyle birlikte

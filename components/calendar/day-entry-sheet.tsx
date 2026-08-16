@@ -364,9 +364,18 @@ export function DayEntrySheet({
           // sonuncuyu seçiyor. `fixed` zaten mutlak konumlu çocuklara
           // kapsayıcı blok oluşturur.
           "fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[390px]",
-          // 90vh: seçim listesine olabildiğince yer kalsın, gün sayfası da
-          // üstte bir şerit olarak görünmeye devam etsin
-          "flex max-h-[90vh] flex-col rounded-t-2xl border-t border-white/10 bg-background",
+          "flex flex-col rounded-t-2xl border-t border-white/10 bg-background",
+          // Seçim adımında yükseklik İÇERİĞE göre (90vh tavanıyla): kısa bir
+          // listede yarısı boş bir yüzey açmak gereksiz.
+          //
+          // Form adımında ise SABİT 90vh. Form, yüzeyin içinde `max-h-[86%]`
+          // bir panel olarak açılıyor; yüzey içeriğe göre küçükken o yüzde
+          // de küçülüyor ve form 300px'e sıkışıyordu (ölçüldü: 844px ekranda
+          // 298px panel). Yüzdenin anlamlı olması için tabanın sabit olması
+          // gerekiyor.
+          step.type === "form" || step.type === "parallel-form"
+            ? "h-[90vh]"
+            : "max-h-[90vh]",
           "shadow-[0_-8px_40px_rgba(0,0,0,0.55)]",
           "transition-transform duration-300 ease-out",
           open ? "translate-y-0" : "translate-y-full"
