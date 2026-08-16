@@ -21,6 +21,7 @@ import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
 import { EntryPicker } from "@/components/calendar/entry-picker";
+import { CategoryForm } from "@/components/structure/category-form";
 import {
   DateTimeInput,
   DateTimeRangeInput,
@@ -363,7 +364,9 @@ export function DayEntrySheet({
           // sonuncuyu seçiyor. `fixed` zaten mutlak konumlu çocuklara
           // kapsayıcı blok oluşturur.
           "fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[390px]",
-          "flex max-h-[86vh] flex-col rounded-t-2xl border-t border-white/10 bg-background",
+          // 90vh: seçim listesine olabildiğince yer kalsın, gün sayfası da
+          // üstte bir şerit olarak görünmeye devam etsin
+          "flex max-h-[90vh] flex-col rounded-t-2xl border-t border-white/10 bg-background",
           "shadow-[0_-8px_40px_rgba(0,0,0,0.55)]",
           "transition-transform duration-300 ease-out",
           open ? "translate-y-0" : "translate-y-full"
@@ -554,6 +557,7 @@ function PickStep({
 }) {
   const t = useT();
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [addCatOpen, setAddCatOpen] = useState(false);
 
   return (
     <>
@@ -586,6 +590,16 @@ function PickStep({
               Bitti
             </button>
           )}
+          {/* Kategori yaratmak listenin içinde bir satırdı ve seçim alanından
+              yer çalıyordu. Her kademede geçerli bir eylem olduğu için yeri
+              başlık hizası. */}
+          <button
+            onClick={() => setAddCatOpen(true)}
+            className="flex h-7 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] pl-2 pr-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground active:bg-white/[0.09]"
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.25} />
+            {t("entry.createCategory")}
+          </button>
           <button
             onClick={onClose}
             className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors"
@@ -621,6 +635,8 @@ function PickStep({
           />
         )}
       </div>
+
+      <CategoryForm open={addCatOpen} onOpenChange={setAddCatOpen} />
     </>
   );
 }

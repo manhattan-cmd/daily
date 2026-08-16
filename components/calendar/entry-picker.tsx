@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  Check,
   ChevronRight,
   Folder,
   FolderOpen,
@@ -19,7 +20,6 @@ import { db } from "@/lib/db";
 import { getEntryCountsBySubcategory } from "@/lib/db/queries";
 import { MEASURE_KIND_META } from "@/lib/measure-kinds";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
-import { CategoryForm } from "@/components/structure/category-form";
 import { HScroll } from "@/components/ui/h-scroll";
 import { SymbolIcon } from "@/lib/icons";
 import { usageSince } from "@/lib/usage";
@@ -56,6 +56,31 @@ const SEARCH_FROM = 10;
 const SECTIONS_FROM = 14;
 /** Sık girilen kategoriler çipleri bu sayıdan sonra anlamlı */
 const FREQ_CATS_FROM = 5;
+/** Hızlı ekle şeridinde en fazla bu kadar kart durur */
+const QUICK_MAX = 10;
+
+/**
+ * Şeride elle sabitlenen kalemler (localStorage).
+ *
+ * Şerit kendiliğinden en çok kullanılanlarla doluyor ama bu her zaman
+ * yetmiyor: yeni edinilen bir alışkanlık daha sayı biriktirmediği için
+ * şeride giremiyor, oysa kullanıcının en çok gireceği yer tam da orası.
+ * Sabitlenenler önde, kalan yerleri sıklık dolduruyor.
+ *
+ * Cihazda kalan bir görünüm tercihi olduğu için localStorage yetiyor —
+ * Dexie'ye tablo açmak yedek/senkron yüzeyini de büyütürdü.
+ */
+const LS_PINS = "entrypicker:pins";
+
+function readPins(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = JSON.parse(localStorage.getItem(LS_PINS) ?? "[]");
+    return Array.isArray(raw) ? raw.filter((x) => typeof x === "string") : [];
+  } catch {
+    return []; // okunamayan tercih sessizce boş sayılır
+  }
+}
 
 /** Türkçe duyarlı bölüm başlığı — ada göre A–Z gruplaması */
 function sectionKeyOf(name: string): string {
@@ -147,10 +172,26 @@ export function EntryPicker({
     categoryId: string;
     parentId?: string;
   } | null>(null);
-  const [addCatOpen, setAddCatOpen] = useState(false);
   // Bir kaleme varınca açılan ekle modülü — hızlı kayıt mı, detaylı mı
   const [commitOpen, setCommitOpen] = useState(false);
   const [query, setQuery] = useState("");
+  // Şeride elle eklenenler + onları seçtiren panel
+  const [pins, setPins] = useState<string[]>(readPins);
+  const [pinOpen, setPinOpen] = useState(false);
+
+  function togglePin(id: string) {
+    setPins((prev) => {
+      const next = prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : [...prev, id];
+      try {
+        localStorage.setItem(LS_PINS, JSON.stringify(next));
+      } catch {
+        /* kalıcı yazılamazsa oturum boyunca geçerli */
+      }
+      return next;
+    });
+  }
 
   const categories = useMemo(
     () => (groups ?? []).map((g) => g.category),
@@ -284,20 +325,26 @@ export function EntryPicker({
    */
   const quick = useMemo(() => {
     if (q || focus != null) return [];
-    return visibleSubs
+    // Önce elle sabitlenenler (kullanıcının sırasıyla), sonra sıklık
+    const pinned = pins
+      .map((id) => subById.get(id))
+      .filter((s): s is SubCategory => !!s);
+    const seen = new Set(pinned.map((s) => s.id));
+    const byUse = visibleSubs
+      .filter((s) => !seen.has(s.id))
       .map((sub) => ({ sub, n: entryCounts.get(sub.id) ?? 0 }))
       .filter((x) => x.n > 0)
       .sort((a, b) => b.n - a.n)
-      .slice(0, 8)
-      .map(({ sub }) => ({
-        id: sub.id,
-        name: sub.name,
-        icon: sub.icon,
-        color: catById.get(sub.categoryId)?.color ?? "#818cf8",
-        parent: catById.get(sub.categoryId)?.name ?? "",
-        sub,
-      }));
-  }, [visibleSubs, entryCounts, catById, q, focus]);
+      .map((x) => x.sub);
+    return [...pinned, ...byUse].slice(0, QUICK_MAX).map((sub) => ({
+      id: sub.id,
+      name: sub.name,
+      icon: sub.icon,
+      color: catById.get(sub.categoryId)?.color ?? "#818cf8",
+      parent: catById.get(sub.categoryId)?.name ?? "",
+      sub,
+    }));
+  }, [visibleSubs, subById, entryCounts, catById, q, focus, pins]);
 
   /**
    * Sık girilen kategoriler — uzun kategori listesinde aşağıda kalanlara
@@ -322,6 +369,37 @@ export function EntryPicker({
       .slice(0, 6);
     return hot.length >= 2 ? hot : [];
   }, [rows, groups, entryCounts, q, focus]);
+
+  /**
+   * Şeride eklenebilecekler: bütün kalemler, sabitlenmişler en üstte.
+   * Yol yazısı ("Spor › Koşu") aynı adı taşıyan iki kalemi ayırt ettiriyor.
+   */
+  const pinCandidates = useMemo(() => {
+    const pathOf = (s: SubCategory) => {
+      const parts: string[] = [];
+      let cur = s.parentId ? subById.get(s.parentId) : undefined;
+      while (cur) {
+        parts.unshift(cur.name);
+        cur = cur.parentId ? subById.get(cur.parentId) : undefined;
+      }
+      const cat = catById.get(s.categoryId)?.name;
+      return [cat, ...parts].filter(Boolean).join(" › ");
+    };
+    return visibleSubs
+      .map((sub) => ({
+        id: sub.id,
+        name: sub.name,
+        icon: sub.icon,
+        color: catById.get(sub.categoryId)?.color ?? "#818cf8",
+        path: pathOf(sub),
+      }))
+      .sort((a, b) => {
+        const pa = pins.indexOf(a.id);
+        const pb = pins.indexOf(b.id);
+        if (pa !== pb) return (pa < 0 ? 99 : pa) - (pb < 0 ? 99 : pb);
+        return a.path.localeCompare(b.path, "en") || a.name.localeCompare(b.name, "en");
+      });
+  }, [visibleSubs, subById, catById, pins]);
 
   const sections = useMemo(() => {
     if (q || filtered.length < SECTIONS_FROM)
@@ -503,25 +581,26 @@ export function EntryPicker({
         {/* Hızlı ekle en üstte ve sabit: en kısa yol o, listeyle birlikte
             kaymamalı. Kökte var — bir dalın içine girmiş kullanıcı zaten
             daraltmış oluyor. */}
-        {quick.length > 0 && <QuickRail items={quick} onPick={pickQuick} />}
+        {focusObj == null && (
+          <QuickRail
+            items={quick}
+            onPick={pickQuick}
+            onAdd={() => setPinOpen(true)}
+          />
+        )}
 
-        {/* Eylemler — sakin metin düğmeleri, asli eylemle yarışmıyorlar */}
-        <div className="flex shrink-0 items-center gap-2">
-          {focusObj == null ? (
-            <QuietButton icon={Plus} onClick={() => setAddCatOpen(true)}>
-              {t("tree.newCategory")}
+        {/* Eylemler — yalnız bir dalın içinde. Kategori yaratmak sheet
+            başlığına taşındı: her kademede duran bir eylem oraya ait. */}
+        {focusObj != null && (
+          <div className="flex shrink-0 items-center gap-2">
+            <QuietButton icon={FolderPlus} onClick={openAddSub}>
+              {t("tree.createSubcategory")}
             </QuietButton>
-          ) : (
-            <>
-              <QuietButton icon={FolderPlus} onClick={openAddSub}>
-                {t("tree.createSubcategory")}
-              </QuietButton>
-              <QuietButton icon={Layers} href={structureHref} onClick={onClose}>
-                {focusName}
-              </QuietButton>
-            </>
-          )}
-        </div>
+            <QuietButton icon={Layers} href={structureHref} onClick={onClose}>
+              {focusName}
+            </QuietButton>
+          </div>
+        )}
 
         {rows.length >= SEARCH_FROM && (
           <div className="relative shrink-0">
@@ -543,7 +622,10 @@ export function EntryPicker({
             <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               {t("entry.frequentCategories")}
             </div>
-            <HScroll className="gap-1.5 px-0.5 pb-0.5">
+            {/* Yatay kaymıyor, SARIYOR: yanlamasına kaydırmak listenin geri
+                kalanıyla aynı hareket değildi, kullanıcı hepsini aşağı
+                inerek görmek istiyor. */}
+            <div className="flex flex-wrap gap-1.5">
               {hotCats.map((r) => (
                 <button
                   key={`hot${r.id}`}
@@ -561,7 +643,7 @@ export function EntryPicker({
                   </span>
                 </button>
               ))}
-            </HScroll>
+            </div>
           </div>
         )}
 
@@ -657,6 +739,76 @@ export function EntryPicker({
         </>
       )}
 
+      {/* ── Şeride ekle ────────────────────────────────────────────────
+          Ayrı bir diyalog değil, aynı yüzeyin üstünde bir panel: üst üste
+          açılan diyaloglar bu uygulamada kırılgan. Seçilen kalem şeritte
+          en öne geçiyor, tekrar dokunmak çıkarıyor. */}
+      {pinOpen && (
+        <>
+          <div
+            className="absolute inset-0 z-30 bg-black/50"
+            onClick={() => setPinOpen(false)}
+          />
+          <div className="animate-in absolute inset-x-0 bottom-0 z-40 flex max-h-[85%] flex-col rounded-t-2xl border-t border-white/10 bg-background">
+            <div className="flex shrink-0 items-start gap-3 px-5 pb-3 pt-4">
+              <div className="min-w-0 flex-1">
+                <div className="text-base font-semibold leading-tight">
+                  {t("entry.pinTitle")}
+                </div>
+                <div className="mt-1 text-xs leading-snug text-muted-foreground">
+                  {t("entry.pinHint")}
+                </div>
+              </div>
+              <button
+                onClick={() => setPinOpen(false)}
+                aria-label={t("action.close")}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/6 text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-6">
+              <div className="overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.015]">
+                {pinCandidates.map((c) => {
+                  const on = pins.includes(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => togglePin(c.id)}
+                      aria-pressed={on}
+                      className="flex min-h-[56px] w-full items-center gap-3 border-t border-white/[0.06] px-3 py-2 text-left transition-colors first:border-t-0 hover:bg-white/[0.05] active:bg-white/[0.08]"
+                    >
+                      <Tile color={c.color} icon={c.icon} size={34} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium leading-tight text-foreground">
+                          {c.name}
+                        </span>
+                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                          {c.path}
+                        </span>
+                      </span>
+                      <span
+                        className={cn(
+                          "flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors",
+                          on ? "text-white" : "bg-white/[0.06] text-muted-foreground/50"
+                        )}
+                        style={on ? { backgroundColor: c.color } : undefined}
+                      >
+                        {on ? (
+                          <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                        ) : (
+                          <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <SubCategoryForm
         open={addSub !== null}
         onOpenChange={(o) => {
@@ -666,7 +818,6 @@ export function EntryPicker({
         parentSubcategoryId={addSub?.parentId}
         categoryName={addSub ? catById.get(addSub.categoryId)?.name : undefined}
       />
-      <CategoryForm open={addCatOpen} onOpenChange={setAddCatOpen} />
     </div>
   );
 }
@@ -809,33 +960,45 @@ function PickRow({ row: r, onOpen }: { row: Row; onOpen: (node: Node) => void })
 function QuickRail({
   items,
   onPick,
+  onAdd,
 }: {
   items: { id: string; name: string; icon?: string; color: string; parent: string; sub: SubCategory }[];
   onPick: (sub: SubCategory) => void;
+  /** Şeride elle kalem eklemek — sıklık her zaman doğru tahmin etmiyor */
+  onAdd: () => void;
 }) {
   const t = useT();
   return (
     <div className="shrink-0">
-      <div className="mb-2 flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      {/* Ekleme düğmesi BAŞLIK satırında: şeridin sonuna konunca kartların
+          arkasında kalıyor ve yatay kaydırmadan görünmüyordu. */}
+      <div className="mb-1.5 flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         <Zap className="h-3 w-3" />
         {t("entry.quickAdd")}
+        <button
+          onClick={onAdd}
+          className="ml-auto flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] py-1 pl-1.5 pr-2.5 text-[10px] font-medium normal-case tracking-normal text-muted-foreground transition-colors hover:text-foreground active:bg-white/[0.09]"
+        >
+          <Plus className="h-3 w-3" strokeWidth={2.5} />
+          {t("action.add")}
+        </button>
       </div>
-      {/* Kart nötr, karo renkli: kartı da renge boyamak sekiz ayrı renkli
-          dikdörtgen demekti ve şerit listeden daha gürültülü oluyordu.
-          Renk çıpası tek yerde dursun. */}
-      <HScroll className="gap-2 px-0.5 pb-0.5">
+      {/* Kart nötr, karo renkli: kartı da renge boyamak renkli dikdörtgen
+          yığını demekti ve şerit listeden gürültülü oluyordu. Renk çıpası
+          tek yerde dursun. */}
+      <HScroll className="gap-1.5 px-0.5 pb-0.5">
         {items.map((it) => (
           <button
             key={it.id}
             onClick={() => onPick(it.sub)}
-            className="flex w-[78px] shrink-0 flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] px-1.5 py-2.5 text-center transition-colors hover:bg-white/[0.07] active:bg-white/[0.09]"
+            className="flex w-[66px] shrink-0 flex-col items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.045] px-1 py-2 text-center transition-colors hover:bg-white/[0.07] active:bg-white/[0.09]"
           >
-            <Tile color={it.color} icon={it.icon} size={36} />
+            <Tile color={it.color} icon={it.icon} size={30} />
             <span className="w-full">
-              <span className="block truncate text-xs font-semibold leading-tight text-foreground">
+              <span className="block truncate text-[11px] font-semibold leading-tight text-foreground">
                 {it.name}
               </span>
-              <span className="mt-0.5 block truncate text-[10px] leading-tight text-muted-foreground">
+              <span className="block truncate text-[9px] leading-tight text-muted-foreground">
                 {it.parent}
               </span>
             </span>
