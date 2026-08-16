@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Check,
   ChevronRight,
+  Compass,
   Folder,
   FolderOpen,
   FolderPlus,
@@ -520,6 +521,39 @@ export function EntryPicker({
         </button>
       </div>
 
+      {/* Çizgi başlığı yoldan ayırıyor: üstünde sayfanın kim olduğu, altında
+          oraya nasıl gelindiği. Genişliği pencerelerinkiyle aynı (mx-3) —
+          farklı bir hizada duran bir çizgi ayırmıyor, çentik gibi duruyor.
+          Ortada değil solda soluyor: yol soldan başlıyor, ağırlık orada. */}
+      <div
+        className="mx-3 h-px shrink-0"
+        style={{
+          background:
+            "linear-gradient(to right, rgba(255,255,255,0.14), rgba(255,255,255,0.03))",
+        }}
+      />
+
+      {/* Pusula — yolun başladığı yeri işaretleyen küçük bir nişan.
+          Çiplerin kendisi "geri dönülebilir" olduğunu söylüyor ama satırın
+          ne olduğunu söylemiyordu; başlıkla arasına giren bu işaret onu
+          gezinme satırı olarak okutuyor. Bulunulan yerin renginde: sayfa
+          değişince o da değişiyor, yolun hangi ağaçta olduğu belli oluyor. */}
+      <div className="flex shrink-0 items-center px-3 pb-1 pt-2">
+        <span
+          className="flex h-5 w-5 items-center justify-center rounded-full"
+          style={{
+            background: `${centerColor}24`,
+            boxShadow: `inset 0 0 0 1px ${centerColor}59`,
+          }}
+        >
+          <Compass
+            className="h-3 w-3"
+            strokeWidth={2.25}
+            style={{ color: centerColor }}
+          />
+        </span>
+      </div>
+
       {/* Yol izi — nerede olduğun ve geri dönüş.
           Her basamak bir çip: ataları düz metin bırakmak satırı yarım
           bırakıyordu, çip olunca dokunulabilir oldukları da görünüyor.
@@ -528,20 +562,17 @@ export function EntryPicker({
           basamak ekrandan çıkınca kullanıcı nerede olduğunu göremiyordu.
           PENCERENİN ÜSTÜNDE ve hep aynı yerde: bir ara kökte gizliydi, bir
           kategoriye girince ortaya çıkıyor ve altındaki her şeyi aşağı
-          itiyordu. Satır artık kökte de duruyor — orada çipler yerine yalnız
-          "Kategori yarat" var, yükseklik aynı kalıyor.
-
-          Kökte tek çip yazılmıyor: başlıkta zaten "Kategoriler" yazıyor,
-          hemen altında ikinci kez söylemek kekeleme oluyordu. İlk basamak
-          bir yere GİRİLDİĞİNDE beliriyor, çünkü asıl işi orada: geri dönüş.
-          "Kategoriler" basamağı her zaman renkli — yolun kökü o. */}
+          itiyordu. Kökte de "Kategoriler" basamağı yazılıyor: başlıkla aynı
+          adı söylüyor ama iş bölümü ayrı — başlık sayfanın kimliği, çip
+          yolun ilk durağı. Satır boş kalınca gezinme çubuğu sanki yokmuş
+          gibi duruyordu. O basamak her zaman renkli — yolun kökü o. */}
       <div className="flex shrink-0 items-center gap-2 px-3 pb-2.5">
         <HScroll
           className="items-center gap-1"
           wrapperClassName="min-w-0 flex-1"
           followEnd={focusName}
         >
-          {(trail.length > 1 ? trail : []).map((tr, i) => {
+          {trail.map((tr, i) => {
             const last = i === trail.length - 1;
             const isRoot = i === 0;
             return (
