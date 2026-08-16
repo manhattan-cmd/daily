@@ -346,17 +346,20 @@ export function DayEntrySheet({
           // kapsayıcı blok oluşturur.
           "fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[390px]",
           "flex flex-col rounded-t-2xl border-t border-white/10 bg-background",
-          // Seçim adımında yükseklik İÇERİĞE göre (90vh tavanıyla): kısa bir
-          // listede yarısı boş bir yüzey açmak gereksiz.
+          // Yükseklik SABİT 90vh. Bir ara seçim adımı içeriğe göre
+          // büyüyordu (kısa listede yarısı boş yüzey açmayalım diye) ama
+          // kademeler arası zıplıyordu: 7 alt kategorili Harcamalar'dan
+          // 2 alt kategorili Kişisel Bakım'a geçince sayfa küçülüyor,
+          // göz her dokunuşta yeniden yerleşiyordu. Gezinilen bir yüzeyde
+          // sabit taban, boşluk kazanmaktan önemli.
           //
-          // Panel açan adımlarda (ekleme yüzeyi, uzun form) SABİT 90vh.
-          // Panel yüzeyin içinde `max-h-[86%]` olarak açılıyor; yüzey
-          // içeriğe göre küçükken o yüzde de küçülüyor, panel hem sıkışıyor
-          // hem yüzeyin dışına taşıyordu. Yüzdenin anlamlı olması için
-          // tabanın sabit olması gerekiyor.
-          step.type === "pick" || step.type === "activity-name"
-            ? "max-h-[90vh]"
-            : "h-[90vh]",
+          // Panel açan adımlarda zaten şarttı: panel `max-h-[86%]` ile
+          // açılıyor, yüzey içeriğe göre küçükken o yüzde de küçülüyor ve
+          // panel hem sıkışıyor hem dışarı taşıyordu.
+          //
+          // Tek istisna etkinlik adı: tek satırlık bir soru için tam boy
+          // yüzey açmak abes.
+          step.type === "activity-name" ? "max-h-[90vh]" : "h-[90vh]",
           "shadow-[0_-8px_40px_rgba(0,0,0,0.55)]",
           "transition-transform duration-300 ease-out",
           open ? "translate-y-0" : "translate-y-full"
@@ -609,12 +612,11 @@ function PickStep({
           Kaydırmayı seçicinin kendisi yönetiyor: yol izi ve "buraya ekle"
           üstte sabit kalmalı, yalnız liste kaymalı.
 
-          `flex-1` YOK: yüzeyin yüksekliği içeriğe göre (max-h ile sınırlı).
-          flex-basis:0 veren bir flex-1 burada zinciri çökertiyor ve liste
-          alttan kırpılıyordu. Doğru davranış küçülmeyle geliyor: içerik
-          sığdığı sürece kutu kadar, taşınca min-h-0 sayesinde kısalıp
-          kendi içinde kayıyor. */}
-      <div ref={scrollRef} className="flex min-h-0 flex-col">
+          `flex-1` VAR: yüzey artık sabit 90vh, o yüzden kalan boşluğu
+          doldurmak doğru — pencere kısa listede de aynı boyda duruyor.
+          (İçeriğe göre büyüyen bir yüzeyde bu yanlıştı: flex-basis:0
+          zinciri çökertip listeyi alttan kırpıyordu.) */}
+      <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col">
         {!groups || groups.length === 0 ? (
           <div className="flex flex-col items-center gap-3 px-5 py-12 text-center">
             <p className="text-sm text-muted-foreground">

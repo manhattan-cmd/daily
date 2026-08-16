@@ -489,7 +489,7 @@ export function EntryPicker({
         : `/structure/${focusObj.sub.categoryId}/${focusObj.sub.id}`;
 
   return (
-    <div className="relative flex min-h-0 flex-col">
+    <div className="relative flex min-h-0 flex-1 flex-col">
       {/* Yol izi — nerede olduğun ve geri dönüş.
           Her basamak bir çip: ataları düz metin bırakmak satırı yarım
           bırakıyordu, çip olunca dokunulabilir oldukları da görünüyor.
@@ -549,8 +549,10 @@ export function EntryPicker({
       </div>
 
       {/* Gövdenin penceresi. Yol izi dışarıda kaldığı için burada kuruluyor:
-          böylece izin konumu kademeye göre kaymıyor. */}
-      <div className="mx-3 mb-3 flex min-h-0 flex-col overflow-hidden rounded-2xl bg-primary/[0.04] pt-3 ring-1 ring-inset ring-primary/15">
+          böylece izin konumu kademeye göre kaymıyor. `flex-1` ile yüzeyin
+          kalanını dolduruyor — 2 alt kategorili bir kalemde pencere büzülüp
+          7'li kaleminkinden farklı bir kutuya dönüşüyordu. */}
+      <div className="mx-3 mb-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-primary/[0.04] pt-3 ring-1 ring-inset ring-primary/15">
 
         {/* Sabit üst bölüm: asli eylem, kısayollar ve arama listeyle birlikte
             kaymamalı — uzun listede aşağı inince arama kutusu kayboluyordu ve
@@ -614,8 +616,10 @@ export function EntryPicker({
           )}
         </div>
 
-        {/* Kayan bölüm: sık girilen kategoriler + gezinme listesi */}
-        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-3 pb-6">
+        {/* Kayan bölüm: sık girilen kategoriler + gezinme listesi.
+            Pencerenin kalanını kaplıyor ki kısa listede de parmak
+            pencerenin her yerinden kaydırabilsin. */}
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-3 pb-6">
           {/* Sık kullanılan kategoriler — ALTINDAKİ listenin aynı yapısında.
               Bir ara çipe çevrilmişti (tekrar gibi okunmasın diye); ama bu
               iki blok aynı şeyi seçtiriyor ve aynı görünmeleri doğru. Ayrımı
