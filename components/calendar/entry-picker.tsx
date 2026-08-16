@@ -454,7 +454,26 @@ export function EntryPicker({
     return list;
   }, [focusObj, subById, catById, t]);
 
+  /**
+   * Bir satıra dokunmak. Altı VARSA içine giriliyor; altı YOKSA gezinilecek
+   * bir şey kalmadığı için doğrudan ekleme formu açılıyor — orada özellikler,
+   * not ve zaman açık duruyor.
+   *
+   * Bir ara altı olmayan kalem de bir "son durak" sayfası açıyordu ve
+   * kullanıcı orada bir kez daha "Detay ekle"ye basıyordu: gidilecek yer
+   * yokken sayfa göstermek fazladan bir dokunuş. Değer girmeden hızlı kayıt
+   * isteyen "Hızlı ekle" şeridini kullanıyor, o yol duruyor.
+   */
   function drill(node: Node) {
+    const kids =
+      node.kind === "cat"
+        ? topSubsByCat.get(node.cat.id)?.length ?? 0
+        : childrenMap.get(node.sub.id)?.length ?? 0;
+    if (kids === 0) {
+      if (node.kind === "cat") onCategorySelect(node.cat);
+      else onSubSelect(node.sub);
+      return;
+    }
     setQuery("");
     setFocus(
       node.kind === "cat"
@@ -1024,7 +1043,19 @@ function PickRow({ row: r, onOpen }: { row: Row; onOpen: (node: Node) => void })
           </span>
         )}
       </span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+      {/* İşaret dokununca ne olacağını söylüyor: altı varsa içine girilir
+          (ok), yoksa kayıt oraya eklenir (artı). Her satıra ok koymak
+          yaprakta yalan oluyordu. */}
+      {r.kids > 0 ? (
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+      ) : (
+        <span
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+          style={{ background: `${r.color}26`, color: r.color }}
+        >
+          <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+        </span>
+      )}
     </button>
   );
 }
