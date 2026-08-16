@@ -16,6 +16,7 @@ import {
   createMod,
   renameMod,
   setModMeasure,
+  setModColor,
   deleteMod,
   findModByName,
   type ModMeasure,
@@ -52,6 +53,8 @@ import { StructureTabs } from "@/components/structure/structure-tabs";
 import { useT } from "@/lib/i18n";
 import { confirmDialog } from "@/components/ui/confirm";
 import { cn } from "@/lib/utils";
+import { modColor } from "@/lib/mod-color";
+import { CATEGORY_COLORS } from "@/types";
 
 type Usage = { count: number; places: string[]; valueCount: number };
 
@@ -68,6 +71,7 @@ export default function ModsHomePage() {
   const [detailView, setDetailView] = useState<"info" | "edit">("info");
   const [editName, setEditName] = useState("");
   const [editMeasure, setEditMeasure] = useState<ModMeasure>({ valueType: "number" });
+  const [editColor, setEditColor] = useState<string>(CATEGORY_COLORS[0]);
   const [editError, setEditError] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   // Havuzda arama — büyüteç açar, yazdıkça iki bölüm birden süzülür
@@ -121,6 +125,8 @@ export default function ModsHomePage() {
 
   function openEdit(mod: ModWithType) {
     setEditName(mod.name);
+    // Rengi yoksa adından türetileni göster: seçici boş başlamasın
+    setEditColor(modColor(mod));
     setEditMeasure({
       valueType: mod.valueType ?? "number",
       unit: mod.unit,
@@ -165,6 +171,7 @@ export default function ModsHomePage() {
       }
       // Ölçü değişikliği — mod + tüm atamaları senkronlanır
       await setModMeasure(selected.id, editMeasure);
+      await setModColor(selected.id, editColor);
       setSelected(null);
     } finally {
       setEditSaving(false);
@@ -413,6 +420,28 @@ export default function ModsHomePage() {
                       {t("features.nameClash")}
                     </p>
                   )}
+              </div>
+
+              {/* Renk — boşken addan türetiliyor, buradan sabitleniyor.
+                  Girdi formunda özellikler yan yana duruyor ve hepsi aynı
+                  renkteyken hangisi hangisi ancak okuyarak anlaşılıyordu. */}
+              <div className="flex flex-col gap-2">
+                <Label>{t("tree.colour")}</Label>
+                <div className="grid grid-cols-5 gap-2">
+                  {CATEGORY_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setEditColor(c)}
+                      className={cn(
+                        "h-9 rounded-lg border-2 transition-all",
+                        editColor === c ? "scale-105 border-foreground" : "border-transparent"
+                      )}
+                      style={{ backgroundColor: c }}
+                      aria-label={c}
+                    />
+                  ))}
+                </div>
               </div>
 
               {/* Nasıl ölçülüyor — ölçü artık ayrı bir nesne değil */}

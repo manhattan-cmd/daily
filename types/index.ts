@@ -145,6 +145,12 @@ export interface GlobalDimension {
 export interface Mod {
   id: string;
   name: string;
+  /**
+   * Özelliğin kendi rengi. Boşsa adından türetiliyor (bkz. lib/mod-color) —
+   * böylece hiçbir özellik renksiz kalmıyor, seçmek isteyen de kendi rengini
+   * koyabiliyor. İndekssiz alan: Dexie göçü gerekmiyor.
+   */
+  color?: string;
   /** Nasıl ölçülüyor */
   valueType: EntryValueType;
   /** number'da sayının yanına gelen ek ("₺", "dk", "kg"). Özelliğin adı zaten

@@ -992,6 +992,11 @@ export async function createMod(
   return { mod, created: true };
 }
 
+/** Özelliğin rengini ayarla */
+export async function setModColor(modId: string, color: string): Promise<void> {
+  await db.mods.update(modId, { color, updatedAt: now() });
+}
+
 /** Yeniden adlandırma da tekillik korur; çakışmada false döner. */
 export async function renameMod(modId: string, name: string): Promise<boolean> {
   const clash = await findModByName(name);

@@ -3,12 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Boxes, ChevronDown, Clock, Link2, Plus, X } from "lucide-react";
+import { ArrowLeft, Boxes, Check, ChevronDown, Clock, Link2, Plus, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
 import {
   listModifiersForTarget,
-  removeModifier,
   createEntry,
   ensureActivity,
   getOrCreateCategoryRootSub,
@@ -19,6 +18,7 @@ import {
 import { useT } from "@/lib/i18n";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { modAtomIcon } from "@/components/structure/mod-atom";
+import { modColor } from "@/lib/mod-color";
 import type { LucideIcon } from "lucide-react";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
@@ -712,10 +712,6 @@ function FormStep({
   // Menüde bir şey ayarlanmışsa düğmede nokta belirir
   const optionsTouched = timeChanged || selectedParallels.length > 0;
 
-  async function handleRemoveMod(mod: CategoryModifierWithType) {
-    await removeModifier(mod.id);
-    onValueChange(valueKey(mod), "");
-  }
 
   const hasParallelSelected = selectedParallels.length > 0;
   const saveLabel = saving
@@ -862,10 +858,9 @@ function FormStep({
                   key={mod.id}
                   mod={mod}
                   icon={modAtomIcon(mod)}
-                  color={category?.color ?? "#818cf8"}
+                  color={modColor(mod.mod ?? { name: mod.name ?? mod.entryType.name })}
                   value={values[valueKey(mod)] ?? ""}
                   onChange={(v) => onValueChange(valueKey(mod), v)}
-                  onRemove={lockedTypeIds.has(sharedKey(mod)) ? undefined : () => handleRemoveMod(mod)}
                   isLocked={lockedTypeIds.has(sharedKey(mod))}
                   entryDate={entryDate}
                   defaultOpen={mod.modId === focusModId}
@@ -1039,7 +1034,6 @@ function FeatureRow({
   color,
   value,
   onChange,
-  onRemove,
   isLocked,
   entryDate,
   defaultOpen,
@@ -1049,7 +1043,6 @@ function FeatureRow({
   color: string;
   value: string;
   onChange: (v: string) => void;
-  onRemove?: () => void;
   isLocked: boolean;
   entryDate: string;
   /** Yeni eklenen özellik açık gelsin — kullanıcı onu girmek için ekledi */
@@ -1057,6 +1050,7 @@ function FeatureRow({
 }) {
   const t = useT();
   const [open, setOpen] = useState(defaultOpen);
+  const onDone = () => setOpen(false);
   const label = mod.name ?? mod.entryType.name;
   const summary = valueSummary(mod, value);
 
@@ -1111,17 +1105,20 @@ function FeatureRow({
             autoFocus={defaultOpen}
             hideLabel
           />
-          {/* Çıkarma adıyla duruyor: bu düğme özelliği kalemden koparıyor,
-              satırın kenarındaki bir çarpı olarak yanlışlıkla basılabilirdi */}
-          {onRemove && (
-            <button
-              type="button"
-              onClick={onRemove}
-              className="self-end text-[11px] font-medium leading-4 text-muted-foreground/60 transition-colors hover:text-foreground"
-            >
-              {t("entry.removeFeature")}
-            </button>
-          )}
+          {/* Kapatan bir onay: değer girildikten sonra çekmeceyi kapatmanın
+              yolu yalnız başlıktaki ok olunca kullanıcı orayı aramak zorunda
+              kalıyordu. Özelliği kalemden koparan düğme buradan kalktı — bu
+              yapısal bir iş ve her kayıt eklemede göz önünde durmamalı
+              (yeri: Yapı > Özellikler). */}
+          <button
+            type="button"
+            onClick={onDone}
+            className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold transition-opacity active:opacity-80"
+            style={{ background: `${color}26`, color }}
+          >
+            <Check className="h-4 w-4" strokeWidth={2.5} />
+            {t("action.done")}
+          </button>
         </div>
       )}
     </div>
