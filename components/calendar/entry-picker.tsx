@@ -521,6 +521,13 @@ export function EntryPicker({
       : focusObj.type === "cat"
         ? focusObj.cat.icon
         : focusObj.sub.icon;
+  /** Gezinme listesinin başlığı; aramada yok, sonuçlar zaten kendini anlatıyor */
+  const listLabel = q
+    ? ""
+    : focusObj != null
+      ? t("entry.childrenOf", { name: focusName })
+      : t("entry.allCategories");
+
   const focusMods =
     focusObj == null
       ? []
@@ -741,25 +748,28 @@ export function EntryPicker({
             </p>
           ) : null
         ) : (
-          sections.map((sec) => (
-            // Bir dalın içindeyken listenin başlığı KİMİN listesi olduğunu
-            // söylüyor. Başlıksızken "Harcamalar" sayfasındaki satırların
-            // Harcamalar'ın altı mı yoksa başka bir şey mi olduğu belli
-            // değildi — üstteki "buraya ekle" ile birlikte kafa karıştırıyordu.
-            <Section
-              key={sec.key}
-              label={
-                sec.key ||
-                (focusObj != null && !q
-                  ? t("entry.childrenOf", { name: focusName })
-                  : "")
-              }
-            >
-              {sec.items.map((r) => (
-                <PickRow key={r.id} row={r} onOpen={drill} />
-              ))}
-            </Section>
-          ))
+          // Listenin başlığı KİMİN listesi olduğunu söylüyor: kökte "Tüm
+          // kategoriler" (üstündeki sık kullanılanlardan ayrılsın diye),
+          // bir dalın içinde "Spor alt kategorileri". Başlıksızken
+          // satırların neyin altı olduğu belli değildi.
+          <div className="flex shrink-0 flex-col gap-3">
+            {listLabel && sections.length > 1 && (
+              // A–Z'ye bölünmüş listede başlık bir kez, harflerin üstünde
+              <div className="px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/60">
+                {listLabel}
+              </div>
+            )}
+            {sections.map((sec) => (
+              <Section
+                key={sec.key}
+                label={sec.key || (sections.length === 1 ? listLabel : "")}
+              >
+                {sec.items.map((r) => (
+                  <PickRow key={r.id} row={r} onOpen={drill} />
+                ))}
+              </Section>
+            ))}
+          </div>
         )}
 
         {focusObj == null && rows.length === 0 && (
