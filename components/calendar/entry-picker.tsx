@@ -12,6 +12,7 @@ import {
   Search,
   Sparkles,
   X,
+  Zap,
 } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
@@ -21,7 +22,7 @@ import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { CategoryForm } from "@/components/structure/category-form";
 import { HScroll } from "@/components/ui/h-scroll";
 import { SymbolIcon } from "@/lib/icons";
-import { usageIntensity, usageRate, usageSince } from "@/lib/usage";
+import { usageSince } from "@/lib/usage";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Category, Mod, SubCategory } from "@/types";
@@ -61,11 +62,47 @@ function sectionKeyOf(name: string): string {
 }
 const norm = (s: string) => s.toLocaleLowerCase("tr").trim();
 
-/** 0–1 → iki haneli onaltılık alfa */
-const hexA = (v: number) =>
-  Math.round(Math.max(0, Math.min(1, v)) * 255)
-    .toString(16)
-    .padStart(2, "0");
+/** Rengi ton çemberinde kaydır — aynı ailenin komşu tonları */
+function shiftHue(hex: string, deg: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const num = parseInt(m[1], 16);
+  const r = (num >> 16) / 255;
+  const g = ((num >> 8) & 255) / 255;
+  const b = (num & 255) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  let h = 0;
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+  }
+  h = (h * 60 + deg + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const mm = l - c / 2;
+  const [rr, gg, bb] =
+    h < 60
+      ? [c, x, 0]
+      : h < 120
+        ? [x, c, 0]
+        : h < 180
+          ? [0, c, x]
+          : h < 240
+            ? [0, x, c]
+            : h < 300
+              ? [x, 0, c]
+              : [c, 0, x];
+  const hx = (v: number) =>
+    Math.round((v + mm) * 255)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${hx(rr)}${hx(gg)}${hx(bb)}`;
+}
 
 type Row = {
   node: Node;
@@ -75,8 +112,6 @@ type Row = {
   color: string;
   /** Kaç alt kalemi var */
   kids: number;
-  /** 0–1 kullanım yoğunluğu (son 30 gün, alt ağaç dahil) */
-  use: number;
 };
 
 /**
@@ -154,40 +189,6 @@ export function EntryPicker({
     useLiveQuery(() => getEntryCountsBySubcategory(usageSince()), []) ??
     NO_COUNTS;
 
-  const subtreeCounts = useMemo(() => {
-    const all = (groups ?? []).flatMap((g) => g.allSubs);
-    const kids = new Map<string, SubCategory[]>();
-    for (const s of all) {
-      if (!s.parentId) continue;
-      const arr = kids.get(s.parentId) ?? [];
-      arr.push(s);
-      kids.set(s.parentId, arr);
-    }
-    const totals = new Map<string, number>();
-    const walk = (s: SubCategory): number => {
-      const cached = totals.get(s.id);
-      if (cached !== undefined) return cached;
-      totals.set(s.id, 0); // döngüye karşı koruma
-      let sum = entryCounts.get(s.id) ?? 0;
-      for (const k of kids.get(s.id) ?? []) sum += walk(k);
-      totals.set(s.id, sum);
-      return sum;
-    };
-    for (const s of all) walk(s);
-    return totals;
-  }, [groups, entryCounts]);
-
-  const catCounts = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const g of groups ?? []) {
-      m.set(
-        g.category.id,
-        g.allSubs.reduce((n, s) => n + (entryCounts.get(s.id) ?? 0), 0)
-      );
-    }
-    return m;
-  }, [groups, entryCounts]);
-
   const focusObj: Focus = useMemo(() => {
     if (focus == null) return null;
     if (focus.type === "cat") {
@@ -237,44 +238,64 @@ export function EntryPicker({
     return map;
   }, []);
 
-  const rows: Row[] = useMemo(
-    () =>
-      nodes.map((node) => {
-        const isCat = node.kind === "cat";
-        const weight = isCat
-          ? catCounts.get(node.cat.id) ?? 0
-          : subtreeCounts.get(node.sub.id) ?? 0;
-        return {
-          node,
-          id: isCat ? node.cat.id : node.sub.id,
-          name: isCat ? node.cat.name : node.sub.name,
-          icon: isCat ? node.cat.icon : node.sub.icon,
-          color: isCat ? node.cat.color : centerColor,
-          kids: isCat
-            ? topSubsByCat.get(node.cat.id)?.length ?? 0
-            : childrenMap.get(node.sub.id)?.length ?? 0,
-          use: usageIntensity(usageRate(weight)),
-        };
-      }),
-    [nodes, centerColor, topSubsByCat, childrenMap, subtreeCounts, catCounts]
-  );
+  /**
+   * Kardeşlerin tonu. Bir kategorinin içinde bütün kalemler dalın rengini
+   * alıyordu ve sayfa tek renge boyanıyordu — dört turuncu karo üst üste.
+   * Şimdi her kardeş o rengin komşu tonunu alıyor: aile belli, kalemler
+   * ayrı. Harita da aynı dili konuşuyor (neural-map).
+   */
+  const rows: Row[] = useMemo(() => {
+    const n = nodes.length;
+    const spread = Math.max(28, Math.min(72, 18 * (n - 1)));
+    return nodes.map((node, i) => {
+      const isCat = node.kind === "cat";
+      return {
+        node,
+        id: isCat ? node.cat.id : node.sub.id,
+        name: isCat ? node.cat.name : node.sub.name,
+        icon: isCat ? node.cat.icon : node.sub.icon,
+        color: isCat
+          ? node.cat.color
+          : n <= 1
+            ? centerColor
+            : shiftHue(centerColor, (i / (n - 1) - 0.5) * spread),
+        kids: isCat
+          ? topSubsByCat.get(node.cat.id)?.length ?? 0
+          : childrenMap.get(node.sub.id)?.length ?? 0,
+      };
+    });
+  }, [nodes, centerColor, topSubsByCat, childrenMap]);
 
   const q = norm(query);
   const filtered = q ? rows.filter((r) => norm(r.name).includes(q)) : rows;
 
   /**
-   * Sık kullanılanlar — uzun listede aşağıda kalanlara kısayol. Yalnız liste
-   * A–Z'ye bölünecek kadar uzunken çıkıyor: kısa listede aynı kalem hem
-   * yukarıda hem aşağıda görünüyor ve tekrar hataya benziyor. Aramada gizli,
-   * hiç kullanılmamışlar girmiyor.
+   * Hızlı ekle — ağacın HER YERİNDEN, en çok kayıt alan kalemler.
+   *
+   * Bulunulan kademenin çocukları değil: kayıt "Sağlık > Su"ya giriliyor,
+   * "Sağlık"a değil. Kökte gezinmeden oraya atlamak iki üç dokunuş
+   * kazandırıyor — seçicinin bütün ölçüsü bu. Sayım kalemin KENDİ girdisi
+   * (alt ağaç toplamı değil): dokunulunca kayıt oraya gidecek.
+   *
+   * Yalnız kökte ve arama yokken: bir dalın içine girmiş kullanıcı zaten
+   * daraltmış oluyor.
    */
-  const frequent = useMemo(() => {
-    if (q || rows.length < SECTIONS_FROM) return [];
-    return rows
-      .filter((r) => r.use > 0)
-      .sort((a, b) => b.use - a.use)
-      .slice(0, 4);
-  }, [rows, q]);
+  const quick = useMemo(() => {
+    if (q || focus != null) return [];
+    return visibleSubs
+      .map((sub) => ({ sub, n: entryCounts.get(sub.id) ?? 0 }))
+      .filter((x) => x.n > 0)
+      .sort((a, b) => b.n - a.n)
+      .slice(0, 8)
+      .map(({ sub }) => ({
+        id: sub.id,
+        name: sub.name,
+        icon: sub.icon,
+        color: catById.get(sub.categoryId)?.color ?? "#818cf8",
+        parent: catById.get(sub.categoryId)?.name ?? "",
+        sub,
+      }));
+  }, [visibleSubs, entryCounts, catById, q, focus]);
 
   const sections = useMemo(() => {
     if (q || filtered.length < SECTIONS_FROM)
@@ -328,6 +349,12 @@ export function EntryPicker({
         ? { type: "cat", id: node.cat.id }
         : { type: "sub", id: node.sub.id }
     );
+  }
+  /** Şeritten seçim: o kaleme geç ve ekle modülünü aç — gezinme yok */
+  function pickQuick(sub: SubCategory) {
+    setQuery("");
+    setFocus({ type: "sub", id: sub.id });
+    setCommitOpen(true);
   }
   function commitQuick() {
     if (focusObj == null) return;
@@ -447,6 +474,11 @@ export function EntryPicker({
           </button>
         )}
 
+        {/* Hızlı ekle en üstte ve sabit: en kısa yol o, listeyle birlikte
+            kaymamalı. Kökte var — bir dalın içine girmiş kullanıcı zaten
+            daraltmış oluyor. */}
+        {quick.length > 0 && <QuickRail items={quick} onPick={pickQuick} />}
+
         {/* Eylemler — sakin metin düğmeleri, asli eylemle yarışmıyorlar */}
         <div className="flex shrink-0 items-center gap-2">
           {focusObj == null ? (
@@ -478,16 +510,8 @@ export function EntryPicker({
         )}
       </div>
 
-      {/* Kayan bölüm: yalnız liste */}
-      <div className="flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain px-4 pb-6">
-        {frequent.length > 0 && (
-          <Section label={t("entry.frequent")} icon={Sparkles}>
-            {frequent.map((r) => (
-              <PickRow key={`f${r.id}`} row={r} onOpen={drill} />
-            ))}
-          </Section>
-        )}
-
+      {/* Kayan bölüm: yalnız gezinme listesi */}
+      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-4 pb-6">
         {filtered.length === 0 ? (
           <p className="px-1 py-8 text-center text-sm text-muted-foreground">
             {t("entry.noMatch")}
@@ -595,37 +619,65 @@ export function EntryPicker({
 }
 
 /**
- * Kalemin karosu. Yapı sayfalarındaki karo dışa ışıma yapıyor; burada o
- * ışıma yok — liste uzun ve her satırda bir hale varken sayfa uzay
- * boşluğuna dönüyordu. Kalan şey rengin kendisi: hafif bir zemin, saç
- * teli kalınlığında bir çeper.
+ * Karonun üstünde okunacak mürekkep. Sarı, limon, açık turkuaz gibi
+ * renklerde beyaz simge kayboluyor; parlaklığa göre siyaha dönüyor.
+ */
+function inkOn(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return "#fff";
+  const n = parseInt(m[1], 16);
+  const lin = (v: number) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  const L =
+    0.2126 * lin((n >> 16) & 255) +
+    0.7152 * lin((n >> 8) & 255) +
+    0.0722 * lin(n & 255);
+  return L > 0.45 ? "#0b0c10" : "#ffffff";
+}
+
+/**
+ * Kalemin karosu — DOLU renk, üstünde okunur bir simge.
+ *
+ * İki uçtan da dönüldü. Önce dışa ışıyan bir haleydi ve liste boyunca
+ * tekrarlayınca sayfa uzay boşluğuna dönüyordu; sonra rengi %16 alfaya
+ * indirdik ve bu sefer her şey soldu. Doğrusu ortada değil, başka bir
+ * yerde: renk TAM doygun ama ışımıyor. Karo listenin renk çıpası,
+ * gerisi nötr kalıyor.
  */
 function Tile({
   color,
   icon,
   fallback: Fallback = Folder,
-  dim = false,
+  size = 40,
 }: {
   color: string;
   icon?: string;
   fallback?: typeof Folder;
-  /** Hiç kullanılmamış kalem — karo geri çekilir */
-  dim?: boolean;
+  size?: number;
 }) {
+  const ink = inkOn(color);
+  const glyph = Math.round(size * 0.5);
   return (
     <span
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px]"
+      className="flex shrink-0 items-center justify-center"
       style={{
-        background: `${color}${hexA(dim ? 0.1 : 0.16)}`,
-        boxShadow: `inset 0 0 0 1px ${color}${hexA(dim ? 0.18 : 0.3)}`,
+        width: size,
+        height: size,
+        borderRadius: Math.round(size * 0.28),
+        backgroundColor: color,
+        // Üstten gelen ince ışık + koyu çeper: dolu renk yassı durmasın
+        boxShadow:
+          "inset 0 1px 0 rgba(255,255,255,0.25), inset 0 0 0 1px rgba(0,0,0,0.14)",
       }}
     >
       {icon ? (
-        <SymbolIcon name={icon} size={19} style={{ color, opacity: dim ? 0.7 : 1 }} />
+        <SymbolIcon name={icon} size={glyph} style={{ color: ink }} />
       ) : (
         <Fallback
-          style={{ color, width: 19, height: 19, opacity: dim ? 0.7 : 1 }}
-          strokeWidth={1.75}
+          style={{ color: ink, width: glyph, height: glyph }}
+          strokeWidth={2}
         />
       )}
     </span>
@@ -658,41 +710,86 @@ function Section({
 }
 
 /**
- * Liste satırı. Kullanım sıklığı ışımayla değil TONLA anlatılıyor:
- * uğranmayan kalem geri çekiliyor, uğranılan tam renginde duruyor. Aynı
- * bilgi, sakin bir dille.
+ * Liste satırı. Kullanım sıklığı SATIRDA anlatılmıyor — bir ara sönük
+ * kalemleri soluklaştırıyorduk ve liste bütün olarak cansız görünüyordu.
+ * Sıklığın yeri "Hızlı ekle" şeridi; gezinme listesi net ve eşit duruyor.
  */
 function PickRow({ row: r, onOpen }: { row: Row; onOpen: (node: Node) => void }) {
   const t = useT();
-  const dim = r.use === 0;
   return (
     <button
       onClick={() => onOpen(r.node)}
-      className="flex w-full items-center gap-3 border-t border-white/[0.06] px-3 py-2.5 text-left transition-colors first:border-t-0 hover:bg-white/[0.04] active:bg-white/[0.06]"
+      // Sabit en az yükseklik: alt kalemi olmayan satır tek satırlık kalıp
+      // listeyi tırtıklı gösteriyordu
+      className="flex min-h-[60px] w-full items-center gap-3 border-t border-white/[0.06] px-3 py-2.5 text-left transition-colors first:border-t-0 hover:bg-white/[0.05] active:bg-white/[0.08]"
     >
       <Tile
         color={r.color}
         icon={r.icon}
         fallback={r.kids > 0 ? FolderOpen : Folder}
-        dim={dim}
       />
       <span className="min-w-0 flex-1">
-        <span
-          className={cn(
-            "block truncate text-[15px] leading-tight",
-            dim ? "font-medium text-foreground/60" : "font-medium text-foreground"
-          )}
-        >
+        <span className="block truncate text-[15px] font-medium leading-tight text-foreground">
           {r.name}
         </span>
         {r.kids > 0 && (
-          <span className="mt-0.5 block text-xs text-muted-foreground/70">
+          <span className="mt-0.5 block text-xs text-muted-foreground">
             {t("tree.subItemCount", { count: r.kids })}
           </span>
         )}
       </span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
     </button>
+  );
+}
+
+/**
+ * Hızlı ekle — en çok kayıt aldığın kalemler, gezinmeden.
+ *
+ * Bir ara bunlar listenin başına ikinci bir liste olarak konuyordu ve aynı
+ * kalem iki kez görünüyordu; hataya benziyordu, sonra da eşiğin arkasına
+ * saklandı ve büsbütün kayboldu. Doğru yer burası ve doğru biçim ŞERİT:
+ * listeden farklı bir şekli olduğu için tekrar gibi okunmuyor, kendi işini
+ * söylüyor. İçindekiler ağacın HER YERİNDEN gelen yapraklar — dokununca
+ * doğrudan ekle modülü açılıyor, iki üç dokunuş birden kalkıyor.
+ */
+function QuickRail({
+  items,
+  onPick,
+}: {
+  items: { id: string; name: string; icon?: string; color: string; parent: string; sub: SubCategory }[];
+  onPick: (sub: SubCategory) => void;
+}) {
+  const t = useT();
+  return (
+    <div className="shrink-0">
+      <div className="mb-2 flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <Zap className="h-3 w-3" />
+        {t("entry.quickAdd")}
+      </div>
+      {/* Kart nötr, karo renkli: kartı da renge boyamak sekiz ayrı renkli
+          dikdörtgen demekti ve şerit listeden daha gürültülü oluyordu.
+          Renk çıpası tek yerde dursun. */}
+      <HScroll className="gap-2 px-0.5 pb-0.5">
+        {items.map((it) => (
+          <button
+            key={it.id}
+            onClick={() => onPick(it.sub)}
+            className="flex w-[78px] shrink-0 flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] px-1.5 py-2.5 text-center transition-colors hover:bg-white/[0.07] active:bg-white/[0.09]"
+          >
+            <Tile color={it.color} icon={it.icon} size={36} />
+            <span className="w-full">
+              <span className="block truncate text-xs font-semibold leading-tight text-foreground">
+                {it.name}
+              </span>
+              <span className="mt-0.5 block truncate text-[10px] leading-tight text-muted-foreground">
+                {it.parent}
+              </span>
+            </span>
+          </button>
+        ))}
+      </HScroll>
+    </div>
   );
 }
 
