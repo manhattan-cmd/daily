@@ -16,16 +16,14 @@ import {
   Zap,
 } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
 import { getEntryCountsBySubcategory } from "@/lib/db/queries";
-import { MEASURE_KIND_META } from "@/lib/measure-kinds";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { HScroll } from "@/components/ui/h-scroll";
 import { SymbolIcon } from "@/lib/icons";
 import { usageSince } from "@/lib/usage";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import type { Category, Mod, SubCategory } from "@/types";
+import type { Category, SubCategory } from "@/types";
 
 export type NetGroup = {
   category: Category;
@@ -152,18 +150,17 @@ type Row = {
  */
 export function EntryPicker({
   groups,
-  onSubSelect,
-  onCategorySelect,
-  onQuickAdd,
-  onQuickAddCategory,
+  onPick,
+  onPickCategory,
   onClose,
 }: {
   groups: NetGroup[] | undefined;
-  onSubSelect: (sub: SubCategory) => void;
-  onCategorySelect: (category: Category) => void;
-  /** Formu açmadan kaydet — "koştum" demek için detay şart değil */
-  onQuickAdd: (sub: SubCategory) => void;
-  onQuickAddCategory: (category: Category) => void;
+  /**
+   * Bir kaleme kayıt aç. Seçicinin tek çıkışı bu: yaprağa dokunmak, hızlı
+   * ekle şeridi ve "buraya ekle" aynı yüzeyi açıyor.
+   */
+  onPick: (sub: SubCategory) => void;
+  onPickCategory: (category: Category) => void;
   onClose: () => void;
 }) {
   const t = useT();
@@ -172,8 +169,6 @@ export function EntryPicker({
     categoryId: string;
     parentId?: string;
   } | null>(null);
-  // Bir kaleme varınca açılan ekle modülü — hızlı kayıt mı, detaylı mı
-  const [commitOpen, setCommitOpen] = useState(false);
   const [query, setQuery] = useState("");
   // Şeride elle eklenenler + onları seçtiren panel
   const [pins, setPins] = useState<string[]>(readPins);
@@ -263,30 +258,6 @@ export function EntryPicker({
     }));
   }, [focusObj, categories, topSubsByCat, childrenMap]);
 
-  /** Odaktaki kalemde ölçülen özellikler — ekle modülü bunları gösteriyor */
-  const modsByTarget = useLiveQuery(async () => {
-    const [atts, mods] = await Promise.all([
-      db.categoryModifiers.toArray(),
-      db.mods.toArray(),
-    ]);
-    const modById = new Map(mods.map((m) => [m.id, m]));
-    const map = new Map<string, Mod[]>();
-    for (const a of atts.sort((x, y) => x.order - y.order)) {
-      const m = a.modId ? modById.get(a.modId) : undefined;
-      if (!m) continue;
-      const arr = map.get(a.targetId) ?? [];
-      if (!arr.some((x) => x.id === m.id)) arr.push(m);
-      map.set(a.targetId, arr);
-    }
-    return map;
-  }, []);
-
-  /**
-   * Kardeşlerin tonu. Bir kategorinin içinde bütün kalemler dalın rengini
-   * alıyordu ve sayfa tek renge boyanıyordu — dört turuncu karo üst üste.
-   * Şimdi her kardeş o rengin komşu tonunu alıyor: aile belli, kalemler
-   * ayrı. Harita da aynı dili konuşuyor (neural-map).
-   */
   const rows: Row[] = useMemo(() => {
     const n = nodes.length;
     const spread = Math.max(28, Math.min(72, 18 * (n - 1)));
@@ -470,8 +441,8 @@ export function EntryPicker({
         ? topSubsByCat.get(node.cat.id)?.length ?? 0
         : childrenMap.get(node.sub.id)?.length ?? 0;
     if (kids === 0) {
-      if (node.kind === "cat") onCategorySelect(node.cat);
-      else onSubSelect(node.sub);
+      if (node.kind === "cat") onPickCategory(node.cat);
+      else onPick(node.sub);
       return;
     }
     setQuery("");
@@ -481,23 +452,11 @@ export function EntryPicker({
         : { type: "sub", id: node.sub.id }
     );
   }
-  /** Şeritten seçim: o kaleme geç ve ekle modülünü aç — gezinme yok */
-  function pickQuick(sub: SubCategory) {
-    setQuery("");
-    setFocus({ type: "sub", id: sub.id });
-    setCommitOpen(true);
-  }
-  function commitQuick() {
+  /** Bulunulan yerin kendisine kayıt — kategoriyse gizli kökü üzerinden */
+  function pickHere() {
     if (focusObj == null) return;
-    setCommitOpen(false);
-    if (focusObj.type === "cat") onQuickAddCategory(focusObj.cat);
-    else onQuickAdd(focusObj.sub);
-  }
-  function commitDetailed() {
-    if (focusObj == null) return;
-    setCommitOpen(false);
-    if (focusObj.type === "cat") onCategorySelect(focusObj.cat);
-    else onSubSelect(focusObj.sub);
+    if (focusObj.type === "cat") onPickCategory(focusObj.cat);
+    else onPick(focusObj.sub);
   }
   function openAddSub() {
     if (focusObj == null) return;
@@ -515,12 +474,6 @@ export function EntryPicker({
       : focusObj.type === "cat"
         ? focusObj.cat.name
         : focusObj.sub.name;
-  const focusIcon =
-    focusObj == null
-      ? undefined
-      : focusObj.type === "cat"
-        ? focusObj.cat.icon
-        : focusObj.sub.icon;
   /** Gezinme listesinin başlığı; aramada yok, sonuçlar zaten kendini anlatıyor */
   const listLabel = q
     ? ""
@@ -528,12 +481,6 @@ export function EntryPicker({
       ? t("entry.childrenOf", { name: focusName })
       : t("entry.allCategories");
 
-  const focusMods =
-    focusObj == null
-      ? []
-      : modsByTarget?.get(
-          focusObj.type === "cat" ? focusObj.cat.id : focusObj.sub.id
-        ) ?? [];
   const structureHref =
     focusObj == null
       ? ""
@@ -606,71 +553,6 @@ export function EntryPicker({
             "buraya mı ekleyeyim, aşağıdan mı seçeyim" ikilemini büyütüyordu
             — orada küçük bir düğmeye iniyor, sayfanın işi listeyi seçtirmek
             oluyor. */}
-        {/* SON DURAK — altı olmayan kalem.
-            Burada gezinecek bir yer kalmadı, sayfanın tek işi kayıt almak.
-            O yüzden ekle modülünü açan bir bant değil, eylemin KENDİSİ
-            duruyor: bir dokunuş eksiliyor ve kullanıcı yolun bittiğini
-            görüyor. Ölçülen özellikler de burada yazılı — dokunmadan önce
-            "neyin kaydını tutuyorum" görünüyor. */}
-        {focusObj != null && !hasKids && (
-          <div
-            className="shrink-0 rounded-2xl px-4 pb-4 pt-5"
-            style={{
-              background: `${centerColor}12`,
-              boxShadow: `inset 0 0 0 1px ${centerColor}33`,
-            }}
-          >
-            <div className="flex flex-col items-center text-center">
-              <Tile
-                color={centerColor}
-                icon={focusIcon}
-                fallback={FolderOpen}
-                size={56}
-              />
-              <div className="mt-3 max-w-full truncate text-xl font-semibold leading-8">
-                {focusName}
-              </div>
-              <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                {t("entry.endOfPath")}
-              </div>
-              {focusMods.length > 0 && (
-                <div className="mt-3 flex flex-wrap justify-center gap-1.5">
-                  {focusMods.map((m) => {
-                    const Icon = MEASURE_KIND_META[m.valueType ?? "number"].icon;
-                    return (
-                      <span
-                        key={m.id}
-                        className="flex items-center gap-1.5 rounded-lg border border-white/10 px-2 py-1 text-[11px] leading-4 text-muted-foreground"
-                      >
-                        <Icon className="h-3 w-3" style={{ color: centerColor }} />
-                        {m.name}
-                        {m.unit ? (
-                          <span className="text-muted-foreground/50">{m.unit}</span>
-                        ) : null}
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={commitQuick}
-              className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[15px] font-semibold text-white transition-opacity active:opacity-85"
-              style={{ backgroundColor: centerColor }}
-            >
-              <Plus className="h-4 w-4" strokeWidth={2.5} />
-              {t("entry.addNow")}
-            </button>
-            <button
-              onClick={commitDetailed}
-              className="mt-2 flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-white/10 text-[13px] font-medium leading-5 text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              {t("entry.addWithDetail")}
-            </button>
-          </div>
-        )}
 
         {/* Hızlı ekle en üstte ve sabit: en kısa yol o, listeyle birlikte
             kaymamalı. Kökte var — bir dalın içine girmiş kullanıcı zaten
@@ -678,7 +560,7 @@ export function EntryPicker({
         {focusObj == null && (
           <QuickRail
             items={quick}
-            onPick={pickQuick}
+            onPick={onPick}
             onAdd={() => setPinOpen(true)}
           />
         )}
@@ -694,7 +576,7 @@ export function EntryPicker({
               <QuietButton
                 icon={Plus}
                 color={centerColor}
-                onClick={() => setCommitOpen(true)}
+                onClick={pickHere}
               >
                 {t("entry.addHere")}
               </QuietButton>
@@ -779,76 +661,6 @@ export function EntryPicker({
         )}
       </div>
 
-      {/* ── Ekle modülü ────────────────────────────────────────────────
-          Asli eylem TEK ve belirgin: "Ekle". Ölçmek isteyen "Detay ekle"ye
-          gidiyor — orada değerler, özellik ekleme ve yeni özellik yaratma
-          birlikte duruyor. */}
-      {commitOpen && focusObj != null && (
-        <>
-          <div
-            className="absolute inset-0 z-30 bg-black/50"
-            onClick={() => setCommitOpen(false)}
-          />
-          <div className="animate-in absolute inset-x-0 bottom-0 z-40 rounded-t-2xl border-t border-white/10 bg-background px-5 pb-6 pt-4">
-            <div className="mb-4 flex items-center gap-3">
-              <Tile color={centerColor} icon={focusIcon} fallback={FolderOpen} />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-base font-semibold leading-6">
-                  {focusName}
-                </div>
-                <div className="mt-0.5 truncate text-xs leading-5 text-muted-foreground">
-                  {focusMods.length > 0
-                    ? focusMods.map((m) => m.name).join(" · ")
-                    : t("entry.noFeaturesYet")}
-                </div>
-              </div>
-              <button
-                onClick={() => setCommitOpen(false)}
-                aria-label={t("action.close")}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/6 text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {focusMods.length > 0 && (
-              <div className="mb-4 flex flex-wrap gap-1.5">
-                {focusMods.map((m) => {
-                  const Icon = MEASURE_KIND_META[m.valueType ?? "number"].icon;
-                  return (
-                    <span
-                      key={m.id}
-                      className="flex items-center gap-1.5 rounded-lg border border-white/8 px-2 py-1 text-[11px] text-muted-foreground"
-                    >
-                      <Icon className="h-3 w-3" style={{ color: centerColor }} />
-                      {m.name}
-                      {m.unit ? (
-                        <span className="text-muted-foreground/50">{m.unit}</span>
-                      ) : null}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-
-            <button
-              onClick={commitQuick}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[15px] font-semibold text-white transition-opacity active:opacity-85"
-              style={{ backgroundColor: centerColor }}
-            >
-              <Plus className="h-4 w-4" strokeWidth={2.5} />
-              {t("entry.addNow")}
-            </button>
-            <button
-              onClick={commitDetailed}
-              className="mt-2 flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-white/8 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              {t("entry.addWithDetail")}
-            </button>
-          </div>
-        </>
-      )}
 
       {/* ── Şeride ekle ────────────────────────────────────────────────
           Ayrı bir diyalog değil, aynı yüzeyin üstünde bir panel: üst üste

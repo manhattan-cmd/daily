@@ -34,10 +34,10 @@ export function modAtomIcon(mod: {
   name?: string;
   entryType: ModWithType["entryType"];
 }): LucideIcon {
-  return (
-    BUILT_IN_MOD_ICONS[mod.name ?? ""] ??
-    MEASURE_KIND_META[mod.entryType.valueType ?? "number"].icon
-  );
+  // Tanınmayan ölçü türünde sayıya düşülüyor: veri göçlerinden gelen eski
+  // bir tür bütün paneli çökertmemeli (ekleme yüzeyi her atomu buradan çiziyor)
+  const kind = MEASURE_KIND_META[mod.entryType.valueType ?? "number"];
+  return BUILT_IN_MOD_ICONS[mod.name ?? ""] ?? kind?.icon ?? MEASURE_KIND_META.number.icon;
 }
 
 /** Atom çekirdeği — dairesel, hafif ışıltılı disk */

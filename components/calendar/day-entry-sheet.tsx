@@ -21,6 +21,7 @@ import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
 import { EntryPicker } from "@/components/calendar/entry-picker";
+import { AddEntryPanel } from "@/components/calendar/add-entry-panel";
 import { CategoryForm } from "@/components/structure/category-form";
 import {
   DateTimeInput,
@@ -52,6 +53,8 @@ interface DayEntrySheetProps {
 type Step =
   | { type: "activity-name" }
   | { type: "pick" }
+  // Standart ekleme yüzeyi — nereden gelinirse gelinsin aynı pencere
+  | { type: "add"; sub: SubCategory }
   | { type: "form"; sub: SubCategory }
   | { type: "parallel-form"; sub: SubCategory; catName: string; queueIndex: number; queueTotal: number; groupId: string; carryover: Record<string, string> };
 
@@ -123,7 +126,9 @@ export function DayEntrySheet({
   }, []);
 
   const currentSubId =
-    step.type === "form" || step.type === "parallel-form" ? step.sub.id : "";
+    step.type === "form" || step.type === "parallel-form" || step.type === "add"
+      ? step.sub.id
+      : "";
 
   // Modifier'ları canlı izle — hem ana hem paralel form için
   const formMods = useLiveQuery(
@@ -154,6 +159,20 @@ export function DayEntrySheet({
     });
   }, [formMods, currentSubId]);
 
+  /** Kalemin okunur yolu — "Spor › Koşu" */
+  function pathOf(sub: SubCategory): string {
+    const all = (groups ?? []).flatMap((g) => g.allSubs);
+    const byId = new Map(all.map((s) => [s.id, s]));
+    const parts: string[] = [];
+    let cur: SubCategory | undefined = sub.parentId ? byId.get(sub.parentId) : undefined;
+    while (cur) {
+      parts.unshift(cur.name);
+      cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+    }
+    const cat = (groups ?? []).find((g) => g.category.id === sub.categoryId)?.category.name;
+    return [cat, ...parts].filter(Boolean).join(" › ");
+  }
+
   /** Varsayılan: sayfanın günü + şu anki saat ("YYYY-MM-DDTHH:mm") */
   function defaultOccurredAt(): string {
     const [y, mo, d] = date.split("-").map(Number);
@@ -163,40 +182,41 @@ export function DayEntrySheet({
     );
   }
 
-  function handleSubSelect(sub: SubCategory) {
+  /**
+   * Bir yere kayıt açmak. Nereden gelinirse gelinsin (hızlı ekle şeridi,
+   * listeden yaprak, "buraya ekle") aynı yüzey açılıyor — eskiden kimi
+   * yerde iki düğmeli bir modül, kimi yerde doğrudan uzun form vardı ve
+   * aynı işi yapmanın yolu bulunduğun yere göre değişiyordu.
+   */
+  function handlePick(sub: SubCategory) {
     setValues({});
+    setNotes("");
     setSelectedParallels([]);
     setParallelQueue([]);
+    setLockedTypeIds(new Set());
     setOccurredAt(defaultOccurredAt());
-    setStep({ type: "form", sub });
+    setStep({ type: "add", sub });
   }
 
-  // Üst kategoriyi doğrudan seç — gizli kök alt kategorisi üzerinden forma geç
-  async function handleCategorySelect(category: Category) {
+  // Üst kategoriye kayıt — gizli kök alt kategorisi üzerinden
+  async function handlePickCategory(category: Category) {
     const rootSub = await getOrCreateCategoryRootSub(category.id);
-    handleSubSelect(rootSub);
+    handlePick(rootSub);
   }
 
-  /**
-   * Değersiz kayıt — "koştum" demek için form açmaya gerek yok.
-   * Uygulamanın vaadi ölçmek ama ölçmeyi ZORUNLU kılmak girdi eklemeyi
-   * yavaşlatıyordu: kullanıcı önce üç boş alan görüyor, sonra kaydediyordu.
-   * Özellik doldurmak isteyen "Detay ekle"ye gidiyor.
-   */
-  async function handleQuickAdd(sub: SubCategory) {
-    if (saving) return;
+  /** Ekleme yüzeyinden kaydet — girilen değerler varsa onlarla */
+  async function handleAddSave() {
+    if (saving || step.type !== "add") return;
     setSaving(true);
     try {
-      const ts = new Date(defaultOccurredAt()).getTime();
+      await persistEntry(step.sub.id, formMods, values);
       if (activity) {
-        await ensureActivity({ id: activity.id, name: activity.name, occurredAt: ts });
+        // Aktivite modunda seri giriş: kaydet → seçim adımına dön
+        setActivityCount((c) => c + 1);
+        setValues({});
+        setStep({ type: "pick" });
+        return;
       }
-      await createEntry({
-        subcategoryId: sub.id,
-        typeValues: [],
-        occurredAt: ts,
-        activityId: activity?.id,
-      });
       onClose();
       router.push(`/calendar/${date}`);
     } finally {
@@ -204,12 +224,6 @@ export function DayEntrySheet({
     }
   }
 
-  async function handleQuickAddCategory(category: Category) {
-    const rootSub = await getOrCreateCategoryRootSub(category.id);
-    await handleQuickAdd(rootSub);
-  }
-
-  // vals: valueKey(mod) → değer. Değerler havuzdaki atoma (modId) bağlanır.
   async function persistEntry(
     subId: string,
     mods: CategoryModifierWithType[],
@@ -368,14 +382,14 @@ export function DayEntrySheet({
           // Seçim adımında yükseklik İÇERİĞE göre (90vh tavanıyla): kısa bir
           // listede yarısı boş bir yüzey açmak gereksiz.
           //
-          // Form adımında ise SABİT 90vh. Form, yüzeyin içinde `max-h-[86%]`
-          // bir panel olarak açılıyor; yüzey içeriğe göre küçükken o yüzde
-          // de küçülüyor ve form 300px'e sıkışıyordu (ölçüldü: 844px ekranda
-          // 298px panel). Yüzdenin anlamlı olması için tabanın sabit olması
-          // gerekiyor.
-          step.type === "form" || step.type === "parallel-form"
-            ? "h-[90vh]"
-            : "max-h-[90vh]",
+          // Panel açan adımlarda (ekleme yüzeyi, uzun form) SABİT 90vh.
+          // Panel yüzeyin içinde `max-h-[86%]` olarak açılıyor; yüzey
+          // içeriğe göre küçükken o yüzde de küçülüyor, panel hem sıkışıyor
+          // hem yüzeyin dışına taşıyordu. Yüzdenin anlamlı olması için
+          // tabanın sabit olması gerekiyor.
+          step.type === "pick" || step.type === "activity-name"
+            ? "max-h-[90vh]"
+            : "h-[90vh]",
           "shadow-[0_-8px_40px_rgba(0,0,0,0.55)]",
           "transition-transform duration-300 ease-out",
           open ? "translate-y-0" : "translate-y-full"
@@ -403,10 +417,8 @@ export function DayEntrySheet({
             <PickStep
               key={open ? "open" : "closed"}
               groups={groups}
-              onSubSelect={handleSubSelect}
-              onCategorySelect={handleCategorySelect}
-              onQuickAdd={handleQuickAdd}
-              onQuickAddCategory={handleQuickAddCategory}
+              onPick={handlePick}
+              onPickCategory={handlePickCategory}
               onClose={onClose}
               activity={activity ? { name: activity.name, count: activityCount } : null}
             />
@@ -417,11 +429,36 @@ export function DayEntrySheet({
                   className="absolute inset-0 z-40 bg-black/55 backdrop-blur-[1px]"
                   onClick={handleBack}
                 />
-                {/* Ekle modülünün büyümüş hali — tam pencere değil, panel */}
+                {/* Seçimin üstüne açılan panel — hem ekleme yüzeyi hem
+                    uzun form burada. Seçim listesi altta duruyor: kullanıcı
+                    nereye kayıt yaptığını görmeye devam ediyor. */}
                 <div className="animate-in absolute inset-x-0 bottom-0 z-50 flex max-h-[86%] flex-col rounded-t-3xl border-t border-white/10 bg-background shadow-[0_-8px_40px_rgba(0,0,0,0.6)]">
                   <div className="flex justify-center pt-2.5 pb-0.5 shrink-0">
                     <div className="h-[3px] w-10 rounded-full bg-white/15" />
                   </div>
+                  {step.type === "add" ? (
+                    <AddEntryPanel
+                      key={step.sub.id}
+                      name={step.sub.name}
+                      icon={step.sub.icon}
+                      color={
+                        (groups ?? []).find(
+                          (g) => g.category.id === step.sub.categoryId
+                        )?.category.color ?? "#818cf8"
+                      }
+                      path={pathOf(step.sub)}
+                      mods={formMods}
+                      valueOf={(m) => values[valueKey(m)] ?? ""}
+                      onChange={(m, v) =>
+                        setValues((prev) => ({ ...prev, [valueKey(m)]: v }))
+                      }
+                      onSave={handleAddSave}
+                      saving={saving}
+                      onDetail={() => setStep({ type: "form", sub: step.sub })}
+                      onClose={handleBack}
+                      entryDate={date}
+                    />
+                  ) : (
                   <FormStep
             key={step.sub.id}
             sub={step.sub}
@@ -455,6 +492,7 @@ export function DayEntrySheet({
             saving={saving}
             entryDate={date}
                   />
+                  )}
                 </div>
               </>
             )}
@@ -545,21 +583,17 @@ function ActivityNameStep({
 
 function PickStep({
   groups,
-  onSubSelect,
-  onCategorySelect,
-  onQuickAdd,
-  onQuickAddCategory,
+  onPick,
+  onPickCategory,
   onClose,
   activity,
 }: {
   groups:
     | { category: Category; topSubs: SubCategory[]; allSubs: SubCategory[] }[]
     | undefined;
-  onSubSelect: (sub: SubCategory) => void;
-  onCategorySelect: (category: Category) => void;
-  /** Formu hiç açmadan değersiz kayıt */
-  onQuickAdd: (sub: SubCategory) => void;
-  onQuickAddCategory: (category: Category) => void;
+  /** Bir kaleme kayıt aç — standart ekleme yüzeyi */
+  onPick: (sub: SubCategory) => void;
+  onPickCategory: (category: Category) => void;
   onClose: () => void;
   /** Aktivite akışında başlık bandı + Bitti butonu */
   activity?: { name: string; count: number } | null;
@@ -639,10 +673,8 @@ function PickStep({
         ) : (
           <EntryPicker
             groups={groups}
-            onSubSelect={onSubSelect}
-            onCategorySelect={onCategorySelect}
-            onQuickAdd={onQuickAdd}
-            onQuickAddCategory={onQuickAddCategory}
+            onPick={onPick}
+            onPickCategory={onPickCategory}
             onClose={onClose}
           />
         )}
