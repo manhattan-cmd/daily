@@ -544,46 +544,32 @@ function PickStep({
   /** Aktivite akışında başlık bandı + Bitti butonu */
   activity?: { name: string; count: number } | null;
 }) {
-  const t = useT();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [addCatOpen, setAddCatOpen] = useState(false);
 
   return (
     <>
-      {/* Başlıksız. "Ne eklemek istersin?" ve "Girdi eklemek istediğin yeri
-          seç" iki satır yer kaplıyordu ama altındaki yol izi ve liste zaten
-          aynı şeyi söylüyor — yüzeyi açan da kullanıcının kendisi. Satırda
-          kalan tek şey kapatma; aktivite akışında bir de bant ve Bitti. */}
-      <div className="flex shrink-0 items-center justify-between gap-2 px-5 pb-2 pt-1">
-        <div className="min-w-0">
-          {activity && (
-            <div className="flex items-center gap-1.5">
-              <Boxes className="h-3 w-3 text-cyan-400" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan-400/80 truncate">
-                {activity.name}
-                {activity.count > 0 && ` · ${activity.count} girdi eklendi`}
-              </span>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {activity && (
-            <button
-              onClick={onClose}
-              className="flex h-7 items-center rounded-full bg-cyan-500/15 border border-cyan-500/40 px-3 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/25 transition-colors"
-            >
-              Bitti
-            </button>
-          )}
+      {/* Yüzeyin kendi başlık satırı YOK: sayfanın başlığı bulunulan yerin
+          adı ve onu seçici biliyor — kapatma düğmesi de oraya taşındı ki
+          başlıkla aynı hizada dursun. Burada kalan tek şey aktivite bandı:
+          o akışta hangi aktiviteye eklendiğini ve bitirme yolunu söylüyor. */}
+      {activity && (
+        <div className="flex shrink-0 items-center justify-between gap-2 px-5 pb-1.5 pt-1">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Boxes className="h-3 w-3 shrink-0 text-cyan-400" />
+            <span className="truncate text-[10px] font-semibold uppercase tracking-wider text-cyan-400/80">
+              {activity.name}
+              {activity.count > 0 && ` · ${activity.count} girdi eklendi`}
+            </span>
+          </div>
           <button
             onClick={onClose}
-            className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors shrink-0"
-            aria-label={t("action.close")}
+            className="flex h-7 shrink-0 items-center rounded-full border border-cyan-500/40 bg-cyan-500/15 px-3 text-xs font-semibold text-cyan-300 transition-colors hover:bg-cyan-500/25"
           >
-            <X className="h-3.5 w-3.5" />
+            Bitti
           </button>
         </div>
-      </div>
+      )}
 
       {/* Gövdenin penceresi seçicinin İÇİNDE kuruluyor: yol izi pencerenin
           üstünde durmalı ve her kademede aynı yerde kalmalı.
@@ -596,21 +582,17 @@ function PickStep({
           (İçeriğe göre büyüyen bir yüzeyde bu yanlıştı: flex-basis:0
           zinciri çökertip listeyi alttan kırpıyordu.) */}
       <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col">
-        {!groups || groups.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 px-5 py-12 text-center">
-            <p className="text-sm text-muted-foreground">
-              {t("tree.noCategoriesYet")}
-            </p>
-          </div>
-        ) : (
-          <EntryPicker
-            groups={groups}
-            onPick={onPick}
-            onPickCategory={onPickCategory}
-            onClose={onClose}
-            onCreateCategory={() => setAddCatOpen(true)}
-          />
-        )}
+        {/* Kategori yokken de seçici çiziliyor: "hiç kategori yok" mesajı
+            zaten onun içinde ve asıl önemlisi başlık satırı orada — kapatma
+            ve "Kategori yarat" düğmeleri o satırda. Ayrı bir boş-durum
+            bloğu koyunca sıfır kategorili kullanıcı çıkışsız kalıyordu. */}
+        <EntryPicker
+          groups={groups}
+          onPick={onPick}
+          onPickCategory={onPickCategory}
+          onClose={onClose}
+          onCreateCategory={() => setAddCatOpen(true)}
+        />
       </div>
 
       <CategoryForm open={addCatOpen} onOpenChange={setAddCatOpen} />

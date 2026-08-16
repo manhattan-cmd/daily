@@ -477,6 +477,12 @@ export function EntryPicker({
       : focusObj.type === "cat"
         ? focusObj.cat.name
         : focusObj.sub.name;
+  const focusIcon =
+    focusObj == null
+      ? undefined
+      : focusObj.type === "cat"
+        ? focusObj.cat.icon
+        : focusObj.sub.icon;
   /** Gezinme listesinin başlığı; aramada yok, sonuçlar zaten kendini anlatıyor */
   const listLabel = q
     ? ""
@@ -493,24 +499,49 @@ export function EntryPicker({
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
+      {/* Sayfanın başlığı = BULUNULAN YER. Buradaki eski başlık ("Ne eklemek
+          istersin?") her kademede aynı şeyi söylediği için kalkmıştı, ama
+          yerine hiçbir şey koymayınca üst taraf boş kaldı. Bulunulan yerin
+          adı hem boşluğu dolduruyor hem yol izinden farklı bir iş yapıyor:
+          iz nereden geldiğini, başlık nerede olduğunu söylüyor. Kalemin
+          kendi simgesi ve rengiyle — sayfanın kime ait olduğu bir bakışta
+          okunuyor. */}
+      <div className="flex shrink-0 items-center gap-2.5 px-3 pb-2.5 pt-0.5">
+        <Tile color={centerColor} icon={focusIcon} fallback={FolderOpen} size={28} />
+        <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold leading-7 tracking-tight">
+          {focusName}
+        </h2>
+        <button
+          onClick={onClose}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-muted-foreground transition-colors hover:bg-white/12"
+          aria-label={t("action.close")}
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
       {/* Yol izi — nerede olduğun ve geri dönüş.
           Her basamak bir çip: ataları düz metin bırakmak satırı yarım
           bırakıyordu, çip olunca dokunulabilir oldukları da görünüyor.
           Bulunulan yer kaleminin renginde ve önünde bir nokta var.
           Yol derinleşince satır SONA kayıyor (HScroll followEnd) — son
           basamak ekrandan çıkınca kullanıcı nerede olduğunu göremiyordu.
-          KÖKTE DE yazılıyor ve PENCERENİN ÜSTÜNDE duruyor: bir ara kökte
-          gizliydi ve bir kategoriye girince ortaya çıkıyordu, yani konum
-          kademeye göre kayıyordu. Hep aynı yerde durunca göz onu arayacağı
-          yeri öğreniyor. "Kategoriler" basamağı her zaman renkli —
-          yolun kökü o. */}
+          PENCERENİN ÜSTÜNDE ve hep aynı yerde: bir ara kökte gizliydi, bir
+          kategoriye girince ortaya çıkıyor ve altındaki her şeyi aşağı
+          itiyordu. Satır artık kökte de duruyor — orada çipler yerine yalnız
+          "Kategori yarat" var, yükseklik aynı kalıyor.
+
+          Kökte tek çip yazılmıyor: başlıkta zaten "Kategoriler" yazıyor,
+          hemen altında ikinci kez söylemek kekeleme oluyordu. İlk basamak
+          bir yere GİRİLDİĞİNDE beliriyor, çünkü asıl işi orada: geri dönüş.
+          "Kategoriler" basamağı her zaman renkli — yolun kökü o. */}
       <div className="flex shrink-0 items-center gap-2 px-3 pb-2.5">
         <HScroll
           className="items-center gap-1"
           wrapperClassName="min-w-0 flex-1"
           followEnd={focusName}
         >
-          {trail.map((tr, i) => {
+          {(trail.length > 1 ? trail : []).map((tr, i) => {
             const last = i === trail.length - 1;
             const isRoot = i === 0;
             return (
