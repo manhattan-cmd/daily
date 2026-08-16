@@ -20,7 +20,7 @@ import { useT } from "@/lib/i18n";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
-import { EntryNetwork } from "@/components/calendar/entry-network";
+import { EntryPicker } from "@/components/calendar/entry-picker";
 import {
   DateTimeInput,
   DateTimeRangeInput,
@@ -351,22 +351,28 @@ export function DayEntrySheet({
         onClick={onClose}
       />
 
-      {/* Girdi yüzeyi — TAM pencere.
-          Yarım sheet'te ağ kendi kutusuna sığmıyordu: kökte ekranın üçte biri
-          boş kalıyor, yaprakta tek bir altıgen koca siyah alanda yüzüyordu.
-          Girdi eklemek uygulamanın asli eylemi; en çok yeri o hak ediyor. */}
+      {/* Girdi yüzeyi — alttan açılan pencere.
+          Bir ara tam pencereye çıkmıştı: içindeki ağ yarım sheet'e sığmıyordu,
+          kökte ekranın üçte biri boş kalıyordu. Ağ Yapı > Harita'ya taşınınca
+          o gerekçe kalmadı; geriye aranabilir bir liste kaldı ve liste
+          ekranın tamamını istemiyor. Alttan açılan pencere gün sayfasını
+          görünür bırakıyor — nereye kayıt yaptığın kaybolmuyor. */}
       <div
         className={cn(
           // `relative` EKLEME: tailwind-merge onu `fixed` ile çakıştırıp
-          // sonuncuyu seçiyor ve yüzey tam yüksekliğini kaybediyor. `fixed`
-          // zaten mutlak konumlu çocuklara kapsayıcı blok oluşturur.
-          "fixed inset-y-0 z-50 left-1/2 -translate-x-1/2 w-full max-w-[390px]",
-          "flex flex-col bg-background",
+          // sonuncuyu seçiyor. `fixed` zaten mutlak konumlu çocuklara
+          // kapsayıcı blok oluşturur.
+          "fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[390px]",
+          "flex max-h-[86vh] flex-col rounded-t-2xl border-t border-white/10 bg-background",
+          "shadow-[0_-8px_40px_rgba(0,0,0,0.55)]",
           "transition-transform duration-300 ease-out",
           open ? "translate-y-0" : "translate-y-full"
         )}
       >
-        <div className="pt-safe shrink-0" />
+        {/* Tutamaç — yüzeyin sürüklenebilir göründüğü yer */}
+        <div className="flex shrink-0 justify-center pb-1 pt-2.5">
+          <div className="h-[3px] w-10 rounded-full bg-white/15" />
+        </div>
 
         {step.type === "activity-name" ? (
           <ActivityNameStep
@@ -378,10 +384,10 @@ export function DayEntrySheet({
           />
         ) : (
           <>
-            {/* Ağ hep ayakta kalır: "Detay ekle" seçimi değiştirmiyor,
+            {/* Liste hep ayakta kalır: "Detay ekle" seçimi değiştirmiyor,
                 ÜSTÜNE bir panel açıyor. Böylece kullanıcı nereye kayıt
-                yaptığını görmeye devam ediyor ve geri dönünce ağ aynı
-                yerde (odak EntryNetwork'ün içinde tutuluyor). */}
+                yaptığını görmeye devam ediyor ve geri dönünce liste aynı
+                yerde (odak EntryPicker'ın içinde tutuluyor). */}
             <PickStep
               key={open ? "open" : "closed"}
               groups={groups}
@@ -590,18 +596,22 @@ function PickStep({
         </div>
       </div>
 
-      <div
-        ref={scrollRef}
-        className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5 pb-6"
-      >
+      {/* Kaydırmayı seçicinin kendisi yönetiyor: yol izi ve "buraya ekle"
+          üstte sabit kalmalı, yalnız liste kaymalı */}
+      {/* `flex-1` YOK: yüzeyin yüksekliği içeriğe göre (max-h ile sınırlı).
+          flex-basis:0 veren bir flex-1 burada zinciri çökertiyor ve liste
+          alttan kırpılıyordu. Doğru davranış küçülmeyle geliyor: içerik
+          sığdığı sürece kutu kadar, taşınca min-h-0 sayesinde kısalıp
+          kendi içinde kayıyor. */}
+      <div ref={scrollRef} className="flex min-h-0 flex-col">
         {!groups || groups.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-12 text-center">
+          <div className="flex flex-col items-center gap-3 px-5 py-12 text-center">
             <p className="text-sm text-muted-foreground">
-              Henüz kategori yok. Önce yapı oluştur.
+              {t("tree.noCategoriesYet")}
             </p>
           </div>
         ) : (
-          <EntryNetwork
+          <EntryPicker
             groups={groups}
             onSubSelect={onSubSelect}
             onCategorySelect={onCategorySelect}
