@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Boxes, Clock, Link2, NotebookPen, Plus, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Boxes, ChevronDown, Clock, Link2, NotebookPen, Plus, Sparkles, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
 import {
@@ -18,6 +18,8 @@ import {
 } from "@/lib/db/queries";
 import { useT } from "@/lib/i18n";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
+import { modAtomIcon } from "@/components/structure/mod-atom";
+import type { LucideIcon } from "lucide-react";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
 import { EntryPicker } from "@/components/calendar/entry-picker";
@@ -721,10 +723,10 @@ function FormStep({
     : parallelContext
     ? parallelContext.index < parallelContext.total
       ? t("action.saveAndContinue")
-      : t("action.save")
+      : t("entry.addNow")
     : hasParallelSelected
     ? t("action.saveAndContinue")
-    : t("action.save");
+    : t("entry.addNow");
 
   return (
     <>
@@ -842,19 +844,27 @@ function FormStep({
             </span>
           </button>
         ) : (
-          <div className="flex flex-col gap-4">
-            {mods.map((mod) => (
-              <ModInput
-                key={mod.id}
-                mod={mod}
-                value={values[valueKey(mod)] ?? ""}
-                onChange={(v) => onValueChange(valueKey(mod), v)}
-                onRemove={lockedTypeIds.has(sharedKey(mod)) ? undefined : () => handleRemoveMod(mod)}
-                isLocked={lockedTypeIds.has(sharedKey(mod))}
-                entryDate={entryDate}
-                autoFocus={mod.modId === focusModId}
-              />
-            ))}
+          <div className="flex flex-col gap-3">
+            {/* Katlanır satırlar: hangi ölçüler var SORUSUNU liste cevaplıyor,
+                değer girmek isteyen satıra dokunup açıyor. Hepsi birden açık
+                dururken üç ölçülü bir kalemde form uzuyor ve "ne kaydediyorum"
+                yerine "bu alanları doldurmam mı lazım" hissi veriyordu. */}
+            <div className="overflow-hidden rounded-xl border border-white/[0.09] bg-white/[0.015]">
+              {mods.map((mod) => (
+                <FeatureRow
+                  key={mod.id}
+                  mod={mod}
+                  icon={modAtomIcon(mod)}
+                  color={category?.color ?? "#818cf8"}
+                  value={values[valueKey(mod)] ?? ""}
+                  onChange={(v) => onValueChange(valueKey(mod), v)}
+                  onRemove={lockedTypeIds.has(sharedKey(mod)) ? undefined : () => handleRemoveMod(mod)}
+                  isLocked={lockedTypeIds.has(sharedKey(mod))}
+                  entryDate={entryDate}
+                  defaultOpen={mod.modId === focusModId}
+                />
+              ))}
+            </div>
             <button
               type="button"
               onClick={() => setModPickerOpen(true)}
@@ -944,15 +954,22 @@ function FormStep({
         </div>
       </div>
 
-      <div className="px-5 pb-8 pt-2 shrink-0 border-t border-white/8">
-        <Button
-          className={cn("w-full", parallelContext && "bg-violet-600 hover:bg-violet-700")}
-          size="lg"
+      {/* Asli eylem: kalemin renginde, iri ve tek. "Kaydet" bir düzenlemeyi
+          bitiriyormuş gibi duruyordu; burada yapılan şey yeni bir kayıt
+          YARATMAK. */}
+      <div className="shrink-0 border-t border-white/8 px-5 pb-8 pt-3">
+        <button
+          type="button"
           onClick={onSave}
           disabled={saving}
+          className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-60"
+          style={{
+            backgroundColor: parallelContext ? "#7c3aed" : (category?.color ?? "#6366f1"),
+          }}
         >
+          {!saving && <Plus className="h-5 w-5" strokeWidth={2.75} />}
           {saveLabel}
-        </Button>
+        </button>
       </div>
 
       {/* Paralel perspektif seçici — düzenleme modalıyla ortak bileşen */}
@@ -980,6 +997,121 @@ function FormStep({
   );
 }
 
+// ─── Özellik satırı ──────────────────────────────────────────────────────────
+
+/** Kapalı satırda görünen değer — girilmişse ne girildiği okunuyor */
+function valueSummary(mod: CategoryModifierWithType, value: string): string {
+  if (!value) return "";
+  const vt = mod.entryType.valueType ?? "number";
+  if (vt === "boolean") return value === "true" ? "✓" : "—";
+  if (vt === "datetime-range") return formatDTRDisplay(value);
+  return mod.entryType.unit ? `${value} ${mod.entryType.unit}` : value;
+}
+
+/**
+ * Katlanır özellik satırı — sembol + ad, dokununca değeri girilecek yer
+ * açılıyor.
+ *
+ * Bütün alanlar birden açıkken üç ölçülü bir kalemde form uzuyor ve
+ * kullanıcıya "ne kaydediyorum" yerine "bu alanları doldurmam mı lazım"
+ * hissi veriyordu. Kapalı satır iki şeyi birden söylüyor: burada ne
+ * ölçülüyor ve şu an ne girilmiş.
+ */
+function FeatureRow({
+  mod,
+  icon: Icon,
+  color,
+  value,
+  onChange,
+  onRemove,
+  isLocked,
+  entryDate,
+  defaultOpen,
+}: {
+  mod: CategoryModifierWithType;
+  icon: LucideIcon;
+  color: string;
+  value: string;
+  onChange: (v: string) => void;
+  onRemove?: () => void;
+  isLocked: boolean;
+  entryDate: string;
+  /** Yeni eklenen özellik açık gelsin — kullanıcı onu girmek için ekledi */
+  defaultOpen: boolean;
+}) {
+  const t = useT();
+  const [open, setOpen] = useState(defaultOpen);
+  const label = mod.name ?? mod.entryType.name;
+  const summary = valueSummary(mod, value);
+
+  return (
+    <div className="border-t border-white/[0.06] first:border-t-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-white/[0.04] active:bg-white/[0.06]"
+      >
+        <span
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+          style={{ background: `${color}26`, color }}
+        >
+          <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium leading-5 text-foreground">
+            {label}
+          </span>
+          {mod.entryType.unit && (
+            <span className="block truncate text-xs leading-4 text-muted-foreground">
+              {mod.entryType.unit}
+            </span>
+          )}
+        </span>
+        {summary && !open && (
+          <span
+            className="shrink-0 text-sm font-semibold leading-5"
+            style={{ color }}
+          >
+            {summary}
+          </span>
+        )}
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform",
+            open && "rotate-180"
+          )}
+        />
+      </button>
+
+      {open && (
+        <div className="flex flex-col gap-3 px-3 pb-3">
+          <ModInput
+            mod={mod}
+            value={value}
+            onChange={onChange}
+            isLocked={isLocked}
+            entryDate={entryDate}
+            autoFocus={defaultOpen}
+            hideLabel
+          />
+          {/* Çıkarma adıyla duruyor: bu düğme özelliği kalemden koparıyor,
+              satırın kenarındaki bir çarpı olarak yanlışlıkla basılabilirdi */}
+          {onRemove && (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="self-start text-[11px] font-medium leading-4 text-muted-foreground/70 transition-colors hover:text-foreground"
+            >
+              {t("entry.removeFeature")}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Mod Input ────────────────────────────────────────────────────────────────
 
 /** Tek özelliğin değer girişi — girdi formu ve kart üstü hızlı değer sorma
@@ -992,6 +1124,7 @@ export function ModInput({
   isLocked = false,
   entryDate,
   autoFocus = false,
+  hideLabel = false,
 }: {
   mod: CategoryModifierWithType;
   value: string;
@@ -1001,6 +1134,8 @@ export function ModInput({
   entryDate?: string;
   /** Yeni eklenen özellik: alan görünüme kaydırılır, yazı alanları odaklanır */
   autoFocus?: boolean;
+  /** Katlanır satırın içinde: adı satır zaten yazıyor, tekrar etmesin */
+  hideLabel?: boolean;
 }) {
   const t = useT();
   const vt = mod.entryType.valueType ?? "number";
@@ -1045,6 +1180,8 @@ export function ModInput({
     </div>
   );
 
+  const label = hideLabel ? null : labelRow;
+
   if (isLocked) {
     let display: string;
     if (vt === "boolean") {
@@ -1056,7 +1193,7 @@ export function ModInput({
     }
     return (
       <div className="flex flex-col gap-1.5">
-        {labelRow}
+        {label}
         <div className="flex h-10 items-center rounded-xl border border-violet-500/30 bg-violet-500/8 px-3 text-sm text-muted-foreground/80 select-none">
           {display}
         </div>
@@ -1066,7 +1203,7 @@ export function ModInput({
 
   return (
     <div className="flex flex-col gap-1.5" ref={scrollOnMount}>
-      {labelRow}
+      {label}
 
       {vt === "number" && (
         <Input
