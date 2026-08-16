@@ -592,12 +592,13 @@ function PickStep({
           )}
           {/* Kategori yaratmak listenin içinde bir satırdı ve seçim alanından
               yer çalıyordu. Her kademede geçerli bir eylem olduğu için yeri
-              başlık hizası. */}
+              başlık hizası — ve orada sönük bir çip olarak değil, uygulamanın
+              kendi vurgu renginde dolu bir düğme olarak duruyor. */}
           <button
             onClick={() => setAddCatOpen(true)}
-            className="flex h-7 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] pl-2 pr-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground active:bg-white/[0.09]"
+            className="flex h-8 shrink-0 items-center gap-1 rounded-full bg-primary pl-2.5 pr-3.5 text-xs font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-transform active:scale-[0.96]"
           >
-            <Plus className="h-3.5 w-3.5" strokeWidth={2.25} />
+            <Plus className="h-4 w-4" strokeWidth={2.5} />
             {t("entry.createCategory")}
           </button>
           <button

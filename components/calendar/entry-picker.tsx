@@ -617,34 +617,16 @@ export function EntryPicker({
 
       {/* Kayan bölüm: sık girilen kategoriler + gezinme listesi */}
       <div className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-4 pb-6">
+        {/* Sık kullanılan kategoriler — ALTINDAKİ listenin aynı yapısında.
+            Bir ara çipe çevrilmişti (tekrar gibi okunmasın diye); ama bu
+            iki blok aynı şeyi seçtiriyor ve aynı görünmeleri doğru. Ayrımı
+            başlık yapıyor, biçim değil. */}
         {hotCats.length > 0 && (
-          <div className="shrink-0">
-            <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {t("entry.frequentCategories")}
-            </div>
-            {/* Yatay kaymıyor, SARIYOR: yanlamasına kaydırmak listenin geri
-                kalanıyla aynı hareket değildi, kullanıcı hepsini aşağı
-                inerek görmek istiyor. */}
-            <div className="flex flex-wrap gap-1.5">
-              {hotCats.map((r) => (
-                <button
-                  key={`hot${r.id}`}
-                  onClick={() => drill(r.node)}
-                  className="flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] py-1.5 pl-1.5 pr-3.5 transition-colors hover:bg-white/[0.07] active:bg-white/[0.09]"
-                >
-                  <Tile
-                    color={r.color}
-                    icon={r.icon}
-                    fallback={r.kids > 0 ? FolderOpen : Folder}
-                    size={26}
-                  />
-                  <span className="max-w-[130px] truncate text-[13px] font-medium text-foreground">
-                    {r.name}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
+          <Section label={t("entry.frequentCategories")}>
+            {hotCats.map((r) => (
+              <PickRow key={`hot${r.id}`} row={r} onOpen={drill} />
+            ))}
+          </Section>
         )}
 
         {filtered.length === 0 ? (
