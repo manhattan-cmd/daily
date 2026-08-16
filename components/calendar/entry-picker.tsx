@@ -54,6 +54,8 @@ const NO_COUNTS: ReadonlyMap<string, number> = new Map();
 const SEARCH_FROM = 10;
 /** Bu sayıdan sonra A–Z bölümlere ayrılıyor */
 const SECTIONS_FROM = 14;
+/** Sık girilen kategoriler çipleri bu sayıdan sonra anlamlı */
+const FREQ_CATS_FROM = 5;
 
 /** Türkçe duyarlı bölüm başlığı — ada göre A–Z gruplaması */
 function sectionKeyOf(name: string): string {
@@ -297,6 +299,30 @@ export function EntryPicker({
       }));
   }, [visibleSubs, entryCounts, catById, q, focus]);
 
+  /**
+   * Sık girilen kategoriler — uzun kategori listesinde aşağıda kalanlara
+   * kısayol. Hızlı ekle şeridiyle karışmıyor çünkü işi başka: o doğrudan
+   * KAYIT açıyor, bu kategorinin İÇİNE giriyor. Biçimi de ayrı (çip), yani
+   * altındaki tam listenin tekrarı gibi okunmuyor.
+   *
+   * Sayım kategorinin bütün alt ağacı. Kısa listede çıkmıyor: beş kalemlik
+   * bir listeye kısayol koymak yer kaybı.
+   */
+  const hotCats = useMemo(() => {
+    if (q || focus != null || rows.length < FREQ_CATS_FROM) return [];
+    const weight = new Map<string, number>();
+    for (const g of groups ?? [])
+      weight.set(
+        g.category.id,
+        g.allSubs.reduce((n, s) => n + (entryCounts.get(s.id) ?? 0), 0)
+      );
+    const hot = rows
+      .filter((r) => (weight.get(r.id) ?? 0) > 0)
+      .sort((a, b) => (weight.get(b.id) ?? 0) - (weight.get(a.id) ?? 0))
+      .slice(0, 6);
+    return hot.length >= 2 ? hot : [];
+  }, [rows, groups, entryCounts, q, focus]);
+
   const sections = useMemo(() => {
     if (q || filtered.length < SECTIONS_FROM)
       return [{ key: "", items: filtered }];
@@ -510,8 +536,35 @@ export function EntryPicker({
         )}
       </div>
 
-      {/* Kayan bölüm: yalnız gezinme listesi */}
+      {/* Kayan bölüm: sık girilen kategoriler + gezinme listesi */}
       <div className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-4 pb-6">
+        {hotCats.length > 0 && (
+          <div className="shrink-0">
+            <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {t("entry.frequentCategories")}
+            </div>
+            <HScroll className="gap-1.5 px-0.5 pb-0.5">
+              {hotCats.map((r) => (
+                <button
+                  key={`hot${r.id}`}
+                  onClick={() => drill(r.node)}
+                  className="flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] py-1.5 pl-1.5 pr-3.5 transition-colors hover:bg-white/[0.07] active:bg-white/[0.09]"
+                >
+                  <Tile
+                    color={r.color}
+                    icon={r.icon}
+                    fallback={r.kids > 0 ? FolderOpen : Folder}
+                    size={26}
+                  />
+                  <span className="max-w-[130px] truncate text-[13px] font-medium text-foreground">
+                    {r.name}
+                  </span>
+                </button>
+              ))}
+            </HScroll>
+          </div>
+        )}
+
         {filtered.length === 0 ? (
           <p className="px-1 py-8 text-center text-sm text-muted-foreground">
             {t("entry.noMatch")}
