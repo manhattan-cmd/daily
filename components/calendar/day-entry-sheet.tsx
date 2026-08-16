@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Boxes, ChevronDown, Clock, Link2, NotebookPen, Plus, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Boxes, ChevronDown, Clock, Link2, Plus, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
 import {
@@ -824,8 +824,7 @@ function FormStep({
             Başlık şart: alanlar başlıksızken "bunlar ne" sorusu ekranda
             cevapsız kalıyordu. Nottaki başlıkla aynı dil. */}
         {mods.length > 0 && (
-          <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/50">
-            <Sparkles className="h-3 w-3" />
+          <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             {t("entry.features")}
           </div>
         )}
@@ -833,18 +832,26 @@ function FormStep({
           <button
             type="button"
             onClick={() => setModPickerOpen(true)}
-            className="flex w-full flex-col items-center gap-2 rounded-2xl border border-dashed border-primary/25 bg-primary/[0.04] px-5 py-7 text-center transition-colors hover:border-primary/45 hover:bg-primary/[0.07]"
+            className="flex w-full flex-col items-center gap-2 rounded-2xl border border-white/[0.09] bg-white/[0.02] px-5 py-7 text-center transition-colors hover:bg-white/[0.04]"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary">
-              <Plus className="h-5 w-5" strokeWidth={2.25} />
+            <span
+              className="flex h-11 w-11 items-center justify-center rounded-full"
+              style={{
+                background: `${category?.color ?? "#818cf8"}26`,
+                color: category?.color ?? "#818cf8",
+              }}
+            >
+              <Plus className="h-5 w-5" strokeWidth={2.5} />
             </span>
-            <span className="text-sm font-semibold">{t("entry.addFeature")}</span>
-            <span className="text-[11px] leading-snug text-muted-foreground">
+            <span className="text-sm font-semibold leading-5">
+              {t("entry.addFeature")}
+            </span>
+            <span className="max-w-[240px] text-[11px] leading-4 text-muted-foreground">
               {t("entry.featuresHint")}
             </span>
           </button>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div>
             {/* Katlanır satırlar: hangi ölçüler var SORUSUNU liste cevaplıyor,
                 değer girmek isteyen satıra dokunup açıyor. Hepsi birden açık
                 dururken üç ölçülü bir kalemde form uzuyor ve "ne kaydediyorum"
@@ -864,15 +871,25 @@ function FormStep({
                   defaultOpen={mod.modId === focusModId}
                 />
               ))}
+              {/* Kartın son satırı: ayrı duran kesikli bir kutu listeyle
+                  aynı şeyin parçası olmadığını söylüyordu */}
+              <button
+                type="button"
+                onClick={() => setModPickerOpen(true)}
+                className="flex w-full items-center gap-3 border-t border-white/[0.06] px-3 py-3 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground active:bg-white/[0.06]"
+              >
+                <span
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                  style={{
+                    background: `${category?.color ?? "#818cf8"}1f`,
+                    color: category?.color ?? "#818cf8",
+                  }}
+                >
+                  <Plus className="h-[18px] w-[18px]" strokeWidth={2.25} />
+                </span>
+                {t("entry.addFeature")}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setModPickerOpen(true)}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              {t("entry.addFeature")}
-            </button>
           </div>
         )}
 
@@ -938,9 +955,8 @@ function FormStep({
         <div className="mt-6 border-t border-white/[0.06] pt-3">
           <label
             htmlFor="entry-note"
-            className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/50"
+            className="mb-2 block px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
           >
-            <NotebookPen className="h-3 w-3" />
             {t("entry.note")}
           </label>
           <textarea
@@ -949,7 +965,7 @@ function FormStep({
             onChange={(e) => onNotesChange(e.target.value)}
             placeholder={t("entry.notePlaceholder")}
             rows={2}
-            className="w-full resize-none rounded-xl border border-border bg-input px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full resize-none rounded-xl border border-white/[0.09] bg-white/[0.02] px-3 py-2.5 text-sm leading-5 placeholder:text-muted-foreground/50 focus:border-white/20 focus:outline-none"
           />
         </div>
       </div>
@@ -1058,12 +1074,12 @@ function FeatureRow({
         >
           <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium leading-5 text-foreground">
+        <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
+          <span className="truncate text-sm font-medium leading-5 text-foreground">
             {label}
           </span>
           {mod.entryType.unit && (
-            <span className="block truncate text-xs leading-4 text-muted-foreground">
+            <span className="shrink-0 text-xs leading-5 text-muted-foreground">
               {mod.entryType.unit}
             </span>
           )}
@@ -1085,7 +1101,7 @@ function FeatureRow({
       </button>
 
       {open && (
-        <div className="flex flex-col gap-3 px-3 pb-3">
+        <div className="flex flex-col gap-2.5 border-t border-white/[0.06] bg-white/[0.02] px-3 py-3">
           <ModInput
             mod={mod}
             value={value}
@@ -1101,7 +1117,7 @@ function FeatureRow({
             <button
               type="button"
               onClick={onRemove}
-              className="self-start text-[11px] font-medium leading-4 text-muted-foreground/70 transition-colors hover:text-foreground"
+              className="self-end text-[11px] font-medium leading-4 text-muted-foreground/60 transition-colors hover:text-foreground"
             >
               {t("entry.removeFeature")}
             </button>
