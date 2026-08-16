@@ -310,6 +310,8 @@ export function EntryPicker({
   }, [nodes, centerColor, topSubsByCat, childrenMap]);
 
   const q = norm(query);
+  /** Bulunulan yerin altı var mı — sayfanın düzeni buna göre değişiyor */
+  const hasKids = rows.length > 0;
   const filtered = q ? rows.filter((r) => norm(r.name).includes(q)) : rows;
 
   /**
@@ -573,9 +575,12 @@ export function EntryPicker({
           kaymamalı — uzun listede aşağı inince arama kutusu kayboluyordu ve
           kullanıcı onu geri getirmek için başa dönüyordu. */}
       <div className="flex shrink-0 flex-col gap-3 px-4 pb-3">
-        {/* Buraya ekle — sayfanın asli eylemi. Kökte yok: kategorinin
-            kendisine girdi diye bir kavram yok. */}
-        {focusObj != null && (
+        {/* Çocuğu olmayan kalemde yapılacak tek şey kayıt eklemek: orada
+            asli eylem koca bir bant olarak duruyor. Çocuğu VARSA aynı bant
+            "buraya mı ekleyeyim, aşağıdan mı seçeyim" ikilemini büyütüyordu
+            — orada küçük bir düğmeye iniyor, sayfanın işi listeyi seçtirmek
+            oluyor. */}
+        {focusObj != null && !hasKids && (
           <button
             onClick={() => setCommitOpen(true)}
             className="flex shrink-0 items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors active:opacity-80"
@@ -614,15 +619,30 @@ export function EntryPicker({
         )}
 
         {/* Eylemler — yalnız bir dalın içinde. Kategori yaratmak sheet
-            başlığına taşındı: her kademede duran bir eylem oraya ait. */}
+            başlığına taşındı: her kademede duran bir eylem oraya ait.
+            "Buraya ekle" burada kalemin renginde duruyor ki üç düğme
+            arasında hangisinin asli olduğu belli olsun. Yapı sayfası
+            yalnız simge: adı yazınca satır üç düğmeye yetmiyordu. */}
         {focusObj != null && (
           <div className="flex shrink-0 items-center gap-2">
+            {hasKids && (
+              <QuietButton
+                icon={Plus}
+                color={centerColor}
+                onClick={() => setCommitOpen(true)}
+              >
+                {t("entry.addHere")}
+              </QuietButton>
+            )}
             <QuietButton icon={FolderPlus} onClick={openAddSub}>
               {t("tree.createSubcategory")}
             </QuietButton>
-            <QuietButton icon={Layers} href={structureHref} onClick={onClose}>
-              {focusName}
-            </QuietButton>
+            <QuietButton
+              icon={Layers}
+              href={structureHref}
+              onClick={onClose}
+              label={t("tree.structurePage")}
+            />
           </div>
         )}
 
@@ -654,12 +674,29 @@ export function EntryPicker({
         )}
 
         {filtered.length === 0 ? (
-          <p className="px-1 py-8 text-center text-sm text-muted-foreground">
-            {t("entry.noMatch")}
-          </p>
+          // Arama boş dönerse söylenecek bir şey var; alt kategorisi
+          // olmayan bir kalemde ise söylenecek bir şey YOK — orada
+          // "Eşleşen bir şey yok" demek uydurma bir eksiklik yaratıyordu.
+          q ? (
+            <p className="px-1 py-8 text-center text-sm text-muted-foreground">
+              {t("entry.noMatch")}
+            </p>
+          ) : null
         ) : (
           sections.map((sec) => (
-            <Section key={sec.key} label={sec.key}>
+            // Bir dalın içindeyken listenin başlığı KİMİN listesi olduğunu
+            // söylüyor. Başlıksızken "Harcamalar" sayfasındaki satırların
+            // Harcamalar'ın altı mı yoksa başka bir şey mi olduğu belli
+            // değildi — üstteki "buraya ekle" ile birlikte kafa karıştırıyordu.
+            <Section
+              key={sec.key}
+              label={
+                sec.key ||
+                (focusObj != null && !q
+                  ? t("entry.childrenOf", { name: focusName })
+                  : "")
+              }
+            >
               {sec.items.map((r) => (
                 <PickRow key={r.id} row={r} onOpen={drill} />
               ))}
@@ -1015,34 +1052,68 @@ function QuickRail({
   );
 }
 
-/** Sakin eylem düğmesi — bağlantı ya da düğme olarak */
+/**
+ * Küçük eylem düğmesi — bağlantı ya da düğme olarak.
+ * `color` verilirse kalemin renginde durur: aynı satırdaki üç düğmeden
+ * hangisinin asli olduğu böyle anlaşılıyor. Yazısı yoksa yalnız simge
+ * (o zaman `label` erişilebilirlik için şart).
+ */
 function QuietButton({
   icon: Icon,
   children,
   onClick,
   href,
+  color,
+  label,
 }: {
   icon: typeof Plus;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   onClick: () => void;
   href?: string;
+  /** Asli eylem — kalemin renginde */
+  color?: string;
+  /** Yalnız simgeli düğmenin adı */
+  label?: string;
 }) {
-  const cls =
-    "flex min-w-0 items-center gap-1.5 rounded-lg border border-white/8 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground active:bg-white/5";
+  const cls = cn(
+    "flex min-w-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors",
+    color
+      ? "border-transparent text-foreground"
+      : "border-white/8 text-muted-foreground hover:text-foreground active:bg-white/5",
+    !children && "px-2"
+  );
+  const style = color
+    ? { background: `${color}26`, boxShadow: `inset 0 0 0 1px ${color}59` }
+    : undefined;
   const body = (
     <>
       <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-      <span className="truncate leading-5">{children}</span>
+      {children && <span className="truncate leading-5">{children}</span>}
     </>
   );
   // prefetch açıkça: sheet içindeki bağlantıda görünürlük tabanlı varsayılan
   // önden çekme tetiklenmiyor ve tıklamada bekleme oluyordu
   return href ? (
-    <Link href={href} prefetch onClick={onClick} className={cls}>
+    <Link
+      href={href}
+      prefetch
+      onClick={onClick}
+      className={cls}
+      style={style}
+      aria-label={label}
+      title={label}
+    >
       {body}
     </Link>
   ) : (
-    <button type="button" onClick={onClick} className={cls}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cls}
+      style={style}
+      aria-label={label}
+      title={label}
+    >
       {body}
     </button>
   );
