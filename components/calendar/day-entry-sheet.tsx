@@ -1051,6 +1051,8 @@ function FeatureRow({
   const t = useT();
   const [open, setOpen] = useState(defaultOpen);
   const onDone = () => setOpen(false);
+  const vt = mod.entryType.valueType ?? "number";
+  const inlineDone = vt === "number" || vt === "text";
   const label = mod.name ?? mod.entryType.name;
   const summary = valueSummary(mod, value);
 
@@ -1095,16 +1097,27 @@ function FeatureRow({
       </button>
 
       {open && (
-        <div className="flex flex-col gap-2.5 border-t border-white/[0.06] bg-white/[0.02] px-3 py-3">
-          <ModInput
-            mod={mod}
-            value={value}
-            onChange={onChange}
-            isLocked={isLocked}
-            entryDate={entryDate}
-            autoFocus={defaultOpen}
-            hideLabel
-          />
+        // Sayı ve metin tek satıra sığıyor: onay alanın YANINDA duruyor ve
+        // çekmece yarı yüksekliğe iniyor. Skala, zaman aralığı ve evet/hayır
+        // tam genişlik istiyor — orada onay alta düşüyor.
+        <div
+          className={cn(
+            "border-t border-white/[0.06] bg-white/[0.02] px-3 py-2.5",
+            inlineDone ? "flex items-center gap-2" : "flex flex-col gap-2.5"
+          )}
+        >
+          <div className={cn(inlineDone && "min-w-0 flex-1")}>
+            <ModInput
+              mod={mod}
+              value={value}
+              onChange={onChange}
+              isLocked={isLocked}
+              entryDate={entryDate}
+              autoFocus={defaultOpen}
+              hideLabel
+              compact
+            />
+          </div>
           {/* Kapatan bir onay: değer girildikten sonra çekmeceyi kapatmanın
               yolu yalnız başlıktaki ok olunca kullanıcı orayı aramak zorunda
               kalıyordu. Özelliği kalemden koparan düğme buradan kalktı — bu
@@ -1113,7 +1126,10 @@ function FeatureRow({
           <button
             type="button"
             onClick={onDone}
-            className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold transition-opacity active:opacity-80"
+            className={cn(
+              "flex items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold transition-opacity active:opacity-80",
+              inlineDone ? "h-10 shrink-0 px-3.5" : "h-9 w-full"
+            )}
             style={{ background: `${color}26`, color }}
           >
             <Check className="h-4 w-4" strokeWidth={2.5} />
@@ -1138,6 +1154,7 @@ export function ModInput({
   entryDate,
   autoFocus = false,
   hideLabel = false,
+  compact = false,
 }: {
   mod: CategoryModifierWithType;
   value: string;
@@ -1149,6 +1166,8 @@ export function ModInput({
   autoFocus?: boolean;
   /** Katlanır satırın içinde: adı satır zaten yazıyor, tekrar etmesin */
   hideLabel?: boolean;
+  /** Çekmecenin içinde: alan bir tık kısalıyor, yanına düğme sığsın */
+  compact?: boolean;
 }) {
   const t = useT();
   const vt = mod.entryType.valueType ?? "number";
@@ -1227,6 +1246,7 @@ export function ModInput({
           placeholder="0"
           step="any"
           autoFocus={autoFocus}
+          className={cn(compact && "h-10 text-[15px]")}
         />
       )}
 
@@ -1236,6 +1256,7 @@ export function ModInput({
           onChange={(e) => onChange(e.target.value)}
           placeholder={t("entry.textPlaceholder")}
           autoFocus={autoFocus}
+          className={cn(compact && "h-10 text-[15px]")}
         />
       )}
 
