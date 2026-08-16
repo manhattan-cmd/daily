@@ -905,41 +905,47 @@ function QuickRail({
   const t = useT();
   return (
     <div className="shrink-0">
-      {/* Ekleme düğmesi BAŞLIK satırında: şeridin sonuna konunca kartların
-          arkasında kalıyor ve yatay kaydırmadan görünmüyordu. */}
-      <div className="mb-1.5 flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-        <Zap className="h-3 w-3" />
-        {t("entry.quickAdd")}
+      {/* Başlık ve ekleme düğmesi RENKLİ: bu şerit sayfanın en kısa yolu,
+          gri bir başlıkla listeye karışıyordu. Düğme başlık satırında —
+          şeridin sonuna konunca kartların arkasında kalıyor ve yatay
+          kaydırmadan görünmüyordu. */}
+      <div className="mb-2 flex items-center gap-1.5 px-1">
+        <Zap className="h-3.5 w-3.5 text-primary" strokeWidth={2.5} />
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+          {t("entry.quickAdd")}
+        </span>
         <button
           onClick={onAdd}
-          className="ml-auto flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] py-1 pl-1.5 pr-2.5 text-[10px] font-medium normal-case tracking-normal text-muted-foreground transition-colors hover:text-foreground active:bg-white/[0.09]"
+          className="ml-auto flex items-center gap-1 rounded-full bg-primary/15 py-1 pl-1.5 pr-2.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/25"
         >
-          <Plus className="h-3 w-3" strokeWidth={2.5} />
+          <Plus className="h-3.5 w-3.5" strokeWidth={2.75} />
           {t("action.add")}
         </button>
       </div>
-      {/* Kart nötr, karo renkli: kartı da renge boyamak renkli dikdörtgen
-          yığını demekti ve şerit listeden gürültülü oluyordu. Renk çıpası
-          tek yerde dursun. */}
-      <HScroll className="gap-1.5 px-0.5 pb-0.5">
-        {items.map((it) => (
-          <button
-            key={it.id}
-            onClick={() => onPick(it.sub)}
-            className="flex w-[66px] shrink-0 flex-col items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.045] px-1 py-2 text-center transition-colors hover:bg-white/[0.07] active:bg-white/[0.09]"
-          >
-            <Tile color={it.color} icon={it.icon} size={30} />
-            <span className="w-full">
-              <span className="block truncate text-[11px] font-semibold leading-4 text-foreground">
+
+      {/* Kartları kapsayan pencere — sade ama renkli. Şerit çıplakken
+          listenin bir parçası gibi duruyordu; kendi zemini olunca "burası
+          ayrı bir yol" diyor. */}
+      <div className="rounded-2xl bg-primary/[0.06] p-2 ring-1 ring-inset ring-primary/20">
+        {/* Kart kare: üst kategori adı kalktığı için ikinci satıra gerek
+            kalmadı, kalan şey karo ve ad. Renk çıpası karoda — kartı da
+            boyamak renkli dikdörtgen yığını demek. */}
+        <HScroll className="gap-1.5">
+          {items.map((it) => (
+            <button
+              key={it.id}
+              onClick={() => onPick(it.sub)}
+              title={`${it.parent} › ${it.name}`}
+              className="flex h-[62px] w-[62px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-white/[0.09] bg-white/[0.05] px-1 text-center transition-colors hover:bg-white/[0.09] active:bg-white/[0.12]"
+            >
+              <Tile color={it.color} icon={it.icon} size={26} />
+              <span className="w-full truncate text-[10.5px] font-semibold leading-4 text-foreground">
                 {it.name}
               </span>
-              <span className="block truncate text-[9px] leading-[14px] text-muted-foreground">
-                {it.parent}
-              </span>
-            </span>
-          </button>
-        ))}
-      </HScroll>
+            </button>
+          ))}
+        </HScroll>
+      </div>
     </div>
   );
 }
