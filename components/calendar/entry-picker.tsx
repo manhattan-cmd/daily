@@ -507,7 +507,7 @@ export function EntryPicker({
           iz nereden geldiğini, başlık nerede olduğunu söylüyor. Kalemin
           kendi simgesi ve rengiyle — sayfanın kime ait olduğu bir bakışta
           okunuyor. */}
-      <div className="flex shrink-0 items-center gap-2 px-3 pb-2.5 pt-0.5">
+      <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-0.5">
         <Tile color={centerColor} icon={focusIcon} fallback={FolderOpen} size={28} />
         <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold leading-7 tracking-tight">
           {focusName}
@@ -573,68 +573,93 @@ export function EntryPicker({
           olduğunu söylüyor ama satırın NE olduğunu söylemiyordu. Bir ara
           kendi satırındaydı, orada yalnız kalıp fazladan bir kademe
           açıyordu; yolun başında dururken hem işaret hem başlangıç noktası.
-          Bulunulan yerin renginde: yolun hangi ağaçta olduğu belli oluyor. */}
-      <div className="flex shrink-0 items-center gap-2 px-3 pb-2.5 pt-2">
-        <span
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-          style={{
-            background: `${centerColor}24`,
-            boxShadow: `inset 0 0 0 1px ${centerColor}59`,
-          }}
-        >
-          <Compass
-            className="h-3 w-3"
-            strokeWidth={2.25}
-            style={{ color: centerColor }}
-          />
-        </span>
+          Bulunulan yerin renginde: yolun hangi ağaçta olduğu belli oluyor.
+
+          Yol KENDİ PENCERESİNDE ve ortalanmış: çıplak bir satır olarak
+          başlığın altında dururken göz onu ayrı bir şey saymıyordu, oysa
+          burada bir yolculuk oluyor. Kapsül biçimli zemin o yolculuğun rayı;
+          bulunulan yerin renginde hafifçe boyanıyor ki hangi ağaçta
+          olduğun pencerenin kendisinden de okunsun.
+
+          Ortalama `mx-auto` ile, `justify-center` ile DEĞİL: kaydırılan bir
+          kutuda justify-center taşan içeriğin SOL ucunu erişilemez yapıyor
+          (scrollLeft eksiye inemiyor). Otomatik kenar boşluğu ise negatif
+          boşlukta sıfıra düşüyor — sığdığında ortalıyor, taştığında sola
+          yapışıp tamamı kaydırılabiliyor. */}
+      <div
+        className="mx-3 mb-2 mt-1.5 shrink-0 rounded-full px-1.5 py-1"
+        style={{
+          background: `${centerColor}0f`,
+          boxShadow: `inset 0 0 0 1px ${centerColor}2b`,
+        }}
+      >
         <HScroll
-          className="items-center gap-1"
-          wrapperClassName="min-w-0 flex-1"
+          className="items-center"
+          wrapperClassName="min-w-0"
           followEnd={focusName}
         >
-          {trail.map((tr, i) => {
-            const last = i === trail.length - 1;
-            const isRoot = i === 0;
-            return (
-              <span key={i} className="flex shrink-0 items-center gap-1">
-                {i > 0 && (
-                  <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/35" />
-                )}
-                <button
-                  onClick={() => {
-                    setQuery("");
-                    setFocus(tr.focus);
-                  }}
-                  aria-current={last ? "page" : undefined}
-                  className={cn(
-                    "flex max-w-[150px] shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] font-medium transition-colors",
-                    last && "font-semibold text-foreground",
-                    !last && isRoot && "bg-primary/12 text-primary hover:bg-primary/20",
-                    !last &&
-                      !isRoot &&
-                      "border border-white/[0.09] bg-white/[0.04] text-muted-foreground hover:bg-white/[0.07] hover:text-foreground"
-                  )}
-                  style={
-                    last
-                      ? {
-                          background: `${centerColor}26`,
-                          boxShadow: `inset 0 0 0 1px ${centerColor}59`,
-                        }
-                      : undefined
-                  }
-                >
-                  {last && (
-                    <span
-                      className="h-1.5 w-1.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: centerColor }}
+          <div className="mx-auto flex shrink-0 items-center gap-1">
+            <span
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+              style={{
+                background: `${centerColor}2b`,
+                boxShadow: `inset 0 0 0 1px ${centerColor}66`,
+              }}
+            >
+              <Compass
+                className="h-3 w-3"
+                strokeWidth={2.25}
+                style={{ color: centerColor }}
+              />
+            </span>
+            {trail.map((tr, i) => {
+              const last = i === trail.length - 1;
+              const isRoot = i === 0;
+              return (
+                <span key={i} className="flex shrink-0 items-center gap-1">
+                  {i > 0 && (
+                    <ChevronRight
+                      className="h-3.5 w-3.5 shrink-0"
+                      style={{ color: `${centerColor}80` }}
                     />
                   )}
-                  <span className="truncate leading-5">{tr.label}</span>
-                </button>
-              </span>
-            );
-          })}
+                  <button
+                    onClick={() => {
+                      setQuery("");
+                      setFocus(tr.focus);
+                    }}
+                    aria-current={last ? "page" : undefined}
+                    className={cn(
+                      "flex max-w-[150px] shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] font-medium transition-colors",
+                      last && "font-semibold text-foreground",
+                      !last &&
+                        isRoot &&
+                        "bg-primary/15 text-primary hover:bg-primary/25",
+                      !last &&
+                        !isRoot &&
+                        "bg-white/[0.07] text-muted-foreground hover:bg-white/[0.11] hover:text-foreground"
+                    )}
+                    style={
+                      last
+                        ? {
+                            background: `${centerColor}33`,
+                            boxShadow: `inset 0 0 0 1px ${centerColor}73`,
+                          }
+                        : undefined
+                    }
+                  >
+                    {last && (
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: centerColor }}
+                      />
+                    )}
+                    <span className="truncate leading-5">{tr.label}</span>
+                  </button>
+                </span>
+              );
+            })}
+          </div>
         </HScroll>
       </div>
 
@@ -642,7 +667,7 @@ export function EntryPicker({
           böylece izin konumu kademeye göre kaymıyor. `flex-1` ile yüzeyin
           kalanını dolduruyor — 2 alt kategorili bir kalemde pencere büzülüp
           7'li kaleminkinden farklı bir kutuya dönüşüyordu. */}
-      <div className="mx-3 mb-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-primary/[0.04] pt-3 ring-1 ring-inset ring-primary/15">
+      <div className="mx-3 mb-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-primary/[0.04] pt-2.5 ring-1 ring-inset ring-primary/15">
 
         {/* Sabit üst bölüm: asli eylem, kısayollar ve arama listeyle birlikte
             kaymamalı — uzun listede aşağı inince arama kutusu kayboluyordu ve
@@ -1012,7 +1037,7 @@ function QuickRail({
           gri bir başlıkla listeye karışıyordu. Düğme başlık satırında —
           şeridin sonuna konunca kartların arkasında kalıyor ve yatay
           kaydırmadan görünmüyordu. */}
-      <div className="mb-2 flex items-center gap-1.5 px-1">
+      <div className="mb-1.5 flex items-center gap-1.5 px-1">
         <Zap className="h-3.5 w-3.5 text-primary" strokeWidth={2.5} />
         <span className="text-[11px] font-semibold uppercase tracking-wide text-primary">
           {t("entry.quickAdd")}
@@ -1029,30 +1054,37 @@ function QuickRail({
       {/* Kartları kapsayan pencere — sade ama renkli. Şerit çıplakken
           listenin bir parçası gibi duruyordu; kendi zemini olunca "burası
           ayrı bir yol" diyor. */}
-      <div className="rounded-2xl bg-primary/[0.09] p-2 ring-1 ring-inset ring-primary/25">
+      <div className="rounded-2xl bg-primary/[0.09] p-1.5 ring-1 ring-inset ring-primary/25">
         {/* Kart kare: üst kategori adı kalktığı için ikinci satıra gerek
             kalmadı, kalan şey karo ve ad. Renk çıpası karoda — kartı da
-            boyamak renkli dikdörtgen yığını demek. */}
+            boyamak renkli dikdörtgen yığını demek.
+
+            Ölçüler bir tık kısıldı (66×64 → 60×60, dolgu 8 → 6): şerit
+            sayfanın en kısa yolu ama asıl iş aşağıdaki listede, ona yer
+            kalması lazım. */}
         <HScroll className="gap-1.5">
           {items.map((it) => (
             <button
               key={it.id}
               onClick={() => onPick(it.sub)}
               title={`${it.parent} › ${it.name}`}
-              className="flex h-[66px] w-[64px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-white/[0.09] bg-white/[0.05] px-1 text-center transition-colors hover:bg-white/[0.09] active:bg-white/[0.12]"
+              className="flex h-[60px] w-[60px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-white/[0.09] bg-white/[0.05] px-1 text-center transition-colors hover:bg-white/[0.09] active:bg-white/[0.12]"
             >
-              <Tile color={it.color} icon={it.icon} size={24} />
-              {/* İki satır: "Dışardan Yemek" tek satırda "Dışardan…" diye
-                  kalıyordu; sararak tamamı sığıyor.
+              <Tile color={it.color} icon={it.icon} size={26} />
+              {/* Yazı kutusu SABİT iki satırlık: içeriğe göre büyüyünce kart
+                  onu ortalıyor ve iki satırlı adın karosu tek satırlılardan
+                  yukarı kayıyordu. Kutu sabit olunca karo her kartta aynı
+                  yerde.
 
-                  Yükseklik SABİT iki satırlık. Yazı kutusu içeriğe göre
-                  büyüyünce kart onu ortalıyor ve iki satırlı adın karosu tek
-                  satırlılardan yukarı kayıyordu — şeritte karolar hizasız
-                  duruyordu. Kutu sabitlenince karo her kartta aynı yerde.
-                  26px değil 24px: iki satır 24px, kalan 2px alt satırın
-                  ş/ğ kuyrukları kırpılmasın diye. */}
-              <span className="line-clamp-2 h-[26px] w-full text-[9.5px] font-semibold leading-[12px] text-foreground">
-                {it.name}
+                  Yazı kutunun İÇİNDE dikey ortalanıyor: tek satırlık ad
+                  kutunun tepesinde durunca altı boş kalıyor ve kart yukarı
+                  kaymış gibi görünüyordu — ağırlık merkezi karonun tarafına
+                  kayıyor. Ortalanınca kart kendi içinde dengeli duruyor,
+                  karoların hizası da bozulmuyor. */}
+              <span className="flex h-6 w-full items-center justify-center">
+                <span className="line-clamp-2 w-full text-[9.5px] font-semibold leading-[11.5px] text-foreground">
+                  {it.name}
+                </span>
               </span>
             </button>
           ))}
