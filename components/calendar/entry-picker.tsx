@@ -950,15 +950,14 @@ function Section({
  * Sıklığın yeri "Hızlı ekle" şeridi; gezinme listesi net ve eşit duruyor.
  */
 function PickRow({ row: r, onOpen }: { row: Row; onOpen: (node: Node) => void }) {
-  const t = useT();
   return (
     <button
       onClick={() => onOpen(r.node)}
-      // Sabit en az yükseklik: alt kalemi olmayan satır tek satırlık kalıp
-      // listeyi tırtıklı gösteriyordu. Ölçüler bir tık kısıldı: uzun listede
-      // iri satırlar sayfayı kabalaştırıyordu, artık daha çok kalem bir
-      // bakışta görünüyor.
-      className="flex min-h-[52px] w-full items-center gap-2.5 border-t border-white/[0.06] px-2.5 py-2 text-left transition-colors first:border-t-0 hover:bg-white/[0.05] active:bg-white/[0.08]"
+      // Tek satır: alt kalem sayısı ("6 alt kategori") kalktı. Kayıt
+      // ekleyecek kişi kaç dal olduğunu bilmek istemiyor, adı arıyor — sayı
+      // her satırda ikinci bir yazı olarak listeyi ağırlaştırıyordu. Altı
+      // olup olmadığını sağdaki işaret zaten söylüyor.
+      className="flex min-h-[48px] w-full items-center gap-2.5 border-t border-white/[0.06] px-2.5 py-2 text-left transition-colors first:border-t-0 hover:bg-white/[0.05] active:bg-white/[0.08]"
     >
       <Tile
         color={r.color}
@@ -966,15 +965,8 @@ function PickRow({ row: r, onOpen }: { row: Row; onOpen: (node: Node) => void })
         fallback={r.kids > 0 ? FolderOpen : Folder}
         size={34}
       />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[14px] font-medium leading-5 text-foreground">
-          {r.name}
-        </span>
-        {r.kids > 0 && (
-          <span className="mt-0.5 block truncate text-[11px] leading-4 text-muted-foreground">
-            {t("tree.subItemCount", { count: r.kids })}
-          </span>
-        )}
+      <span className="min-w-0 flex-1 truncate text-[14px] font-medium leading-5 text-foreground">
+        {r.name}
       </span>
       {/* İşaret dokununca ne olacağını söylüyor: altı varsa içine girilir
           (ok), yoksa kayıt oraya eklenir (artı). Her satıra ok koymak
