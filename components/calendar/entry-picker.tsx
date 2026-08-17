@@ -1043,8 +1043,15 @@ function QuickRail({
             >
               <Tile color={it.color} icon={it.icon} size={24} />
               {/* İki satır: "Dışardan Yemek" tek satırda "Dışardan…" diye
-                  kalıyordu; sararak tamamı sığıyor */}
-              <span className="line-clamp-2 w-full text-[9.5px] font-semibold leading-[12px] text-foreground">
+                  kalıyordu; sararak tamamı sığıyor.
+
+                  Yükseklik SABİT iki satırlık. Yazı kutusu içeriğe göre
+                  büyüyünce kart onu ortalıyor ve iki satırlı adın karosu tek
+                  satırlılardan yukarı kayıyordu — şeritte karolar hizasız
+                  duruyordu. Kutu sabitlenince karo her kartta aynı yerde.
+                  26px değil 24px: iki satır 24px, kalan 2px alt satırın
+                  ş/ğ kuyrukları kırpılmasın diye. */}
+              <span className="line-clamp-2 h-[26px] w-full text-[9.5px] font-semibold leading-[12px] text-foreground">
                 {it.name}
               </span>
             </button>
