@@ -507,11 +507,34 @@ export function EntryPicker({
           iz nereden geldiğini, başlık nerede olduğunu söylüyor. Kalemin
           kendi simgesi ve rengiyle — sayfanın kime ait olduğu bir bakışta
           okunuyor. */}
-      <div className="flex shrink-0 items-center gap-2.5 px-3 pb-2.5 pt-0.5">
+      <div className="flex shrink-0 items-center gap-2 px-3 pb-2.5 pt-0.5">
         <Tile color={centerColor} icon={focusIcon} fallback={FolderOpen} size={28} />
         <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold leading-7 tracking-tight">
           {focusName}
         </h2>
+
+        {/* Yaratma eylemi başlığın hizasında: sayfanın SAHİBİNE bir şey
+            ekliyor, o yüzden yeri onun satırı. Kökte ana kategori açıyor,
+            bir dalın içinde o dala alt kategori — aynı iş, farklı kademe,
+            o yüzden aynı düğme. Bir ara "Alt kategori aç" pencerenin içinde
+            "Buraya ekle"nin yanındaydı ve iki farklı iş (kayıt eklemek /
+            yapı kurmak) yan yana durup birbirine karışıyordu. */}
+        {focusObj == null
+          ? onCreateCategory && (
+              <CreatePill
+                icon={Plus}
+                label={t("entry.createCategory")}
+                onClick={onCreateCategory}
+              />
+            )
+          : (
+              <CreatePill
+                icon={FolderPlus}
+                label={t("tree.createSubcategory")}
+                onClick={openAddSub}
+              />
+            )}
+
         <button
           onClick={onClose}
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-muted-foreground transition-colors hover:bg-white/12"
@@ -533,27 +556,6 @@ export function EntryPicker({
         }}
       />
 
-      {/* Pusula — yolun başladığı yeri işaretleyen küçük bir nişan.
-          Çiplerin kendisi "geri dönülebilir" olduğunu söylüyor ama satırın
-          ne olduğunu söylemiyordu; başlıkla arasına giren bu işaret onu
-          gezinme satırı olarak okutuyor. Bulunulan yerin renginde: sayfa
-          değişince o da değişiyor, yolun hangi ağaçta olduğu belli oluyor. */}
-      <div className="flex shrink-0 items-center px-3 pb-1 pt-2">
-        <span
-          className="flex h-5 w-5 items-center justify-center rounded-full"
-          style={{
-            background: `${centerColor}24`,
-            boxShadow: `inset 0 0 0 1px ${centerColor}59`,
-          }}
-        >
-          <Compass
-            className="h-3 w-3"
-            strokeWidth={2.25}
-            style={{ color: centerColor }}
-          />
-        </span>
-      </div>
-
       {/* Yol izi — nerede olduğun ve geri dönüş.
           Her basamak bir çip: ataları düz metin bırakmak satırı yarım
           bırakıyordu, çip olunca dokunulabilir oldukları da görünüyor.
@@ -565,8 +567,27 @@ export function EntryPicker({
           itiyordu. Kökte de "Kategoriler" basamağı yazılıyor: başlıkla aynı
           adı söylüyor ama iş bölümü ayrı — başlık sayfanın kimliği, çip
           yolun ilk durağı. Satır boş kalınca gezinme çubuğu sanki yokmuş
-          gibi duruyordu. O basamak her zaman renkli — yolun kökü o. */}
-      <div className="flex shrink-0 items-center gap-2 px-3 pb-2.5">
+          gibi duruyordu. O basamak her zaman renkli — yolun kökü o.
+
+          Satırın başında pusula duruyor: çiplerin kendisi "geri dönülebilir"
+          olduğunu söylüyor ama satırın NE olduğunu söylemiyordu. Bir ara
+          kendi satırındaydı, orada yalnız kalıp fazladan bir kademe
+          açıyordu; yolun başında dururken hem işaret hem başlangıç noktası.
+          Bulunulan yerin renginde: yolun hangi ağaçta olduğu belli oluyor. */}
+      <div className="flex shrink-0 items-center gap-2 px-3 pb-2.5 pt-2">
+        <span
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+          style={{
+            background: `${centerColor}24`,
+            boxShadow: `inset 0 0 0 1px ${centerColor}59`,
+          }}
+        >
+          <Compass
+            className="h-3 w-3"
+            strokeWidth={2.25}
+            style={{ color: centerColor }}
+          />
+        </span>
         <HScroll
           className="items-center gap-1"
           wrapperClassName="min-w-0 flex-1"
@@ -615,21 +636,6 @@ export function EntryPicker({
             );
           })}
         </HScroll>
-
-        {/* Kategori yaratmak YALNIZ kökte. Bir ara her kademede duruyordu ve
-            yanıltıyordu: düğme ana kategori açıyor, oysa bir dalın içindeyken
-            beklenen şey oraya alt kategori açması. O iş zaten pencerenin
-            içindeki "Alt kategori aç" düğmesinde. Yeri yol izinin hizası:
-            kökte iz tek çipten ibaret, sağı boş duruyordu. */}
-        {focusObj == null && onCreateCategory && (
-          <button
-            onClick={onCreateCategory}
-            className="flex h-7 shrink-0 items-center gap-0.5 rounded-full bg-primary pl-1.5 pr-2 text-[10.5px] font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-transform active:scale-[0.96]"
-          >
-            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-            {t("entry.createCategory")}
-          </button>
-        )}
       </div>
 
       {/* Gövdenin penceresi. Yol izi dışarıda kaldığı için burada kuruluyor:
@@ -659,25 +665,18 @@ export function EntryPicker({
             />
           )}
 
-          {/* Eylemler — yalnız bir dalın içinde. Kategori yaratmak sheet
-              başlığına taşındı: her kademede duran bir eylem oraya ait.
-              "Buraya ekle" burada kalemin renginde duruyor ki üç düğme
-              arasında hangisinin asli olduğu belli olsun. Yapı sayfası
-              yalnız simge: adı yazınca satır üç düğmeye yetmiyordu. */}
+          {/* Eylemler — yalnız bir dalın içinde. Pencerenin içindeki işler
+              KAYIT işleri: "Buraya ekle" kalemin renginde, yanında yapı
+              sayfasına giden simge. "Alt kategori aç" buradan başlığın
+              hizasına çıktı — yapı kurmakla kayıt eklemek yan yana durunca
+              hangisinin ne olduğu karışıyordu. */}
           {focusObj != null && (
             <div className="flex shrink-0 items-center gap-2">
               {hasKids && (
-                <QuietButton
-                  icon={Plus}
-                  color={centerColor}
-                  onClick={pickHere}
-                >
+                <QuietButton icon={Plus} color={centerColor} onClick={pickHere}>
                   {t("entry.addHere")}
                 </QuietButton>
               )}
-              <QuietButton icon={FolderPlus} onClick={openAddSub}>
-                {t("tree.createSubcategory")}
-              </QuietButton>
               <QuietButton
                 icon={Layers}
                 href={structureHref}
@@ -1061,6 +1060,34 @@ function QuickRail({
         </HScroll>
       </div>
     </div>
+  );
+}
+
+/**
+ * Başlık hizasındaki yaratma düğmesi — kökte "Kategori yarat", bir dalın
+ * içinde "Alt kategori aç". İkisi de aynı iş (yapıya yeni bir yer açmak),
+ * o yüzden aynı biçim: uygulamanın vurgu renginde dolu bir kapsül.
+ *
+ * Kalemin renginde DEĞİL: pencerenin içindeki "Buraya ekle" o rengi
+ * kullanıyor ve o kayıt işi. Renk ayrımı iki işi ayırıyor.
+ */
+function CreatePill({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: typeof Plus;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex h-7 shrink-0 items-center gap-1 rounded-full bg-primary pl-2 pr-2.5 text-[10.5px] font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-transform active:scale-[0.96]"
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
+      {label}
+    </button>
   );
 }
 
