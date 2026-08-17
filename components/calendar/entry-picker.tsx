@@ -581,13 +581,14 @@ export function EntryPicker({
           bulunulan yerin renginde hafifçe boyanıyor ki hangi ağaçta
           olduğun pencerenin kendisinden de okunsun.
 
-          Ortalama `mx-auto` ile, `justify-center` ile DEĞİL: kaydırılan bir
-          kutuda justify-center taşan içeriğin SOL ucunu erişilemez yapıyor
-          (scrollLeft eksiye inemiyor). Otomatik kenar boşluğu ise negatif
-          boşlukta sıfıra düşüyor — sığdığında ortalıyor, taştığında sola
-          yapışıp tamamı kaydırılabiliyor. */}
+          Yol SOLA yaslı ve pusula aşağıdaki "HIZLI EKLE" şimşeğiyle aynı
+          dikey çizgide (yüzeyin solundan 28px): bir ara ortalanmıştı ama
+          o zaman yolun nereden başladığı her kademede kayıyordu, oysa
+          başlangıç sabit bir yer olmalı — göz o çizgiyi bir kez öğreniyor.
+          Rakam elle değil hizadan geliyor: pencere kenarı 12 + pencere
+          dolgusu 12 + başlık dolgusu 4. */}
       <div
-        className="mx-3 mb-2 mt-1.5 shrink-0 rounded-full px-1.5 py-1"
+        className="mx-3 mb-2 mt-1.5 shrink-0 rounded-full py-1 pl-4 pr-2"
         style={{
           background: `${centerColor}0f`,
           boxShadow: `inset 0 0 0 1px ${centerColor}2b`,
@@ -598,7 +599,7 @@ export function EntryPicker({
           wrapperClassName="min-w-0"
           followEnd={focusName}
         >
-          <div className="mx-auto flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1">
             <span
               className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
               style={{
