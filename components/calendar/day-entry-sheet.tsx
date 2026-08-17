@@ -359,7 +359,11 @@ export function DayEntrySheet({
           //
           // Tek istisna etkinlik adı: tek satırlık bir soru için tam boy
           // yüzey açmak abes.
-          step.type === "activity-name" ? "max-h-[90vh]" : "h-[90vh]",
+          //
+          // 94vh, 90 değil: seçicinin üstünde artık iki pencere var (başlık
+          // ve yol) ve bunlar listeden yer alıyordu. Asıl iş listede olduğu
+          // için yüzey biraz büyüdü — altta gün sayfası hâlâ görünüyor.
+          step.type === "activity-name" ? "max-h-[90vh]" : "h-[94vh]",
           "shadow-[0_-8px_40px_rgba(0,0,0,0.55)]",
           "transition-transform duration-300 ease-out",
           open ? "translate-y-0" : "translate-y-full"

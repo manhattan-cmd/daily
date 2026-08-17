@@ -506,8 +506,26 @@ export function EntryPicker({
           adı hem boşluğu dolduruyor hem yol izinden farklı bir iş yapıyor:
           iz nereden geldiğini, başlık nerede olduğunu söylüyor. Kalemin
           kendi simgesi ve rengiyle — sayfanın kime ait olduğu bir bakışta
-          okunuyor. */}
-      <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-0.5">
+          okunuyor.
+
+          KENDİ PENCERESİNDE. Çıplak bir satırken iki sorunu vardı: karosu
+          12px'ten başlıyordu, oysa aşağıda her şey (pusula, HIZLI EKLE
+          şimşeği, bölüm başlıkları) 28px'lik ortak omurgada duruyor — tek
+          başına o hizanın dışında kalıyordu. İkincisi altındaki ince çizgi
+          yolu ayırmaya yetmiyor, tam tersine başlığı yola yapıştırıyordu.
+          Pencere ikisini birden çözüyor: `px-4` ile karo 28px'e oturuyor
+          (12 kenar + 16 dolgu) ve iki pencere arasındaki boşluk bir çizgiden
+          daha net ayırıyor. Çizgi bu yüzden kalktı. */}
+      <div
+        // Sol dolgu 16 (omurgayı tutuyor), sağ 12: pencere satıra 8px
+        // eklediği için "Kişisel Bakım ve Sağlık" kırpılmaya başlamıştı.
+        // Sağdan ve aralardan kısmak yeter — sol hizanın bozulması olmaz.
+        className="mx-3 mb-2.5 flex shrink-0 items-center gap-1.5 rounded-2xl py-2.5 pl-4 pr-3"
+        style={{
+          background: `${centerColor}0d`,
+          boxShadow: `inset 0 0 0 1px ${centerColor}24`,
+        }}
+      >
         <Tile color={centerColor} icon={focusIcon} fallback={FolderOpen} size={28} />
         <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold leading-7 tracking-tight">
           {focusName}
@@ -544,18 +562,6 @@ export function EntryPicker({
         </button>
       </div>
 
-      {/* Çizgi başlığı yoldan ayırıyor: üstünde sayfanın kim olduğu, altında
-          oraya nasıl gelindiği. Genişliği pencerelerinkiyle aynı (mx-3) —
-          farklı bir hizada duran bir çizgi ayırmıyor, çentik gibi duruyor.
-          Ortada değil solda soluyor: yol soldan başlıyor, ağırlık orada. */}
-      <div
-        className="mx-3 h-px shrink-0"
-        style={{
-          background:
-            "linear-gradient(to right, rgba(255,255,255,0.14), rgba(255,255,255,0.03))",
-        }}
-      />
-
       {/* Yol izi — nerede olduğun ve geri dönüş.
           Her basamak bir çip: ataları düz metin bırakmak satırı yarım
           bırakıyordu, çip olunca dokunulabilir oldukları da görünüyor.
@@ -588,7 +594,7 @@ export function EntryPicker({
           Rakam elle değil hizadan geliyor: pencere kenarı 12 + pencere
           dolgusu 12 + başlık dolgusu 4. */}
       <div
-        className="mx-3 mb-2 mt-1.5 shrink-0 rounded-full py-1 pl-4 pr-2"
+        className="mx-3 mb-2.5 shrink-0 rounded-full py-1 pl-4 pr-2"
         style={{
           background: `${centerColor}0f`,
           boxShadow: `inset 0 0 0 1px ${centerColor}2b`,
