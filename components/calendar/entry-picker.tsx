@@ -542,6 +542,7 @@ export function EntryPicker({
               <CreatePill
                 icon={Plus}
                 label={t("entry.createCategory")}
+                color={centerColor}
                 onClick={onCreateCategory}
               />
             )
@@ -549,6 +550,7 @@ export function EntryPicker({
               <CreatePill
                 icon={FolderPlus}
                 label={t("tree.createSubcategory")}
+                color={centerColor}
                 onClick={openAddSub}
               />
             )}
@@ -1104,24 +1106,36 @@ function QuickRail({
 /**
  * Başlık hizasındaki yaratma düğmesi — kökte "Kategori yarat", bir dalın
  * içinde "Alt kategori aç". İkisi de aynı iş (yapıya yeni bir yer açmak),
- * o yüzden aynı biçim: uygulamanın vurgu renginde dolu bir kapsül.
+ * o yüzden aynı biçim: dolu bir kapsül.
  *
- * Kalemin renginde DEĞİL: pencerenin içindeki "Buraya ekle" o rengi
- * kullanıyor ve o kayıt işi. Renk ayrımı iki işi ayırıyor.
+ * Rengi BULUNULAN YERİN rengi. Bir ara sabit vurgu rengindeydi (yapı kurmak
+ * ile kayıt eklemek ayrılsın diye) ama düğme sayfanın sahibine alt kategori
+ * açıyor — hangi kaleme açtığı renkten okunmalı. Kökte zaten vurgu rengiyle
+ * aynı yere düşüyor, o yüzden ilk sayfa değişmiş görünmüyor.
+ *
+ * Yazı rengi parlaklığa göre: sarı/limon bir kategoride beyaz kayboluyor.
  */
 function CreatePill({
   icon: Icon,
   label,
+  color,
   onClick,
 }: {
   icon: typeof Plus;
   label: string;
+  color: string;
   onClick: () => void;
 }) {
+  const ink = inkOn(color);
   return (
     <button
       onClick={onClick}
-      className="flex h-7 shrink-0 items-center gap-1 rounded-full bg-primary pl-2 pr-2.5 text-[10.5px] font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-transform active:scale-[0.96]"
+      className="flex h-7 shrink-0 items-center gap-1 rounded-full pl-2 pr-2.5 text-[10.5px] font-semibold transition-transform active:scale-[0.96]"
+      style={{
+        backgroundColor: color,
+        color: ink,
+        boxShadow: `0 4px 12px ${color}40`,
+      }}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
       {label}
