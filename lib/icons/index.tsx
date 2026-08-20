@@ -82,12 +82,19 @@ export function SymbolIcon({
   // Emoji: kendi rengini taşır, currentColor'a uymaz — punto ile ölçeklenir.
   // Kutusu diğer iki dal gibi tam `size` kadar ve emoji ortasına oturuyor;
   // yazı olarak bırakılınca satır boşluğu yüzünden hücrede aşağı kayıyordu.
+  //
+  // GRID DEĞİL FLEX. Emojinin ilerleme kutusu punto başına 0.95–1.37 em
+  // (Segoe UI Emoji): 0.86 punto çarpanıyla en geniş emoji `size` kutusunu
+  // ~%20 taşıyor. inline-grid taşan içeriği tek yana bırakıyor ve çizim
+  // sağa kayıyordu — 26px karoda 2.4px, gözle görülür. Flex aynı puntoda
+  // taşmayı iki yana eşit dağıtıyor: kaçık 2.38px → 0.25px.
   return (
     <span
       className={className}
       style={{
-        display: "inline-grid",
-        placeItems: "center",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
         width: size,
         height: size,
         fontSize: size * 0.86,
