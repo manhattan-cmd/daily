@@ -1077,23 +1077,21 @@ function QuickRail({
               key={it.id}
               onClick={() => onPick(it.sub)}
               title={`${it.parent} › ${it.name}`}
-              className="flex h-[60px] w-[60px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-white/[0.09] bg-white/[0.05] px-1 text-center transition-colors hover:bg-white/[0.09] active:bg-white/[0.12]"
+              className="flex h-[48px] w-[60px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-white/[0.09] bg-white/[0.05] px-1 text-center transition-colors hover:bg-white/[0.09] active:bg-white/[0.12]"
             >
               <Tile color={it.color} icon={it.icon} size={26} />
-              {/* Yazı kutusu SABİT iki satırlık: içeriğe göre büyüyünce kart
-                  onu ortalıyor ve iki satırlı adın karosu tek satırlılardan
-                  yukarı kayıyordu. Kutu sabit olunca karo her kartta aynı
-                  yerde.
+              {/* Ad TEK SATIR. İki satırlık kutu ayrılıyordu ve altındaki
+                  boşluk karoyu yukarı itiyordu: içerik dikeyde ortalandığı
+                  için karonun merkezi, kartın merkezinden hep
+                  (yazı kutusu + aralık) / 2 kadar yukarıda kalıyor. İki
+                  satırda bu 13px, tek satırda 7.5px — kart da 60px'ten
+                  48px'e iniyor, altındaki listeye yer kalıyor.
 
-                  Yazı kutunun İÇİNDE dikey ortalanıyor: tek satırlık ad
-                  kutunun tepesinde durunca altı boş kalıyor ve kart yukarı
-                  kaymış gibi görünüyordu — ağırlık merkezi karonun tarafına
-                  kayıyor. Ortalanınca kart kendi içinde dengeli duruyor,
-                  karoların hizası da bozulmuyor. */}
-              <span className="flex h-6 w-full items-center justify-center">
-                <span className="line-clamp-2 w-full text-[9.5px] font-semibold leading-[11.5px] text-foreground">
-                  {it.name}
-                </span>
+                  Bedeli uzun adın kesilmesi. Satır yüksekliği 13px, punto
+                  9.5px: kalan boşluk ş/ğ kuyrukları overflow-hidden ile
+                  kırpılmasın diye. */}
+              <span className="block w-full truncate text-[9.5px] font-semibold leading-[13px] text-foreground">
+                {it.name}
               </span>
             </button>
           ))}
