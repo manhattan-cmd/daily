@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, ArrowRight, Boxes, CalendarDays, MoonStar, NotebookPen, Target, PenLine } from "lucide-react";
+import { ArrowLeft, ArrowRight, Boxes, CalendarDays, MoonStar, NotebookPen, Smile, Target, PenLine } from "lucide-react";
 import { db } from "@/lib/db";
 import {
   createNote,
@@ -30,6 +30,8 @@ import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { AddMenu, type AddMenuItem } from "@/components/calendar/add-menu";
 import { SleepSheet } from "@/components/calendar/sleep-sheet";
 import { SleepCard } from "@/components/calendar/sleep-card";
+import { MoodSheet } from "@/components/calendar/mood-sheet";
+import { MoodCard } from "@/components/calendar/mood-card";
 import { ActivityCard } from "@/components/calendar/activity-card";
 import {
   EntrySelectionBar,
@@ -106,6 +108,7 @@ export default function CalendarDayPage({
   } | null>(null);
   const [goalSheetOpen, setGoalSheetOpen] = useState(false);
   const [sleepSheetOpen, setSleepSheetOpen] = useState(false);
+  const [moodSheetOpen, setMoodSheetOpen] = useState(false);
   // Toplu seçim — null: mod kapalı. Kart bazlı seçilir, girdi id'si tutulur.
   const [selected, setSelected] = useState<Set<string> | null>(null);
 
@@ -122,13 +125,20 @@ export default function CalendarDayPage({
   // Aktivite adları — tablo küçük, id → kayıt haritası kart başlıkları için
   const activities = useLiveQuery(() => db.activities.toArray(), []);
   const activityById = new Map((activities ?? []).map((a) => [a.id, a]));
-  const hasSleepCategory = useLiveQuery(
-    async () => !!(await db.categories.filter((c) => !!c.isBuiltIn).first()),
-    []
-  );
+  // Yerleşik akışların varlığı — Ekle menüsünde çıkıp çıkmayacaklarını belirler
+  const builtInKeys = useLiveQuery(async () => {
+    const cats = await db.categories.filter((c) => !!c.isBuiltIn).toArray();
+    // Anahtarı henüz doldurulmamış tek yerleşik = eski kurulumdaki Uyku
+    return new Set(cats.map((c) => c.builtInKey ?? "sleep"));
+  }, []);
+  const hasSleepCategory = builtInKeys?.has("sleep");
+  const hasMoodCategory = builtInKeys?.has("mood");
 
-  // Yerleşik Uyku girdileri kendi zarif yuvasında gösterilir
-  const sleepEntries = (entries ?? []).filter((e) => e.category.isBuiltIn);
+  // Yerleşik akışların girdileri kendi zarif yuvalarında gösterilir
+  const builtInKeyOf = (e: { category: { isBuiltIn?: boolean; builtInKey?: string } }) =>
+    e.category.isBuiltIn ? e.category.builtInKey ?? "sleep" : undefined;
+  const sleepEntries = (entries ?? []).filter((e) => builtInKeyOf(e) === "sleep");
+  const moodEntries = (entries ?? []).filter((e) => builtInKeyOf(e) === "mood");
   const otherEntries = (entries ?? []).filter((e) => !e.category.isBuiltIn);
 
   // Kart → seçim durumu. Günün her öğesi (girdi, uyku, hedef, not) seçilebilir;
@@ -137,6 +147,7 @@ export default function CalendarDayPage({
   const selectionActive = selected !== null;
   const allKeys = [
     ...sleepEntries.map((e) => dayItemKey("entry", e.id)),
+    ...moodEntries.map((e) => dayItemKey("entry", e.id)),
     ...otherEntries.map((e) => dayItemKey("entry", e.id)),
     ...(goals ?? []).map((g) => dayItemKey("goal", g.id)),
     ...(notes ?? []).map((n) => dayItemKey("note", n.id)),
@@ -254,6 +265,17 @@ export default function CalendarDayPage({
                     },
                   ] satisfies AddMenuItem[])
                 : []),
+              ...(hasMoodCategory
+                ? ([
+                    {
+                      key: "mood",
+                      label: t("add.mood"),
+                      icon: Smile,
+                      iconClass: "text-pink-400",
+                      onSelect: () => setMoodSheetOpen(true),
+                    },
+                  ] satisfies AddMenuItem[])
+                : []),
             ]}
           />
         </div>
@@ -262,11 +284,19 @@ export default function CalendarDayPage({
       {/* Divider */}
       <div className="h-px bg-border mb-5" />
 
-      {/* Uyku yuvası — yalnızca kayıt varsa */}
-      {sleepEntries.length > 0 && (
+      {/* Yerleşik akış yuvaları — yalnızca kayıt varsa. Ruh hali günde birden
+          çok kez girilebiliyor, o yüzden kartlar sırayla dizilir. */}
+      {(sleepEntries.length > 0 || moodEntries.length > 0) && (
         <div className="mb-5 flex flex-col gap-2">
           {sleepEntries.map((e) => (
             <SleepCard
+              key={e.id}
+              entry={e}
+              selection={selectionFor([`entry:${e.id}`])}
+            />
+          ))}
+          {moodEntries.map((e) => (
+            <MoodCard
               key={e.id}
               entry={e}
               selection={selectionFor([`entry:${e.id}`])}
@@ -328,6 +358,7 @@ export default function CalendarDayPage({
         <CardListSkeleton rows={3} />
       ) : otherEntries.length === 0 ? (
         sleepEntries.length === 0 &&
+        moodEntries.length === 0 &&
         (!goals || goals.length === 0) &&
         (!notes || notes.length === 0) ? (
           <EmptyState
@@ -453,6 +484,12 @@ export default function CalendarDayPage({
         date={date}
         open={sleepSheetOpen}
         onClose={() => setSleepSheetOpen(false)}
+      />
+
+      <MoodSheet
+        date={date}
+        open={moodSheetOpen}
+        onClose={() => setMoodSheetOpen(false)}
       />
     </>
   );

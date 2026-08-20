@@ -22,7 +22,9 @@ export default function MapPage() {
   const t = useT();
   const groups = useLiveQuery(async (): Promise<MapGroup[]> => {
     const [cats, subs] = await Promise.all([
-      db.categories.orderBy("order").toArray(),
+      // Yerleşik akışlar haritada düğüm değil: kullanıcıya kategori olarak
+      // sunulmuyorlar, kendi ekleme pencereleri var
+      db.categories.orderBy("order").filter((c) => !c.isBuiltIn).toArray(),
       db.subcategories.toArray(),
     ]);
     return cats.map((category) => ({

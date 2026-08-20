@@ -16,7 +16,7 @@ import {
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { useLongPress } from "@/lib/use-long-press";
-import { moveSubCategory, listCategories } from "@/lib/db/queries";
+import { moveSubCategory, listUserCategories } from "@/lib/db/queries";
 import { CategoryTileCore } from "@/components/structure/category-tile";
 import { modAtomIcon } from "@/components/structure/mod-atom";
 import { DeleteSubCategoryDialog } from "@/components/structure/delete-subcategory-dialog";
@@ -116,7 +116,7 @@ export function SubCategoryTree({
   }, [categoryId]);
 
   // Başka kategoriye taşıma seçicisi için diğer kategoriler
-  const categories = useLiveQuery(() => listCategories(), []);
+  const categories = useLiveQuery(() => listUserCategories(), []);
 
   const [drag, setDrag] = useState<{
     sub: SubCategory;

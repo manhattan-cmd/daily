@@ -84,13 +84,27 @@ export interface GlobalDimensionConfig {
   label?: string;
 }
 
+/**
+ * Uygulamayla gelen, kullanıcıya kategori olarak SUNULMAYAN akışlar.
+ * Altta sıradan kategori olarak dururlar — girdi, analiz, arama ve yedek
+ * bedavaya gelsin diye — ama gezinilen yüzeylerde görünmezler; kendi ekleme
+ * pencereleri vardır.
+ */
+export type BuiltInCategoryKey = "sleep" | "mood";
+
 export interface Category {
   id: string;
   name: string;
   icon?: string;
   color: string;
-  /** Uygulamayla gelen şablon kategori (Uyku) — girdi seçiciden gizlenir, özel akışı vardır */
+  /** Uygulamayla gelen şablon kategori — gezinme yüzeylerinden gizlenir, özel akışı vardır */
   isBuiltIn?: boolean;
+  /**
+   * Hangi yerleşik akış olduğu. `isBuiltIn` tek başına "Uyku" demekti;
+   * ikinci yerleşik (Ruh hali) gelince ayırt edici şart oldu. İndekssiz
+   * alan: göç gerektirmez, açılışta eski kayıtlara doldurulur.
+   */
+  builtInKey?: BuiltInCategoryKey;
   order: number;
   createdAt: number;
   updatedAt: number;

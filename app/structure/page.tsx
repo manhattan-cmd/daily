@@ -2,7 +2,7 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { Layers } from "lucide-react";
-import { listCategories } from "@/lib/db/queries";
+import { listUserCategories } from "@/lib/db/queries";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CategoryQuickAdd } from "@/components/structure/category-quick-add";
@@ -13,7 +13,7 @@ import { useT } from "@/lib/i18n";
 
 export default function StructurePage() {
   const t = useT();
-  const categories = useLiveQuery(() => listCategories(), []);
+  const categories = useLiveQuery(() => listUserCategories(), []);
 
   const existingNames = new Set(categories?.map((c) => c.name) ?? []);
 

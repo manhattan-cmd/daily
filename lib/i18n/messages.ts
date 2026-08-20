@@ -226,6 +226,19 @@ export const en = {
   "sleep.logged": "Sleep logged",
   "goal.select": "Select {name} goal",
 
+  // ── Ruh hali ─────────────────────────────────────────────────────────
+  "add.mood": "Mood",
+  "mood.add": "Add mood",
+  "mood.title": "Mood",
+  "mood.level": "Happiness",
+  "mood.emotions": "Emotions",
+  "mood.emotionsHint": "pick as many as you feel",
+  "mood.selectedCount": "{count} selected",
+  "mood.missing": "Mood category not found.",
+  "mood.edit": "Edit mood record",
+  "mood.select": "Select mood record",
+  "mood.logged": "Mood logged",
+
   // ── Tarih & saat ─────────────────────────────────────────────────────
   "datetime.title": "Date & time",
   "datetime.start": "Start",
@@ -742,6 +755,18 @@ export const tr: Record<MessageKey, string> = {
   "sleep.title": "Uyku",
   "sleep.logged": "Uyku kaydedildi",
   "goal.select": "{name} hedefini seç",
+
+  "add.mood": "Ruh hali",
+  "mood.add": "Ruh hali ekle",
+  "mood.title": "Ruh hali",
+  "mood.level": "Mutluluk",
+  "mood.emotions": "Duygular",
+  "mood.emotionsHint": "hissettiğin kadarını işaretle",
+  "mood.selectedCount": "{count} seçili",
+  "mood.missing": "Ruh hali kategorisi bulunamadı.",
+  "mood.edit": "Ruh hali kaydını düzenle",
+  "mood.select": "Ruh hali kaydını seç",
+  "mood.logged": "Ruh hali kaydedildi",
 
   "datetime.title": "Tarih & Saat",
   "datetime.start": "Başlangıç",

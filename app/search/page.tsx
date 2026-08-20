@@ -44,7 +44,9 @@ export default function SearchPage() {
   const [range, setRange] = useState<RangeKey>("all");
 
   const categories = useLiveQuery(
-    () => db.categories.orderBy("order").toArray(),
+    // Yerleşik akışlar (Uyku, Ruh hali) kategori süzgecinde yok — kullanıcıya
+    // kategori olarak sunulmuyorlar
+    () => db.categories.orderBy("order").filter((c) => !c.isBuiltIn).toArray(),
     []
   );
 

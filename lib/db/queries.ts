@@ -5,6 +5,7 @@ import { toLocalDateValue } from "@/lib/utils";
 import { matchesSearch, normalizeSearch } from "@/lib/search";
 import type {
   Activity,
+  BuiltInCategoryKey,
   Category,
   CategoryModifier,
   SubCategory,
@@ -199,14 +200,101 @@ export async function listDimensions(): Promise<GlobalDimension[]> {
 
 // ============ Built-in Categories ============
 
+/**
+ * Ruh halinde işaretlenebilen duygular.
+ *
+ * Ayrı bir kavram değil: seçenekli bir özelliğin seçenekleri. Fark tek —
+ * ruh hali penceresi bu özellikten BİRDEN ÇOK değer yazar, her seçilen duygu
+ * kendi `entryValues` satırı olur. Depolama bunu zaten kaldırıyordu
+ * (entryValues'ta [entryId+modId] tekil değil), yeni bir ölçüm türü
+ * uydurmaya gerek kalmadı.
+ *
+ * Adlar İngilizce: tohum verisinin tamamı öyle (Expenses, Groceries,
+ * Sleep Quality…) ve v19 Türkçe adları bilerek İngilizceye taşıdı.
+ */
+export const MOOD_EMOTIONS = [
+  "Happy",
+  "Calm",
+  "Grateful",
+  "Excited",
+  "Confident",
+  "Loved",
+  "Hopeful",
+  "Focused",
+  "Tired",
+  "Stressed",
+  "Anxious",
+  "Sad",
+  "Angry",
+  "Lonely",
+  "Bored",
+  "Frustrated",
+] as const;
+
+/**
+ * Yerleşik akışların şablonu. `key` şart: `isBuiltIn` tek başına "Uyku"
+ * demekti, ikinci yerleşik gelince hangisinin hangisi olduğu ayırt
+ * edilemiyordu (uyku penceresi ilk yerleşiği alıyordu, gün sayfası ruh
+ * hali kayıtlarını uyku yuvasına koyardı).
+ *
+ * Özellikler de burada: eskiden yerleşik kategorinin özelliklerini
+ * bağlayan tek yer `ensureDefaultModifiers`'dı ve v19'daki ad devrinden
+ * sonra artık eşleşmiyordu — temiz kurulumda Uyku penceresi bomboş
+ * açılıyordu.
+ */
 const BUILT_IN_CATEGORIES = [
   {
+    key: "sleep",
     name: "Sleep",
     color: "#8b5cf6",
     icon: "Moon",
-    subcategories: [{ name: "Night Sleep", icon: "🌙" }],
+    subcategories: [
+      {
+        name: "Night Sleep",
+        icon: "🌙",
+        mods: [
+          { name: "Sleep Duration", valueType: "datetime-range" },
+          { name: "Sleep Quality", valueType: "select", choices: SCALE_1_5 },
+        ],
+      },
+    ],
   },
-] as const;
+  {
+    key: "mood",
+    name: "Mood",
+    color: "#f472b6",
+    icon: "Smile",
+    subcategories: [
+      {
+        name: "Mood",
+        icon: "🙂",
+        mods: [
+          {
+            name: "Happiness",
+            valueType: "select",
+            choices: SCALE_1_5,
+            scaleLabels: { low: "Awful", high: "Great" },
+          },
+          {
+            name: "Emotions",
+            valueType: "select",
+            choices: [...MOOD_EMOTIONS],
+          },
+        ],
+      },
+    ],
+  },
+] as const satisfies readonly {
+  key: BuiltInCategoryKey;
+  name: string;
+  color: string;
+  icon: string;
+  subcategories: readonly {
+    name: string;
+    icon: string;
+    mods: readonly ({ name: string } & ModMeasure)[];
+  }[];
+}[];
 
 /** Yerleşik kategori ve onun alt kaleminin Türkçe adları (mevcut kurulumlar) */
 const RENAMED_CATEGORIES: [string, string][] = [["Uyku", "Sleep"]];
@@ -242,21 +330,79 @@ async function ensureBuiltInCategoryTemplates(): Promise<void> {
         icon: template.icon,
       });
     }
-    if (!cat.isBuiltIn) {
-      await db.categories.update(cat.id, { isBuiltIn: true });
+    // Mevcut kurulumdaki Uyku'nun anahtarı yok: burada doldurulur. Göç
+    // gerekmiyor, alan indekssiz.
+    if (!cat.isBuiltIn || cat.builtInKey !== template.key) {
+      await db.categories.update(cat.id, {
+        isBuiltIn: true,
+        builtInKey: template.key,
+      });
     }
     // Şablon alt kategorileri eksikse tamamla (mevcut kurulumlar dahil)
     const subs = await db.subcategories
       .where("categoryId")
       .equals(cat.id)
       .toArray();
-    const subNames = new Set(subs.map((s) => s.name.toLocaleLowerCase("en-US")));
-    for (const sub of template.subcategories) {
-      if (!subNames.has(sub.name.toLocaleLowerCase("en-US"))) {
-        await createSubCategory({ categoryId: cat.id, name: sub.name, icon: sub.icon });
+    const byName = new Map(
+      subs.map((s) => [s.name.toLocaleLowerCase("en-US"), s])
+    );
+    for (const tpl of template.subcategories) {
+      const key = tpl.name.toLocaleLowerCase("en-US");
+      const sub =
+        byName.get(key) ??
+        (await createSubCategory({
+          categoryId: cat.id,
+          name: tpl.name,
+          icon: tpl.icon,
+        }));
+      // Özellikler kaleme bağlanır. `attachMod` zaten tekrar bağlamaz, o
+      // yüzden her açılışta çalışması güvenli — kullanıcı sonradan eklerse
+      // de bozulmaz.
+      for (const ref of tpl.mods) {
+        const mod = await resolveStarterMod(ref);
+        if (mod) await attachMod("subcategory", sub.id, mod.id);
       }
     }
   }
+}
+
+/** Yerleşik akışın kategorisi — anahtarıyla, adından bağımsız. */
+export async function getBuiltInCategory(
+  key: BuiltInCategoryKey
+): Promise<Category | undefined> {
+  const byKey = await db.categories
+    .filter((c) => !!c.isBuiltIn && c.builtInKey === key)
+    .first();
+  if (byKey) return byKey;
+  // Anahtar henüz doldurulmadıysa (ilk açılış yarıda kaldıysa) ada düş
+  const template = BUILT_IN_CATEGORIES.find((t) => t.key === key);
+  if (!template) return undefined;
+  return db.categories.where("name").equals(template.name).first();
+}
+
+/**
+ * Yerleşik akışın yazacağı kalem ve özellikleri. Uyku ve ruh hali
+ * pencereleri buradan besleniyor — kategoriyi adıyla arayan iki ayrı kopya
+ * vardı, ikisi de v19 ad devrinden sonra kırılgandı.
+ */
+export async function getBuiltInTarget(key: BuiltInCategoryKey): Promise<{
+  category: Category;
+  sub: SubCategory;
+  mods: CategoryModifierWithType[];
+} | null> {
+  const category = await getBuiltInCategory(key);
+  if (!category) return null;
+  const subs = await db.subcategories
+    .where("categoryId")
+    .equals(category.id)
+    .toArray();
+  const template = BUILT_IN_CATEGORIES.find((t) => t.key === key);
+  const wanted = template?.subcategories[0]?.name.toLocaleLowerCase("en-US");
+  const sub =
+    subs.find((s) => s.name.toLocaleLowerCase("en-US") === wanted) ??
+    subs.find((s) => !s.parentId);
+  if (!sub) return null;
+  return { category, sub, mods: await listModifiersForTarget("subcategory", sub.id) };
 }
 
 // ============ İlk Açılış Tohumu ============
@@ -486,6 +632,17 @@ async function seedStarterSubs(
 export async function listCategories(): Promise<Category[]> {
   const all = await db.categories.toArray();
   return all.sort((a, b) => a.order - b.order);
+}
+
+/**
+ * Kullanıcının GEZİNDİĞİ kategoriler — yerleşik akışlar (Uyku, Ruh hali)
+ * dışarıda. Onlar altta sıradan kategori olarak duruyor ki girdi, analiz,
+ * arama ve yedek bedavaya gelsin; ama kullanıcıya kategori olarak
+ * sunulmuyorlar, kendi ekleme pencereleri var. Yapı sayfası, harita, arama
+ * ve taşıma listeleri bunu kullanır.
+ */
+export async function listUserCategories(): Promise<Category[]> {
+  return (await listCategories()).filter((c) => !c.isBuiltIn);
 }
 
 export async function getCategory(catId: string): Promise<Category | undefined> {
@@ -2017,17 +2174,6 @@ export async function listEntriesByCategory(
     .reverse()
     .sortBy("occurredAt");
   return hydrateEntries(entries.slice(0, limit));
-}
-
-// ============ Default Modifiers ============
-
-export async function ensureDefaultModifiers(): Promise<void> {
-  const uykuCat = await db.categories.where("name").equals("Uyku").first();
-  if (!uykuCat) return;
-  for (const modName of ["Uyku Süresi", "Uyku Kalitesi"]) {
-    const mod = await findModByName(modName);
-    if (mod) await attachMod("category", uykuCat.id, mod.id);
-  }
 }
 
 // ============ Goals ============

@@ -6,7 +6,6 @@ import {
   ensureBuiltInDimensions,
   ensureBuiltInCategories,
   seedDefaultFeatures,
-  ensureDefaultModifiers,
   ensureStarterData,
 } from "@/lib/db/queries";
 import { purgeOldDeletions } from "@/lib/db/deletions";
@@ -41,8 +40,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       // beslenmiyor. Hazır özellikler yalnız bomboş kuruluma ekilir —
       // silinen özellik geri gelmesin diye.
       await seedDefaultFeatures();
+      // Yerleşik akışlar (Uyku, Ruh hali): kategorileri, kalemleri ve
+      // özellik bağları hepsi burada kuruluyor. Bağlama işi eskiden ayrı bir
+      // adımdaydı (`ensureDefaultModifiers`) ve v19'daki Türkçe→İngilizce ad
+      // devrinden sonra hiçbir şeyi eşleştiremiyordu — temiz kurulumda Uyku
+      // penceresi bomboş açılıyordu.
       await ensureBuiltInCategories();
-      await ensureDefaultModifiers();
       // En son: yerleşikler kurulduktan sonra ilk açılış örnekleri
       await ensureStarterData();
       // Süresi dolmuş silme günlüğü satırları (payload'lar yer kaplar)
