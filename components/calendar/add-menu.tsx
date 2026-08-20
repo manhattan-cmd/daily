@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,11 @@ export type AddMenuItem = {
   onSelect: () => void;
 };
 
+/** Daire + etiketin kapladığı yarım genişlik ve yükseklik (taşma payı için) */
+const HALF_ITEM = 26;
+const ITEM_BELOW = 44;
+const EDGE = 10;
+
 /**
  * Ana "Ekle" butonu — dokununca yanına dairesel (yay şeklinde) menü açılır.
  * Buton sağ üstte durduğu için yay sola-aşağı doğru açılır.
@@ -22,21 +27,50 @@ export type AddMenuItem = {
 export function AddMenu({ items }: { items: AddMenuItem[] }) {
   const t = useT();
   const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  // Yayın sığabileceği en büyük yarıçap — menü açılırken ölçülür
+  const [maxR, setMaxR] = useState(Infinity);
 
   // Düzgün çeyrek yay: ilk daire tam solda (180°), son daire tam aşağıda (90°);
-  // aradakiler eşit açıyla dağılır. Yarıçap, komşu daire merkezleri arasında en
-  // az minChord boşluk kalacak şekilde eleman sayısıyla birlikte büyür —
-  // 4 elemanda daireler sıkışmaz.
+  // aradakiler eşit açıyla dağılır. Yay 90°–180° ARASINDA kalmak zorunda:
+  // buton sağ üstte duruyor, sağa açılsa ekranın dışına çıkar.
   const n = items.length;
   const start = 180;
   const step = n > 1 ? 90 / (n - 1) : 0;
   // 48px daire + altındaki etiket + nefes payı — etiketler alt alta gelmesin
   const minChord = 92;
-  const R =
+  // Kirişi koruyan yarıçap. Eleman sayısıyla birlikte SINIRSIZ büyüyor: 90°'lik
+  // yay sabit olduğu için her yeni eleman adımı daraltıyor, aynı kirişi tutmak
+  // için yarıçap şişiyor. 6 elemanda 294px'e çıkıyordu ve soldaki daire dar
+  // ekranda dışarı taşıyordu (360'ta 15px, 320'de 55px).
+  const idealR =
     n > 1
       ? Math.max(100, minChord / (2 * Math.sin((step * Math.PI) / 360)))
       : 100;
+  // Sığmıyorsa kiriş feda edilir, taşma değil: daireler birbirine yaklaşır ama
+  // 48px'lik çaplar kirişten küçük kaldığı sürece üst üste binmezler.
+  const R = Math.max(100, Math.min(idealR, maxR));
   const angleFor = (i: number) => (n === 1 ? 135 : start - i * step);
+
+  /**
+   * Yayın sığacağı yarıçap. Sol uçtaki eleman 180°'de (x = −R), alttaki 90°'de
+   * (y = +R) duruyor; ikisi de ekranın içinde kalmalı. Açılış anında ölçülüyor:
+   * düzen değiştiğinde (klavye, döndürme) bir sonraki açılışta güncelleniyor,
+   * render sırasında ölçüm yapılmıyor.
+   */
+  function measure() {
+    const el = wrapRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    setMaxR(
+      Math.min(
+        cx - HALF_ITEM - EDGE,
+        window.innerHeight - cy - ITEM_BELOW - EDGE
+      )
+    );
+  }
 
   function pick(item: AddMenuItem) {
     setOpen(false);
@@ -54,7 +88,7 @@ export function AddMenu({ items }: { items: AddMenuItem[] }) {
         onClick={() => setOpen(false)}
       />
 
-      <div className={cn("relative shrink-0", open && "z-50")}>
+      <div ref={wrapRef} className={cn("relative shrink-0", open && "z-50")}>
         {/* Yay elemanları — buton merkezinden açılır */}
         {items.map((item, i) => {
           const a = (angleFor(i) * Math.PI) / 180;
@@ -93,7 +127,10 @@ export function AddMenu({ items }: { items: AddMenuItem[] }) {
 
         {/* Ana buton */}
         <button
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => {
+            if (!open) measure();
+            setOpen((o) => !o);
+          }}
           className={cn(
             "relative flex items-center gap-1.5 rounded-xl px-4 h-9 text-sm font-medium transition-all active:scale-95",
             open
