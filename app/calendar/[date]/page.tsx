@@ -408,6 +408,7 @@ export default function CalendarDayPage({
                     <EntryCard
                       key={item.entry.id}
                       entry={item.entry}
+                      showDate={false}
                       selection={selectionFor([`entry:${item.entry.id}`])}
                     />
                   ) : item.type === "activity" ? (

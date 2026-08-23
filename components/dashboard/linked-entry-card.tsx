@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { Link2, Pencil } from "lucide-react";
-import type { EntryWithContext, EntryType } from "@/types";
+import type { EntryWithContext } from "@/types";
 import { Button } from "@/components/ui/button";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { EntryIcon } from "@/components/dashboard/entry-icon";
+import { ValueChip } from "@/components/dashboard/value-chip";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/lib/use-long-press";
 import {
@@ -82,7 +83,9 @@ export function LinkedEntryCard({
           />
           <span className="font-semibold text-sm flex-1 truncate">{shared.subcategory.name}</span>
           <Link2 className="h-3.5 w-3.5 text-violet-400/60 shrink-0" />
-          <span className="text-xs text-muted-foreground/60 shrink-0">{time}</span>
+          <span className="text-xs tabular-nums text-muted-foreground/60 shrink-0">
+            {time}
+          </span>
         </div>
 
         {/* Shared values — shown once, between header and perspectives */}
@@ -112,10 +115,12 @@ export function LinkedEntryCard({
               (v) => v.entryType && !sharedTypeIds.has(v.modId ?? v.entryTypeId ?? "")
             );
             return (
-              <div key={entry.id} className="group/row flex items-start gap-2.5">
+              <div key={entry.id} className="group/row flex items-center gap-2.5">
                 <EntryIcon category={entry.category} size="sm" />
                 <div className="flex-1 min-w-0">
-                  <span className="text-xs text-muted-foreground leading-7">{entry.category.name}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {entry.category.name}
+                  </span>
                   {ownValues.length > 0 && (
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       {ownValues.map((v) => (
@@ -124,18 +129,21 @@ export function LinkedEntryCard({
                           value={v.value}
                           label={v.mod?.name ?? v.entryType!.name}
                           entryType={v.entryType!}
+                          color={entry.category.color}
                         />
                       ))}
                     </div>
                   )}
                   {entry.notes && (
-                    <p className="mt-1 text-xs text-muted-foreground/70">{entry.notes}</p>
+                    <p className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground/70">
+                      {entry.notes}
+                    </p>
                   )}
                 </div>
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-6 w-6 text-muted-foreground hover:text-foreground opacity-0 group-hover/row:opacity-100 transition-opacity shrink-0 mt-0.5"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground opacity-0 group-hover/row:opacity-100 transition-opacity shrink-0"
                   onClick={(e) => {
                     e.stopPropagation();
                     setEditingEntry(entry);
@@ -166,29 +174,5 @@ export function LinkedEntryCard({
         />
       )}
     </>
-  );
-}
-
-function ValueChip({
-  value,
-  label,
-  entryType,
-}: {
-  value: string;
-  label: string;
-  entryType: EntryType;
-}) {
-  const vt = entryType.valueType ?? "number";
-  let display = value;
-  if (vt === "boolean") display = value === "true" ? "Yes" : "No";
-
-  return (
-    <div className="flex items-baseline gap-1 rounded-lg bg-muted px-2 py-0.5">
-      <span className="text-sm font-semibold tabular-nums">{display}</span>
-      {vt === "number" && entryType.unit && (
-        <span className="text-xs text-muted-foreground">{entryType.unit}</span>
-      )}
-      <span className="ml-1 text-xs text-muted-foreground">{label}</span>
-    </div>
   );
 }
