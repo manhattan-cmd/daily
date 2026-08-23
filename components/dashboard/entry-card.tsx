@@ -22,9 +22,16 @@ import {
  * İç içe buton olmaması için kart div[role=button] (QuickModAdd gerçek buton).
  * `selection` verilirse basılı tutmak toplu seçimi başlatır.
  *
- * Yerleşim: sembol düşeyde ortalı (aktivite kartıyla aynı), saat sağ kenara
- * yaslı ve tabular — liste boyunca saatler tek sütunda hizalanır, kategori adı
- * uzayınca kaymaz.
+ * Yerleşim iki satır: ad + saat, altında rozetler. Sembol düşeyde ortalı
+ * (aktivite kartıyla aynı), saat sağ kenara yaslı ve tabular — liste boyunca
+ * saatler tek sütunda hizalanır.
+ *
+ * Kategori ADI kartta yazmıyor: kimliği zemin rengi, kenarlık ve sembol zaten
+ * taşıyor, kendi satırını harcaması gerekmiyor. Dört yoğunluk aynı veriyle
+ * ölçüldü, adın düştüğü bu biçim seçildi — kart 111px'ten 89px'e indi, ekranda
+ * 4 girdi yerine 6 duruyor. Aynı sebeple rozette özelliğin adı yerine birimi
+ * kalıyor ("39 dk"); birimsiz ya da sayı olmayan değerlerde ad geri geliyor
+ * (bkz. ValueChip) — çıplak "4" hiçbir şey anlatmaz.
  */
 export function EntryCard({
   entry,
@@ -56,7 +63,7 @@ export function EntryCard({
         }}
         {...(selection && !selection.active ? longPress : {})}
         className={cn(
-          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border px-3 py-2.5 text-left transition-transform active:scale-[0.99]",
+          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border px-3 py-2 text-left transition-transform active:scale-[0.99]",
           selection?.selected && selectedCardClass
         )}
         style={{
@@ -66,31 +73,27 @@ export function EntryCard({
         aria-label={`${entry.subcategory.name} girdisini düzenle`}
       >
         <div className="flex items-center gap-2.5">
-          <EntryIcon category={entry.category} subcategory={entry.subcategory} />
+          <EntryIcon
+            category={entry.category}
+            subcategory={entry.subcategory}
+            size="sm"
+          />
           <div className="flex-1 min-w-0">
-            {/* Üst satır: kategori etiketi (kök girdide gizli) + saat sağda */}
-            <div className="flex items-baseline gap-2 text-[10px] leading-none">
-              {!isRoot && (
-                <span
-                  className="font-semibold uppercase tracking-[0.14em] truncate"
-                  style={{ color: `${color}cc` }}
-                >
-                  {entry.category.name}
-                </span>
-              )}
-              <span className="ml-auto shrink-0 tabular-nums text-muted-foreground/70">
+            {/* Üst satır: ad solda, saat sağ kenarda */}
+            <div className="flex items-baseline gap-2">
+              <span className="text-sm font-semibold truncate">
+                {isRoot ? entry.category.name : entry.subcategory.name}
+              </span>
+              <span className="ml-auto shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
                 {showDate
                   ? formatDateTime(entry.occurredAt)
                   : formatTime(entry.occurredAt)}
               </span>
             </div>
-            <div className="mt-1 text-sm font-semibold truncate">
-              {isRoot ? entry.category.name : entry.subcategory.name}
-            </div>
 
             {/* Değer chipleri + hızlı mod ekle — karta tıklama düzenleme
                 açtığından iç etkileşimler kabarcıklanmadan durdurulur */}
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
               {typedValues.map((v) => (
                 <ValueChip
                   key={v.id}
@@ -98,6 +101,7 @@ export function EntryCard({
                   label={v.mod?.name ?? v.entryType!.name}
                   entryType={v.entryType!}
                   color={color}
+                  dense
                 />
               ))}
               <span
@@ -117,7 +121,7 @@ export function EntryCard({
             </div>
 
             {entry.notes && (
-              <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-muted-foreground/80">
+              <p className="mt-1 line-clamp-1 text-xs leading-snug text-muted-foreground/80">
                 {entry.notes}
               </p>
             )}

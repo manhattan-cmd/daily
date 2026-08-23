@@ -17,13 +17,20 @@ export function ValueChip({
   label,
   entryType,
   color,
+  dense,
 }: {
   value: string;
   label: string;
   entryType: EntryType;
   color?: string;
+  /** Dar rozet — özelliğin adı düşer, sayı + birim kalır ("45 dk") */
+  dense?: boolean;
 }) {
   const vt = entryType.valueType ?? "number";
+  // Ad yalnız BİRİM anlamı taşıyorsa düşer. Birimsiz sayıda ("Set: 4") ya da
+  // sayı olmayan türlerde ("Yes", skalada "4") çıplak değer hiçbir şey
+  // anlatmaz — orada dar biçimde de ad kalır.
+  const showLabel = !dense || !(vt === "number" && !!entryType.unit);
 
   // Renkli zemin: kategori renginin çok düşük opaklıkta örtüsü + ince halka.
   // Renk yoksa nötr gri (yerleşik akışlar, renksiz bağlamlar).
@@ -34,7 +41,8 @@ export function ValueChip({
       }
     : undefined;
   const baseCls = cn(
-    "flex gap-1 rounded-lg px-2 py-1 leading-none",
+    "flex gap-1 rounded-lg leading-none",
+    dense ? "px-1.5 py-0.5" : "px-2 py-1",
     !color && "bg-muted/80"
   );
 
@@ -82,7 +90,9 @@ export function ValueChip({
       {vt === "number" && entryType.unit && (
         <span className="text-[11px] text-muted-foreground">{entryType.unit}</span>
       )}
-      <span className="ml-0.5 text-[11px] text-muted-foreground">{label}</span>
+      {showLabel && (
+        <span className="ml-0.5 text-[11px] text-muted-foreground">{label}</span>
+      )}
     </div>
   );
 }
