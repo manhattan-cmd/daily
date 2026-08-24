@@ -1,18 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import type { EntryWithContext } from "@/types";
-import { cn, formatDateTime, formatTime } from "@/lib/utils";
+import type { EntryWithContext, EntryType } from "@/types";
+import { cn, formatDateTime } from "@/lib/utils";
 import { useLongPress } from "@/lib/use-long-press";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { EntryIcon } from "@/components/dashboard/entry-icon";
-import { ValueChip } from "@/components/dashboard/value-chip";
 import { QuickModAdd } from "@/components/forms/quick-mod-add";
 import {
   SelectionLayer,
   selectedCardClass,
   type EntrySelection,
 } from "@/components/calendar/entry-selection";
+import { calcDTRDuration, parseDTR } from "@/components/forms/datetime-range-input";
 
 /**
  * Gün/ana sayfa girdi kartı — uyku kartıyla aynı dil: kategori renginde degrade
@@ -21,28 +21,13 @@ import {
  * görünmez ama basılabilir durumdaydı (kazara silme).
  * İç içe buton olmaması için kart div[role=button] (QuickModAdd gerçek buton).
  * `selection` verilirse basılı tutmak toplu seçimi başlatır.
- *
- * Yerleşim iki satır: ad + (kategori · saat), altında rozetler. Sembol düşeyde
- * ortalı (aktivite kartıyla aynı), saat sağ kenarda ve tabular — liste boyunca
- * saatler tek sütunda hizalanır.
- *
- * Kategori adı kendi satırını harcamıyor, saatin soluna geçti: satır maliyeti
- * sıfır ama renkli kaş kalıyor. Adsız denendi ve "çok düz" bulundu — kimliği
- * yalnız zemin rengine bırakmak kartları tek kalıba düşürüyor.
- *
- * Kabartı üç parçadan geliyor: sol renk şeridi, güçlendirilmiş degrade, üstte
- * iç ışık + altta gölge. Sembol de 36px'te kalıyor; 28px'e inince satırın
- * görsel çıpası kayboluyordu.
  */
 export function EntryCard({
   entry,
   selection,
-  showDate = true,
 }: {
   entry: EntryWithContext;
   selection?: EntrySelection;
-  /** Gün sayfasında hepsi aynı güne ait — "Today" satır satır tekrarlamasın */
-  showDate?: boolean;
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const color = entry.category.color;
@@ -64,54 +49,37 @@ export function EntryCard({
         }}
         {...(selection && !selection.active ? longPress : {})}
         className={cn(
-          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border py-2 pl-4 pr-3 text-left transition-transform active:scale-[0.99]",
+          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border px-3 py-2.5 text-left transition-transform active:scale-[0.99]",
           selection?.selected && selectedCardClass
         )}
         style={{
           borderColor: `${color}28`,
-          background: `linear-gradient(135deg, ${color}30, ${color}0d 55%, transparent)`,
-          boxShadow:
-            "inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 2px rgba(0,0,0,0.3)",
+          background: `linear-gradient(135deg, ${color}1f, ${color}08 45%, transparent)`,
         }}
         aria-label={`${entry.subcategory.name} girdisini düzenle`}
       >
-        {/* Sol renk şeridi — kartın kategorisini kenardan okutur */}
-        <span
-          aria-hidden
-          className="absolute inset-y-0 left-0 w-[3px]"
-          style={{ background: `linear-gradient(180deg, ${color}, ${color}66)` }}
-        />
-
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-start gap-2.5">
           <EntryIcon category={entry.category} subcategory={entry.subcategory} />
           <div className="flex-1 min-w-0">
-            {/* Üst satır: ad solda; kategori ve saat sağ kenarda */}
-            {/* Sağ blok satırın en çok yarısını alabilir ve içinde önce
-                kategori adı kısalır: aksi halde uzun bir kategori adı ("Kişisel
-                Gelişim ve Öğrenme") girdinin kendi adını tümüyle siliyordu.
-                Saat hiç kısalmaz — listenin hizasını o tutuyor. */}
-            <div className="flex items-baseline gap-2">
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                {isRoot ? entry.category.name : entry.subcategory.name}
+            {/* Üst satır: kategori etiketi (kök girdide gizli) + saat */}
+            <div className="flex items-center gap-1.5 text-[10px] leading-none">
+              {!isRoot && (
+                <>
+                  <span
+                    className="font-semibold uppercase tracking-[0.14em] truncate"
+                    style={{ color: `${color}cc` }}
+                  >
+                    {entry.category.name}
+                  </span>
+                  <span className="text-muted-foreground/40">·</span>
+                </>
+              )}
+              <span className="text-muted-foreground/70 shrink-0">
+                {formatDateTime(entry.occurredAt)}
               </span>
-              <span className="flex max-w-[50%] shrink items-baseline gap-1.5 overflow-hidden">
-                {!isRoot && (
-                  <>
-                    <span
-                      className="truncate text-[10px] font-semibold uppercase tracking-[0.14em]"
-                      style={{ color: `${color}cc` }}
-                    >
-                      {entry.category.name}
-                    </span>
-                    <span className="text-muted-foreground/30">·</span>
-                  </>
-                )}
-                <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
-                  {showDate
-                    ? formatDateTime(entry.occurredAt)
-                    : formatTime(entry.occurredAt)}
-                </span>
-              </span>
+            </div>
+            <div className="mt-0.5 text-sm font-semibold truncate">
+              {isRoot ? entry.category.name : entry.subcategory.name}
             </div>
 
             {/* Değer chipleri + hızlı mod ekle — karta tıklama düzenleme
@@ -123,12 +91,9 @@ export function EntryCard({
                   value={v.value}
                   label={v.mod?.name ?? v.entryType!.name}
                   entryType={v.entryType!}
-                  color={color}
-                  dense
                 />
               ))}
               <span
-                className="flex"
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => e.stopPropagation()}
               >
@@ -138,13 +103,12 @@ export function EntryCard({
                   categoryId={entry.category.id}
                   entryId={entry.id}
                   occurredAt={entry.occurredAt}
-                  compact={typedValues.length > 0}
                 />
               </span>
             </div>
 
             {entry.notes && (
-              <p className="mt-1 line-clamp-1 text-xs leading-snug text-muted-foreground/80">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {entry.notes}
               </p>
             )}
@@ -166,5 +130,65 @@ export function EntryCard({
         onOpenChange={setEditOpen}
       />
     </>
+  );
+}
+
+function ValueChip({
+  value,
+  label,
+  entryType,
+}: {
+  value: string;
+  label: string;
+  entryType: EntryType;
+}) {
+  const vt = entryType.valueType ?? "number";
+
+  if (vt === "datetime-range") {
+    const { start, end } = parseDTR(value);
+    const startTime = start?.split("T")[1]?.slice(0, 5);
+    const endTime = end?.split("T")[1]?.slice(0, 5);
+    const duration = calcDTRDuration(start, end);
+    const shortDuration = duration
+      ? duration
+          .replace(" saat", "s")
+          .replace(" dakika", "dk")
+          .replace("s dk", "s")
+      : null;
+
+    return (
+      <div className="flex items-center gap-1.5 rounded-md bg-muted/80 px-1.5 py-0.5">
+        {startTime && (
+          <span className="text-[13px] font-semibold tabular-nums">{startTime}</span>
+        )}
+        {startTime && endTime && (
+          <span className="text-xs text-muted-foreground">→</span>
+        )}
+        {endTime && (
+          <span className="text-[13px] font-semibold tabular-nums">{endTime}</span>
+        )}
+        {shortDuration && (
+          <span className="text-xs text-muted-foreground ml-0.5">
+            · {shortDuration}
+          </span>
+        )}
+        {!startTime && !endTime && (
+          <span className="text-xs text-muted-foreground">{label}</span>
+        )}
+      </div>
+    );
+  }
+
+  let display = value;
+  if (vt === "boolean") display = value === "true" ? "Yes" : "No";
+
+  return (
+    <div className="flex items-baseline gap-1 rounded-md bg-muted/80 px-1.5 py-0.5">
+      <span className="text-[13px] font-semibold tabular-nums">{display}</span>
+      {vt === "number" && entryType.unit && (
+        <span className="text-xs text-muted-foreground">{entryType.unit}</span>
+      )}
+      <span className="ml-0.5 text-xs text-muted-foreground">{label}</span>
+    </div>
   );
 }

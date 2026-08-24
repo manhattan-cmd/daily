@@ -29,13 +29,6 @@ interface QuickModAddProps {
   /** Değer sorma adımı için: özelliğin ekleneceği girdi */
   entryId: string;
   occurredAt: number;
-  /**
-   * Dar biçim — yalnız ikon. Girdinin zaten değerleri varsa etiketli düğme
-   * rozet satırını taşırıp karta fazladan bir satır ekliyordu; kartların boyu
-   * değerin sayısına göre zıplıyordu. Değeri olmayan girdide etiket kalır,
-   * yoksa özellik ekleme keşfedilemez.
-   */
-  compact?: boolean;
 }
 
 /** ModInput'un beklediği atama biçimine sar — havuz modu + ölçüsü yeterli */
@@ -63,7 +56,6 @@ export function QuickModAdd({
   subcategoryName,
   entryId,
   occurredAt,
-  compact,
 }: QuickModAddProps) {
   const t = useT();
   const router = useRouter();
@@ -112,15 +104,13 @@ export function QuickModAdd({
       <button
         onClick={() => setOpen(true)}
         className={cn(
-          "flex items-center justify-center gap-1 rounded-lg border border-dashed text-xs transition-all active:scale-95",
-          "border-border/60 text-muted-foreground/60 hover:border-border hover:text-muted-foreground",
-          compact ? "h-[26px] w-[26px]" : "px-2 py-1"
+          "flex items-center gap-1 rounded-lg border border-dashed px-2 py-1 text-xs transition-all active:scale-95",
+          "border-border/60 text-muted-foreground/60 hover:border-border hover:text-muted-foreground"
         )}
         aria-label={t("entry.addFeature")}
-        title={compact ? t("entry.addFeature") : undefined}
       >
-        <SlidersHorizontal className="h-3 w-3 shrink-0" />
-        {!compact && <span>{t("entry.addFeature")}</span>}
+        <SlidersHorizontal className="h-3 w-3" />
+        <span>{t("entry.addFeature")}</span>
       </button>
 
       <ModPickDialog

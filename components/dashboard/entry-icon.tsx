@@ -18,16 +18,16 @@ export function EntryIcon({
 }: {
   category: Category;
   subcategory?: SubCategory;
-  size?: "xs" | "sm" | "md";
+  size?: "sm" | "md";
   className?: string;
 }) {
   const ownIcon = subcategory?.icon;
   const iconName = ownIcon || category.icon;
   const color = category.color;
-  const shapeCls = ownIcon ? "rounded-full" : size === "md" ? "rounded-xl" : "rounded-lg";
+  const shapeCls = ownIcon ? "rounded-full" : size === "sm" ? "rounded-lg" : "rounded-xl";
 
-  const boxCls = size === "xs" ? "h-6 w-6" : size === "sm" ? "h-7 w-7" : "h-9 w-9";
-  const iconSize = size === "xs" ? 12 : size === "sm" ? 14 : 18;
+  const boxCls = size === "sm" ? "h-7 w-7" : "h-9 w-9";
+  const iconSize = size === "sm" ? 14 : 18;
 
   return (
     <div
@@ -53,7 +53,7 @@ export function EntryIcon({
         <span
           className={cn(
             "font-semibold leading-none select-none",
-            size === "md" ? "text-sm" : "text-xs"
+            size === "sm" ? "text-xs" : "text-sm"
           )}
           style={{ color }}
         >
