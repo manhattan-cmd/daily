@@ -218,6 +218,10 @@ export function EntryCard({
  * Girdinin indiği alt kategori — düz yazı değil rozet. Dal işareti onu adın
  * devamı olmaktan çıkarıp ağaçtaki yer olarak okutuyor; kendi sembolü varsa
  * yanında duruyor. Uzun adlar kesilmez, satır atlar.
+ *
+ * Punto başlıkla aynı: ikisi de kartın adı, biri ötekinin alt yazısı değil.
+ * Ayrımı büyüklük değil biçim yapıyor — başlık düz beyaz, bu kategori
+ * renginde çerçeveli rozet.
  */
 function SubCategoryTag({
   name,
@@ -230,15 +234,15 @@ function SubCategoryTag({
 }) {
   return (
     <span
-      className="mt-1 inline-flex max-w-full items-center gap-1 rounded-md py-0.5 pl-1 pr-1.5 text-[11px] font-medium leading-snug"
+      className="mt-1.5 inline-flex max-w-full items-center gap-1.5 rounded-lg py-1 pl-1.5 pr-2 text-sm font-semibold leading-snug"
       style={{
         background: `${color}1f`,
         boxShadow: `inset 0 0 0 1px ${color}33`,
         color: `${color}e6`,
       }}
     >
-      <CornerDownRight className="h-3 w-3 shrink-0 opacity-60" />
-      {icon && <SymbolIcon name={icon} size={12} className="shrink-0" />}
+      <CornerDownRight className="h-4 w-4 shrink-0 opacity-60" />
+      {icon && <SymbolIcon name={icon} size={15} className="shrink-0" />}
       <span className="break-words">{name}</span>
     </span>
   );
