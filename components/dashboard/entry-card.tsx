@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { CornerDownRight, Pencil, Trash2 } from "lucide-react";
 import type { EntryWithContext, EntryType } from "@/types";
-import { cn, formatDateTime } from "@/lib/utils";
+import { SymbolIcon } from "@/lib/icons";
+import { cn, formatDate, formatTime } from "@/lib/utils";
 import { useLongPress } from "@/lib/use-long-press";
 import { useT } from "@/lib/i18n";
 import { confirmDialog } from "@/components/ui/confirm";
@@ -25,11 +26,19 @@ import { calcDTRDuration, parseDTR } from "@/components/forms/datetime-range-inp
  * kabarcıklanmayı durdurur). `selection` verilirse basılı tutmak toplu seçimi
  * başlatır.
  *
- * Kart üç pencereye bölünür: künye (sembol + kategori/tarih + ad + eylemler),
- * değerler, not. Pencereler kartın renkli zemini üstünde koyu birer oyuk —
- * kenarlık yerine hafif iç halka, böylece ayrım çizgi çekmeden okunuyor.
- * Sembolün kendi penceresi var ve kare: pencere kare olunca içindeki daire
- * kutu içinde kutu gibi duruyordu.
+ * Kart pencerelere bölünür: üstte başlık (sembol + kategori + altında girdinin
+ * indiği alt kategori) ve onun sağında tarih/eylem bölümü; altta değerler ve
+ * not. Pencereler kartın renkli zemini üstünde koyu birer oyuk — kenarlık
+ * yerine hafif iç halka, böylece ayrım çizgi çekmeden okunuyor. Sembol kare:
+ * pencere kare olunca içindeki daire kutu içinde kutu gibi duruyordu.
+ *
+ * Hiçbir metin kesilmiyor. Ad, kategori ve saat tek satırı paylaşırken uzun
+ * adlar "…" ile bitiyordu; tarih ve düğmeler kendi bölümüne çıkınca başlığa
+ * tam genişlik kaldı ve metin kesilmek yerine satır atlıyor.
+ *
+ * Başlık kategoriyi söyler, altındaki rozet kaydın indiği alt kategoriyi.
+ * Alt kategori düz yazı değil rozet: dal işareti + kendi sembolü + kategori
+ * renginde zemin, böylece adın devamı değil ağaçtaki yeri olduğu okunuyor.
  *
  * Sil/düzenle KARTTA duruyor. Eskiden köşedeki ikon yalnız hover'da
  * görünüyordu — dokunmatikte görünmez ama basılabilir olduğundan kazara silme
@@ -91,57 +100,63 @@ export function EntryCard({
         }}
         aria-label={`${entry.subcategory.name} girdisini düzenle`}
       >
-        {/* ── Pencere 1: künye ── */}
-        <div className="flex items-center gap-1.5">
-          {/* Sembol penceresi — sabit kare, künyeyle aynı yükseklikte ve
-              düşeyde ortalı. Rozetin kendisi pencere: ayrı bir kutu koyunca
-              kutu içinde kutu oluyordu. Esneyen kare denendi, satırda genişlik
-              üretmediği için dikdörtgene düşüyordu. */}
-          <div className="h-12 w-12 shrink-0">
-            <EntryIcon
-              category={entry.category}
-              subcategory={entry.subcategory}
-              size="fill"
-              shape="square"
-            />
-          </div>
-
+        {/* ── Üst sıra: başlık bölümü + tarih/eylem bölümü ── */}
+        <div className="flex items-stretch gap-1.5">
+          {/* Başlık: sembol + kategori adı + altında alt kategori rozeti.
+              Sembol kategoriye ait (subcategory verilmiyor) — alt kategorinin
+              kendi sembolü rozette duruyor, ikisi aynı anda görünsün diye. */}
           <div
-            className="flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-xl py-1.5 pl-2.5 pr-1.5"
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl p-2"
             style={paneStyle}
           >
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 text-[10px] leading-none">
-                {!isRoot && (
-                  <>
-                    <span
-                      className="truncate font-semibold uppercase tracking-[0.14em]"
-                      style={{ color: `${color}cc` }}
-                    >
-                      {entry.category.name}
-                    </span>
-                    <span className="text-muted-foreground/40">·</span>
-                  </>
-                )}
-                <span className="shrink-0 tabular-nums text-muted-foreground/70">
-                  {formatDateTime(entry.occurredAt)}
-                </span>
-              </div>
-              <div className="mt-1 truncate text-sm font-semibold">{title}</div>
+            <div className="h-12 w-12 shrink-0">
+              <EntryIcon
+                category={entry.category}
+                size="fill"
+                shape="square"
+              />
             </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold leading-snug break-words">
+                {entry.category.name}
+              </div>
+              {!isRoot && (
+                <SubCategoryTag
+                  name={entry.subcategory.name}
+                  icon={entry.subcategory.icon}
+                  color={color}
+                />
+              )}
+            </div>
+          </div>
 
-            {/* Eylemler — kart tıklaması düzenleme açtığından durdurulur */}
-            <CardAction
-              icon={Pencil}
-              label={t("action.edit")}
-              onClick={() => setEditOpen(true)}
-            />
-            <CardAction
-              icon={Trash2}
-              label={t("action.delete")}
-              destructive
-              onClick={handleDelete}
-            />
+          {/* Tarih + eylemler — kendi bölümünde, sağ üstte */}
+          <div
+            className="flex shrink-0 flex-col items-end justify-between gap-1 rounded-xl px-1.5 py-1.5"
+            style={paneStyle}
+          >
+            <div className="px-1 pt-0.5 text-right leading-tight">
+              <div className="whitespace-nowrap text-[10px] text-muted-foreground/60">
+                {formatDate(entry.occurredAt)}
+              </div>
+              <div className="whitespace-nowrap text-[11px] font-medium tabular-nums text-muted-foreground/85">
+                {formatTime(entry.occurredAt)}
+              </div>
+            </div>
+            {/* Kart tıklaması düzenleme açtığından iç butonlar durdurur */}
+            <div className="flex items-center gap-0.5">
+              <CardAction
+                icon={Pencil}
+                label={t("action.edit")}
+                onClick={() => setEditOpen(true)}
+              />
+              <CardAction
+                icon={Trash2}
+                label={t("action.delete")}
+                destructive
+                onClick={handleDelete}
+              />
+            </div>
           </div>
         </div>
 
@@ -199,7 +214,37 @@ export function EntryCard({
   );
 }
 
-/** Künyedeki eylem düğmesi — her zaman görünür, dokunmatikte de bulunur */
+/**
+ * Girdinin indiği alt kategori — düz yazı değil rozet. Dal işareti onu adın
+ * devamı olmaktan çıkarıp ağaçtaki yer olarak okutuyor; kendi sembolü varsa
+ * yanında duruyor. Uzun adlar kesilmez, satır atlar.
+ */
+function SubCategoryTag({
+  name,
+  icon,
+  color,
+}: {
+  name: string;
+  icon?: string;
+  color: string;
+}) {
+  return (
+    <span
+      className="mt-1 inline-flex max-w-full items-center gap-1 rounded-md py-0.5 pl-1 pr-1.5 text-[11px] font-medium leading-snug"
+      style={{
+        background: `${color}1f`,
+        boxShadow: `inset 0 0 0 1px ${color}33`,
+        color: `${color}e6`,
+      }}
+    >
+      <CornerDownRight className="h-3 w-3 shrink-0 opacity-60" />
+      {icon && <SymbolIcon name={icon} size={12} className="shrink-0" />}
+      <span className="break-words">{name}</span>
+    </span>
+  );
+}
+
+/** Eylem düğmesi — her zaman görünür, dokunmatikte de bulunur */
 function CardAction({
   icon: Icon,
   label,
