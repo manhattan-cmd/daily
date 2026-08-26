@@ -11,7 +11,6 @@ import { deleteEntry } from "@/lib/db/queries";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { EntryIcon } from "@/components/dashboard/entry-icon";
 import { modAtomIcon } from "@/components/structure/mod-atom";
-import { modColor } from "@/lib/mod-color";
 import {
   SelectionLayer,
   selectedCardClass,
@@ -146,7 +145,7 @@ export function EntryCard({
         {values.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2 border-t border-white/[0.06] pt-3">
             {values.map((v) => (
-              <ValueCapsule key={v.id} v={v} />
+              <ValueCapsule key={v.id} v={v} color={color} />
             ))}
           </div>
         )}
@@ -179,17 +178,22 @@ export function EntryCard({
 /**
  * Özellik kapsülü — girdideki her özellik kendi nesnesi.
  *
- * Renk kategoriden değil ÖZELLİKTEN geliyor (modColor): renk yoksa adından
- * türüyor ve sabit kalıyor, yani "Money" uygulamanın her yerinde aynı renkte.
- * Böylece kart bir bakışta hangi özellikleri taşıdığını renkten söylüyor.
+ * Renk KATEGORİDEN geliyor: kart tek renkte kalsın, kapsüller kartın parçası
+ * gibi dursun. Özelliğin kendi rengi (lib/mod-color) de denendi — her kapsül
+ * ayrı renk olunca kart alacalanıyordu.
  *
  * Biçim yatay kapsül: renkli dairede özelliğin simgesi, sonra değer, sonra
  * adı. Daire atom (bkz. ModAtom) ve kabartılı karo da denendi; ikisi de kartı
  * 40px uzatıyordu, kapsül satıra sığıyor.
  */
-function ValueCapsule({ v }: { v: EntryValueWithType }) {
+function ValueCapsule({
+  v,
+  color: c,
+}: {
+  v: EntryValueWithType;
+  color: string;
+}) {
   const { main, unit, label } = readValue(v);
-  const c = modColor(v.mod ?? { name: v.entryType!.name });
   const icon = createElement(modAtomIcon({ name: v.mod?.name, entryType: v.entryType! }), {
     className: "h-3.5 w-3.5",
     style: { color: c },
