@@ -33,18 +33,18 @@ const MAX_CAPSULES = 4;
 export function NoteCapsule({ text, color: c }: { text: string; color: string }) {
   return (
     <div
-      className="flex w-full items-start gap-2 rounded-xl px-2.5 py-2"
+      className="flex w-full items-start gap-1.5 rounded-xl px-2 py-1.5"
       style={{
         background: "rgba(0,0,0,0.26)",
         boxShadow: `inset 0 0 0 1px ${c}24`,
       }}
     >
       <NotebookPen
-        className="mt-[2px] h-3.5 w-3.5 shrink-0"
+        className="mt-[2px] h-3 w-3 shrink-0"
         style={{ color: `${c}99` }}
         strokeWidth={1.9}
       />
-      <p className="line-clamp-3 min-w-0 text-xs leading-relaxed text-muted-foreground">
+      <p className="line-clamp-3 min-w-0 text-[11px] leading-snug text-muted-foreground">
         {text}
       </p>
     </div>
@@ -69,13 +69,13 @@ export function ValueCapsuleRow({
   const shown = values.slice(0, MAX_CAPSULES);
   const rest = values.length - shown.length;
   return (
-    <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
+    <div className={cn("flex flex-wrap items-center gap-1", className)}>
       {shown.map((v) => (
         <ValueCapsule key={v.id} v={v} color={color} />
       ))}
       {rest > 0 && (
         <span
-          className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium leading-none"
+          className="inline-flex items-center rounded-full px-2 py-1 text-[10px] font-medium leading-none"
           style={{
             color: `${color}cc`,
             boxShadow: `inset 0 0 0 1px ${color}2b`,
@@ -107,37 +107,37 @@ export function ValueCapsule({
   const icon = createElement(
     modAtomIcon({ name: v.mod?.name, entryType: v.entryType! }),
     {
-      className: "h-3.5 w-3.5",
+      className: "h-3 w-3",
       style: { color: c },
       strokeWidth: 1.9,
     }
   );
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3"
+      className="inline-flex items-center gap-1 rounded-full py-0.5 pl-0.5 pr-2"
       style={{
         background: `${c}14`,
         boxShadow: `inset 0 0 0 1px ${c}33`,
       }}
     >
       <span
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
         style={{ background: `${c}33` }}
       >
         {icon}
       </span>
       <span
-        className="text-[15px] font-semibold leading-none tabular-nums"
+        className="text-[13px] font-semibold leading-none tabular-nums"
         style={{ color: c }}
       >
         {main}
       </span>
       {unit && (
-        <span className="text-[11px] leading-none text-muted-foreground/70">
+        <span className="text-[10px] leading-none text-muted-foreground/70">
           {unit}
         </span>
       )}
-      <span className="text-[11px] leading-none text-muted-foreground/60">
+      <span className="text-[10px] leading-none text-muted-foreground/60">
         {label}
       </span>
     </span>
@@ -194,13 +194,13 @@ export function CardAction({
         onClick();
       }}
       className={cn(
-        "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors active:scale-95",
+        "flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-colors active:scale-95",
         destructive
           ? "text-muted-foreground/50 hover:bg-destructive/15 hover:text-destructive"
           : "text-muted-foreground/50 hover:bg-white/10 hover:text-foreground"
       )}
     >
-      <Icon className="h-[15px] w-[15px]" />
+      <Icon className="h-[14px] w-[14px]" />
     </button>
   );
 }

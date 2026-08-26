@@ -86,7 +86,7 @@ export function LinkedEntryCard({
         {...(selection && !selection.active ? longPress : {})}
         aria-label={`${shared.subcategory.name} girdisini düzenle`}
         className={cn(
-          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border px-3 py-2.5 text-left transition-transform active:scale-[0.99]",
+          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border px-2.5 py-2 text-left transition-transform active:scale-[0.99]",
           selection?.selected && selectedCardClass
         )}
         style={{
@@ -95,7 +95,7 @@ export function LinkedEntryCard({
         }}
       >
         {/* Künye */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <EntryIcon
             category={shared.category}
             subcategory={shared.subcategory}
@@ -103,7 +103,7 @@ export function LinkedEntryCard({
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <span className="break-words text-sm font-semibold leading-snug">
+              <span className="break-words text-[13px] font-semibold leading-snug">
                 {shared.subcategory.name}
               </span>
               <Link2
@@ -112,7 +112,7 @@ export function LinkedEntryCard({
               />
             </div>
             <div
-              className="mt-0.5 truncate text-[10px] font-semibold uppercase leading-none tracking-[0.14em]"
+              className="mt-0.5 truncate text-[9px] font-semibold uppercase leading-none tracking-[0.12em]"
               style={{ color: `${VIOLET}cc` }}
             >
               {t("linked.perspectiveCount", { n: entries.length })}
@@ -120,11 +120,11 @@ export function LinkedEntryCard({
           </div>
 
           <div className="-mr-1 flex shrink-0 flex-col items-end gap-0.5">
-            <div className="px-1 text-right leading-tight">
-              <span className="block whitespace-nowrap text-[10px] text-muted-foreground/50">
+            <div className="px-0.5 text-right leading-none">
+              <span className="block whitespace-nowrap text-[9px] text-muted-foreground/50">
                 {formatDate(shared.occurredAt)}
               </span>
-              <span className="block whitespace-nowrap text-[11px] font-medium tabular-nums text-muted-foreground/80">
+              <span className="mt-0.5 block whitespace-nowrap text-[10px] font-medium tabular-nums text-muted-foreground/80">
                 {formatTime(shared.occurredAt)}
               </span>
             </div>
@@ -141,7 +141,7 @@ export function LinkedEntryCard({
           <ValueCapsuleRow
             values={sharedValues}
             color={VIOLET}
-            className="mt-2.5 border-t border-white/[0.07] pt-2.5"
+            className="mt-2 border-t border-white/[0.07] pt-2"
           />
         )}
 
