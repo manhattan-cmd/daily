@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { createElement, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import type { EntryWithContext, EntryValueWithType } from "@/types";
 import { cn, formatDate, formatTime } from "@/lib/utils";
@@ -10,6 +10,8 @@ import { confirmDialog } from "@/components/ui/confirm";
 import { deleteEntry } from "@/lib/db/queries";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { EntryIcon } from "@/components/dashboard/entry-icon";
+import { modAtomIcon } from "@/components/structure/mod-atom";
+import { modColor } from "@/lib/mod-color";
 import {
   SelectionLayer,
   selectedCardClass,
@@ -142,9 +144,9 @@ export function EntryCard({
 
         {/* ── Değerler ── */}
         {values.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 border-t border-white/[0.06] pt-2.5">
+          <div className="mt-3 flex flex-wrap gap-2 border-t border-white/[0.06] pt-3">
             {values.map((v) => (
-              <ValueStat key={v.id} v={v} color={color} />
+              <ValueCapsule key={v.id} v={v} />
             ))}
           </div>
         )}
@@ -175,31 +177,53 @@ export function EntryCard({
 }
 
 /**
- * Değer bloğu — sayı üstte büyük ve kategori renginde, özelliğin adı altta
- * küçük.
+ * Özellik kapsülü — girdideki her özellik kendi nesnesi.
  *
- * Ad BÜYÜK HARFE çevrilmiyor: css'in `uppercase`i sayfanın diline göre
- * çalışıyor, Türkçe kipte "Duration" → "DURATİON" oluyordu.
+ * Renk kategoriden değil ÖZELLİKTEN geliyor (modColor): renk yoksa adından
+ * türüyor ve sabit kalıyor, yani "Money" uygulamanın her yerinde aynı renkte.
+ * Böylece kart bir bakışta hangi özellikleri taşıdığını renkten söylüyor.
+ *
+ * Biçim yatay kapsül: renkli dairede özelliğin simgesi, sonra değer, sonra
+ * adı. Daire atom (bkz. ModAtom) ve kabartılı karo da denendi; ikisi de kartı
+ * 40px uzatıyordu, kapsül satıra sığıyor.
  */
-function ValueStat({ v, color }: { v: EntryValueWithType; color: string }) {
+function ValueCapsule({ v }: { v: EntryValueWithType }) {
   const { main, unit, label } = readValue(v);
+  const c = modColor(v.mod ?? { name: v.entryType!.name });
+  const icon = createElement(modAtomIcon({ name: v.mod?.name, entryType: v.entryType! }), {
+    className: "h-3.5 w-3.5",
+    style: { color: c },
+    strokeWidth: 1.9,
+  });
   return (
-    <div className="min-w-0">
-      <div className="flex items-baseline gap-1 leading-none">
-        <span
-          className="text-[17px] font-semibold tabular-nums"
-          style={{ color }}
-        >
-          {main}
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3"
+      style={{
+        background: `${c}14`,
+        boxShadow: `inset 0 0 0 1px ${c}33`,
+      }}
+    >
+      <span
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+        style={{ background: `${c}33` }}
+      >
+        {icon}
+      </span>
+      <span
+        className="text-[15px] font-semibold leading-none tabular-nums"
+        style={{ color: c }}
+      >
+        {main}
+      </span>
+      {unit && (
+        <span className="text-[11px] leading-none text-muted-foreground/70">
+          {unit}
         </span>
-        {unit && (
-          <span className="text-[11px] text-muted-foreground/70">{unit}</span>
-        )}
-      </div>
-      <div className="mt-1 truncate text-[10px] tracking-[0.06em] text-muted-foreground/50">
+      )}
+      <span className="text-[11px] leading-none text-muted-foreground/60">
         {label}
-      </div>
-    </div>
+      </span>
+    </span>
   );
 }
 
