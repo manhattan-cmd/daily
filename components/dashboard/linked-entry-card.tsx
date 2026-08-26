@@ -2,11 +2,16 @@
 
 import { useState } from "react";
 import { Link2, Pencil } from "lucide-react";
-import type { EntryWithContext, EntryType } from "@/types";
-import { Button } from "@/components/ui/button";
+import type { EntryWithContext } from "@/types";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { EntryIcon } from "@/components/dashboard/entry-icon";
-import { cn } from "@/lib/utils";
+import {
+  CardAction,
+  NoteCapsule,
+  ValueCapsule,
+} from "@/components/dashboard/entry-parts";
+import { cn, formatDate, formatTime } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { useLongPress } from "@/lib/use-long-press";
 import {
   SelectionLayer,
@@ -14,8 +19,25 @@ import {
   type EntrySelection,
 } from "@/components/calendar/entry-selection";
 
-/** `selection` verilirse basılı tutma toplu seçimi başlatır — paralel
- *  perspektiflerin tamamı tek kart olarak seçilir. */
+/**
+ * Paralel girdi kartı — aynı olayın birden çok kategorideki perspektifi.
+ *
+ * Girdi kartıyla aynı dil: künye üstte (sembol düşeyde ortalı, ad + kategori,
+ * sağda tarih ve düzenle), altında saç teli çizgiyle ayrılmış bölüm. Değerler
+ * ve notlar kapsül. Kartın çerçevesi menekşe kalıyor — bu renk kategoriyi
+ * değil "paralel" olma halini anlatıyor.
+ *
+ * Değer renkleri anlam taşıyor: ORTAK değerler menekşe (bir kategoriye ait
+ * değiller, olayın kendisine ait), perspektife özel değerler o perspektifin
+ * kategori renginde.
+ *
+ * Karta dokunmak ana perspektifi düzenler; her perspektif satırının kendi
+ * kalemi var. Silme yok: paralel grupta "sil" hangi perspektif belirsiz
+ * kalıyor, o iş düzenleme penceresindeki perspektif listesinden yürüyor.
+ * `selection` verilirse basılı tutma tüm perspektifleri tek kart olarak seçer.
+ */
+const VIOLET = "#8b5cf6";
+
 export function LinkedEntryCard({
   entries,
   selection,
@@ -23,22 +45,19 @@ export function LinkedEntryCard({
   entries: EntryWithContext[];
   selection?: EntrySelection;
 }) {
+  const t = useT();
   const [editingEntry, setEditingEntry] = useState<EntryWithContext | null>(null);
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
   const shared = entries[0];
-  const time = new Date(shared.occurredAt).toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 
-  // Partition values into shared (same entryTypeId in ≥2 entries) vs. perspective-specific
+  // Ortak değer: aynı özellik ≥2 perspektifte varsa. Anahtar özelliğin
+  // kendisi; entryTypeId yalnız v18 öncesi kayıtlarda var.
   const typeIdCount = new Map<string, number>();
   const firstValueByTypeId = new Map<string, EntryWithContext["values"][number]>();
   for (const entry of entries) {
     const seenInEntry = new Set<string>();
     for (const v of entry.values) {
       if (!v.entryType) continue;
-      // Anahtar özelliğin kendisi; entryTypeId yalnız v18 öncesi kayıtlarda var
       const key = v.modId ?? v.entryTypeId;
       if (!key) continue;
       if (!seenInEntry.has(key)) {
@@ -57,8 +76,6 @@ export function LinkedEntryCard({
 
   return (
     <>
-      {/* Karta dokunmak ana perspektifi düzenler (EntryCard ile aynı davranış);
-          iç kontroller (kalem, sil) kabarcıklanmayı durdurur */}
       <div
         role="button"
         tabIndex={0}
@@ -69,81 +86,102 @@ export function LinkedEntryCard({
         {...(selection && !selection.active ? longPress : {})}
         aria-label={`${shared.subcategory.name} girdisini düzenle`}
         className={cn(
-          "group relative cursor-pointer select-none touch-manipulation rounded-2xl border border-violet-500/25 bg-card overflow-hidden transition-transform active:scale-[0.99]",
+          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border px-3 py-2.5 text-left transition-transform active:scale-[0.99]",
           selection?.selected && selectedCardClass
         )}
+        style={{
+          borderColor: `${VIOLET}42`,
+          background: `linear-gradient(135deg, ${VIOLET}1f, ${VIOLET}08 45%, transparent)`,
+        }}
       >
-        {/* Header */}
-        <div className="flex items-center gap-2.5 px-3 pt-2.5 pb-2">
+        {/* Künye */}
+        <div className="flex items-center gap-2.5">
           <EntryIcon
             category={shared.category}
             subcategory={shared.subcategory}
-            size="sm"
           />
-          <span className="font-semibold text-sm flex-1 truncate">{shared.subcategory.name}</span>
-          <Link2 className="h-3.5 w-3.5 text-violet-400/60 shrink-0" />
-          <span className="text-xs text-muted-foreground/60 shrink-0">{time}</span>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="break-words text-sm font-semibold leading-snug">
+                {shared.subcategory.name}
+              </span>
+              <Link2
+                className="h-3.5 w-3.5 shrink-0"
+                style={{ color: `${VIOLET}b3` }}
+              />
+            </div>
+            <div
+              className="mt-0.5 truncate text-[10px] font-semibold uppercase leading-none tracking-[0.14em]"
+              style={{ color: `${VIOLET}cc` }}
+            >
+              {t("linked.perspectiveCount", { n: entries.length })}
+            </div>
+          </div>
+
+          <div className="-mr-1 flex shrink-0 flex-col items-end gap-0.5">
+            <div className="px-1 text-right leading-tight">
+              <span className="block whitespace-nowrap text-[10px] text-muted-foreground/50">
+                {formatDate(shared.occurredAt)}
+              </span>
+              <span className="block whitespace-nowrap text-[11px] font-medium tabular-nums text-muted-foreground/80">
+                {formatTime(shared.occurredAt)}
+              </span>
+            </div>
+            <CardAction
+              icon={Pencil}
+              label={t("action.edit")}
+              onClick={() => setEditingEntry(shared)}
+            />
+          </div>
         </div>
 
-        {/* Shared values — shown once, between header and perspectives */}
+        {/* Ortak değerler — bir kategoriye değil olayın kendisine ait */}
         {sharedValues.length > 0 && (
-          <>
-            <div className="h-px bg-border/40 mx-4" />
-            <div className="px-4 py-2.5 flex flex-wrap gap-1.5">
-              {sharedValues.map((v) => (
-                <ValueChip
-                  key={v.id}
-                  value={v.value}
-                  label={v.mod?.name ?? v.entryType!.name}
-                  entryType={v.entryType!}
-                />
-              ))}
-            </div>
-          </>
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-white/[0.07] pt-2.5">
+            {sharedValues.map((v) => (
+              <ValueCapsule key={v.id} v={v} color={VIOLET} />
+            ))}
+          </div>
         )}
 
-        {/* Divider before perspectives */}
-        <div className="h-px bg-border/40 mx-4" />
-
-        {/* Per-perspective rows — only perspective-specific values */}
-        <div className="px-3 py-2.5 flex flex-col gap-2.5">
+        {/* Perspektifler — her biri kendi kategori renginde */}
+        <div className="mt-2.5 flex flex-col gap-2 border-t border-white/[0.07] pt-2.5">
           {entries.map((entry) => {
             const ownValues = entry.values.filter(
-              (v) => v.entryType && !sharedTypeIds.has(v.modId ?? v.entryTypeId ?? "")
+              (v) =>
+                v.entryType && !sharedTypeIds.has(v.modId ?? v.entryTypeId ?? "")
             );
             return (
-              <div key={entry.id} className="group/row flex items-start gap-2.5">
-                <EntryIcon category={entry.category} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <span className="text-xs text-muted-foreground leading-7">{entry.category.name}</span>
-                  {ownValues.length > 0 && (
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {ownValues.map((v) => (
-                        <ValueChip
-                          key={v.id}
-                          value={v.value}
-                          label={v.mod?.name ?? v.entryType!.name}
-                          entryType={v.entryType!}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  {entry.notes && (
-                    <p className="mt-1 text-xs text-muted-foreground/70">{entry.notes}</p>
-                  )}
+              <div key={entry.id}>
+                <div className="flex items-center gap-2">
+                  <EntryIcon category={entry.category} size="sm" />
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground">
+                    {entry.category.name}
+                  </span>
+                  <CardAction
+                    icon={Pencil}
+                    label={`${entry.category.name} perspektifini düzenle`}
+                    onClick={() => setEditingEntry(entry)}
+                  />
                 </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6 text-muted-foreground hover:text-foreground opacity-0 group-hover/row:opacity-100 transition-opacity shrink-0 mt-0.5"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingEntry(entry);
-                  }}
-                  aria-label={`${entry.category.name} perspektifini düzenle`}
-                >
-                  <Pencil className="h-3 w-3" />
-                </Button>
+                {(ownValues.length > 0 || entry.notes) && (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-[38px]">
+                    {ownValues.map((v) => (
+                      <ValueCapsule
+                        key={v.id}
+                        v={v}
+                        color={entry.category.color}
+                      />
+                    ))}
+                    {entry.notes && (
+                      <NoteCapsule
+                        text={entry.notes}
+                        color={entry.category.color}
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -162,33 +200,11 @@ export function LinkedEntryCard({
         <EditEntryModal
           entry={editingEntry}
           open
-          onOpenChange={(open) => { if (!open) setEditingEntry(null); }}
+          onOpenChange={(open) => {
+            if (!open) setEditingEntry(null);
+          }}
         />
       )}
     </>
-  );
-}
-
-function ValueChip({
-  value,
-  label,
-  entryType,
-}: {
-  value: string;
-  label: string;
-  entryType: EntryType;
-}) {
-  const vt = entryType.valueType ?? "number";
-  let display = value;
-  if (vt === "boolean") display = value === "true" ? "Yes" : "No";
-
-  return (
-    <div className="flex items-baseline gap-1 rounded-lg bg-muted px-2 py-0.5">
-      <span className="text-sm font-semibold tabular-nums">{display}</span>
-      {vt === "number" && entryType.unit && (
-        <span className="text-xs text-muted-foreground">{entryType.unit}</span>
-      )}
-      <span className="ml-1 text-xs text-muted-foreground">{label}</span>
-    </div>
   );
 }

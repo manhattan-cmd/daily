@@ -506,6 +506,7 @@ export const en = {
   "confirm.deleteMeasure": "Delete “{name}”?",
   "confirm.deleteMeasureBody":
     "Features measured with it are not affected.",
+  "linked.perspectiveCount": "{n} parallel perspectives",
   "confirm.deleteEntry": "Delete the “{name}” entry?",
   "confirm.deleteEntryBody": "It is removed together with its values.",
   "confirm.deletePerspective": "Delete the “{name}” perspective?",
@@ -1024,6 +1025,7 @@ export const tr: Record<MessageKey, string> = {
     "{places} yerden kaldırılacak; {values} kayıt değeri ölçü adıyla kalacak.",
   "confirm.deleteMeasure": "“{name}” silinsin mi?",
   "confirm.deleteMeasureBody": "Bu ölçüyü kullanan özellikler etkilenmez.",
+  "linked.perspectiveCount": "{n} paralel perspektif",
   "confirm.deleteEntry": "“{name}” girdisi silinsin mi?",
   "confirm.deleteEntryBody": "Değerleriyle birlikte kaldırılır.",
   "confirm.deletePerspective": "“{name}” perspektifi silinsin mi?",
