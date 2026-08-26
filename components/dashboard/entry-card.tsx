@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import type { EntryWithContext } from "@/types";
-import { cn, formatDate, formatTime } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
 import { useLongPress } from "@/lib/use-long-press";
 import { useT } from "@/lib/i18n";
 import { confirmDialog } from "@/components/ui/confirm";
@@ -117,28 +117,21 @@ export function EntryCard({
 
           {/* Tarih + eylemler tek bölüm, sağda. Kart tıklaması düzenleme
               açtığından butonlar kabarcıklanmayı durdurur. */}
-          <div className="-mr-1 flex shrink-0 flex-col items-end gap-0.5">
-            <div className="px-0.5 text-right leading-none">
-              <span className="block whitespace-nowrap text-[9px] text-muted-foreground/50">
-                {formatDate(entry.occurredAt)}
-              </span>
-              <span className="mt-0.5 block whitespace-nowrap text-[10px] font-medium tabular-nums text-muted-foreground/80">
-                {formatTime(entry.occurredAt)}
-              </span>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <CardAction
-                icon={Pencil}
-                label={t("action.edit")}
-                onClick={() => setEditOpen(true)}
-              />
-              <CardAction
-                icon={Trash2}
-                label={t("action.delete")}
-                destructive
-                onClick={handleDelete}
-              />
-            </div>
+          <div className="-mr-1 flex shrink-0 items-center gap-1">
+            <span className="whitespace-nowrap px-0.5 text-[10px] leading-none tabular-nums text-muted-foreground/70">
+              {formatDateTime(entry.occurredAt)}
+            </span>
+            <CardAction
+              icon={Pencil}
+              label={t("action.edit")}
+              onClick={() => setEditOpen(true)}
+            />
+            <CardAction
+              icon={Trash2}
+              label={t("action.delete")}
+              destructive
+              onClick={handleDelete}
+            />
           </div>
         </div>
 
