@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { MoonStar, X } from "lucide-react";
+import { MoonStar, Sparkles, X } from "lucide-react";
 import { db } from "@/lib/db";
 import { createEntry, listModifiersForTarget } from "@/lib/db/queries";
 import {
@@ -134,7 +134,7 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
             <MoonStar className="h-4.5 w-4.5 text-violet-300" />
           </span>
           <h2 className="flex-1 text-base font-semibold tracking-tight">
-            Uyku ekle
+            {t("sleep.add")}
           </h2>
           <button
             onClick={onClose}
@@ -148,19 +148,20 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
         <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-6 flex flex-col gap-5">
           {target === null ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              Uyku kategorisi bulunamadı.
+              {t("sleep.notFound")}
             </p>
           ) : target === undefined ? null : (
             <>
               {target.rangeMod && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium">
-                    {target.rangeMod.name ?? "Sleep Duration"}
+                    {target.rangeMod.name ?? t("sleep.duration")}
                   </label>
                   <DateTimeRangeInput
                     value={range}
                     onChange={setRange}
                     entryDate={date}
+                    tone="sleep"
                   />
                 </div>
               )}
@@ -168,25 +169,13 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
               {target.qualityMod && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium">
-                    {target.qualityMod.name ?? "Sleep Quality"}
+                    {target.qualityMod.name ?? t("sleep.quality")}
                   </label>
-                  <div className="flex gap-2">
-                    {(target.qualityMod.entryType.choices ?? []).map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setQuality(quality === c ? "" : c)}
-                        className={cn(
-                          "flex h-11 flex-1 items-center justify-center rounded-xl border text-sm font-semibold transition-colors",
-                          quality === c
-                            ? "border-violet-400 bg-violet-500/20 text-violet-200"
-                            : "border-border bg-input text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        {c}
-                      </button>
-                    ))}
-                  </div>
+                  <QualityWindow
+                    choices={target.qualityMod.entryType.choices ?? []}
+                    value={quality}
+                    onChange={setQuality}
+                  />
                 </div>
               )}
             </>
@@ -200,10 +189,71 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
             onClick={handleSave}
             disabled={saving || !target}
           >
-            {saving ? "Kaydediliyor..." : "Save"}
+            {saving ? t("entry.saving") : t("action.save")}
           </Button>
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * Kalite penceresi — aralık penceresiyle aynı iskelet: üstte küçük başlık,
+ * ortada gövde, altta özet/ipucu şeridi. Kalite çıplak düğme dizisiyken
+ * aralığın yanında yarım kalmış duruyordu; ikisi de uykunun moruyla boyalı.
+ */
+function QualityWindow({
+  choices,
+  value,
+  onChange,
+}: {
+  choices: string[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const t = useT();
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-violet-500/25 bg-violet-500/[0.07]">
+      <div className="flex items-center gap-1.5 px-4 pt-3 text-violet-300/50">
+        <Sparkles className="h-3 w-3" />
+        <span className="text-[9px] font-bold uppercase tracking-[0.15em]">
+          {t("sleep.qualityScale")}
+        </span>
+      </div>
+
+      <div className="flex gap-2 px-4 pb-3.5 pt-2.5">
+        {choices.map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => onChange(value === c ? "" : c)}
+            className={cn(
+              "flex h-11 flex-1 items-center justify-center rounded-xl border text-sm font-semibold tabular-nums transition-colors",
+              value === c
+                ? "border-violet-400 bg-violet-500/25 text-violet-100"
+                : "border-violet-500/15 bg-violet-500/[0.06] text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2 border-t border-violet-500/15 bg-violet-500/[0.05] px-4 py-2.5">
+        {value ? (
+          <>
+            <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400/70" />
+            <span className="text-xs text-muted-foreground">
+              {value}/{choices.length}
+            </span>
+          </>
+        ) : (
+          <span className="text-xs text-muted-foreground/40">
+            {t("sleep.qualityHint")}
+          </span>
+        )}
+      </div>
+    </div>
   );
 }

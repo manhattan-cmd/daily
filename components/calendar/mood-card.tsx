@@ -17,7 +17,8 @@ import {
 const FACES = ["😞", "🙁", "😐", "🙂", "😄"];
 
 /**
- * Gün sayfasındaki yerleşik ruh hali kartı — mutluluk skalası + duygular.
+ * Yerleşik ruh hali kartı — mutluluk skalası + duygular. `dateLabel` yalnız
+ * günleri karışık listelerde (ana sayfa) verilir.
  *
  * Duygular aynı özellikten gelen BİRDEN ÇOK değer, o yüzden `find` değil
  * `filter` ile toplanıyor: girdi kartının geri kalanı tek değer varsayar,
@@ -26,9 +27,11 @@ const FACES = ["😞", "🙁", "😐", "🙂", "😄"];
 export function MoodCard({
   entry,
   selection,
+  dateLabel,
 }: {
   entry: EntryWithContext;
   selection?: EntrySelection;
+  dateLabel?: string;
 }) {
   const t = useT();
   const [editOpen, setEditOpen] = useState(false);
@@ -78,8 +81,13 @@ export function MoodCard({
           </span>
 
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-pink-300/70">
-              {t("mood.title")}
+            <div className="flex items-baseline gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-pink-300/70">
+              <span>{t("mood.title")}</span>
+              {dateLabel && (
+                <span className="truncate font-medium tracking-normal text-muted-foreground/70">
+                  {dateLabel}
+                </span>
+              )}
             </div>
             <div className="mt-0.5 min-w-0">
               {emotions.length > 0 ? (

@@ -45,11 +45,53 @@ export function formatDTRDisplay(raw: string): string {
   return "—";
 }
 
+/**
+ * Pencerenin rengi. Uyku akışının her yüzeyi mor (kart, sayfa başlığı, kaydet
+ * düğmesi); aralık penceresi tek başına nötr kalınca yamalı duruyordu.
+ */
+export type DTRTone = "default" | "sleep";
+
+const TONES: Record<
+  DTRTone,
+  {
+    shell: string;
+    divide: string;
+    line: string;
+    strip: string;
+    dot: string;
+    chipOn: string;
+    open: string;
+    band: string;
+  }
+> = {
+  default: {
+    shell: "border-border bg-card",
+    divide: "divide-border",
+    line: "border-border/60",
+    strip: "bg-muted/10",
+    dot: "bg-primary/50",
+    chipOn: "bg-primary/90 text-white shadow-sm",
+    open: "text-primary",
+    band: "bg-primary/10 ring-primary/25",
+  },
+  sleep: {
+    shell: "border-violet-500/25 bg-violet-500/[0.07]",
+    divide: "divide-violet-500/15",
+    line: "border-violet-500/15",
+    strip: "bg-violet-500/[0.05]",
+    dot: "bg-violet-400/70",
+    chipOn: "bg-violet-500/80 text-white shadow-sm",
+    open: "text-violet-300",
+    band: "bg-violet-500/12 ring-violet-400/30",
+  },
+};
+
 interface DateTimeRangeInputProps {
   value: string;
   onChange: (v: string) => void;
   entryDate: string; // "YYYY-MM-DD"
   disabled?: boolean;
+  tone?: DTRTone;
 }
 
 /** Yerel takvim gününü koru — toISOString UTC'ye çevirip günü kaydırır */
@@ -77,8 +119,10 @@ export function DateTimeRangeInput({
   onChange,
   entryDate,
   disabled = false,
+  tone = "default",
 }: DateTimeRangeInputProps) {
   const t = useT();
+  const skin = TONES[tone];
   const parsed = useMemo(() => parseDTR(value), [value]);
   // Çark iki panelin altında, kartın tamamı kadar geniş açılır — panelin
   // içine sıkıştırıldığında sütunlar 80px'e düşüyor ve çark gibi durmuyordu
@@ -108,8 +152,8 @@ export function DateTimeRangeInput({
   const [editingDate = "", editingTime = ""] = editingValue.split("T");
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="grid grid-cols-2 divide-x divide-border">
+    <div className={cn("overflow-hidden rounded-2xl border", skin.shell)}>
+      <div className={cn("grid grid-cols-2 divide-x", skin.divide)}>
         <DateTimePanel
           side="start"
           icon={<Moon className="h-3 w-3" />}
@@ -119,6 +163,7 @@ export function DateTimeRangeInput({
           open={editing === "start"}
           onOpen={() => openPicker("start")}
           disabled={disabled}
+          skin={skin}
         />
         <DateTimePanel
           side="end"
@@ -129,6 +174,7 @@ export function DateTimeRangeInput({
           open={editing === "end"}
           onOpen={() => openPicker("end")}
           disabled={disabled}
+          skin={skin}
         />
       </div>
 
@@ -139,14 +185,21 @@ export function DateTimeRangeInput({
           time={editingTime}
           onChange={(t) => update(editing, `${editingDate}T${t}`)}
           onClose={() => setEditing(null)}
+          skin={skin}
         />
       )}
 
       {/* Süre / ipucu satırı */}
-      <div className="flex items-center gap-2 border-t border-border/60 bg-muted/10 px-4 py-2.5">
+      <div
+        className={cn(
+          "flex items-center gap-2 border-t px-4 py-2.5",
+          skin.line,
+          skin.strip
+        )}
+      >
         {duration ? (
           <>
-            <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary/50" />
+            <div className={cn("h-1.5 w-1.5 shrink-0 rounded-full", skin.dot)} />
             <span className="text-xs text-muted-foreground">{duration}</span>
           </>
         ) : (
@@ -168,6 +221,7 @@ function DateTimePanel({
   open,
   onOpen,
   disabled = false,
+  skin,
 }: {
   side: Side;
   icon: React.ReactNode;
@@ -177,6 +231,7 @@ function DateTimePanel({
   open: boolean;
   onOpen: () => void;
   disabled?: boolean;
+  skin: (typeof TONES)[DTRTone];
 }) {
   const t = useT();
   const cfg = SIDES[side];
@@ -212,7 +267,7 @@ function DateTimePanel({
             className={cn(
               "flex-1 rounded-lg py-1 text-[9px] font-semibold tracking-tight transition-all",
               datePart === chip.date
-                ? "bg-primary/90 text-white shadow-sm"
+                ? skin.chipOn
                 : "bg-muted/40 text-muted-foreground/60 hover:bg-muted hover:text-foreground"
             )}
           >
@@ -233,7 +288,7 @@ function DateTimePanel({
           "text-[1.85rem] font-bold leading-tight tabular-nums",
           "cursor-pointer transition-colors",
           hasValue ? "text-foreground" : "text-muted-foreground/30",
-          open && "text-primary",
+          open && skin.open,
           disabled && "cursor-not-allowed opacity-50"
         )}
       >
@@ -427,6 +482,7 @@ function TimeWheel({
   onChange,
   onClose,
   minuteStep = 5,
+  skin = TONES.default,
 }: {
   label: string;
   time: string;
@@ -434,6 +490,7 @@ function TimeWheel({
   onClose: () => void;
   /** Uyku aralığında 5 dk yeter; tek girdi saatinde dakika birebir seçilir */
   minuteStep?: 1 | 5;
+  skin?: (typeof TONES)[DTRTone];
 }) {
   const [hour = "", minute = ""] = time.split(":");
   // Kayıtlı dakika adıma denk gelmiyorsa (eski kayıt/elle giriş) listeye eklenir
@@ -444,7 +501,7 @@ function TimeWheel({
   }, [minute, minuteStep]);
 
   return (
-    <div className="border-t border-border/60 bg-muted/10 px-4 pb-3 pt-2.5">
+    <div className={cn("border-t px-4 pb-3 pt-2.5", skin.line, skin.strip)}>
       <div className="mb-1.5 flex items-center justify-between">
         <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50">
           {label}
@@ -461,7 +518,10 @@ function TimeWheel({
       <div className="relative flex justify-center gap-2">
         {/* Seçim bandı — çarkın okuma penceresi */}
         <div
-          className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 rounded-lg bg-primary/10 ring-1 ring-inset ring-primary/25"
+          className={cn(
+            "pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 rounded-lg ring-1 ring-inset",
+            skin.band
+          )}
           style={{ height: ITEM }}
         />
         <WheelColumn
@@ -484,6 +544,16 @@ function TimeWheel({
   );
 }
 
+/**
+ * Çark döngüsel: liste birkaç kez çoğaltılır, kaydırma dinince görünmeden orta
+ * kopyaya geri sarılır. 23'ten sonra 00, 00'dan geriye 23 gelir — düz listede
+ * kullanıcı uçlara çarpıp duruyordu, gece saatleri seçmek iki uç arasında
+ * gidip gelmek demekti. Tek sayı olsun ki ortada gerçek bir kopya olsun.
+ */
+const REPEAT = 9;
+/** Kaydırma bittiğine karar verme süresi — ivme sönene kadar sarma ertelenir */
+const SETTLE_MS = 160;
+
 function WheelColumn({
   values,
   value,
@@ -496,38 +566,71 @@ function WheelColumn({
   ariaLabel: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const len = values.length;
+  const items = useMemo(
+    () => Array.from({ length: REPEAT * len }, (_, i) => values[i % len]),
+    [values, len]
+  );
+  // Orta kopyanın başı — açılışta ve geri sarmada buraya konumlanılır
+  const mid = Math.floor(REPEAT / 2) * len;
   const index = Math.max(0, values.indexOf(value));
   // Bu sütunun kendi yazdığı son değer — dışarıdan gelen değişikliği ayırt edip
   // kullanıcı kaydırırken çarkı geri sarmamak için
   const committed = useRef(value);
   const mounted = useRef(false);
+  const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     if (!mounted.current) {
       mounted.current = true;
-      el.scrollTop = index * ITEM; // açılışta seçiliyi ortala
+      el.scrollTop = (mid + index) * ITEM; // açılışta seçiliyi ortala
       committed.current = value;
       return;
     }
     if (committed.current === value) return; // kaydırmanın kendi sonucu
-    el.scrollTo({ top: index * ITEM, behavior: "smooth" });
+    // Çoğaltılmış listede değer birden çok yerde: en yakın kopyaya git, yoksa
+    // çark bir tur atıyor
+    const cur = Math.round(el.scrollTop / ITEM);
+    const base = Math.floor(cur / len) * len;
+    const target = [base - len + index, base + index, base + len + index]
+      .filter((i) => i >= 0 && i < items.length)
+      .reduce((a, b) => (Math.abs(a - cur) <= Math.abs(b - cur) ? a : b));
+    el.scrollTo({ top: target * ITEM, behavior: "smooth" });
     committed.current = value;
-  }, [index, value]);
+  }, [index, value, len, mid, items.length]);
+
+  useEffect(
+    () => () => {
+      if (settle.current) clearTimeout(settle.current);
+    },
+    []
+  );
 
   function handleScroll() {
     const el = ref.current;
     if (!el) return;
     const i = Math.min(
-      values.length - 1,
+      items.length - 1,
       Math.max(0, Math.round(el.scrollTop / ITEM))
     );
-    const v = values[i];
-    if (v === committed.current) return;
-    committed.current = v;
-    navigator.vibrate?.(4);
-    onChange(v);
+    const v = items[i];
+    if (v !== committed.current) {
+      committed.current = v;
+      navigator.vibrate?.(4);
+      onChange(v);
+    }
+    // Kaydırma dinince uçtaki kopyadan ortadakine sessizce dön: aynı değer,
+    // aynı görüntü, ama önde ve arkada yeniden yol var. Döngü hissi buradan.
+    if (settle.current) clearTimeout(settle.current);
+    settle.current = setTimeout(() => {
+      const cur = ref.current;
+      if (!cur) return;
+      const j = Math.round(cur.scrollTop / ITEM);
+      if (j >= len && j < items.length - len) return;
+      cur.scrollTop = (mid + (((j % len) + len) % len)) * ITEM;
+    }, SETTLE_MS);
   }
 
   return (
@@ -545,18 +648,13 @@ function WheelColumn({
       }}
     >
       <div style={{ height: PAD }} />
-      {values.map((v) => (
+      {items.map((v, i) => (
         <button
-          key={v}
+          key={i}
           type="button"
           role="option"
           aria-selected={v === value}
-          onClick={() =>
-            ref.current?.scrollTo({
-              top: values.indexOf(v) * ITEM,
-              behavior: "smooth",
-            })
-          }
+          onClick={() => ref.current?.scrollTo({ top: i * ITEM, behavior: "smooth" })}
           style={{ height: ITEM }}
           className={cn(
             "flex w-full snap-center items-center justify-center tabular-nums transition-all duration-150",

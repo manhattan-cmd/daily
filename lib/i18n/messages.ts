@@ -224,6 +224,12 @@ export const en = {
   "sleep.select": "Select sleep record",
   "sleep.title": "Sleep",
   "sleep.logged": "Sleep logged",
+  "sleep.add": "Add sleep",
+  "sleep.notFound": "Sleep category not found.",
+  "sleep.duration": "Sleep duration",
+  "sleep.quality": "Sleep quality",
+  "sleep.qualityScale": "Scale",
+  "sleep.qualityHint": "Pick how rested you woke up",
   "goal.select": "Select {name} goal",
 
   // ── Ruh hali ─────────────────────────────────────────────────────────
@@ -758,6 +764,12 @@ export const tr: Record<MessageKey, string> = {
   "sleep.select": "Uyku kaydını seç",
   "sleep.title": "Uyku",
   "sleep.logged": "Uyku kaydedildi",
+  "sleep.add": "Uyku ekle",
+  "sleep.notFound": "Uyku kategorisi bulunamadı.",
+  "sleep.duration": "Uyku süresi",
+  "sleep.quality": "Uyku kalitesi",
+  "sleep.qualityScale": "Ölçek",
+  "sleep.qualityHint": "Ne kadar dinlenmiş uyandığını seç",
   "goal.select": "{name} hedefini seç",
 
   "add.mood": "Ruh hali",

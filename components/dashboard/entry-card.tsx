@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import type { EntryWithContext } from "@/types";
-import { cn, formatDateTime } from "@/lib/utils";
+import { cn, formatDate, formatDateTime } from "@/lib/utils";
 import { useLongPress } from "@/lib/use-long-press";
 import { useT } from "@/lib/i18n";
 import { confirmDialog } from "@/components/ui/confirm";
@@ -20,6 +20,47 @@ import {
   selectedCardClass,
   type EntrySelection,
 } from "@/components/calendar/entry-selection";
+import { SleepCard } from "@/components/calendar/sleep-card";
+import { MoodCard } from "@/components/calendar/mood-card";
+
+/**
+ * Girdi kartı — yerleşik akışların kendi biçimi vardır. Uyku ve ruh hali düz
+ * girdi gibi çizilince (künye + kapsül dizisi) formunu kaybediyordu: gün
+ * sayfası bunları ayrı yuvalara ayırdığı için doğru görünüyor, ana sayfa gibi
+ * düz listeler ayırmıyordu. Ayrım kartın kendisinde yapılınca girdi nerede
+ * listelenirse listelensin aynı yüzle çıkar.
+ */
+export function EntryCard({
+  entry,
+  selection,
+}: {
+  entry: EntryWithContext;
+  selection?: EntrySelection;
+}) {
+  // Anahtarı doldurulmamış tek yerleşik = eski kurulumdaki Uyku
+  const builtInKey = entry.category.isBuiltIn
+    ? entry.category.builtInKey ?? "sleep"
+    : undefined;
+  // Yerleşik kartlar gün sayfası için yazıldı, orada tarih zaten belli.
+  // Düz listede günler karışık olduğundan tarihi kendimiz veriyoruz.
+  if (builtInKey === "sleep")
+    return (
+      <SleepCard
+        entry={entry}
+        selection={selection}
+        dateLabel={formatDate(entry.occurredAt)}
+      />
+    );
+  if (builtInKey === "mood")
+    return (
+      <MoodCard
+        entry={entry}
+        selection={selection}
+        dateLabel={formatDate(entry.occurredAt)}
+      />
+    );
+  return <PlainEntryCard entry={entry} selection={selection} />;
+}
 
 /**
  * Gün/ana sayfa girdi kartı — uyku kartıyla aynı dil: kategori renginde degrade
@@ -47,7 +88,7 @@ import {
  * hover'da görünüyordu: dokunmatikte görünmez ama basılabilirdi. Şimdi ikisi de
  * görünür ve silme onay ister, ardından kabuktaki geri-al çubuğu çıkar.
  */
-export function EntryCard({
+function PlainEntryCard({
   entry,
   selection,
 }: {

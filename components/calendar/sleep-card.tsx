@@ -18,16 +18,21 @@ import {
 } from "@/components/calendar/entry-selection";
 
 /**
- * Gün sayfasındaki yerleşik uyku kartı — süre aralığı + kalite.
+ * Yerleşik uyku kartı — süre aralığı + kalite.
+ *
+ * `dateLabel` yalnız günleri karışık listelerde (ana sayfa) verilir: gün
+ * sayfasında hangi güne ait olduğu zaten belli, orada boş bırakılır.
  * `selection` verilirse basılı tutmak toplu seçimi başlatır; kartın kendisi
  * `<button>` olduğundan seçim katmanı dıştaki sarmalayıcıya konur.
  */
 export function SleepCard({
   entry,
   selection,
+  dateLabel,
 }: {
   entry: EntryWithContext;
   selection?: EntrySelection;
+  dateLabel?: string;
 }) {
   const t = useT();
   const [editOpen, setEditOpen] = useState(false);
@@ -72,8 +77,13 @@ export function SleepCard({
           </span>
 
           <div className="flex-1 min-w-0">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-300/70">
-              {t("sleep.title")}
+            <div className="flex items-baseline gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-300/70">
+              <span>{t("sleep.title")}</span>
+              {dateLabel && (
+                <span className="truncate font-medium tracking-normal text-muted-foreground/70">
+                  {dateLabel}
+                </span>
+              )}
             </div>
             <div className="mt-0.5 flex items-baseline gap-2">
               {startTime || endTime ? (
