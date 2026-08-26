@@ -9,44 +9,25 @@ import type { Category, SubCategory } from "@/types";
  * degrade zemin + ince renk halkası. Biçim hiyerarşiyi anlatır:
  * alt kategorinin KENDİ ikonu varsa daire (girdi düzeyi), kategori ikonuna
  * düşülüyorsa squircle (kategori düzeyi).
- *
- * `shape="square"` bu ayrımı bilerek kapatır: girdi kartında sembol kendi
- * penceresinde duruyor ve o pencere kare — içine daire koymak kutu içinde kutu
- * gibi duruyordu. Orada sembolün kime ait olduğu ayrımından vazgeçildi.
  */
 export function EntryIcon({
   category,
   subcategory,
   size = "md",
-  shape = "auto",
   className,
 }: {
   category: Category;
   subcategory?: SubCategory;
-  size?: "sm" | "md" | "lg" | "fill";
-  /** "square" ise kendi ikonu olan alt kategori de kare çizilir */
-  shape?: "auto" | "square";
+  size?: "sm" | "md";
   className?: string;
 }) {
   const ownIcon = subcategory?.icon;
   const iconName = ownIcon || category.icon;
   const color = category.color;
-  const shapeCls =
-    shape === "square" || !ownIcon
-      ? size === "sm"
-        ? "rounded-lg"
-        : "rounded-xl"
-      : "rounded-full";
+  const shapeCls = ownIcon ? "rounded-full" : size === "sm" ? "rounded-lg" : "rounded-xl";
 
-  const boxCls =
-    size === "sm"
-      ? "h-7 w-7"
-      : size === "lg"
-        ? "h-11 w-11"
-        : size === "fill"
-          ? "h-full w-full"
-          : "h-9 w-9";
-  const iconSize = size === "sm" ? 14 : size === "md" ? 18 : 22;
+  const boxCls = size === "sm" ? "h-7 w-7" : "h-9 w-9";
+  const iconSize = size === "sm" ? 14 : 18;
 
   return (
     <div
@@ -72,7 +53,7 @@ export function EntryIcon({
         <span
           className={cn(
             "font-semibold leading-none select-none",
-            size === "sm" ? "text-xs" : size === "md" ? "text-sm" : "text-base"
+            size === "sm" ? "text-xs" : "text-sm"
           )}
           style={{ color }}
         >

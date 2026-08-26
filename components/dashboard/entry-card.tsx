@@ -3,7 +3,7 @@
 import { createElement, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import type { EntryWithContext, EntryValueWithType } from "@/types";
-import { cn, formatDate, formatTime } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
 import { useLongPress } from "@/lib/use-long-press";
 import { useT } from "@/lib/i18n";
 import { confirmDialog } from "@/components/ui/confirm";
@@ -19,28 +19,23 @@ import {
 import { calcDTRDuration, parseDTR } from "@/components/forms/datetime-range-input";
 
 /**
- * Gün/ana sayfa girdi kartı — tek gövde. Karta dokununca düzenleme açılır;
- * iç içe buton olmaması için kart div[role=button] (içteki gerçek butonlar
- * kabarcıklanmayı durdurur). `selection` verilirse basılı tutmak toplu seçimi
- * başlatır.
+ * Gün/ana sayfa girdi kartı — uyku kartıyla aynı dil: kategori renginde degrade
+ * zemin, karta dokununca düzenleme açılır. İç içe buton olmaması için kart
+ * div[role=button] (içteki gerçek butonlar kabarcıklanmayı durdurur).
+ * `selection` verilirse basılı tutmak toplu seçimi başlatır.
  *
- * İçeride kutu YOK. Bölümleri saç teli çizgi ve boşluk ayırır: iç pencereler
- * denendi (bkz. git etiketi tasarim-2-pencere) ve kartı bölük pörçük gösterdi.
- * Sıra: künye → değerler → not.
+ * Yerleşim ilk tasarımın kendisi: sembol solda üstte, yanında kategori kaşı ve
+ * tarih tek satırda, altında girdinin adı, sonra değerler, en altta not. Arada
+ * üç pencereli ve tek gövdeli biçimler denendi (git etiketleri tasarim-1-asil /
+ * tasarim-2-pencere), bu düzene geri dönüldü.
  *
- * Alt kategori kartın adı, kategori onun altında sönük bağlam satırı — girdi
- * hangi yaprağa düştüyse öne çıkan o; üst kategori arka rolde.
+ * Değerler kapsül: kategori renginde zemin, başında özelliğin simgesi. Girdinin
+ * taşıdığı asıl veri onlar, gri kutu yerine kendi nesneleri var.
  *
- * Değerler rozet değil, istatistik bloğu: sayı büyük ve kategori renginde,
- * özelliğin adı altında küçük. Girdinin taşıdığı asıl veri onlar, kutuya
- * sıkıştırmak yerine kendi hizalarında duruyorlar.
- *
- * "Özellik ekle" karttan kalktı — gereksiz bulundu. Yeteneğin kendisi
- * duruyor: düzenleme penceresindeki "Bu girdiye özellik ekle".
- *
- * Sil/düzenle sağ üst köşede, her zaman görünür. Eskiden köşedeki ikon yalnız
- * hover'da görünüyordu: dokunmatikte görünmez ama basılabilirdi. Silme onay
- * ister, ardından kabuktaki geri-al çubuğu çıkar.
+ * Sil/düzenle sağ üst köşede, her zaman görünür. İlk tasarımda silme yalnız
+ * düzenleme penceresinin menüsündeydi çünkü kartın köşesindeki ikon sadece
+ * hover'da görünüyordu: dokunmatikte görünmez ama basılabilirdi. Şimdi ikisi de
+ * görünür ve silme onay ister, ardından kabuktaki geri-al çubuğu çıkar.
  */
 export function EntryCard({
   entry,
@@ -54,19 +49,15 @@ export function EntryCard({
   const color = entry.category.color;
   const isRoot = !!entry.subcategory.isCategoryRoot;
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
+  const title = isRoot ? entry.category.name : entry.subcategory.name;
 
   // Ölçümü olan her değer çizilir. Eskiden entryTypeId de şarttı; v18'den
   // sonra yeni değerler onu taşımadığı için hepsi görünmez olmuştu.
-  const values = entry.values.filter((v) => !!v.entryType);
-
-  // Kök girdinin alt kategorisi yok; o zaman kategori adı öne geçer ve
-  // bağlam satırı boş kalır (aynı adı iki kez yazmanın anlamı yok).
-  const heading = isRoot ? entry.category.name : entry.subcategory.name;
-  const context = isRoot ? null : entry.category.name;
+  const typedValues = entry.values.filter((v) => !!v.entryType);
 
   async function handleDelete() {
     const ok = await confirmDialog({
-      title: t("confirm.deleteEntry", { name: heading }),
+      title: t("confirm.deleteEntry", { name: title }),
       body: `${t("confirm.deleteEntryBody")} ${t("confirm.undoHint")}`,
       destructive: true,
     });
@@ -84,78 +75,77 @@ export function EntryCard({
         }}
         {...(selection && !selection.active ? longPress : {})}
         className={cn(
-          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border px-3 py-3 text-left transition-transform active:scale-[0.99]",
+          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border px-3 py-2.5 text-left transition-transform active:scale-[0.99]",
           selection?.selected && selectedCardClass
         )}
         style={{
-          borderColor: `${color}2e`,
-          background: `linear-gradient(135deg, ${color}24, ${color}0a 50%, transparent)`,
-          boxShadow:
-            "inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 2px rgba(0,0,0,0.28)",
+          borderColor: `${color}28`,
+          background: `linear-gradient(135deg, ${color}1f, ${color}08 45%, transparent)`,
         }}
         aria-label={`${entry.subcategory.name} girdisini düzenle`}
       >
-        {/* ── Künye: sembol + ad/bağlam + köşede tarih ve eylemler ── */}
         <div className="flex items-start gap-2.5">
-          <div className="h-10 w-10 shrink-0">
-            <EntryIcon
-              category={entry.category}
-              subcategory={entry.subcategory}
-              size="fill"
-              shape="square"
-            />
-          </div>
-
-          <div className="min-w-0 flex-1 pt-0.5">
-            <div className="text-[15px] font-semibold leading-tight break-words">
-              {heading}
+          <EntryIcon category={entry.category} subcategory={entry.subcategory} />
+          <div className="min-w-0 flex-1">
+            {/* Üst satır: kategori etiketi (kök girdide gizli) + saat.
+                Sağdaki boşluk köşedeki düğmelerin altına girmesin diye. */}
+            <div className="flex items-center gap-1.5 pr-14 text-[10px] leading-none">
+              {!isRoot && (
+                <>
+                  <span
+                    className="truncate font-semibold uppercase tracking-[0.14em]"
+                    style={{ color: `${color}cc` }}
+                  >
+                    {entry.category.name}
+                  </span>
+                  <span className="text-muted-foreground/40">·</span>
+                </>
+              )}
+              <span className="shrink-0 text-muted-foreground/70">
+                {formatDateTime(entry.occurredAt)}
+              </span>
             </div>
-            {context && (
-              <div className="mt-0.5 break-words text-[11px] leading-tight text-muted-foreground/55">
-                {context}
+            {/* Ad kesilmiyor, satır atlıyor: ilk tasarımda `truncate` vardı ve
+                uzun kalem adları "…" ile bitiyordu. Kategori kaşı saatle aynı
+                satırı paylaştığından orada kısalma duruyor. */}
+            <div className="mt-0.5 break-words pr-14 text-sm font-semibold leading-snug">
+              {title}
+            </div>
+
+            {/* Değer kapsülleri */}
+            {typedValues.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                {typedValues.map((v) => (
+                  <ValueCapsule key={v.id} v={v} color={color} />
+                ))}
               </div>
+            )}
+
+            {entry.notes && (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {entry.notes}
+              </p>
             )}
           </div>
 
-          <div className="flex shrink-0 items-center gap-1 pl-2">
-            <div className="text-right leading-tight">
-              <div className="whitespace-nowrap text-[10px] text-muted-foreground/50">
-                {formatDate(entry.occurredAt)}
-              </div>
-              <div className="whitespace-nowrap text-[11px] font-medium tabular-nums text-muted-foreground/80">
-                {formatTime(entry.occurredAt)}
-              </div>
-            </div>
-            {/* Kart tıklaması düzenleme açtığından iç butonlar durdurur */}
-            <CardAction
-              icon={Pencil}
-              label={t("action.edit")}
-              onClick={() => setEditOpen(true)}
-            />
-            <CardAction
-              icon={Trash2}
-              label={t("action.delete")}
-              destructive
-              onClick={handleDelete}
-            />
-          </div>
         </div>
 
-        {/* ── Değerler ── */}
-        {values.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2 border-t border-white/[0.06] pt-3">
-            {values.map((v) => (
-              <ValueCapsule key={v.id} v={v} color={color} />
-            ))}
-          </div>
-        )}
-
-        {/* ── Not ── */}
-        {entry.notes && (
-          <p className="mt-2.5 border-t border-white/[0.06] pt-2.5 text-xs leading-relaxed text-muted-foreground/85">
-            {entry.notes}
-          </p>
-        )}
+        {/* Köşe: düzenle + sil. Akıştan çıkarıldı — sıradan bir sütun olunca
+            metin sütununu daraltıp kapsülleri alt alta düşürüyordu. Kart
+            tıklaması düzenleme açtığından butonlar kabarcıklanmayı durdurur. */}
+        <div className="absolute right-2 top-2 flex items-center gap-0.5">
+          <CardAction
+            icon={Pencil}
+            label={t("action.edit")}
+            onClick={() => setEditOpen(true)}
+          />
+          <CardAction
+            icon={Trash2}
+            label={t("action.delete")}
+            destructive
+            onClick={handleDelete}
+          />
+        </div>
 
         {selection?.active && (
           <SelectionLayer
@@ -178,13 +168,10 @@ export function EntryCard({
 /**
  * Özellik kapsülü — girdideki her özellik kendi nesnesi.
  *
- * Renk KATEGORİDEN geliyor: kart tek renkte kalsın, kapsüller kartın parçası
+ * Renk kategoriden geliyor: kart tek renkte kalsın, kapsüller kartın parçası
  * gibi dursun. Özelliğin kendi rengi (lib/mod-color) de denendi — her kapsül
- * ayrı renk olunca kart alacalanıyordu.
- *
- * Biçim yatay kapsül: renkli dairede özelliğin simgesi, sonra değer, sonra
- * adı. Daire atom (bkz. ModAtom) ve kabartılı karo da denendi; ikisi de kartı
- * 40px uzatıyordu, kapsül satıra sığıyor.
+ * ayrı renk olunca kart alacalanıyordu. Ayrımı simge yapıyor: cüzdan = Money,
+ * kronometre = Duration (modAtomIcon, yapı ekranlarıyla aynı set).
  */
 function ValueCapsule({
   v,
@@ -194,11 +181,14 @@ function ValueCapsule({
   color: string;
 }) {
   const { main, unit, label } = readValue(v);
-  const icon = createElement(modAtomIcon({ name: v.mod?.name, entryType: v.entryType! }), {
-    className: "h-3.5 w-3.5",
-    style: { color: c },
-    strokeWidth: 1.9,
-  });
+  const icon = createElement(
+    modAtomIcon({ name: v.mod?.name, entryType: v.entryType! }),
+    {
+      className: "h-3.5 w-3.5",
+      style: { color: c },
+      strokeWidth: 1.9,
+    }
+  );
   return (
     <span
       className="inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3"
