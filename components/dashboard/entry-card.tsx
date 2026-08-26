@@ -13,7 +13,7 @@ import { EntryIcon } from "@/components/dashboard/entry-icon";
 import {
   CardAction,
   NoteCapsule,
-  ValueCapsule,
+  ValueCapsuleRow,
 } from "@/components/dashboard/entry-parts";
 import {
   SelectionLayer,
@@ -35,7 +35,9 @@ import {
  * Kart iki bölüm: üstte künye, altında saç teli çizgiyle ayrılmış değerler ve
  * not. Alt bölüm tam genişlik kullanır — künyenin içinde kalınca sağdaki
  * tarih/eylem bölümü sütunu ~60px daraltıp kapsülleri alt alta düşürüyordu.
- * Not da kapsül, değerlerle aynı aile.
+ * Kartta en fazla dört özellik ve üç satır not gösterilir; kalanı "+n daha"
+ * ile özetlenir ve girdiye girilince tamamı görünür. Not kapsül değil, kendi
+ * penceresi — kapsül biçimindeyken bir ölçüm gibi okunuyordu.
  *
  * Değerler kapsül: kategori renginde zemin, başında özelliğin simgesi. Girdinin
  * taşıdığı asıl veri onlar, gri kutu yerine kendi nesneleri var.
@@ -146,11 +148,15 @@ export function EntryCard({
             buluyor. Kutu değil çizgi: iç pencereler kartı bölük pörçük
             gösteriyordu (git etiketi tasarim-2-pencere). */}
         {(typedValues.length > 0 || entry.notes) && (
-          <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-white/[0.07] pt-2.5">
-            {typedValues.map((v) => (
-              <ValueCapsule key={v.id} v={v} color={color} />
-            ))}
-            {entry.notes && <NoteCapsule text={entry.notes} color={color} />}
+          <div className="mt-2.5 border-t border-white/[0.07] pt-2.5">
+            {typedValues.length > 0 && (
+              <ValueCapsuleRow values={typedValues} color={color} />
+            )}
+            {entry.notes && (
+              <div className={cn(typedValues.length > 0 && "mt-2")}>
+                <NoteCapsule text={entry.notes} color={color} />
+              </div>
+            )}
           </div>
         )}
 

@@ -5,6 +5,7 @@ import { NotebookPen } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { EntryValueWithType } from "@/types";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { modAtomIcon } from "@/components/structure/mod-atom";
 import { calcDTRDuration, parseDTR } from "@/components/forms/datetime-range-input";
 
@@ -15,28 +16,75 @@ import { calcDTRDuration, parseDTR } from "@/components/forms/datetime-range-inp
  */
 
 /**
- * Not kapsülü — değer kapsülleriyle aynı aile: kategori renginde zemin ve ince
- * halka, başında not simgesi. Tam satırı kaplar; uzun not sarar, o yüzden
- * yuvarlaklık tam daire değil (çok satırda daire kenar tuhaf duruyor).
+ * Kartta gösterilecek en fazla özellik sayısı. Aşanlar "+n daha" ile
+ * özetlenir; hepsi girdiye girilince görünür. Dört, telefonda iki satır
+ * demek — kısıtlama var ama kart hâlâ ne taşıdığını söylüyor.
+ */
+const MAX_CAPSULES = 4;
+
+/**
+ * Not penceresi — değer kapsülleriyle AYNI aile değil, bilerek. Kapsül
+ * biçimindeyken not da bir ölçüm gibi okunuyordu; oysa o serbest metin.
+ * Bu yüzden kendi penceresi var: kartın renkli zemininde koyu oyuk + ince
+ * halka, kapsüllerin altında ayrı bir blok.
+ *
+ * Üç satırda kırpılır; tamamı girdiye girilince görünür.
  */
 export function NoteCapsule({ text, color: c }: { text: string; color: string }) {
   return (
-    <span
-      className="flex w-full items-start gap-1.5 rounded-2xl px-2.5 py-1.5"
+    <div
+      className="flex w-full items-start gap-2 rounded-xl px-2.5 py-2"
       style={{
-        background: `${c}14`,
-        boxShadow: `inset 0 0 0 1px ${c}2b`,
+        background: "rgba(0,0,0,0.26)",
+        boxShadow: `inset 0 0 0 1px ${c}24`,
       }}
     >
       <NotebookPen
-        className="mt-[1px] h-3.5 w-3.5 shrink-0"
-        style={{ color: `${c}b3` }}
+        className="mt-[2px] h-3.5 w-3.5 shrink-0"
+        style={{ color: `${c}99` }}
         strokeWidth={1.9}
       />
-      <span className="min-w-0 text-xs leading-relaxed text-muted-foreground">
+      <p className="line-clamp-3 min-w-0 text-xs leading-relaxed text-muted-foreground">
         {text}
-      </span>
-    </span>
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Değer kapsülü satırı — kartta en fazla MAX_CAPSULES tanesi çizilir, kalanı
+ * sayı olarak özetlenir. Sınır olmadan çok özellikli girdiler kartı üç dört
+ * satır uzatıyordu.
+ */
+export function ValueCapsuleRow({
+  values,
+  color,
+  className,
+}: {
+  values: EntryValueWithType[];
+  color: string;
+  className?: string;
+}) {
+  const t = useT();
+  const shown = values.slice(0, MAX_CAPSULES);
+  const rest = values.length - shown.length;
+  return (
+    <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
+      {shown.map((v) => (
+        <ValueCapsule key={v.id} v={v} color={color} />
+      ))}
+      {rest > 0 && (
+        <span
+          className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium leading-none"
+          style={{
+            color: `${color}cc`,
+            boxShadow: `inset 0 0 0 1px ${color}2b`,
+          }}
+        >
+          {t("entry.moreValues", { n: rest })}
+        </span>
+      )}
+    </div>
   );
 }
 

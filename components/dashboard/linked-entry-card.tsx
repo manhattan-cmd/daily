@@ -8,7 +8,7 @@ import { EntryIcon } from "@/components/dashboard/entry-icon";
 import {
   CardAction,
   NoteCapsule,
-  ValueCapsule,
+  ValueCapsuleRow,
 } from "@/components/dashboard/entry-parts";
 import { cn, formatDate, formatTime } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
@@ -138,11 +138,11 @@ export function LinkedEntryCard({
 
         {/* Ortak değerler — bir kategoriye değil olayın kendisine ait */}
         {sharedValues.length > 0 && (
-          <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-white/[0.07] pt-2.5">
-            {sharedValues.map((v) => (
-              <ValueCapsule key={v.id} v={v} color={VIOLET} />
-            ))}
-          </div>
+          <ValueCapsuleRow
+            values={sharedValues}
+            color={VIOLET}
+            className="mt-2.5 border-t border-white/[0.07] pt-2.5"
+          />
         )}
 
         {/* Perspektifler — her biri kendi kategori renginde */}
@@ -166,19 +166,20 @@ export function LinkedEntryCard({
                   />
                 </div>
                 {(ownValues.length > 0 || entry.notes) && (
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-[38px]">
-                    {ownValues.map((v) => (
-                      <ValueCapsule
-                        key={v.id}
-                        v={v}
+                  <div className="mt-1.5 pl-[38px]">
+                    {ownValues.length > 0 && (
+                      <ValueCapsuleRow
+                        values={ownValues}
                         color={entry.category.color}
                       />
-                    ))}
+                    )}
                     {entry.notes && (
-                      <NoteCapsule
-                        text={entry.notes}
-                        color={entry.category.color}
-                      />
+                      <div className={cn(ownValues.length > 0 && "mt-1.5")}>
+                        <NoteCapsule
+                          text={entry.notes}
+                          color={entry.category.color}
+                        />
+                      </div>
                     )}
                   </div>
                 )}
