@@ -1,7 +1,7 @@
 "use client";
 
 import { createElement, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { NotebookPen, Pencil, Trash2 } from "lucide-react";
 import type { EntryWithContext, EntryValueWithType } from "@/types";
 import { cn, formatDate, formatTime } from "@/lib/utils";
 import { useLongPress } from "@/lib/use-long-press";
@@ -29,9 +29,10 @@ import { calcDTRDuration, parseDTR } from "@/components/forms/datetime-range-inp
  * kategorinin ÜSTÜNDE (ilk tasarımda tersiydi; ağırlıkları aynı kaldı, yalnız
  * yerleri değişti) ve tarih + düzenle/sil sağda tek bölümde toplu.
  *
- * Değerler ve not künyenin dışında, tam genişlikte duruyor; metin sütununun
- * hizasına girintili. Künyenin içinde kalınca sağdaki bölüm sütunu ~60px
- * daraltıp kapsülleri alt alta düşürüyordu.
+ * Kart iki bölüm: üstte künye, altında saç teli çizgiyle ayrılmış değerler ve
+ * not. Alt bölüm tam genişlik kullanır — künyenin içinde kalınca sağdaki
+ * tarih/eylem bölümü sütunu ~60px daraltıp kapsülleri alt alta düşürüyordu.
+ * Not da kapsül, değerlerle aynı aile.
  *
  * Değerler kapsül: kategori renginde zemin, başında özelliğin simgesi. Girdinin
  * taşıdığı asıl veri onlar, gri kutu yerine kendi nesneleri var.
@@ -136,21 +137,18 @@ export function EntryCard({
           </div>
         </div>
 
-        {/* Değerler ve not künyenin altında, tam genişlikte; metin sütununun
-            hizasına girinti. Künyenin içinde kalınca sağdaki bölüm sütunu
-            daraltıp kapsülleri alt alta düşürüyordu. */}
-        {typedValues.length > 0 && (
-          <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-[46px]">
+        {/* Alt bölüm — künyeden saç teli çizgiyle ayrılır ve tam genişlik
+            kullanır. Girinti kaldırıldı: kendi alanı olunca künyenin metin
+            sütununa hizalanmasının anlamı yok, kapsüller de daha çok yer
+            buluyor. Kutu değil çizgi: iç pencereler kartı bölük pörçük
+            gösteriyordu (git etiketi tasarim-2-pencere). */}
+        {(typedValues.length > 0 || entry.notes) && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-white/[0.07] pt-2.5">
             {typedValues.map((v) => (
               <ValueCapsule key={v.id} v={v} color={color} />
             ))}
+            {entry.notes && <NoteCapsule text={entry.notes} color={color} />}
           </div>
-        )}
-
-        {entry.notes && (
-          <p className="mt-1.5 pl-[46px] text-xs text-muted-foreground">
-            {entry.notes}
-          </p>
         )}
 
         {selection?.active && (
@@ -168,6 +166,32 @@ export function EntryCard({
         onOpenChange={setEditOpen}
       />
     </>
+  );
+}
+
+/**
+ * Not kapsülü — değer kapsülleriyle aynı aile: kategori renginde zemin ve ince
+ * halka, başında not simgesi. Tam satırı kaplar; uzun not sarar, o yüzden
+ * yuvarlaklık tam daire değil (çok satırda daire kenar tuhaf duruyor).
+ */
+function NoteCapsule({ text, color: c }: { text: string; color: string }) {
+  return (
+    <span
+      className="flex w-full items-start gap-1.5 rounded-2xl px-2.5 py-1.5"
+      style={{
+        background: `${c}14`,
+        boxShadow: `inset 0 0 0 1px ${c}2b`,
+      }}
+    >
+      <NotebookPen
+        className="mt-[1px] h-3.5 w-3.5 shrink-0"
+        style={{ color: `${c}b3` }}
+        strokeWidth={1.9}
+      />
+      <span className="min-w-0 text-xs leading-relaxed text-muted-foreground">
+        {text}
+      </span>
+    </span>
   );
 }
 
