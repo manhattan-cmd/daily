@@ -3,7 +3,7 @@
 import { createElement, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import type { EntryWithContext, EntryValueWithType } from "@/types";
-import { cn, formatDateTime } from "@/lib/utils";
+import { cn, formatDate, formatTime } from "@/lib/utils";
 import { useLongPress } from "@/lib/use-long-press";
 import { useT } from "@/lib/i18n";
 import { confirmDialog } from "@/components/ui/confirm";
@@ -24,15 +24,19 @@ import { calcDTRDuration, parseDTR } from "@/components/forms/datetime-range-inp
  * div[role=button] (içteki gerçek butonlar kabarcıklanmayı durdurur).
  * `selection` verilirse basılı tutmak toplu seçimi başlatır.
  *
- * Yerleşim ilk tasarımın kendisi: sembol solda üstte, yanında kategori kaşı ve
- * tarih tek satırda, altında girdinin adı, sonra değerler, en altta not. Arada
- * üç pencereli ve tek gövdeli biçimler denendi (git etiketleri tasarim-1-asil /
- * tasarim-2-pencere), bu düzene geri dönüldü.
+ * Yerleşim ilk tasarımın gövdesi (git etiketleri tasarim-1-asil /
+ * tasarim-2-pencere), üç düzeltmeyle: sembol düşeyde ortalı, girdinin adı
+ * kategorinin ÜSTÜNDE (ilk tasarımda tersiydi; ağırlıkları aynı kaldı, yalnız
+ * yerleri değişti) ve tarih + düzenle/sil sağda tek bölümde toplu.
+ *
+ * Değerler ve not künyenin dışında, tam genişlikte duruyor; metin sütununun
+ * hizasına girintili. Künyenin içinde kalınca sağdaki bölüm sütunu ~60px
+ * daraltıp kapsülleri alt alta düşürüyordu.
  *
  * Değerler kapsül: kategori renginde zemin, başında özelliğin simgesi. Girdinin
  * taşıdığı asıl veri onlar, gri kutu yerine kendi nesneleri var.
  *
- * Sil/düzenle sağ üst köşede, her zaman görünür. İlk tasarımda silme yalnız
+ * Sil/düzenle her zaman görünür. İlk tasarımda silme yalnız
  * düzenleme penceresinin menüsündeydi çünkü kartın köşesindeki ikon sadece
  * hover'da görünüyordu: dokunmatikte görünmez ama basılabilirdi. Şimdi ikisi de
  * görünür ve silme onay ister, ardından kabuktaki geri-al çubuğu çıkar.
@@ -84,68 +88,70 @@ export function EntryCard({
         }}
         aria-label={`${entry.subcategory.name} girdisini düzenle`}
       >
-        <div className="flex items-start gap-2.5">
+        {/* Künye — sembol düşeyde ortalı, sağda tarih + eylemler tek bölüm */}
+        <div className="flex items-center gap-2.5">
           <EntryIcon category={entry.category} subcategory={entry.subcategory} />
+
           <div className="min-w-0 flex-1">
-            {/* Üst satır: kategori etiketi (kök girdide gizli) + saat.
-                Sağdaki boşluk köşedeki düğmelerin altına girmesin diye. */}
-            <div className="flex items-center gap-1.5 pr-14 text-[10px] leading-none">
-              {!isRoot && (
-                <>
-                  <span
-                    className="truncate font-semibold uppercase tracking-[0.14em]"
-                    style={{ color: `${color}cc` }}
-                  >
-                    {entry.category.name}
-                  </span>
-                  <span className="text-muted-foreground/40">·</span>
-                </>
-              )}
-              <span className="shrink-0 text-muted-foreground/70">
-                {formatDateTime(entry.occurredAt)}
-              </span>
-            </div>
-            {/* Ad kesilmiyor, satır atlıyor: ilk tasarımda `truncate` vardı ve
-                uzun kalem adları "…" ile bitiyordu. Kategori kaşı saatle aynı
-                satırı paylaştığından orada kısalma duruyor. */}
-            <div className="mt-0.5 break-words pr-14 text-sm font-semibold leading-snug">
+            {/* Girdinin adı üstte: vurgulanan o. Kategori altında sönük bağlam
+                satırı — ikisinin yeri ilk tasarımdakinin tersi, ağırlıkları
+                aynı kaldı. */}
+            <div className="break-words text-sm font-semibold leading-snug">
               {title}
             </div>
-
-            {/* Değer kapsülleri */}
-            {typedValues.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                {typedValues.map((v) => (
-                  <ValueCapsule key={v.id} v={v} color={color} />
-                ))}
+            {!isRoot && (
+              <div
+                className="mt-0.5 truncate text-[10px] font-semibold uppercase leading-none tracking-[0.14em]"
+                style={{ color: `${color}cc` }}
+              >
+                {entry.category.name}
               </div>
-            )}
-
-            {entry.notes && (
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                {entry.notes}
-              </p>
             )}
           </div>
 
+          {/* Tarih + eylemler tek bölüm, sağda. Kart tıklaması düzenleme
+              açtığından butonlar kabarcıklanmayı durdurur. */}
+          <div className="-mr-1 flex shrink-0 flex-col items-end gap-0.5">
+            <div className="px-1 text-right leading-tight">
+              <span className="block whitespace-nowrap text-[10px] text-muted-foreground/50">
+                {formatDate(entry.occurredAt)}
+              </span>
+              <span className="block whitespace-nowrap text-[11px] font-medium tabular-nums text-muted-foreground/80">
+                {formatTime(entry.occurredAt)}
+              </span>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <CardAction
+                icon={Pencil}
+                label={t("action.edit")}
+                onClick={() => setEditOpen(true)}
+              />
+              <CardAction
+                icon={Trash2}
+                label={t("action.delete")}
+                destructive
+                onClick={handleDelete}
+              />
+            </div>
+          </div>
         </div>
 
-        {/* Köşe: düzenle + sil. Akıştan çıkarıldı — sıradan bir sütun olunca
-            metin sütununu daraltıp kapsülleri alt alta düşürüyordu. Kart
-            tıklaması düzenleme açtığından butonlar kabarcıklanmayı durdurur. */}
-        <div className="absolute right-2 top-2 flex items-center gap-0.5">
-          <CardAction
-            icon={Pencil}
-            label={t("action.edit")}
-            onClick={() => setEditOpen(true)}
-          />
-          <CardAction
-            icon={Trash2}
-            label={t("action.delete")}
-            destructive
-            onClick={handleDelete}
-          />
-        </div>
+        {/* Değerler ve not künyenin altında, tam genişlikte; metin sütununun
+            hizasına girinti. Künyenin içinde kalınca sağdaki bölüm sütunu
+            daraltıp kapsülleri alt alta düşürüyordu. */}
+        {typedValues.length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-[46px]">
+            {typedValues.map((v) => (
+              <ValueCapsule key={v.id} v={v} color={color} />
+            ))}
+          </div>
+        )}
+
+        {entry.notes && (
+          <p className="mt-1.5 pl-[46px] text-xs text-muted-foreground">
+            {entry.notes}
+          </p>
+        )}
 
         {selection?.active && (
           <SelectionLayer
