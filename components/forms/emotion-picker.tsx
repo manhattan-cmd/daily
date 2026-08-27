@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { EmotionFace, emotionLook } from "@/lib/icons/emotions";
@@ -8,24 +9,29 @@ import { LevelBar } from "@/components/forms/level-bar";
 import { FIELD_TONES, type FieldTone } from "@/components/forms/field-tone";
 import {
   LEVEL_DEFAULT,
+  LEVEL_MAX,
   packChoiceLevel,
   splitChoiceLevel,
 } from "@/lib/choice-level";
 
 /**
- * Duygu seçici — ızgara + seçilenlerin yoğunluk çubukları.
+ * Duygu seçici — ızgara + ızgaranın hemen ÜSTÜNDE açılan ayar penceresi.
  *
- * İlk tasarımda seçilen kutucuk BULUNDUĞU YERDE tam satıra açılıyordu. Tek
- * duyguda hoş duruyordu ama birkaç duygu seçilince ızgara çubuklarla bölünüp
- * okunmaz hale geliyordu: hangi kutucuğun nerede olduğu her seçimde değişiyor,
- * göz listeyi kaybediyordu. Şimdi ızgara SABİT — seçilen kutucuk yerinde kalıp
- * kendi rengine boyanıyor — çubuklar ızgaranın altında tek bir yerde
- * toplanıyor. Sıra ızgaranın sırası, yani çubuk listesi de her seçimde
- * yeniden dizilmiyor.
+ * Üç tasarım turu oldu, ikisi de gerçek kullanımda düştü:
+ *   1. Seçilen kutucuk bulunduğu yerde tam satıra açılıyordu — birkaç duygu
+ *      seçilince ızgara çubuklarla bölünüp okunmaz oluyordu.
+ *   2. Çubuklar ızgaranın altında liste halinde toplanıyordu — ızgara sabit
+ *      kaldı ama ayarlanan duygu ile kutucuğu arasındaki bağ koptu, liste de
+ *      seçim arttıkça uzayıp pencereyi şişirdi.
+ * Şimdi: ayar penceresi ızgaranın üstünde TEK ve sabit yer kaplıyor, hangi
+ * duyguya dokunulduysa onu gösteriyor. Ayarlanan ölçü kutucuğun kendi
+ * üstünde ince bir çubuk olarak kalıyor, yani ızgaraya bakınca "hangi duygu,
+ * ne kadar" tek bakışta okunuyor.
  *
- * Izgara kendi içinde kaydırılıyor: 16 duygu dört satır tutuyor ve pencerenin
- * tamamını yiyip üstteki mutluluk penceresini sıkıştırıyordu. Yükseklik bir
- * satırı yarıda kesecek şekilde sınırlı — kaydırılabildiği oradan anlaşılıyor.
+ * Dokunma kuralları: seçili olmayana dokunmak seçer ve penceresini açar;
+ * seçili olana dokunmak penceresini açar (yeniden ayarlamak için), açıkken
+ * dokunmak pencereyi kapatır. Seçimi kaldırmak penceredeki × ile — kutucuğa
+ * tekrar dokunmak silseydi ayarlamak için dokunmak da tehlikeli olurdu.
  *
  * Değer biçimi ham EntryValue biçimiyle aynı: "Happy" ya da "Happy|70"
  * (bkz. lib/choice-level). Böylece hem ekleme hem düzenleme penceresi aynı
@@ -44,6 +50,8 @@ export function EmotionPicker({
 }) {
   const t = useT();
   const skin = FIELD_TONES[tone];
+  /** Ayar penceresi açık olan duygu */
+  const [active, setActive] = useState<string | null>(null);
 
   /** Seçilenler: etiket → yoğunluk (null = eski kayıt, yoğunluksuz) */
   const picked = useMemo(() => {
@@ -64,11 +72,22 @@ export function EmotionPicker({
     );
   }
 
-  function toggle(label: string) {
+  function tap(label: string) {
+    if (!picked.has(label)) {
+      const next = new Map(picked);
+      next.set(label, LEVEL_DEFAULT);
+      emit(next);
+      setActive(label);
+      return;
+    }
+    setActive((cur) => (cur === label ? null : label));
+  }
+
+  function remove(label: string) {
     const next = new Map(picked);
-    if (next.has(label)) next.delete(label);
-    else next.set(label, LEVEL_DEFAULT);
+    next.delete(label);
     emit(next);
+    setActive(null);
   }
 
   function setLevel(label: string, level: number) {
@@ -77,34 +96,81 @@ export function EmotionPicker({
     emit(next);
   }
 
-  const selected = [
-    ...choices.filter((c) => picked.has(c)),
-    ...[...picked.keys()].filter((k) => !choices.includes(k)),
-  ];
+  const activeLook = active ? emotionLook(active) : null;
+  const activeLevel = active ? (picked.get(active) ?? LEVEL_DEFAULT) : 0;
 
   return (
     <>
+      {/* Ayar penceresi — ızgaranın hemen üstünde, tek yer */}
+      {active && activeLook && (
+        <div className="px-4 pt-2.5">
+          <div
+            className="rounded-xl border px-3 py-2"
+            style={{
+              borderColor: `${activeLook.color}66`,
+              background: `${activeLook.color}16`,
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <EmotionFace
+                name={active}
+                size={24}
+                style={{ color: activeLook.color }}
+              />
+              <span className="flex-1 truncate text-[13px] font-semibold">
+                {active}
+              </span>
+              <span
+                className="shrink-0 text-[15px] font-bold tabular-nums"
+                style={{ color: activeLook.color }}
+              >
+                {activeLevel}
+              </span>
+              <button
+                type="button"
+                onClick={() => remove(active)}
+                aria-label={t("mood.removeEmotion", { name: active })}
+                className="-mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-white/10 hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <LevelBar
+              value={activeLevel}
+              onChange={(v) => setLevel(active, v)}
+              color={activeLook.color}
+              label={t("mood.intensityOf", { name: active })}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Izgara — kendi içinde kaydırılır, seçim onu yeniden dizmez */}
-      <div className="no-scrollbar max-h-[200px] overflow-y-auto overscroll-contain px-4 pb-3 pt-2.5">
-        <div className="grid grid-cols-4 gap-1.5">
+      <div className="no-scrollbar max-h-[208px] overflow-y-auto overscroll-contain px-4 pb-3 pt-2.5">
+        <div className="grid grid-cols-4 gap-2">
           {choices.map((c) => {
             const look = emotionLook(c);
             const on = picked.has(c);
+            const level = picked.get(c);
             return (
               <button
                 key={c}
                 type="button"
-                onClick={() => toggle(c)}
+                onClick={() => tap(c)}
                 aria-pressed={on}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-xl border py-2 transition-colors",
-                  !on && skin.choiceOff
+                  "flex flex-col items-center gap-1 rounded-xl border px-1.5 pb-1.5 pt-2 transition-colors",
+                  !on && skin.choiceOff,
+                  active === c && "ring-1 ring-inset"
                 )}
                 style={
                   on
                     ? {
                         borderColor: `${look.color}80`,
                         background: `${look.color}24`,
+                        ...(active === c
+                          ? ({ "--tw-ring-color": look.color } as React.CSSProperties)
+                          : {}),
                       }
                     : undefined
                 }
@@ -116,69 +182,41 @@ export function EmotionPicker({
                 />
                 <span
                   className={cn(
-                    "w-full truncate px-0.5 text-center text-[9px] font-medium leading-3",
+                    "w-full truncate text-center text-[9px] font-medium leading-3",
                     on ? "text-foreground" : undefined
                   )}
                 >
                   {c}
+                </span>
+                {/* Ölçü satırı hep var: seçili olmayanda görünmez durur ki
+                    seçmek kutucuğun boyunu değiştirip ızgarayı oynatmasın */}
+                <span
+                  className={cn(
+                    "flex w-full items-center gap-1",
+                    !on && "invisible"
+                  )}
+                >
+                  <span className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/10">
+                    <span
+                      className="block h-full rounded-full"
+                      style={{
+                        width: `${((level ?? LEVEL_DEFAULT) / LEVEL_MAX) * 100}%`,
+                        background: look.color,
+                      }}
+                    />
+                  </span>
+                  <span
+                    className="text-[8px] font-bold leading-none tabular-nums"
+                    style={{ color: look.color }}
+                  >
+                    {level ?? LEVEL_DEFAULT}
+                  </span>
                 </span>
               </button>
             );
           })}
         </div>
       </div>
-
-      {/* Yoğunluklar — hepsi tek yerde, ızgaranın altında */}
-      {selected.length > 0 && (
-        <div
-          className={cn("flex flex-col gap-1.5 border-t px-4 py-3", skin.line)}
-        >
-          {selected.map((c) => {
-            const look = emotionLook(c);
-            const level = picked.get(c) ?? LEVEL_DEFAULT;
-            return (
-              <div
-                key={c}
-                className="rounded-xl border px-3 py-2"
-                style={{
-                  borderColor: `${look.color}59`,
-                  background: `${look.color}12`,
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => toggle(c)}
-                    aria-label={t("mood.removeEmotion", { name: c })}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-transform active:scale-90"
-                  >
-                    <EmotionFace
-                      name={c}
-                      size={24}
-                      style={{ color: look.color }}
-                    />
-                  </button>
-                  <span className="flex-1 truncate text-[13px] font-semibold">
-                    {c}
-                  </span>
-                  <span
-                    className="shrink-0 text-[13px] font-bold tabular-nums"
-                    style={{ color: look.color }}
-                  >
-                    {level}
-                  </span>
-                </div>
-                <LevelBar
-                  value={level}
-                  onChange={(v) => setLevel(c, v)}
-                  color={look.color}
-                  label={t("mood.intensityOf", { name: c })}
-                />
-              </div>
-            );
-          })}
-        </div>
-      )}
     </>
   );
 }
