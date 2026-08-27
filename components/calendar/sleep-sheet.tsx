@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { MoonStar, Sparkles, X } from "lucide-react";
-import { db } from "@/lib/db";
-import { createEntry, listModifiersForTarget } from "@/lib/db/queries";
+import { MoonStar, X } from "lucide-react";
+import { createEntry, getBuiltInTarget } from "@/lib/db/queries";
 import {
   DateTimeRangeInput,
   parseDTR,
 } from "@/components/forms/datetime-range-input";
+import { ChoiceWindow } from "@/components/forms/choice-window";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
@@ -36,24 +36,19 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
     }
   }, [open]);
 
+  // Yerleşik akışı anahtarıyla bul. Eskiden "ilk yerleşik kategori" alınıyordu;
+  // Ruh hali eklenince sıra kurulumdan kuruluma değişip pencere kimi zaman
+  // mutluluk ölçeğini açar olmuştu. Ruh hali penceresi zaten bu yardımcıyı
+  // kullanıyor — ikisi aynı yoldan gitsin.
   const target = useLiveQuery(async () => {
-    const cat = await db.categories.filter((c) => !!c.isBuiltIn).first();
-    if (!cat) return null;
-    const subs = await db.subcategories
-      .where("categoryId")
-      .equals(cat.id)
-      .toArray();
-    const sub =
-      subs.find((s) => s.name.toLocaleLowerCase("en-US") === "night sleep") ??
-      subs.find((s) => !s.parentId);
-    if (!sub) return null;
-    const mods = await listModifiersForTarget("subcategory", sub.id);
+    const found = await getBuiltInTarget("sleep");
+    if (!found) return null;
     return {
-      sub,
-      rangeMod: mods.find(
+      sub: found.sub,
+      rangeMod: found.mods.find(
         (m) => (m.entryType.valueType ?? "number") === "datetime-range"
       ),
-      qualityMod: mods.find(
+      qualityMod: found.mods.find(
         (m) => (m.entryType.valueType ?? "number") === "select"
       ),
     };
@@ -171,10 +166,13 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
                   <label className="text-sm font-medium">
                     {target.qualityMod.name ?? t("sleep.quality")}
                   </label>
-                  <QualityWindow
+                  <ChoiceWindow
                     choices={target.qualityMod.entryType.choices ?? []}
                     value={quality}
                     onChange={setQuality}
+                    captionKey="sleep.qualityScale"
+                    hintKey="sleep.qualityHint"
+                    tone="sleep"
                   />
                 </div>
               )}
@@ -194,66 +192,5 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
         </div>
       </div>
     </>
-  );
-}
-
-/**
- * Kalite penceresi — aralık penceresiyle aynı iskelet: üstte küçük başlık,
- * ortada gövde, altta özet/ipucu şeridi. Kalite çıplak düğme dizisiyken
- * aralığın yanında yarım kalmış duruyordu; ikisi de uykunun moruyla boyalı.
- */
-function QualityWindow({
-  choices,
-  value,
-  onChange,
-}: {
-  choices: string[];
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const t = useT();
-
-  return (
-    <div className="overflow-hidden rounded-2xl border border-violet-500/25 bg-violet-500/[0.07]">
-      <div className="flex items-center gap-1.5 px-4 pt-3 text-violet-300/50">
-        <Sparkles className="h-3 w-3" />
-        <span className="text-[9px] font-bold uppercase tracking-[0.15em]">
-          {t("sleep.qualityScale")}
-        </span>
-      </div>
-
-      <div className="flex gap-2 px-4 pb-3.5 pt-2.5">
-        {choices.map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => onChange(value === c ? "" : c)}
-            className={cn(
-              "flex h-11 flex-1 items-center justify-center rounded-xl border text-sm font-semibold tabular-nums transition-colors",
-              value === c
-                ? "border-violet-400 bg-violet-500/25 text-violet-100"
-                : "border-violet-500/15 bg-violet-500/[0.06] text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {c}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex items-center gap-2 border-t border-violet-500/15 bg-violet-500/[0.05] px-4 py-2.5">
-        {value ? (
-          <>
-            <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400/70" />
-            <span className="text-xs text-muted-foreground">
-              {value}/{choices.length}
-            </span>
-          </>
-        ) : (
-          <span className="text-xs text-muted-foreground/40">
-            {t("sleep.qualityHint")}
-          </span>
-        )}
-      </div>
-    </div>
   );
 }

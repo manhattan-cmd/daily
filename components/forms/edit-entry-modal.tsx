@@ -57,6 +57,8 @@ import {
   formatDTRDisplay,
 } from "@/components/forms/datetime-range-input";
 import { ParallelPickList } from "@/components/forms/parallel-pick-dialog";
+import { ChoiceWindow } from "@/components/forms/choice-window";
+import type { FieldTone } from "@/components/forms/field-tone";
 import {
   cn,
   formatDateTime,
@@ -94,6 +96,13 @@ export function EditEntryModal({
   onOpenChange,
 }: EditEntryModalProps) {
   const t = useT();
+  // Yerleşik uyku girdisi düzenlenirken alanlar da uykunun moruna boyanır —
+  // kart, ekleme penceresi ve düzenleme penceresi aynı dili konuşsun
+  const fieldTone: FieldTone =
+    entry.category.isBuiltIn &&
+    (entry.category.builtInKey ?? "sleep") === "sleep"
+      ? "sleep"
+      : "default";
   const router = useRouter();
   const mods = useLiveQuery(
     () => listModifiersForTarget("subcategory", entry.subcategoryId),
@@ -731,6 +740,7 @@ export function EditEntryModal({
                 isShared={!!row.modId && siblingModIds.has(row.modId)}
                 entryDate={entryDate}
                 autoFocus={row.key === focusKey}
+                tone={fieldTone}
               />
             ))}
 
@@ -1034,6 +1044,7 @@ function ModInput({
   isShared = false,
   entryDate,
   autoFocus = false,
+  tone = "default",
 }: {
   label: string;
   entryType: EntryType;
@@ -1044,6 +1055,8 @@ function ModInput({
   entryDate?: string;
   /** Yeni eklenen özellik: alan görünüme kaydırılır, yazı alanları odaklanır */
   autoFocus?: boolean;
+  /** Yerleşik akışın rengi — uyku alanları kendi penceresinde ve morunda */
+  tone?: FieldTone;
 }) {
   const t = useT();
   const vt = entryType.valueType ?? "number";
@@ -1122,31 +1135,42 @@ function ModInput({
         </button>
       )}
 
-      {vt === "select" && (
-        <div className="flex flex-wrap gap-2">
-          {(entryType.choices ?? []).map((choice) => (
-            <button
-              key={choice}
-              type="button"
-              onClick={() => onChange(choice)}
-              className={cn(
-                "rounded-xl border px-4 py-2 text-sm font-medium transition-colors",
-                value === choice
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-input text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {choice}
-            </button>
-          ))}
-        </div>
-      )}
+      {vt === "select" &&
+        (tone === "sleep" ? (
+          <ChoiceWindow
+            choices={entryType.choices ?? []}
+            value={value}
+            onChange={onChange}
+            captionKey="sleep.qualityScale"
+            hintKey="sleep.qualityHint"
+            tone={tone}
+          />
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {(entryType.choices ?? []).map((choice) => (
+              <button
+                key={choice}
+                type="button"
+                onClick={() => onChange(choice)}
+                className={cn(
+                  "rounded-xl border px-4 py-2 text-sm font-medium transition-colors",
+                  value === choice
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-input text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {choice}
+              </button>
+            ))}
+          </div>
+        ))}
 
       {vt === "datetime-range" && (
         <DateTimeRangeInput
           value={value}
           onChange={onChange}
           entryDate={entryDate ?? today}
+          tone={tone}
         />
       )}
     </div>

@@ -5,6 +5,11 @@ import { CalendarDays, ChevronLeft, ChevronRight, Clock, Moon, Sun } from "lucid
 import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { SHORT_MONTHS } from "@/lib/analytics";
+import {
+  FIELD_TONES,
+  type FieldTone,
+  type FieldToneSkin,
+} from "@/components/forms/field-tone";
 
 function shortDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
@@ -45,53 +50,19 @@ export function formatDTRDisplay(raw: string): string {
   return "—";
 }
 
-/**
- * Pencerenin rengi. Uyku akışının her yüzeyi mor (kart, sayfa başlığı, kaydet
- * düğmesi); aralık penceresi tek başına nötr kalınca yamalı duruyordu.
- */
-export type DTRTone = "default" | "sleep";
-
-const TONES: Record<
-  DTRTone,
-  {
-    shell: string;
-    divide: string;
-    line: string;
-    strip: string;
-    dot: string;
-    chipOn: string;
-    open: string;
-    band: string;
-  }
-> = {
-  default: {
-    shell: "border-border bg-card",
-    divide: "divide-border",
-    line: "border-border/60",
-    strip: "bg-muted/10",
-    dot: "bg-primary/50",
-    chipOn: "bg-primary/90 text-white shadow-sm",
-    open: "text-primary",
-    band: "bg-primary/10 ring-primary/25",
-  },
-  sleep: {
-    shell: "border-violet-500/25 bg-violet-500/[0.07]",
-    divide: "divide-violet-500/15",
-    line: "border-violet-500/15",
-    strip: "bg-violet-500/[0.05]",
-    dot: "bg-violet-400/70",
-    chipOn: "bg-violet-500/80 text-white shadow-sm",
-    open: "text-violet-300",
-    band: "bg-violet-500/12 ring-violet-400/30",
-  },
-};
-
 interface DateTimeRangeInputProps {
   value: string;
   onChange: (v: string) => void;
   entryDate: string; // "YYYY-MM-DD"
   disabled?: boolean;
-  tone?: DTRTone;
+  tone?: FieldTone;
+}
+
+/** İki gün arasındaki tam gün farkı — şeridin nereye kaydırılacağını verir */
+function dayOffset(from: string, to: string): number {
+  const a = new Date(from + "T00:00:00").getTime();
+  const b = new Date(to + "T00:00:00").getTime();
+  return Math.round((b - a) / 86400000);
 }
 
 /** Yerel takvim gününü koru — toISOString UTC'ye çevirip günü kaydırır */
@@ -114,6 +85,13 @@ const SIDES = {
 
 type Side = keyof typeof SIDES;
 
+/**
+ * Tarih şeridinde girdinin gününün iki yanına kaç gün dizilir. Üç kapsül
+ * (dün/bugün/yarın) yetmiyordu: geçmiş bir geceyi sonradan girerken şerit
+ * kullanıcıyı o üç günün içine hapsediyordu. Şerit artık yana kaydırılıyor.
+ */
+const DAY_SPAN = 7;
+
 export function DateTimeRangeInput({
   value,
   onChange,
@@ -122,7 +100,7 @@ export function DateTimeRangeInput({
   tone = "default",
 }: DateTimeRangeInputProps) {
   const t = useT();
-  const skin = TONES[tone];
+  const skin = FIELD_TONES[tone];
   const parsed = useMemo(() => parseDTR(value), [value]);
   // Çark iki panelin altında, kartın tamamı kadar geniş açılır — panelin
   // içine sıkıştırıldığında sütunlar 80px'e düşüyor ve çark gibi durmuyordu
@@ -231,16 +209,42 @@ function DateTimePanel({
   open: boolean;
   onOpen: () => void;
   disabled?: boolean;
-  skin: (typeof TONES)[DTRTone];
+  skin: FieldToneSkin;
 }) {
   const t = useT();
   const cfg = SIDES[side];
   const [datePart = "", timePart = ""] = value.split("T");
 
-  const chips = [-1, 0, 1].map((o) => {
-    const d = offsetDate(entryDate, o);
-    return { date: d, label: shortDate(d) };
-  });
+  const chips = useMemo(() => {
+    // Seçili gün şeridin dışında kalıyorsa (eski kayıt, elle düzeltilmiş
+    // tarih) şerit onu kapsayacak kadar uzar — seçili kapsül hep listede olsun
+    const sel = datePart ? dayOffset(entryDate, datePart) : 0;
+    const lo = Math.min(-DAY_SPAN, sel);
+    const hi = Math.max(DAY_SPAN, sel);
+    return Array.from({ length: hi - lo + 1 }, (_, i) => {
+      const d = offsetDate(entryDate, lo + i);
+      return { date: d, label: shortDate(d) };
+    });
+  }, [entryDate, datePart]);
+
+  // Seçili kapsülü şeridin ortasına al: açılışta anında, sonraki seçimlerde
+  // yumuşak. Yoksa uzak bir gün seçilince şerit başında kalıp yalan söylüyor.
+  const stripRef = useRef<HTMLDivElement>(null);
+  const centered = useRef(false);
+  useEffect(() => {
+    const el = stripRef.current;
+    const anchor =
+      el?.querySelector<HTMLElement>('[data-on="true"]') ??
+      // Tarih henüz seçilmemişse (dokunulmamış taraf) şerit girdinin gününde
+      // dursun — başında bıraksak bir hafta öncesini gösteriyordu
+      el?.querySelector<HTMLElement>(`[data-day="${entryDate}"]`);
+    if (!el || !anchor) return;
+    el.scrollTo({
+      left: anchor.offsetLeft - (el.clientWidth - anchor.offsetWidth) / 2,
+      behavior: centered.current ? "smooth" : "auto",
+    });
+    centered.current = true;
+  }, [datePart, chips, entryDate]);
 
   function selectDate(d: string) {
     onChange(`${d}T${timePart || cfg.time}`);
@@ -257,15 +261,24 @@ function DateTimePanel({
         </span>
       </div>
 
-      <div className="flex gap-1">
+      {/* Gün şeridi — yana kaydırılır, kenarda yarım kalan kapsül bunu söyler */}
+      <div
+        ref={stripRef}
+        role="group"
+        aria-label={t("datetime.pickDate")}
+        className="no-scrollbar relative -mx-1 flex gap-1 overflow-x-auto overscroll-x-contain px-1"
+        style={{ maskImage: STRIP_FADE, WebkitMaskImage: STRIP_FADE }}
+      >
         {chips.map((chip) => (
           <button
             key={chip.date}
             type="button"
             disabled={disabled}
+            data-on={datePart === chip.date}
+            data-day={chip.date}
             onClick={() => selectDate(chip.date)}
             className={cn(
-              "flex-1 rounded-lg py-1 text-[9px] font-semibold tracking-tight transition-all",
+              "shrink-0 whitespace-nowrap rounded-lg px-1.5 py-1 text-[9px] font-semibold tracking-tight transition-all",
               datePart === chip.date
                 ? skin.chipOn
                 : "bg-muted/40 text-muted-foreground/60 hover:bg-muted hover:text-foreground"
@@ -466,6 +479,14 @@ const ALL_MINUTES = Array.from({ length: 60 }, (_, i) =>
 const ITEM = 34;
 const VISIBLE = 5;
 const PAD = ITEM * ((VISIBLE - 1) / 2);
+/**
+ * Gün şeridinin yanlarında solma. Şerit tam üç kapsül genişliğindeydi: hiçbiri
+ * yarım kalmadığı için sabit bir satır gibi duruyor, kaydırılabildiği
+ * anlaşılmıyordu. Solma + daha dar kapsül = kenarda görünen dördüncü.
+ */
+const STRIP_FADE =
+  "linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 10px), transparent)";
+
 /** Üst/alt solma — düz listeyi silindir gibi gösteren asıl numara */
 const FADE =
   "linear-gradient(to bottom, transparent, #000 26%, #000 74%, transparent)";
@@ -482,7 +503,7 @@ function TimeWheel({
   onChange,
   onClose,
   minuteStep = 5,
-  skin = TONES.default,
+  skin = FIELD_TONES.default,
 }: {
   label: string;
   time: string;
@@ -490,7 +511,7 @@ function TimeWheel({
   onClose: () => void;
   /** Uyku aralığında 5 dk yeter; tek girdi saatinde dakika birebir seçilir */
   minuteStep?: 1 | 5;
-  skin?: (typeof TONES)[DTRTone];
+  skin?: FieldToneSkin;
 }) {
   const [hour = "", minute = ""] = time.split(":");
   // Kayıtlı dakika adıma denk gelmiyorsa (eski kayıt/elle giriş) listeye eklenir
