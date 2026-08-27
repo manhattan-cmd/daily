@@ -130,8 +130,12 @@ function PlainEntryCard({
           selection?.selected && selectedCardClass
         )}
         style={{
-          borderColor: `${color}28`,
-          background: `linear-gradient(135deg, ${color}1f, ${color}08 45%, transparent)`,
+          // Kenarlık %16'dan %35'e: liste halinde kartlar birbirine giriyordu.
+          // Asıl sorun zeminde: degrade "transparent"a inince kartın alt-sağı
+          // sayfayla aynı renk oluyor, kart bitmiyordu. Degradenin ALTINA
+          // kartın kendi zemini kondu — renk tonu duruyor, sınır belli.
+          borderColor: `${color}59`,
+          background: `linear-gradient(135deg, ${color}24, ${color}0d 45%, transparent), var(--card)`,
         }}
         aria-label={`${entry.subcategory.name} girdisini düzenle`}
       >

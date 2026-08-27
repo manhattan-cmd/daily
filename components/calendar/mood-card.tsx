@@ -65,9 +65,9 @@ export function MoodCard({
         }}
         {...(selection && !selection.active ? longPress : {})}
         className={cn(
-          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border border-pink-500/25 px-3 py-2.5 text-left",
-          "bg-gradient-to-br from-pink-500/15 via-pink-500/5 to-transparent",
-          "transition-colors hover:border-pink-500/40 active:scale-[0.99]",
+          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border border-pink-500/45 px-3 py-2.5 text-left",
+          "bg-card bg-gradient-to-br from-pink-500/16 via-pink-500/5 to-transparent",
+          "transition-colors hover:border-pink-500/60 active:scale-[0.99]",
           selection?.selected && selectedCardClass
         )}
         aria-label={t("mood.edit")}

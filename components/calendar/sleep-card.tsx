@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoonStar } from "lucide-react";
+import { Clock, MoonStar } from "lucide-react";
 import type { EntryWithContext } from "@/types";
 import {
   parseDTR,
@@ -19,6 +19,10 @@ import {
 
 /**
  * Yerleşik uyku kartı — süre aralığı + kalite.
+ *
+ * Girdi kartıyla aynı iskelet: üstte künye (sembol + başlık + tarih), altında
+ * saç teli çizgiyle ayrılmış bölümde ölçü kapsülü. Başlık eskiden saatlerin
+ * üstünde sıkışıyor, kart iki satırlık tek bir blok gibi duruyordu.
  *
  * `dateLabel` yalnız günleri karışık listelerde (ana sayfa) verilir: gün
  * sayfasında hangi güne ait olduğu zaten belli, orada boş bırakılır.
@@ -64,50 +68,64 @@ export function SleepCard({
         }}
         {...(selection && !selection.active ? longPress : {})}
         className={cn(
-          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border border-violet-500/25 px-3 py-2.5 text-left",
-          "bg-gradient-to-br from-violet-500/15 via-violet-500/5 to-transparent",
-          "transition-colors hover:border-violet-500/40 active:scale-[0.99]",
+          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border border-violet-500/45 px-2.5 py-2 text-left",
+          "bg-card bg-gradient-to-br from-violet-500/16 via-violet-500/5 to-transparent",
+          "transition-colors hover:border-violet-500/60 active:scale-[0.99]",
           selection?.selected && selectedCardClass
         )}
         aria-label={t("sleep.edit")}
       >
-        <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/20">
-            <MoonStar className="h-[18px] w-[18px] text-violet-300" strokeWidth={1.75} />
+        {/* Künye — sembol, başlık, sağda tarih */}
+        <div className="flex items-center gap-2">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/20">
+            <MoonStar
+              className="h-[17px] w-[17px] text-violet-300"
+              strokeWidth={1.75}
+            />
+          </span>
+          <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-300/80">
+            {t("sleep.title")}
+          </span>
+          {dateLabel && (
+            <span className="shrink-0 whitespace-nowrap text-[10px] leading-none tabular-nums text-muted-foreground/70">
+              {dateLabel}
+            </span>
+          )}
+        </div>
+
+        {/* Alt bölüm — aralık kapsülü, sağda kalite */}
+        <div className="mt-2 flex items-center gap-2 border-t border-white/[0.07] pt-2">
+          <span
+            className="inline-flex min-w-0 items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2.5"
+            style={{
+              background: "rgba(139,92,246,0.12)",
+              boxShadow: "inset 0 0 0 1px rgba(139,92,246,0.28)",
+            }}
+          >
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-500/25">
+              <Clock className="h-3 w-3 text-violet-300" strokeWidth={1.9} />
+            </span>
+            {startTime || endTime ? (
+              <span className="text-[13px] font-semibold leading-none tabular-nums text-violet-100">
+                {startTime ?? "?"}
+                <span className="mx-1 font-normal text-violet-300/70">→</span>
+                {endTime ?? "?"}
+              </span>
+            ) : (
+              <span className="truncate text-[11px] leading-none text-muted-foreground">
+                {t("sleep.logged")}
+              </span>
+            )}
+            {duration && (
+              <span className="shrink-0 text-[10px] leading-none text-muted-foreground/70">
+                {duration}
+              </span>
+            )}
           </span>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-baseline gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-300/70">
-              <span>{t("sleep.title")}</span>
-              {dateLabel && (
-                <span className="truncate font-medium tracking-normal text-muted-foreground/70">
-                  {dateLabel}
-                </span>
-              )}
-            </div>
-            <div className="mt-0.5 flex items-baseline gap-2">
-              {startTime || endTime ? (
-                <span className="text-lg font-semibold tabular-nums leading-none">
-                  {startTime ?? "?"}
-                  <span className="mx-1.5 text-sm font-normal text-muted-foreground">
-                    →
-                  </span>
-                  {endTime ?? "?"}
-                </span>
-              ) : (
-                <span className="text-sm text-muted-foreground">
-                  {t("sleep.logged")}
-                </span>
-              )}
-              {duration && (
-                <span className="text-xs text-muted-foreground">{duration}</span>
-              )}
-            </div>
-          </div>
-
           {qualityNum !== null && !Number.isNaN(qualityNum) && (
-            <div className="flex shrink-0 flex-col items-end gap-1.5">
-              <span className="text-xs font-semibold tabular-nums text-violet-200">
+            <div className="ml-auto flex shrink-0 items-center gap-1.5">
+              <span className="text-[11px] font-semibold tabular-nums text-violet-200">
                 {qualityNum}/{qualityMax}
               </span>
               <div className="flex gap-1">
@@ -123,7 +141,6 @@ export function SleepCard({
               </div>
             </div>
           )}
-
         </div>
 
         {selection?.active && (

@@ -90,8 +90,8 @@ export function LinkedEntryCard({
           selection?.selected && selectedCardClass
         )}
         style={{
-          borderColor: `${VIOLET}42`,
-          background: `linear-gradient(135deg, ${VIOLET}1f, ${VIOLET}08 45%, transparent)`,
+          borderColor: `${VIOLET}66`,
+          background: `linear-gradient(135deg, ${VIOLET}24, ${VIOLET}0d 45%, transparent), var(--card)`,
         }}
       >
         {/* Künye */}
