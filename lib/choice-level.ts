@@ -12,6 +12,10 @@
  * düz etiket biçimi geriye dönük olarak zaten doğru sonucu veriyor, yoğunluk
  * eklenmiş olanı da bu dosyadaki tek ayrıştırıcı düz etikete indiriyor.
  *
+ * Yoğunluğu AYARLAYAN arayüz şimdilik kaldırıldı (bkz. EmotionPicker); okuma
+ * tarafı duruyor ki daha önce yoğunlukla kaydedilmiş değerler hem doğru
+ * gösterilsin hem de düzenlemede korunsun.
+ *
  * Ayırıcı seçenek adlarında geçmiyor; yine de ayrıştırma temkinli: son
  * ayırıcıdan sonrası 0–100 arası bir tamsayı DEĞİLSE değer olduğu gibi etiket
  * sayılır. Böylece içinde "|" olan bir seçenek adı bozulmuyor.
@@ -20,10 +24,6 @@
 export const LEVEL_SEP = "|";
 export const LEVEL_MIN = 0;
 export const LEVEL_MAX = 100;
-/** Çubuk bu adımlarla ilerler — 101 durak parmakla ayarlanacak bir şey değil */
-export const LEVEL_STEP = 5;
-/** Duygu ilk seçildiğinde başlangıç yoğunluğu — orta */
-export const LEVEL_DEFAULT = 50;
 
 export interface ChoiceLevel {
   label: string;
