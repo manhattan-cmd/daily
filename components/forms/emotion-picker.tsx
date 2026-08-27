@@ -44,11 +44,17 @@ export function EmotionPicker({
   values,
   onChange,
   tone = "mood",
+  gridHeight = 208,
 }: {
   choices: string[];
   values: string[];
   onChange: (values: string[]) => void;
   tone?: FieldTone;
+  /** Izgaranın en fazla kaç piksel yer kaplayacağı. Pencereye göre değişir:
+   *  ekleme penceresinde kaydet düğmesiyle paylaşıyor, düzenleme penceresinde
+   *  daha çok yer var. Bir satırı yarıda kesen bir değer seçilmeli ki
+   *  kaydırılabildiği görülsün. */
+  gridHeight?: number;
 }) {
   const t = useT();
   const skin = FIELD_TONES[tone];
@@ -159,7 +165,10 @@ export function EmotionPicker({
       )}
 
       {/* Izgara — kendi içinde kaydırılır, seçim onu yeniden dizmez */}
-      <div className="no-scrollbar max-h-[208px] overflow-y-auto overscroll-contain px-4 pb-3 pt-2.5">
+      <div
+        className="no-scrollbar overflow-y-auto overscroll-contain px-4 pb-3 pt-2.5"
+        style={{ maxHeight: gridHeight }}
+      >
         <div className="grid grid-cols-4 gap-2">
           {choices.map((c) => {
             const look = emotionLook(c);

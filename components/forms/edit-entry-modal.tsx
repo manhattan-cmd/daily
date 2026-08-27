@@ -758,7 +758,10 @@ export function EditEntryModal({
               />
             ))}
 
-            {availableToAdd.length > 0 && (
+            {/* Yerleşik ruh hali akışının alanları sabittir: havuzdan rastgele
+                bir özellik eklemek bu forma ait değil. Boşalan yer duygu
+                ızgarasına gidiyor (bkz. ModInput gridHeight). */}
+            {availableToAdd.length > 0 && fieldTone !== "mood" && (
               <button
                 type="button"
                 onClick={() => setAddModOpen(true)}
@@ -1172,6 +1175,10 @@ function ModInput({
             choices={entryType.choices ?? []}
             values={values}
             onChange={onChange}
+            /* "Özellik ekle" satırı ruh halinde gizli; boşalan yer buraya.
+               312px yerleşik 16 duygunun dördüncü satırını da payıyla birlikte
+               alıyor, yani liste büyütülmedikçe kaydırmak gerekmiyor. */
+            gridHeight={312}
           />
         </FieldWindow>
       ) : null}
