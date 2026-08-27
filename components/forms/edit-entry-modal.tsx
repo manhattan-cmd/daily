@@ -1176,9 +1176,11 @@ function ModInput({
             values={values}
             onChange={onChange}
             /* "Özellik ekle" satırı ruh halinde gizli; boşalan yer buraya.
-               312px yerleşik 16 duygunun dördüncü satırını da payıyla birlikte
-               alıyor, yani liste büyütülmedikçe kaydırmak gerekmiyor. */
-            gridHeight={312}
+               Ekleme penceresinden yüksek ama son satırı yarıda kesiyor:
+               ızgara kendi içinde kayıyor ve modalın tamamını uzatmıyor.
+               Tamamını sığdıran bir yükseklik denendi, o zaman da alan
+               kaydırılamaz oluyordu. */
+            gridHeight={272}
           />
         </FieldWindow>
       ) : null}
