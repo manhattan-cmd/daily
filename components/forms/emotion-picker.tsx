@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronUp, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { EmotionFace, emotionLook } from "@/lib/icons/emotions";
@@ -31,9 +31,9 @@ import {
  * Dokunma kuralları: seçili olmayana dokunmak seçer ve penceresini açar;
  * seçili olana dokunmak penceresini açar (yeniden ayarlamak için), açıkken
  * dokunmak pencereyi kapatır. Pencereyi kapatmanın açık yolu çubuğun yanındaki
- * "Bitti" düğmesi — kutucuğa tekrar dokunmayı keşfetmek gerekmiyor. Seçimi
+ * yeşil onay düğmesi — kutucuğa tekrar dokunmayı keşfetmek gerekmiyor. Seçimi
  * kaldırmak × ile; kutucuğa tekrar dokunmak silseydi ayarlamak için dokunmak
- * da tehlikeli olurdu.
+ * da tehlikeli olurdu. İki düğme renkle ayrışıyor: yeşil onay, sönük ×.
  *
  * Değer biçimi ham EntryValue biçimiyle aynı: "Happy" ya da "Happy|70"
  * (bkz. lib/choice-level). Böylece hem ekleme hem düzenleme penceresi aynı
@@ -147,10 +147,11 @@ export function EmotionPicker({
               <button
                 type="button"
                 onClick={() => setActive(null)}
-                className="flex shrink-0 items-center gap-0.5 rounded-full bg-white/8 py-1 pl-2 pr-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
+                aria-label={t("action.done")}
+                title={t("action.done")}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 transition-colors hover:bg-emerald-500/25 hover:text-emerald-300 active:scale-95"
               >
-                {t("action.done")}
-                <ChevronUp className="h-3 w-3" />
+                <Check className="h-4 w-4" strokeWidth={2.5} />
               </button>
             </div>
           </div>
