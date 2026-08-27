@@ -21,13 +21,17 @@ export function LevelBar({
   color,
   label,
   className,
+  size = "md",
 }: {
   value: number;
   onChange: (v: number) => void;
   color: string;
   label: string;
   className?: string;
+  /** "sm": kutucuğun üstünde açılan balon için daha ince çubuk ve tutamak */
+  size?: "sm" | "md";
 }) {
+  const sm = size === "sm";
   const trackRef = useRef<HTMLDivElement>(null);
 
   function valueAt(clientX: number): number {
@@ -79,11 +83,17 @@ export function LevelBar({
       }}
       className={cn(
         // touch-none: çubukta sürüklerken sayfa kaymasın
-        "relative flex h-7 w-full touch-none items-center outline-none",
+        "relative flex w-full touch-none items-center outline-none",
+        sm ? "h-5" : "h-7",
         className
       )}
     >
-      <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/[0.08]">
+      <div
+        className={cn(
+          "w-full overflow-hidden rounded-full bg-white/[0.08]",
+          sm ? "h-2" : "h-2.5"
+        )}
+      >
         <div
           className="h-full rounded-full transition-[width] duration-75"
           style={{ width: `${pct}%`, background: color }}
@@ -91,7 +101,10 @@ export function LevelBar({
       </div>
       {/* Tutamak — çubuğun ucunda, dokunma alanı çubuğun tamamı */}
       <span
-        className="pointer-events-none absolute h-[18px] w-[18px] -translate-x-1/2 rounded-full border-2 shadow-md"
+        className={cn(
+          "pointer-events-none absolute -translate-x-1/2 rounded-full border-2 shadow-md",
+          sm ? "h-[14px] w-[14px]" : "h-[18px] w-[18px]"
+        )}
         style={{
           left: `${pct}%`,
           borderColor: color,

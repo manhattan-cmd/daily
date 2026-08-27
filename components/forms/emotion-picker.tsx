@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
@@ -15,31 +22,35 @@ import {
   splitChoiceLevel,
 } from "@/lib/choice-level";
 
+/** Açılır ayar balonunun ölçüleri — konum hesabı sabit boy istiyor */
+const POP_W = 178;
+const POP_H = 58;
+/** Balon ile kutucuk arasındaki pay */
+const POP_GAP = 6;
+
 /**
- * Duygu seçici — ızgara + ızgaranın hemen ÜSTÜNDE açılan ayar penceresi.
+ * Duygu seçici — ızgara + dokunulan kutucuğun üstünde açılan küçük ayar balonu.
  *
- * Üç tasarım turu oldu, ikisi de gerçek kullanımda düştü:
+ * Dört tasarım turu oldu, üçü gerçek kullanımda düştü:
  *   1. Seçilen kutucuk bulunduğu yerde tam satıra açılıyordu — birkaç duygu
  *      seçilince ızgara çubuklarla bölünüp okunmaz oluyordu.
- *   2. Çubuklar ızgaranın altında liste halinde toplanıyordu — ızgara sabit
- *      kaldı ama ayarlanan duygu ile kutucuğu arasındaki bağ koptu, liste de
- *      seçim arttıkça uzayıp pencereyi şişirdi.
- * Şimdi: ayar penceresi ızgaranın üstünde TEK ve sabit yer kaplıyor, hangi
- * duyguya dokunulduysa onu gösteriyor. Ayarlanan ölçü kutucuğun kendi
- * üstünde ince bir çubuk olarak kalıyor, yani ızgaraya bakınca "hangi duygu,
- * ne kadar" tek bakışta okunuyor.
+ *   2. Çubuklar ızgaranın altında liste halinde toplanıyordu — ayarlanan duygu
+ *      ile kutucuğu arasındaki bağ koptu, liste de seçim arttıkça uzadı.
+ *   3. Tek bir ayar penceresi ızgaranın üstünde duruyordu — bağ yine uzaktı ve
+ *      kocaman duruyordu.
+ * Şimdi: çubuk, dokunulan kutucuğun hemen üstünde küçük bir balonda ve
+ * ızgaranın ÖNÜNDE açılıyor. Göz kutucuktan ayrılmıyor, ızgara hiç bölünmüyor.
+ * İlk satırda balon pencerenin dışına taşacağı için kutucuğun ALTINDA açılır.
  *
- * Dokunma kuralları: seçili olmayana dokunmak seçer ve penceresini açar;
- * seçili olana dokunmak penceresini açar (yeniden ayarlamak için), açıkken
- * dokunmak pencereyi kapatır. Pencereyi kapatmanın açık yolu çubuğun yanındaki
- * yeşil onay düğmesi — kutucuğa tekrar dokunmayı keşfetmek gerekmiyor. Seçimi
- * kaldırmak × ile; kutucuğa tekrar dokunmak silseydi ayarlamak için dokunmak
- * da tehlikeli olurdu. İki düğme renkle ayrışıyor: yeşil onay, sönük ×.
+ * Ayarlanan ölçü kutucuğun kendi üstünde ince bir çubuk olarak kalıyor, yani
+ * balon kapandıktan sonra da "hangi duygu, ne kadar" tek bakışta okunuyor.
+ * Pencerenin en üstündeki şerit seçilenlerin tamamını gösteriyor: ızgara
+ * kaydırıldığında ne seçtiğin gözden kaybolmasın diye.
  *
- * Pencerenin en üstünde seçilenlerin şeridi var: küçük yüz + yoğunluk, yer
- * yetmezse yana kayıyor. Izgara kendi içinde kaydırıldığında seçtiklerin
- * gözden kayboluyordu; şerit hep görünür kalıyor ve bir yüze dokunmak o
- * duygunun ayar penceresini açıyor.
+ * Dokunma kuralları: seçili olmayana dokunmak seçer ve balonunu açar; seçili
+ * olana dokunmak balonunu açar (yeniden ayarlamak için), açıkken dokunmak
+ * kapatır. Balondaki yeşil onay kapatır, × seçimi kaldırır — kutucuğa tekrar
+ * dokunmak silseydi ayarlamak için dokunmak da tehlikeli olurdu.
  *
  * Değer biçimi ham EntryValue biçimiyle aynı: "Happy" ya da "Happy|70"
  * (bkz. lib/choice-level). Böylece hem ekleme hem düzenleme penceresi aynı
@@ -64,7 +75,7 @@ export function EmotionPicker({
 }) {
   const t = useT();
   const skin = FIELD_TONES[tone];
-  /** Ayar penceresi açık olan duygu */
+  /** Ayar balonu açık olan duygu */
   const [active, setActive] = useState<string | null>(null);
 
   /** Seçilenler: etiket → yoğunluk (null = eski kayıt, yoğunluksuz) */
@@ -110,29 +121,67 @@ export function EmotionPicker({
     emit(next);
   }
 
-  const activeLook = active ? emotionLook(active) : null;
-  const activeLevel = active ? (picked.get(active) ?? LEVEL_DEFAULT) : 0;
-
   /** Şeritteki sıra ızgaranın sırası — seçim şeridi yeniden dizmesin */
   const selected = [
     ...choices.filter((c) => picked.has(c)),
     ...[...picked.keys()].filter((k) => !choices.includes(k)),
   ];
 
-  // Ayarlanan duygu şeritte görünür kalsın; başka bir şey kaydırmasın diye
-  // block "nearest" (dikeyde zaten görünüyorsa üstteki kutular oynamaz)
-  const stripRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    stripRef.current
-      ?.querySelector<HTMLElement>('[data-active="true"]')
-      ?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  // ── Balonun konumu ────────────────────────────────────────────────────
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const tileRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [pop, setPop] = useState<{ left: number; top: number } | null>(null);
+
+  const place = useCallback(() => {
+    const host = anchorRef.current;
+    const tile = active ? tileRefs.current[active] : null;
+    if (!host || !tile) {
+      setPop(null);
+      return;
+    }
+    const h = host.getBoundingClientRect();
+    const b = tile.getBoundingClientRect();
+    const left = Math.min(
+      Math.max(b.left - h.left + b.width / 2 - POP_W / 2, 4),
+      Math.max(4, h.width - POP_W - 4)
+    );
+    // Üstte yer yoksa (ilk satır) balon kutucuğun altına düşer
+    const above = b.top - h.top - POP_H - POP_GAP;
+    const top = above >= 0 ? above : b.bottom - h.top + POP_GAP;
+    setPop({ left, top });
   }, [active]);
+
+  useLayoutEffect(place, [place, values]);
+
+  // Izgara kaydırılınca balon kutucuğuyla birlikte gitmeli; pencere yeniden
+  // ölçülünce de (klavye, dönme) konum tazelenir
+  useEffect(() => {
+    if (!active) return;
+    const el = scrollRef.current;
+    el?.addEventListener("scroll", place, { passive: true });
+    window.addEventListener("resize", place);
+    return () => {
+      el?.removeEventListener("scroll", place);
+      window.removeEventListener("resize", place);
+    };
+  }, [active, place]);
+
+  // Şeritten bir duyguya dokunulduğunda kutucuğu görünür değilse ızgara ona
+  // kayar — yoksa balon boşlukta açılmış gibi görünüyordu
+  useEffect(() => {
+    if (!active) return;
+    tileRefs.current[active]?.scrollIntoView({ block: "nearest" });
+  }, [active]);
+
+  const activeLook = active ? emotionLook(active) : null;
+  const activeLevel = active ? (picked.get(active) ?? LEVEL_DEFAULT) : 0;
 
   return (
     <>
       {/* Seçilenler şeridi — pencerenin en üstü */}
       {selected.length > 0 && (
-        <div ref={stripRef} className="px-4 pt-2.5">
+        <div className="px-4 pt-2.5">
           <HScroll className="gap-1.5">
             {selected.map((c) => {
               const look = emotionLook(c);
@@ -142,7 +191,6 @@ export function EmotionPicker({
                 <button
                   key={c}
                   type="button"
-                  data-active={on}
                   onClick={() => setActive(on ? null : c)}
                   aria-label={t("mood.intensityOf", { name: c })}
                   className={cn(
@@ -157,11 +205,7 @@ export function EmotionPicker({
                       : {}),
                   }}
                 >
-                  <EmotionFace
-                    name={c}
-                    size={16}
-                    style={{ color: look.color }}
-                  />
+                  <EmotionFace name={c} size={16} style={{ color: look.color }} />
                   <span
                     className="text-[10px] font-bold leading-none tabular-nums"
                     style={{ color: look.color }}
@@ -174,135 +218,141 @@ export function EmotionPicker({
           </HScroll>
         </div>
       )}
-      {/* Ayar penceresi — ızgaranın hemen üstünde, tek yer */}
-      {active && activeLook && (
-        <div className="px-4 pt-2.5">
+
+      {/* Izgara + önünde açılan balon */}
+      <div ref={anchorRef} className="relative">
+        <div
+          ref={scrollRef}
+          className="no-scrollbar overflow-y-auto overscroll-contain px-4 pb-3 pt-2.5"
+          style={{ maxHeight: gridHeight }}
+        >
+          <div className="grid grid-cols-4 gap-2">
+            {choices.map((c) => {
+              const look = emotionLook(c);
+              const on = picked.has(c);
+              const level = picked.get(c);
+              return (
+                <button
+                  key={c}
+                  ref={(el) => {
+                    tileRefs.current[c] = el;
+                  }}
+                  type="button"
+                  onClick={() => tap(c)}
+                  aria-pressed={on}
+                  className={cn(
+                    "flex flex-col items-center gap-1 rounded-xl border px-1.5 pb-1.5 pt-2 transition-colors",
+                    !on && skin.choiceOff,
+                    active === c && "ring-1 ring-inset"
+                  )}
+                  style={
+                    on
+                      ? {
+                          borderColor: `${look.color}80`,
+                          background: `${look.color}24`,
+                          ...(active === c
+                            ? ({
+                                "--tw-ring-color": look.color,
+                              } as React.CSSProperties)
+                            : {}),
+                        }
+                      : undefined
+                  }
+                >
+                  <EmotionFace
+                    name={c}
+                    size={22}
+                    style={{ color: look.color, opacity: on ? 1 : 0.62 }}
+                  />
+                  <span
+                    className={cn(
+                      "w-full truncate text-center text-[9px] font-medium leading-3",
+                      on ? "text-foreground" : undefined
+                    )}
+                  >
+                    {c}
+                  </span>
+                  {/* Ölçü satırı hep var: seçili olmayanda görünmez durur ki
+                      seçmek kutucuğun boyunu değiştirip ızgarayı oynatmasın */}
+                  <span
+                    className={cn(
+                      "flex w-full items-center gap-1",
+                      !on && "invisible"
+                    )}
+                  >
+                    <span className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/10">
+                      <span
+                        className="block h-full rounded-full"
+                        style={{
+                          width: `${((level ?? LEVEL_DEFAULT) / LEVEL_MAX) * 100}%`,
+                          background: look.color,
+                        }}
+                      />
+                    </span>
+                    <span
+                      className="text-[8px] font-bold leading-none tabular-nums"
+                      style={{ color: look.color }}
+                    >
+                      {level ?? LEVEL_DEFAULT}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {active && activeLook && pop && (
           <div
-            className="rounded-xl border px-3 py-2"
+            className="absolute z-20 rounded-xl border px-2 py-1.5"
             style={{
-              borderColor: `${activeLook.color}66`,
-              background: `${activeLook.color}16`,
+              left: pop.left,
+              top: pop.top,
+              width: POP_W,
+              height: POP_H,
+              borderColor: `${activeLook.color}80`,
+              // Izgaranın ÖNÜNDE duruyor: altındaki kutucuklar okunmasın diye
+              // zemin donuk
+              background: "#14151c",
+              boxShadow: `0 8px 24px rgba(0,0,0,0.55), inset 0 0 0 1px ${activeLook.color}26`,
             }}
           >
-            <div className="flex items-center gap-2">
-              <EmotionFace
-                name={active}
-                size={24}
-                style={{ color: activeLook.color }}
-              />
-              <span className="flex-1 truncate text-[13px] font-semibold">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => remove(active)}
+                aria-label={t("mood.removeEmotion", { name: active })}
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-white/10 hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+              <span className="flex-1 truncate text-[10px] font-semibold text-muted-foreground">
                 {active}
               </span>
               <span
-                className="shrink-0 text-[15px] font-bold tabular-nums"
+                className="shrink-0 text-[12px] font-bold leading-none tabular-nums"
                 style={{ color: activeLook.color }}
               >
                 {activeLevel}
               </span>
               <button
                 type="button"
-                onClick={() => remove(active)}
-                aria-label={t("mood.removeEmotion", { name: active })}
-                className="-mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-white/10 hover:text-foreground"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <LevelBar
-                value={activeLevel}
-                onChange={(v) => setLevel(active, v)}
-                color={activeLook.color}
-                label={t("mood.intensityOf", { name: active })}
-              />
-              <button
-                type="button"
                 onClick={() => setActive(null)}
                 aria-label={t("action.done")}
-                title={t("action.done")}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 transition-colors hover:bg-emerald-500/25 hover:text-emerald-300 active:scale-95"
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-400 transition-colors hover:bg-emerald-500/25 active:scale-95"
               >
-                <Check className="h-4 w-4" strokeWidth={2.5} />
+                <Check className="h-3 w-3" strokeWidth={2.5} />
               </button>
             </div>
+            <LevelBar
+              size="sm"
+              value={activeLevel}
+              onChange={(v) => setLevel(active, v)}
+              color={activeLook.color}
+              label={t("mood.intensityOf", { name: active })}
+            />
           </div>
-        </div>
-      )}
-
-      {/* Izgara — kendi içinde kaydırılır, seçim onu yeniden dizmez */}
-      <div
-        className="no-scrollbar overflow-y-auto overscroll-contain px-4 pb-3 pt-2.5"
-        style={{ maxHeight: gridHeight }}
-      >
-        <div className="grid grid-cols-4 gap-2">
-          {choices.map((c) => {
-            const look = emotionLook(c);
-            const on = picked.has(c);
-            const level = picked.get(c);
-            return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => tap(c)}
-                aria-pressed={on}
-                className={cn(
-                  "flex flex-col items-center gap-1 rounded-xl border px-1.5 pb-1.5 pt-2 transition-colors",
-                  !on && skin.choiceOff,
-                  active === c && "ring-1 ring-inset"
-                )}
-                style={
-                  on
-                    ? {
-                        borderColor: `${look.color}80`,
-                        background: `${look.color}24`,
-                        ...(active === c
-                          ? ({ "--tw-ring-color": look.color } as React.CSSProperties)
-                          : {}),
-                      }
-                    : undefined
-                }
-              >
-                <EmotionFace
-                  name={c}
-                  size={22}
-                  style={{ color: look.color, opacity: on ? 1 : 0.62 }}
-                />
-                <span
-                  className={cn(
-                    "w-full truncate text-center text-[9px] font-medium leading-3",
-                    on ? "text-foreground" : undefined
-                  )}
-                >
-                  {c}
-                </span>
-                {/* Ölçü satırı hep var: seçili olmayanda görünmez durur ki
-                    seçmek kutucuğun boyunu değiştirip ızgarayı oynatmasın */}
-                <span
-                  className={cn(
-                    "flex w-full items-center gap-1",
-                    !on && "invisible"
-                  )}
-                >
-                  <span className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/10">
-                    <span
-                      className="block h-full rounded-full"
-                      style={{
-                        width: `${((level ?? LEVEL_DEFAULT) / LEVEL_MAX) * 100}%`,
-                        background: look.color,
-                      }}
-                    />
-                  </span>
-                  <span
-                    className="text-[8px] font-bold leading-none tabular-nums"
-                    style={{ color: look.color }}
-                  >
-                    {level ?? LEVEL_DEFAULT}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        )}
       </div>
     </>
   );
