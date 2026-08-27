@@ -54,6 +54,9 @@ export function SleepCard({
   const endTime = end?.split("T")[1]?.slice(0, 5);
   const duration = calcDTRDuration(start, end);
 
+  // Yerleşik akışın rengi kategoriden; boşsa uykunun moru
+  const color = entry.category.color || "#8b5cf6";
+
   const qualityMax = qualityValue?.entryType?.choices?.length ?? 5;
   const qualityNum = qualityValue ? Number(qualityValue.value) : null;
 
@@ -68,11 +71,20 @@ export function SleepCard({
         }}
         {...(selection && !selection.active ? longPress : {})}
         className={cn(
-          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border border-violet-500/45 px-2.5 py-2 text-left",
-          "bg-card bg-gradient-to-br from-violet-500/16 via-violet-500/5 to-transparent",
-          "transition-colors hover:border-violet-500/60 active:scale-[0.99]",
+          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border px-2.5 py-2 text-left transition-transform active:scale-[0.99]",
           selection?.selected && selectedCardClass
         )}
+        // Kenarlık ve zemin SATIR İÇİ: globals.css'teki `* { border-color:
+        // var(--border) }` katmansız bir kural, yani Tailwind'in
+        // `border-violet-500/45` gibi yardımcılarını eziyor — sınıfla verilen
+        // kenarlık rengi hiç uygulanmıyordu, kart varsayılan gri çerçeveyle
+        // çiziliyordu. Sıradan girdi kartı da bu yüzden satır içi stil
+        // kullanıyor. Renk kategoriden geliyor: kullanıcı rengi değiştirirse
+        // kart da onunla gidiyor.
+        style={{
+          borderColor: `${color}73`,
+          background: `linear-gradient(135deg, ${color}24, ${color}0d 45%, transparent), var(--card)`,
+        }}
         aria-label={t("sleep.edit")}
       >
         {/* Künye — sembol, başlık, sağda tarih */}

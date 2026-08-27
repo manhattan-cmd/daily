@@ -49,6 +49,9 @@ export function MoodCard({
     // Güçlü duygu önce: kartta yalnız birkaçı sığıyor, en çok hissedilen görünsün
     .sort((a, b) => (b.level ?? 0) - (a.level ?? 0));
 
+  // Yerleşik akışın rengi kategoriden; boşsa ruh halinin pembesi
+  const color = entry.category.color || "#f472b6";
+
   const levelMax = levelValue?.entryType?.choices?.length ?? 5;
   const level = levelValue ? Number(levelValue.value) : null;
   const hasLevel = level !== null && !Number.isNaN(level);
@@ -65,11 +68,16 @@ export function MoodCard({
         }}
         {...(selection && !selection.active ? longPress : {})}
         className={cn(
-          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border border-pink-500/45 px-3 py-2.5 text-left",
-          "bg-card bg-gradient-to-br from-pink-500/16 via-pink-500/5 to-transparent",
-          "transition-colors hover:border-pink-500/60 active:scale-[0.99]",
+          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border px-3 py-2.5 text-left transition-transform active:scale-[0.99]",
           selection?.selected && selectedCardClass
         )}
+        // Kenarlık ve zemin satır içi — sınıfla verilen kenarlık rengi
+        // globals.css'teki katmansız `*` kuralı yüzünden uygulanmıyor
+        // (bkz. sleep-card)
+        style={{
+          borderColor: `${color}73`,
+          background: `linear-gradient(135deg, ${color}24, ${color}0d 45%, transparent), var(--card)`,
+        }}
         aria-label={t("mood.edit")}
       >
         <div className="flex items-center gap-3">
