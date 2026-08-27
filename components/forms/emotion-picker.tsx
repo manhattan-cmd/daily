@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { EmotionFace, emotionLook } from "@/lib/icons/emotions";
 import { LevelBar } from "@/components/forms/level-bar";
+import { HScroll } from "@/components/ui/h-scroll";
 import { FIELD_TONES, type FieldTone } from "@/components/forms/field-tone";
 import {
   LEVEL_DEFAULT,
@@ -34,6 +35,11 @@ import {
  * yeşil onay düğmesi — kutucuğa tekrar dokunmayı keşfetmek gerekmiyor. Seçimi
  * kaldırmak × ile; kutucuğa tekrar dokunmak silseydi ayarlamak için dokunmak
  * da tehlikeli olurdu. İki düğme renkle ayrışıyor: yeşil onay, sönük ×.
+ *
+ * Pencerenin en üstünde seçilenlerin şeridi var: küçük yüz + yoğunluk, yer
+ * yetmezse yana kayıyor. Izgara kendi içinde kaydırıldığında seçtiklerin
+ * gözden kayboluyordu; şerit hep görünür kalıyor ve bir yüze dokunmak o
+ * duygunun ayar penceresini açıyor.
  *
  * Değer biçimi ham EntryValue biçimiyle aynı: "Happy" ya da "Happy|70"
  * (bkz. lib/choice-level). Böylece hem ekleme hem düzenleme penceresi aynı
@@ -107,8 +113,67 @@ export function EmotionPicker({
   const activeLook = active ? emotionLook(active) : null;
   const activeLevel = active ? (picked.get(active) ?? LEVEL_DEFAULT) : 0;
 
+  /** Şeritteki sıra ızgaranın sırası — seçim şeridi yeniden dizmesin */
+  const selected = [
+    ...choices.filter((c) => picked.has(c)),
+    ...[...picked.keys()].filter((k) => !choices.includes(k)),
+  ];
+
+  // Ayarlanan duygu şeritte görünür kalsın; başka bir şey kaydırmasın diye
+  // block "nearest" (dikeyde zaten görünüyorsa üstteki kutular oynamaz)
+  const stripRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    stripRef.current
+      ?.querySelector<HTMLElement>('[data-active="true"]')
+      ?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  }, [active]);
+
   return (
     <>
+      {/* Seçilenler şeridi — pencerenin en üstü */}
+      {selected.length > 0 && (
+        <div ref={stripRef} className="px-4 pt-2.5">
+          <HScroll className="gap-1.5">
+            {selected.map((c) => {
+              const look = emotionLook(c);
+              const level = picked.get(c) ?? LEVEL_DEFAULT;
+              const on = active === c;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  data-active={on}
+                  onClick={() => setActive(on ? null : c)}
+                  aria-label={t("mood.intensityOf", { name: c })}
+                  className={cn(
+                    "flex shrink-0 items-center gap-1 rounded-full border py-1 pl-1.5 pr-2 transition-transform active:scale-95",
+                    on && "ring-1 ring-inset"
+                  )}
+                  style={{
+                    borderColor: `${look.color}59`,
+                    background: `${look.color}1c`,
+                    ...(on
+                      ? ({ "--tw-ring-color": look.color } as React.CSSProperties)
+                      : {}),
+                  }}
+                >
+                  <EmotionFace
+                    name={c}
+                    size={16}
+                    style={{ color: look.color }}
+                  />
+                  <span
+                    className="text-[10px] font-bold leading-none tabular-nums"
+                    style={{ color: look.color }}
+                  >
+                    {level}
+                  </span>
+                </button>
+              );
+            })}
+          </HScroll>
+        </div>
+      )}
       {/* Ayar penceresi — ızgaranın hemen üstünde, tek yer */}
       {active && activeLook && (
         <div className="px-4 pt-2.5">
