@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { modAtomIcon } from "@/components/structure/mod-atom";
 import { calcDTRDuration, parseDTR } from "@/components/forms/datetime-range-input";
+import { splitChoiceLevel } from "@/lib/choice-level";
 
 /**
  * Girdi kartlarının ortak parçaları — hem tek girdi kartı hem paralel girdi
@@ -165,6 +166,12 @@ export function readValue(v: EntryValueWithType): {
     return { main: s && e ? `${s}–${e}` : (s ?? e ?? "—"), unit: short, label };
   }
   if (vt === "boolean") return { main: v.value === "true" ? "Yes" : "No", label };
+  if (vt === "select") {
+    // Seçenek yoğunluk taşıyabilir ("Happy|70"): etiket ana metin, yoğunluk
+    // birim yerinde küçük kalır
+    const { label: choice, level } = splitChoiceLevel(v.value);
+    return { main: choice, unit: level === null ? undefined : `%${level}`, label };
+  }
   return {
     main: v.value,
     unit: vt === "number" ? et.unit || undefined : undefined,

@@ -3,6 +3,7 @@
  * Tüm hesaplar yerel saatte; gün anahtarı YYYY-MM-DD.
  */
 
+import { choiceLabel } from "@/lib/choice-level";
 import type { EntryType, Mod } from "@/types";
 import { intlTag, translate } from "@/lib/i18n";
 
@@ -547,7 +548,9 @@ export function classifyMod(mod: Mod): MetricMod | null {
 export function countByChoice(values: string[]): { choice: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const v of values) {
-    const key = v.trim();
+    // Yoğunluk taşıyan değerler ("Happy|70") etiketine indirilir, yoksa aynı
+    // duygu yoğunluk başına ayrı bir dilim olurdu
+    const key = choiceLabel(v).trim();
     if (!key) continue;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }

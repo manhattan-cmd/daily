@@ -6,7 +6,7 @@
  * demeti: pencereyi kuran bileşen hangi parçaya hangi sınıfın gideceğini bilir,
  * çağıran yalnız "hangi akış" der.
  */
-export type FieldTone = "default" | "sleep";
+export type FieldTone = "default" | "sleep" | "mood";
 
 export interface FieldToneSkin {
   /** Pencerenin dış kabuğu — kenarlık + zemin */
@@ -47,6 +47,20 @@ export const FIELD_TONES: Record<FieldTone, FieldToneSkin> = {
     choiceOff:
       "border-border bg-input text-muted-foreground hover:text-foreground",
     caption: "text-muted-foreground/50",
+  },
+  mood: {
+    shell: "border-pink-500/25 bg-pink-500/[0.07]",
+    divide: "divide-pink-500/15",
+    line: "border-pink-500/15",
+    strip: "bg-pink-500/[0.05]",
+    dot: "bg-pink-400/70",
+    chipOn: "bg-pink-500/80 text-white shadow-sm",
+    open: "text-pink-300",
+    band: "bg-pink-500/12 ring-pink-400/30",
+    choiceOn: "border-pink-400 bg-pink-500/25 text-pink-100",
+    choiceOff:
+      "border-pink-500/15 bg-pink-500/[0.06] text-muted-foreground hover:text-foreground",
+    caption: "text-pink-300/50",
   },
   sleep: {
     shell: "border-violet-500/25 bg-violet-500/[0.07]",

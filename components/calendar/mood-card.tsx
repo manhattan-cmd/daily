@@ -5,6 +5,8 @@ import { Smile } from "lucide-react";
 import type { EntryWithContext } from "@/types";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { cn } from "@/lib/utils";
+import { splitChoiceLevel } from "@/lib/choice-level";
+import { EmotionFace, ScaleFace, emotionLook } from "@/lib/icons/emotions";
 import { useT } from "@/lib/i18n";
 import { useLongPress } from "@/lib/use-long-press";
 import {
@@ -12,9 +14,6 @@ import {
   selectedCardClass,
   type EntrySelection,
 } from "@/components/calendar/entry-selection";
-
-/** Skalanın basamak yüzleri — uyku kartındaki nokta dizisinin karşılığı */
-const FACES = ["😞", "🙁", "😐", "🙂", "😄"];
 
 /**
  * Yerleşik ruh hali kartı — mutluluk skalası + duygular. `dateLabel` yalnız
@@ -46,12 +45,14 @@ export function MoodCard({
   );
   const emotions = selects
     .filter((v) => v.modId !== levelValue?.modId)
-    .map((v) => v.value);
+    .map((v) => splitChoiceLevel(v.value))
+    // Güçlü duygu önce: kartta yalnız birkaçı sığıyor, en çok hissedilen görünsün
+    .sort((a, b) => (b.level ?? 0) - (a.level ?? 0));
 
   const levelMax = levelValue?.entryType?.choices?.length ?? 5;
   const level = levelValue ? Number(levelValue.value) : null;
   const hasLevel = level !== null && !Number.isNaN(level);
-  const face = hasLevel ? FACES[level - 1] ?? "🙂" : null;
+
 
   return (
     <>
@@ -73,8 +74,13 @@ export function MoodCard({
       >
         <div className="flex items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pink-500/20">
-            {face ? (
-              <span className="text-[19px] leading-none">{face}</span>
+            {hasLevel ? (
+              <ScaleFace
+                index={level - 1}
+                total={levelMax}
+                size={19}
+                className="text-pink-300"
+              />
             ) : (
               <Smile className="h-[18px] w-[18px] text-pink-300" strokeWidth={1.75} />
             )}
@@ -91,8 +97,25 @@ export function MoodCard({
             </div>
             <div className="mt-0.5 min-w-0">
               {emotions.length > 0 ? (
-                <span className="block truncate text-sm font-medium leading-5">
-                  {emotions.join(" · ")}
+                <span className="flex items-center gap-1.5 overflow-hidden">
+                  {emotions.slice(0, 4).map((e) => (
+                    <span
+                      key={e.label}
+                      className="flex shrink-0 items-center gap-1 text-[12px] font-medium leading-5"
+                      style={{ color: emotionLook(e.label).color }}
+                      title={e.level === null ? e.label : `${e.label} %${e.level}`}
+                    >
+                      <EmotionFace name={e.label} size={15} />
+                      {e.level !== null && (
+                        <span className="tabular-nums opacity-80">{e.level}</span>
+                      )}
+                    </span>
+                  ))}
+                  {emotions.length > 4 && (
+                    <span className="shrink-0 text-[11px] text-muted-foreground">
+                      +{emotions.length - 4}
+                    </span>
+                  )}
                 </span>
               ) : (
                 <span className="text-sm text-muted-foreground">

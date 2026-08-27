@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
+import { choiceLabel } from "@/lib/choice-level";
 import {
   average,
   boolToNumber,
@@ -269,6 +270,12 @@ export function useCategoryMetrics({
     const valueByEntry = new Map<string, number>();
     // Ham değer — listede okunur etiketi (Evet/Hayır, metnin kendisi) buradan çıkar
     const rawByEntry = new Map<string, string>();
+    // Seçenekler AYRI tutuluyor çünkü bir girdi aynı özellikten birden çok
+    // değer taşıyabiliyor (ruh halinde bir kayıtta üç duygu). Tek değerli
+    // haritada son yazan kazanıyordu: üç duygulu bir kayıt dağılıma bir
+    // duyguyla giriyordu. Tek seçimli özelliklerde liste zaten tek elemanlı,
+    // davranış değişmiyor.
+    const choicesByEntry = new Map<string, string[]>();
     if (metric.type === "mod") {
       for (const v of data.values) {
         if (v.modId !== metric.mod.id) continue;
@@ -286,7 +293,12 @@ export function useCategoryMetrics({
     } else if (metric.type === "choice") {
       // Dağılımda sayıya çevrilecek bir şey yok; etiketin kendisi taşınır
       for (const v of data.values) {
-        if (v.modId === metric.mod.id) rawByEntry.set(v.entryId, v.value);
+        if (v.modId !== metric.mod.id) continue;
+        const label = choiceLabel(v.value).trim();
+        if (!label) continue;
+        const list = choicesByEntry.get(v.entryId);
+        if (list) list.push(label);
+        else choicesByEntry.set(v.entryId, [label]);
       }
     }
 
@@ -300,18 +312,19 @@ export function useCategoryMetrics({
         .map((e) => valueByEntry.get(e.id))
         .filter((v): v is number => v !== undefined);
     const choicesOf = (subset: Entry[]) =>
-      subset
-        .map((e) => rawByEntry.get(e.id)?.trim())
-        .filter((v): v is string => !!v);
+      subset.flatMap((e) => choicesByEntry.get(e.id) ?? []);
 
     // Dağılımda "ne kadar" diye bir rakam yok; sayılan şey GİRDİ. Bir seçenek
     // süzgeci açıksa seri ve kırılım o seçeneğin adedini gösterir — "gergin
     // günlerim artıyor mu" sorusu tam bu.
+    // "Kaç girdide veri var" — seçenekte kayıt başına sayılır, seçim başına
+    // değil; yoksa üç duygulu tek kayıt üç girdiymiş gibi okunurdu
     const filledCount = (subset: Entry[]): number =>
       metric.type === "count"
         ? subset.length
         : isChoice
-          ? choicesOf(subset).length
+          ? subset.filter((e) => (choicesByEntry.get(e.id)?.length ?? 0) > 0)
+              .length
           : valuesOf(subset).length;
     const aggregate = (subset: Entry[]): number =>
       metric.type === "count"
@@ -336,7 +349,8 @@ export function useCategoryMetrics({
       if (metric.type === "count") return undefined;
       const raw = rawByEntry.get(entryId);
       // Dağılımda ve metinde okunacak şey sayı değil değerin kendisi
-      if (isChoice || kind === "presence") return raw?.trim() || undefined;
+      if (isChoice) return choicesByEntry.get(entryId)?.join(" · ") || undefined;
+      if (kind === "presence") return raw?.trim() || undefined;
       if (kind === "rate") {
         return raw === undefined
           ? undefined

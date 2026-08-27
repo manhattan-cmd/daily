@@ -58,6 +58,7 @@ import {
 } from "@/components/forms/datetime-range-input";
 import { ParallelPickList } from "@/components/forms/parallel-pick-dialog";
 import { ChoiceWindow } from "@/components/forms/choice-window";
+import { splitChoiceLevel } from "@/lib/choice-level";
 import type { FieldTone } from "@/components/forms/field-tone";
 import {
   cn,
@@ -125,6 +126,21 @@ export function EditEntryModal({
     for (const v of entry.values) {
       if (v.modId || v.entryTypeId)
         init[v.modId ?? `t:${v.entryTypeId}`] = v.value;
+    }
+    return init;
+  });
+
+  // Bir girdi aynı özellikten birden çok değer taşıyabiliyor (ruh halinde bir
+  // kayıtta üç duygu). Modalın satırı tek değer gösteriyor; satıra
+  // dokunulmadıysa kalanlar da geri yazılsın diye tamamı burada saklanıyor.
+  // Yoksa girdiyi yalnız saatini değiştirmek için açıp kaydetmek öbür
+  // değerleri sessizce siliyordu.
+  const [loadedValues] = useState<Record<string, string[]>>(() => {
+    const init: Record<string, string[]> = {};
+    for (const v of entry.values) {
+      if (!v.modId && !v.entryTypeId) continue;
+      const key = v.modId ?? `t:${v.entryTypeId}`;
+      (init[key] ??= []).push(v.value);
     }
     return init;
   });
@@ -432,11 +448,19 @@ export function EditEntryModal({
       await setEntryAliases(entry.id, aliases);
       const typeValues = rows
         .filter((r) => (values[r.key] ?? "") !== "")
-        .map((r) => ({
-          entryTypeId: r.entryTypeId,
-          modId: r.modId,
-          value: values[r.key],
-        }));
+        .flatMap((r) => {
+          const loaded = loadedValues[r.key] ?? [];
+          // Gösterilen değer hâlâ yüklenenlerin sonuncusuysa satıra
+          // dokunulmamış demektir: çoklu değerin tamamı korunur. Kullanıcı
+          // başka bir seçenek seçtiyse yerine tek değer geçer.
+          const untouched =
+            loaded.length > 1 && loaded[loaded.length - 1] === values[r.key];
+          return (untouched ? loaded : [values[r.key]]).map((value) => ({
+            entryTypeId: r.entryTypeId,
+            modId: r.modId,
+            value,
+          }));
+        });
       await updateEntry(entry.id, {
         typeValues,
         occurredAt: new Date(occurredAt).getTime(),
@@ -737,6 +761,7 @@ export function EditEntryModal({
                   setValues((prev) => ({ ...prev, [row.key]: v }))
                 }
                 onRemove={() => handleRemove(row.key)}
+                extraCount={(loadedValues[row.key]?.length ?? 1) - 1}
                 isShared={!!row.modId && siblingModIds.has(row.modId)}
                 entryDate={entryDate}
                 autoFocus={row.key === focusKey}
@@ -1045,12 +1070,15 @@ function ModInput({
   entryDate,
   autoFocus = false,
   tone = "default",
+  extraCount = 0,
 }: {
   label: string;
   entryType: EntryType;
   value: string;
   onChange: (v: string) => void;
   onRemove?: () => void;
+  /** Bu satırda gösterilenden kaç değer daha var (çok seçimli özellikler) */
+  extraCount?: number;
   isShared?: boolean;
   entryDate?: string;
   /** Yeni eklenen özellik: alan görünüme kaydırılır, yazı alanları odaklanır */
@@ -1078,6 +1106,11 @@ function ModInput({
             {label !== entryType.name && `${entryType.name} `}
             {entryType.unit && `(${entryType.unit})`}
           </span>
+          {extraCount > 0 && (
+            <span className="ml-1.5 rounded-full bg-white/8 px-1.5 py-px text-[10px] font-medium text-muted-foreground">
+              +{extraCount}
+            </span>
+          )}
         </label>
         <div className="flex items-center gap-2">
           {isShared && (
@@ -1147,21 +1180,30 @@ function ModInput({
           />
         ) : (
           <div className="flex flex-wrap gap-2">
-            {(entryType.choices ?? []).map((choice) => (
-              <button
-                key={choice}
-                type="button"
-                onClick={() => onChange(choice)}
-                className={cn(
-                  "rounded-xl border px-4 py-2 text-sm font-medium transition-colors",
-                  value === choice
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-input text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {choice}
-              </button>
-            ))}
+            {(entryType.choices ?? []).map((choice) => {
+              // Değer yoğunluk taşıyabilir ("Happy|70"); eşleşme etikete bakar,
+              // seçili olan yeniden tıklanırsa yoğunluk korunur
+              const { label: picked, level } = splitChoiceLevel(value);
+              const on = picked === choice;
+              return (
+                <button
+                  key={choice}
+                  type="button"
+                  onClick={() => onChange(on ? value : choice)}
+                  className={cn(
+                    "rounded-xl border px-4 py-2 text-sm font-medium transition-colors",
+                    on
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-input text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {choice}
+                  {on && level !== null && (
+                    <span className="ml-1.5 text-xs opacity-70">%{level}</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         ))}
 

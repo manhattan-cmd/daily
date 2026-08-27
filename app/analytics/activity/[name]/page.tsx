@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Boxes, ChevronRight } from "lucide-react";
 import { db } from "@/lib/db";
+import { choiceLabel } from "@/lib/choice-level";
 import {
   boolToNumber,
   buildSeriesBuckets,
@@ -107,7 +108,9 @@ export default function ActivityAnalyticsPage({
     // Girdi başına metrik değeri (count'ta 1)
     const valueByEntry = new Map<string, number>();
     // Dağılımda sayı yok, etiket var
-    const choiceByEntry = new Map<string, string>();
+    // Bir girdi aynı özellikten birden çok seçenek taşıyabilir (ruh halinde
+    // bir kayıtta üç duygu) — tek değerli haritada son yazan kazanıyordu
+    const choiceByEntry = new Map<string, string[]>();
     if (metric.type === "mod") {
       for (const v of values) {
         if (v.modId !== metric.mod.id) continue;
@@ -123,8 +126,12 @@ export default function ActivityAnalyticsPage({
       }
     } else if (metric.type === "choice") {
       for (const v of values) {
-        if (v.modId === metric.mod.id && v.value.trim())
-          choiceByEntry.set(v.entryId, v.value.trim());
+        // Yoğunluk taşıyan değer etiketine iner; dağılım duyguya göre gruplanır
+        const label = choiceLabel(v.value).trim();
+        if (v.modId !== metric.mod.id || !label) continue;
+        const list = choiceByEntry.get(v.entryId);
+        if (list) list.push(label);
+        else choiceByEntry.set(v.entryId, [label]);
       }
     }
     const kind = metric.type === "count" ? "number" : metric.mod.kind;
@@ -135,14 +142,12 @@ export default function ActivityAnalyticsPage({
         .map((e) => valueByEntry.get(e.id))
         .filter((v): v is number => v !== undefined);
     const choicesOf = (subset: Entry[]) =>
-      subset
-        .map((e) => choiceByEntry.get(e.id))
-        .filter((v): v is string => !!v);
+      subset.flatMap((e) => choiceByEntry.get(e.id) ?? []);
     const filledCount = (subset: Entry[]): number =>
       metric.type === "count"
         ? subset.length
         : isChoice
-          ? choicesOf(subset).length
+          ? subset.filter((e) => (choiceByEntry.get(e.id)?.length ?? 0) > 0).length
           : valuesOf(subset).length;
     const aggregate = (subset: Entry[]): number =>
       metric.type === "count"

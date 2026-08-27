@@ -7,6 +7,10 @@ import { createEntry, getBuiltInTarget } from "@/lib/db/queries";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { EmotionFace, ScaleFace, emotionLook } from "@/lib/icons/emotions";
+import { LevelBar } from "@/components/forms/level-bar";
+import { FIELD_TONES } from "@/components/forms/field-tone";
+import { LEVEL_DEFAULT, packChoiceLevel } from "@/lib/choice-level";
 
 interface MoodSheetProps {
   date: string;
@@ -15,35 +19,46 @@ interface MoodSheetProps {
 }
 
 const ACCENT = "#f472b6";
-
-/** Skalanın her basamağının yüzü — sayı tek başına "3 neydi?" sorusunu bırakıyor */
-const FACES = ["😞", "🙁", "😐", "🙂", "😄"];
+const SKIN = FIELD_TONES.mood;
 
 /**
  * Yerleşik Ruh hali akışı: Ekle → Ruh hali.
  *
- * Uyku ile aynı kurulum — altta sıradan bir kategori, kullanıcıya ayrı bir
- * şey gibi sunuluyor. İki özelliği var: mutluluk (skala) ve duygular.
+ * İki özelliği var, her biri kendi penceresinde — uyku akışındaki süre/kalite
+ * pencereleriyle aynı iskelet (üstte başlık şeridi, ortada gövde, altta özet),
+ * yalnız ton pembe: mutluluk skalası ve duygular.
  *
  * Duygular ayrı bir kavram DEĞİL, seçenekli bir özelliğin seçenekleri; tek
- * farkı birden çok seçilebilmesi. Her seçilen duygu kendi değer satırı
- * olarak yazılıyor — depolama bunu zaten kaldırıyordu, yeni bir ölçüm türü
- * uydurmaya gerek kalmadı.
+ * farkı birden çok seçilebilmesi ve her seçimin bir YOĞUNLUK taşıması.
+ * Yoğunluk için yeni bir ölçüm türü uydurulmadı, değerin kendisinde duruyor
+ * ("Happy|70" — bkz. lib/choice-level). Analiz tarafı duyguyu yine etiketiyle
+ * grupluyor, "ne kadar" bilgisi de kayıtta kalıyor.
  *
- * Gün içinde istenildiği kadar kayıt açılabilir: ruh hali sabah ve akşam
- * aynı olmuyor, her kayıt kendi saatini taşıyor.
+ * Duygu ızgarası: seçilmemişler küçük kutucuk (yüz + ad), seçilen kutucuk
+ * BULUNDUĞU YERDE tam satıra açılıp çubuğunu gösteriyor, altındakiler aşağı
+ * kayıyor. Yüze yeniden dokunmak seçimi kaldırır. Amaç "hangi duygular" ile
+ * "ne kadar" sorusunu tek dokunuşluk mesafede tutmak; ayrı bir yoğunluk adımı
+ * akışı ikiye bölerdi.
+ *
+ * Yüzler emoji değil kendi setimiz (lib/icons/emotions): emoji her cihazda
+ * başka çiziliyor ve kendi rengini dayatıyor. Burada rengi duygunun kendisi
+ * veriyor, ızgara bir renk haritası gibi okunuyor.
+ *
+ * Gün içinde istenildiği kadar kayıt açılabilir: ruh hali sabah ve akşam aynı
+ * olmuyor, her kayıt kendi saatini taşıyor.
  */
 export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
   const t = useT();
   const [level, setLevel] = useState("");
-  const [emotions, setEmotions] = useState<string[]>([]);
+  /** Seçili duygular: ad → yoğunluk. Sıra ızgaranın kendi sırası. */
+  const [emotions, setEmotions] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) {
       const timer = setTimeout(() => {
         setLevel("");
-        setEmotions([]);
+        setEmotions({});
       }, 300);
       return () => clearTimeout(timer);
     }
@@ -66,10 +81,21 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
     return { sub: found.sub, scale, feelings };
   }, []);
 
+  const scaleChoices = target?.scale?.entryType.choices ?? [];
+  const emotionChoices = target?.feelings?.entryType.choices ?? [];
+  const pickedCount = Object.keys(emotions).length;
+  const nothingPicked = !level && pickedCount === 0;
+  const scaleLabels = target?.scale?.mod?.scaleLabels;
+
   function toggleEmotion(name: string) {
-    setEmotions((prev) =>
-      prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]
-    );
+    setEmotions((prev) => {
+      if (name in prev) {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      }
+      return { ...prev, [name]: LEVEL_DEFAULT };
+    });
   }
 
   async function handleSave() {
@@ -85,13 +111,15 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
           value: level,
         });
       }
-      // Her duygu ayrı bir değer satırı — aynı özellikten birden çok değer
-      for (const emotion of emotions) {
-        if (!target.feelings) break;
+      // Her duygu ayrı bir değer satırı — aynı özellikten birden çok değer.
+      // Yoğunluk değerin içinde taşınıyor. Seçenek listesi üzerinden dönülüyor
+      // ki kayıt sırası ızgaranın sırasıyla aynı olsun.
+      for (const choice of emotionChoices) {
+        if (!target.feelings || !(choice in emotions)) continue;
         typeValues.push({
           entryTypeId: target.feelings.entryTypeId,
           modId: target.feelings.modId,
-          value: emotion,
+          value: packChoiceLevel(choice, emotions[choice]),
         });
       }
 
@@ -112,10 +140,6 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
       setSaving(false);
     }
   }
-
-  const scaleChoices = target?.scale?.entryType.choices ?? [];
-  const emotionChoices = target?.feelings?.entryType.choices ?? [];
-  const nothingPicked = !level && emotions.length === 0;
 
   return (
     <>
@@ -160,7 +184,7 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
           </button>
         </div>
 
-        <div className="flex flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-5 pb-6">
+        <div className="flex flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-5 pb-6">
           {target === null ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               {t("mood.missing")}
@@ -168,16 +192,10 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
           ) : target === undefined ? null : (
             <>
               {scaleChoices.length > 0 && (
-                <div className="flex flex-col gap-2.5">
-                  <label
-                    className="text-[11px] font-semibold uppercase tracking-wide"
-                    style={{ color: ACCENT }}
-                  >
-                    {t("mood.level")}
-                  </label>
+                <MoodWindow caption={t("mood.level")}>
                   {/* Basamaklar eşit paylı: skala bir sıra, tek tek düğme
                       değil. Yüz sayının ne demek olduğunu söylüyor. */}
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-1.5 px-4 pb-3.5 pt-2.5">
                     {scaleChoices.map((c, i) => {
                       const on = level === c;
                       return (
@@ -188,9 +206,7 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
                           aria-pressed={on}
                           className={cn(
                             "flex flex-1 flex-col items-center gap-0.5 rounded-xl border py-2 transition-colors",
-                            on
-                              ? "border-transparent"
-                              : "border-white/[0.09] bg-white/[0.04] hover:bg-white/[0.07]"
+                            on ? "border-transparent" : SKIN.choiceOff
                           )}
                           style={
                             on
@@ -201,9 +217,13 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
                               : undefined
                           }
                         >
-                          <span className="text-[19px] leading-6">
-                            {FACES[i] ?? "🙂"}
-                          </span>
+                          <ScaleFace
+                            index={i}
+                            total={scaleChoices.length}
+                            size={22}
+                            className={on ? undefined : "text-muted-foreground"}
+                            style={on ? { color: ACCENT } : undefined}
+                          />
                           <span
                             className={cn(
                               "text-[11px] font-semibold leading-4",
@@ -216,61 +236,116 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
                       );
                     })}
                   </div>
-                  {(target.scale?.mod?.scaleLabels?.low ||
-                    target.scale?.mod?.scaleLabels?.high) && (
-                    <div className="flex justify-between px-1 text-[10.5px] text-muted-foreground">
-                      <span>{target.scale?.mod?.scaleLabels?.low}</span>
-                      <span>{target.scale?.mod?.scaleLabels?.high}</span>
-                    </div>
-                  )}
-                </div>
+                  <MoodFooter>
+                    {scaleLabels?.low || scaleLabels?.high ? (
+                      <span className="flex flex-1 justify-between text-[11px] text-muted-foreground/70">
+                        <span>{scaleLabels?.low}</span>
+                        <span>{scaleLabels?.high}</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground/40">
+                        {t("mood.levelHint")}
+                      </span>
+                    )}
+                  </MoodFooter>
+                </MoodWindow>
               )}
 
               {emotionChoices.length > 0 && (
-                <div className="flex flex-col gap-2.5">
-                  <div className="flex items-baseline gap-2">
-                    <label
-                      className="text-[11px] font-semibold uppercase tracking-wide"
-                      style={{ color: ACCENT }}
-                    >
-                      {t("mood.emotions")}
-                    </label>
-                    <span className="text-[10.5px] text-muted-foreground">
-                      {emotions.length > 0
-                        ? t("mood.selectedCount", { count: emotions.length })
-                        : t("mood.emotionsHint")}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
+                <MoodWindow caption={t("mood.emotions")}>
+                  {/* Dört sütunluk ızgara; seçilen kutucuk yerinde tam satıra
+                      açılıyor (col-span-4). Çubuk basılan yerde beliriyor. */}
+                  <div className="grid grid-cols-4 gap-1.5 px-4 pb-3.5 pt-2.5">
                     {emotionChoices.map((c) => {
-                      const on = emotions.includes(c);
+                      const look = emotionLook(c);
+                      if (!(c in emotions)) {
+                        return (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => toggleEmotion(c)}
+                            aria-pressed={false}
+                            className={cn(
+                              "flex flex-col items-center gap-1 rounded-xl border py-2 transition-colors",
+                              SKIN.choiceOff
+                            )}
+                          >
+                            <EmotionFace
+                              name={c}
+                              size={22}
+                              style={{ color: look.color, opacity: 0.62 }}
+                            />
+                            <span className="w-full truncate px-0.5 text-center text-[9px] font-medium leading-3">
+                              {c}
+                            </span>
+                          </button>
+                        );
+                      }
                       return (
-                        <button
+                        <div
                           key={c}
-                          type="button"
-                          onClick={() => toggleEmotion(c)}
-                          aria-pressed={on}
-                          className={cn(
-                            "rounded-full px-3 py-1.5 text-[12.5px] font-medium transition-colors",
-                            on
-                              ? "text-foreground"
-                              : "bg-white/[0.05] text-muted-foreground hover:bg-white/[0.09] hover:text-foreground"
-                          )}
-                          style={
-                            on
-                              ? {
-                                  background: `${ACCENT}2b`,
-                                  boxShadow: `inset 0 0 0 1px ${ACCENT}80`,
-                                }
-                              : undefined
-                          }
+                          className="col-span-4 rounded-xl border px-3 py-2"
+                          style={{
+                            borderColor: `${look.color}66`,
+                            background: `${look.color}14`,
+                          }}
                         >
-                          {c}
-                        </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleEmotion(c)}
+                              aria-pressed
+                              aria-label={t("mood.removeEmotion", { name: c })}
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-transform active:scale-90"
+                            >
+                              <EmotionFace
+                                name={c}
+                                size={24}
+                                style={{ color: look.color }}
+                              />
+                            </button>
+                            <span className="flex-1 truncate text-[13px] font-semibold">
+                              {c}
+                            </span>
+                            <span
+                              className="shrink-0 text-[13px] font-bold tabular-nums"
+                              style={{ color: look.color }}
+                            >
+                              {emotions[c]}
+                            </span>
+                          </div>
+                          <LevelBar
+                            value={emotions[c]}
+                            onChange={(v) =>
+                              setEmotions((prev) => ({ ...prev, [c]: v }))
+                            }
+                            color={look.color}
+                            label={t("mood.intensityOf", { name: c })}
+                          />
+                        </div>
                       );
                     })}
                   </div>
-                </div>
+                  <MoodFooter>
+                    {pickedCount > 0 ? (
+                      <>
+                        <span
+                          className={cn(
+                            "h-1.5 w-1.5 shrink-0 rounded-full",
+                            SKIN.dot
+                          )}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {t("mood.selectedCount", { count: pickedCount })}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-xs text-muted-foreground/40">
+                        {t("mood.emotionsHint")}
+                      </span>
+                    )}
+                  </MoodFooter>
+                </MoodWindow>
               )}
             </>
           )}
@@ -289,5 +364,43 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
         </div>
       </div>
     </>
+  );
+}
+
+/** Ruh hali penceresi — uyku pencereleriyle aynı iskelet, pembe ton */
+function MoodWindow({
+  caption,
+  children,
+}: {
+  caption: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cn("overflow-hidden rounded-2xl border", SKIN.shell)}>
+      <div
+        className={cn(
+          "px-4 pt-3 text-[9px] font-bold uppercase tracking-[0.15em]",
+          SKIN.caption
+        )}
+      >
+        {caption}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** Pencerenin alt şeridi — aralık penceresindeki süre satırının karşılığı */
+function MoodFooter({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 border-t px-4 py-2.5",
+        SKIN.line,
+        SKIN.strip
+      )}
+    >
+      {children}
+    </div>
   );
 }

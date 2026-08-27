@@ -19,6 +19,7 @@ import { useT } from "@/lib/i18n";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { modAtomIcon } from "@/components/structure/mod-atom";
 import { modColor } from "@/lib/mod-color";
+import { splitChoiceLevel } from "@/lib/choice-level";
 import type { LucideIcon } from "lucide-react";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
@@ -1012,6 +1013,10 @@ function valueSummary(mod: CategoryModifierWithType, value: string): string {
   const vt = mod.entryType.valueType ?? "number";
   if (vt === "boolean") return value === "true" ? "✓" : "—";
   if (vt === "datetime-range") return formatDTRDisplay(value);
+  if (vt === "select") {
+    const { label, level } = splitChoiceLevel(value);
+    return level === null ? label : `${label} %${level}`;
+  }
   return mod.entryType.unit ? `${value} ${mod.entryType.unit}` : value;
 }
 
