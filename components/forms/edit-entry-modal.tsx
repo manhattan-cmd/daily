@@ -59,7 +59,8 @@ import {
 import { ParallelPickList } from "@/components/forms/parallel-pick-dialog";
 import { ChoiceWindow } from "@/components/forms/choice-window";
 import { EmotionPicker } from "@/components/forms/emotion-picker";
-import { FIELD_TONES } from "@/components/forms/field-tone";
+import { FieldWindow } from "@/components/forms/field-window";
+import { MoodScale } from "@/components/forms/mood-scale";
 import { splitChoiceLevel } from "@/lib/choice-level";
 import type { FieldTone } from "@/components/forms/field-tone";
 import {
@@ -1166,29 +1167,44 @@ function ModInput({
           arayüzü tutmak, birinde yapılan her düzeltmeyi ötekinde unutmak
           demekti. */}
       {vt === "select" && isEmotionRow ? (
-        <div
-          className={cn(
-            "overflow-hidden rounded-2xl border",
-            FIELD_TONES.mood.shell
-          )}
-        >
+        <FieldWindow tone="mood">
           <EmotionPicker
             choices={entryType.choices ?? []}
             values={values}
             onChange={onChange}
           />
-        </div>
+        </FieldWindow>
+      ) : null}
+
+      {/* Mutluluk skalası: rakam değil yüz — ekleme penceresiyle aynı bileşen */}
+      {vt === "select" && !isEmotionRow && tone === "mood" ? (
+        <FieldWindow
+          tone="mood"
+          caption={t("mood.levelPrompt")}
+          footer={
+            <span className="text-xs text-muted-foreground/50">
+              {t("mood.levelHint")}
+            </span>
+          }
+        >
+          <MoodScale
+            choices={entryType.choices ?? []}
+            value={value}
+            onChange={setOne}
+          />
+        </FieldWindow>
       ) : null}
 
       {vt === "select" &&
         !isEmotionRow &&
-        (tone === "sleep" || tone === "mood" ? (
+        tone !== "mood" &&
+        (tone === "sleep" ? (
           <ChoiceWindow
             choices={entryType.choices ?? []}
             value={value}
             onChange={setOne}
             captionKey="field.scale"
-            hintKey={tone === "mood" ? "mood.levelHint" : "sleep.qualityHint"}
+            hintKey="sleep.qualityHint"
             tone={tone}
           />
         ) : (

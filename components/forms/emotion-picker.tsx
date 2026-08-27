@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { ChevronUp, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { EmotionFace, emotionLook } from "@/lib/icons/emotions";
@@ -30,8 +30,10 @@ import {
  *
  * Dokunma kuralları: seçili olmayana dokunmak seçer ve penceresini açar;
  * seçili olana dokunmak penceresini açar (yeniden ayarlamak için), açıkken
- * dokunmak pencereyi kapatır. Seçimi kaldırmak penceredeki × ile — kutucuğa
- * tekrar dokunmak silseydi ayarlamak için dokunmak da tehlikeli olurdu.
+ * dokunmak pencereyi kapatır. Pencereyi kapatmanın açık yolu çubuğun yanındaki
+ * "Bitti" düğmesi — kutucuğa tekrar dokunmayı keşfetmek gerekmiyor. Seçimi
+ * kaldırmak × ile; kutucuğa tekrar dokunmak silseydi ayarlamak için dokunmak
+ * da tehlikeli olurdu.
  *
  * Değer biçimi ham EntryValue biçimiyle aynı: "Happy" ya da "Happy|70"
  * (bkz. lib/choice-level). Böylece hem ekleme hem düzenleme penceresi aynı
@@ -135,12 +137,22 @@ export function EmotionPicker({
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
-            <LevelBar
-              value={activeLevel}
-              onChange={(v) => setLevel(active, v)}
-              color={activeLook.color}
-              label={t("mood.intensityOf", { name: active })}
-            />
+            <div className="flex items-center gap-2">
+              <LevelBar
+                value={activeLevel}
+                onChange={(v) => setLevel(active, v)}
+                color={activeLook.color}
+                label={t("mood.intensityOf", { name: active })}
+              />
+              <button
+                type="button"
+                onClick={() => setActive(null)}
+                className="flex shrink-0 items-center gap-0.5 rounded-full bg-white/8 py-1 pl-2 pr-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
+              >
+                {t("action.done")}
+                <ChevronUp className="h-3 w-3" />
+              </button>
+            </div>
           </div>
         </div>
       )}

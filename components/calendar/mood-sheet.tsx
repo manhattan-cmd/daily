@@ -7,8 +7,9 @@ import { createEntry, getBuiltInTarget } from "@/lib/db/queries";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { ScaleFace } from "@/lib/icons/emotions";
 import { EmotionPicker } from "@/components/forms/emotion-picker";
+import { FieldWindow } from "@/components/forms/field-window";
+import { MoodScale } from "@/components/forms/mood-scale";
 import { FIELD_TONES } from "@/components/forms/field-tone";
 
 interface MoodSheetProps {
@@ -176,52 +177,11 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
           ) : target === undefined ? null : (
             <>
               {scaleChoices.length > 0 && (
-                <MoodWindow caption={t("mood.level")}>
-                  {/* Basamaklar eşit paylı: skala bir sıra, tek tek düğme
-                      değil. Yüz sayının ne demek olduğunu söylüyor. */}
-                  <div className="flex gap-1.5 px-4 pb-3.5 pt-2.5">
-                    {scaleChoices.map((c, i) => {
-                      const on = level === c;
-                      return (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => setLevel(on ? "" : c)}
-                          aria-pressed={on}
-                          className={cn(
-                            "flex flex-1 flex-col items-center gap-0.5 rounded-xl border py-2 transition-colors",
-                            on ? "border-transparent" : SKIN.choiceOff
-                          )}
-                          style={
-                            on
-                              ? {
-                                  background: `${ACCENT}2b`,
-                                  boxShadow: `inset 0 0 0 1px ${ACCENT}80`,
-                                }
-                              : undefined
-                          }
-                        >
-                          <ScaleFace
-                            index={i}
-                            total={scaleChoices.length}
-                            size={22}
-                            className={on ? undefined : "text-muted-foreground"}
-                            style={on ? { color: ACCENT } : undefined}
-                          />
-                          <span
-                            className={cn(
-                              "text-[11px] font-semibold leading-4",
-                              on ? "text-foreground" : "text-muted-foreground"
-                            )}
-                          >
-                            {c}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <MoodFooter>
-                    {scaleLabels?.low || scaleLabels?.high ? (
+                <FieldWindow
+                  tone="mood"
+                  caption={t("mood.levelPrompt")}
+                  footer={
+                    scaleLabels?.low || scaleLabels?.high ? (
                       <span className="flex flex-1 justify-between text-[11px] text-muted-foreground/70">
                         <span>{scaleLabels?.low}</span>
                         <span>{scaleLabels?.high}</span>
@@ -230,20 +190,23 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
                       <span className="text-xs text-muted-foreground/40">
                         {t("mood.levelHint")}
                       </span>
-                    )}
-                  </MoodFooter>
-                </MoodWindow>
+                    )
+                  }
+                >
+                  <MoodScale
+                    choices={scaleChoices}
+                    value={level}
+                    onChange={setLevel}
+                  />
+                </FieldWindow>
               )}
 
               {emotionChoices.length > 0 && (
-                <MoodWindow caption={t("mood.emotions")}>
-                  <EmotionPicker
-                    choices={emotionChoices}
-                    values={emotions}
-                    onChange={setEmotions}
-                  />
-                  <MoodFooter>
-                    {pickedCount > 0 ? (
+                <FieldWindow
+                  tone="mood"
+                  caption={t("mood.emotions")}
+                  footer={
+                    pickedCount > 0 ? (
                       <>
                         <span
                           className={cn(
@@ -259,9 +222,15 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
                       <span className="text-xs text-muted-foreground/40">
                         {t("mood.emotionsHint")}
                       </span>
-                    )}
-                  </MoodFooter>
-                </MoodWindow>
+                    )
+                  }
+                >
+                  <EmotionPicker
+                    choices={emotionChoices}
+                    values={emotions}
+                    onChange={setEmotions}
+                  />
+                </FieldWindow>
               )}
             </>
           )}
@@ -280,50 +249,5 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
         </div>
       </div>
     </>
-  );
-}
-
-/**
- * Ruh hali penceresi — uyku pencereleriyle aynı iskelet, pembe ton.
- *
- * shrink-0 şart: pencereler esnek bir sütunun çocukları, varsayılan olarak
- * sıkışabiliyorlar. Duygu seçildikçe alttaki pencere büyüyünce üstteki
- * mutluluk penceresi eziliyor, yüzler ve rakamlar kırpılıyordu. Artık
- * pencereler boyunu koruyor, taşan yeri sayfa kaydırılıyor.
- */
-function MoodWindow({
-  caption,
-  children,
-}: {
-  caption: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={cn("shrink-0 overflow-hidden rounded-2xl border", SKIN.shell)}>
-      <div
-        className={cn(
-          "px-4 pt-3 text-[9px] font-bold uppercase tracking-[0.15em]",
-          SKIN.caption
-        )}
-      >
-        {caption}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-/** Pencerenin alt şeridi — aralık penceresindeki süre satırının karşılığı */
-function MoodFooter({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className={cn(
-        "flex items-center gap-2 border-t px-4 py-2.5",
-        SKIN.line,
-        SKIN.strip
-      )}
-    >
-      {children}
-    </div>
   );
 }
