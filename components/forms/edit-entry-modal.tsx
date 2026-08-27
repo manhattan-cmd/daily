@@ -47,7 +47,7 @@ import {
 } from "@/lib/db/queries";
 import { Switch } from "@/components/ui/switch";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
-import { SHORT_MONTHS } from "@/lib/analytics";
+import { isNumericChoiceSet, SHORT_MONTHS } from "@/lib/analytics";
 import { useT } from "@/lib/i18n";
 import { confirmDialog } from "@/components/ui/confirm";
 import { AliasEditor } from "@/components/notes/alias-editor";
@@ -58,6 +58,8 @@ import {
 } from "@/components/forms/datetime-range-input";
 import { ParallelPickList } from "@/components/forms/parallel-pick-dialog";
 import { ChoiceWindow } from "@/components/forms/choice-window";
+import { EmotionPicker } from "@/components/forms/emotion-picker";
+import { FIELD_TONES } from "@/components/forms/field-tone";
 import { splitChoiceLevel } from "@/lib/choice-level";
 import type { FieldTone } from "@/components/forms/field-tone";
 import {
@@ -99,11 +101,13 @@ export function EditEntryModal({
   const t = useT();
   // Yerleşik uyku girdisi düzenlenirken alanlar da uykunun moruna boyanır —
   // kart, ekleme penceresi ve düzenleme penceresi aynı dili konuşsun
-  const fieldTone: FieldTone =
-    entry.category.isBuiltIn &&
-    (entry.category.builtInKey ?? "sleep") === "sleep"
-      ? "sleep"
-      : "default";
+  // Yerleşik akışın rengi: uyku moru, ruh hali pembesi. Anahtarı olmayan tek
+  // yerleşik eski kurulumdaki Uyku.
+  const fieldTone: FieldTone = !entry.category.isBuiltIn
+    ? "default"
+    : (entry.category.builtInKey ?? "sleep") === "mood"
+      ? "mood"
+      : "sleep";
   const router = useRouter();
   const mods = useLiveQuery(
     () => listModifiersForTarget("subcategory", entry.subcategoryId),
@@ -120,27 +124,16 @@ export function EditEntryModal({
     [entry.id]
   );
 
-  // Satır anahtarı: isimli mod değerleri için modId, girdiye özel ölçüler için "t:<typeId>"
-  const [values, setValues] = useState<Record<string, string>>(() => {
-    const init: Record<string, string> = {};
-    for (const v of entry.values) {
-      if (v.modId || v.entryTypeId)
-        init[v.modId ?? `t:${v.entryTypeId}`] = v.value;
-    }
-    return init;
-  });
-
-  // Bir girdi aynı özellikten birden çok değer taşıyabiliyor (ruh halinde bir
-  // kayıtta üç duygu). Modalın satırı tek değer gösteriyor; satıra
-  // dokunulmadıysa kalanlar da geri yazılsın diye tamamı burada saklanıyor.
-  // Yoksa girdiyi yalnız saatini değiştirmek için açıp kaydetmek öbür
-  // değerleri sessizce siliyordu.
-  const [loadedValues] = useState<Record<string, string[]>>(() => {
+  // Satır anahtarı: isimli mod değerleri için modId, girdiye özel ölçüler için
+  // "t:<typeId>". Değer DİZİ: bir girdi aynı özellikten birden çok değer
+  // taşıyabiliyor (ruh halinde bir kayıtta üç duygu). Tek dizeyken satır son
+  // değeri gösteriyor, kaydetmek de öbürlerini siliyordu. Tek değerli
+  // özelliklerde dizi tek elemanlı — davranış aynı.
+  const [values, setValues] = useState<Record<string, string[]>>(() => {
     const init: Record<string, string[]> = {};
     for (const v of entry.values) {
       if (!v.modId && !v.entryTypeId) continue;
-      const key = v.modId ?? `t:${v.entryTypeId}`;
-      (init[key] ??= []).push(v.value);
+      (init[v.modId ?? `t:${v.entryTypeId}`] ??= []).push(v.value);
     }
     return init;
   });
@@ -446,21 +439,15 @@ export function EditEntryModal({
     setSaving(true);
     try {
       await setEntryAliases(entry.id, aliases);
-      const typeValues = rows
-        .filter((r) => (values[r.key] ?? "") !== "")
-        .flatMap((r) => {
-          const loaded = loadedValues[r.key] ?? [];
-          // Gösterilen değer hâlâ yüklenenlerin sonuncusuysa satıra
-          // dokunulmamış demektir: çoklu değerin tamamı korunur. Kullanıcı
-          // başka bir seçenek seçtiyse yerine tek değer geçer.
-          const untouched =
-            loaded.length > 1 && loaded[loaded.length - 1] === values[r.key];
-          return (untouched ? loaded : [values[r.key]]).map((value) => ({
+      const typeValues = rows.flatMap((r) =>
+        (values[r.key] ?? [])
+          .filter((value) => value !== "")
+          .map((value) => ({
             entryTypeId: r.entryTypeId,
             modId: r.modId,
             value,
-          }));
-        });
+          }))
+      );
       await updateEntry(entry.id, {
         typeValues,
         occurredAt: new Date(occurredAt).getTime(),
@@ -562,11 +549,13 @@ export function EditEntryModal({
                         key={m.id}
                         label={label}
                         entryType={m.entryType}
-                        value={pValues[pValueKey(m)] ?? ""}
+                        values={
+                          pValues[pValueKey(m)] ? [pValues[pValueKey(m)]] : []
+                        }
                         onChange={(v) =>
                           setPValues((prev) => ({
                             ...prev,
-                            [pValueKey(m)]: v,
+                            [pValueKey(m)]: v[0] ?? "",
                           }))
                         }
                         entryDate={entryDate}
@@ -756,12 +745,11 @@ export function EditEntryModal({
                 key={row.key}
                 label={row.label}
                 entryType={row.entryType}
-                value={values[row.key] ?? ""}
+                values={values[row.key] ?? []}
                 onChange={(v) =>
                   setValues((prev) => ({ ...prev, [row.key]: v }))
                 }
                 onRemove={() => handleRemove(row.key)}
-                extraCount={(loadedValues[row.key]?.length ?? 1) - 1}
                 isShared={!!row.modId && siblingModIds.has(row.modId)}
                 entryDate={entryDate}
                 autoFocus={row.key === focusKey}
@@ -1060,35 +1048,45 @@ export function EditEntryModal({
   );
 }
 
+/**
+ * Tek özelliğin giriş satırı.
+ *
+ * Değer DİZİ: çok seçimli özellikler (ruh halindeki duygular) aynı satırda
+ * birden çok değer taşıyor. Tek değerli türler dizinin ilk elemanını okuyup
+ * tek elemanlı dizi yazıyor — çağıran taraf iki ayrı yol tutmuyor.
+ */
 function ModInput({
   label,
   entryType,
-  value,
+  values,
   onChange,
   onRemove,
   isShared = false,
   entryDate,
   autoFocus = false,
   tone = "default",
-  extraCount = 0,
 }: {
   label: string;
   entryType: EntryType;
-  value: string;
-  onChange: (v: string) => void;
+  values: string[];
+  onChange: (v: string[]) => void;
   onRemove?: () => void;
-  /** Bu satırda gösterilenden kaç değer daha var (çok seçimli özellikler) */
-  extraCount?: number;
   isShared?: boolean;
   entryDate?: string;
   /** Yeni eklenen özellik: alan görünüme kaydırılır, yazı alanları odaklanır */
   autoFocus?: boolean;
-  /** Yerleşik akışın rengi — uyku alanları kendi penceresinde ve morunda */
+  /** Yerleşik akışın rengi — uyku ve ruh hali alanları kendi penceresinde */
   tone?: FieldTone;
 }) {
   const t = useT();
   const vt = entryType.valueType ?? "number";
   const today = toLocalDateValue();
+  const value = values[0] ?? "";
+  const setOne = (v: string) => onChange(v === "" ? [] : [v]);
+  // Ruh halindeki duygular: sayısal OLMAYAN seçenekli özellik. Ekleme
+  // penceresi de aynı kuralla ayırıyor (sayısal seçenekler = mutluluk skalası).
+  const isEmotionRow =
+    tone === "mood" && vt === "select" && !isNumericChoiceSet(entryType.choices);
   const scrolledRef = useRef(false);
   const scrollOnMount = (el: HTMLDivElement | null) => {
     if (el && autoFocus && !scrolledRef.current) {
@@ -1106,11 +1104,6 @@ function ModInput({
             {label !== entryType.name && `${entryType.name} `}
             {entryType.unit && `(${entryType.unit})`}
           </span>
-          {extraCount > 0 && (
-            <span className="ml-1.5 rounded-full bg-white/8 px-1.5 py-px text-[10px] font-medium text-muted-foreground">
-              +{extraCount}
-            </span>
-          )}
         </label>
         <div className="flex items-center gap-2">
           {isShared && (
@@ -1137,7 +1130,7 @@ function ModInput({
           type="number"
           inputMode="decimal"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => setOne(e.target.value)}
           placeholder="0"
           step="any"
           autoFocus={autoFocus}
@@ -1147,7 +1140,7 @@ function ModInput({
       {vt === "text" && (
         <Input
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => setOne(e.target.value)}
           placeholder={t("entry.textPlaceholder")}
           autoFocus={autoFocus}
         />
@@ -1156,7 +1149,7 @@ function ModInput({
       {vt === "boolean" && (
         <button
           type="button"
-          onClick={() => onChange(value === "true" ? "false" : "true")}
+          onClick={() => setOne(value === "true" ? "false" : "true")}
           className={cn(
             "flex h-10 w-full items-center justify-center rounded-xl border text-sm font-medium transition-colors",
             value === "true"
@@ -1168,14 +1161,34 @@ function ModInput({
         </button>
       )}
 
+      {/* Duygular: ekleme penceresindekinin AYNI bileşeni — ızgara sabit,
+          yoğunluk çubukları altta toplanıyor. İki yerde iki ayrı duygu
+          arayüzü tutmak, birinde yapılan her düzeltmeyi ötekinde unutmak
+          demekti. */}
+      {vt === "select" && isEmotionRow ? (
+        <div
+          className={cn(
+            "overflow-hidden rounded-2xl border",
+            FIELD_TONES.mood.shell
+          )}
+        >
+          <EmotionPicker
+            choices={entryType.choices ?? []}
+            values={values}
+            onChange={onChange}
+          />
+        </div>
+      ) : null}
+
       {vt === "select" &&
-        (tone === "sleep" ? (
+        !isEmotionRow &&
+        (tone === "sleep" || tone === "mood" ? (
           <ChoiceWindow
             choices={entryType.choices ?? []}
             value={value}
-            onChange={onChange}
-            captionKey="sleep.qualityScale"
-            hintKey="sleep.qualityHint"
+            onChange={setOne}
+            captionKey="field.scale"
+            hintKey={tone === "mood" ? "mood.levelHint" : "sleep.qualityHint"}
             tone={tone}
           />
         ) : (
@@ -1189,7 +1202,7 @@ function ModInput({
                 <button
                   key={choice}
                   type="button"
-                  onClick={() => onChange(on ? value : choice)}
+                  onClick={() => setOne(on ? value : choice)}
                   className={cn(
                     "rounded-xl border px-4 py-2 text-sm font-medium transition-colors",
                     on
@@ -1210,7 +1223,7 @@ function ModInput({
       {vt === "datetime-range" && (
         <DateTimeRangeInput
           value={value}
-          onChange={onChange}
+          onChange={setOne}
           entryDate={entryDate ?? today}
           tone={tone}
         />

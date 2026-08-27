@@ -170,7 +170,7 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
                     choices={target.qualityMod.entryType.choices ?? []}
                     value={quality}
                     onChange={setQuality}
-                    captionKey="sleep.qualityScale"
+                    captionKey="field.scale"
                     hintKey="sleep.qualityHint"
                     tone="sleep"
                   />

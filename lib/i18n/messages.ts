@@ -228,7 +228,6 @@ export const en = {
   "sleep.notFound": "Sleep category not found.",
   "sleep.duration": "Sleep duration",
   "sleep.quality": "Sleep quality",
-  "sleep.qualityScale": "Scale",
   "sleep.qualityHint": "Pick how rested you woke up",
   "goal.select": "Select {name} goal",
 
@@ -249,6 +248,7 @@ export const en = {
   "mood.logged": "Mood logged",
 
   // ── Tarih & saat ─────────────────────────────────────────────────────
+  "field.scale": "Scale",
   "datetime.title": "Date & time",
   "datetime.start": "Start",
   "datetime.end": "End",
@@ -771,7 +771,6 @@ export const tr: Record<MessageKey, string> = {
   "sleep.notFound": "Uyku kategorisi bulunamadı.",
   "sleep.duration": "Uyku süresi",
   "sleep.quality": "Uyku kalitesi",
-  "sleep.qualityScale": "Ölçek",
   "sleep.qualityHint": "Ne kadar dinlenmiş uyandığını seç",
   "goal.select": "{name} hedefini seç",
 
@@ -790,6 +789,7 @@ export const tr: Record<MessageKey, string> = {
   "mood.select": "Ruh hali kaydını seç",
   "mood.logged": "Ruh hali kaydedildi",
 
+  "field.scale": "Ölçek",
   "datetime.title": "Tarih & Saat",
   "datetime.start": "Başlangıç",
   "datetime.end": "Bitiş",

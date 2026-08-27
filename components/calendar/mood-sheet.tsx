@@ -7,10 +7,9 @@ import { createEntry, getBuiltInTarget } from "@/lib/db/queries";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { EmotionFace, ScaleFace, emotionLook } from "@/lib/icons/emotions";
-import { LevelBar } from "@/components/forms/level-bar";
+import { ScaleFace } from "@/lib/icons/emotions";
+import { EmotionPicker } from "@/components/forms/emotion-picker";
 import { FIELD_TONES } from "@/components/forms/field-tone";
-import { LEVEL_DEFAULT, packChoiceLevel } from "@/lib/choice-level";
 
 interface MoodSheetProps {
   date: string;
@@ -34,11 +33,8 @@ const SKIN = FIELD_TONES.mood;
  * ("Happy|70" — bkz. lib/choice-level). Analiz tarafı duyguyu yine etiketiyle
  * grupluyor, "ne kadar" bilgisi de kayıtta kalıyor.
  *
- * Duygu ızgarası: seçilmemişler küçük kutucuk (yüz + ad), seçilen kutucuk
- * BULUNDUĞU YERDE tam satıra açılıp çubuğunu gösteriyor, altındakiler aşağı
- * kayıyor. Yüze yeniden dokunmak seçimi kaldırır. Amaç "hangi duygular" ile
- * "ne kadar" sorusunu tek dokunuşluk mesafede tutmak; ayrı bir yoğunluk adımı
- * akışı ikiye bölerdi.
+ * Duygu ızgarası ve yoğunluk çubukları EmotionPicker'da; düzenleme penceresi
+ * de aynı bileşeni kullanıyor ki iki yerde iki ayrı duygu arayüzü olmasın.
  *
  * Yüzler emoji değil kendi setimiz (lib/icons/emotions): emoji her cihazda
  * başka çiziliyor ve kendi rengini dayatıyor. Burada rengi duygunun kendisi
@@ -50,15 +46,15 @@ const SKIN = FIELD_TONES.mood;
 export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
   const t = useT();
   const [level, setLevel] = useState("");
-  /** Seçili duygular: ad → yoğunluk. Sıra ızgaranın kendi sırası. */
-  const [emotions, setEmotions] = useState<Record<string, number>>({});
+  /** Seçili duygular, ham değer biçiminde ("Happy|70") — kayda olduğu gibi gider */
+  const [emotions, setEmotions] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) {
       const timer = setTimeout(() => {
         setLevel("");
-        setEmotions({});
+        setEmotions([]);
       }, 300);
       return () => clearTimeout(timer);
     }
@@ -83,20 +79,9 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
 
   const scaleChoices = target?.scale?.entryType.choices ?? [];
   const emotionChoices = target?.feelings?.entryType.choices ?? [];
-  const pickedCount = Object.keys(emotions).length;
+  const pickedCount = emotions.length;
   const nothingPicked = !level && pickedCount === 0;
   const scaleLabels = target?.scale?.mod?.scaleLabels;
-
-  function toggleEmotion(name: string) {
-    setEmotions((prev) => {
-      if (name in prev) {
-        const next = { ...prev };
-        delete next[name];
-        return next;
-      }
-      return { ...prev, [name]: LEVEL_DEFAULT };
-    });
-  }
 
   async function handleSave() {
     if (!target || saving) return;
@@ -112,14 +97,13 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
         });
       }
       // Her duygu ayrı bir değer satırı — aynı özellikten birden çok değer.
-      // Yoğunluk değerin içinde taşınıyor. Seçenek listesi üzerinden dönülüyor
-      // ki kayıt sırası ızgaranın sırasıyla aynı olsun.
-      for (const choice of emotionChoices) {
-        if (!target.feelings || !(choice in emotions)) continue;
+      // Yoğunluk değerin içinde taşınıyor (seçici zaten o biçimde veriyor).
+      for (const value of emotions) {
+        if (!target.feelings) break;
         typeValues.push({
           entryTypeId: target.feelings.entryTypeId,
           modId: target.feelings.modId,
-          value: packChoiceLevel(choice, emotions[choice]),
+          value,
         });
       }
 
@@ -253,79 +237,11 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
 
               {emotionChoices.length > 0 && (
                 <MoodWindow caption={t("mood.emotions")}>
-                  {/* Dört sütunluk ızgara; seçilen kutucuk yerinde tam satıra
-                      açılıyor (col-span-4). Çubuk basılan yerde beliriyor. */}
-                  <div className="grid grid-cols-4 gap-1.5 px-4 pb-3.5 pt-2.5">
-                    {emotionChoices.map((c) => {
-                      const look = emotionLook(c);
-                      if (!(c in emotions)) {
-                        return (
-                          <button
-                            key={c}
-                            type="button"
-                            onClick={() => toggleEmotion(c)}
-                            aria-pressed={false}
-                            className={cn(
-                              "flex flex-col items-center gap-1 rounded-xl border py-2 transition-colors",
-                              SKIN.choiceOff
-                            )}
-                          >
-                            <EmotionFace
-                              name={c}
-                              size={22}
-                              style={{ color: look.color, opacity: 0.62 }}
-                            />
-                            <span className="w-full truncate px-0.5 text-center text-[9px] font-medium leading-3">
-                              {c}
-                            </span>
-                          </button>
-                        );
-                      }
-                      return (
-                        <div
-                          key={c}
-                          className="col-span-4 rounded-xl border px-3 py-2"
-                          style={{
-                            borderColor: `${look.color}66`,
-                            background: `${look.color}14`,
-                          }}
-                        >
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => toggleEmotion(c)}
-                              aria-pressed
-                              aria-label={t("mood.removeEmotion", { name: c })}
-                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-transform active:scale-90"
-                            >
-                              <EmotionFace
-                                name={c}
-                                size={24}
-                                style={{ color: look.color }}
-                              />
-                            </button>
-                            <span className="flex-1 truncate text-[13px] font-semibold">
-                              {c}
-                            </span>
-                            <span
-                              className="shrink-0 text-[13px] font-bold tabular-nums"
-                              style={{ color: look.color }}
-                            >
-                              {emotions[c]}
-                            </span>
-                          </div>
-                          <LevelBar
-                            value={emotions[c]}
-                            onChange={(v) =>
-                              setEmotions((prev) => ({ ...prev, [c]: v }))
-                            }
-                            color={look.color}
-                            label={t("mood.intensityOf", { name: c })}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <EmotionPicker
+                    choices={emotionChoices}
+                    values={emotions}
+                    onChange={setEmotions}
+                  />
                   <MoodFooter>
                     {pickedCount > 0 ? (
                       <>
@@ -367,7 +283,14 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
   );
 }
 
-/** Ruh hali penceresi — uyku pencereleriyle aynı iskelet, pembe ton */
+/**
+ * Ruh hali penceresi — uyku pencereleriyle aynı iskelet, pembe ton.
+ *
+ * shrink-0 şart: pencereler esnek bir sütunun çocukları, varsayılan olarak
+ * sıkışabiliyorlar. Duygu seçildikçe alttaki pencere büyüyünce üstteki
+ * mutluluk penceresi eziliyor, yüzler ve rakamlar kırpılıyordu. Artık
+ * pencereler boyunu koruyor, taşan yeri sayfa kaydırılıyor.
+ */
 function MoodWindow({
   caption,
   children,
@@ -376,7 +299,7 @@ function MoodWindow({
   children: React.ReactNode;
 }) {
   return (
-    <div className={cn("overflow-hidden rounded-2xl border", SKIN.shell)}>
+    <div className={cn("shrink-0 overflow-hidden rounded-2xl border", SKIN.shell)}>
       <div
         className={cn(
           "px-4 pt-3 text-[9px] font-bold uppercase tracking-[0.15em]",
