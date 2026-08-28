@@ -46,6 +46,38 @@ export interface FieldToneSkin {
   caption: string;
 }
 
+/**
+ * Rastgele bir renkten pencere yüzeyleri.
+ *
+ * Sabit tonlar (uyku moru, ruh hali pembesi) sınıf demeti olarak duruyor. Ama
+ * sıradan girdilerde renk KATEGORİDEN geliyor, yani çalışma anında belli
+ * oluyor — Tailwind sınıfı üretilemez. Aynı yüzeyler burada ham CSS rengi
+ * olarak hesaplanıyor; saydamlıklar sabit tonlarla aynı ağırlıkta seçildi.
+ */
+export interface ColorSkin {
+  shellBg: string;
+  shellBorder: string;
+  lineBorder: string;
+  stripBg: string;
+  caption: string;
+  dot: string;
+  fieldBg: string;
+  fieldBorder: string;
+}
+
+export function colorSkin(color: string): ColorSkin {
+  return {
+    shellBg: `${color}12`,
+    shellBorder: `${color}59`,
+    lineBorder: `${color}33`,
+    stripBg: `${color}0d`,
+    caption: `${color}cc`,
+    dot: `${color}8c`,
+    fieldBg: `${color}14`,
+    fieldBorder: `${color}33`,
+  };
+}
+
 export const FIELD_TONES: Record<FieldTone, FieldToneSkin> = {
   default: {
     shell: "bg-card",

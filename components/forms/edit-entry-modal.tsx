@@ -63,7 +63,7 @@ import { ChoiceWindow } from "@/components/forms/choice-window";
 import { EmotionPicker } from "@/components/forms/emotion-picker";
 import { FieldWindow } from "@/components/forms/field-window";
 import { MoodScale } from "@/components/forms/mood-scale";
-import { FIELD_TONES } from "@/components/forms/field-tone";
+import { colorSkin, FIELD_TONES } from "@/components/forms/field-tone";
 import { splitChoiceLevel } from "@/lib/choice-level";
 import type { FieldTone } from "@/components/forms/field-tone";
 import {
@@ -112,6 +112,10 @@ export function EditEntryModal({
     : (entry.category.builtInKey ?? "sleep") === "mood"
       ? "mood"
       : "sleep";
+  // Sıradan girdilerde alanlar kategori renginde; yerleşiklerin kendi sabit
+  // tonu var, orada serbest renk verilmez.
+  const fieldColor =
+    fieldTone === "default" ? entry.category.color || undefined : undefined;
   const router = useRouter();
   const mods = useLiveQuery(
     () => listModifiersForTarget("subcategory", entry.subcategoryId),
@@ -758,6 +762,7 @@ export function EditEntryModal({
                 entryDate={entryDate}
                 autoFocus={row.key === focusKey}
                 tone={fieldTone}
+                color={fieldColor}
               />
             ))}
 
@@ -950,6 +955,7 @@ export function EditEntryModal({
                 htmlFor="edit-entry-note"
                 icon={NotebookPen}
                 tone={fieldTone}
+                color={fieldColor}
               >
                 {t("entry.note")}
               </FieldLabel>
@@ -961,9 +967,17 @@ export function EditEntryModal({
                 rows={2}
                 className={cn(
                   "w-full resize-none rounded-xl border px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring",
-                  fieldTone === "default" ? "bg-input" : FIELD_TONES[fieldTone].shell
+                  fieldTone !== "default" && FIELD_TONES[fieldTone].shell,
+                  fieldTone === "default" && !fieldColor && "bg-input"
                 )}
-                style={{ borderColor: FIELD_TONES[fieldTone].shellBorder }}
+                style={{
+                  borderColor: fieldColor
+                    ? colorSkin(fieldColor).shellBorder
+                    : FIELD_TONES[fieldTone].shellBorder,
+                  background: fieldColor
+                    ? colorSkin(fieldColor).shellBg
+                    : undefined,
+                }}
               />
             </div>
 
@@ -1071,11 +1085,14 @@ export function EditEntryModal({
 function FieldLabel({
   icon: Icon,
   tone,
+  color,
   htmlFor,
   children,
 }: {
   icon: LucideIcon;
   tone: FieldTone;
+  /** Sabit ton yerine serbest renk — sıradan girdide kategori rengi */
+  color?: string;
   htmlFor?: string;
   children: React.ReactNode;
 }) {
@@ -1084,10 +1101,12 @@ function FieldLabel({
       htmlFor={htmlFor}
       className={cn(
         "mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em]",
-        tone === "default"
-          ? "text-muted-foreground/50"
-          : FIELD_TONES[tone].caption
+        !color &&
+          (tone === "default"
+            ? "text-muted-foreground/50"
+            : FIELD_TONES[tone].caption)
       )}
+      style={color ? { color: colorSkin(color).caption } : undefined}
     >
       <Icon className="h-3 w-3 shrink-0" />
       {children}
@@ -1112,6 +1131,7 @@ function ModInput({
   entryDate,
   autoFocus = false,
   tone = "default",
+  color,
 }: {
   label: string;
   entryType: EntryType;
@@ -1124,6 +1144,8 @@ function ModInput({
   autoFocus?: boolean;
   /** Yerleşik akışın rengi — uyku ve ruh hali alanları kendi penceresinde */
   tone?: FieldTone;
+  /** Sıradan girdilerde kategori rengi; alan penceresi bununla boyanır */
+  color?: string;
 }) {
   const t = useT();
   const vt = entryType.valueType ?? "number";
@@ -1145,20 +1167,14 @@ function ModInput({
   return (
     <div className="flex flex-col gap-1.5" ref={scrollOnMount}>
       <div className="flex items-center justify-between">
-        {tone === "default" ? (
-          <label className="text-sm font-medium">
-            {label}
-            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-              {label !== entryType.name && `${entryType.name} `}
-              {entryType.unit && `(${entryType.unit})`}
-            </span>
-          </label>
-        ) : (
-          <FieldLabel icon={modAtomIcon({ name: label, entryType })} tone={tone}>
-            {label}
-            {entryType.unit && ` (${entryType.unit})`}
-          </FieldLabel>
-        )}
+        <FieldLabel
+          icon={modAtomIcon({ name: label, entryType })}
+          tone={tone}
+          color={color}
+        >
+          {label}
+          {entryType.unit && ` (${entryType.unit})`}
+        </FieldLabel>
         <div className="flex items-center gap-2">
           {isShared && (
             <span className="flex items-center gap-1 text-[10px] font-medium text-violet-400/70">
@@ -1179,41 +1195,98 @@ function ModInput({
         </div>
       </div>
 
-      {vt === "number" && (
-        <Input
-          type="number"
-          inputMode="decimal"
-          value={value}
-          onChange={(e) => setOne(e.target.value)}
-          placeholder="0"
-          step="any"
-          autoFocus={autoFocus}
-        />
-      )}
+      {/* Sayı/metin/evet-hayır: renk verilmişse alan kendi penceresinde ve
+          kategori renginde — uyku/ruh hali formlarındaki iskeletin sıradan
+          girdideki karşılığı. Renk yoksa (paralel adım) eski düz kutular. */}
+      {vt === "number" &&
+        (color ? (
+          <FieldWindow color={color}>
+            <div className="px-4 pb-3 pt-2.5">
+              <input
+                type="number"
+                inputMode="decimal"
+                value={value}
+                onChange={(e) => setOne(e.target.value)}
+                placeholder="0"
+                step="any"
+                autoFocus={autoFocus}
+                className="w-full bg-transparent text-xl font-bold tabular-nums text-foreground outline-none placeholder:text-muted-foreground/30"
+              />
+            </div>
+          </FieldWindow>
+        ) : (
+          <Input
+            type="number"
+            inputMode="decimal"
+            value={value}
+            onChange={(e) => setOne(e.target.value)}
+            placeholder="0"
+            step="any"
+            autoFocus={autoFocus}
+          />
+        ))}
 
-      {vt === "text" && (
-        <Input
-          value={value}
-          onChange={(e) => setOne(e.target.value)}
-          placeholder={t("entry.textPlaceholder")}
-          autoFocus={autoFocus}
-        />
-      )}
+      {vt === "text" &&
+        (color ? (
+          <FieldWindow color={color}>
+            <div className="px-4 pb-3 pt-2.5">
+              <input
+                value={value}
+                onChange={(e) => setOne(e.target.value)}
+                placeholder={t("entry.textPlaceholder")}
+                autoFocus={autoFocus}
+                className="w-full bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground/40"
+              />
+            </div>
+          </FieldWindow>
+        ) : (
+          <Input
+            value={value}
+            onChange={(e) => setOne(e.target.value)}
+            placeholder={t("entry.textPlaceholder")}
+            autoFocus={autoFocus}
+          />
+        ))}
 
-      {vt === "boolean" && (
-        <button
-          type="button"
-          onClick={() => setOne(value === "true" ? "false" : "true")}
-          className={cn(
-            "flex h-10 w-full items-center justify-center rounded-xl border text-sm font-medium transition-colors",
-            value === "true"
-              ? "border-primary bg-primary/10 text-primary"
-              : "border-border bg-input text-muted-foreground"
-          )}
-        >
-          {value === "true" ? t("entry.yes") : t("entry.no")}
-        </button>
-      )}
+      {vt === "boolean" &&
+        (color ? (
+          <FieldWindow color={color}>
+            <div className="px-4 pb-3 pt-2.5">
+              <button
+                type="button"
+                onClick={() => setOne(value === "true" ? "false" : "true")}
+                className="flex h-10 w-full items-center justify-center rounded-xl border text-sm font-semibold transition-colors"
+                style={
+                  value === "true"
+                    ? {
+                        borderColor: colorSkin(color).shellBorder,
+                        background: colorSkin(color).fieldBg,
+                        color,
+                      }
+                    : {
+                        borderColor: colorSkin(color).fieldBorder,
+                        color: "var(--muted-foreground)",
+                      }
+                }
+              >
+                {value === "true" ? t("entry.yes") : t("entry.no")}
+              </button>
+            </div>
+          </FieldWindow>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setOne(value === "true" ? "false" : "true")}
+            className={cn(
+              "flex h-10 w-full items-center justify-center rounded-xl border text-sm font-medium transition-colors",
+              value === "true"
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-input text-muted-foreground"
+            )}
+          >
+            {value === "true" ? t("entry.yes") : t("entry.no")}
+          </button>
+        ))}
 
       {/* Duygular: ekleme penceresindekinin AYNI bileşeni — ızgara sabit,
           yoğunluk çubukları altta toplanıyor. İki yerde iki ayrı duygu
@@ -1267,32 +1340,12 @@ function ModInput({
             tone={tone}
           />
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {(entryType.choices ?? []).map((choice) => {
-              // Değer yoğunluk taşıyabilir ("Happy|70"); eşleşme etikete bakar,
-              // seçili olan yeniden tıklanırsa yoğunluk korunur
-              const { label: picked, level } = splitChoiceLevel(value);
-              const on = picked === choice;
-              return (
-                <button
-                  key={choice}
-                  type="button"
-                  onClick={() => setOne(on ? value : choice)}
-                  className={cn(
-                    "rounded-xl border px-4 py-2 text-sm font-medium transition-colors",
-                    on
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-input text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {choice}
-                  {on && level !== null && (
-                    <span className="ml-1.5 text-xs opacity-70">%{level}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          <ChoiceButtons
+            choices={entryType.choices ?? []}
+            value={value}
+            onChange={setOne}
+            color={color}
+          />
         ))}
 
       {vt === "datetime-range" && (
@@ -1301,8 +1354,72 @@ function ModInput({
           onChange={setOne}
           entryDate={entryDate ?? today}
           tone={tone}
+          color={color}
         />
       )}
     </div>
   );
+}
+
+/**
+ * Seçenek düğmeleri — renk verilmişse pencere içinde ve kategori renginde.
+ *
+ * Seçili düğmenin rengi satır içi: sınıfla verilen kenarlık rengi
+ * globals.css'teki katmansız `*` kuralı yüzünden uygulanmıyor (bkz.
+ * sleep-card), ayrıca kategori rengi çalışma anında belli oluyor.
+ */
+function ChoiceButtons({
+  choices,
+  value,
+  onChange,
+  color,
+}: {
+  choices: string[];
+  value: string;
+  onChange: (v: string) => void;
+  color?: string;
+}) {
+  const cs = color ? colorSkin(color) : null;
+  const row = (
+    <div className={cn("flex flex-wrap gap-2", cs && "px-4 pb-3.5 pt-2.5")}>
+      {choices.map((choice) => {
+        // Değer yoğunluk taşıyabilir ("Happy|70"); eşleşme etikete bakar,
+        // seçili olan yeniden tıklanırsa yoğunluk korunur
+        const { label: picked, level } = splitChoiceLevel(value);
+        const on = picked === choice;
+        return (
+          <button
+            key={choice}
+            type="button"
+            onClick={() => onChange(on ? value : choice)}
+            className={cn(
+              "rounded-xl border px-4 py-2 text-sm font-medium transition-colors",
+              !cs &&
+                (on
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-input text-muted-foreground hover:text-foreground"),
+              cs && !on && "text-muted-foreground hover:text-foreground"
+            )}
+            style={
+              cs
+                ? on
+                  ? {
+                      borderColor: cs.shellBorder,
+                      background: cs.fieldBg,
+                      color: color,
+                    }
+                  : { borderColor: cs.fieldBorder }
+                : undefined
+            }
+          >
+            {choice}
+            {on && level !== null && (
+              <span className="ml-1.5 text-xs opacity-70">%{level}</span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+  return cs ? <FieldWindow color={color}>{row}</FieldWindow> : row;
 }

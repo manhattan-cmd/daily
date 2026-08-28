@@ -1,7 +1,11 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { FIELD_TONES, type FieldTone } from "@/components/forms/field-tone";
+import {
+  colorSkin,
+  FIELD_TONES,
+  type FieldTone,
+} from "@/components/forms/field-tone";
 
 /**
  * Alan penceresi — yerleşik akışların ortak çerçevesi: üstte küçük başlık
@@ -19,25 +23,36 @@ export function FieldWindow({
   caption,
   footer,
   tone = "default",
+  color,
   children,
 }: {
-  caption?: string;
+  caption?: React.ReactNode;
   footer?: React.ReactNode;
   tone?: FieldTone;
+  /** Sabit ton yerine serbest renk (sıradan girdilerde kategori rengi) */
+  color?: string;
   children: React.ReactNode;
 }) {
   const skin = FIELD_TONES[tone];
+  const cs = color ? colorSkin(color) : null;
   return (
     <div
-      className={cn("shrink-0 overflow-hidden rounded-2xl border", skin.shell)}
-      style={{ borderColor: skin.shellBorder }}
+      className={cn(
+        "shrink-0 overflow-hidden rounded-2xl border",
+        !cs && skin.shell
+      )}
+      style={{
+        borderColor: cs ? cs.shellBorder : skin.shellBorder,
+        background: cs ? cs.shellBg : undefined,
+      }}
     >
       {caption && (
         <div
           className={cn(
             "px-4 pt-3 text-[9px] font-bold uppercase tracking-[0.15em]",
-            skin.caption
+            !cs && skin.caption
           )}
+          style={cs ? { color: cs.caption } : undefined}
         >
           {caption}
         </div>
@@ -45,8 +60,14 @@ export function FieldWindow({
       {children}
       {footer && (
         <div
-          className={cn("flex items-center gap-2 border-t px-4 py-2.5", skin.strip)}
-          style={{ borderTopColor: skin.lineBorder }}
+          className={cn(
+            "flex items-center gap-2 border-t px-4 py-2.5",
+            !cs && skin.strip
+          )}
+          style={{
+            borderTopColor: cs ? cs.lineBorder : skin.lineBorder,
+            background: cs ? cs.stripBg : undefined,
+          }}
         >
           {footer}
         </div>

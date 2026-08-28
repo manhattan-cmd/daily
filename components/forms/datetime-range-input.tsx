@@ -6,6 +6,7 @@ import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { SHORT_MONTHS } from "@/lib/analytics";
 import {
+  colorSkin,
   FIELD_TONES,
   type FieldTone,
   type FieldToneSkin,
@@ -56,6 +57,11 @@ interface DateTimeRangeInputProps {
   entryDate: string; // "YYYY-MM-DD"
   disabled?: boolean;
   tone?: FieldTone;
+  /** Sabit ton yerine serbest renk (sıradan girdide kategori rengi). Yalnız
+   *  pencerenin kabuğunu ve alt şeridini boyar; içerideki vurgular (seçili
+   *  gün kapsülü, çark bandı) uygulamanın ana renginde kalır — kategori
+   *  renkleri koyu olabiliyor, seçili kapsülün okunurluğu ona bırakılamaz. */
+  color?: string;
 }
 
 /** İki gün arasındaki tam gün farkı — şeridin nereye kaydırılacağını verir */
@@ -98,9 +104,11 @@ export function DateTimeRangeInput({
   entryDate,
   disabled = false,
   tone = "default",
+  color,
 }: DateTimeRangeInputProps) {
   const t = useT();
   const skin = FIELD_TONES[tone];
+  const cs = color ? colorSkin(color) : null;
   const parsed = useMemo(() => parseDTR(value), [value]);
   // Çark iki panelin altında, kartın tamamı kadar geniş açılır — panelin
   // içine sıkıştırıldığında sütunlar 80px'e düşüyor ve çark gibi durmuyordu
@@ -131,8 +139,11 @@ export function DateTimeRangeInput({
 
   return (
     <div
-      className={cn("overflow-hidden rounded-2xl border", skin.shell)}
-      style={{ borderColor: skin.shellBorder }}
+      className={cn("overflow-hidden rounded-2xl border", !cs && skin.shell)}
+      style={{
+        borderColor: cs ? cs.shellBorder : skin.shellBorder,
+        background: cs ? cs.shellBg : undefined,
+      }}
     >
       <div className={cn("grid grid-cols-2 divide-x", skin.divide)}>
         <DateTimePanel
@@ -172,12 +183,21 @@ export function DateTimeRangeInput({
 
       {/* Süre / ipucu satırı */}
       <div
-        className={cn("flex items-center gap-2 border-t px-4 py-2.5", skin.strip)}
-        style={{ borderTopColor: skin.lineBorder }}
+        className={cn(
+          "flex items-center gap-2 border-t px-4 py-2.5",
+          !cs && skin.strip
+        )}
+        style={{
+          borderTopColor: cs ? cs.lineBorder : skin.lineBorder,
+          background: cs ? cs.stripBg : undefined,
+        }}
       >
         {duration ? (
           <>
-            <div className={cn("h-1.5 w-1.5 shrink-0 rounded-full", skin.dot)} />
+            <div
+              className={cn("h-1.5 w-1.5 shrink-0 rounded-full", !cs && skin.dot)}
+              style={cs ? { background: cs.dot } : undefined}
+            />
             <span className="text-xs text-muted-foreground">{duration}</span>
           </>
         ) : (
