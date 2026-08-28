@@ -130,7 +130,10 @@ export function DateTimeRangeInput({
   const [editingDate = "", editingTime = ""] = editingValue.split("T");
 
   return (
-    <div className={cn("overflow-hidden rounded-2xl border", skin.shell)}>
+    <div
+      className={cn("overflow-hidden rounded-2xl border", skin.shell)}
+      style={{ borderColor: skin.shellBorder }}
+    >
       <div className={cn("grid grid-cols-2 divide-x", skin.divide)}>
         <DateTimePanel
           side="start"
@@ -169,11 +172,8 @@ export function DateTimeRangeInput({
 
       {/* Süre / ipucu satırı */}
       <div
-        className={cn(
-          "flex items-center gap-2 border-t px-4 py-2.5",
-          skin.line,
-          skin.strip
-        )}
+        className={cn("flex items-center gap-2 border-t px-4 py-2.5", skin.strip)}
+        style={{ borderTopColor: skin.lineBorder }}
       >
         {duration ? (
           <>
@@ -522,7 +522,10 @@ function TimeWheel({
   }, [minute, minuteStep]);
 
   return (
-    <div className={cn("border-t px-4 pb-3 pt-2.5", skin.line, skin.strip)}>
+    <div
+      className={cn("border-t px-4 pb-3 pt-2.5", skin.strip)}
+      style={{ borderTopColor: skin.lineBorder }}
+    >
       <div className="mb-1.5 flex items-center justify-between">
         <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50">
           {label}

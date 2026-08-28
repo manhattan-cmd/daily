@@ -9,8 +9,21 @@
 export type FieldTone = "default" | "sleep" | "mood";
 
 export interface FieldToneSkin {
-  /** Pencerenin dış kabuğu — kenarlık + zemin */
+  /**
+   * Pencerenin dış kabuğu — YALNIZ zemin sınıfı.
+   *
+   * Kenarlık rengi sınıfla verilemiyor: globals.css'teki
+   * `* { border-color: var(--border) }` katmansız bir kural ve Tailwind'in
+   * katmanlı `border-*` yardımcılarını eziyor. Yazılan renk hiç uygulanmıyor,
+   * pencere varsayılan gri çerçeveyle çiziliyordu. Bu yüzden kenarlık
+   * renkleri aşağıda ham CSS rengi olarak duruyor ve satır içi stille
+   * veriliyor.
+   */
   shell: string;
+  /** Kabuğun kenarlık rengi — satır içi stile gider */
+  shellBorder: string;
+  /** Bölüm ayıran çizginin rengi — satır içi stile gider */
+  lineBorder: string;
   /** İçteki dikey ayraç */
   divide: string;
   /** Bölüm ayıran yatay çizgi */
@@ -35,7 +48,9 @@ export interface FieldToneSkin {
 
 export const FIELD_TONES: Record<FieldTone, FieldToneSkin> = {
   default: {
-    shell: "border-border bg-card",
+    shell: "bg-card",
+    shellBorder: "var(--border)",
+    lineBorder: "color-mix(in srgb, var(--border) 60%, transparent)",
     divide: "divide-border",
     line: "border-border/60",
     strip: "bg-muted/10",
@@ -49,7 +64,9 @@ export const FIELD_TONES: Record<FieldTone, FieldToneSkin> = {
     caption: "text-muted-foreground/50",
   },
   mood: {
-    shell: "border-pink-500/25 bg-pink-500/[0.07]",
+    shell: "bg-pink-500/[0.07]",
+    shellBorder: "rgba(244,114,182,0.40)",
+    lineBorder: "rgba(244,114,182,0.22)",
     divide: "divide-pink-500/15",
     line: "border-pink-500/15",
     strip: "bg-pink-500/[0.05]",
@@ -63,7 +80,9 @@ export const FIELD_TONES: Record<FieldTone, FieldToneSkin> = {
     caption: "text-pink-300/50",
   },
   sleep: {
-    shell: "border-violet-500/25 bg-violet-500/[0.07]",
+    shell: "bg-violet-500/[0.07]",
+    shellBorder: "rgba(139,92,246,0.40)",
+    lineBorder: "rgba(139,92,246,0.22)",
     divide: "divide-violet-500/15",
     line: "border-violet-500/15",
     strip: "bg-violet-500/[0.05]",

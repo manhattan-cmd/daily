@@ -48,6 +48,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
 import { isNumericChoiceSet, SHORT_MONTHS } from "@/lib/analytics";
+import { modAtomIcon } from "@/components/structure/mod-atom";
+import type { LucideIcon } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { confirmDialog } from "@/components/ui/confirm";
 import { AliasEditor } from "@/components/notes/alias-editor";
@@ -61,6 +63,7 @@ import { ChoiceWindow } from "@/components/forms/choice-window";
 import { EmotionPicker } from "@/components/forms/emotion-picker";
 import { FieldWindow } from "@/components/forms/field-window";
 import { MoodScale } from "@/components/forms/mood-scale";
+import { FIELD_TONES } from "@/components/forms/field-tone";
 import { splitChoiceLevel } from "@/lib/choice-level";
 import type { FieldTone } from "@/components/forms/field-tone";
 import {
@@ -758,10 +761,10 @@ export function EditEntryModal({
               />
             ))}
 
-            {/* Yerleşik ruh hali akışının alanları sabittir: havuzdan rastgele
-                bir özellik eklemek bu forma ait değil. Boşalan yer duygu
-                ızgarasına gidiyor (bkz. ModInput gridHeight). */}
-            {availableToAdd.length > 0 && fieldTone !== "mood" && (
+            {/* Yerleşik akışların (uyku, ruh hali) alanları sabittir: havuzdan
+                rastgele bir özellik eklemek bu formlara ait değil. Boşalan yer
+                duygu ızgarasına gidiyor (bkz. ModInput gridHeight). */}
+            {availableToAdd.length > 0 && fieldTone === "default" && (
               <button
                 type="button"
                 onClick={() => setAddModOpen(true)}
@@ -940,22 +943,27 @@ export function EditEntryModal({
               </PanelBlock>
             )}
 
-            {/* ── Not — her zaman altta ── */}
+            {/* ── Not — her zaman altta. Yerleşik akışta o akışın tonunda:
+                 uyku formunun içinde tek başına nötr duran bir kutu kalmasın. ── */}
             <div className="border-t border-white/[0.06] pt-3">
-              <label
+              <FieldLabel
                 htmlFor="edit-entry-note"
-                className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/50"
+                icon={NotebookPen}
+                tone={fieldTone}
               >
-                <NotebookPen className="h-3 w-3" />
-                Not
-              </label>
+                {t("entry.note")}
+              </FieldLabel>
               <textarea
                 id="edit-entry-note"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder={t("entry.notePlaceholder")}
                 rows={2}
-                className="w-full resize-none rounded-xl border border-border bg-input px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+                className={cn(
+                  "w-full resize-none rounded-xl border px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring",
+                  fieldTone === "default" ? "bg-input" : FIELD_TONES[fieldTone].shell
+                )}
+                style={{ borderColor: FIELD_TONES[fieldTone].shellBorder }}
               />
             </div>
 
@@ -1053,6 +1061,41 @@ export function EditEntryModal({
 }
 
 /**
+ * Alan etiketi — küçük sembol + seyrek harfli büyük yazı.
+ *
+ * Yerleşik akışlarda (uyku, ruh hali) bütün alanlar bu biçimde: "Sleep
+ * Duration", "Sleep Quality" ve "Not" farklı boy ve ağırlıklarda yazılınca
+ * form üç ayrı dilde konuşuyordu. Sembol özelliğin kendi atom simgesi
+ * (modAtomIcon — ay, yıldız, kalp), rengi de akışın tonu.
+ */
+function FieldLabel({
+  icon: Icon,
+  tone,
+  htmlFor,
+  children,
+}: {
+  icon: LucideIcon;
+  tone: FieldTone;
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label
+      htmlFor={htmlFor}
+      className={cn(
+        "mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em]",
+        tone === "default"
+          ? "text-muted-foreground/50"
+          : FIELD_TONES[tone].caption
+      )}
+    >
+      <Icon className="h-3 w-3 shrink-0" />
+      {children}
+    </label>
+  );
+}
+
+/**
  * Tek özelliğin giriş satırı.
  *
  * Değer DİZİ: çok seçimli özellikler (ruh halindeki duygular) aynı satırda
@@ -1102,13 +1145,20 @@ function ModInput({
   return (
     <div className="flex flex-col gap-1.5" ref={scrollOnMount}>
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium">
-          {label}
-          <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-            {label !== entryType.name && `${entryType.name} `}
-            {entryType.unit && `(${entryType.unit})`}
-          </span>
-        </label>
+        {tone === "default" ? (
+          <label className="text-sm font-medium">
+            {label}
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+              {label !== entryType.name && `${entryType.name} `}
+              {entryType.unit && `(${entryType.unit})`}
+            </span>
+          </label>
+        ) : (
+          <FieldLabel icon={modAtomIcon({ name: label, entryType })} tone={tone}>
+            {label}
+            {entryType.unit && ` (${entryType.unit})`}
+          </FieldLabel>
+        )}
         <div className="flex items-center gap-2">
           {isShared && (
             <span className="flex items-center gap-1 text-[10px] font-medium text-violet-400/70">

@@ -30,6 +30,7 @@ export function FieldWindow({
   return (
     <div
       className={cn("shrink-0 overflow-hidden rounded-2xl border", skin.shell)}
+      style={{ borderColor: skin.shellBorder }}
     >
       {caption && (
         <div
@@ -44,11 +45,8 @@ export function FieldWindow({
       {children}
       {footer && (
         <div
-          className={cn(
-            "flex items-center gap-2 border-t px-4 py-2.5",
-            skin.line,
-            skin.strip
-          )}
+          className={cn("flex items-center gap-2 border-t px-4 py-2.5", skin.strip)}
+          style={{ borderTopColor: skin.lineBorder }}
         >
           {footer}
         </div>

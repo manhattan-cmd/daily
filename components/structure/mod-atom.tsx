@@ -3,10 +3,12 @@
 import {
   Boxes,
   Flame,
+  Heart,
   MoonStar,
   Plus,
   Route,
   Scale,
+  Smile,
   Star,
   Timer,
   Wallet,
@@ -26,6 +28,8 @@ const BUILT_IN_MOD_ICONS: Record<string, LucideIcon> = {
   "Calories": Flame,
   "Sleep Duration": MoonStar,
   "Sleep Quality": Star,
+  Happiness: Smile,
+  Emotions: Heart,
 };
 
 /** Özelliğin atom simgesi: yerleşikse özel simgesi, değilse ölçü türünün simgesi.

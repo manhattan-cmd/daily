@@ -34,7 +34,10 @@ export function ChoiceWindow({
   const isScale = choices.every((c) => /^\d+$/.test(c));
 
   return (
-    <div className={cn("overflow-hidden rounded-2xl border", skin.shell)}>
+    <div
+      className={cn("overflow-hidden rounded-2xl border", skin.shell)}
+      style={{ borderColor: skin.shellBorder }}
+    >
       <div className={cn("flex items-center gap-1.5 px-4 pt-3", skin.caption)}>
         <Sparkles className="h-3 w-3" />
         <span className="text-[9px] font-bold uppercase tracking-[0.15em]">
@@ -61,11 +64,8 @@ export function ChoiceWindow({
       {/* Aralık penceresindeki süre şeridinin karşılığı — iki pencere aynı
           iskelette dursun diye */}
       <div
-        className={cn(
-          "flex items-center gap-2 border-t px-4 py-2.5",
-          skin.line,
-          skin.strip
-        )}
+        className={cn("flex items-center gap-2 border-t px-4 py-2.5", skin.strip)}
+        style={{ borderTopColor: skin.lineBorder }}
       >
         {value ? (
           <>
