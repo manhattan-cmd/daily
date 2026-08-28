@@ -1,17 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
 import type { EntryWithContext } from "@/types";
 import { cn, formatDate, formatDateTime } from "@/lib/utils";
 import { useLongPress } from "@/lib/use-long-press";
-import { useT } from "@/lib/i18n";
-import { confirmDialog } from "@/components/ui/confirm";
-import { deleteEntry } from "@/lib/db/queries";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { EntryIcon } from "@/components/dashboard/entry-icon";
 import {
-  CardAction,
   NoteCapsule,
   ValueCapsuleRow,
 } from "@/components/dashboard/entry-parts";
@@ -83,10 +78,11 @@ export function EntryCard({
  * Değerler kapsül: kategori renginde zemin, başında özelliğin simgesi. Girdinin
  * taşıdığı asıl veri onlar, gri kutu yerine kendi nesneleri var.
  *
- * Sil/düzenle her zaman görünür. İlk tasarımda silme yalnız
- * düzenleme penceresinin menüsündeydi çünkü kartın köşesindeki ikon sadece
- * hover'da görünüyordu: dokunmatikte görünmez ama basılabilirdi. Şimdi ikisi de
- * görünür ve silme onay ister, ardından kabuktaki geri-al çubuğu çıkar.
+ * Kartta düzenle/sil düğmesi YOK, sağ üstte yalnız tarih var. İkisi de bir
+ * dönem kartta duruyordu; ikisi de gereksiz çıktı: karta dokunmak zaten
+ * düzenleme penceresini açıyor ve silme o pencerenin menüsünde duruyor. İki
+ * küçük ikon hem künyenin sağını daraltıyor hem de yanlışlıkla silmeye açık
+ * bir hedef bırakıyordu.
  */
 function PlainEntryCard({
   entry,
@@ -95,7 +91,6 @@ function PlainEntryCard({
   entry: EntryWithContext;
   selection?: EntrySelection;
 }) {
-  const t = useT();
   const [editOpen, setEditOpen] = useState(false);
   const color = entry.category.color;
   const isRoot = !!entry.subcategory.isCategoryRoot;
@@ -105,15 +100,6 @@ function PlainEntryCard({
   // Ölçümü olan her değer çizilir. Eskiden entryTypeId de şarttı; v18'den
   // sonra yeni değerler onu taşımadığı için hepsi görünmez olmuştu.
   const typedValues = entry.values.filter((v) => !!v.entryType);
-
-  async function handleDelete() {
-    const ok = await confirmDialog({
-      title: t("confirm.deleteEntry", { name: title }),
-      body: `${t("confirm.deleteEntryBody")} ${t("confirm.undoHint")}`,
-      destructive: true,
-    });
-    if (ok) await deleteEntry(entry.id);
-  }
 
   return (
     <>
@@ -160,24 +146,10 @@ function PlainEntryCard({
             )}
           </div>
 
-          {/* Tarih + eylemler tek bölüm, sağda. Kart tıklaması düzenleme
-              açtığından butonlar kabarcıklanmayı durdurur. */}
-          <div className="-mr-1 flex shrink-0 items-center gap-1">
-            <span className="whitespace-nowrap px-0.5 text-[10px] leading-none tabular-nums text-muted-foreground/70">
-              {formatDateTime(entry.occurredAt)}
-            </span>
-            <CardAction
-              icon={Pencil}
-              label={t("action.edit")}
-              onClick={() => setEditOpen(true)}
-            />
-            <CardAction
-              icon={Trash2}
-              label={t("action.delete")}
-              destructive
-              onClick={handleDelete}
-            />
-          </div>
+          {/* Sağda yalnız tarih — uyku/ruh hali kartlarındaki yeriyle aynı */}
+          <span className="shrink-0 whitespace-nowrap text-[10px] leading-none tabular-nums text-muted-foreground/70">
+            {formatDateTime(entry.occurredAt)}
+          </span>
         </div>
 
         {/* Alt bölüm — künyeden saç teli çizgiyle ayrılır ve tam genişlik
