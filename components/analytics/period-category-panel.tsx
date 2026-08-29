@@ -379,6 +379,7 @@ export function PeriodCategoryPanel({
       {metric.type === "count" ? (
         isDay ? (
           <StatTile
+            color={category.color}
             label={t("insights.entries")}
             value={fmtNum(computed.withValueCount)}
             sub={period.label}
@@ -386,11 +387,13 @@ export function PeriodCategoryPanel({
         ) : (
           <div className="grid grid-cols-2 gap-2">
             <StatTile
+              color={category.color}
               label={t("insights.entries")}
               value={fmtNum(computed.withValueCount)}
               sub={dayCountLabel}
             />
             <StatTile
+              color={category.color}
               label={t("stat.dailyAverage")}
               value={fmtNum(computed.dailyAvg)}
               unit="entries"
@@ -402,16 +405,19 @@ export function PeriodCategoryPanel({
         /* Oran — ana rakam yüzde, payı yanındaki kutuda */
         <div className="grid grid-cols-3 gap-2">
           <StatTile
+            color={category.color}
             label={t("stat.yesRate")}
             value={fmtPct(computed.rate)}
             sub={periodShortLabel(period)}
           />
           <StatTile
+            color={category.color}
             label={t("entry.yes")}
             value={fmtNum(computed.total)}
             sub={t("stat.outOfEntries", { n: computed.withValueCount })}
           />
           <StatTile
+            color={category.color}
             label={t("insights.entries")}
             value={fmtNum(computed.withValueCount)}
             sub={dayCountLabel}
@@ -420,6 +426,7 @@ export function PeriodCategoryPanel({
       ) : compute.displayMode === "choice" ? (
         <div className="grid grid-cols-2 gap-2">
           <StatTile
+            color={category.color}
             label={t("stat.mostFrequent")}
             value={computed.topChoice?.choice ?? "—"}
             wordValue
@@ -430,6 +437,7 @@ export function PeriodCategoryPanel({
             }
           />
           <StatTile
+            color={category.color}
             label={t("insights.entries")}
             value={fmtNum(computed.choiceTotal)}
             sub={dayCountLabel}
@@ -438,11 +446,13 @@ export function PeriodCategoryPanel({
       ) : compute.displayMode === "presence" ? (
         <div className="grid grid-cols-2 gap-2">
           <StatTile
+            color={category.color}
             label={t("stat.written")}
             value={fmtNum(computed.total)}
             sub={periodShortLabel(period)}
           />
           <StatTile
+            color={category.color}
             label={t("stat.dailyAverage")}
             value={fmtNum(computed.dailyAvg)}
             sub={`${progress.elapsedDays} days`}
@@ -452,6 +462,7 @@ export function PeriodCategoryPanel({
         <div className="grid grid-cols-3 gap-2">
           {compute.displayMode === "both" && (
             <StatTile
+              color={category.color}
               label={t("stat.total")}
               value={fmtNum(computed.total)}
               unit={unit}
@@ -462,6 +473,7 @@ export function PeriodCategoryPanel({
           )}
           {compute.displayMode === "both" && !isDay ? (
             <StatTile
+              color={category.color}
               label={t("stat.dailyAverage")}
               value={fmtNum(computed.dailyAvg)}
               unit={unit}
@@ -469,6 +481,7 @@ export function PeriodCategoryPanel({
             />
           ) : (
             <StatTile
+              color={category.color}
               label={t("stat.average")}
               value={fmtNum(computed.avg)}
               unit={unit}
@@ -476,6 +489,7 @@ export function PeriodCategoryPanel({
             />
           )}
           <StatTile
+            color={category.color}
             label={t("insights.entries")}
             value={fmtNum(computed.withValueCount)}
             sub={dayCountLabel}

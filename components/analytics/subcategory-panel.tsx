@@ -279,6 +279,7 @@ export function SubcategoryPanel({
           ] as const
         ).map(([label, s]) => (
           <StatTile
+            color={category.color}
             key={label}
             label={label}
             /* Ortalama rakamlarda (oran, skala) boş pencere "0" değil "—":

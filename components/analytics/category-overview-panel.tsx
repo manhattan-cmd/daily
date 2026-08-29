@@ -267,11 +267,13 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       {metric.type === "count" ? (
         <div className="grid grid-cols-2 gap-2">
           <StatTile
+            color={category.color}
             label={t("insights.entries")}
             value={fmtNum(computed.withValueCount)}
             sub="all time"
           />
           <StatTile
+            color={category.color}
             label={t("stat.dailyAverage")}
             value={fmtNum(computed.dailyAvg)}
             unit="entries"
@@ -284,16 +286,19 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
            İstikrar bloğu girdi girilen günü sayar, bu evet denen günü. */
         <div className="grid grid-cols-3 gap-2">
           <StatTile
+            color={category.color}
             label={t("stat.yesRate")}
             value={fmtPct(computed.rate)}
             sub={`${fmtNum(computed.total)}/${fmtNum(computed.withValueCount)}`}
           />
           <StatTile
+            color={category.color}
             label={t("entry.yes")}
             value={fmtNum(computed.total)}
             sub={t("stat.outOfEntries", { n: computed.withValueCount })}
           />
           <StatTile
+            color={category.color}
             label={t("stat.yesStreak")}
             value={fmtNum(computed.yesStreaks?.current ?? 0)}
             unit={t("stat.days")}
@@ -304,6 +309,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         /* Dağılım — toplam/ortalama diye bir şey yok; sorulan soru "hangisi" */
         <div className="grid grid-cols-2 gap-2">
           <StatTile
+            color={category.color}
             label={t("stat.mostFrequent")}
             value={computed.topChoice?.choice ?? "—"}
             wordValue
@@ -314,6 +320,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
             }
           />
           <StatTile
+            color={category.color}
             label={t("insights.entries")}
             value={fmtNum(computed.choiceTotal)}
             sub={`${computed.elapsedDays} ${t("stat.days")}`}
@@ -324,11 +331,13 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
            listede, metnin kendisini dönem süzgeciyle okuyabilmekte */
         <div className="grid grid-cols-2 gap-2">
           <StatTile
+            color={category.color}
             label={t("stat.written")}
             value={fmtNum(computed.total)}
             sub={t("stat.outOfEntries", { n: data.entries.length })}
           />
           <StatTile
+            color={category.color}
             label={t("stat.dailyAverage")}
             value={fmtNum(computed.dailyAvg)}
             sub={`${computed.elapsedDays} days`}
@@ -338,6 +347,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         <div className="grid grid-cols-3 gap-2">
           {compute.displayMode === "both" && (
             <StatTile
+              color={category.color}
               label={t("stat.total")}
               value={fmtNum(computed.total)}
               unit={unit}
@@ -346,6 +356,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
           )}
           {compute.displayMode === "both" ? (
             <StatTile
+              color={category.color}
               label={t("stat.dailyAverage")}
               value={fmtNum(computed.dailyAvg)}
               unit={unit}
@@ -353,6 +364,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
             />
           ) : (
             <StatTile
+              color={category.color}
               label={t("stat.average")}
               value={fmtNum(computed.avg)}
               unit={unit}
@@ -366,6 +378,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
             />
           )}
           <StatTile
+            color={category.color}
             label={t("insights.entries")}
             value={fmtNum(computed.withValueCount)}
             sub={`${computed.elapsedDays} days`}
@@ -380,17 +393,20 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         </h3>
         <div className="grid grid-cols-3 gap-2">
           <StatTile
+            color={category.color}
             label={t("insights.activeDays")}
             value={`%${fmtNum(computed.activeRatio)}`}
             sub={`${computed.activeDayCount}/${computed.elapsedDays} ${t("stat.days")}`}
           />
           <StatTile
+            color={category.color}
             label={t("insights.currentStreak")}
             value={fmtNum(computed.streaks.current)}
             unit={t("stat.days")}
             sub="in a row"
           />
           <StatTile
+            color={category.color}
             label="Rekor Seri"
             value={fmtNum(computed.streaks.best)}
             unit={t("stat.days")}
@@ -413,6 +429,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         </h3>
         <div className="grid grid-cols-2 gap-2">
           <StatTile
+            color={category.color}
             label={t("insights.last4Weeks")}
             value={
               compute.isRate
@@ -441,6 +458,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
             }
           />
           <StatTile
+            color={category.color}
             label={t("insights.prev4Weeks")}
             /* Ortalama rakamlarda (skala, oran) veri yokluğu "0" diye
                okunmamalı — 0 gerçek bir puan olabilir, veri yokluğu değil */
