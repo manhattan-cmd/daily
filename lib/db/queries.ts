@@ -26,6 +26,14 @@ import type {
   ScaleLabels,
 } from "@/types";
 import { SCALE_1_5, isScaleChoices } from "@/types";
+import { getLocale, type Locale } from "@/lib/i18n";
+import {
+  STARTER_CATEGORIES,
+  STARTER_FEATURES,
+  pickText,
+  type StarterFeature,
+  type StarterSub,
+} from "./starter";
 
 const now = () => Date.now();
 const id = () => nanoid(12);
@@ -358,8 +366,10 @@ async function ensureBuiltInCategoryTemplates(): Promise<void> {
       // Özellikler kaleme bağlanır. `attachMod` zaten tekrar bağlamaz, o
       // yüzden her açılışta çalışması güvenli — kullanıcı sonradan eklerse
       // de bozulmaz.
+      // Yerleşiklerin adı kasten İngilizce kanonik (v19 ad devri, mod-atom
+      // sembolleri ve göçler bu adlara bakıyor) — dile göre değişmez.
       for (const ref of tpl.mods) {
-        const mod = await resolveStarterMod(ref);
+        const mod = await resolveStarterMod(ref, "en");
         if (mod) await attachMod("subcategory", sub.id, mod.id);
       }
     }
@@ -415,145 +425,10 @@ export async function getBuiltInTarget(key: BuiltInCategoryKey): Promise<{
  * `mods` kategoriye bağlanır ve alt kategorilere kendiliğinden yayılır;
  * alt kategorinin kendi `mods`'u ise ona özel eklenir (Yürüyüş'ün Mesafe'si
  * gibi) — böylece devralma ve özelleştirme birlikte görülür.
+ *
+ * İçeriğin kendisi `./starter` dosyasında: kategori ağacı, özellik havuzu ve
+ * iki dilli adlar. Burada yalnız EKME işi var.
  */
-/**
- * Özellik referansı. Düz metin: havuzdaki hazır özellik ("Money").
- * Nesne: kendi adıyla, kendi ölçümüyle yaratılacak özellik ("Body Weight",
- * sayıyla ölçülür, birimi kg) — özelliğin ölçümü kendi üzerinde taşıdığı
- * en iyi böyle görülüyor.
- */
-type StarterMod = string | ({ name: string } & ModMeasure);
-
-type StarterSub = {
-  name: string;
-  icon?: string;
-  /** Sabit/düzenli kalem — analizde "düzenlileri hariç tut" anahtarını görünür kılar */
-  regular?: boolean;
-  mods?: StarterMod[];
-  subs?: StarterSub[];
-};
-
-/**
- * Örnek yapı, tek başına bir öğretici: kullanıcı gezerken şunları görüyor —
- *  • kategori → alt kategori → alt kategori derinliği (Harcamalar › Fatura › Elektrik)
- *  • kategoriye bağlanan özelliğin alt ağaca inmesi (Harcamalar'ın "Para"sı)
- *  • sadece bir kaleme takılan özellik (Yürüyüş'ün "Mesafe"si)
- *  • kendi adıyla özellik, hazır bir ölçüyle (Sağlık › Kilo, ölçü: Ağırlık)
- *  • sabit kalemler (Kira, Fatura, Abonelik)
- *  • farklı ölçü türleri: ₺, dk, km, adım, kg, adet, 1–5 skala, evet/hayır
- * Örnek GİRDİ yok — analizleri sahte veriyle kirletmemek için.
- */
-const STARTER_CATEGORIES: {
-  name: string;
-  color: string;
-  icon: string;
-  mods: StarterMod[];
-  subs: StarterSub[];
-}[] = [
-  {
-    name: "Expenses",
-    color: "#f59e0b",
-    icon: "Wallet",
-    mods: ["Money"],
-    subs: [
-      { name: "Groceries", icon: "ShoppingCart" },
-      {
-        name: "Food & Drink",
-        icon: "Utensils",
-        subs: [
-          { name: "Cafe", icon: "Coffee" },
-          { name: "Restaurant", icon: "Salad" },
-          { name: "Takeaway", icon: "Croissant" },
-        ],
-      },
-      {
-        name: "Transport",
-        icon: "Car",
-        subs: [
-          { name: "Fuel", icon: "Flame" },
-          { name: "Public Transit", icon: "Users" },
-        ],
-      },
-      {
-        name: "Bills",
-        icon: "Zap",
-        regular: true,
-        subs: [
-          { name: "Electricity", icon: "Zap" },
-          { name: "Water", icon: "Droplet" },
-          { name: "Internet", icon: "Laptop" },
-          { name: "Phone", icon: "Phone" },
-        ],
-      },
-      { name: "Rent", icon: "Home", regular: true },
-      { name: "Subscriptions", icon: "Tv", regular: true },
-    ],
-  },
-  {
-    name: "Fitness",
-    color: "#10b981",
-    icon: "Dumbbell",
-    mods: ["Duration"],
-    subs: [
-      {
-        name: "Walking",
-        icon: "Footprints",
-        mods: ["Distance", { name: "Steps", valueType: "number" }],
-      },
-      { name: "Running", icon: "Timer", mods: ["Distance"] },
-      { name: "Cycling", icon: "Bike", mods: ["Distance"] },
-      {
-        name: "Workout",
-        icon: "Dumbbell",
-        mods: [{ name: "Reps", valueType: "number" }],
-      },
-    ],
-  },
-  {
-    name: "Study",
-    color: "#6366f1",
-    icon: "GraduationCap",
-    mods: ["Duration"],
-    subs: [
-      { name: "Lessons", icon: "GraduationCap" },
-      {
-        name: "Reading",
-        icon: "Book",
-        mods: [{ name: "Pages", valueType: "number" }],
-      },
-      { name: "Projects", icon: "Laptop" },
-    ],
-  },
-  {
-    name: "Health",
-    color: "#ec4899",
-    icon: "HeartPulse",
-    mods: [],
-    subs: [
-      {
-        name: "Body Weight",
-        icon: "Stethoscope",
-        mods: [{ name: "Body Weight", valueType: "number", unit: "kg" }],
-      },
-      {
-        name: "Water",
-        icon: "Droplet",
-        mods: [{ name: "Glasses of Water", valueType: "number" }],
-      },
-      {
-        name: "Mood",
-        icon: "Smile",
-        mods: [{ name: "Mood", valueType: "select", choices: SCALE_1_5 }],
-      },
-      {
-        name: "Medication",
-        icon: "Pill",
-        regular: true,
-        mods: [{ name: "Medication Taken", valueType: "boolean" }],
-      },
-    ],
-  },
-];
 
 /** Tohum bir kez atılır; kullanıcı örnekleri silerse geri gelmemeli. */
 const STARTER_FLAG = "routine-starter-seeded";
@@ -575,30 +450,57 @@ export async function ensureStarterData(): Promise<void> {
   const inUse = entryCount > 0 || categories.some((c) => !c.isBuiltIn);
 
   if (!inUse) {
+    // Adlar kurulum anındaki dile yazılır; bundan sonrası kullanıcının kendi
+    // adlandırması, dil değişince geri çevrilmez.
+    const locale = getLocale();
     for (const template of STARTER_CATEGORIES) {
       const cat = await createCategory({
-        name: template.name,
+        name: pickText(template.name, locale),
         color: template.color,
         icon: template.icon,
       });
       // Önce kategoriye bağla: sonra açılan alt kategoriler devralır
       for (const ref of template.mods) {
-        const mod = await resolveStarterMod(ref);
+        const mod = await resolveStarterMod(ref, locale);
         if (mod) await attachMod("category", cat.id, mod.id);
       }
-      await seedStarterSubs(cat.id, undefined, template.subs);
+      await seedStarterSubs(cat.id, undefined, template.subs, locale);
     }
   }
 
   localStorage.setItem(STARTER_FLAG, "1");
 }
 
-/** Havuzdaki atomu bulur; nesne referansında yoksa ölçüsüyle yaratır. */
-async function resolveStarterMod(ref: StarterMod): Promise<Mod | undefined> {
-  const name = typeof ref === "string" ? ref : ref.name;
+/** Tohum özelliğinin ölçüsünü etkin dile çözer (birim, seçenekler, uç etiketleri). */
+function starterMeasure(f: StarterFeature, locale: Locale): ModMeasure {
+  const { low, high } = f.scaleLabels ?? {};
+  return {
+    valueType: f.valueType,
+    unit: f.unit === undefined ? undefined : pickText(f.unit, locale),
+    choices: f.choices?.map((c) => pickText(c, locale)),
+    scaleLabels:
+      low || high
+        ? {
+            ...(low ? { low: pickText(low, locale) } : {}),
+            ...(high ? { high: pickText(high, locale) } : {}),
+          }
+        : undefined,
+  };
+}
+
+/**
+ * Havuzdaki atomu adıyla bulur, yoksa ölçüsüyle yaratır. Ağaçtaki her başvuru
+ * havuz nesnesinin kendisi olduğu için aynı atom (Süre, Para) kaç kategoride
+ * geçerse geçsin TEK kayıt kalır — harita bağlantıları buradan çıkıyor.
+ */
+async function resolveStarterMod(
+  ref: StarterFeature,
+  locale: Locale
+): Promise<Mod | undefined> {
+  const name = pickText(ref.name, locale);
   const existing = await findModByName(name);
-  if (existing || typeof ref === "string") return existing;
-  const { mod } = await createMod(name, ref);
+  if (existing) return existing;
+  const { mod } = await createMod(name, starterMeasure(ref, locale));
   return mod;
 }
 
@@ -606,13 +508,14 @@ async function resolveStarterMod(ref: StarterMod): Promise<Mod | undefined> {
 async function seedStarterSubs(
   categoryId: string,
   parentId: string | undefined,
-  subs: StarterSub[]
+  subs: StarterSub[],
+  locale: Locale
 ): Promise<void> {
   for (const s of subs) {
     const sub = await createSubCategory({
       categoryId,
       parentId,
-      name: s.name,
+      name: pickText(s.name, locale),
       icon: s.icon,
     });
     if (s.regular) {
@@ -620,10 +523,10 @@ async function seedStarterSubs(
     }
     // Kaleme özel özellikler — çocuklar bunları da devralsın diye onlardan önce
     for (const ref of s.mods ?? []) {
-      const mod = await resolveStarterMod(ref);
+      const mod = await resolveStarterMod(ref, locale);
       if (mod) await attachMod("subcategory", sub.id, mod.id);
     }
-    if (s.subs?.length) await seedStarterSubs(categoryId, sub.id, s.subs);
+    if (s.subs?.length) await seedStarterSubs(categoryId, sub.id, s.subs, locale);
   }
 }
 
@@ -1077,20 +980,10 @@ export const measureFieldsOf = (m: ModMeasure) => {
  * ölçümü değiştirilir, silinir. "Yerleşik özellik" diye korunan bir sınıf
  * bırakmadık — kullanıcı kendi uygulamasında neyi tutacağına kendi karar verir.
  *
- * Başlangıç yapısı (STARTER_TEMPLATE) bunlara ADIYLA başvurur, o yüzden örnek
- * yapı kurulmadan önce ekilmeleri gerekir.
+ * Liste ./starter dosyasında (STARTER_FEATURES): başlangıç yapısının kullandığı
+ * atomların tamamı. Yapı bunlara NESNE olarak başvurduğu için iki liste
+ * ayrışamaz — kaldırılan atom ağaçta da derlenmez.
  */
-const SEED_FEATURES: ({ name: string } & ModMeasure)[] = [
-  { name: "Money", valueType: "number", unit: "₺" },
-  { name: "Duration", valueType: "number", unit: "min" },
-  { name: "Distance", valueType: "number", unit: "km" },
-  { name: "Quantity", valueType: "number", unit: "pcs" },
-  { name: "Weight", valueType: "number", unit: "kg" },
-  { name: "Calories", valueType: "number", unit: "kcal" },
-  { name: "Sleep Duration", valueType: "datetime-range" },
-  { name: "Sleep Quality", valueType: "select", choices: SCALE_1_5 },
-  { name: "Mood", valueType: "select", choices: SCALE_1_5 },
-];
 
 /**
  * Hazır özellikleri YALNIZCA boş kuruluma ek.
@@ -1103,11 +996,12 @@ const SEED_FEATURES: ({ name: string } & ModMeasure)[] = [
  */
 export async function seedDefaultFeatures(): Promise<void> {
   if ((await db.mods.count()) > 0) return;
+  const locale = getLocale();
   await db.mods.bulkAdd(
-    SEED_FEATURES.map((f) => ({
+    STARTER_FEATURES.map((f) => ({
       id: id(),
-      name: f.name,
-      ...measureFieldsOf(f),
+      name: pickText(f.name, locale),
+      ...measureFieldsOf(starterMeasure(f, locale)),
       createdAt: now(),
       updatedAt: now(),
     }))
