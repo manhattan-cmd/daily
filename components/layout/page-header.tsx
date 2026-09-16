@@ -12,6 +12,15 @@ interface PageHeaderProps {
   descriptionLines?: 1 | 2;
   back?: string;
   action?: React.ReactNode;
+  /**
+   * Başlığın altına, AYNI yapışkan bandın içine giren gezinme şeridi.
+   *
+   * Şerit eskiden sayfa gövdesindeydi: içerikle aynı zeminde duruyordu, yani
+   * "bu sayfanın bir parçası mı, bölümün menüsü mü" belli olmuyordu ve
+   * kaydırınca kayboluyordu. Bandın içinde menü sayfadan ayrılıyor ve
+   * kaydırma boyunca yerinde kalıyor.
+   */
+  nav?: React.ReactNode;
   className?: string;
 }
 
@@ -21,13 +30,15 @@ export function PageHeader({
   descriptionLines = 1,
   back,
   action,
+  nav,
   className,
 }: PageHeaderProps) {
   const t = useT();
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 -mx-4 mb-6 border-b border-border bg-background/85 px-4 pb-4 pt-safe backdrop-blur-xl",
+        "sticky top-0 z-30 -mx-4 mb-6 border-b border-border bg-background/85 px-4 pt-safe backdrop-blur-xl",
+        nav ? "pb-3" : "pb-4",
         className
       )}
     >
@@ -58,6 +69,7 @@ export function PageHeader({
         </div>
         {action ? <div className="shrink-0">{action}</div> : null}
       </div>
+      {nav ? <div className="mt-3">{nav}</div> : null}
     </header>
   );
 }

@@ -3,11 +3,10 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { Layers } from "lucide-react";
 import { listUserCategories } from "@/lib/db/queries";
-import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CategoryQuickAdd } from "@/components/structure/category-quick-add";
 import { CategoryTile } from "@/components/structure/category-tile";
-import { StructureTabs } from "@/components/structure/structure-tabs";
+import { StructureHeader } from "@/components/structure/structure-header";
 import { ExampleHint } from "@/components/structure/example-hint";
 import { useT } from "@/lib/i18n";
 
@@ -19,13 +18,9 @@ export default function StructurePage() {
 
   return (
     <>
-      <PageHeader
-        title={t("structure.title")}
-        description={t("structure.categoriesLead")}
+      <StructureHeader
         action={<CategoryQuickAdd existingNames={existingNames} />}
       />
-
-      <StructureTabs />
 
       <ExampleHint />
 

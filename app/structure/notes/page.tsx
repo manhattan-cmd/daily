@@ -5,12 +5,13 @@ import { useT } from "@/lib/i18n";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronRight, Plus, Search, Waypoints, X } from "lucide-react";
+import { ChevronRight, Search, Waypoints, X } from "lucide-react";
 import { createNote, listAllNotes } from "@/lib/db/queries";
-import { PageHeader } from "@/components/layout/page-header";
-import { StructureTabs } from "@/components/structure/structure-tabs";
+import {
+  StructureAddButton,
+  StructureHeader,
+} from "@/components/structure/structure-header";
 import { NoteCard } from "@/components/notes/note-card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Note } from "@/types";
 
@@ -55,18 +56,14 @@ export default function StructureNotesPage() {
 
   return (
     <>
-      <PageHeader
-        title="Structure"
-        description={t("structure.notesLead")}
+      <StructureHeader
         action={
-          <Button size="sm" onClick={handleNewNote} className="gap-1.5">
-            <Plus className="h-3.5 w-3.5" />
-            New note
-          </Button>
+          <StructureAddButton
+            labelKey="structure.addNote"
+            onClick={handleNewNote}
+          />
         }
       />
-
-      <StructureTabs />
 
       {/* Hayat Haritası hub kartı */}
       <Link
@@ -79,7 +76,7 @@ export default function StructureNotesPage() {
         <span className="min-w-0 flex-1">
           <span className="block font-medium">{t("structure.mapTitle")}</span>
           <span className="block text-xs text-muted-foreground">
-            See the links you built between notes and entries
+            {t("notes.hubLead")}
           </span>
         </span>
         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -99,7 +96,7 @@ export default function StructureNotesPage() {
             <button
               onClick={() => setQuery("")}
               className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground/60 transition-colors hover:text-foreground"
-              aria-label="Clear search"
+              aria-label={t("features.clearSearch")}
             >
               <X className="h-3 w-3" />
             </button>
@@ -108,7 +105,7 @@ export default function StructureNotesPage() {
 
         <div className="mb-2.5 flex items-center gap-2 px-1">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {query.trim() ? "Results" : "Notes"}
+            {query.trim() ? t("notes.results") : t("structure.notes")}
           </h2>
           <span className="text-muted-foreground/50 text-xs">
             · {filtered.length}
@@ -117,11 +114,11 @@ export default function StructureNotesPage() {
 
         {notes === undefined ? null : notes.length === 0 ? (
           <p className="px-1 text-xs text-muted-foreground/70">
-            No notes yet — add one for today with “New note”.
+            {t("notes.empty", { action: t("structure.addNote") })}
           </p>
         ) : filtered.length === 0 ? (
           <p className="px-1 text-xs text-muted-foreground/70">
-            Eşleşen not yok.
+            {t("notes.noMatch")}
           </p>
         ) : (
           <div className="flex flex-col gap-4">

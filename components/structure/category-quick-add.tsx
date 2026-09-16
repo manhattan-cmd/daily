@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Plus, Check } from "lucide-react";
+import { StructureAddButton } from "./structure-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HScroll } from "@/components/ui/h-scroll";
@@ -77,13 +78,12 @@ export function CategoryQuickAdd({
 
   return (
     <div className="relative" ref={ref}>
-      <Button
-        size="icon"
+      {/* Diğer Yapı sayfalarıyla aynı düğme — eskiden burada yalnız bir "+"
+          vardı, neyin ekleneceği ancak basınca anlaşılıyordu */}
+      <StructureAddButton
+        labelKey="structure.addCategory"
         onClick={() => setOpen((v) => !v)}
-        aria-label={t("tree.newCategory")}
-      >
-        <Plus className="h-5 w-5" />
-      </Button>
+      />
 
       {open && (
         <div className="absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
