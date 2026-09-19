@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, ArrowRight, Boxes, CalendarDays, MoonStar, NotebookPen, Smile, Target, PenLine } from "lucide-react";
+import { ArrowLeft, ArrowRight, Boxes, CalendarDays, ChevronLeft, ChevronRight, MoonStar, NotebookPen, Smile, Target, PenLine } from "lucide-react";
 import { db } from "@/lib/db";
 import {
   createNote,
@@ -38,6 +38,7 @@ import {
   type EntrySelection,
 } from "@/components/calendar/entry-selection";
 import { useT } from "@/lib/i18n";
+import { toLocalDateValue } from "@/lib/utils";
 
 type EntryItem =
   | { type: "single"; entry: EntryWithContext }
@@ -174,17 +175,52 @@ export default function CalendarDayPage({
   })();
   const isToday = d.getTime() === todayFlat;
 
+  /**
+   * Komşu günler. Gün sayfasında en sık yapılan şey bir gün geri gitmek
+   * ("dün ne yapmıştım"); bunun için takvime dönüp tekrar seçmek gerekiyordu.
+   * Tuşlar geri bağlantısının satırında, sağ uçta: başlığın yanına konsa
+   * tarihle yarışırdı, sayfanın altına konsa ulaşılmazdı.
+   */
+  const shift = (days: number) => {
+    const next = new Date(d);
+    next.setDate(d.getDate() + days);
+    return toLocalDateValue(next.getTime());
+  };
+
   return (
     <>
       {/* Header */}
       <div className="pt-10 pb-5">
-        <Link
-          href="/calendar"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground mb-5 -ml-0.5 hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>{t("nav.calendar")}</span>
-        </Link>
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <Link
+            href="/calendar"
+            className="inline-flex items-center gap-1.5 -ml-0.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>{t("nav.calendar")}</span>
+          </Link>
+
+          {/* Komşu günler — tek parça, sönük; gün geçişi göz almasın */}
+          <div className="flex shrink-0 items-center rounded-full border border-border/70 bg-card/40">
+            <Link
+              href={`/calendar/${shift(-1)}`}
+              prefetch={false}
+              aria-label={t("day.prev")}
+              className="flex h-7 w-8 items-center justify-center rounded-l-full text-muted-foreground/70 transition-colors hover:bg-white/5 hover:text-foreground"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Link>
+            <span className="h-4 w-px bg-border/70" />
+            <Link
+              href={`/calendar/${shift(1)}`}
+              prefetch={false}
+              aria-label={t("day.next")}
+              className="flex h-7 w-8 items-center justify-center rounded-r-full text-muted-foreground/70 transition-colors hover:bg-white/5 hover:text-foreground"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
 
         <div className="flex items-end justify-between gap-4">
           <div className="flex-1 min-w-0">
