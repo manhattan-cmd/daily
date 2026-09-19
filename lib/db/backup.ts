@@ -1,5 +1,6 @@
 import type { Table } from "dexie";
 import { db, type RoutineDB } from "./index";
+import { reconcileBackup, type DeviceStructure } from "./backup-merge";
 import type {
   Activity,
   Category,
@@ -109,6 +110,9 @@ export interface RestoreResult {
   written: number;
   /** Birleştirmede cihazdaki sürümü daha yeni olduğu için atlanan kayıt sayısı */
   skipped: number;
+  /** Birleştirmede cihazdaki karşılığına bağlanan yapı kaydı sayısı — yani
+   *  kopyalanmaktan kurtulan kategori/kalem/özellik/atama */
+  matched?: number;
 }
 
 /** Kayıtla ilgili en son zaman damgası — birleştirmede "hangisi yeni" kararı */
@@ -209,18 +213,29 @@ export function summarizeBackup(payload: BackupPayload): {
  * mode = "replace": mevcut TÜM veri silinir, yerine yedek konur. Geri alınamaz —
  * çağıran taraf kullanıcıdan onay almalı.
  *
- * mode = "merge": yedek mevcut verinin üzerine eklenir. Aynı id'li kayıtta
- * zaman damgası yeni olan kazanır; cihazdaki sürüm daha yeniyse dokunulmaz.
- * Cihazda olup yedekte olmayan kayıtlar silinmez.
+ * mode = "merge": yedek mevcut verinin üzerine eklenir. Yazmadan ÖNCE yedek
+ * bu cihazın yapısına göre yeniden adreslenir (bkz. backup-merge): yedekteki
+ * kategori/kalem/özellik, cihazdaki aynı şeye bağlanır ve girdiler o yapıya
+ * takılır. Bu adım olmadan başka bir kurulumun yedeği bütün yapıyı ikiye
+ * katlıyordu. Sonra aynı id'li kayıtta zaman damgası yeni olan kazanır;
+ * cihazdaki sürüm daha yeniyse dokunulmaz. Cihazda olup yedekte olmayan
+ * kayıtlar silinmez.
  */
 export async function restoreBackup(
   payload: BackupPayload,
   mode: RestoreMode = "replace"
 ): Promise<RestoreResult> {
-  const { data } = payload;
+  let data = payload.data;
   const tables = BACKUP_TABLES.map(tableOf);
   let written = 0;
   let skipped = 0;
+  let matched = 0;
+
+  if (mode === "merge") {
+    const reconciled = reconcileBackup(data, await readDeviceStructure());
+    data = reconciled.data;
+    matched = reconciled.matched;
+  }
 
   // Damgalama kapalı: kayıtlar yedekteki zaman damgalarıyla girmeli
   await db.withoutStamping(() =>
@@ -257,7 +272,7 @@ export async function restoreBackup(
 
   await backfillAfterRestore(data);
 
-  return { mode, written, skipped };
+  return { mode, written, skipped, matched };
 }
 
 /**
@@ -269,6 +284,20 @@ export async function restoreBackup(
  * Göçün yaptığını burada da yapıyoruz: ölçüm, yedekteki ölçü kaydından
  * özelliğin üzerine kopyalanır. Zaten ölçümü olan kayda dokunulmaz.
  */
+/** Eşleştirme için cihazdaki yapının anlık görüntüsü */
+async function readDeviceStructure(): Promise<DeviceStructure> {
+  const [categories, subcategories, mods, entryTypes, globalDimensions, categoryModifiers] =
+    await Promise.all([
+      db.categories.toArray(),
+      db.subcategories.toArray(),
+      db.mods.toArray(),
+      db.entryTypes.toArray(),
+      db.globalDimensions.toArray(),
+      db.categoryModifiers.toArray(),
+    ]);
+  return { categories, subcategories, mods, entryTypes, globalDimensions, categoryModifiers };
+}
+
 async function backfillAfterRestore(data: BackupPayload["data"]): Promise<void> {
   const types = rowsOf(data, "entryTypes") as unknown as EntryType[];
   const byId = new Map(types.map((t) => [t.id, t]));

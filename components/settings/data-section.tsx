@@ -157,11 +157,14 @@ export function DataSection() {
         type: "ok",
         text:
           mode === "replace"
-            ? `Backup restored — ${fmt(result.written)} records.`
-            : `Merged — ${fmt(result.written)} records written` +
+            ? t("backup.replaceDone", { n: fmt(result.written) })
+            : t("backup.mergeDone", { n: fmt(result.written) }) +
+              (result.matched
+                ? " " + t("backup.mergeMatched", { n: fmt(result.matched) })
+                : "") +
               (result.skipped
-                ? `, ${fmt(result.skipped)} skipped because this device had a newer version.`
-                : "."),
+                ? " " + t("backup.mergeSkipped", { n: fmt(result.skipped) })
+                : ""),
       });
     } catch (err) {
       setMessage({
@@ -368,13 +371,13 @@ export function DataSection() {
                 <GitMerge className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium">
-                    Merge{" "}
+                    {t("backup.merge")}{" "}
                     <span className="text-xs font-normal text-muted-foreground">
-                      (recommended)
+                      {t("backup.recommended")}
                     </span>
                   </span>
                   <span className="block text-[11px] leading-snug text-muted-foreground">
-                    The backup is added on top of your data. The newer version of each record wins; extra records on this device are kept.
+                    {t("backup.mergeBody")}
                   </span>
                 </span>
               </button>
@@ -388,10 +391,10 @@ export function DataSection() {
                 <Replace className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium text-destructive">
-                    Replace
+                    {t("backup.replace")}
                   </span>
                   <span className="block text-[11px] leading-snug text-muted-foreground">
-                    ALL data on this device is deleted and replaced by this backup. Cannot be undone.
+                    {t("backup.replaceBody")}
                   </span>
                 </span>
               </button>
