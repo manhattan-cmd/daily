@@ -174,6 +174,9 @@ export interface Mod {
   choices?: string[];
   /** Skalanın uçlarının anlamı — girdi ekranında sayıların altında görünür */
   scaleLabels?: ScaleLabels;
+  /** Analizde nasıl okunacağı. Boşsa ölçü türünün varsayılanı uygulanır —
+   *  eski kayıtlar olduğu gibi davranmaya devam eder. İndekssiz alan. */
+  analysis?: ModAnalysis;
   /** @deprecated v18 öncesi ölçü havuzuna bağ. Yeni modlarda yok; eski
    *  kayıtlarda dönüş yolu açık kalsın diye silinmedi. */
   entryTypeId?: string;
@@ -183,6 +186,80 @@ export interface Mod {
   createdAt: number;
   updatedAt: number;
 }
+
+/**
+ * Özelliğin analizde nasıl okunacağı.
+ *
+ * Neden gerekli: ölçü türü "bu bir sayı" der ama sayının NE olduğunu söylemez.
+ * Para ve mesafe birikir; kilo birikmez — dört tartımın toplamı 317 kg diye
+ * yazılıyordu, anlamlı olan son değer ve eğilim.
+ *
+ * Bu ayar kullanıcıya SORULMUYOR. Bir denemesi yapıldı ve geri alındı: özellik
+ * yaratmak zaten ölçü seçmeyi gerektiriyor, üstüne "kaç kutu, hangi grafik"
+ * sormak formu karar yığınına çeviriyor. Karar bizde, iki yerde veriliyor:
+ *   • ölçü türünün varsayılanı — lib/analytics defaultStats/defaultChart
+ *   • tek tek özelliğin istisnası — lib/db/starter (F.bodyWeight düzey gibi)
+ * Alan kayıtta duruyor ki karar yedeklerde de taşınsın.
+ */
+export interface ModAnalysis {
+  /** Analiz biçimi — kutuları ve grafiği birlikte belirler */
+  preset?: AnalysisPreset;
+  /** @deprecated v20 öncesi: yalnız okuma biçimi tutuluyordu. Okunurken
+   *  "level" biçimine çevrilir (bkz. lib/analytics presetOf). */
+  reading?: ModReading;
+}
+
+/**
+ * Sunulan analiz biçimleri. Hangisinin hangi ölçüde geçerli olduğu ve her
+ * birinin hangi kutuları getirdiği lib/analytics PRESETS / PRESETS_FOR'da.
+ *
+ *  sum          biriken       toplam · günlük ortalama · girdi     çubuk
+ *  level        seviye        son · ortalama · aralık              çizgi
+ *  peak         rekor         en yüksek · ortalama · girdi         çubuk
+ *  average      ortalama      ortalama · girdi                     çubuk
+ *  rate         oran          evet oranı · evet · seri             çubuk
+ *  frequency    sıklık        yazılan · girdi                      çubuk
+ *  distribution dağılım       en sık · girdi                       dağılım
+ *  texts        metinler      hangi metin kaç kez                  dağılım
+ */
+export type AnalysisPreset =
+  | "sum"
+  | "level"
+  | "peak"
+  | "average"
+  | "rate"
+  | "frequency"
+  | "distribution"
+  | "texts";
+
+/** Analizde davranış türü — ölçüden çıkar, saklanmaz */
+export type ModKindForAnalysis =
+  | "number"
+  | "duration"
+  | "scale"
+  | "rate"
+  | "presence"
+  | "choice";
+
+/** akış = birikir (para, süre, km) · düzey = an ölçümü (kilo, bench) */
+export type ModReading = "flow" | "level";
+
+export type ChartKind = "bar" | "line" | "distribution";
+
+export type StatKey =
+  | "total"
+  | "dailyAverage"
+  | "average"
+  | "last"
+  | "min"
+  | "max"
+  | "range"
+  | "entries"
+  | "rate"
+  | "yesCount"
+  | "yesStreak"
+  | "topChoice"
+  | "written";
 
 /**
  * Atama — havuzdaki bir modun bir kategori/alt kategoriye bağlanması.

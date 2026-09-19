@@ -17,6 +17,7 @@ import {
   startOfDayMs,
 } from "@/lib/analytics";
 import { StatTile } from "./stat-tile";
+import { StatTiles } from "./stat-tiles";
 import { DailyBarChart } from "./daily-bar-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
 import { ChoiceDistribution } from "./choice-distribution";
@@ -217,6 +218,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       activeRatio,
       streaks,
       yesStreaks,
+      level: compute.levelOf(entries),
       recentValue,
       prevValue,
       growthPct,
@@ -280,110 +282,31 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
             sub={`${computed.elapsedDays} days`}
           />
         </div>
-      ) : compute.displayMode === "rate" ? (
-        /* Oran — ana rakam yüzde; ham adet dönem uzunluğuna bağlı olduğundan
-           tek başına karşılaştırılamaz. Üçüncü kutu "evet serisi": yukarıdaki
-           İstikrar bloğu girdi girilen günü sayar, bu evet denen günü. */
-        <div className="grid grid-cols-3 gap-2">
-          <StatTile
-            color={category.color}
-            label={t("stat.yesRate")}
-            value={fmtPct(computed.rate)}
-            sub={`${fmtNum(computed.total)}/${fmtNum(computed.withValueCount)}`}
-          />
-          <StatTile
-            color={category.color}
-            label={t("entry.yes")}
-            value={fmtNum(computed.total)}
-            sub={t("stat.outOfEntries", { n: computed.withValueCount })}
-          />
-          <StatTile
-            color={category.color}
-            label={t("stat.yesStreak")}
-            value={fmtNum(computed.yesStreaks?.current ?? 0)}
-            unit={t("stat.days")}
-            sub={t("stat.best", { n: computed.yesStreaks?.best ?? 0 })}
-          />
-        </div>
-      ) : compute.displayMode === "choice" ? (
-        /* Dağılım — toplam/ortalama diye bir şey yok; sorulan soru "hangisi" */
-        <div className="grid grid-cols-2 gap-2">
-          <StatTile
-            color={category.color}
-            label={t("stat.mostFrequent")}
-            value={computed.topChoice?.choice ?? "—"}
-            wordValue
-            sub={
-              computed.topChoice
-                ? `${fmtPct(computed.topChoice.count / computed.choiceTotal)} · ${fmtNum(computed.topChoice.count)}`
-                : t("stat.noData")
-            }
-          />
-          <StatTile
-            color={category.color}
-            label={t("insights.entries")}
-            value={fmtNum(computed.choiceTotal)}
-            sub={`${computed.elapsedDays} ${t("stat.days")}`}
-          />
-        </div>
-      ) : compute.displayMode === "presence" ? (
-        /* Metin — sayılacak tek şey "kaç girdide yazılmış"; asıl değer aşağıdaki
-           listede, metnin kendisini dönem süzgeciyle okuyabilmekte */
-        <div className="grid grid-cols-2 gap-2">
-          <StatTile
-            color={category.color}
-            label={t("stat.written")}
-            value={fmtNum(computed.total)}
-            sub={t("stat.outOfEntries", { n: data.entries.length })}
-          />
-          <StatTile
-            color={category.color}
-            label={t("stat.dailyAverage")}
-            value={fmtNum(computed.dailyAvg)}
-            sub={`${computed.elapsedDays} days`}
-          />
-        </div>
       ) : (
-        <div className="grid grid-cols-3 gap-2">
-          {compute.displayMode === "both" && (
-            <StatTile
-              color={category.color}
-              label={t("stat.total")}
-              value={fmtNum(computed.total)}
-              unit={unit}
-              sub="all time"
-            />
-          )}
-          {compute.displayMode === "both" ? (
-            <StatTile
-              color={category.color}
-              label={t("stat.dailyAverage")}
-              value={fmtNum(computed.dailyAvg)}
-              unit={unit}
-              sub={`${computed.elapsedDays} days`}
-            />
-          ) : (
-            <StatTile
-              color={category.color}
-              label={t("stat.average")}
-              value={fmtNum(computed.avg)}
-              unit={unit}
-              /* Skalada "girdi başına" demek yetmiyor — 3,4'ün hangi aralıkta
-                 olduğu bilinmeden iyi mi kötü mü anlaşılmıyor */
-              sub={
-                compute.scale
-                  ? `${fmtNum(compute.scale.min)}–${fmtNum(compute.scale.max)}`
-                  : t("stat.perEntry")
-              }
-            />
-          )}
-          <StatTile
-            color={category.color}
-            label={t("insights.entries")}
-            value={fmtNum(computed.withValueCount)}
-            sub={`${computed.elapsedDays} days`}
-          />
-        </div>
+        /* Kutular özelliğin kendi analiz ayarından (bkz. StatTiles) */
+        <StatTiles
+          keys={compute.stats}
+          color={category.color}
+          unit={unit}
+          periodSub="all time"
+          daysSub={`${computed.elapsedDays} ${t("stat.days")}`}
+          values={{
+            total: computed.total,
+            dailyAvg: computed.dailyAvg,
+            avg: computed.avg,
+            withValueCount: computed.withValueCount,
+            entriesCount: compute.isChoice
+              ? computed.choiceTotal
+              : computed.withValueCount,
+            rate: computed.rate,
+            yesStreakCurrent: computed.yesStreaks?.current,
+            yesStreakBest: computed.yesStreaks?.best,
+            topChoice: computed.topChoice,
+            choiceTotal: computed.choiceTotal,
+            ...computed.level,
+            elapsedDays: computed.elapsedDays,
+          }}
+        />
       )}
 
       {/* İstikrar — aktif gün oranı ve seriler (metrikten bağımsız, girdi bazlı) */}
@@ -548,6 +471,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
           unit={metric.type === "count" ? "entries" : unit}
           caption={computed.seriesFrame?.caption}
           scale={compute.scale}
+          variant={compute.chart === "line" ? "line" : "bar"}
           stack={
             compute.isRate
               ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") }

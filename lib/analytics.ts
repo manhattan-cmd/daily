@@ -4,7 +4,17 @@
  */
 
 import { choiceLabel } from "@/lib/choice-level";
-import type { EntryType, Mod } from "@/types";
+import type {
+  AnalysisPreset,
+  ChartKind,
+  EntryType,
+  EntryValueType,
+  Mod,
+  ModAnalysis,
+  ModKindForAnalysis,
+  ModReading,
+  StatKey,
+} from "@/types";
 import { intlTag, translate } from "@/lib/i18n";
 
 export type RangeKey = "bugun" | "hafta" | "7" | "30" | "ay" | "yil" | "tum";
@@ -372,7 +382,13 @@ export function isNumericChoiceSet(choices?: string[]): boolean {
 /** Girdi listesinde tek satırlık tarih+saat: "7 Tem · 14:20" */
 export function fmtEntryDateTime(t: number): string {
   const d = new Date(t);
-  const date = `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}`;
+  // Gün iki basamağa tamamlanıyor ("Sep 09"). Süs değil, hizalama: girdi
+  // listesinde tarih sol sütun ve genişliği içeriğine göre kuruluyor —
+  // "Sep 9" ile "Sep 16" arasındaki bir karakterlik fark bütün satırın adını
+  // 6 piksel kaydırıyordu, liste merdiven gibi duruyordu. Ay kısaltması üç,
+  // saat iki basamak olduğu için tek değişken buydu; sabitlenince sütun da
+  // sabitlendi (rakamlar zaten tabular-nums).
+  const date = `${SHORT_MONTHS[d.getMonth()]} ${String(d.getDate()).padStart(2, "0")}`;
   const time = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
   return `${date} · ${time}`;
 }
@@ -426,6 +442,11 @@ export type NumericMod = {
   unit: string;
   kind: ModKind;
   scale?: ScaleRange;
+  /** Seçili biçimin okuma yönü — "level" ise kovalar toplanmaz */
+  reading: ModReading;
+  /** Seçili biçimin kutuları ve grafiği */
+  spec: PresetSpec;
+  analysis?: ModAnalysis;
 };
 
 /**
@@ -434,7 +455,12 @@ export type NumericMod = {
  * "hangisi, ne sıklıkla, değişiyor mu". Bu yüzden sayısal boruya sokulmaz,
  * kendi dalında dağılım olarak hesaplanır.
  */
-export type ChoiceMod = { id: string; name: string; kind: "choice" };
+export type ChoiceMod = {
+  id: string;
+  name: string;
+  kind: "choice";
+  spec: PresetSpec;
+};
 export type MetricMod = NumericMod | ChoiceMod;
 
 export const isChoiceMod = (m: MetricMod): m is ChoiceMod => m.kind === "choice";
@@ -456,10 +482,19 @@ export const displayModeOf = (kind: ModKind): DisplayMode =>
         ? "presence"
         : "both";
 
-export function sumOrAvg(values: number[], kind: ModKind): number {
+/**
+ * Kovanın rakamı. Toplanmayan iki şey var: skala (1–5 puanlamanın toplamı
+ * anlamsız) ve DÜZEY okuması (kilo gibi an ölçümleri — haftanın rakamı o
+ * haftanın ortalamasıdır, tartımların toplamı değil).
+ */
+export function sumOrAvg(
+  values: number[],
+  kind: ModKind,
+  reading: ModReading = "flow"
+): number {
   if (!values.length) return 0;
   const total = values.reduce((a, b) => a + b, 0);
-  return kind === "scale" ? total / values.length : total;
+  return kind === "scale" || reading === "level" ? total / values.length : total;
 }
 
 /** Evet/Hayır değerinin sayısal karşılığı — oranın payı */
@@ -501,8 +536,22 @@ export function statSub(
  *  v18'den beri ölçüm özelliğin kendi üzerinde — ayrıca ölçü aramak gerekmiyor. */
 export function classifyMod(mod: Mod): MetricMod | null {
   const vt = mod.valueType ?? "number";
+  // Seçilen biçim değerleri ETİKET olarak okuyorsa (metinlerin dağılımı,
+  // skalanın dağılımı) sayısal boruya hiç girmez
+  const spec = specOf(analysisKindOf(vt, mod.choices), mod.analysis);
+  if (spec.asChoice && vt !== "boolean") {
+    return { id: mod.id, name: mod.name, kind: "choice", spec };
+  }
   if (vt === "number") {
-    return { id: mod.id, name: mod.name, unit: mod.unit ?? "", kind: "number" };
+    return {
+      id: mod.id,
+      name: mod.name,
+      unit: mod.unit ?? "",
+      kind: "number",
+      reading: spec.reading,
+      spec,
+      analysis: mod.analysis,
+    };
   }
   if (vt === "datetime-range") {
     return {
@@ -510,12 +559,15 @@ export function classifyMod(mod: Mod): MetricMod | null {
       name: mod.name,
       unit: translate("stat.hoursShort"),
       kind: "duration",
+      reading: spec.reading,
+      spec,
+      analysis: mod.analysis,
     };
   }
   if (vt === "select") {
     // Seçenekleri tamamen sayıysa skala (ortalanır), değilse dağılım
     if (!isNumericChoiceSet(mod.choices)) {
-      return { id: mod.id, name: mod.name, kind: "choice" };
+      return { id: mod.id, name: mod.name, kind: "choice", spec };
     }
     // Basamaklar zaten sayı (isNumericChoiceSet garanti ediyor); aralığı
     // buradan okuyoruz ki grafik 0'dan değil skalanın tabanından çizsin
@@ -525,6 +577,9 @@ export function classifyMod(mod: Mod): MetricMod | null {
       name: mod.name,
       unit: "",
       kind: "scale",
+      reading: spec.reading,
+      spec,
+      analysis: mod.analysis,
       scale: {
         min: Math.min(...nums),
         max: Math.max(...nums),
@@ -534,10 +589,10 @@ export function classifyMod(mod: Mod): MetricMod | null {
     };
   }
   if (vt === "boolean") {
-    return { id: mod.id, name: mod.name, unit: "", kind: "rate" };
+    return { id: mod.id, name: mod.name, unit: "", kind: "rate", reading: "flow", spec, analysis: mod.analysis };
   }
   if (vt === "text") {
-    return { id: mod.id, name: mod.name, unit: "", kind: "presence" };
+    return { id: mod.id, name: mod.name, unit: "", kind: "presence", reading: "flow", spec, analysis: mod.analysis };
   }
   return null;
 }
@@ -557,4 +612,107 @@ export function countByChoice(values: string[]): { choice: string; count: number
   return [...counts.entries()]
     .map(([choice, count]) => ({ choice, count }))
     .sort((a, b) => b.count - a.count || a.choice.localeCompare(b.choice, "en"));
+}
+
+/**
+ * Analiz biçimi — özelliğin analizde nasıl okunacağı, TEK bir tercih.
+ *
+ * Önce parça parça sorulmuştu (okuma biçimi + kutu listesi + grafik türü);
+ * üç ayrı kontrol, özellik yaratma formunu karar yığınına çeviriyordu. Şimdi
+ * tek bir seçim var: her biçim kendi kutularını ve grafiğini birlikte
+ * getiriyor. Seçenekler ölçüye göre daralıyor — bir metne "toplam", bir
+ * evet/hayıra "seviye" hiç sunulmuyor.
+ */
+export type PresetSpec = {
+  reading: ModReading;
+  stats: StatKey[];
+  chart: ChartKind;
+  /** Değerler sayı değil ETİKET olarak okunur (dağılım borusu) */
+  asChoice?: boolean;
+};
+
+export const PRESETS: Record<AnalysisPreset, PresetSpec> = {
+  // Biriken: para, süre, mesafe — iki günün değeri toplanabilir
+  sum: { reading: "flow", stats: ["total", "dailyAverage", "entries"], chart: "bar" },
+  // Seviye: kilo, bench ağırlığı, tansiyon — toplanmaz, nereye gittiği sorulur
+  level: { reading: "level", stats: ["last", "average", "range"], chart: "line" },
+  // Rekor: en iyi değer öne çıkar (en ağır kaldırış, en kötü ağrı)
+  peak: { reading: "flow", stats: ["max", "average", "entries"], chart: "bar" },
+  // Ortalama: puanlamalar — toplamı anlamsız
+  average: { reading: "flow", stats: ["average", "entries"], chart: "bar" },
+  rate: { reading: "flow", stats: ["rate", "yesCount", "yesStreak"], chart: "bar" },
+  // Sıklık: metinde yalnız kaç girdide yazıldığı
+  frequency: { reading: "flow", stats: ["written", "entries"], chart: "bar" },
+  // Dağılım: hangi seçenek ne sıklıkla
+  distribution: {
+    reading: "flow",
+    stats: ["topChoice", "entries"],
+    chart: "distribution",
+    asChoice: true,
+  },
+  // Metinlerin dağılımı: HANGİ metin kaç kez yazılmış (hangi kitap, kiminle)
+  texts: {
+    reading: "flow",
+    stats: ["topChoice", "entries"],
+    chart: "distribution",
+    asChoice: true,
+  },
+};
+
+/**
+ * Ölçüye göre sunulan biçimler; ilki varsayılan.
+ *
+ * Tek seçenekli türlerde (evet/hayır, çoktan seçmeli) seçici hiç
+ * gösterilmiyor — tek şıklı bir soru sormak kullanıcıyı oyalamak.
+ */
+export const PRESETS_FOR: Record<ModKindForAnalysis, AnalysisPreset[]> = {
+  number: ["sum", "level", "peak"],
+  duration: ["sum", "level"],
+  scale: ["average", "level", "distribution"],
+  rate: ["rate"],
+  choice: ["distribution"],
+  presence: ["texts", "frequency"],
+};
+
+/** Geçerli biçim — seçilmemişse ya da ölçüye uymuyorsa türün varsayılanı */
+export function presetOf(
+  kind: ModKindForAnalysis,
+  analysis?: ModAnalysis
+): AnalysisPreset {
+  const allowed = PRESETS_FOR[kind] ?? PRESETS_FOR.number;
+  const picked = analysis?.preset;
+  if (picked && allowed.includes(picked)) return picked;
+  // v20 öncesi kayıtlar biçimi değil "okuma"yı tutuyordu
+  if (analysis?.reading === "level" && allowed.includes("level")) return "level";
+  return allowed[0];
+}
+
+export const specOf = (kind: ModKindForAnalysis, analysis?: ModAnalysis): PresetSpec =>
+  PRESETS[presetOf(kind, analysis)];
+
+/** Ölçüden analiz türünü çıkar — kaydedilmiş bir Mod olmadan da çalışır */
+export function analysisKindOf(
+  valueType: EntryValueType | undefined,
+  choices?: string[]
+): ModKindForAnalysis {
+  const vt = valueType ?? "number";
+  if (vt === "datetime-range") return "duration";
+  if (vt === "boolean") return "rate";
+  if (vt === "text") return "presence";
+  if (vt === "select") return isNumericChoiceSet(choices) ? "scale" : "choice";
+  return "number";
+}
+
+/** Bir sayı kümesinin uçları ve sonuncusu — seviye kutularının kaynağı */
+export function levelStats(values: number[]): {
+  last: number;
+  min: number;
+  max: number;
+} {
+  if (!values.length) return { last: 0, min: 0, max: 0 };
+  return {
+    last: values[values.length - 1],
+    min: Math.min(...values),
+    max: Math.max(...values),
+  };
 }

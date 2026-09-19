@@ -23,6 +23,7 @@ import type {
   Note,
   NoteBlock,
   EntryValueType,
+  ModAnalysis,
   ScaleLabels,
 } from "@/types";
 import { SCALE_1_5, isScaleChoices } from "@/types";
@@ -500,7 +501,7 @@ async function resolveStarterMod(
   const name = pickText(ref.name, locale);
   const existing = await findModByName(name);
   if (existing) return existing;
-  const { mod } = await createMod(name, starterMeasure(ref, locale));
+  const { mod } = await createMod(name, starterMeasure(ref, locale), ref.analysis);
   return mod;
 }
 
@@ -1002,6 +1003,7 @@ export async function seedDefaultFeatures(): Promise<void> {
       id: id(),
       name: pickText(f.name, locale),
       ...measureFieldsOf(starterMeasure(f, locale)),
+      ...(f.analysis ? { analysis: f.analysis } : {}),
       createdAt: now(),
       updatedAt: now(),
     }))
@@ -1027,7 +1029,8 @@ export async function findModByName(name: string): Promise<Mod | undefined> {
 /** İsim tekildir: aynı adla ikinci atom yaratılamaz — var olan döner. */
 export async function createMod(
   name: string,
-  measure: ModMeasure
+  measure: ModMeasure,
+  analysis?: ModAnalysis
 ): Promise<{ mod: Mod; created: boolean }> {
   const existing = await findModByName(name);
   if (existing) return { mod: existing, created: false };
@@ -1035,6 +1038,7 @@ export async function createMod(
     id: id(),
     name: name.trim(),
     ...measureFieldsOf(measure),
+    ...(analysis ? { analysis } : {}),
     isBuiltIn: false,
     createdAt: now(),
     updatedAt: now(),
@@ -1063,6 +1067,14 @@ export async function renameMod(modId: string, name: string): Promise<boolean> {
  * Eskiden kaydedilmiş değerler ham metin olarak durur; tür değişince
  * okunamayan değer olabileceği için arayüz kullanıcıyı uyarır.
  */
+/** Analiz biçimi — ölçüden ayrı tutuluyor: ölçü değişmeden de değiştirilebilmeli */
+export async function setModAnalysis(
+  modId: string,
+  analysis: ModAnalysis | undefined
+): Promise<void> {
+  await db.mods.update(modId, { analysis, updatedAt: now() });
+}
+
 export async function setModMeasure(
   modId: string,
   measure: ModMeasure

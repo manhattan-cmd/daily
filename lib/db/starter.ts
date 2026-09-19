@@ -1,4 +1,4 @@
-import type { EntryValueType } from "@/types";
+import type { EntryValueType, ModAnalysis } from "@/types";
 import type { Locale } from "@/lib/i18n";
 
 /**
@@ -33,8 +33,8 @@ export type StarterMeasure = {
   scaleLabels?: { low?: Text; high?: Text };
 };
 
-/** Havuzdaki bir özellik — adı ve ölçüsü birlikte, tek kaynak. */
-export type StarterFeature = { name: Text } & StarterMeasure;
+/** Havuzdaki bir özellik — adı, ölçüsü ve analizde nasıl okunacağı. */
+export type StarterFeature = { name: Text; analysis?: ModAnalysis } & StarterMeasure;
 
 const scale = (min: number, max: number) =>
   Array.from({ length: max - min + 1 }, (_, i) => String(min + i));
@@ -89,11 +89,16 @@ export const F = {
     name: { en: "Body Weight", tr: "Vücut ağırlığı" },
     valueType: "number",
     unit: "kg",
+    // SEVİYE: tartımlar toplanmaz, sorulan şey nereye gittiği
+    analysis: { preset: "level" },
   },
   liftedWeight: {
     name: { en: "Lifted Weight", tr: "Kaldırılan ağırlık" },
     valueType: "number",
     unit: "kg",
+    // SEVİYE: "bugün 90, bir ay sonra 100" geçişi görünsün diye. Aylık
+    // toplam kaldırılan kilo da bir şey anlatır ama asıl soru ilerleme.
+    analysis: { preset: "level" },
   },
   sets: {
     name: { en: "Sets", tr: "Set" },
@@ -124,6 +129,8 @@ export const F = {
     },
   },
   severity: {
+    // Ağrıda ortalamadan çok en kötü an soruluyor
+    analysis: { preset: "peak" },
     name: { en: "Severity", tr: "Şiddet" },
     valueType: "select",
     choices: scale(1, 10),

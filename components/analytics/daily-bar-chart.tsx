@@ -5,6 +5,8 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -36,6 +38,7 @@ export function DailyBarChart({
   showAllTicks,
   stack,
   scale,
+  variant = "bar",
 }: {
   data: DayBucket[];
   color: string;
@@ -50,12 +53,32 @@ export function DailyBarChart({
   /** Skala metriği: eksen 0'dan değil skalanın kendi aralığından başlar ve
    *  boş kovalar hiç çizilmez (0 puan diye okunmasın) */
   scale?: ScaleRange;
+  /**
+   * Çizim biçimi. "line" DÜZEY okuması için: kilo gibi an ölçümlerinde
+   * sorulan şey "ne kadar biriktiği" değil "nereye gittiği". Çubuk 0'dan
+   * yükseldiği için 78,8 ile 79,4 arasındaki fark görünmez oluyordu; çizgi
+   * ekseni değerlerin kendi aralığına oturtur ve eğilim okunur.
+   */
+  variant?: "bar" | "line";
 }) {
   // Skalada çubuklar skalanın tabanından yükselir; boş kova çizilmez —
   // recharts null değeri atlar, 0 ise gerçek bir puan olabilir
   const chartData = scale
     ? data.map((d) => ({ ...d, value: d.hasData === false ? null : d.value }))
     : data;
+
+  // Çizgide boş kova NOKTA değil delik: 0 diye çizilirse eğilim yere düşüyor
+  const lineData = data.map((d) => ({
+    ...d,
+    value: d.hasData === false ? null : d.value,
+  }));
+  // Eksen değerlerin kendi aralığına oturur, tabanı 0 değil; iki uçta da
+  // %8 pay bırakılıyor ki çizgi kenara yapışmasın
+  const lineVals = data.filter((d) => d.hasData !== false).map((d) => d.value);
+  const lineLo = lineVals.length ? Math.min(...lineVals) : 0;
+  const lineHi = lineVals.length ? Math.max(...lineVals) : 0;
+  const linePad = (lineHi - lineLo || Math.abs(lineHi) || 1) * 0.08;
+  const lineDomain: [number, number] = [lineLo - linePad, lineHi + linePad];
 
   // Yığılmışta "hepsi hayır" bir kova doludur — boş sayılmamalı
   const allZero = scale
@@ -169,6 +192,53 @@ export function DailyBarChart({
         </div>
       )}
       <ResponsiveContainer width="100%" height="100%">
+        {variant === "line" ? (
+        <LineChart
+          data={lineData}
+          margin={{ top: 8, right: MARGIN_RIGHT, bottom: 0, left: MARGIN_LEFT }}
+          accessibilityLayer={false}
+        >
+          <CartesianGrid vertical={false} stroke="var(--border)" strokeWidth={1} />
+          <XAxis
+            dataKey="axisLabel"
+            tickLine={false}
+            axisLine={{ stroke: "var(--border)" }}
+            tick={
+              hasSub ? <TwoLineTick data={data} /> : { fill: "#a1a1aa", fontSize: 10 }
+            }
+            height={hasSub ? 34 : undefined}
+            interval={tickInterval}
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            tick={{ fill: "#a1a1aa", fontSize: 10 }}
+            tickCount={3}
+            domain={lineDomain}
+            allowDecimals
+            tickFormatter={(v: number) => fmtNum(v)}
+            width={Y_AXIS_WIDTH}
+            className="tabular-nums"
+          />
+          <Tooltip
+            cursor={false}
+            active={tipDismissed ? false : undefined}
+            content={<ChartTip unit={unit} />}
+          />
+          <Line
+            type="monotone"
+            dataKey="value"
+            stroke={color}
+            strokeWidth={2}
+            dot={{ r: 2.5, fill: color, strokeWidth: 0 }}
+            activeDot={{ r: 4 }}
+            // Ölçüm yapılmayan gün boşluk bırakmasın: iki tartım arasındaki
+            // çizgi kesilirse eğilim parça parça okunuyordu
+            connectNulls
+            isAnimationActive={false}
+          />
+        </LineChart>
+        ) : (
         <BarChart
           data={chartData}
           margin={{ top: 8, right: MARGIN_RIGHT, bottom: 0, left: MARGIN_LEFT }}
@@ -245,6 +315,7 @@ export function DailyBarChart({
             />
           )}
         </BarChart>
+        )}
       </ResponsiveContainer>
 
       {/* Seçilen sütunun balonu — sütunun tepesinde, ön planda. Sütun uzunsa

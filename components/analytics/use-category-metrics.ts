@@ -15,6 +15,7 @@ import {
   isChoiceMod,
   parseNumeric,
   sumOrAvg,
+  levelStats,
   textToNumber,
   type DayBucket,
   type DisplayMode,
@@ -23,6 +24,7 @@ import {
   type ModKind,
   type ScaleRange,
 } from "@/lib/analytics";
+import type { ChartKind, ModReading, StatKey } from "@/types";
 import { useT } from "@/lib/i18n";
 import type { Category, Entry, EntryValue, SubCategory } from "@/types";
 
@@ -80,6 +82,14 @@ export interface MetricCompute {
   /** Rakamı ortalama olan metrikler (skala ve oran). Bunlarda boş dönem "0"
    *  diye okunamaz ve değişim yüzde değil PUAN farkıyla anlatılır. */
   isAvgLike: boolean;
+  /** Okuma biçimi — düzeyde kovalar toplanmaz, ortalanır */
+  reading: ModReading;
+  /** Çıkacak analiz kutuları (kullanıcının seçimi ya da türün varsayılanı) */
+  stats: StatKey[];
+  /** Serinin çizimi */
+  chart: ChartKind;
+  /** Alt kümedeki son/en düşük/en yüksek değer — düzey kutularının kaynağı */
+  levelOf: (subset: Entry[]) => { last: number; min: number; max: number };
 }
 
 /**
@@ -307,6 +317,12 @@ export function useCategoryMetrics({
     const unit = metric.type === "mod" ? metric.mod.unit : "";
     const isRate = kind === "rate";
     const isChoice = metric.type === "choice";
+    // Metriğin biçimi: kutular ve grafik buradan gelir
+    const spec =
+      metric.type === "count"
+        ? { reading: "flow" as ModReading, stats: [] as StatKey[], chart: "bar" as const }
+        : metric.mod.spec;
+    const reading: ModReading = metric.type === "mod" ? metric.mod.reading : "flow";
     const valuesOf = (subset: Entry[]) =>
       subset
         .map((e) => valueByEntry.get(e.id))
@@ -333,7 +349,7 @@ export function useCategoryMetrics({
           ? choiceFilter
             ? choicesOf(subset).filter((c) => c === choiceFilter).length
             : choicesOf(subset).length
-          : sumOrAvg(valuesOf(subset), kind as ModKind);
+          : sumOrAvg(valuesOf(subset), kind as ModKind, reading);
     const averageOf = (subset: Entry[]): number => average(valuesOf(subset));
     const distributionOf = (subset: Entry[]) =>
       isChoice ? countByChoice(choicesOf(subset)) : [];
@@ -384,7 +400,7 @@ export function useCategoryMetrics({
           ? undefined
           : isChoice
             ? (choiceFilter ?? t("list.entry"))
-            : kind === "scale"
+            : kind === "scale" || reading === "level"
               ? t("stat.average")
               : isRate
                 ? t("entry.yes")
@@ -394,7 +410,15 @@ export function useCategoryMetrics({
       isRate,
       isChoice,
       scale: metric.type === "mod" ? metric.mod.scale : undefined,
-      isAvgLike: kind === "scale" || isRate,
+      isAvgLike: kind === "scale" || isRate || reading === "level",
+      reading,
+      stats:
+        metric.type === "count"
+          ? (["entries", "dailyAverage"] as StatKey[])
+          : spec.stats,
+      chart: spec.chart,
+      // Girdiler zaman sırasında geldiği için "son" gerçekten sonuncusu
+      levelOf: (subset: Entry[]) => levelStats(valuesOf(subset)),
     };
   }, [data, metric, choiceFilter, t]);
 

@@ -10,6 +10,13 @@ import {
   parseNumeric,
   startOfDayMs,
   weekStartMs,
+  classifyMod,
+  levelStats,
+  presetOf,
+  PRESETS,
+  PRESETS_FOR,
+  sumOrAvg,
+  type NumericMod,
 } from "./analytics";
 import type { SubCategory } from "@/types";
 
@@ -144,5 +151,80 @@ describe("sayı biçimi", () => {
     expect(parseNumeric("12.5")).toBeCloseTo(12.5);
     expect(parseNumeric("")).toBe(0);
     expect(parseNumeric("abc")).toBe(0);
+  });
+});
+
+describe("analiz biçimi", () => {
+  const mod = (extra: Partial<import("@/types").Mod> = {}) =>
+    ({
+      id: "m",
+      name: "Ölçü",
+      valueType: "number",
+      unit: "kg",
+      createdAt: 0,
+      updatedAt: 0,
+      ...extra,
+    }) as import("@/types").Mod;
+
+  it("seçilmemişse türün ilk biçimi — sayıda 'biriken'", () => {
+    expect(presetOf("number")).toBe("sum");
+    const m = classifyMod(mod({})) as NumericMod;
+    expect(m.reading).toBe("flow");
+    expect(m.spec.stats).toEqual(["total", "dailyAverage", "entries"]);
+    expect(sumOrAvg([80, 79, 78], "number", m.reading)).toBe(237);
+  });
+
+  it("seviye biçiminde değerler toplanmaz, ortalanır", () => {
+    const m = classifyMod(mod({ analysis: { preset: "level" } })) as NumericMod;
+    expect(m.reading).toBe("level");
+    expect(m.spec.chart).toBe("line");
+    expect(sumOrAvg([80, 79, 78], "number", m.reading)).toBe(79);
+  });
+
+  it("ölçüye uymayan biçim seçilmiş olsa bile varsayılana düşer", () => {
+    // Metinde "biriken" diye bir şey yok
+    expect(presetOf("presence", { preset: "sum" })).toBe("texts");
+    // Tek şıklı türlerde seçim zaten sabit
+    expect(presetOf("rate", { preset: "level" })).toBe("rate");
+  });
+
+  it("v20 öncesi kayıtların 'okuma' alanı seviyeye çevrilir", () => {
+    expect(presetOf("number", { reading: "level" })).toBe("level");
+  });
+
+  it("metin varsayılanı metinlerin dağılımı — hangi metin kaç kez", () => {
+    expect(PRESETS_FOR.presence[0]).toBe("texts");
+    const m = classifyMod(mod({ valueType: "text", unit: undefined }));
+    expect(m?.kind).toBe("choice");
+  });
+
+  it("sıklık biçiminde metin sayısal okunur", () => {
+    const m = classifyMod(
+      mod({ valueType: "text", unit: undefined, analysis: { preset: "frequency" } })
+    );
+    expect(m?.kind).toBe("presence");
+  });
+
+  it("tek şıklı türlerde seçici gösterilmez", () => {
+    expect(PRESETS_FOR.rate).toHaveLength(1);
+    expect(PRESETS_FOR.choice).toHaveLength(1);
+    expect(PRESETS_FOR.number.length).toBeGreaterThan(1);
+  });
+
+  it("her biçim kutularını ve grafiğini birlikte taşır", () => {
+    for (const [name, spec] of Object.entries(PRESETS)) {
+      expect(spec.stats.length, name).toBeGreaterThan(0);
+      expect(spec.stats.length, name).toBeLessThanOrEqual(3);
+      expect(spec.chart, name).toBeTruthy();
+    }
+  });
+
+  it("son/en düşük/en yüksek — seviye kutularının kaynağı", () => {
+    expect(levelStats([79.4, 79.0, 78.8])).toEqual({
+      last: 78.8,
+      min: 78.8,
+      max: 79.4,
+    });
+    expect(levelStats([])).toEqual({ last: 0, min: 0, max: 0 });
   });
 });

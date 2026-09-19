@@ -9,6 +9,8 @@ import {
   bucketKeyOf,
   buildSeriesBuckets,
   chooseGranularity,
+  computeStreaks,
+  dayKey,
   fmtNum,
   fmtPct,
   framePeriodSeries,
@@ -25,6 +27,7 @@ import {
   type Period,
 } from "@/lib/period";
 import { StatTile } from "./stat-tile";
+import { StatTiles } from "./stat-tiles";
 import { DailyBarChart } from "./daily-bar-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
 import { ChoiceDistribution } from "./choice-distribution";
@@ -260,6 +263,20 @@ export function PeriodCategoryPanel({
       distribution,
       topChoice: distribution[0],
       choiceTotal: isChoice ? filledCount(entries) : 0,
+      // Düzey okumasının kutuları: son ölçüm ve uçlar
+      level: compute.levelOf(entries),
+      // Evet serisi — "evet" denen üst üste günler. Kutu seçilebildiği için
+      // bu panelde de hesaplanıyor; eskiden yalnız içgörü panelinde vardı.
+      yesStreak: isRate
+        ? computeStreaks(
+            new Set(
+              entries
+                .filter((e) => (valueByEntry.get(e.id) ?? 0) > 0)
+                .map((e) => dayKey(e.occurredAt))
+            ),
+            new Date(Math.min(now.getTime(), period.end - 1))
+          )
+        : null,
       withValueCount,
       progress,
       dailyAvg,
@@ -401,100 +418,32 @@ export function PeriodCategoryPanel({
             />
           </div>
         )
-      ) : compute.displayMode === "rate" ? (
-        /* Oran — ana rakam yüzde, payı yanındaki kutuda */
-        <div className="grid grid-cols-3 gap-2">
-          <StatTile
-            color={category.color}
-            label={t("stat.yesRate")}
-            value={fmtPct(computed.rate)}
-            sub={periodShortLabel(period)}
-          />
-          <StatTile
-            color={category.color}
-            label={t("entry.yes")}
-            value={fmtNum(computed.total)}
-            sub={t("stat.outOfEntries", { n: computed.withValueCount })}
-          />
-          <StatTile
-            color={category.color}
-            label={t("insights.entries")}
-            value={fmtNum(computed.withValueCount)}
-            sub={dayCountLabel}
-          />
-        </div>
-      ) : compute.displayMode === "choice" ? (
-        <div className="grid grid-cols-2 gap-2">
-          <StatTile
-            color={category.color}
-            label={t("stat.mostFrequent")}
-            value={computed.topChoice?.choice ?? "—"}
-            wordValue
-            sub={
-              computed.topChoice
-                ? `${fmtPct(computed.topChoice.count / computed.choiceTotal)} · ${fmtNum(computed.topChoice.count)}`
-                : t("stat.noData")
-            }
-          />
-          <StatTile
-            color={category.color}
-            label={t("insights.entries")}
-            value={fmtNum(computed.choiceTotal)}
-            sub={dayCountLabel}
-          />
-        </div>
-      ) : compute.displayMode === "presence" ? (
-        <div className="grid grid-cols-2 gap-2">
-          <StatTile
-            color={category.color}
-            label={t("stat.written")}
-            value={fmtNum(computed.total)}
-            sub={periodShortLabel(period)}
-          />
-          <StatTile
-            color={category.color}
-            label={t("stat.dailyAverage")}
-            value={fmtNum(computed.dailyAvg)}
-            sub={`${progress.elapsedDays} days`}
-          />
-        </div>
       ) : (
-        <div className="grid grid-cols-3 gap-2">
-          {compute.displayMode === "both" && (
-            <StatTile
-              color={category.color}
-              label={t("stat.total")}
-              value={fmtNum(computed.total)}
-              unit={unit}
-              // Ortalama zaten yandaki kutuda; burada hangi aralığın toplamı
-              // olduğu daha faydalı
-              sub={periodShortLabel(period)}
-            />
-          )}
-          {compute.displayMode === "both" && !isDay ? (
-            <StatTile
-              color={category.color}
-              label={t("stat.dailyAverage")}
-              value={fmtNum(computed.dailyAvg)}
-              unit={unit}
-              sub={`${progress.elapsedDays} days`}
-            />
-          ) : (
-            <StatTile
-              color={category.color}
-              label={t("stat.average")}
-              value={fmtNum(computed.avg)}
-              unit={unit}
-              sub={t("stat.perEntry")}
-            />
-          )}
-          <StatTile
-            color={category.color}
-            label={t("insights.entries")}
-            value={fmtNum(computed.withValueCount)}
-            sub={dayCountLabel}
-          />
-        </div>
+        /* Kutular özelliğin kendi analiz ayarından geliyor; ölçü türüne göre
+           dallanan uzun koşul zinciri StatTiles'ın içindeki tek listeye indi */
+        <StatTiles
+          keys={compute.stats}
+          color={category.color}
+          unit={unit}
+          periodSub={periodShortLabel(period)}
+          daysSub={dayCountLabel}
+          values={{
+            total: computed.total,
+            dailyAvg: computed.dailyAvg,
+            avg: computed.avg,
+            withValueCount: computed.withValueCount,
+            entriesCount: compute.isChoice
+              ? computed.choiceTotal
+              : computed.withValueCount,
+            rate: computed.rate,
+            yesStreakCurrent: computed.yesStreak?.current,
+            yesStreakBest: computed.yesStreak?.best,
+            topChoice: computed.topChoice,
+            choiceTotal: computed.choiceTotal,
+            ...computed.level,
+            elapsedDays: progress.elapsedDays,
+          }}
+        />
       )}
 
       {/* Gün dönemlerinde hafta bağlamı — bu gün haftalık ortalamaya göre nerede */}
@@ -590,6 +539,7 @@ export function PeriodCategoryPanel({
             caption={computed.seriesFrame?.caption}
             showAllTicks={computed.seriesFrame?.showAllTicks}
           scale={compute.scale}
+          variant={compute.chart === "line" ? "line" : "bar"}
             stack={
               compute.isRate
                 ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") }
