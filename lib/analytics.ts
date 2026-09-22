@@ -7,6 +7,7 @@ import { choiceLabel } from "@/lib/choice-level";
 import type {
   AnalysisPreset,
   ChartKind,
+  SeriesMode,
   EntryType,
   EntryValueType,
   Mod,
@@ -116,6 +117,14 @@ export type DayBucket = {
   rest?: number;
   /** Kovanın dönem sayfası anahtarı (d-/w-/m-) — bar tıklamasıyla o dönemin analizine gidilir */
   periodKey?: string;
+  /**
+   * Kovanın ham okumaları. Panoda birden çok grafik yan yana durabildiği için
+   * (toplam çubuğu + birikimli çizgi gibi) her grafik kendi rakamını buradan
+   * alıyor; `value` yalnız ilk/eski grafiğin kısayolu.
+   */
+  sum?: number;
+  avg?: number;
+  count?: number;
 };
 
 /** Seri grafiğinin kova granülerliği — pencere büyüdükçe kovalar kabalaşır */
@@ -444,8 +453,8 @@ export type NumericMod = {
   scale?: ScaleRange;
   /** Seçili biçimin okuma yönü — "level" ise kovalar toplanmaz */
   reading: ModReading;
-  /** Seçili biçimin kutuları ve grafiği */
-  spec: PresetSpec;
+  /** Kapsam için çözülmüş görünüm: kutular, grafik, seri okuması */
+  spec: ResolvedView;
   analysis?: ModAnalysis;
 };
 
@@ -459,7 +468,7 @@ export type ChoiceMod = {
   id: string;
   name: string;
   kind: "choice";
-  spec: PresetSpec;
+  spec: ResolvedView;
 };
 export type MetricMod = NumericMod | ChoiceMod;
 
@@ -534,11 +543,15 @@ export function statSub(
 
 /** Özelliği metrik adayına sınıflandırır; ölçülemezse null.
  *  v18'den beri ölçüm özelliğin kendi üzerinde — ayrıca ölçü aramak gerekmiyor. */
-export function classifyMod(mod: Mod): MetricMod | null {
+export function classifyMod(
+  mod: Mod,
+  /** Bakılan kapsamın bu özellik için tercihi (varsa) */
+  view?: { stats?: StatKey[]; series?: SeriesMode }
+): MetricMod | null {
   const vt = mod.valueType ?? "number";
-  // Seçilen biçim değerleri ETİKET olarak okuyorsa (metinlerin dağılımı,
-  // skalanın dağılımı) sayısal boruya hiç girmez
-  const spec = specOf(analysisKindOf(vt, mod.choices), mod.analysis);
+  const spec = resolveView(analysisKindOf(vt, mod.choices), mod.analysis, view);
+  // Seri dağılım okunuyorsa (metinler, seçenekler) değerler sayısal boruya
+  // hiç girmez — etiket olarak sayılır
   if (spec.asChoice && vt !== "boolean") {
     return { id: mod.id, name: mod.name, kind: "choice", spec };
   }
@@ -701,6 +714,142 @@ export function analysisKindOf(
   if (vt === "text") return "presence";
   if (vt === "select") return isNumericChoiceSet(choices) ? "scale" : "choice";
   return "number";
+}
+
+/**
+ * Bir kalem × özellik çiftinin çözülmüş görünümü.
+ *
+ * Kaynak sırası: kapsamın kendi tercihi (AnalysisView) → özelliğin genel
+ * varsayılanı (Mod.analysis, tohumun koyduğu) → ölçü türünün varsayılanı.
+ * Böylece hiç dokunulmamış bir kurulumda da doğru olan çıkıyor, dokunulan
+ * yerde de kullanıcının dediği oluyor.
+ */
+export type ResolvedView = {
+  /** Panodaki kutular — sıra kullanıcının koyduğu sıra */
+  stats: StatKey[];
+  /** Panodaki grafikler, sırasıyla */
+  charts: ChartKind[];
+  /** Geriye dönük: ilk grafiğin okuması (kova toplanır mı ortalanır mı) */
+  reading: ModReading;
+  /** Değerler etiket olarak mı okunuyor (dağılım borusu) */
+  asChoice: boolean;
+  /** @deprecated tek grafik dönemi; ilk grafiğin karşılığı */
+  series: SeriesMode;
+  chart: ChartKind;
+};
+
+/** Ölçüye göre sunulan seri okumaları; ilki varsayılan */
+export const SERIES_FOR: Record<ModKindForAnalysis, SeriesMode[]> = {
+  number: ["sum", "average"],
+  duration: ["sum", "average"],
+  scale: ["average", "distribution"],
+  rate: ["sum"],
+  presence: ["distribution", "sum"],
+  choice: ["distribution"],
+};
+
+/**
+ * Ölçüye göre seçilebilen kutular.
+ *
+ * Liste uzun tutuldu çünkü pano artık kullanıcının kurduğu bir şey: aynı
+ * harcama kaleminde biri toplamı, biri en pahalı günü, biri ortancayı merak
+ * ediyor. Ama ölçüye uymayan hiç sunulmuyor — metne "toplam", evet/hayıra
+ * "ortanca" diye bir şey yok.
+ */
+export const STATS_FOR: Record<ModKindForAnalysis, StatKey[]> = {
+  number: [
+    "total", "dailyAverage", "perActiveDay", "average", "median",
+    "last", "first", "min", "max", "range", "maxDay",
+    "entries", "activeDays", "streak",
+  ],
+  duration: [
+    "total", "dailyAverage", "perActiveDay", "average", "median",
+    "last", "first", "min", "max", "range", "maxDay",
+    "entries", "activeDays", "streak",
+  ],
+  scale: [
+    "average", "median", "last", "first", "min", "max", "range",
+    "entries", "activeDays", "streak",
+  ],
+  rate: ["rate", "yesCount", "noCount", "yesStreak", "entries", "activeDays"],
+  presence: ["topChoice", "distinct", "written", "entries", "activeDays", "streak"],
+  choice: ["topChoice", "distinct", "entries", "activeDays", "streak"],
+};
+
+/**
+ * Ölçüye göre seçilebilen grafikler.
+ *
+ * Dağılım yalnız etiketli ölçülerde; birikimli yalnız toplanabilenlerde
+ * (skalanın birikimlisi anlamsız). "Tek tek" her sayısal ölçüde var —
+ * sprint sürelerine tek tek bakmak bu.
+ */
+export const CHARTS_FOR: Record<ModKindForAnalysis, ChartKind[]> = {
+  number: ["bar", "line", "cumulative", "points"],
+  duration: ["bar", "line", "cumulative", "points"],
+  scale: ["bar", "line", "points", "distribution"],
+  rate: ["bar", "cumulative"],
+  presence: ["distribution", "bar", "cumulative"],
+  choice: ["distribution", "bar"],
+};
+
+/** Grafiğin kovayı nasıl okuduğu — biri toplar, biri ortalar */
+export const CHART_READING: Record<ChartKind, ModReading> = {
+  bar: "flow",
+  cumulative: "flow",
+  line: "level",
+  points: "level",
+  distribution: "flow",
+};
+
+/** Seri okumasının grafiğe karşılığı — skalada ortalama çubukta kalır
+ *  (eksen skalanın kendi aralığı; çizgi orada bir şey kazandırmıyor) */
+function chartFor(kind: ModKindForAnalysis, series: SeriesMode): ChartKind {
+  if (series === "distribution") return "distribution";
+  if (series === "average") return kind === "scale" ? "bar" : "line";
+  return "bar";
+}
+
+/** Ölçü + tercihler → görünüm */
+/** Kutu sayısı sınırı — pano ekranı değil, kullanıcının bakışı dolduğunda biter */
+export const MAX_STATS = 6;
+export const MAX_CHARTS = 4;
+
+export function resolveView(
+  kind: ModKindForAnalysis,
+  modAnalysis?: ModAnalysis,
+  view?: { stats?: StatKey[]; charts?: ChartKind[]; series?: SeriesMode }
+): ResolvedView {
+  const allowedStats = STATS_FOR[kind] ?? STATS_FOR.number;
+  const allowedCharts = CHARTS_FOR[kind] ?? CHARTS_FOR.number;
+  // Özelliğin genel varsayılanı (tohumun koyduğu) eski biçim alanında
+  const base = PRESETS[presetOf(kind, modAnalysis)];
+  const baseChart: ChartKind = base.asChoice
+    ? "distribution"
+    : base.reading === "level"
+      ? "line"
+      : "bar";
+
+  // Kutular: kullanıcı hepsini kaldırdıysa boş kalır (varsayılana dönmez)
+  const stats = view?.stats
+    ? view.stats.filter((k) => allowedStats.includes(k)).slice(0, MAX_STATS)
+    : base.stats.filter((k) => allowedStats.includes(k));
+
+  // Grafikler: v20 kayıtlarında tek "series" vardı, ilk grafiğe çevriliyor
+  const legacy: ChartKind | undefined =
+    view?.series === "average" ? "line" : view?.series === "sum" ? "bar" : view?.series === "distribution" ? "distribution" : undefined;
+  const charts = view?.charts
+    ? view.charts.filter((c) => allowedCharts.includes(c)).slice(0, MAX_CHARTS)
+    : [legacy && allowedCharts.includes(legacy) ? legacy : allowedCharts.includes(baseChart) ? baseChart : allowedCharts[0]];
+
+  const first = charts[0] ?? baseChart;
+  return {
+    stats,
+    charts,
+    reading: CHART_READING[first] ?? "flow",
+    asChoice: charts.includes("distribution") || !!base.asChoice,
+    series: first === "line" || first === "points" ? "average" : first === "distribution" ? "distribution" : "sum",
+    chart: first,
+  };
 }
 
 /** Bir sayı kümesinin uçları ve sonuncusu — seviye kutularının kaynağı */

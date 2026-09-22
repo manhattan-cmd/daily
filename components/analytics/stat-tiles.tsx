@@ -1,9 +1,62 @@
 "use client";
 
-import { fmtNum, fmtPct } from "@/lib/analytics";
-import { useT } from "@/lib/i18n";
+import { Plus } from "lucide-react";
+import { HScroll } from "@/components/ui/h-scroll";
+import { fmtNum, fmtPct, MAX_STATS } from "@/lib/analytics";
+import { useT, type MessageKey } from "@/lib/i18n";
 import { StatTile } from "./stat-tile";
+import { ViewMenu } from "./view-menu";
 import type { StatKey } from "@/types";
+
+/** Kutu adları — menüde ve kutunun başlığında aynı sözcük görünsün */
+export const STAT_LABEL: Record<StatKey, MessageKey> = {
+  total: "stat.total",
+  dailyAverage: "stat.dailyAverage",
+  perActiveDay: "stat.perActiveDay",
+  average: "stat.average",
+  median: "stat.median",
+  last: "stat.last",
+  first: "stat.first",
+  min: "stat.min",
+  max: "stat.max",
+  range: "stat.range",
+  maxDay: "stat.maxDay",
+  entries: "insights.entries",
+  activeDays: "stat.activeDays",
+  streak: "stat.streak",
+  distinct: "stat.distinct",
+  rate: "stat.yesRate",
+  yesCount: "entry.yes",
+  noCount: "stat.noCount",
+  yesStreak: "stat.yesStreak",
+  topChoice: "stat.mostFrequent",
+  written: "stat.written",
+};
+
+/** Menüdeki bir satırlık açıklama — kutunun ne anlattığı seçmeden bilinsin */
+export const STAT_HINT: Record<StatKey, MessageKey> = {
+  total: "stat.totalHint",
+  dailyAverage: "stat.dailyAverageHint",
+  perActiveDay: "stat.perActiveDayHint",
+  average: "stat.averageHint",
+  median: "stat.medianHint",
+  last: "stat.lastHint",
+  first: "stat.firstHint",
+  min: "stat.minHint",
+  max: "stat.maxHint",
+  range: "stat.rangeHint",
+  maxDay: "stat.maxDayHint",
+  entries: "stat.entriesHint",
+  activeDays: "stat.activeDaysHint",
+  streak: "stat.streakHint",
+  distinct: "stat.distinctHint",
+  rate: "stat.yesRateHint",
+  yesCount: "stat.yesCountHint",
+  noCount: "stat.noCountHint",
+  yesStreak: "stat.yesStreakHint",
+  topChoice: "stat.mostFrequentHint",
+  written: "stat.writtenHint",
+};
 
 /**
  * Analiz kutuları — hangilerinin çıkacağı ÖZELLİĞİN kendi ayarından geliyor
@@ -42,7 +95,23 @@ export type StatValues = {
   min: number;
   max: number;
   elapsedDays: number;
+  /** Panoya sonradan eklenebilen kutuların kaynağı */
+  first: number;
+  median: number;
+  maxDay: number;
+  perActiveDay: number;
+  activeDays: number;
+  distinct: number;
+  streakCurrent?: number;
+  streakBest?: number;
+  noCount: number;
 };
+
+/** Menüdeki "kaldır" satırının anahtarı — gerçek bir kutu türü değil */
+const REMOVE = "__remove__";
+
+/** Kutu genişliği — 390px'lik ekranda üçü tam sığmaz, dördüncünün ucu görünür */
+const TILE_W = "w-[124px] shrink-0";
 
 export function StatTiles({
   keys,
@@ -53,6 +122,8 @@ export function StatTiles({
   periodSub,
   /** Gün sayısı bağlamı ("17 gün") */
   daysSub,
+  options,
+  onPick,
 }: {
   keys: StatKey[];
   values: StatValues;
@@ -60,6 +131,10 @@ export function StatTiles({
   color: string;
   periodSub?: string;
   daysSub?: string;
+  /** Bu ölçüde seçilebilen kutular — verilirse kutular dokunulabilir olur */
+  options?: StatKey[];
+  /** Yuvayı değiştir (key), kaldır (null) ya da sona ekle (slot = -1) */
+  onPick?: (slot: number, key: StatKey | null) => void;
 }) {
   const t = useT();
   const v = values;
@@ -108,6 +183,40 @@ export function StatTiles({
           wordValue: true,
           sub: `Δ ${fmtNum(v.max - v.min)}${unit ? ` ${unit}` : ""}`,
         };
+      case "perActiveDay":
+        return {
+          label: t("stat.perActiveDay"),
+          value: fmtNum(v.perActiveDay),
+          unit,
+          sub: `${v.activeDays} ${t("stat.days")}`,
+        };
+      case "median":
+        return { label: t("stat.median"), value: fmtNum(v.median), unit, sub: t("stat.perEntry") };
+      case "first":
+        return { label: t("stat.first"), value: fmtNum(v.first), unit, sub: periodSub };
+      case "maxDay":
+        return { label: t("stat.maxDay"), value: fmtNum(v.maxDay), unit, sub: periodSub };
+      case "activeDays":
+        return {
+          label: t("stat.activeDays"),
+          value: fmtNum(v.activeDays),
+          sub: `/ ${v.elapsedDays} ${t("stat.days")}`,
+        };
+      case "streak":
+        return {
+          label: t("stat.streak"),
+          value: fmtNum(v.streakCurrent ?? 0),
+          unit: t("stat.days"),
+          sub: t("stat.best", { n: v.streakBest ?? 0 }),
+        };
+      case "distinct":
+        return { label: t("stat.distinct"), value: fmtNum(v.distinct), sub: periodSub };
+      case "noCount":
+        return {
+          label: t("stat.noCount"),
+          value: fmtNum(v.noCount),
+          sub: t("stat.outOfEntries", { n: v.withValueCount }),
+        };
       case "entries":
         return {
           label: t("insights.entries"),
@@ -151,30 +260,78 @@ export function StatTiles({
     }
   };
 
-  const shown = keys.slice(0, 3);
-  if (!shown.length) return null;
+  const shown = keys;
+  const canEdit = !!onPick && (options?.length ?? 0) > 0;
+  if (!shown.length && !canEdit) return null;
 
+  // Kutular alta sarmak yerine SAĞA gidiyor: pano büyüdükçe sayfa uzamıyor,
+  // sıra kaydırılıyor. Genişlik üç kutu tam sığmayacak kadar — dördüncünün
+  // ucu görünüp "devamı var" diyor.
   return (
-    <div
-      className={
-        shown.length >= 3 ? "grid grid-cols-3 gap-2" : "grid grid-cols-2 gap-2"
-      }
-    >
-      {shown.map((key) => {
+    <HScroll wrapperClassName="-mx-4" className="gap-2 px-4 pb-1">
+      {shown.map((key, slot) => {
         const it = tile(key);
         if (!it) return null;
-        return (
+        const box = (
           <StatTile
-            key={key}
             color={color}
             label={it.label}
             value={it.value}
             unit={"unit" in it ? it.unit : undefined}
             wordValue={"wordValue" in it ? it.wordValue : undefined}
             sub={it.sub}
+            pickable={!!onPick && (options?.length ?? 0) > 1}
           />
         );
+        if (!canEdit) return <div key={key} className={TILE_W}>{box}</div>;
+        return (
+          <div key={key} className={TILE_W}>
+          <ViewMenu
+            label={t("board.boxType")}
+            value={key}
+            align="start"
+            // Zaten panoda duran kutu listede görünmez: aynı rakamı iki
+            // kutuda göstermek yer israfı
+            options={[
+              ...options!
+                .filter((o) => o === key || !shown.includes(o))
+                .map((o) => ({
+                  key: o,
+                  label: t(STAT_LABEL[o]),
+                  hint: t(STAT_HINT[o]),
+                })),
+              { key: REMOVE, label: t("board.remove") },
+            ]}
+            onPick={(k) => onPick!(slot, k === REMOVE ? null : (k as StatKey))}
+          >
+            {box}
+          </ViewMenu>
+          </div>
+        );
       })}
-    </div>
+
+      {/* Yeni kutu — sıranın sonunda, diğerleriyle aynı kutu, ortasında + */}
+      {canEdit && shown.length < MAX_STATS && (
+        <div className={TILE_W}>
+          <ViewMenu
+            label={t("board.addBox")}
+            value=""
+            align="end"
+            options={options!
+              .filter((o) => !shown.includes(o))
+              .map((o) => ({
+                key: o,
+                label: t(STAT_LABEL[o]),
+                hint: t(STAT_HINT[o]),
+              }))}
+            onPick={(k) => onPick!(-1, k as StatKey)}
+          >
+            <div className="flex h-full min-h-[84px] items-center justify-center rounded-2xl border border-dashed border-border text-muted-foreground/60 transition-colors hover:border-muted-foreground/50 hover:text-foreground">
+              <Plus className="h-5 w-5" />
+            </div>
+          </ViewMenu>
+        </div>
+      )}
+    </HScroll>
   );
 }

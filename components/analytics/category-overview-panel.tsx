@@ -18,9 +18,9 @@ import {
 } from "@/lib/analytics";
 import { StatTile } from "./stat-tile";
 import { StatTiles } from "./stat-tiles";
-import { DailyBarChart } from "./daily-bar-chart";
+import type { ChartKind, StatKey } from "@/types";
+import { AnalysisCharts, CHART_LABEL } from "./analysis-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
-import { ChoiceDistribution } from "./choice-distribution";
 import { EntryListSection, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
@@ -42,19 +42,59 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
   const t = useT();
   const router = useRouter();
   const [excludeRegular, setExcludeRegular] = useExcludeRegular();
-  const { data, metric, setMetricChoice, compute, choiceFilter, setChoiceFilter } =
-    useCategoryMetrics({
-      category,
-      fetchStart: 0,
-      resetKey: category.id,
-      excludeRegular,
-    });
+  const {
+    data,
+    metric,
+    saveView,
+    setMetricChoice,
+    compute,
+    choiceFilter,
+    setChoiceFilter,
+  } = useCategoryMetrics({
+    category,
+    fetchStart: 0,
+    resetKey: category.id,
+    excludeRegular,
+  });
+
+  /**
+   * Pano düzenleme: yuvayı değiştir, kaldır (key null) ya da sona ekle
+   * (slot -1). Tercih bakılan kapsama yazılır — aynı özellik başka kalemde
+   * kendi panosunu korur.
+   */
+  const pickStat = (slot: number, key: StatKey | null) => {
+    const cur = compute?.stats ?? [];
+    const next =
+      slot < 0
+        ? key
+          ? [...cur, key]
+          : cur
+        : key
+          ? cur.map((k, i) => (i === slot ? key : k))
+          : cur.filter((_, i) => i !== slot);
+    void saveView({ stats: next });
+  };
+
+  /** Grafik ekle / değiştir / kaldır — kutularla aynı mantık */
+  const pickChart = (slot: number, kind: ChartKind | null) => {
+    const cur = compute?.charts ?? [];
+    const next =
+      slot < 0
+        ? kind
+          ? [...cur, kind]
+          : cur
+        : kind
+          ? cur.map((c, i) => (i === slot ? kind : c))
+          : cur.filter((_, i) => i !== slot);
+    void saveView({ charts: next });
+  };
 
   const computed = useMemo(() => {
     if (!data || !compute) return null;
     const { subById, entries } = data;
     const {
       aggregate,
+      sumOf,
       averageOf,
       filledCount,
       fillBucket,
@@ -81,7 +121,8 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
     // İlk girdiden bugüne geçen takvim günü, bugün dahil
     const elapsedDays = Math.max(1, Math.round((today - firstDay) / DAY_MS) + 1);
 
-    const total = aggregate(entries);
+    // Kutulardaki rakam seri okumasından bağımsız: "Toplam" her zaman toplam
+    const total = sumOf(entries);
     const avg = averageOf(entries);
     const withValueCount =
       metric.type === "mod"
@@ -218,7 +259,19 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       activeRatio,
       streaks,
       yesStreaks,
+      entries,
       level: compute.levelOf(entries),
+      bag: (() => {
+        const g = compute.statsFor(entries);
+        return {
+          first: g.first,
+          median: g.median,
+          maxDay: g.maxDay,
+          perActiveDay: g.perActiveDay,
+          activeDays: g.activeDays,
+          distinct: g.distinct,
+        };
+      })(),
       recentValue,
       prevValue,
       growthPct,
@@ -285,6 +338,8 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       ) : (
         /* Kutular özelliğin kendi analiz ayarından (bkz. StatTiles) */
         <StatTiles
+          options={compute.statOptions}
+          onPick={pickStat}
           keys={compute.stats}
           color={category.color}
           unit={unit}
@@ -304,6 +359,10 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
             topChoice: computed.topChoice,
             choiceTotal: computed.choiceTotal,
             ...computed.level,
+            ...computed.bag,
+            noCount: computed.withValueCount - computed.total,
+            streakCurrent: computed.streaks?.current,
+            streakBest: computed.streaks?.best,
             elapsedDays: computed.elapsedDays,
           }}
         />
@@ -414,14 +473,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       {/* Çoktan seçmelide bu slot dağılıma ait: sorulan soru "ne nereye
           gitmiş" değil "hangisi ne sıklıkla". Diğer metriklerde alt kategori
           kırılımı — trendden ÖNCE, istenirse alt kategoriye inilir. */}
-      {compute.isChoice ? (
-        <ChoiceDistribution
-          rows={computed.distribution}
-          color={category.color}
-          selected={choiceFilter}
-          onSelect={setChoiceFilter}
-        />
-      ) : (
+      {!compute.isChoice && (
         <div className="rounded-2xl border border-border bg-card p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
             Subcategory breakdown
@@ -452,33 +504,39 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         </div>
       )}
 
-      {/* Trend — ilk girdiden bugüne */}
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-          {GRANULARITY_TITLES[computed.granularity]}{" "}
-          {metric.type === "count" ? "entries" : metric.mod.name}
-          {compute.aggregateNote && (
-            <span className="normal-case font-normal text-muted-foreground/60">
+      {/* Pano — grafikler kullanıcının kurduğu liste */}
+      <AnalysisCharts
+        charts={compute.charts}
+        options={compute.chartOptions}
+        onPick={pickChart}
+        buckets={computed.buckets}
+        entries={computed.entries}
+        valueByEntry={compute.valueByEntry}
+        distribution={computed.distribution}
+        choiceFilter={choiceFilter}
+        onChoiceFilter={setChoiceFilter}
+        color={category.color}
+        unit={metric.type === "count" ? "entries" : unit}
+        caption={computed.seriesFrame?.caption}
+        scale={compute.scale}
+        stack={
+          compute.isRate
+            ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") }
+            : undefined
+        }
+        title={(kind) => (
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {/* "Tek tek" kova değil girdi çiziyor; "Haftalık" demek yanlış olurdu */}
+            {kind !== "points" && `${GRANULARITY_TITLES[computed.granularity]} `}
+            {metric.type === "count" ? "entries" : metric.mod.name}
+            <span className="font-normal normal-case text-muted-foreground/60 underline decoration-dotted decoration-muted-foreground/40 underline-offset-[3px]">
               {" "}
-              ({compute.aggregateNote})
-            </span>
-          )}{" "}
-          · Tüm Zamanlar
-        </h3>
-        <DailyBarChart
-          data={computed.buckets}
-          color={category.color}
-          unit={metric.type === "count" ? "entries" : unit}
-          caption={computed.seriesFrame?.caption}
-          scale={compute.scale}
-          variant={compute.chart === "line" ? "line" : "bar"}
-          stack={
-            compute.isRate
-              ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") }
-              : undefined
-          }
-        />
-      </div>
+              ({t(CHART_LABEL[kind])})
+            </span>{" "}
+            · Tüm Zamanlar
+          </h3>
+        )}
+      />
 
       {/* Girdi listesi — son 50 */}
       <EntryListSection

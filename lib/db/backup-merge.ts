@@ -1,4 +1,5 @@
 import type {
+  AnalysisView,
   Category,
   CategoryModifier,
   Entry,
@@ -236,6 +237,11 @@ export function reconcileBackup(
       ...(v.modId ? { modId: at(v.modId)! } : {}),
       ...(v.entryTypeId ? { entryTypeId: at(v.entryTypeId)! } : {}),
       ...(v.fieldId ? { fieldId: at(v.fieldId)! } : {}),
+    })),
+    analysisViews: ((data.analysisViews ?? []) as AnalysisView[]).map((v) => ({
+      ...v,
+      targetId: at(v.targetId)!,
+      modId: at(v.modId)!,
     })),
     goals: ((data.goals ?? []) as Goal[]).map((g) => ({
       ...g,

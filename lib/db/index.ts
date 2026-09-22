@@ -13,6 +13,7 @@ import type {
   Goal,
   Note,
   Deletion,
+  AnalysisView,
 } from "@/types";
 
 export class RoutineDB extends Dexie {
@@ -29,6 +30,7 @@ export class RoutineDB extends Dexie {
   activities!: Table<Activity, string>;
   notes!: Table<Note, string>;
   deletions!: Table<Deletion, string>;
+  analysisViews!: Table<AnalysisView, string>;
 
   constructor() {
     super("RoutineDB");
@@ -402,6 +404,14 @@ export class RoutineDB extends Dexie {
           ...(rename ? { name: rename } : {}),
         });
       }
+    });
+
+    // v20 — Analiz görünümü: kalem × özellik çiftinin kutuları ve serisi.
+    // Ayrı tablo çünkü tercih ATAMAYA yazılamaz: kapsamda atama olmayabilir
+    // (kategori seviyesinde bakılan, yalnız alt kaleme takılı bir özellik) ve
+    // atama yaratmak özelliği o kaleme gerçekten takmak demek olurdu.
+    this.version(20).stores({
+      analysisViews: "id, [targetType+targetId], modId, [targetType+targetId+modId]",
     });
 
     this.stampTimestamps();

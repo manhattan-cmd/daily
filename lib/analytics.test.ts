@@ -15,6 +15,11 @@ import {
   presetOf,
   PRESETS,
   PRESETS_FOR,
+  MAX_STATS,
+  CHARTS_FOR,
+  resolveView,
+  SERIES_FOR,
+  STATS_FOR,
   sumOrAvg,
   type NumericMod,
 } from "./analytics";
@@ -226,5 +231,90 @@ describe("analiz biçimi", () => {
       max: 79.4,
     });
     expect(levelStats([])).toEqual({ last: 0, min: 0, max: 0 });
+  });
+});
+
+describe("kapsam görünümü — aynı özellik, başka kalemde başka okuma", () => {
+  it("tercih yoksa özelliğin varsayılanı, o da yoksa ölçünün varsayılanı", () => {
+    const v = resolveView("number");
+    expect(v.series).toBe("sum");
+    expect(v.stats).toEqual(["total", "dailyAverage", "entries"]);
+    expect(v.chart).toBe("bar");
+    expect(v.reading).toBe("flow");
+  });
+
+  it("özelliğin genel varsayılanı kapsam tercihi yokken geçerli", () => {
+    // Tohum Vücut ağırlığını seviye olarak işaretliyor
+    const v = resolveView("number", { preset: "level" });
+    expect(v.series).toBe("average");
+    expect(v.chart).toBe("line");
+    expect(v.reading).toBe("level");
+  });
+
+  it("kapsam tercihi özelliğin varsayılanını ezer", () => {
+    const v = resolveView("number", { preset: "level" }, { series: "sum" });
+    expect(v.series).toBe("sum");
+    expect(v.reading).toBe("flow");
+  });
+
+  it("aynı özellik iki kapsamda bağımsız okunur", () => {
+    const yuruyus = resolveView("number", undefined, { series: "sum" });
+    const sprint = resolveView("number", undefined, {
+      series: "average",
+      stats: ["min", "average", "entries"],
+    });
+    expect(yuruyus.stats[0]).toBe("total");
+    expect(yuruyus.chart).toBe("bar");
+    expect(sprint.stats[0]).toBe("min");
+    expect(sprint.chart).toBe("line");
+  });
+
+  it("ölçüye uymayan kutu ve seri sessizce elenir", () => {
+    // Metinde "toplam" diye bir kutu yok
+    const v = resolveView("presence", undefined, {
+      stats: ["total", "entries"],
+      charts: ["line"],
+    });
+    expect(v.stats).not.toContain("total");
+    expect(CHARTS_FOR.presence).not.toContain("line");
+    // Metinde çizgi yok → varsayılana düşer
+    expect(v.charts).toEqual([]);
+  });
+
+  it("pano en çok altı kutu taşır", () => {
+    const v = resolveView("number", undefined, {
+      stats: ["total", "average", "min", "max", "entries", "median", "first", "last"],
+    });
+    expect(v.stats).toHaveLength(MAX_STATS);
+  });
+
+  it("kullanıcı bütün kutuları kaldırabilir — varsayılana geri dönmez", () => {
+    const v = resolveView("number", undefined, { stats: [] });
+    expect(v.stats).toEqual([]);
+  });
+
+  it("panoya birden çok grafik konabilir, ölçüye uymayan elenir", () => {
+    const v = resolveView("number", undefined, {
+      charts: ["bar", "cumulative", "distribution", "points"],
+    });
+    // Sayıda dağılım yok
+    expect(v.charts).toEqual(["bar", "cumulative", "points"]);
+  });
+
+  it("v20 kayıtlarındaki tek seri ilk grafiğe çevrilir", () => {
+    expect(resolveView("number", undefined, { series: "average" }).charts).toEqual(["line"]);
+    expect(resolveView("number", undefined, { series: "sum" }).charts).toEqual(["bar"]);
+  });
+
+  it("grafiğin okuması kovayı belirler: çubuk toplar, çizgi ortalar", () => {
+    expect(resolveView("number", undefined, { charts: ["bar"] }).reading).toBe("flow");
+    expect(resolveView("number", undefined, { charts: ["line"] }).reading).toBe("level");
+    expect(resolveView("number", undefined, { charts: ["cumulative"] }).reading).toBe("flow");
+  });
+
+  it("tek seçenekli ölçülerde menü çıkmaz", () => {
+    expect(SERIES_FOR.rate).toHaveLength(1);
+    expect(SERIES_FOR.choice).toHaveLength(1);
+    expect(STATS_FOR.number.length).toBeGreaterThan(3);
   });
 });

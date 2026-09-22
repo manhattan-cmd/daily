@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
+import { listAnalysisViews, setAnalysisView } from "@/lib/db/queries";
 import { choiceLabel } from "@/lib/choice-level";
 import {
   average,
@@ -16,6 +17,11 @@ import {
   parseNumeric,
   sumOrAvg,
   levelStats,
+  analysisKindOf,
+  SERIES_FOR,
+  STATS_FOR,
+  CHARTS_FOR,
+  dayKey,
   textToNumber,
   type DayBucket,
   type DisplayMode,
@@ -24,9 +30,25 @@ import {
   type ModKind,
   type ScaleRange,
 } from "@/lib/analytics";
-import type { ChartKind, ModReading, StatKey } from "@/types";
+import type { ChartKind, ModReading, SeriesMode, StatKey } from "@/types";
+
+/** Bir girdi kümesinin bütün sayısal okumaları — kutular buradan besleniyor */
+export type StatBag = {
+  sum: number;
+  average: number;
+  median: number;
+  min: number;
+  max: number;
+  first: number;
+  last: number;
+  maxDay: number;
+  perActiveDay: number;
+  activeDays: number;
+  distinct: number;
+  filled: number;
+};
 import { useT } from "@/lib/i18n";
-import type { Category, Entry, EntryValue, SubCategory } from "@/types";
+import type { Category, Entry, EntryValue, Mod, SubCategory } from "@/types";
 
 export interface CategoryMetricsData {
   /** Kategorinin TÜM alt kategorileri (kapsam dışındakiler de — atalar için gerekir) */
@@ -40,6 +62,8 @@ export interface CategoryMetricsData {
   entries: Entry[];
   values: EntryValue[];
   mods: MetricMod[];
+  /** Havuzdaki ham kayıtlar — seçenek listeleri ölçüden çıkıyor */
+  rawMods: Map<string, Mod>;
   /** Kapsamda düzenli/sabit işaretli alt kategori var mı ("hariç tut" anahtarı
    * yalnızca varsa gösterilir; kök alt kategorinin kendisi düzenliyse false —
    * onu doğrudan analiz eden sayfayı boşaltmak anlamsız) */
@@ -53,8 +77,17 @@ export interface CategoryMetricsData {
 export interface MetricCompute {
   /** Girdi başına seçili metriğin değeri — yalnızca değeri olan girdiler haritada */
   valueByEntry: Map<string, number>;
-  /** Alt kümenin metrik toplamı (scale modda ortalaması), count metriğinde adedi */
+  /** Kovanın ve kırılımın rakamı — seri okumasına UYAR (toplam ya da ortalama) */
   aggregate: (subset: Entry[]) => number;
+  /**
+   * Alt kümenin gerçek toplamı — seri okumasından bağımsız.
+   *
+   * "Toplam" kutusu bunu kullanmak zorunda: grafiği "tek tek" okumaya
+   * çevirmek dönemin toplamını değiştirmez. Eskiden ikisi aynı yoldan
+   * geliyordu ve çizgiye geçince kutu "Toplam 452 ₺" yazıyordu — oysa 452
+   * ortalamaydı, ayın toplamı 16.700 ₺.
+   */
+  sumOf: (subset: Entry[]) => number;
   /** Alt kümede değeri olan girdilerin ortalaması. Oran metriğinde bu ORANIN
    *  kendisidir (0–1) — evet=1/hayır=0 değerlerinin ortalaması. */
   averageOf: (subset: Entry[]) => number;
@@ -88,6 +121,20 @@ export interface MetricCompute {
   stats: StatKey[];
   /** Serinin çizimi */
   chart: ChartKind;
+  /** Serinin okunuşu ve bu ölçüde sunulan okumalar */
+  series: SeriesMode;
+  seriesOptions: SeriesMode[];
+  /** Panodaki grafikler ve bu ölçüde sunulanlar */
+  charts: ChartKind[];
+  chartOptions: ChartKind[];
+  /** Bu ölçüde kutuya konabilecekler */
+  statOptions: StatKey[];
+  /**
+   * Alt kümenin bütün sayısal okumaları tek seferde. Panoda kutu sayısı
+   * kullanıcıya bağlı olduğu için panellerin tek tek hesap yapması ölü koda
+   * dönüyordu; burada hepsi bir kez çıkıyor, panel yalnız seçilenleri çiziyor.
+   */
+  statsFor: (subset: Entry[]) => StatBag;
   /** Alt kümedeki son/en düşük/en yüksek değer — düzey kutularının kaynağı */
   levelOf: (subset: Entry[]) => { last: number; min: number; max: number };
 }
@@ -128,6 +175,11 @@ export function useCategoryMetrics({
   const [metricChoice, setMetricChoice] = useState<Metric | null>(null);
   // Çoktan seçmelide seriyi süzen seçenek; null = tüm girdiler
   const [choiceFilter, setChoiceFilter] = useState<string | null>(null);
+  // Tercihin yazılacağı yer: alt kaleme bakılıyorsa o kalem, yoksa kategori
+  const scopeType: "category" | "subcategory" = rootSubId
+    ? "subcategory"
+    : "category";
+  const scopeId = rootSubId ?? category.id;
 
   // Kapsam değişiminde seçimi render sırasında sıfırla (remount'suz geçişler için)
   const [prevResetKey, setPrevResetKey] = useState(resetKey);
@@ -138,6 +190,7 @@ export function useCategoryMetrics({
   }
 
   const data = useLiveQuery(async (): Promise<CategoryMetricsData | null> => {
+    // (kapsam yukarıda hesaplandı)
     const allSubs = await db.subcategories
       .where("categoryId")
       .equals(category.id)
@@ -202,6 +255,7 @@ export function useCategoryMetrics({
         entries: [],
         values: [],
         mods: [],
+        rawMods: new Map(),
         hasRegular,
         regularSubNames,
         excludedEntryCount: 0,
@@ -237,9 +291,11 @@ export function useCategoryMetrics({
     // bulkGet yerine tam tablo taraması — küçük tablolar (havuzdaki mod/ölçü sayısı sınırlı),
     // bulkGet'in ardışık yazımlardan hemen sonra bazı anahtarlar için null dönebildiği gözlendi
     const allMods = await db.mods.toArray();
+    // Bakılan kapsamın tercihleri: aynı özellik başka kalemde başka okunuyor
+    const views = await listAnalysisViews(scopeType, scopeId);
     const mods: MetricMod[] = allMods
       .filter((m) => modIds.has(m.id))
-      .map((m) => classifyMod(m))
+      .map((m) => classifyMod(m, views.get(m.id)))
       .filter((m): m is MetricMod => !!m)
       .sort((a, b) => a.name.localeCompare(b.name, "en"));
 
@@ -250,6 +306,7 @@ export function useCategoryMetrics({
       entries,
       values,
       mods,
+      rawMods: new Map(allMods.map((m) => [m.id, m])),
       hasRegular,
       regularSubNames,
       excludedEntryCount,
@@ -259,7 +316,17 @@ export function useCategoryMetrics({
   // Varsayılan metrik: URL'den gelen mod; yoksa listedeki ilk mod
   // ("Girdi" yalnızca URL "count" derse ya da hiç mod yoksa varsayılan)
   const metric = useMemo<Metric>(() => {
-    if (metricChoice) return metricChoice;
+    if (metricChoice) {
+      // Seçim yalnız KİMLİĞİ taşır, kaydın kendisini değil: seçildiği andaki
+      // nesne dondurulursa kapsam tercihi değişince (kutu/grafik seçimi)
+      // ekran eski görünümde kalıyordu — kayıt güncelleniyor ama panel
+      // sınıflandırmanın eski kopyasına bakıyordu.
+      if (metricChoice.type !== "count" && data) {
+        const fresh = data.mods.find((m) => m.id === metricChoice.mod.id);
+        if (fresh) return metricOf(fresh);
+      }
+      return metricChoice;
+    }
     if (data) {
       if (initialMetricId && initialMetricId !== "count") {
         const found = data.mods.find((m) => m.id === initialMetricId);
@@ -320,8 +387,17 @@ export function useCategoryMetrics({
     // Metriğin biçimi: kutular ve grafik buradan gelir
     const spec =
       metric.type === "count"
-        ? { reading: "flow" as ModReading, stats: [] as StatKey[], chart: "bar" as const }
+        ? {
+            reading: "flow" as ModReading,
+            stats: [] as StatKey[],
+            chart: "bar" as const,
+            charts: [] as ChartKind[],
+            series: "sum" as SeriesMode,
+          }
         : metric.mod.spec;
+    // Seçenek listeleri ÖLÇÜDEN çıkıyor; havuzdaki ham kaydı buradan okuyoruz
+    const rawMod = metric.type === "count" ? undefined : data.rawMods.get(metric.mod.id);
+    const optionKind = analysisKindOf(rawMod?.valueType, rawMod?.choices);
     const reading: ModReading = metric.type === "mod" ? metric.mod.reading : "flow";
     const valuesOf = (subset: Entry[]) =>
       subset
@@ -351,12 +427,59 @@ export function useCategoryMetrics({
             : choicesOf(subset).length
           : sumOrAvg(valuesOf(subset), kind as ModKind, reading);
     const averageOf = (subset: Entry[]): number => average(valuesOf(subset));
+    const statsFor = (subset: Entry[]): StatBag => {
+      const nums = valuesOf(subset);
+      const sorted = [...nums].sort((a, b) => a - b);
+      const sum = nums.reduce((a, b) => a + b, 0);
+      // Gün toplamları — "en yoğun gün" ve kayıtlı gün ortalaması buradan
+      const perDay = new Map<string, number>();
+      for (const e of subset) {
+        const v = valueByEntry.get(e.id);
+        if (v === undefined) continue;
+        const k = dayKey(e.occurredAt);
+        perDay.set(k, (perDay.get(k) ?? 0) + v);
+      }
+      const days = perDay.size;
+      const labels = choicesOf(subset);
+      return {
+        sum,
+        average: nums.length ? sum / nums.length : 0,
+        median: sorted.length
+          ? sorted.length % 2
+            ? sorted[(sorted.length - 1) / 2]
+            : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+          : 0,
+        min: sorted.length ? sorted[0] : 0,
+        max: sorted.length ? sorted[sorted.length - 1] : 0,
+        first: nums.length ? nums[0] : 0,
+        last: nums.length ? nums[nums.length - 1] : 0,
+        maxDay: days ? Math.max(...perDay.values()) : 0,
+        perActiveDay: days ? sum / days : 0,
+        activeDays: days,
+        distinct: new Set(labels.length ? labels : nums.map(String)).size,
+        filled: filledCount(subset),
+      };
+    };
+
+    const sumOf = (subset: Entry[]): number =>
+      metric.type === "count"
+        ? subset.length
+        : isChoice
+          ? filledCount(subset)
+          : valuesOf(subset).reduce((a, b) => a + b, 0);
     const distributionOf = (subset: Entry[]) =>
       isChoice ? countByChoice(choicesOf(subset)) : [];
 
     const fillBucket = (bucket: DayBucket, subset: Entry[]) => {
       bucket.value = aggregate(subset);
       bucket.hasData = filledCount(subset) > 0;
+      // Her grafik kendi okumasını alsın: toplam, ortalama ve adet birlikte
+      const nums = valuesOf(subset);
+      bucket.sum = isChoice
+        ? filledCount(subset)
+        : nums.reduce((a, b) => a + b, 0);
+      bucket.avg = nums.length ? bucket.sum / nums.length : 0;
+      bucket.count = filledCount(subset);
       // Oranda çubuk yığılır: alt parça evet, üstteki soluk parça hayır
       if (isRate) bucket.rest = filledCount(subset) - bucket.value;
     };
@@ -382,6 +505,7 @@ export function useCategoryMetrics({
     return {
       valueByEntry,
       aggregate,
+      sumOf,
       averageOf,
       filledCount,
       fillBucket,
@@ -417,14 +541,32 @@ export function useCategoryMetrics({
           ? (["entries", "dailyAverage"] as StatKey[])
           : spec.stats,
       chart: spec.chart,
+      charts: spec.charts ?? [],
+      chartOptions:
+        metric.type === "count" ? [] : CHARTS_FOR[optionKind] ?? [],
+      statsFor,
+      series: spec.series,
+      seriesOptions: metric.type === "count" ? [] : SERIES_FOR[optionKind] ?? [],
+      statOptions: metric.type === "count" ? [] : STATS_FOR[optionKind] ?? [],
       // Girdiler zaman sırasında geldiği için "son" gerçekten sonuncusu
       levelOf: (subset: Entry[]) => levelStats(valuesOf(subset)),
     };
   }, [data, metric, choiceFilter, t]);
 
+  /** Kutu ya da grafik seçimi — bakılan kapsam için yazılır */
+  const saveView = async (patch: {
+    stats?: StatKey[];
+    charts?: ChartKind[];
+    series?: SeriesMode;
+  }) => {
+    if (metric.type === "count") return;
+    await setAnalysisView(scopeType, scopeId, metric.mod.id, patch);
+  };
+
   return {
     data,
     metric,
+    saveView,
     // Başka bir özelliğe geçince seçenek süzgeci kalmasın — o süzgeç
     // önceki özelliğin seçeneğiydi, yenisinde karşılığı yok
     setMetricChoice: (m: Metric) => {

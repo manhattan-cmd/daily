@@ -28,14 +28,13 @@ import {
 } from "@/lib/period";
 import { StatTile } from "./stat-tile";
 import { StatTiles } from "./stat-tiles";
-import { DailyBarChart } from "./daily-bar-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
-import { ChoiceDistribution } from "./choice-distribution";
+import { AnalysisCharts, CHART_LABEL } from "./analysis-chart";
 import { EntryListSection, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
-import type { Category, Entry, SubCategory } from "@/types";
+import type { Category, ChartKind, Entry, StatKey, SubCategory } from "@/types";
 
 /**
  * Dönem sayfasındaki kategori detayı — kategori metriklerinin donmuş bir zaman
@@ -67,6 +66,7 @@ export function PeriodCategoryPanel({
   const {
     data,
     metric,
+    saveView,
     setMetricChoice,
     compute,
     choiceFilter,
@@ -80,11 +80,45 @@ export function PeriodCategoryPanel({
     excludeRegular,
   });
 
+
+  /**
+   * Pano düzenleme: yuvayı değiştir, kaldır (key null) ya da sona ekle
+   * (slot -1). Tercih bakılan kapsama yazılır — aynı özellik başka kalemde
+   * kendi panosunu korur.
+   */
+  const pickStat = (slot: number, key: StatKey | null) => {
+    const cur = compute?.stats ?? [];
+    const next =
+      slot < 0
+        ? key
+          ? [...cur, key]
+          : cur
+        : key
+          ? cur.map((k, i) => (i === slot ? key : k))
+          : cur.filter((_, i) => i !== slot);
+    void saveView({ stats: next });
+  };
+
+  /** Grafik ekle / değiştir / kaldır — kutularla aynı mantık */
+  const pickChart = (slot: number, kind: ChartKind | null) => {
+    const cur = compute?.charts ?? [];
+    const next =
+      slot < 0
+        ? kind
+          ? [...cur, kind]
+          : cur
+        : kind
+          ? cur.map((c, i) => (i === slot ? kind : c))
+          : cur.filter((_, i) => i !== slot);
+    void saveView({ charts: next });
+  };
+
   const computed = useMemo(() => {
     if (!data || !compute) return null;
     const { subById } = data;
     const {
       aggregate,
+      sumOf,
       averageOf,
       filledCount,
       fillBucket,
@@ -106,7 +140,8 @@ export function PeriodCategoryPanel({
         )
       : data.entries;
 
-    const total = aggregate(entries);
+    // Kutulardaki rakam seri okumasından bağımsız: "Toplam" her zaman toplam
+    const total = sumOf(entries);
     const avg = averageOf(entries);
     const withValueCount =
       metric.type === "mod"
@@ -265,8 +300,29 @@ export function PeriodCategoryPanel({
       choiceTotal: isChoice ? filledCount(entries) : 0,
       // Düzey okumasının kutuları: son ölçüm ve uçlar
       level: compute.levelOf(entries),
+      entries,
+      // Panoya eklenebilen bütün okumalar tek seferde
+      bag: (() => {
+        const g = compute.statsFor(entries);
+        return {
+          first: g.first,
+          median: g.median,
+          maxDay: g.maxDay,
+          perActiveDay: g.perActiveDay,
+          activeDays: g.activeDays,
+          distinct: g.distinct,
+        };
+      })(),
       // Evet serisi — "evet" denen üst üste günler. Kutu seçilebildiği için
       // bu panelde de hesaplanıyor; eskiden yalnız içgörü panelinde vardı.
+      // Kayıt serisi — "üst üste kaç gün" kutusu (evet serisinden farkı:
+      // değerin ne olduğuna bakmaz, kayıt girilmiş olması yeter)
+      streaks: computeStreaks(
+        new Set(
+          entries.filter((e) => valueByEntry.has(e.id)).map((e) => dayKey(e.occurredAt))
+        ),
+        new Date(Math.min(now.getTime(), period.end - 1))
+      ),
       yesStreak: isRate
         ? computeStreaks(
             new Set(
@@ -422,6 +478,8 @@ export function PeriodCategoryPanel({
         /* Kutular özelliğin kendi analiz ayarından geliyor; ölçü türüne göre
            dallanan uzun koşul zinciri StatTiles'ın içindeki tek listeye indi */
         <StatTiles
+          options={compute.statOptions}
+          onPick={pickStat}
           keys={compute.stats}
           color={category.color}
           unit={unit}
@@ -441,6 +499,10 @@ export function PeriodCategoryPanel({
             topChoice: computed.topChoice,
             choiceTotal: computed.choiceTotal,
             ...computed.level,
+            ...computed.bag,
+            noCount: computed.withValueCount - computed.total,
+            streakCurrent: computed.streaks?.current,
+            streakBest: computed.streaks?.best,
             elapsedDays: progress.elapsedDays,
           }}
         />
@@ -468,17 +530,6 @@ export function PeriodCategoryPanel({
             {weekContext.delta >= 0 ? "above" : "below"}
           </span>
         </div>
-      )}
-
-      {/* Çoktan seçmelide bu slot dağılıma ait */}
-      {compute.isChoice && (
-        <ChoiceDistribution
-          rows={computed.distribution}
-          color={category.color}
-          selected={choiceFilter}
-          onSelect={setChoiceFilter}
-          title={scopePrefix}
-        />
       )}
 
       {/* Alt kategori kırılımı — seriden ÖNCE: önce "ne nereye gitmiş"
@@ -518,13 +569,79 @@ export function PeriodCategoryPanel({
         </div>
       )}
 
-      {/* Seri — bir günden uzun dönemlerde */}
+      {/* Pano — kutular yukarıda, grafikler burada. İkisi de kullanıcının
+          kurduğu listeler; kapsam başına ayrı saklanıyor. */}
       {computed.hasSeries && (
+        <AnalysisCharts
+          charts={compute.charts}
+          options={compute.chartOptions}
+          onPick={pickChart}
+          buckets={computed.buckets}
+          entries={computed.entries}
+          valueByEntry={compute.valueByEntry}
+          distribution={computed.distribution}
+          choiceFilter={choiceFilter}
+          onChoiceFilter={setChoiceFilter}
+          color={category.color}
+          unit={metric.type === "count" ? "entries" : unit}
+          caption={computed.seriesFrame?.caption}
+          showAllTicks={computed.seriesFrame?.showAllTicks}
+          scale={compute.scale}
+          stack={
+            compute.isRate
+              ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") }
+              : undefined
+          }
+          title={(kind) => (
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {scopePrefix}
+              {/* "Tek tek" kova değil girdi çiziyor; "Haftalık" demek yanlış olurdu */}
+              {kind !== "points" && `${GRANULARITY_TITLES[computed.granularity]} `}
+              {metric.type === "count" ? "entries" : metric.mod.name}
+              <span className="font-normal normal-case text-muted-foreground/60 underline decoration-dotted decoration-muted-foreground/40 underline-offset-[3px]">
+                {" "}
+                ({t(CHART_LABEL[kind])})
+              </span>
+            </h3>
+          )}
+        />
+      )}
+
+      {/* Gün dönemlerinde hafta bağlamı — bu gün haftalık ortalamaya göre nerede */}
+      {isDay && weekContext && (
+        <div className="rounded-2xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
+          Week avg.{" "}
+          <span className="font-semibold text-foreground">
+            {compute.isRate
+              ? fmtPct(weekContext.ref)
+              : fmtNum(weekContext.ref)}
+            {metricLabel && !compute.isRate ? ` ${metricLabel}` : ""}
+            {weekContext.perDay ? "/gün" : ""}
+          </span>{" "}
+          · this day{" "}
+          <span
+            className="font-semibold"
+            style={{ color: category.color }}
+          >
+            {weekContext.inPoints
+              ? t("stat.points", { n: fmtNum(Math.abs(weekContext.delta)) })
+              : fmtPct(Math.abs(weekContext.delta) / 100)}{" "}
+            {weekContext.delta >= 0 ? "above" : "below"}
+          </span>
+        </div>
+      )}
+
+      {/* Alt kategori kırılımı — seriden ÖNCE: önce "ne nereye gitmiş"
+          görülür, istenirse bir kademe derine inilir (dönemden çıkılmadan),
+          sonra o kapsamın zaman serisi incelenir. İnilecek kademe kalmadıysa
+          bölüm hiç açılmaz */}
+      {!compute.isChoice && computed.hasBreakdown && (
         <div className="rounded-2xl border border-border bg-card p-4">
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {/* Odaklıyken de gösterilen şey aynı: bu kalemin altındaki
+              kalemlerin dağılımı — başlık da aynı kalır */}
+          <h3 className="mb-3 min-w-0 text-xs font-semibold uppercase leading-tight tracking-wider text-muted-foreground">
             {scopePrefix}
-            {GRANULARITY_TITLES[computed.granularity]}{" "}
-            {metric.type === "count" ? "entries" : metric.mod.name}
+            Subcategory breakdown
             {compute.aggregateNote && (
               <span className="normal-case font-normal text-muted-foreground/60">
                 {" "}
@@ -532,22 +649,86 @@ export function PeriodCategoryPanel({
               </span>
             )}
           </h3>
-          <DailyBarChart
-            data={computed.buckets}
-            color={category.color}
-            unit={metric.type === "count" ? "entries" : unit}
-            caption={computed.seriesFrame?.caption}
-            showAllTicks={computed.seriesFrame?.showAllTicks}
-          scale={compute.scale}
-          variant={compute.chart === "line" ? "line" : "bar"}
-            stack={
-              compute.isRate
-                ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") }
-                : undefined
-            }
+
+          {/* Yol artık panelin tepesindeki kapsam şeridinde — burada tekrar etmez */}
+          <ShareBars
+            rows={computed.shareRows}
+            mode={compute.isRate ? "rate" : compute.scale ? "level" : "share"}
+            range={compute.scale}
+            onSelect={(subId) => {
+              const sub = data.subById.get(subId);
+              if (!sub) return;
+              // Kalemin kendi doğrudan girdileri (kategori kökü ya da odağın
+              // kendisi) bir alt kademe değil — inilecek bir yer yok
+              if (sub.isCategoryRoot || sub.id === focus?.id) return;
+              // Aynı düğüm yolda varsa tekrar eklenmez (döngü koruması)
+              setPath((p) => (p.some((s) => s.id === sub.id) ? p : [...p, sub]));
+            }}
           />
         </div>
       )}
+
+      {/* Gün dönemlerinde hafta bağlamı — bu gün haftalık ortalamaya göre nerede */}
+      {isDay && weekContext && (
+        <div className="rounded-2xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
+          Week avg.{" "}
+          <span className="font-semibold text-foreground">
+            {compute.isRate
+              ? fmtPct(weekContext.ref)
+              : fmtNum(weekContext.ref)}
+            {metricLabel && !compute.isRate ? ` ${metricLabel}` : ""}
+            {weekContext.perDay ? "/gün" : ""}
+          </span>{" "}
+          · this day{" "}
+          <span
+            className="font-semibold"
+            style={{ color: category.color }}
+          >
+            {weekContext.inPoints
+              ? t("stat.points", { n: fmtNum(Math.abs(weekContext.delta)) })
+              : fmtPct(Math.abs(weekContext.delta) / 100)}{" "}
+            {weekContext.delta >= 0 ? "above" : "below"}
+          </span>
+        </div>
+      )}
+
+      {/* Alt kategori kırılımı — seriden ÖNCE: önce "ne nereye gitmiş"
+          görülür, istenirse bir kademe derine inilir (dönemden çıkılmadan),
+          sonra o kapsamın zaman serisi incelenir. İnilecek kademe kalmadıysa
+          bölüm hiç açılmaz */}
+      {!compute.isChoice && computed.hasBreakdown && (
+        <div className="rounded-2xl border border-border bg-card p-4">
+          {/* Odaklıyken de gösterilen şey aynı: bu kalemin altındaki
+              kalemlerin dağılımı — başlık da aynı kalır */}
+          <h3 className="mb-3 min-w-0 text-xs font-semibold uppercase leading-tight tracking-wider text-muted-foreground">
+            {scopePrefix}
+            Subcategory breakdown
+            {compute.aggregateNote && (
+              <span className="normal-case font-normal text-muted-foreground/60">
+                {" "}
+                ({compute.aggregateNote})
+              </span>
+            )}
+          </h3>
+
+          {/* Yol artık panelin tepesindeki kapsam şeridinde — burada tekrar etmez */}
+          <ShareBars
+            rows={computed.shareRows}
+            mode={compute.isRate ? "rate" : compute.scale ? "level" : "share"}
+            range={compute.scale}
+            onSelect={(subId) => {
+              const sub = data.subById.get(subId);
+              if (!sub) return;
+              // Kalemin kendi doğrudan girdileri (kategori kökü ya da odağın
+              // kendisi) bir alt kademe değil — inilecek bir yer yok
+              if (sub.isCategoryRoot || sub.id === focus?.id) return;
+              // Aynı düğüm yolda varsa tekrar eklenmez (döngü koruması)
+              setPath((p) => (p.some((s) => s.id === sub.id) ? p : [...p, sub]));
+            }}
+          />
+        </div>
+      )}
+
 
       {/* Girdi listesi */}
       <EntryListSection

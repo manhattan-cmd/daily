@@ -32,6 +32,7 @@ export function StatTile({
   sub,
   color,
   wordValue = false,
+  pickable = false,
 }: {
   label: string;
   value: string;
@@ -42,6 +43,10 @@ export function StatTile({
   /** Değer bir rakam değil bir kelime (örn. en sık seçenek) — puntoyu düşürür,
    *  yoksa "yorgun" gibi bir sözcük rakam boyunda ezici duruyor */
   wordValue?: boolean;
+  /** Kutu dokunulabilir: hangi rakamın görüneceği seçilebiliyor. Kesik alt
+   *  çizgi tek işaret — kutuyu düğmeye benzetmek üç kutuyu birden gürültüye
+   *  çeviriyordu. */
+  pickable?: boolean;
 }) {
   return (
     <div
@@ -68,7 +73,13 @@ export function StatTile({
             style={{ backgroundColor: color }}
           />
         )}
-        <span className="line-clamp-2 text-[11px] font-medium leading-[14px] text-muted-foreground">
+        <span
+          className={cn(
+            "line-clamp-2 text-[11px] font-medium leading-[14px] text-muted-foreground",
+            pickable &&
+              "underline decoration-dotted decoration-muted-foreground/40 underline-offset-[3px]"
+          )}
+        >
           {label}
         </span>
       </div>

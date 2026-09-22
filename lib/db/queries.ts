@@ -22,6 +22,7 @@ import type {
   Mod,
   Note,
   NoteBlock,
+  AnalysisView,
   EntryValueType,
   ModAnalysis,
   ScaleLabels,
@@ -1067,6 +1068,51 @@ export async function renameMod(modId: string, name: string): Promise<boolean> {
  * Eskiden kaydedilmiş değerler ham metin olarak durur; tür değişince
  * okunamayan değer olabileceği için arayüz kullanıcıyı uyarır.
  */
+// ============ Analiz görünümü (kalem × özellik) ============
+
+/**
+ * Bakılan kapsamın bu özellik için tercihleri. Analiz sayfası kutulara ve
+ * grafiğe dokunarak yazıyor; kapsam değişince (kategori → alt kalem) tercih
+ * de değişiyor, çünkü soru değişiyor: yürüyüşte toplam süre, sprintte tek
+ * tek süreler.
+ */
+export async function listAnalysisViews(
+  targetType: "category" | "subcategory",
+  targetId: string
+): Promise<Map<string, AnalysisView>> {
+  const rows = await db.analysisViews
+    .where("[targetType+targetId]")
+    .equals([targetType, targetId])
+    .toArray();
+  return new Map(rows.map((r) => [r.modId, r]));
+}
+
+/** Tercihi yazar; satır yoksa yaratır. Boş bırakılan alan varsayılana döner. */
+export async function setAnalysisView(
+  targetType: "category" | "subcategory",
+  targetId: string,
+  modId: string,
+  patch: Pick<AnalysisView, "stats" | "charts" | "series">
+): Promise<void> {
+  const existing = await db.analysisViews
+    .where("[targetType+targetId+modId]")
+    .equals([targetType, targetId, modId])
+    .first();
+  if (existing) {
+    await db.analysisViews.update(existing.id, { ...patch, updatedAt: now() });
+    return;
+  }
+  await db.analysisViews.add({
+    id: id(),
+    targetType,
+    targetId,
+    modId,
+    ...patch,
+    createdAt: now(),
+    updatedAt: now(),
+  });
+}
+
 /** Analiz biçimi — ölçüden ayrı tutuluyor: ölçü değişmeden de değiştirilebilmeli */
 export async function setModAnalysis(
   modId: string,

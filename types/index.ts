@@ -201,6 +201,38 @@ export interface Mod {
  *   • tek tek özelliğin istisnası — lib/db/starter (F.bodyWeight düzey gibi)
  * Alan kayıtta duruyor ki karar yedeklerde de taşınsın.
  */
+/**
+ * Bir KALEM × ÖZELLİK çiftinin analizde nasıl gösterileceği.
+ *
+ * Neden özelliğin kendisinde değil: aynı özellik farklı kalemde başka bir
+ * soruya cevap veriyor. Yürüyüşte "Süre" haftalık TOPLAM merak edilir (ne
+ * kadar yürüdüm); sprintte aynı Süre tek tek okunur ve en kısası sorulur.
+ * Tercih bu yüzden bakılan kapsamla birlikte saklanıyor.
+ */
+export interface AnalysisView {
+  id: string;
+  /** Kapsam: kategori ya da alt kalem */
+  targetType: "category" | "subcategory";
+  targetId: string;
+  modId: string;
+  /** Panodaki kutular, sırasıyla. Boş dizi = kutu yok (kullanıcı hepsini kaldırdı) */
+  stats?: StatKey[];
+  /** Panodaki grafikler, sırasıyla. Boş dizi = grafik yok */
+  charts?: ChartKind[];
+  /** @deprecated v20'de tek grafik vardı; okunurken charts'ın ilk elemanına çevrilir */
+  series?: SeriesMode;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * Serinin okunuşu:
+ *  sum          kova = toplam, çubuk        (haftada ne kadar yürüdüm)
+ *  average      kova = ortalama, çizgi      (tek tek değerler, eğilim)
+ *  distribution etiket dağılımı             (hangi seçenek/metin, ne sıklıkla)
+ */
+export type SeriesMode = "sum" | "average" | "distribution";
+
 export interface ModAnalysis {
   /** Analiz biçimi — kutuları ve grafiği birlikte belirler */
   preset?: AnalysisPreset;
@@ -244,19 +276,47 @@ export type ModKindForAnalysis =
 /** akış = birikir (para, süre, km) · düzey = an ölçümü (kilo, bench) */
 export type ModReading = "flow" | "level";
 
-export type ChartKind = "bar" | "line" | "distribution";
+/**
+ * Grafik türleri — her biri aynı veriye başka bir soru soruyor:
+ *  bar         dönemin toplamı        "bu hafta ne kadar"
+ *  line        dönemin ortalaması     "seviye nereye gidiyor"
+ *  cumulative  birikimli toplam       "ay sonunda nereye varır"
+ *  points      girdi girdi            "tek tek değerler, en kısa/en uzun hangisi"
+ *  distribution etiket dağılımı       "hangisi, ne sıklıkla"
+ */
+export type ChartKind = "bar" | "line" | "cumulative" | "points" | "distribution";
 
 export type StatKey =
+  /** Dönemin toplamı */
   | "total"
+  /** Toplam ÷ dönemdeki gün sayısı */
   | "dailyAverage"
+  /** Toplam ÷ kayıt girilen gün sayısı */
+  | "perActiveDay"
+  /** Girdi başına ortalama */
   | "average"
+  /** Ortanca — birkaç uç değer ortalamayı bozduğunda gerçek orta */
+  | "median"
+  /** Dönemin son ve ilk değeri */
   | "last"
+  | "first"
   | "min"
   | "max"
+  /** En düşük–en yüksek birlikte */
   | "range"
+  /** En yoğun günün toplamı */
+  | "maxDay"
+  /** Değeri olan girdi sayısı */
   | "entries"
+  /** Kayıt girilen farklı gün sayısı */
+  | "activeDays"
+  /** Üst üste kayıt girilen gün */
+  | "streak"
+  /** Kaç farklı değer yazılmış (metin/seçenek) */
+  | "distinct"
   | "rate"
   | "yesCount"
+  | "noCount"
   | "yesStreak"
   | "topChoice"
   | "written";

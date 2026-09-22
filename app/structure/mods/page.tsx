@@ -9,7 +9,6 @@ import {
   createMod,
   renameMod,
   setModMeasure,
-  setModAnalysis,
   setModColor,
   deleteMod,
   findModByName,
@@ -34,10 +33,6 @@ import {
   uiKindOf,
 } from "@/lib/measure-kinds";
 import { MeasureEditor, isMeasureComplete } from "@/components/structure/measure-editor";
-import {
-  AnalysisPicker,
-  AnalysisSummary,
-} from "@/components/structure/analysis-picker";
 import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
 import {
   StructureAddButton,
@@ -47,7 +42,7 @@ import { useT } from "@/lib/i18n";
 import { confirmDialog } from "@/components/ui/confirm";
 import { cn } from "@/lib/utils";
 import { modColor } from "@/lib/mod-color";
-import { CATEGORY_COLORS, type ModAnalysis } from "@/types";
+import { CATEGORY_COLORS } from "@/types";
 
 /** Özelliğin bağlı olduğu bir yer — rengi kategorisinden gelir (alt kalemlerin
  *  kendi rengi yok, üstündeki kategorininkini taşırlar) */
@@ -67,7 +62,6 @@ export default function ModsHomePage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
   const [measure, setMeasure] = useState<ModMeasure>({ valueType: "number" });
-  const [analysis, setAnalysis] = useState<ModAnalysis | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // Atom detayı — dokununca açılır; düzenleme aynı diyalog içinde görünüm
@@ -76,7 +70,6 @@ export default function ModsHomePage() {
   const [detailView, setDetailView] = useState<"info" | "edit">("info");
   const [editName, setEditName] = useState("");
   const [editMeasure, setEditMeasure] = useState<ModMeasure>({ valueType: "number" });
-  const [editAnalysis, setEditAnalysis] = useState<ModAnalysis | undefined>(undefined);
   const [editColor, setEditColor] = useState<string>(CATEGORY_COLORS[0]);
   const [editError, setEditError] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
@@ -147,7 +140,6 @@ export default function ModsHomePage() {
       choices: mod.choices,
       scaleLabels: mod.scaleLabels,
     });
-    setEditAnalysis(mod.analysis);
     setEditError(false);
     setDetailView("edit");
   }
@@ -162,11 +154,10 @@ export default function ModsHomePage() {
         setError(t("features.nameClashOf", { name: clash.name }));
         return;
       }
-      await createMod(name, measure, analysis);
+      await createMod(name, measure);
       setCreateOpen(false);
       setName("");
       setMeasure({ valueType: "number" });
-      setAnalysis(undefined);
     } finally {
       setSaving(false);
     }
@@ -187,7 +178,6 @@ export default function ModsHomePage() {
       }
       // Ölçü değişikliği — mod + tüm atamaları senkronlanır
       await setModMeasure(selected.id, editMeasure);
-      await setModAnalysis(selected.id, editAnalysis);
       await setModColor(selected.id, editColor);
       setSelected(null);
     } finally {
@@ -373,14 +363,6 @@ export default function ModsHomePage() {
                 </DialogDescription>
               </DialogHeader>
 
-              {/* Analizde nasıl okunuyor — biçim, kutular, grafik */}
-              <AnalysisSummary
-                valueType={selected.valueType}
-                choices={selected.choices}
-                analysis={selected.analysis}
-                color={selectedColor}
-              />
-
               {/* Nerede kullanılıyor — düz virgüllü cümle yerine kalem kalem.
                   "Bu özelliği silersem ne gider" sorusunun cevabı burası.
                   Pencere özelliğin renginde hafifçe tonlanıyor; kapsüller ise
@@ -547,13 +529,6 @@ export default function ModsHomePage() {
                 onChange={setEditMeasure}
                 knownUnits={knownUnits}
               />
-
-              <AnalysisPicker
-                valueType={editMeasure.valueType}
-                choices={editMeasure.choices}
-                value={editAnalysis}
-                onChange={setEditAnalysis}
-              />
               {selectedUsage && selectedUsage.valueCount > 0 && (
                 <p className="text-xs text-amber-300/90">
                   {t("measure.changeWarning", { n: selectedUsage.valueCount })}
@@ -623,12 +598,6 @@ export default function ModsHomePage() {
             value={measure}
             onChange={setMeasure}
             knownUnits={knownUnits}
-          />
-          <AnalysisPicker
-            valueType={measure.valueType}
-            choices={measure.choices}
-            value={analysis}
-            onChange={setAnalysis}
           />
           {error && (
             <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200/90">
