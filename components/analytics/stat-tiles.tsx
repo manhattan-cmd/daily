@@ -300,7 +300,7 @@ export function StatTiles({
                   label: t(STAT_LABEL[o]),
                   hint: t(STAT_HINT[o]),
                 })),
-              { key: REMOVE, label: t("board.remove") },
+              { key: REMOVE, label: t("board.remove"), danger: true },
             ]}
             onPick={(k) => onPick!(slot, k === REMOVE ? null : (k as StatKey))}
           >

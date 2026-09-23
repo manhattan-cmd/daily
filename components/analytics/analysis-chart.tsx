@@ -138,7 +138,7 @@ export function AnalysisCharts({
                 label: t(CHART_LABEL[o]),
                 hint: t(CHART_HINT[o]),
               })),
-              { key: "__remove__", label: t("board.remove") },
+              { key: "__remove__", label: t("board.remove"), danger: true },
             ]}
             onPick={(k) =>
               onPick(slot, k === "__remove__" ? null : (k as ChartKind))
