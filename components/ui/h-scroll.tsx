@@ -114,7 +114,7 @@ function Arrow({
       aria-label={side === "left" ? "Sola kaydır" : "Sağa kaydır"}
       className={cn(
         "absolute top-1/2 z-10 hidden h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full",
-        "border border-white/10 bg-background/85 text-muted-foreground shadow-lg backdrop-blur-sm",
+        "border border-[var(--ln-2)] bg-background/85 text-muted-foreground shadow-lg backdrop-blur-sm",
         "transition-colors hover:text-foreground md:flex",
         side === "left" ? "left-0.5" : "right-0.5"
       )}

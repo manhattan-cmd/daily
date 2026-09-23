@@ -206,7 +206,7 @@ export default function CalendarDayPage({
               href={`/calendar/${shift(-1)}`}
               prefetch={false}
               aria-label={t("day.prev")}
-              className="flex h-7 w-8 items-center justify-center rounded-l-full text-muted-foreground/70 transition-colors hover:bg-white/5 hover:text-foreground"
+              className="flex h-7 w-8 items-center justify-center rounded-l-full text-muted-foreground/70 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
             >
               <ChevronLeft className="h-4 w-4" />
             </Link>
@@ -215,7 +215,7 @@ export default function CalendarDayPage({
               href={`/calendar/${shift(1)}`}
               prefetch={false}
               aria-label={t("day.next")}
-              className="flex h-7 w-8 items-center justify-center rounded-r-full text-muted-foreground/70 transition-colors hover:bg-white/5 hover:text-foreground"
+              className="flex h-7 w-8 items-center justify-center rounded-r-full text-muted-foreground/70 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
             >
               <ChevronRight className="h-4 w-4" />
             </Link>

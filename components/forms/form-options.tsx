@@ -59,7 +59,7 @@ export function OptionsMenu({
           "relative flex h-7 w-7 items-center justify-center rounded-full transition-colors",
           open
             ? "bg-primary/20 text-primary"
-            : "bg-white/8 text-muted-foreground hover:bg-white/12 hover:text-foreground"
+            : "bg-[var(--sf-3)] text-muted-foreground hover:bg-[var(--sf-4)] hover:text-foreground"
         )}
       >
         <MoreHorizontal className="h-4 w-4" />
@@ -74,9 +74,9 @@ export function OptionsMenu({
             className="fixed inset-0 z-30 bg-black/60 backdrop-blur-[2px]"
             onClick={() => setOpen(false)}
           />
-          <div className="animate-in absolute right-0 top-10 z-40 w-64 origin-top-right overflow-hidden rounded-2xl border border-white/[0.09] bg-card/95 shadow-[0_16px_48px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+          <div className="animate-in absolute right-0 top-10 z-40 w-64 origin-top-right overflow-hidden rounded-2xl border border-[var(--ln-2)] bg-card/95 shadow-[0_16px_48px_rgba(0,0,0,0.55)] backdrop-blur-xl">
             {header && (
-              <div className="border-b border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+              <div className="border-b border-[var(--ln-1)] bg-[var(--sf-1)] px-3 py-2.5">
                 {header}
               </div>
             )}
@@ -93,7 +93,7 @@ export function OptionsMenu({
               ))}
             </div>
             {destructive.length > 0 && (
-              <div className="border-t border-white/[0.06] p-1.5">
+              <div className="border-t border-[var(--ln-1)] p-1.5">
                 {destructive.map((item) => (
                   <MenuRow
                     key={item.key}
@@ -128,7 +128,7 @@ function MenuRow({ item, onClick }: { item: OptionItem; onClick: () => void }) {
           ? "hover:bg-destructive/10 active:bg-destructive/15"
           : item.active
             ? "bg-primary/[0.09]"
-            : "hover:bg-white/[0.06] active:bg-white/[0.09]"
+            : "hover:bg-[var(--sf-2)] active:bg-[var(--sf-3)]"
       )}
     >
       <span
@@ -138,7 +138,7 @@ function MenuRow({ item, onClick }: { item: OptionItem; onClick: () => void }) {
             ? "bg-destructive/12 text-destructive"
             : lit
               ? "bg-primary/20 text-primary"
-              : "bg-white/[0.06] text-muted-foreground group-hover:text-foreground"
+              : "bg-[var(--sf-2)] text-muted-foreground group-hover:text-foreground"
         )}
       >
         <Icon className="h-4 w-4" />

@@ -62,7 +62,7 @@ export function WelcomeCard() {
         </button>
       </div>
 
-      <ol className="flex flex-col gap-px bg-white/[0.04]">
+      <ol className="flex flex-col gap-px bg-[var(--sf-2)]">
         {CHAIN.map((step, i) => (
           <li
             key={t(step.label)}

@@ -483,7 +483,7 @@ function TreeNode({
           }}
           className={cn(
             "flex min-w-0 flex-1 select-none touch-manipulation items-center gap-2.5 rounded-xl px-1.5 py-1.5 transition-all",
-            isDragging ? "opacity-30" : "hover:bg-white/5 active:scale-[0.99]"
+            isDragging ? "opacity-30" : "hover:bg-[var(--sf-2)] active:scale-[0.99]"
           )}
           style={
             isDropTarget
@@ -541,7 +541,7 @@ function TreeNode({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-white/5 hover:text-foreground"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
           aria-label={open ? `${sub.name} dalını kapat` : `${sub.name} dalını aç`}
           aria-expanded={open}
         >
@@ -608,7 +608,7 @@ function AddRow({
         "group flex items-center gap-2.5 rounded-xl px-1.5 py-1.5 text-xs transition-colors",
         emphasis
           ? "mt-1 border border-dashed py-2 font-medium"
-          : "text-muted-foreground/60 hover:bg-white/5 hover:text-foreground"
+          : "text-muted-foreground/60 hover:bg-[var(--sf-2)] hover:text-foreground"
       )}
       style={
         emphasis

@@ -427,7 +427,7 @@ export function DateTimeInput({
             type="button"
             disabled={disabled}
             onClick={() => onChange(toLocalDateTimeValue(Date.now()))}
-            className="rounded-full bg-white/8 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
+            className="rounded-full bg-[var(--sf-3)] px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-[var(--sf-4)] hover:text-foreground"
           >
             Şimdi
           </button>
@@ -480,7 +480,7 @@ function StepButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground/60 transition-colors hover:bg-white/5 hover:text-foreground disabled:opacity-30"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground/60 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground disabled:opacity-30"
     >
       <Icon className="h-4 w-4" />
     </button>
@@ -553,7 +553,7 @@ function TimeWheel({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full bg-white/8 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
+          className="rounded-full bg-[var(--sf-3)] px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-[var(--sf-4)] hover:text-foreground"
         >
           Tamam
         </button>

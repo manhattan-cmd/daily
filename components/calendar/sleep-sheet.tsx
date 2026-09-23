@@ -113,7 +113,7 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
       <div
         className={cn(
           "fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[390px]",
-          "flex flex-col rounded-t-3xl bg-background border-t border-white/8",
+          "flex flex-col rounded-t-3xl bg-background border-t border-[var(--ln-2)]",
           "shadow-[0_-8px_40px_rgba(0,0,0,0.6)]",
           "transition-transform duration-300 ease-out",
           "max-h-[80vh]",
@@ -121,7 +121,7 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
         )}
       >
         <div className="flex justify-center pt-3 pb-1 shrink-0">
-          <div className="h-[3px] w-10 rounded-full bg-white/15" />
+          <div className="h-[3px] w-10 rounded-full bg-[var(--sf-4)]" />
         </div>
 
         <div className="flex items-center gap-3 px-5 pt-2 pb-4 shrink-0">
@@ -133,7 +133,7 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
           </h2>
           <button
             onClick={onClose}
-            className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors"
+            className="h-7 w-7 flex items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground hover:bg-[var(--sf-4)] transition-colors"
             aria-label={t("action.close")}
           >
             <X className="h-3.5 w-3.5" />
@@ -180,7 +180,7 @@ export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
           )}
         </div>
 
-        <div className="px-5 pb-8 pt-2 shrink-0 border-t border-white/8">
+        <div className="px-5 pb-8 pt-2 shrink-0 border-t border-[var(--ln-2)]">
           <Button
             className="w-full bg-violet-600 hover:bg-violet-700"
             size="lg"

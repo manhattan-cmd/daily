@@ -147,7 +147,7 @@ export function EntryListSection({
       )}
 
       <div
-        className="overflow-hidden rounded-2xl border-l-2 bg-white/[0.02] px-4 py-1 ring-1 ring-inset ring-white/[0.06]"
+        className="overflow-hidden rounded-2xl border-l-2 bg-[var(--sf-1)] px-4 py-1 ring-1 ring-inset ring-white/[0.06]"
         style={{ borderLeftColor: `${accent}80` }}
       >
         <EntryList
@@ -204,7 +204,7 @@ export function EntryList({
           onClick={() => setOpenId(r.id)}
           aria-label={`${r.subLabel ?? r.title ?? t("list.entry")} — ${t("action.edit")}`}
           className={cn(
-            "-mx-2 flex items-start gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-white/5 active:bg-white/[0.07]",
+            "-mx-2 flex items-start gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-[var(--sf-2)] active:bg-[var(--sf-3)]",
             i > 0 && "border-t border-border/60"
           )}
         >

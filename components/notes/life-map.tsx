@@ -642,7 +642,7 @@ export function LifeMap({ graph }: { graph: LifeGraph }) {
                 <li key={i}>
                   <Link
                     href={l.other ? nodeHref(l.other) : "#"}
-                    className="flex items-center gap-2.5 px-4 py-3 transition-colors hover:bg-white/5"
+                    className="flex items-center gap-2.5 px-4 py-3 transition-colors hover:bg-[var(--sf-2)]"
                   >
                     {l.other?.kind === "entry" ? (
                       <Link2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

@@ -158,7 +158,7 @@ function PlainEntryCard({
             buluyor. Kutu değil çizgi: iç pencereler kartı bölük pörçük
             gösteriyordu (git etiketi tasarim-2-pencere). */}
         {(typedValues.length > 0 || entry.notes) && (
-          <div className="mt-2 border-t border-white/[0.07] pt-2">
+          <div className="mt-2 border-t border-[var(--ln-1)] pt-2">
             {typedValues.length > 0 && (
               <ValueCapsuleRow values={typedValues} color={color} />
             )}

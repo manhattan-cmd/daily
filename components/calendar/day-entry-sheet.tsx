@@ -346,7 +346,7 @@ export function DayEntrySheet({
           // sonuncuyu seçiyor. `fixed` zaten mutlak konumlu çocuklara
           // kapsayıcı blok oluşturur.
           "fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[390px]",
-          "flex flex-col rounded-t-2xl border-t border-white/10 bg-background",
+          "flex flex-col rounded-t-2xl border-t border-[var(--ln-2)] bg-background",
           // Yükseklik SABİT 90vh. Bir ara seçim adımı içeriğe göre
           // büyüyordu (kısa listede yarısı boş yüzey açmayalım diye) ama
           // kademeler arası zıplıyordu: 7 alt kategorili Harcamalar'dan
@@ -372,7 +372,7 @@ export function DayEntrySheet({
       >
         {/* Tutamaç — yüzeyin sürüklenebilir göründüğü yer */}
         <div className="flex shrink-0 justify-center pb-1 pt-2.5">
-          <div className="h-[3px] w-10 rounded-full bg-white/15" />
+          <div className="h-[3px] w-10 rounded-full bg-[var(--sf-4)]" />
         </div>
 
         {step.type === "activity-name" ? (
@@ -407,9 +407,9 @@ export function DayEntrySheet({
                 {/* Seçimin üstüne açılan form. Seçim listesi altta
                     duruyor: kullanıcı nereye kayıt yaptığını görmeye
                     devam ediyor. */}
-                <div className="animate-in absolute inset-x-0 bottom-0 z-50 flex max-h-[86%] flex-col rounded-t-3xl border-t border-white/10 bg-background shadow-[0_-8px_40px_rgba(0,0,0,0.6)]">
+                <div className="animate-in absolute inset-x-0 bottom-0 z-50 flex max-h-[86%] flex-col rounded-t-3xl border-t border-[var(--ln-2)] bg-background shadow-[0_-8px_40px_rgba(0,0,0,0.6)]">
                   <div className="flex justify-center pt-2.5 pb-0.5 shrink-0">
-                    <div className="h-[3px] w-10 rounded-full bg-white/15" />
+                    <div className="h-[3px] w-10 rounded-full bg-[var(--sf-4)]" />
                   </div>
                   <FormStep
             key={step.sub.id}
@@ -486,7 +486,7 @@ function ActivityNameStep({
         </div>
         <button
           onClick={onClose}
-          className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors shrink-0"
+          className="h-7 w-7 flex items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground hover:bg-[var(--sf-4)] transition-colors shrink-0"
           aria-label={t("action.close")}
         >
           <X className="h-3.5 w-3.5" />
@@ -709,7 +709,7 @@ function FormStep({
       <div className="flex items-center gap-3 px-5 pt-2 pb-4 shrink-0">
         <button
           onClick={onBack}
-          className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors shrink-0"
+          className="h-7 w-7 flex items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground hover:bg-[var(--sf-4)] transition-colors shrink-0"
           aria-label={parallelContext ? t("action.skip") : t("action.back")}
         >
           <ArrowLeft className="h-3.5 w-3.5" />
@@ -820,7 +820,7 @@ function FormStep({
           <button
             type="button"
             onClick={() => setModPickerOpen(true)}
-            className="flex w-full flex-col items-center gap-2 rounded-2xl border border-white/[0.09] bg-white/[0.02] px-5 py-7 text-center transition-colors hover:bg-white/[0.04]"
+            className="flex w-full flex-col items-center gap-2 rounded-2xl border border-[var(--ln-2)] bg-[var(--sf-1)] px-5 py-7 text-center transition-colors hover:bg-[var(--sf-2)]"
           >
             <span
               className="flex h-11 w-11 items-center justify-center rounded-full"
@@ -844,7 +844,7 @@ function FormStep({
                 değer girmek isteyen satıra dokunup açıyor. Hepsi birden açık
                 dururken üç ölçülü bir kalemde form uzuyor ve "ne kaydediyorum"
                 yerine "bu alanları doldurmam mı lazım" hissi veriyordu. */}
-            <div className="overflow-hidden rounded-xl border border-white/[0.09] bg-white/[0.015]">
+            <div className="overflow-hidden rounded-xl border border-[var(--ln-2)] bg-[var(--sf-1)]">
               {mods.map((mod) => (
                 <FeatureRow
                   key={mod.id}
@@ -863,7 +863,7 @@ function FormStep({
               <button
                 type="button"
                 onClick={() => setModPickerOpen(true)}
-                className="flex w-full items-center gap-3 border-t border-white/[0.06] px-3 py-3 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground active:bg-white/[0.06]"
+                className="flex w-full items-center gap-3 border-t border-[var(--ln-1)] px-3 py-3 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground active:bg-[var(--sf-2)]"
               >
                 <span
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
@@ -939,7 +939,7 @@ function FormStep({
         )}
 
         {/* ── Not — her zaman altta, doğrudan yazılabilir ── */}
-        <div className="mt-6 border-t border-white/[0.06] pt-3">
+        <div className="mt-6 border-t border-[var(--ln-1)] pt-3">
           <label
             htmlFor="entry-note"
             className="mb-2 block px-1 text-[11px] font-semibold uppercase tracking-wide"
@@ -965,7 +965,7 @@ function FormStep({
       {/* Asli eylem: kalemin renginde, iri ve tek. "Kaydet" bir düzenlemeyi
           bitiriyormuş gibi duruyordu; burada yapılan şey yeni bir kayıt
           YARATMAK. */}
-      <div className="shrink-0 border-t border-white/8 px-5 pb-8 pt-3">
+      <div className="shrink-0 border-t border-[var(--ln-2)] px-5 pb-8 pt-3">
         <button
           type="button"
           onClick={onSave}
@@ -1058,12 +1058,12 @@ function FeatureRow({
   const summary = valueSummary(mod, value);
 
   return (
-    <div className="border-t border-white/[0.06] first:border-t-0">
+    <div className="border-t border-[var(--ln-1)] first:border-t-0">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-white/[0.04] active:bg-white/[0.06]"
+        className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--sf-2)] active:bg-[var(--sf-2)]"
       >
         <span
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
@@ -1103,7 +1103,7 @@ function FeatureRow({
         // tam genişlik istiyor — orada onay alta düşüyor.
         <div
           className={cn(
-            "border-t border-white/[0.06] bg-white/[0.02] px-3 py-2.5",
+            "border-t border-[var(--ln-1)] bg-[var(--sf-1)] px-3 py-2.5",
             inlineDone ? "flex items-center gap-2" : "flex flex-col gap-2.5"
           )}
         >

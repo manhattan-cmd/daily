@@ -557,7 +557,7 @@ export function EntryPicker({
 
         <button
           onClick={onClose}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-muted-foreground transition-colors hover:bg-white/12"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground transition-colors hover:bg-[var(--sf-4)]"
           aria-label={t("action.close")}
         >
           <X className="h-3.5 w-3.5" />
@@ -646,7 +646,7 @@ export function EntryPicker({
                         "bg-primary/15 text-primary hover:bg-primary/25",
                       !last &&
                         !isRoot &&
-                        "bg-white/[0.07] text-muted-foreground hover:bg-white/[0.11] hover:text-foreground"
+                        "bg-[var(--sf-3)] text-muted-foreground hover:bg-[var(--sf-3)] hover:text-foreground"
                     )}
                     style={
                       last
@@ -805,7 +805,7 @@ export function EntryPicker({
             className="absolute inset-0 z-30 bg-black/50"
             onClick={() => setPinOpen(false)}
           />
-          <div className="animate-in absolute inset-x-0 bottom-0 z-40 flex max-h-[85%] flex-col rounded-t-2xl border-t border-white/10 bg-background">
+          <div className="animate-in absolute inset-x-0 bottom-0 z-40 flex max-h-[85%] flex-col rounded-t-2xl border-t border-[var(--ln-2)] bg-background">
             <div className="flex shrink-0 items-start gap-3 px-5 pb-3 pt-4">
               <div className="min-w-0 flex-1">
                 <div className="text-base font-semibold leading-tight">
@@ -818,13 +818,13 @@ export function EntryPicker({
               <button
                 onClick={() => setPinOpen(false)}
                 aria-label={t("action.close")}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/6 text-muted-foreground transition-colors hover:text-foreground"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--sf-2)] text-muted-foreground transition-colors hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="min-h-0 overflow-y-auto overscroll-contain px-3 pb-6">
-              <div className="overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.015]">
+              <div className="overflow-hidden rounded-xl border border-[var(--ln-1)] bg-[var(--sf-1)]">
                 {pinCandidates.map((c) => {
                   const on = pins.includes(c.id);
                   return (
@@ -832,7 +832,7 @@ export function EntryPicker({
                       key={c.id}
                       onClick={() => togglePin(c.id)}
                       aria-pressed={on}
-                      className="flex min-h-[56px] w-full items-center gap-3 border-t border-white/[0.06] px-3 py-2 text-left transition-colors first:border-t-0 hover:bg-white/[0.05] active:bg-white/[0.08]"
+                      className="flex min-h-[56px] w-full items-center gap-3 border-t border-[var(--ln-1)] px-3 py-2 text-left transition-colors first:border-t-0 hover:bg-[var(--sf-2)] active:bg-[var(--sf-3)]"
                     >
                       <Tile color={c.color} icon={c.icon} size={34} />
                       <span className="min-w-0 flex-1">
@@ -846,7 +846,7 @@ export function EntryPicker({
                       <span
                         className={cn(
                           "flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors",
-                          on ? "text-white" : "bg-white/[0.06] text-muted-foreground/50"
+                          on ? "text-white" : "bg-[var(--sf-2)] text-muted-foreground/50"
                         )}
                         style={on ? { backgroundColor: c.color } : undefined}
                       >
@@ -971,7 +971,7 @@ function Section({
           {label}
         </div>
       )}
-      <div className="overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.015]">
+      <div className="overflow-hidden rounded-xl border border-[var(--ln-1)] bg-[var(--sf-1)]">
         {children}
       </div>
     </div>
@@ -991,7 +991,7 @@ function PickRow({ row: r, onOpen }: { row: Row; onOpen: (node: Node) => void })
       // ekleyecek kişi kaç dal olduğunu bilmek istemiyor, adı arıyor — sayı
       // her satırda ikinci bir yazı olarak listeyi ağırlaştırıyordu. Altı
       // olup olmadığını sağdaki işaret zaten söylüyor.
-      className="flex min-h-[48px] w-full items-center gap-2.5 border-t border-white/[0.06] px-2.5 py-2 text-left transition-colors first:border-t-0 hover:bg-white/[0.05] active:bg-white/[0.08]"
+      className="flex min-h-[48px] w-full items-center gap-2.5 border-t border-[var(--ln-1)] px-2.5 py-2 text-left transition-colors first:border-t-0 hover:bg-[var(--sf-2)] active:bg-[var(--sf-3)]"
     >
       <Tile
         color={r.color}
@@ -1077,7 +1077,7 @@ function QuickRail({
               key={it.id}
               onClick={() => onPick(it.sub)}
               title={`${it.parent} › ${it.name}`}
-              className="flex h-[48px] w-[60px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-white/[0.09] bg-white/[0.05] px-1 text-center transition-colors hover:bg-white/[0.09] active:bg-white/[0.12]"
+              className="flex h-[48px] w-[60px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--ln-2)] bg-[var(--sf-2)] px-1 text-center transition-colors hover:bg-[var(--sf-3)] active:bg-[var(--sf-4)]"
             >
               <Tile color={it.color} icon={it.icon} size={26} />
               {/* Ad TEK SATIR. İki satırlık kutu ayrılıyordu ve altındaki
@@ -1168,7 +1168,7 @@ function QuietButton({
     "flex min-w-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors",
     color
       ? "border-transparent text-foreground"
-      : "border-white/8 text-muted-foreground hover:text-foreground active:bg-white/5",
+      : "border-[var(--ln-2)] text-muted-foreground hover:text-foreground active:bg-[var(--sf-2)]",
     !children && "px-2"
   );
   const style = color

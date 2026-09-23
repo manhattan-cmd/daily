@@ -233,7 +233,7 @@ export default function CalendarPage() {
                 isToday
                   ? "bg-foreground text-background"
                   : hasEntries
-                    ? "bg-white/[0.04] hover:bg-white/[0.08]"
+                    ? "bg-[var(--sf-2)] hover:bg-[var(--sf-3)]"
                     : "hover:bg-muted/60"
               )}
             >

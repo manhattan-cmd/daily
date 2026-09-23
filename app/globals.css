@@ -38,6 +38,57 @@
   --destructive-foreground: #fafafa;
 }
 
+/**
+ * Yüzey ve çizgi katmanları.
+ *
+ * Arayüzde yüzlerce yerde `bg-white/5`, `border-white/10` gibi sabit beyaz
+ * saydamlıklar vardı; koyu zeminde işe yarıyordu ama açık bir temada beyazın
+ * üstüne beyaz koymak demek — kenarlar ve vurgular kayboluyordu. Katmanlar
+ * artık değişken: tema kendi "üst katman" rengini söylüyor.
+ */
+:root {
+  --sf-1: rgba(255, 255, 255, 0.02);
+  --sf-2: rgba(255, 255, 255, 0.05);
+  --sf-3: rgba(255, 255, 255, 0.09);
+  --sf-4: rgba(255, 255, 255, 0.14);
+  --ln-1: rgba(255, 255, 255, 0.06);
+  --ln-2: rgba(255, 255, 255, 0.1);
+  --ln-3: rgba(255, 255, 255, 0.28);
+}
+
+/**
+ * Pastel — açık tema.
+ *
+ * Skin yalnız GÖRÜNTÜ katmanını değiştiriyor: yerleşim, yarıçap, boşluk ve
+ * bileşen yapısı aynı kalıyor. Üst katmanlar beyaz yerine mor-gri bir tona
+ * dönüyor ki açık zeminde de görünsünler.
+ */
+:root[data-skin="pastel"] {
+  --background: #faf7fd;
+  --foreground: #3b3550;
+  --card: #ffffff;
+  --card-foreground: #3b3550;
+  --muted: #f4eefb;
+  --muted-foreground: #7e7597;
+  --border: #e8def5;
+  --input: #f7f3fc;
+  --ring: #a78bfa;
+  --primary: #a78bfa;
+  --primary-foreground: #ffffff;
+  --accent: #f4eefb;
+  --accent-foreground: #3b3550;
+  --destructive: #f0879b;
+  --destructive-foreground: #ffffff;
+
+  --sf-1: rgba(76, 54, 120, 0.025);
+  --sf-2: rgba(76, 54, 120, 0.05);
+  --sf-3: rgba(76, 54, 120, 0.08);
+  --sf-4: rgba(76, 54, 120, 0.12);
+  --ln-1: rgba(76, 54, 120, 0.08);
+  --ln-2: rgba(76, 54, 120, 0.13);
+  --ln-3: rgba(76, 54, 120, 0.3);
+}
+
 * {
   border-color: var(--border);
 }

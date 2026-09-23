@@ -295,7 +295,7 @@ export default function ModsHomePage() {
                     key={mod.id}
                     type="button"
                     onClick={() => openDetail(mod)}
-                    className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-card/50 px-2.5 py-2.5 text-left transition-colors hover:border-border hover:bg-white/5 active:scale-[0.99]"
+                    className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-card/50 px-2.5 py-2.5 text-left transition-colors hover:border-border hover:bg-[var(--sf-2)] active:scale-[0.99]"
                   >
                     <ModAtomCore
                       icon={modAtomIcon(mod)}

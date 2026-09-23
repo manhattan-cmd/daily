@@ -138,7 +138,7 @@ export function ViewMenu({
                     setOpen(false);
                   }}
                   className={cn(
-                    "flex w-full items-start gap-2 px-3 py-2 text-left transition-colors hover:bg-white/5",
+                    "flex w-full items-start gap-2 px-3 py-2 text-left transition-colors hover:bg-[var(--sf-2)]",
                     on && "bg-primary/10"
                   )}
                 >

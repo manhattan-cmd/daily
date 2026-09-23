@@ -22,7 +22,7 @@ export function LanguageSection() {
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card">
       <div className="flex items-center gap-3 px-4 py-3.5">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.06]">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--sf-2)]">
           <Languages className="h-5 w-5 text-muted-foreground" />
         </div>
         <div className="min-w-0 flex-1">
@@ -44,7 +44,7 @@ export function LanguageSection() {
               className={cn(
                 "flex items-center justify-between gap-2 px-4 py-3 text-left text-sm transition-colors",
                 active ? "text-foreground" : "text-muted-foreground",
-                "hover:bg-white/[0.03]"
+                "hover:bg-[var(--sf-1)]"
               )}
             >
               <span className={cn(active && "font-semibold")}>

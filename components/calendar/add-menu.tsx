@@ -103,7 +103,7 @@ export function AddMenu({ items }: { items: AddMenuItem[] }) {
                 role="menuitem"
                 onClick={() => pick(item)}
                 tabIndex={open ? 0 : -1}
-                className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-colors hover:bg-white/[0.06] active:scale-[0.98]"
+                className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-colors hover:bg-[var(--sf-2)] active:scale-[0.98]"
                 style={{
                   // Satırlar sırayla belirir — yay menüsündeki açılma hissi
                   // panelde de korunuyor
@@ -112,7 +112,7 @@ export function AddMenu({ items }: { items: AddMenuItem[] }) {
                   transition: "opacity 200ms ease-out, background-color 150ms",
                 }}
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.06]">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--sf-2)]">
                   <Icon
                     className={cn("h-4 w-4", item.iconClass ?? "text-primary")}
                   />

@@ -226,7 +226,7 @@ export function ActivityCard({
                   key={e.id}
                   type="button"
                   onClick={() => setEditing(e)}
-                  className="flex items-center gap-2.5 rounded-xl px-1.5 py-2 text-left transition-colors hover:bg-white/5 active:scale-[0.99]"
+                  className="flex items-center gap-2.5 rounded-xl px-1.5 py-2 text-left transition-colors hover:bg-[var(--sf-2)] active:scale-[0.99]"
                   aria-label={`${e.subcategory.name} girdisini düzenle`}
                 >
                   <EntryIcon

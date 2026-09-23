@@ -89,13 +89,16 @@ export function SleepCard({
       >
         {/* Künye — sembol, başlık, sağda tarih */}
         <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/20">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
+            style={{ background: `${color}33` }}>
             <MoonStar
-              className="h-[17px] w-[17px] text-violet-300"
+              className="h-[17px] w-[17px]"
+              style={{ color }}
               strokeWidth={1.75}
             />
           </span>
-          <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-300/80">
+          <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-[0.14em]"
+            style={{ color }}>
             {t("sleep.title")}
           </span>
           {dateLabel && (
@@ -106,21 +109,22 @@ export function SleepCard({
         </div>
 
         {/* Alt bölüm — aralık kapsülü, sağda kalite */}
-        <div className="mt-2 flex items-center gap-2 border-t border-white/[0.07] pt-2">
+        <div className="mt-2 flex items-center gap-2 border-t border-[var(--ln-1)] pt-2">
           <span
             className="inline-flex min-w-0 items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2.5"
             style={{
-              background: "rgba(139,92,246,0.12)",
-              boxShadow: "inset 0 0 0 1px rgba(139,92,246,0.28)",
+              background: `${color}1f`,
+              boxShadow: `inset 0 0 0 1px ${color}47`,
             }}
           >
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-500/25">
-              <Clock className="h-3 w-3 text-violet-300" strokeWidth={1.9} />
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+              style={{ background: `${color}3d` }}>
+              <Clock className="h-3 w-3" style={{ color }} strokeWidth={1.9} />
             </span>
             {startTime || endTime ? (
-              <span className="text-[13px] font-semibold leading-none tabular-nums text-violet-100">
+              <span className="text-[13px] font-semibold leading-none tabular-nums text-foreground">
                 {startTime ?? "?"}
-                <span className="mx-1 font-normal text-violet-300/70">→</span>
+                <span className="mx-1 font-normal text-muted-foreground">→</span>
                 {endTime ?? "?"}
               </span>
             ) : (
@@ -137,7 +141,7 @@ export function SleepCard({
 
           {qualityNum !== null && !Number.isNaN(qualityNum) && (
             <div className="ml-auto flex shrink-0 items-center gap-1.5">
-              <span className="text-[11px] font-semibold tabular-nums text-violet-200">
+              <span className="text-[11px] font-semibold tabular-nums" style={{ color }}>
                 {qualityNum}/{qualityMax}
               </span>
               <div className="flex gap-1">
@@ -146,8 +150,9 @@ export function SleepCard({
                     key={i}
                     className={cn(
                       "h-1.5 w-1.5 rounded-full transition-colors",
-                      i < qualityNum ? "bg-violet-400" : "bg-violet-400/20"
+                      i < qualityNum ? "" : "opacity-25"
                     )}
+                    style={{ background: color }}
                   />
                 ))}
               </div>

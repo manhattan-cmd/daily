@@ -105,14 +105,14 @@ export function MeasureEditor({
                 "flex flex-col items-center gap-1.5 rounded-xl border px-1 py-2.5 transition-all active:scale-[0.95]",
                 active
                   ? "border-primary/60 bg-primary/10 text-primary shadow-[0_0_18px_-8px_rgba(99,102,241,0.9)]"
-                  : "border-border bg-card text-muted-foreground hover:border-white/15 hover:text-foreground"
+                  : "border-border bg-card text-muted-foreground hover:border-[var(--ln-3)] hover:text-foreground"
               )}
             >
               {/* Yuvarlak çekirdek — havuzdaki atomun şekil diliyle aynı */}
               <span
                 className={cn(
                   "flex h-7 w-7 items-center justify-center rounded-full transition-colors",
-                  active ? "bg-primary/15" : "bg-white/5"
+                  active ? "bg-primary/15" : "bg-[var(--sf-2)]"
                 )}
               >
                 <Icon className="h-4 w-4" strokeWidth={1.75} />
@@ -284,7 +284,7 @@ export function MeasureEditor({
                         onChange({ ...value, choices: choices.filter((x) => x !== c) })
                       }
                       aria-label={t("measure.removeOption", { name: c })}
-                      className="shrink-0 rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
+                      className="shrink-0 rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-[var(--sf-3)] hover:text-foreground"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -395,7 +395,7 @@ function pillClass(active: boolean) {
     "rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-all active:scale-95",
     active
       ? "border-primary bg-primary/10 text-primary"
-      : "border-border bg-card text-muted-foreground hover:border-white/15 hover:text-foreground"
+      : "border-border bg-card text-muted-foreground hover:border-[var(--ln-3)] hover:text-foreground"
   );
 }
 

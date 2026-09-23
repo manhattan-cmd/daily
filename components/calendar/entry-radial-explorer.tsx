@@ -115,14 +115,14 @@ export function RadialExplorer({
       {/* Pencere */}
       <div
         className={cn(
-          "relative z-10 w-full max-w-[360px] rounded-3xl border border-white/10 bg-background/95 p-4 shadow-2xl transition-transform duration-200",
+          "relative z-10 w-full max-w-[360px] rounded-3xl border border-[var(--ln-2)] bg-background/95 p-4 shadow-2xl transition-transform duration-200",
           shown ? "scale-100" : "scale-95"
         )}
         style={{ boxShadow: `0 0 0 1px ${color}22, 0 24px 60px rgba(0,0,0,.7)` }}
       >
         <button
           onClick={onClose}
-          className="absolute right-3 top-3 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white/8 text-muted-foreground transition-colors hover:bg-white/12"
+          className="absolute right-3 top-3 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground transition-colors hover:bg-[var(--sf-4)]"
           aria-label={t("tree.closeWindow")}
         >
           <X className="h-3.5 w-3.5" />

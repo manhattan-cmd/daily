@@ -186,7 +186,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
       <div
         className={cn(
           "fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[390px]",
-          "flex flex-col rounded-t-3xl bg-background border-t border-white/8",
+          "flex flex-col rounded-t-3xl bg-background border-t border-[var(--ln-2)]",
           "shadow-[0_-8px_40px_rgba(0,0,0,0.6)]",
           "transition-transform duration-300 ease-out",
           "max-h-[85vh]",
@@ -195,7 +195,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
       >
         {/* Drag handle */}
         <div className="flex justify-center pt-3 pb-1 shrink-0">
-          <div className="h-[3px] w-10 rounded-full bg-white/15" />
+          <div className="h-[3px] w-10 rounded-full bg-[var(--sf-4)]" />
         </div>
 
         {/* Header */}
@@ -203,7 +203,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
           {step.type !== "cat" ? (
             <button
               onClick={handleBack}
-              className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors shrink-0"
+              className="h-7 w-7 flex items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground hover:bg-[var(--sf-4)] transition-colors shrink-0"
               aria-label={tr("action.back")}
             >
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -211,7 +211,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
           ) : (
             <button
               onClick={onClose}
-              className="h-7 w-7 flex items-center justify-center rounded-full bg-white/8 text-muted-foreground hover:bg-white/12 transition-colors shrink-0"
+              className="h-7 w-7 flex items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground hover:bg-[var(--sf-4)] transition-colors shrink-0"
               aria-label={tr("action.close")}
             >
               <X className="h-3.5 w-3.5" />
@@ -562,7 +562,7 @@ export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
 
         {/* Footer save button (mod step only) */}
         {step.type === "mod" && (
-          <div className="px-5 pb-8 pt-3 shrink-0 border-t border-white/8">
+          <div className="px-5 pb-8 pt-3 shrink-0 border-t border-[var(--ln-2)]">
             <Button
               className="w-full"
               size="lg"

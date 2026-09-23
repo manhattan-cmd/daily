@@ -210,7 +210,7 @@ export function ModPickDialog({
                     "flex h-7 w-7 items-center justify-center rounded-full transition-colors",
                     searchOpen
                       ? "bg-primary/15 text-primary"
-                      : "bg-white/8 text-muted-foreground hover:bg-white/12 hover:text-foreground"
+                      : "bg-[var(--sf-3)] text-muted-foreground hover:bg-[var(--sf-4)] hover:text-foreground"
                   )}
                   aria-label={
                     searchOpen ? t("features.closeSearch") : t("features.search")

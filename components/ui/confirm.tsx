@@ -124,7 +124,7 @@ export function ConfirmHost() {
           <button
             type="button"
             onClick={() => settle(false)}
-            className="h-11 flex-1 rounded-xl border border-border bg-white/[0.04] text-sm font-medium transition-colors hover:bg-white/[0.08]"
+            className="h-11 flex-1 rounded-xl border border-border bg-[var(--sf-2)] text-sm font-medium transition-colors hover:bg-[var(--sf-3)]"
           >
             {req.cancelLabel ?? t("action.cancel")}
           </button>

@@ -410,7 +410,7 @@ export default function ActivityAnalyticsPage({
                     key={s.id}
                     href={`/calendar/${s.date}`}
                     prefetch={false}
-                    className="flex items-center gap-3 py-2.5 transition-colors hover:bg-white/5 -mx-1 px-1 rounded-lg"
+                    className="flex items-center gap-3 py-2.5 transition-colors hover:bg-[var(--sf-2)] -mx-1 px-1 rounded-lg"
                   >
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15">
                       <Boxes className="h-4 w-4 text-cyan-300" />

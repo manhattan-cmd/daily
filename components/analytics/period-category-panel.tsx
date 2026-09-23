@@ -382,7 +382,7 @@ export function PeriodCategoryPanel({
             type="button"
             onClick={() => setPath(path.slice(0, -1))}
             aria-label={t("insights.backLevel")}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/8 text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--sf-3)] text-muted-foreground transition-colors hover:bg-[var(--sf-4)] hover:text-foreground"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>

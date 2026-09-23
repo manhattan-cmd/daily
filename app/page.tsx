@@ -74,7 +74,7 @@ export default function HomePage() {
       <section className="mb-4 overflow-hidden rounded-2xl border border-border bg-card">
         <Link
           href={`/calendar/${today}`}
-          className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-white/[0.03]"
+          className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-[var(--sf-1)]"
         >
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/60">
@@ -250,7 +250,7 @@ function WeekBar({
         style={{
           height: h,
           backgroundColor:
-            day.count === 0 ? "rgba(255,255,255,0.07)" : undefined,
+            day.count === 0 ? "var(--sf-3)" : undefined,
         }}
       >
         {day.segments.map((s, i) => (

@@ -82,7 +82,7 @@ export function MeasureParticle({
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col items-center gap-1.5 rounded-2xl px-1 py-2 transition-all hover:bg-white/5 active:scale-[0.92]"
+      className="flex flex-col items-center gap-1.5 rounded-2xl px-1 py-2 transition-all hover:bg-[var(--sf-2)] active:scale-[0.92]"
     >
       <MeasureParticleCore icon={icon} />
       <span className="w-full truncate text-center text-[11px] font-medium leading-tight">
@@ -104,7 +104,7 @@ export function MeasureParticleAdd({
     <button
       type="button"
       onClick={onClick}
-      className="group flex flex-col items-center gap-1.5 rounded-2xl px-1 py-2 transition-all hover:bg-white/5 active:scale-[0.92]"
+      className="group flex flex-col items-center gap-1.5 rounded-2xl px-1 py-2 transition-all hover:bg-[var(--sf-2)] active:scale-[0.92]"
     >
       <span className="flex h-12 w-12 shrink-0 items-center justify-center">
         <span className="flex h-7 w-7 items-center justify-center rounded-full border border-dashed border-primary/35 text-primary/60 transition-colors group-hover:border-primary/60 group-hover:text-primary">

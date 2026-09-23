@@ -92,22 +92,25 @@ export function MoodCard({
       >
         {/* Künye — sembol, başlık, sağda tarih */}
         <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-pink-500/20">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
+            style={{ background: `${color}33` }}>
             {hasLevel ? (
               <ScaleFace
                 index={level - 1}
                 total={levelMax}
                 size={17}
-                className="text-pink-300"
+                style={{ color }}
               />
             ) : (
               <Smile
-                className="h-[17px] w-[17px] text-pink-300"
+                className="h-[17px] w-[17px]"
+                style={{ color }}
                 strokeWidth={1.75}
               />
             )}
           </span>
-          <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-pink-300/80">
+          <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-[0.14em]"
+            style={{ color }}>
             {t("mood.title")}
           </span>
           {dateLabel && (
@@ -118,7 +121,7 @@ export function MoodCard({
         </div>
 
         {/* Alt bölüm — duygu kapsülleri, sağda mutluluk skalası */}
-        <div className="mt-2 flex items-center gap-2 border-t border-white/[0.07] pt-2">
+        <div className="mt-2 flex items-center gap-2 border-t border-[var(--ln-1)] pt-2">
           {emotions.length > 0 ? (
             <span className="flex min-w-0 items-center gap-1 overflow-hidden">
               {emotions.slice(0, MAX_FACES).map((e) => {
@@ -171,7 +174,7 @@ export function MoodCard({
 
           {hasLevel && (
             <div className="ml-auto flex shrink-0 items-center gap-1.5">
-              <span className="text-[11px] font-semibold tabular-nums text-pink-200">
+              <span className="text-[11px] font-semibold tabular-nums" style={{ color }}>
                 {level}/{levelMax}
               </span>
               <div className="flex gap-1">
@@ -180,8 +183,9 @@ export function MoodCard({
                     key={i}
                     className={cn(
                       "h-1.5 w-1.5 rounded-full transition-colors",
-                      i < level ? "bg-pink-400" : "bg-pink-400/20"
+                      i < level ? "" : "opacity-25"
                     )}
+                    style={{ background: color }}
                   />
                 ))}
               </div>

@@ -139,7 +139,7 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
       <div
         className={cn(
           "fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[390px]",
-          "flex flex-col rounded-t-3xl border-t border-white/8 bg-background",
+          "flex flex-col rounded-t-3xl border-t border-[var(--ln-2)] bg-background",
           "shadow-[0_-8px_40px_rgba(0,0,0,0.6)]",
           "transition-transform duration-300 ease-out",
           "max-h-[85vh]",
@@ -147,7 +147,7 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
         )}
       >
         <div className="flex shrink-0 justify-center pb-1 pt-3">
-          <div className="h-[3px] w-10 rounded-full bg-white/15" />
+          <div className="h-[3px] w-10 rounded-full bg-[var(--sf-4)]" />
         </div>
 
         <div className="flex shrink-0 items-center gap-3 px-5 pb-4 pt-2">
@@ -162,7 +162,7 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
           </h2>
           <button
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-white/8 text-muted-foreground transition-colors hover:bg-white/12"
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground transition-colors hover:bg-[var(--sf-4)]"
             aria-label={t("action.close")}
           >
             <X className="h-3.5 w-3.5" />
@@ -236,7 +236,7 @@ export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
           )}
         </div>
 
-        <div className="shrink-0 border-t border-white/8 px-5 pb-8 pt-3">
+        <div className="shrink-0 border-t border-[var(--ln-2)] px-5 pb-8 pt-3">
           <Button
             className="w-full"
             size="lg"

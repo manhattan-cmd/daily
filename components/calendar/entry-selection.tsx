@@ -56,7 +56,7 @@ export function SelectionLayer({
           "flex h-6 w-6 items-center justify-center rounded-full border-2 transition-colors",
           selected
             ? "border-primary bg-primary text-primary-foreground"
-            : "border-white/35 bg-background/70"
+            : "border-[var(--ln-3)] bg-background/70"
         )}
       >
         {selected && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
@@ -147,14 +147,14 @@ export function EntrySelectionBar({
         />
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[390px] rounded-t-3xl border-t border-white/10 bg-background shadow-[0_-8px_40px_rgba(0,0,0,0.6)]">
+      <div className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[390px] rounded-t-3xl border-t border-[var(--ln-2)] bg-background shadow-[0_-8px_40px_rgba(0,0,0,0.6)]">
         {view === "actions" && (
           <>
             <div className="flex items-center gap-2 px-4 pt-3 pb-2">
               <button
                 onClick={onCancel}
                 aria-label={t("selection.clear")}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground transition-colors hover:bg-[var(--sf-4)] hover:text-foreground"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -163,7 +163,7 @@ export function EntrySelectionBar({
               </span>
               <button
                 onClick={onSelectAll}
-                className="shrink-0 rounded-full bg-white/8 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
+                className="shrink-0 rounded-full bg-[var(--sf-3)] px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-[var(--sf-4)] hover:text-foreground"
               >
                 {allSelected ? t("selection.clear") : t("selection.selectAll")}
               </button>
@@ -174,7 +174,7 @@ export function EntrySelectionBar({
                   setTarget(date);
                   setView("move");
                 }}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-white/[0.04] py-3 text-sm font-medium transition-colors hover:bg-white/[0.08]"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-[var(--sf-2)] py-3 text-sm font-medium transition-colors hover:bg-[var(--sf-3)]"
               >
                 <CalendarDays className="h-4 w-4 text-primary" />
                 {t("selection.move")}
@@ -196,7 +196,7 @@ export function EntrySelectionBar({
               <button
                 onClick={() => setView("actions")}
                 aria-label={t("action.back")}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground transition-colors hover:bg-[var(--sf-4)] hover:text-foreground"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
               </button>
@@ -219,7 +219,7 @@ export function EntrySelectionBar({
                     "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                     target === q.value
                       ? "border-primary bg-primary/15 text-primary"
-                      : "border-border bg-white/[0.04] text-muted-foreground hover:text-foreground"
+                      : "border-border bg-[var(--sf-2)] text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {q.label}
@@ -255,7 +255,7 @@ export function EntrySelectionBar({
               <button
                 onClick={() => setView("actions")}
                 aria-label={t("action.back")}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground transition-colors hover:bg-[var(--sf-4)] hover:text-foreground"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
               </button>
@@ -272,7 +272,7 @@ export function EntrySelectionBar({
               <button
                 onClick={() => setView("actions")}
                 disabled={busy}
-                className="h-11 flex-1 rounded-xl border border-border bg-white/[0.04] text-sm font-medium transition-colors hover:bg-white/[0.08]"
+                className="h-11 flex-1 rounded-xl border border-border bg-[var(--sf-2)] text-sm font-medium transition-colors hover:bg-[var(--sf-3)]"
               >
                 {t("action.cancel")}
               </button>

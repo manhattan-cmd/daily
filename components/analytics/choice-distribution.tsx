@@ -51,7 +51,7 @@ export function ChoiceDistribution({
           <button
             type="button"
             onClick={() => onSelect(null)}
-            className="shrink-0 rounded-full bg-white/8 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-white/12 hover:text-foreground"
+            className="shrink-0 rounded-full bg-[var(--sf-3)] px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-[var(--sf-4)] hover:text-foreground"
           >
             {t("insights.allOptions")}
           </button>

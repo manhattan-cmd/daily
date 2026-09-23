@@ -35,7 +35,7 @@ export function UndoBar() {
 
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[4.75rem]">
-      <div className="animate-in pointer-events-auto flex w-full items-center gap-2 rounded-2xl border border-white/10 bg-[#17171c] px-3 py-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.7)]">
+      <div className="animate-in pointer-events-auto flex w-full items-center gap-2 rounded-2xl border border-[var(--ln-2)] bg-[#17171c] px-3 py-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.7)]">
         <Trash2 className="h-4 w-4 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate text-sm">
           {t("undo.deleted", { what: batch.label })}

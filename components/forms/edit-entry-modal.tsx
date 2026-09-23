@@ -659,7 +659,7 @@ export function EditEntryModal({
                   onOpenChange(false);
                   router.push(structureHref);
                 }}
-                className="group -m-1 flex min-w-0 flex-1 items-start gap-1.5 rounded-lg p-1 text-left transition-colors hover:bg-white/5"
+                className="group -m-1 flex min-w-0 flex-1 items-start gap-1.5 rounded-lg p-1 text-left transition-colors hover:bg-[var(--sf-2)]"
                 aria-label={`${structureName} yapı sayfasına git`}
               >
                 <span className="min-w-0 flex-1">
@@ -950,7 +950,7 @@ export function EditEntryModal({
 
             {/* ── Not — her zaman altta. Yerleşik akışta o akışın tonunda:
                  uyku formunun içinde tek başına nötr duran bir kutu kalmasın. ── */}
-            <div className="border-t border-white/[0.06] pt-3">
+            <div className="border-t border-[var(--ln-1)] pt-3">
               <FieldLabel
                 htmlFor="edit-entry-note"
                 icon={NotebookPen}

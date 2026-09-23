@@ -204,7 +204,7 @@ export function CardAction({
         "flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-colors active:scale-95",
         destructive
           ? "text-muted-foreground/50 hover:bg-destructive/15 hover:text-destructive"
-          : "text-muted-foreground/50 hover:bg-white/10 hover:text-foreground"
+          : "text-muted-foreground/50 hover:bg-[var(--sf-3)] hover:text-foreground"
       )}
     >
       <Icon className="h-[14px] w-[14px]" />

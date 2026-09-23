@@ -188,7 +188,7 @@ export function DataSection() {
         {/* Depolama sağlığı — verinin cihazda ne kadar güvende durduğu */}
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.06]">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--sf-2)]">
               <HardDrive className="h-5 w-5 text-muted-foreground" />
             </div>
             <div className="min-w-0 flex-1">
@@ -329,7 +329,7 @@ export function DataSection() {
                 onClick={() => setPending(null)}
                 aria-label="Cancel"
                 disabled={importing}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--sf-3)] hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -366,7 +366,7 @@ export function DataSection() {
                 type="button"
                 onClick={() => runRestore("merge")}
                 disabled={importing}
-                className="flex items-start gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:bg-white/[0.04] disabled:opacity-60"
+                className="flex items-start gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:bg-[var(--sf-2)] disabled:opacity-60"
               >
                 <GitMerge className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
                 <span className="min-w-0">

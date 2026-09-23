@@ -211,7 +211,7 @@ export function EntryPickTree({
           <button
             type="button"
             onClick={() => setEditMode(true)}
-            className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
+            className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
           >
             <Move className="h-3.5 w-3.5" />
             Düzenle · taşı
@@ -435,7 +435,7 @@ function CategorySection({
             data-drop-sub={expandedSub.id}
             type="button"
             onClick={() => onSubSelect(expandedSub)}
-            className="mb-1.5 flex items-center gap-1.5 rounded-lg px-1 py-0.5 transition-colors hover:bg-white/5"
+            className="mb-1.5 flex items-center gap-1.5 rounded-lg px-1 py-0.5 transition-colors hover:bg-[var(--sf-2)]"
           >
             <CornerDownRight
               className="h-3 w-3 shrink-0"
@@ -520,7 +520,7 @@ function CategorySection({
         onClick={() => onCategorySelect(category)}
         className={cn(
           "mb-2 flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left transition-all",
-          isCatDrop ? "ring-1 ring-inset" : "hover:bg-white/5"
+          isCatDrop ? "ring-1 ring-inset" : "hover:bg-[var(--sf-2)]"
         )}
         style={
           isCatDrop
@@ -641,7 +641,7 @@ function SubTile({
       onPointerCancel={editMode ? clearHold : undefined}
       onContextMenu={(e) => e.preventDefault()}
       className={cn(
-        "flex select-none flex-col items-center gap-1.5 rounded-2xl px-1 py-2 transition-all hover:bg-white/5 active:scale-[0.92]",
+        "flex select-none flex-col items-center gap-1.5 rounded-2xl px-1 py-2 transition-all hover:bg-[var(--sf-2)] active:scale-[0.92]",
         isDragging && "opacity-30"
       )}
     >

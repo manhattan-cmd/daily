@@ -136,12 +136,12 @@ export function LinkedEntryCard({
           <ValueCapsuleRow
             values={sharedValues}
             color={VIOLET}
-            className="mt-2 border-t border-white/[0.07] pt-2"
+            className="mt-2 border-t border-[var(--ln-1)] pt-2"
           />
         )}
 
         {/* Perspektifler — her biri kendi kategori renginde */}
-        <div className="mt-2.5 flex flex-col gap-2 border-t border-white/[0.07] pt-2.5">
+        <div className="mt-2.5 flex flex-col gap-2 border-t border-[var(--ln-1)] pt-2.5">
           {entries.map((entry) => {
             const ownValues = entry.values.filter(
               (v) =>

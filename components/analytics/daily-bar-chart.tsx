@@ -336,7 +336,7 @@ export function DailyBarChart({
                 : "translate(-50%, -100%)",
           }}
         >
-          <div className="pointer-events-auto overflow-hidden rounded-xl border border-white/10 bg-[#1c1c1f]/95 shadow-[0_10px_30px_rgba(0,0,0,0.5)] backdrop-blur-sm">
+          <div className="pointer-events-auto overflow-hidden rounded-xl border border-[var(--ln-2)] bg-[#1c1c1f]/95 shadow-[0_10px_30px_rgba(0,0,0,0.5)] backdrop-blur-sm">
             <div className="px-2.5 pb-1.5 pt-2">
               <div className="whitespace-nowrap text-sm font-semibold leading-none">
                 {fmtNum(picked.bucket.value)}
@@ -355,7 +355,7 @@ export function DailyBarChart({
               onClick={() =>
                 picked.bucket.periodKey && onSelect(picked.bucket.periodKey)
               }
-              className="flex w-full items-center justify-center gap-1 border-t border-white/10 px-2.5 py-1.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10"
+              className="flex w-full items-center justify-center gap-1 border-t border-[var(--ln-2)] px-2.5 py-1.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10"
             >
               Aç
               <ArrowRight className="h-3 w-3" />

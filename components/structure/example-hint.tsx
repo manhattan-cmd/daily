@@ -21,7 +21,7 @@ export function ExampleHint() {
   if (dismissed || entryCount === undefined || entryCount > 0) return null;
 
   return (
-    <div className="animate-in mb-3 flex items-start gap-2.5 rounded-xl border border-border bg-white/[0.03] px-3 py-2.5">
+    <div className="animate-in mb-3 flex items-start gap-2.5 rounded-xl border border-border bg-[var(--sf-1)] px-3 py-2.5">
       <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/80" />
       <p className="min-w-0 flex-1 text-[11px] leading-relaxed text-muted-foreground">
         {t("structure.sampleHint")}

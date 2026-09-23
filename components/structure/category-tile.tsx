@@ -70,7 +70,7 @@ export function CategoryTileCore({
 }
 
 const tileWrapCls =
-  "flex flex-col items-center gap-1.5 rounded-2xl px-1 py-2 transition-all hover:bg-white/5 active:scale-[0.92]";
+  "flex flex-col items-center gap-1.5 rounded-2xl px-1 py-2 transition-all hover:bg-[var(--sf-2)] active:scale-[0.92]";
 const tileLabelCls =
   "w-full truncate text-center text-[11px] font-medium leading-tight";
 
