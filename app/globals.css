@@ -54,6 +54,13 @@
   --ln-1: rgba(255, 255, 255, 0.06);
   --ln-2: rgba(255, 255, 255, 0.1);
   --ln-3: rgba(255, 255, 255, 0.28);
+  /* Girdi kartındaki not penceresinin zemini — üstüne kategorinin rengi biniyor */
+  --note-ground: rgba(0, 0, 0, 0.26);
+  /* Harita: etiket rengi, etiketin halesi, düğümdeki parlama, boş düğüm dolgusu */
+  --map-label: #ffffff;
+  --map-label-halo: 0 1px 4px rgba(0, 0, 0, 0.95), 0 0 2px rgba(0, 0, 0, 0.9);
+  --map-specular: rgba(255, 255, 255, 0.3);
+  --map-empty: rgba(255, 255, 255, 0.05);
 }
 
 /**
@@ -87,6 +94,198 @@
   --ln-1: rgba(76, 54, 120, 0.08);
   --ln-2: rgba(76, 54, 120, 0.13);
   --ln-3: rgba(76, 54, 120, 0.3);
+  --note-ground: rgba(255, 255, 255, 0.72);
+  --map-label: #3b3550;
+  --map-label-halo: 0 1px 3px rgba(255, 255, 255, 0.95);
+  --map-specular: rgba(255, 255, 255, 0.45);
+  --map-empty: rgba(76, 54, 120, 0.06);
+}
+
+
+:root[data-skin="retro"] {
+  --background: #070c07;
+  --foreground: #cff5cf;
+  --card: #0c140c;
+  --card-foreground: #cff5cf;
+  --muted: #122012;
+  --muted-foreground: #71a871;
+  --border: #1d311d;
+  --input: #0f1a0f;
+  --ring: #ffb000;
+  --primary: #ffb000;
+  --primary-foreground: #1a1200;
+  --accent: #122012;
+  --accent-foreground: #cff5cf;
+  --destructive: #ff6b5a;
+  --destructive-foreground: #1a0a06;
+
+  --sf-1: rgba(120,255,120,0.03);
+  --sf-2: rgba(120,255,120,0.06);
+  --sf-3: rgba(120,255,120,0.10);
+  --sf-4: rgba(120,255,120,0.16);
+  --ln-1: rgba(120,255,120,0.10);
+  --ln-2: rgba(120,255,120,0.16);
+  --ln-3: rgba(120,255,120,0.34);
+  --note-ground: rgba(0,0,0,0.35);
+  --map-label: #cff5cf;
+  --map-label-halo: 0 1px 4px rgba(0,0,0,0.95);
+  --map-specular: rgba(200,255,200,0.28);
+  --map-empty: rgba(120,255,120,0.06);
+}
+
+:root[data-skin="neon"] {
+  --background: #06030f;
+  --foreground: #f0e9ff;
+  --card: #0e0722;
+  --card-foreground: #f0e9ff;
+  --muted: #160c31;
+  --muted-foreground: #a292d4;
+  --border: #2a1c56;
+  --input: #130a2a;
+  --ring: #22e5ff;
+  --primary: #22e5ff;
+  --primary-foreground: #04121a;
+  --accent: #160c31;
+  --accent-foreground: #f0e9ff;
+  --destructive: #ff5fd0;
+  --destructive-foreground: #1a0416;
+
+  --sf-1: rgba(180,150,255,0.04);
+  --sf-2: rgba(180,150,255,0.07);
+  --sf-3: rgba(180,150,255,0.12);
+  --sf-4: rgba(180,150,255,0.18);
+  --ln-1: rgba(180,150,255,0.12);
+  --ln-2: rgba(180,150,255,0.18);
+  --ln-3: rgba(180,150,255,0.4);
+  --note-ground: rgba(0,0,0,0.35);
+  --map-label: #f0e9ff;
+  --map-label-halo: 0 0 6px rgba(34,229,255,0.5), 0 1px 4px rgba(0,0,0,0.9);
+  --map-specular: rgba(255,255,255,0.32);
+  --map-empty: rgba(180,150,255,0.07);
+}
+
+:root[data-skin="kagit"] {
+  --background: #f2ede3;
+  --foreground: #2a251e;
+  --card: #fffcf6;
+  --card-foreground: #2a251e;
+  --muted: #efe8da;
+  --muted-foreground: #6e6557;
+  --border: #dcd3c1;
+  --input: #f7f2e8;
+  --ring: #9a6b3f;
+  --primary: #9a6b3f;
+  --primary-foreground: #fffbf4;
+  --accent: #efe8da;
+  --accent-foreground: #2a251e;
+  --destructive: #b2503f;
+  --destructive-foreground: #fff8f2;
+
+  --sf-1: rgba(90,70,40,0.025);
+  --sf-2: rgba(90,70,40,0.05);
+  --sf-3: rgba(90,70,40,0.08);
+  --sf-4: rgba(90,70,40,0.12);
+  --ln-1: rgba(90,70,40,0.09);
+  --ln-2: rgba(90,70,40,0.14);
+  --ln-3: rgba(90,70,40,0.32);
+  --note-ground: rgba(255,255,255,0.78);
+  --map-label: #2a251e;
+  --map-label-halo: 0 1px 3px rgba(255,252,246,0.95);
+  --map-specular: rgba(255,255,255,0.4);
+  --map-empty: rgba(90,70,40,0.06);
+}
+
+:root[data-skin="nordik"] {
+  --background: #0f141b;
+  --foreground: #e4ebf3;
+  --card: #151d27;
+  --card-foreground: #e4ebf3;
+  --muted: #1b2632;
+  --muted-foreground: #90a4b9;
+  --border: #233140;
+  --input: #18212c;
+  --ring: #7fb3d5;
+  --primary: #7fb3d5;
+  --primary-foreground: #0b1218;
+  --accent: #1b2632;
+  --accent-foreground: #e4ebf3;
+  --destructive: #c98b8b;
+  --destructive-foreground: #101418;
+
+  --sf-1: rgba(190,220,255,0.025);
+  --sf-2: rgba(190,220,255,0.05);
+  --sf-3: rgba(190,220,255,0.09);
+  --sf-4: rgba(190,220,255,0.14);
+  --ln-1: rgba(190,220,255,0.07);
+  --ln-2: rgba(190,220,255,0.12);
+  --ln-3: rgba(190,220,255,0.3);
+  --note-ground: rgba(0,0,0,0.26);
+  --map-label: #e4ebf3;
+  --map-label-halo: 0 1px 4px rgba(0,0,0,0.9);
+  --map-specular: rgba(255,255,255,0.25);
+  --map-empty: rgba(190,220,255,0.06);
+}
+
+:root[data-skin="toprak"] {
+  --background: #14100c;
+  --foreground: #f3e9dc;
+  --card: #1d1710;
+  --card-foreground: #f3e9dc;
+  --muted: #251d15;
+  --muted-foreground: #b39c83;
+  --border: #2f251b;
+  --input: #211a13;
+  --ring: #d98e4a;
+  --primary: #d98e4a;
+  --primary-foreground: #1a1006;
+  --accent: #251d15;
+  --accent-foreground: #f3e9dc;
+  --destructive: #c4614c;
+  --destructive-foreground: #1a0c08;
+
+  --sf-1: rgba(255,225,190,0.025);
+  --sf-2: rgba(255,225,190,0.05);
+  --sf-3: rgba(255,225,190,0.09);
+  --sf-4: rgba(255,225,190,0.14);
+  --ln-1: rgba(255,225,190,0.07);
+  --ln-2: rgba(255,225,190,0.12);
+  --ln-3: rgba(255,225,190,0.3);
+  --note-ground: rgba(0,0,0,0.3);
+  --map-label: #f3e9dc;
+  --map-label-halo: 0 1px 4px rgba(0,0,0,0.92);
+  --map-specular: rgba(255,240,220,0.26);
+  --map-empty: rgba(255,225,190,0.06);
+}
+
+:root[data-skin="mono"] {
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+  --card: #131313;
+  --card-foreground: #ffffff;
+  --muted: #1a1a1a;
+  --muted-foreground: #9c9c9c;
+  --border: #282828;
+  --input: #161616;
+  --ring: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #0a0a0a;
+  --accent: #1a1a1a;
+  --accent-foreground: #ffffff;
+  --destructive: #c9c9c9;
+  --destructive-foreground: #0a0a0a;
+
+  --sf-1: rgba(255,255,255,0.03);
+  --sf-2: rgba(255,255,255,0.06);
+  --sf-3: rgba(255,255,255,0.1);
+  --sf-4: rgba(255,255,255,0.16);
+  --ln-1: rgba(255,255,255,0.08);
+  --ln-2: rgba(255,255,255,0.13);
+  --ln-3: rgba(255,255,255,0.32);
+  --note-ground: rgba(0,0,0,0.3);
+  --map-label: #ffffff;
+  --map-label-halo: 0 1px 4px rgba(0,0,0,0.95);
+  --map-specular: rgba(255,255,255,0.3);
+  --map-empty: rgba(255,255,255,0.06);
 }
 
 * {

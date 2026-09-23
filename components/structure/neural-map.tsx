@@ -509,7 +509,7 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
   const coreSkin: CSSProperties = {
     borderRadius: "9999px",
     background: [
-      "radial-gradient(circle at 32% 24%, rgba(255,255,255,0.3), rgba(255,255,255,0) 54%)",
+      "radial-gradient(circle at 32% 24%, var(--map-specular), transparent 54%)",
       `linear-gradient(155deg, ${centerColor}d0, ${centerColor}55)`,
     ].join(", "),
     boxShadow: [
@@ -547,7 +547,7 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
                           background: `${centerColor}22`,
                           boxShadow: `inset 0 0 0 1px ${centerColor}66`,
                         }
-                      : { background: "rgba(255,255,255,0.05)" }
+                      : { background: "var(--map-empty)" }
                   }
                 >
                   {last && (
@@ -678,7 +678,11 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
                 className="flex h-full w-full items-center justify-center"
                 style={coreSkin}
               >
-                <Layers className="h-[18px] w-[18px] text-white" strokeWidth={1.75} />
+                <Layers
+                  className="h-[18px] w-[18px]"
+                  style={{ color: "var(--primary-foreground)" }}
+                  strokeWidth={1.75}
+                />
               </span>
               <CoreLabel>{t("structure.categories")}</CoreLabel>
             </span>
@@ -703,7 +707,11 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
                 {focusIcon ? (
                   <SymbolIcon name={focusIcon} size={18} style={{ color: "#fff" }} />
                 ) : (
-                  <Layers className="h-[18px] w-[18px] text-white" strokeWidth={1.75} />
+                  <Layers
+                  className="h-[18px] w-[18px]"
+                  style={{ color: "var(--primary-foreground)" }}
+                  strokeWidth={1.75}
+                />
                 )}
               </span>
               <CoreLabel>{focusName}</CoreLabel>
@@ -762,8 +770,9 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
                   top: isl.labelAt.y,
                   transform: "translate(-50%,-50%)",
                   fontSize: isl.fontSize,
-                  color: `rgba(255,255,255,${(0.55 + 0.4 * g).toFixed(2)})`,
-                  textShadow: `0 ${isl.fontSize * 0.06}px ${isl.fontSize * 0.25}px rgba(0,0,0,0.95)`,
+                  color: "var(--map-label)",
+                  opacity: 0.55 + 0.4 * g,
+                  textShadow: "var(--map-label-halo)",
                 }}
               >
                 {m.name}
@@ -899,7 +908,7 @@ function GraphCell({
         width: r * 2,
         height: r * 2,
         background: [
-          `radial-gradient(circle at 32% 24%, rgba(255,255,255,${(0.2 + 0.12 * glow).toFixed(2)}), rgba(255,255,255,0) 54%)`,
+          `radial-gradient(circle at 32% 24%, var(--map-specular), transparent 54%)`,
           `linear-gradient(155deg, ${color}${hexA(0.52 + 0.38 * glow)}, ${color}${hexA(0.16 + 0.2 * glow)})`,
         ].join(", "),
         boxShadow: [
@@ -926,7 +935,7 @@ function GraphCell({
       )}
       style={{
         ...labelPlacement(r, side, gap),
-        textShadow: "0 1px 4px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)",
+        textShadow: "var(--map-label-halo)",
       }}
     >
       {name}

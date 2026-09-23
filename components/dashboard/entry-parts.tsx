@@ -30,22 +30,26 @@ const MAX_CAPSULES = 4;
  * halka, kapsüllerin altında ayrı bir blok.
  *
  * Üç satırda kırpılır; tamamı girdiye girilince görünür.
+ *
+ * Zemin bağlamdan geliyor: kartın kategorisinin rengi ince bir tabaka
+ * halinde, altında da temanın "oyuk" tonu. Eskiden sabit siyah bir oyuktu —
+ * koyu temada doğru, açık temada beyaz kartın ortasında kara bir leke.
  */
 export function NoteCapsule({ text, color: c }: { text: string; color: string }) {
   return (
     <div
       className="flex w-full items-start gap-1.5 rounded-xl px-2 py-1.5"
       style={{
-        background: "rgba(0,0,0,0.26)",
-        boxShadow: `inset 0 0 0 1px ${c}24`,
+        background: `linear-gradient(0deg, ${c}1c, ${c}1c), var(--note-ground)`,
+        boxShadow: `inset 0 0 0 1px ${c}3d`,
       }}
     >
       <NotebookPen
         className="mt-[2px] h-3 w-3 shrink-0"
-        style={{ color: `${c}99` }}
+        style={{ color: c }}
         strokeWidth={1.9}
       />
-      <p className="line-clamp-3 min-w-0 text-[11px] leading-snug text-muted-foreground">
+      <p className="line-clamp-3 min-w-0 text-[11px] leading-snug text-foreground/75">
         {text}
       </p>
     </div>
