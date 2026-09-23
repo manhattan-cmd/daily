@@ -616,6 +616,8 @@ export const en = {
     "The category → subcategory → feature walkthrough reappears on the home page",
   "settings.about":
     "Routine · version {version} — your data is kept on this device only and never sent to a server.",
+  "settings.skin": "Theme",
+  "settings.skinHint": "Colours only — the layout stays the same",
   "settings.language": "Language",
   "settings.languageHint": "Also sets date and number formatting",
 
@@ -1216,6 +1218,8 @@ export const tr: Record<MessageKey, string> = {
     "Kategori → alt kategori → özellik anlatımı ana sayfada tekrar çıkar",
   "settings.about":
     "Routine · sürüm {version} — verilerin yalnızca bu cihazda tutulur, hiçbir sunucuya gönderilmez.",
+  "settings.skin": "Tema",
+  "settings.skinHint": "Yalnız renkler — yerleşim aynı kalır",
   "settings.language": "Dil",
   "settings.languageHint": "Tarih ve sayı biçimini de belirler",
 

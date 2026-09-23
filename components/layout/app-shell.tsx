@@ -11,6 +11,7 @@ import {
 import { purgeOldDeletions } from "@/lib/db/deletions";
 import { ensurePersistentStorage } from "@/lib/storage-health";
 import { useLocale } from "@/lib/i18n";
+import { applySkin, useSkin } from "@/lib/skin";
 import { BottomNav } from "./bottom-nav";
 import { StatusBar } from "./status-bar";
 import { UndoBar } from "./undo-bar";
@@ -20,11 +21,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const mainRef = useRef<HTMLElement>(null);
   const pathname = usePathname();
   const locale = useLocale();
+  const skin = useSkin();
 
   // Sunucu her zaman lang="en" basar; etkin dili belgeye yansıt
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
+
+  // Görüntü teması — sunucu çıktısında yok, ilk çizimde kök öğeye yazılıyor
+  useEffect(() => {
+    applySkin(skin);
+  }, [skin]);
 
   // Kaydırma document'te değil bu container'da — Next'in sayfa geçişindeki
   // otomatik başa alması burada işlemez, rota değişince kendimiz başa alırız
@@ -83,7 +90,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           /* Masaüstü: telefon boyutu + çerçeve. Kısa ekranlarda (dizüstü)
              844px pencereyi aşıp alt navigasyonu dışarıda bırakıyordu —
              yüksekliği görünür alana kıstırıyoruz (md:p-8 payı düşülür). */
-          md:h-[min(844px,calc(100dvh-4rem))] md:w-[390px] md:rounded-[3rem] md:border md:border-white/10
+          md:h-[min(844px,calc(100dvh-4rem))] md:w-[390px] md:rounded-[3rem] md:border md:border-[var(--ln-2)]
           md:shadow-[0_0_0_10px_#111115,0_40px_80px_rgba(0,0,0,0.9)]
         "
       >

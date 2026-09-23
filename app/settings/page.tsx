@@ -10,6 +10,7 @@ import { WELCOME_DISMISSED } from "@/components/dashboard/welcome-card";
 import { PageHeader } from "@/components/layout/page-header";
 import { DataSection } from "@/components/settings/data-section";
 import { LanguageSection } from "@/components/settings/language-section";
+import { SkinSection } from "@/components/settings/skin-section";
 
 const APP_VERSION = "0.1.0";
 
@@ -42,7 +43,10 @@ export default function SettingsPage() {
       <div className="flex flex-col gap-6 pb-6">
         <section>
           <h2 className={heading}>{t("settings.appSection")}</h2>
-          <LanguageSection />
+          <div className="flex flex-col gap-3">
+            <LanguageSection />
+            <SkinSection />
+          </div>
         </section>
 
         <section>
@@ -54,9 +58,9 @@ export default function SettingsPage() {
           <h2 className={heading}>{t("settings.structureSection")}</h2>
           <Link
             href="/structure"
-            className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 transition-colors hover:bg-white/[0.03]"
+            className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 transition-colors hover:bg-[var(--sf-1)]"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.06]">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--sf-2)]">
               <Layers className="h-5 w-5 text-muted-foreground" />
             </div>
             <div className="min-w-0 flex-1">
@@ -80,7 +84,7 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={() => setLocalFlag(WELCOME_DISMISSED, false)}
-              className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-white/[0.03]"
+              className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--sf-1)]"
             >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                 <Sparkles className="h-5 w-5 text-primary" />
