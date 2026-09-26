@@ -455,7 +455,7 @@ export function PeriodCategoryPanel({
 
       <MetricChips
         countFirst
-        activeFirst
+        asRow
         colorOfMod={(id) => {
           const m = data.rawMods.get(id);
           return m ? modColor(m) : category.color;

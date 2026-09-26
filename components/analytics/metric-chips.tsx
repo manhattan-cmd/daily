@@ -14,9 +14,9 @@ import { ChipRow } from "./chip-row";
  * kategoriye ilk bakışta "hangi kaleme ne kadar girmişim" görülsün, özelliğin
  * ayrıntısına sonra inilsin.
  *
- * activeFirst: seçili kapsül başa geçer, satır tek sıra ve renkli (ChipRow) —
- * neye bakıldığı satırın ilk kelimesinden ve renginden okunur. Özellikler
- * kendi renginde (colorOfMod), "Girdi" kategorinin renginde.
+ * asRow: tek sıra, yatay kaydırılan renkli satır (ChipRow) — neye bakıldığı
+ * satırın renginden de okunur. Özellikler kendi renginde (colorOfMod),
+ * "Girdi" kategorinin renginde.
  */
 export function MetricChips({
   mods,
@@ -24,7 +24,7 @@ export function MetricChips({
   color,
   onChange,
   countFirst = false,
-  activeFirst = false,
+  asRow = false,
   colorOfMod,
 }: {
   mods: MetricMod[];
@@ -32,7 +32,7 @@ export function MetricChips({
   color: string;
   onChange: (m: Metric) => void;
   countFirst?: boolean;
-  activeFirst?: boolean;
+  asRow?: boolean;
   /** Kapsül rengi — verilmezse hepsi `color` */
   colorOfMod?: (id: string) => string;
 }) {
@@ -52,7 +52,7 @@ export function MetricChips({
     pick: () => metricOf(m),
   }));
   const chips = countFirst ? [count, ...modChips] : [...modChips, count];
-  if (activeFirst) {
+  if (asRow) {
     return (
       <ChipRow
         items={chips.map((c) => ({
