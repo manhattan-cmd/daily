@@ -208,7 +208,12 @@ export function EntryList({
             i > 0 && "border-t border-border/60"
           )}
         >
-          <div className="shrink-0 whitespace-nowrap pt-0.5 text-[10px] leading-tight text-muted-foreground tabular-nums">
+          {/* Sabit genişlik: günü iki basamağa tamamlamak (fmtEntryDateTime)
+              rakamları hizaladı ama ay kısaltmaları ve AM/PM orantılı yazıda
+              farklı genişlikte ("May 01 · 01:11 AM" 85.5px, "Jul 01 · 12:00 PM"
+              80.5px) — ay değişen listede adlar hâlâ 5px kayıyordu. En genişi
+              ölçülüp üstüne pay bırakıldı. */}
+          <div className="w-[88px] shrink-0 whitespace-nowrap pt-0.5 text-[10px] leading-tight text-muted-foreground tabular-nums">
             {fmtEntryDateTime(r.occurredAt)}
           </div>
           <div className="min-w-0 flex-1">
