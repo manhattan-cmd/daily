@@ -1,19 +1,22 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { nanoid } from "nanoid";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   CalendarDays,
+  ChevronDown,
   ChevronRight,
   Clock,
   FileText,
+  LayoutGrid,
   Link2,
   NotebookPen,
   Plus,
   Repeat,
+  Search,
   Tags,
   Trash2,
   X,
@@ -48,7 +51,14 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
 import { isNumericChoiceSet, SHORT_MONTHS } from "@/lib/analytics";
-import { modAtomIcon } from "@/components/structure/mod-atom";
+import { ModAtom, modAtomIcon } from "@/components/structure/mod-atom";
+import { modColor } from "@/lib/mod-color";
+import {
+  MEASURE_KIND_META,
+  MEASURE_UI_KINDS,
+  uiKindOf,
+  type MeasureUiKind,
+} from "@/lib/measure-kinds";
 import type { LucideIcon } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { confirmDialog } from "@/components/ui/confirm";
@@ -72,7 +82,6 @@ import {
   toLocalDateTimeValue,
   toLocalDateValue,
 } from "@/lib/utils";
-import { ENTRY_VALUE_TYPE_LABELS } from "@/types";
 import type { EntryWithContext, EntryType } from "@/types";
 
 interface EditEntryModalProps {
@@ -116,6 +125,8 @@ export function EditEntryModal({
   // tonu var, orada serbest renk verilmez.
   const fieldColor =
     fieldTone === "default" ? entry.category.color || undefined : undefined;
+  // Özellik ekleme yüzeyinin tonu — kategorisi renksizse uygulamanın moru
+  const accent = fieldColor ?? "#818cf8";
   const router = useRouter();
   const mods = useLiveQuery(
     () => listModifiersForTarget("subcategory", entry.subcategoryId),
@@ -307,6 +318,7 @@ export function EditEntryModal({
   }
 
   const [addModOpen, setAddModOpen] = useState(false);
+  const [modQuery, setModQuery] = useState("");
   const [aliases, setAliases] = useState<string[]>(entry.aliases ?? []);
   const [notes, setNotes] = useState(entry.notes ?? "");
   // İkincil ayarlar başlıktaki menüden açılır — aynı anda yalnız biri
@@ -441,6 +453,7 @@ export function EditEntryModal({
     );
     setFocusKey(modId);
     setAddModOpen(false);
+    setModQuery("");
   }
 
   async function handleSave() {
@@ -769,16 +782,35 @@ export function EditEntryModal({
             {/* Yerleşik akışların (uyku, ruh hali) alanları sabittir: havuzdan
                 rastgele bir özellik eklemek bu formlara ait değil. Boşalan yer
                 duygu ızgarasına gidiyor (bkz. ModInput gridHeight). */}
-            {availableToAdd.length > 0 && fieldTone === "default" && (
-              <button
-                type="button"
-                onClick={() => setAddModOpen(true)}
-                className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Bu girdiye özellik ekle
-              </button>
-            )}
+            {availableToAdd.length > 0 && fieldTone === "default" &&
+              (addModOpen ? (
+                <AddModPanel
+                  mods={availableToAdd}
+                  color={accent}
+                  query={modQuery}
+                  onQuery={setModQuery}
+                  onPick={handleAddMod}
+                  onClose={() => {
+                    setAddModOpen(false);
+                    setModQuery("");
+                  }}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAddModOpen(true)}
+                  className="flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm font-medium text-foreground transition-all hover:brightness-125 active:scale-[0.99]"
+                  style={{ background: `${accent}14`, borderColor: `${accent}40` }}
+                >
+                  <span
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                    style={{ background: `${accent}2e`, color: accent }}
+                  >
+                    <Plus className="h-4 w-4" strokeWidth={2.5} />
+                  </span>
+                  {t("entry.addFeatureHere")}
+                </button>
+              ))}
 
             {/* ── Menüden açılan bölümler ── */}
             {panel === "time" && (
@@ -1034,43 +1066,210 @@ export function EditEntryModal({
         </DialogContent>
       </Dialog>
 
-      {/* Add-mod picker — sibling dialog to avoid nesting issues */}
-      <Dialog open={addModOpen} onOpenChange={setAddModOpen}>
-        <DialogContent className="gap-4 max-h-[80dvh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-base">
-              Bu girdiye özellik ekle
-              <span className="block text-xs font-normal text-muted-foreground mt-0.5">
-                Yalnızca bu girdi için geçerli olacak
-              </span>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-2">
-            {availableToAdd.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => handleAddMod(m.id)}
-                className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-3 text-left transition-colors hover:bg-muted active:scale-[0.99]"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm">{m.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {m.entryType.name !== m.name && `${m.entryType.name} · `}
-                    {ENTRY_VALUE_TYPE_LABELS[m.entryType.valueType ?? "number"]}
-                    {m.entryType.unit
-                      ? ` · ${m.entryType.unit}`
-                      : m.entryType.choices?.length
-                      ? ` · ${m.entryType.choices.join(", ")}`
-                      : null}
-                  </div>
-                </div>
-                <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
-              </button>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
+  );
+}
+
+/**
+ * Girdiye özellik ekleme — kartın İÇİNDE, butonun yerinde açılır.
+ *
+ * Önceden üstüne ikinci bir pencere açılıyordu (üst üste Dialog kırılgan) ve
+ * her satırda ad + ölçü türü + birim + seçenekler yazıyordu: seçerken bakılan
+ * şey yalnız ad, gerisi kalabalıktı. Artık havuzdaki gibi renkli atomlar —
+ * aynı özellik her ekranda aynı renk ve simgeyle tanınıyor.
+ */
+function AddModPanel({
+  mods,
+  color,
+  query,
+  onQuery,
+  onPick,
+  onClose,
+}: {
+  mods: ModWithType[];
+  color: string;
+  query: string;
+  onQuery: (q: string) => void;
+  onPick: (modId: string) => void;
+  onClose: () => void;
+}) {
+  const t = useT();
+  // Tür filtresi — "süre gibi bir sayı mıydı, evet/hayır mı?" diye hatırlanan
+  // özelliği adını bilmeden bulmak için. Yalnız havuzda olan türler çıkar.
+  const [kind, setKind] = useState<MeasureUiKind | null>(null);
+  const [kindOpen, setKindOpen] = useState(false);
+  const kindRef = useRef<HTMLDivElement>(null);
+  // Dışarı dokununca / Esc ile kapanır. Radix Select yerine elle: liste
+  // Dialog'un içinde, kutunun üstünde açılıyor — portal ve odak tuzağı gerekmiyor
+  useEffect(() => {
+    if (!kindOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (!kindRef.current?.contains(e.target as Node)) setKindOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setKindOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", onDown);
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("keydown", onKey, true);
+    };
+  }, [kindOpen]);
+  const kinds = MEASURE_UI_KINDS.filter((k) =>
+    mods.some((m) => uiKindOf(m.entryType) === k)
+  );
+  const q = query.trim().toLocaleLowerCase("tr");
+  const shown = mods.filter(
+    (m) =>
+      (!q || m.name.toLocaleLowerCase("tr").includes(q)) &&
+      (!kind || uiKindOf(m.entryType) === kind)
+  );
+  const skin = colorSkin(color);
+  const KindIcon = kind ? MEASURE_KIND_META[kind].icon : null;
+  return (
+    <div className="animate-in flex flex-col gap-1.5">
+      {/* Başlık kutunun dışında, formdaki diğer alanların başlığıyla aynı:
+          seçici de bir alan gibi okunuyor, "+" ne yapıldığını söylüyor */}
+      <div className="flex items-center justify-between">
+        <FieldLabel icon={Plus} tone="default" color={color}>
+          {t("entry.addFeatureHere")}
+        </FieldLabel>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t("action.close")}
+          className="rounded-md p-0.5 text-muted-foreground/40 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      <div
+        className="relative rounded-2xl border p-3"
+        style={{ background: skin.shellBg, borderColor: skin.shellBorder }}
+      >
+        {/* Arama + tür filtresi tek satırda: filtre ayrı bir çip sırası
+            olunca kutunun üstü kalabalıklaşıyordu. Tür listesi hapın altında,
+            ızgaranın üstüne açılıyor — telefonun kendi seçim penceresi
+            uygulamanın diliyle uyuşmuyordu. */}
+        {(mods.length > 8 || kinds.length > 1) && (
+          // Çerçeve dış kutuda, yazı alanı esnek: kapsül türün tam adı kadar
+          // uzayabiliyor ve yazılan metin onun altına girmiyor
+          <div className="relative mb-2 flex h-9 items-center gap-1 rounded-lg border border-border bg-input pl-9 pr-1 transition-colors focus-within:ring-2 focus-within:ring-ring">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
+            <Input
+              value={query}
+              onChange={(e) => onQuery(e.target.value)}
+              placeholder={t("features.search")}
+              className="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 focus-visible:ring-0"
+            />
+            {kinds.length > 1 && (
+              <div ref={kindRef} className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setKindOpen((o) => !o)}
+                  aria-haspopup="listbox"
+                  aria-expanded={kindOpen}
+                  aria-label={t("measure.howMeasured")}
+                  className="flex h-7 items-center gap-1 whitespace-nowrap rounded-full border border-[var(--ln-2)] px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  style={
+                    kind
+                      ? { background: `${color}2e`, borderColor: `${color}66`, color }
+                      : undefined
+                  }
+                >
+                  {KindIcon && <KindIcon className="h-3 w-3 shrink-0" />}
+                  {kind ? t(MEASURE_KIND_META[kind].labelKey) : t("features.allKinds")}
+                  <ChevronDown
+                    className={cn(
+                      "h-3 w-3 shrink-0 opacity-70 transition-transform",
+                      kindOpen && "rotate-180"
+                    )}
+                  />
+                </button>
+
+                {kindOpen && (
+                  <div
+                    role="listbox"
+                    className="animate-in absolute right-0 top-[calc(100%+8px)] z-20 w-[190px] rounded-[14px] border border-border bg-card p-1 shadow-2xl"
+                  >
+                    {[null, ...kinds].map((k) => {
+                      const on = k === kind;
+                      const Icon = k ? MEASURE_KIND_META[k].icon : LayoutGrid;
+                      const n = k
+                        ? mods.filter((m) => uiKindOf(m.entryType) === k).length
+                        : mods.length;
+                      return (
+                        <button
+                          key={k ?? "all"}
+                          type="button"
+                          role="option"
+                          aria-selected={on}
+                          onClick={() => {
+                            setKind(k);
+                            setKindOpen(false);
+                          }}
+                          className={cn(
+                            "flex w-full items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-left transition-colors",
+                            !on && "hover:bg-[var(--sf-2)]"
+                          )}
+                          style={on ? { background: `${color}1f` } : undefined}
+                        >
+                          <span
+                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+                            style={{
+                              background: on ? `${color}33` : "var(--sf-2)",
+                              color: on ? color : undefined,
+                            }}
+                          >
+                            <Icon className="h-3 w-3" />
+                          </span>
+                          <span
+                            className="min-w-0 flex-1 truncate text-[12px] font-medium"
+                            style={on ? { color } : undefined}
+                          >
+                            {k ? t(MEASURE_KIND_META[k].labelKey) : t("features.allKinds")}
+                          </span>
+                          <span className="text-[10.5px] tabular-nums text-muted-foreground/60">
+                            {n}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sabit yükseklik: süzgeç ya da arama sonucu daralınca kutu ve
+            altındaki form zıplamasın. Boş sonuç mesajı da bu alanın içinde. */}
+        <div className="h-[244px] overflow-y-auto overscroll-contain">
+          {shown.length > 0 ? (
+            <div className="grid grid-cols-4 gap-x-1 gap-y-0.5">
+              {shown.map((m) => (
+                <ModAtom
+                  key={m.id}
+                  icon={modAtomIcon(m)}
+                  name={m.name}
+                  color={modColor(m)}
+                  onClick={() => onPick(m.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="flex h-full items-center justify-center text-xs text-muted-foreground/70">
+              {t("entry.noFeatureMatch")}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
