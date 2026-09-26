@@ -289,7 +289,6 @@ export function StatTiles({
           <ViewMenu
             label={t("board.boxType")}
             value={key}
-            align="start"
             // Zaten panoda duran kutu listede görünmez: aynı rakamı iki
             // kutuda göstermek yer israfı
             options={[
@@ -316,7 +315,6 @@ export function StatTiles({
           <ViewMenu
             label={t("board.addBox")}
             value=""
-            align="end"
             options={options!
               .filter((o) => !shown.includes(o))
               .map((o) => ({
