@@ -376,6 +376,17 @@ input[type="number"] {
   animation: zoomIn 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Kapsül satırının tonu — seçim değişince yeni renk yavaşça siner.
+   Kapsülün başa süzülmesiyle (~0.46s) aynı anda başlar, biraz daha uzun
+   sürer: önce hareket, ardından renk oturur. */
+@keyframes chipRowTint {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.chip-row-tint {
+  animation: chipRowTint 0.7s ease-out;
+}
+
 /* ── Bağ haritasında hareket ─────────────────────────────────────────────
    Bütün bağ katmanı yavaşça soluk alıp veriyor. Tek bir öğe, tek bir
    özellik (opaklık) — telefonu yormuyor.
@@ -395,7 +406,8 @@ input[type="number"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .link-breathe {
+  .link-breathe,
+  .chip-row-tint {
     animation: none;
   }
 }

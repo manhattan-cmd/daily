@@ -35,6 +35,7 @@ import { MetricChips } from "./metric-chips";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
 import { setAnalysisMetric, setAnalysisPath } from "./analysis-selection";
+import { modColor } from "@/lib/mod-color";
 import type { Category, ChartKind, Entry, StatKey, SubCategory } from "@/types";
 
 /**
@@ -96,6 +97,8 @@ export function PeriodCategoryPanel({
     // geri çıkınca seçim döner (bkz. useCategoryMetrics metric).
     resetKey: category.id,
     preferredMetricId,
+    // Kategori ilk açıldığında "Girdi": önce kalemlere dağılım görülsün
+    initialMetricId: "count",
     excludeRegular,
   });
 
@@ -451,6 +454,12 @@ export function PeriodCategoryPanel({
       )}
 
       <MetricChips
+        countFirst
+        activeFirst
+        colorOfMod={(id) => {
+          const m = data.rawMods.get(id);
+          return m ? modColor(m) : category.color;
+        }}
         mods={data.mods}
         metric={metric}
         color={category.color}

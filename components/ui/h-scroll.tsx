@@ -19,6 +19,7 @@ export function HScroll({
   className,
   wrapperClassName,
   followEnd,
+  scrollRef,
 }: {
   children: React.ReactNode;
   /** Kaydırılan satıra verilir — hizalama/boşluk sınıfları buraya */
@@ -27,6 +28,8 @@ export function HScroll({
   /** Değişince sıra sonuna kaydırılır — derinleşen bir yolda son basamak
    *  ekrandan çıkıyordu, kullanıcı nerede olduğunu göremiyordu */
   followEnd?: string;
+  /** Kaydırılan satırın kendisine dışarıdan erişim (ör. başa sarmak için) */
+  scrollRef?: React.MutableRefObject<HTMLDivElement | null>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ left: false, right: false });
@@ -85,7 +88,10 @@ export function HScroll({
   return (
     <div className={cn("relative", wrapperClassName)}>
       <div
-        ref={ref}
+        ref={(el) => {
+          ref.current = el;
+          if (scrollRef) scrollRef.current = el;
+        }}
         className={cn("no-scrollbar flex overflow-x-auto", className)}
       >
         {children}

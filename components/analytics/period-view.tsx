@@ -12,7 +12,7 @@ import {
   PenLine,
 } from "lucide-react";
 import { db } from "@/lib/db";
-import { cn, toLocalDateValue } from "@/lib/utils";
+import { toLocalDateValue } from "@/lib/utils";
 import {
   bucketKeyOf,
   buildSeriesBuckets,
@@ -45,7 +45,7 @@ import {
   getAnalysisSelection,
   selectAnalysisCategory,
 } from "@/components/analytics/analysis-selection";
-import { HScroll } from "@/components/ui/h-scroll";
+import { ChipRow } from "@/components/analytics/chip-row";
 import { useT } from "@/lib/i18n";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -478,47 +478,17 @@ export function PeriodView({
                 <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
-            <HScroll wrapperClassName="-mx-4" className="gap-2 px-4 pb-1">
-              {catChips.map(({ cat: c, count }) => {
-                const active = selectedCat.id === c.id;
-                return (
-                  <button
-                    key={c.id}
-                    onClick={() => pickCat(c.id)}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0",
-                      active
-                        ? "text-foreground"
-                        : count > 0
-                          ? "border-border bg-card text-muted-foreground hover:text-foreground"
-                          : "border-border/50 bg-card/50 text-muted-foreground/50 hover:text-muted-foreground"
-                    )}
-                    style={
-                      active
-                        ? {
-                            borderColor: `${c.color}70`,
-                            backgroundColor: `${c.color}18`,
-                          }
-                        : undefined
-                    }
-                  >
-                    <span
-                      className={cn(
-                        "h-1.5 w-1.5 rounded-full",
-                        count === 0 && !active && "opacity-40"
-                      )}
-                      style={{ backgroundColor: c.color }}
-                    />
-                    {c.name}
-                    {count > 0 && (
-                      <span className="tabular-nums text-muted-foreground/60">
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </HScroll>
+            <ChipRow
+              items={catChips.map(({ cat: c, count }) => ({
+                key: c.id,
+                label: c.name,
+                color: c.color,
+                active: selectedCat.id === c.id,
+                count,
+                dim: count === 0,
+                onPick: () => pickCat(c.id),
+              }))}
+            />
 
             {/* Dönem ya da kategori değişince kırılımda inilen yol sıfırlansın */}
             <PeriodCategoryPanel
