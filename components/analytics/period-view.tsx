@@ -41,6 +41,10 @@ import {
 } from "@/components/analytics/entry-list";
 import { PeriodQuickNav } from "@/components/analytics/period-quick-nav";
 import { PeriodCategoryPanel } from "@/components/analytics/period-category-panel";
+import {
+  getAnalysisSelection,
+  selectAnalysisCategory,
+} from "@/components/analytics/analysis-selection";
 import { HScroll } from "@/components/ui/h-scroll";
 import { useT } from "@/lib/i18n";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -70,9 +74,24 @@ export function PeriodView({
 }) {
   const t = useT();
   const router = useRouter();
+  // Başka dönemden gelindiyse orada bakılan kategori taşınır (bkz.
+  // analysis-selection); URL'deki ?cat her zaman önce gelir
   const [selectedCatId, setSelectedCatId] = useState<string | null>(
-    initialCatId ?? null
+    () => initialCatId ?? getAnalysisSelection().catId
   );
+  // Bu dönemde elle seçildi mi — taşınan seçim yalnız bu dönemde verisi
+  // varsa geçerli; elle seçilen (sönük çip dahil) her zaman geçerli
+  const [catPicked, setCatPicked] = useState(!!initialCatId);
+  const [prevPeriodKey, setPrevPeriodKey] = useState(period.key);
+  if (prevPeriodKey !== period.key) {
+    setPrevPeriodKey(period.key);
+    setCatPicked(false);
+  }
+  const pickCat = (id: string) => {
+    setSelectedCatId(id);
+    setCatPicked(true);
+    selectAnalysisCategory(id);
+  };
   // Dağılımdan kategori seçilince detaya kaydır
   const detailRef = useRef<HTMLElement | null>(null);
 
@@ -224,11 +243,44 @@ export function PeriodView({
       }
     }
   }
+  const catCounts = new Map(
+    (computed?.catShare ?? []).map((r) => [r.id, r.value])
+  );
   const selectedCat =
-    data?.cats.find((c) => c.id === selectedCatId) ??
+    data?.cats.find(
+      (c) =>
+        c.id === selectedCatId &&
+        (catPicked || (catCounts.get(c.id) ?? 0) > 0)
+    ) ??
     data?.cats.find((c) => c.id === topShareCatId) ??
     data?.cats[0] ??
     null;
+
+  // Kırılımda inilen yol da taşınır — ama yalnız bu dönemde girdisi olan
+  // kademeye kadar: boş bir kaleme inilmiş halde açılmak "veri yok" duvarı
+  const carried =
+    selectedCat && getAnalysisSelection().catId === selectedCat.id
+      ? getAnalysisSelection()
+      : null;
+  const carriedPath = useMemo(() => {
+    if (!carried?.path.length || !data) return [];
+    const parentOf = new Map(data.subs.map((s) => [s.id, s.parentId]));
+    const withEntries = new Set<string>();
+    for (const e of data.entries) {
+      // Girdinin kalemi ve bütün ataları o dönemde "dolu" sayılır
+      let id: string | undefined = e.subcategoryId;
+      while (id && !withEntries.has(id)) {
+        withEntries.add(id);
+        id = parentOf.get(id);
+      }
+    }
+    const kept = [];
+    for (const s of carried.path) {
+      if (!withEntries.has(s.id)) break;
+      kept.push(s);
+    }
+    return kept;
+  }, [carried, data]);
 
   // Kategori detayı çipleri — dönemde en çok girdisi olan başa; girdisi
   // olmayanlar (yapı sırasını koruyarak) sona, sayısı olmadan sönük görünür
@@ -398,7 +450,7 @@ export function PeriodView({
             rows={computed?.catShare ?? []}
             emptyText={t("insights.noEntriesInPeriod")}
             onSelect={(id) => {
-              setSelectedCatId(id);
+              pickCat(id);
               detailRef.current?.scrollIntoView({
                 behavior: "smooth",
                 block: "start",
@@ -432,7 +484,7 @@ export function PeriodView({
                 return (
                   <button
                     key={c.id}
-                    onClick={() => setSelectedCatId(c.id)}
+                    onClick={() => pickCat(c.id)}
                     className={cn(
                       "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0",
                       active
@@ -473,6 +525,8 @@ export function PeriodView({
               key={`${selectedCat.id}|${period.key}`}
               category={selectedCat}
               period={period}
+              initialPath={carriedPath}
+              preferredMetricId={carried?.metricId ?? undefined}
             />
           </section>
         )}

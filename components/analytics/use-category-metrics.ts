@@ -152,6 +152,7 @@ export function useCategoryMetrics({
   fetchStart,
   fetchEnd,
   initialMetricId,
+  preferredMetricId,
   resetKey,
   excludeRegular = false,
 }: {
@@ -164,6 +165,9 @@ export function useCategoryMetrics({
   fetchEnd?: number;
   /** URL'den gelen başlangıç metriği: "count" ya da mod id'si */
   initialMetricId?: string;
+  /** Başka dönemden taşınan seçim: bu kapsamda verisi varsa o, yoksa
+   *  varsayılan. initialMetricId'den farkı bulunamayınca "Girdi"ye düşmemesi */
+  preferredMetricId?: string;
   /** Değiştiğinde metrik seçimi sıfırlanır (örn. kategori değişimi) */
   resetKey: string;
   /** Düzenli/sabit işaretli alt ağaçların girdilerini pencereden çıkar */
@@ -186,6 +190,13 @@ export function useCategoryMetrics({
   if (prevResetKey !== resetKey) {
     setPrevResetKey(resetKey);
     setMetricChoice(null);
+    setChoiceFilter(null);
+  }
+  // Seçenek süzgeci kapsama bağlı: başka kalemde o seçenek hiç olmayabilir,
+  // seri boş kalırdı. Özellik seçimi ise kapsamlar arasında korunur.
+  const [prevRootSubId, setPrevRootSubId] = useState(rootSubId);
+  if (prevRootSubId !== rootSubId) {
+    setPrevRootSubId(rootSubId);
     setChoiceFilter(null);
   }
 
@@ -324,10 +335,18 @@ export function useCategoryMetrics({
       if (metricChoice.type !== "count" && data) {
         const fresh = data.mods.find((m) => m.id === metricChoice.mod.id);
         if (fresh) return metricOf(fresh);
+        // Bu pencerede o özelliğe hiç veri girilmemiş — çipi de yok;
+        // seçili gibi kalmak yerine varsayılana düşülür
+      } else {
+        return metricChoice;
       }
-      return metricChoice;
     }
     if (data) {
+      if (preferredMetricId === "count") return { type: "count" };
+      if (preferredMetricId) {
+        const found = data.mods.find((m) => m.id === preferredMetricId);
+        if (found) return metricOf(found);
+      }
       if (initialMetricId && initialMetricId !== "count") {
         const found = data.mods.find((m) => m.id === initialMetricId);
         if (found) return metricOf(found);
@@ -337,7 +356,7 @@ export function useCategoryMetrics({
       }
     }
     return { type: "count" };
-  }, [metricChoice, data, initialMetricId]);
+  }, [metricChoice, data, initialMetricId, preferredMetricId]);
 
   const compute = useMemo<MetricCompute | null>(() => {
     if (!data) return null;

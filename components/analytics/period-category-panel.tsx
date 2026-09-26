@@ -34,6 +34,7 @@ import { EntryListSection, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
+import { setAnalysisMetric, setAnalysisPath } from "./analysis-selection";
 import type { Category, ChartKind, Entry, StatKey, SubCategory } from "@/types";
 
 /**
@@ -45,15 +46,28 @@ import type { Category, ChartKind, Entry, StatKey, SubCategory } from "@/types";
 export function PeriodCategoryPanel({
   category,
   period,
+  initialPath = [],
+  preferredMetricId,
 }: {
   category: Category;
   period: Period;
+  /** Başka dönemden taşınan kırılım yolu — bu dönemde dolu kademeye kırpılmış */
+  initialPath?: SubCategory[];
+  /** Başka dönemden taşınan özellik; bu dönemde verisi yoksa varsayılana düşülür */
+  preferredMetricId?: string;
 }) {
   const t = useT();
   // Kırılımdan derine inme — dönemin İÇİNDE kalır. Eskiden alt kategori
   // sayfasına gidiliyordu; o sayfa "şimdi"ye göreli çalıştığından geçmiş bir
   // dönemden tıklandığında sessizce tüm zamanları gösteriyordu.
-  const [path, setPath] = useState<SubCategory[]>([]);
+  const [path, setPathState] = useState<SubCategory[]>(initialPath);
+  // Yol her değiştiğinde hatırlanır — dönem değişince aynı kaleme dönülsün
+  const setPath = (next: SubCategory[] | ((p: SubCategory[]) => SubCategory[])) =>
+    setPathState((p) => {
+      const v = typeof next === "function" ? next(p) : next;
+      setAnalysisPath(category.id, v);
+      return v;
+    });
   const focus = path[path.length - 1];
   // Gün dönemlerinde hafta bağlamı gerekir — o günü kapsayan haftanın tamamı çekilir,
   // günün kendi rakamları pencere filtresiyle hesaplanır
@@ -76,7 +90,12 @@ export function PeriodCategoryPanel({
     rootSubId: focus?.id,
     fetchStart: containingWeek ? containingWeek.start : period.start,
     fetchEnd: containingWeek ? containingWeek.end : period.end,
-    resetKey: `${category.id}|${period.key}|${focus?.id ?? ""}`,
+    // Kırılımda inip çıkmak özellik seçimini SIFIRLAMAZ: "Öğrenme › Süre"ye
+    // bakan kişi Okuma'ya bastığında Okuma'nın süresini görmek istiyor.
+    // İnilen kalemde o özellik yoksa geçici olarak varsayılan gösterilir,
+    // geri çıkınca seçim döner (bkz. useCategoryMetrics metric).
+    resetKey: category.id,
+    preferredMetricId,
     excludeRegular,
   });
 
@@ -435,7 +454,10 @@ export function PeriodCategoryPanel({
         mods={data.mods}
         metric={metric}
         color={category.color}
-        onChange={setMetricChoice}
+        onChange={(m) => {
+          setMetricChoice(m);
+          setAnalysisMetric(category.id, m.type === "count" ? "count" : m.mod.id);
+        }}
       />
 
       {data.hasRegular && (
@@ -606,129 +628,6 @@ export function PeriodCategoryPanel({
           )}
         />
       )}
-
-      {/* Gün dönemlerinde hafta bağlamı — bu gün haftalık ortalamaya göre nerede */}
-      {isDay && weekContext && (
-        <div className="rounded-2xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
-          Week avg.{" "}
-          <span className="font-semibold text-foreground">
-            {compute.isRate
-              ? fmtPct(weekContext.ref)
-              : fmtNum(weekContext.ref)}
-            {metricLabel && !compute.isRate ? ` ${metricLabel}` : ""}
-            {weekContext.perDay ? "/gün" : ""}
-          </span>{" "}
-          · this day{" "}
-          <span
-            className="font-semibold"
-            style={{ color: category.color }}
-          >
-            {weekContext.inPoints
-              ? t("stat.points", { n: fmtNum(Math.abs(weekContext.delta)) })
-              : fmtPct(Math.abs(weekContext.delta) / 100)}{" "}
-            {weekContext.delta >= 0 ? "above" : "below"}
-          </span>
-        </div>
-      )}
-
-      {/* Alt kategori kırılımı — seriden ÖNCE: önce "ne nereye gitmiş"
-          görülür, istenirse bir kademe derine inilir (dönemden çıkılmadan),
-          sonra o kapsamın zaman serisi incelenir. İnilecek kademe kalmadıysa
-          bölüm hiç açılmaz */}
-      {!compute.isChoice && computed.hasBreakdown && (
-        <div className="rounded-2xl border border-border bg-card p-4">
-          {/* Odaklıyken de gösterilen şey aynı: bu kalemin altındaki
-              kalemlerin dağılımı — başlık da aynı kalır */}
-          <h3 className="mb-3 min-w-0 text-xs font-semibold uppercase leading-tight tracking-wider text-muted-foreground">
-            {scopePrefix}
-            Subcategory breakdown
-            {compute.aggregateNote && (
-              <span className="normal-case font-normal text-muted-foreground/60">
-                {" "}
-                ({compute.aggregateNote})
-              </span>
-            )}
-          </h3>
-
-          {/* Yol artık panelin tepesindeki kapsam şeridinde — burada tekrar etmez */}
-          <ShareBars
-            rows={computed.shareRows}
-            mode={compute.isRate ? "rate" : compute.scale ? "level" : "share"}
-            range={compute.scale}
-            onSelect={(subId) => {
-              const sub = data.subById.get(subId);
-              if (!sub) return;
-              // Kalemin kendi doğrudan girdileri (kategori kökü ya da odağın
-              // kendisi) bir alt kademe değil — inilecek bir yer yok
-              if (sub.isCategoryRoot || sub.id === focus?.id) return;
-              // Aynı düğüm yolda varsa tekrar eklenmez (döngü koruması)
-              setPath((p) => (p.some((s) => s.id === sub.id) ? p : [...p, sub]));
-            }}
-          />
-        </div>
-      )}
-
-      {/* Gün dönemlerinde hafta bağlamı — bu gün haftalık ortalamaya göre nerede */}
-      {isDay && weekContext && (
-        <div className="rounded-2xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
-          Week avg.{" "}
-          <span className="font-semibold text-foreground">
-            {compute.isRate
-              ? fmtPct(weekContext.ref)
-              : fmtNum(weekContext.ref)}
-            {metricLabel && !compute.isRate ? ` ${metricLabel}` : ""}
-            {weekContext.perDay ? "/gün" : ""}
-          </span>{" "}
-          · this day{" "}
-          <span
-            className="font-semibold"
-            style={{ color: category.color }}
-          >
-            {weekContext.inPoints
-              ? t("stat.points", { n: fmtNum(Math.abs(weekContext.delta)) })
-              : fmtPct(Math.abs(weekContext.delta) / 100)}{" "}
-            {weekContext.delta >= 0 ? "above" : "below"}
-          </span>
-        </div>
-      )}
-
-      {/* Alt kategori kırılımı — seriden ÖNCE: önce "ne nereye gitmiş"
-          görülür, istenirse bir kademe derine inilir (dönemden çıkılmadan),
-          sonra o kapsamın zaman serisi incelenir. İnilecek kademe kalmadıysa
-          bölüm hiç açılmaz */}
-      {!compute.isChoice && computed.hasBreakdown && (
-        <div className="rounded-2xl border border-border bg-card p-4">
-          {/* Odaklıyken de gösterilen şey aynı: bu kalemin altındaki
-              kalemlerin dağılımı — başlık da aynı kalır */}
-          <h3 className="mb-3 min-w-0 text-xs font-semibold uppercase leading-tight tracking-wider text-muted-foreground">
-            {scopePrefix}
-            Subcategory breakdown
-            {compute.aggregateNote && (
-              <span className="normal-case font-normal text-muted-foreground/60">
-                {" "}
-                ({compute.aggregateNote})
-              </span>
-            )}
-          </h3>
-
-          {/* Yol artık panelin tepesindeki kapsam şeridinde — burada tekrar etmez */}
-          <ShareBars
-            rows={computed.shareRows}
-            mode={compute.isRate ? "rate" : compute.scale ? "level" : "share"}
-            range={compute.scale}
-            onSelect={(subId) => {
-              const sub = data.subById.get(subId);
-              if (!sub) return;
-              // Kalemin kendi doğrudan girdileri (kategori kökü ya da odağın
-              // kendisi) bir alt kademe değil — inilecek bir yer yok
-              if (sub.isCategoryRoot || sub.id === focus?.id) return;
-              // Aynı düğüm yolda varsa tekrar eklenmez (döngü koruması)
-              setPath((p) => (p.some((s) => s.id === sub.id) ? p : [...p, sub]));
-            }}
-          />
-        </div>
-      )}
-
 
       {/* Girdi listesi */}
       <EntryListSection
