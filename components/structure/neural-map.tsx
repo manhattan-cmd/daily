@@ -120,8 +120,10 @@ const hexA = (v: number) =>
  *
  * Ortada bulunulan yer, çevresinde ona bağlı olan her şey. Bir düğüme
  * dokununca merkez o oluyor ve aynı resim onun ağacı için yeniden kuruluyor.
- * Kalabalıkta harita kendiliğinden takımadaya dönüşüyor: her dal sınırı olan
- * bir ülke, adı sınırının dışında, sınırın içi tek dokunuş (lib/graph.ts).
+ * Kalabalıkta harita kendiliğinden takımadaya dönüşüyor: adlar yalnız dal
+ * başlarında, dalın içindeki her nokta o dala götürüyor (lib/graph.ts).
+ * Dalların etrafındaki sınır çizgileri kaldırıldı — kümeler zaten
+ * kendiliğinden ayrışıyordu, çizgiler haritayı kalabalıklaştırıyordu.
  *
  * Parlaklık kullanım: son 30 günde çok gidilen yol ışıyor, bırakılmış dal
  * sönük bir iz olarak duruyor. Harita şu anki hayatı gösteriyor, arşivi değil.
@@ -355,17 +357,17 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
     [graph, meta, centerColor]
   );
 
-  /** Küçük ülke üstte: kırpılmış kabuklar değse bile dokunulabilir kalsın */
-  const islandsByArea = useMemo(
-    () => [...graph.islands].sort((a, b) => b.count - a.count),
-    [graph]
-  );
-
   const positions = useMemo(
     () => nodes.map((n) => graph.byId.get(nodeId(n)) ?? graph.center),
     [nodes, graph]
   );
   const centerPos = graph.center;
+  /** Bir düğümün adacık başı — merkezin doğrudan çocuğu olan atası */
+  const headOf = (id: string) => {
+    let cur = graph.byId.get(id);
+    while (cur && cur.depth > 1) cur = graph.byId.get(cur.parentId);
+    return cur?.id ?? id;
+  };
   const pad = 30;
 
   const effPositions = positions.map((p, i) => {
@@ -568,6 +570,7 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
       <CanvasViewport
         width={graph.width}
         height={graph.height}
+        origin={graph.center}
         resetKey={focusKey}
       >
         <div
@@ -582,33 +585,6 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
             width={graph.width}
             height={graph.height}
           >
-            {/* Adacık sınırları — bağların ALTINDA. Sınırın içi tek bir
-                hedef: kalabalık haritada nokta nokta dokunmak imkânsız,
-                alan olarak dokunmak kolay. */}
-            {islandsByArea.map((isl) => {
-              const color = meta.get(isl.id)?.color ?? centerColor;
-              const g = metaGlow(meta.get(isl.id));
-              return (
-                <path
-                  key={`isl${isl.id}`}
-                  d={isl.path}
-                  fill={`${color}${hexA(0.05 + 0.05 * g)}`}
-                  stroke={`${color}${hexA(0.22 + 0.3 * g)}`}
-                  strokeWidth={1.25}
-                  strokeLinejoin="round"
-                  className="cursor-pointer"
-                  // Tuval, üstünde düğüm OLMAYAN yerde işaretçiyi yakalıyor
-                  // ve yakalanan işaretçide `click` sınıra hiç ulaşmıyor.
-                  data-net-node=""
-                  style={{ pointerEvents: "auto" }}
-                  onClick={() => {
-                    const n = meta.get(isl.id)?.node;
-                    if (n) drill(n);
-                  }}
-                />
-              );
-            })}
-
             {/* Bağlar — kılcal iz. Anlam kalınlıkta değil PARLAKLIKTA:
                 sönük hat yapının kendisi, parlak hat gerçekten kullanılan
                 yol. Işıma katmanı yalnız yaşayan hatlarda. */}
@@ -739,13 +715,15 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
                 glow={metaGlow(m)}
                 showLabel={g.labelled}
                 isDragging={dragging}
-                // Takımadada dokunulan şey düğüm değil ADACIK; içerideki
-                // noktalar birer süs.
-                onTap={
-                  graph.archipelago && g.depth > 1
-                    ? undefined
-                    : () => drill(m.node)
-                }
+                // Takımadada iç noktalar adacığın başına götürür — eskiden
+                // bu işi adacığın sınırı görüyordu; sınırlar kalkınca nokta
+                // ölü kalmasın
+                onTap={() => {
+                  if (graph.archipelago && g.depth > 1) {
+                    const head = meta.get(headOf(g.id))?.node;
+                    if (head) drill(head);
+                  } else drill(m.node);
+                }}
                 onDragStart={
                   g.depth === 1 && !graph.archipelago
                     ? () => startDrag(m.node, g)
