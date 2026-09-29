@@ -15,6 +15,8 @@ import {
   getRecentDaySummaries,
   listGoalsByDate,
   listRecentEntries,
+  listRecentNotes,
+  noteMoment,
   type DayBar,
 } from "@/lib/db/queries";
 import { db } from "@/lib/db";
@@ -22,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CardListSkeleton } from "@/components/ui/skeleton";
 import { EntryCard } from "@/components/dashboard/entry-card";
+import { NoteCard } from "@/components/notes/note-card";
 import { BackupReminder } from "@/components/dashboard/backup-reminder";
 import { WelcomeCard } from "@/components/dashboard/welcome-card";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
@@ -29,6 +32,8 @@ import { cn, toLocalDateValue } from "@/lib/utils";
 import { intlTag, translate, useLocale, useT } from "@/lib/i18n";
 
 const WEEKDAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+/** Ana sayfadaki son kayıtlar (girdi + not) */
+const RECENT_LIMIT = 20;
 
 export default function HomePage() {
   const t = useT();
@@ -38,7 +43,20 @@ export default function HomePage() {
   const today = toLocalDateValue();
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const recent = useLiveQuery(() => listRecentEntries(20), []);
+  // Son girdiler notlarla karışık, zaman sırasıyla — not da günün bir
+  // kaydı; ayrı bir bölüm açmak yerine aynı akışa giriyor
+  const recent = useLiveQuery(async () => {
+    const [entries, notes] = await Promise.all([
+      listRecentEntries(RECENT_LIMIT),
+      listRecentNotes(RECENT_LIMIT),
+    ]);
+    return [
+      ...entries.map((e) => ({ kind: "entry" as const, at: e.occurredAt, entry: e })),
+      ...notes.map((n) => ({ kind: "note" as const, at: noteMoment(n), note: n })),
+    ]
+      .sort((a, b) => b.at - a.at)
+      .slice(0, RECENT_LIMIT);
+  }, []);
   const week = useLiveQuery(() => getRecentDaySummaries(7), []);
   const goals = useLiveQuery(() => listGoalsByDate(today), [today]);
   const hasCategories = useLiveQuery(
@@ -205,9 +223,13 @@ export default function HomePage() {
         />
       ) : (
         <div className="flex flex-col gap-2">
-          {recent.map((e) => (
-            <EntryCard key={e.id} entry={e} />
-          ))}
+          {recent.map((it) =>
+            it.kind === "entry" ? (
+              <EntryCard key={it.entry.id} entry={it.entry} />
+            ) : (
+              <NoteCard key={it.note.id} note={it.note} />
+            )
+          )}
         </div>
       )}
 

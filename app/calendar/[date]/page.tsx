@@ -365,7 +365,7 @@ export default function CalendarDayPage({
         </div>
       )}
 
-      {/* Not yuvası — derli toplu satırlar, dokununca tam sayfa editör */}
+      {/* Not yuvası — nota özgü kartlar (başlık + ilk satırlar), dokununca editör */}
       {notes && notes.length > 0 && (
         <div className="mb-5">
           <div className="flex items-center gap-1.5 mb-2.5 px-1">
@@ -377,7 +377,7 @@ export default function CalendarDayPage({
               · {notes.length}
             </span>
           </div>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             {notes.map((note) => (
               <NoteCard
                 key={note.id}

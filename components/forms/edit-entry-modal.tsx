@@ -10,14 +10,12 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
-  FileText,
   LayoutGrid,
   Link2,
   NotebookPen,
   Plus,
   Repeat,
   Search,
-  Tags,
   Trash2,
   X,
 } from "lucide-react";
@@ -40,9 +38,7 @@ import {
   updateEntry,
   getLinkedSiblingModIds,
   listEntryTypes,
-  listEntryBacklinks,
   listMods,
-  setEntryAliases,
   updateSubCategory,
   type CategoryModifierWithType,
   type ModWithType,
@@ -62,7 +58,6 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { confirmDialog } from "@/components/ui/confirm";
-import { AliasEditor } from "@/components/notes/alias-editor";
 import {
   DateTimeInput,
   DateTimeRangeInput,
@@ -91,7 +86,7 @@ interface EditEntryModalProps {
 }
 
 /** Başlık menüsünden açılan bölümler — aynı anda yalnız biri açık kalır */
-type Panel = "time" | "parallel" | "alias" | "regular" | "delete";
+type Panel = "time" | "parallel" | "regular" | "delete";
 
 /** Zaman satırının etiketi — gün girdinin günüyse yalnız saat, değilse gün de */
 function occurredAtLabel(
@@ -137,11 +132,6 @@ export function EditEntryModal({
       new Set<string>());
   const allEntryTypes = useLiveQuery(() => listEntryTypes(), []);
   const poolMods = useLiveQuery(() => listMods(), []);
-  // Girdi tarafı backlink — bu girdiyi anan notlar
-  const entryBacklinks = useLiveQuery(
-    () => listEntryBacklinks(entry.id),
-    [entry.id]
-  );
 
   // Satır anahtarı: isimli mod değerleri için modId, girdiye özel ölçüler için
   // "t:<typeId>". Değer DİZİ: bir girdi aynı özellikten birden çok değer
@@ -319,7 +309,6 @@ export function EditEntryModal({
 
   const [addModOpen, setAddModOpen] = useState(false);
   const [modQuery, setModQuery] = useState("");
-  const [aliases, setAliases] = useState<string[]>(entry.aliases ?? []);
   const [notes, setNotes] = useState(entry.notes ?? "");
   // İkincil ayarlar başlıktaki menüden açılır — aynı anda yalnız biri
   const [panel, setPanel] = useState<Panel | null>(null);
@@ -459,7 +448,6 @@ export function EditEntryModal({
   async function handleSave() {
     setSaving(true);
     try {
-      await setEntryAliases(entry.id, aliases);
       const typeValues = rows.flatMap((r) =>
         (values[r.key] ?? [])
           .filter((value) => value !== "")
@@ -692,7 +680,6 @@ export function EditEntryModal({
                 touched={
                   occurredAt.slice(0, 10) !== entryDate ||
                   totalParallels > 0 ||
-                  aliases.length > 0 ||
                   isRegular
                 }
                 items={[
@@ -713,16 +700,6 @@ export function EditEntryModal({
                       : t("entry.alsoLog"),
                     active: panel === "parallel",
                     onSelect: () => togglePanel("parallel"),
-                  },
-                  {
-                    key: "alias",
-                    icon: Tags,
-                    title: t("entry.aliases"),
-                    subtitle: aliases.length
-                      ? aliases.join(", ")
-                      : t("entry.aliasesHint"),
-                    active: panel === "alias",
-                    onSelect: () => togglePanel("alias"),
                   },
                   {
                     key: "regular",
@@ -895,16 +872,6 @@ export function EditEntryModal({
               </PanelBlock>
             )}
 
-            {panel === "alias" && (
-              <PanelBlock
-                icon={Tags}
-                title={t("entry.aliases")}
-                onClose={() => setPanel(null)}
-              >
-                <AliasEditor aliases={aliases} onChange={setAliases} />
-              </PanelBlock>
-            )}
-
             {panel === "regular" && (
               <PanelBlock
                 icon={Repeat}
@@ -1012,37 +979,6 @@ export function EditEntryModal({
                 }}
               />
             </div>
-
-            {/* Notlarda geçiyor — girdi tarafı backlink */}
-            {entryBacklinks && entryBacklinks.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-1.5">
-                  <FileText className="h-3.5 w-3.5 text-primary/70" />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Notlarda geçiyor
-                  </span>
-                </div>
-                {entryBacklinks.map((n) => {
-                  const label =
-                    (n.title ?? "").trim() ||
-                    n.blocks.map((b) => b.text.trim()).find(Boolean) ||
-                    t("entry.note");
-                  return (
-                    <Link
-                      key={n.id}
-                      href={`/notes/${n.id}`}
-                      onClick={() => onOpenChange(false)}
-                      className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-card/70"
-                    >
-                      <span className="min-w-0 flex-1 truncate">{label}</span>
-                      <span className="shrink-0 text-[11px] text-muted-foreground/60">
-                        {n.date.slice(5)}
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
           <DialogFooter>

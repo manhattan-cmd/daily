@@ -2476,17 +2476,21 @@ export async function createNote(date: string): Promise<Note> {
 
 export async function updateNote(
   noteId: string,
-  changes: { title?: string; blocks?: NoteBlock[]; aliases?: string[] }
+  changes: { title?: string; blocks?: NoteBlock[] }
 ): Promise<void> {
   await db.notes.update(noteId, { ...changes, updatedAt: now() });
 }
 
-/** Girdinin takma adlarını ayarla (otomatik bağ önerisi bunlarla da eşleşir). */
-export async function setEntryAliases(
-  entryId: string,
-  aliases: string[]
-): Promise<void> {
-  await db.entries.update(entryId, { aliases, updatedAt: now() });
+/**
+ * Açılıp boş bırakılan notu at — silme günlüğüne YAZMADAN. Kullanıcı bir şey
+ * silmedi, yalnız not açıp vazgeçti; günlüğe düşünce "1 not silindi · Geri al"
+ * bildirimi çıkıyordu. İçinde bir şey varsa dokunmaz.
+ */
+export async function discardEmptyNote(noteId: string): Promise<void> {
+  await db.transaction("rw", db.notes, async () => {
+    const n = await db.notes.get(noteId);
+    if (n && noteIsEmpty(n)) await db.notes.delete(noteId);
+  });
 }
 
 export async function deleteNote(noteId: string): Promise<string> {
@@ -2501,203 +2505,23 @@ export function noteIsEmpty(note: Note): boolean {
   );
 }
 
-// ============ Not bağlantıları (kelime→girdi, öbek→not) ============
-
-export interface EntryPick {
-  id: string;
-  title: string;
-  subName: string;
-  catName: string;
-  color: string;
-  /** YYYY-MM-DD (occurredAt'ten) */
-  date: string;
-  occurredAt: number;
-  aliases?: string[];
+/**
+ * Notun zaman çizgisindeki yeri — ait olduğu GÜN, yazıldığı SAATLE.
+ * Not geçmiş bir güne sonradan da yazılabiliyor; createdAt'e bakılsa dünün
+ * notu bugünün en üstüne çıkardı, gece yarısına bakılsa o günün girdilerinin
+ * altına düşerdi. Ana sayfadaki son girdilerle aynı sıraya bu yüzden oturuyor.
+ */
+export function noteMoment(note: Note): number {
+  const [y, m, d] = note.date.split("-").map(Number);
+  const c = new Date(note.createdAt);
+  return new Date(y, m - 1, d, c.getHours(), c.getMinutes(), c.getSeconds()).getTime();
 }
 
-function ymdLocal(ts: number): string {
-  const d = new Date(ts);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-
-async function toEntryPicks(entries: Entry[]): Promise<EntryPick[]> {
-  const subIds = [...new Set(entries.map((e) => e.subcategoryId))];
-  const subs = (await db.subcategories.bulkGet(subIds)).filter(
-    Boolean
-  ) as SubCategory[];
-  const subMap = new Map(subs.map((s) => [s.id, s]));
-  const catIds = [...new Set(subs.map((s) => s.categoryId))];
-  const cats = (await db.categories.bulkGet(catIds)).filter(
-    Boolean
-  ) as Category[];
-  const catMap = new Map(cats.map((c) => [c.id, c]));
-  return entries.map((e) => {
-    const sub = subMap.get(e.subcategoryId);
-    const cat = sub ? catMap.get(sub.categoryId) : undefined;
-    const isRoot = !!sub?.isCategoryRoot;
-    return {
-      id: e.id,
-      title:
-        (e.title ?? "").trim() ||
-        (isRoot ? cat?.name ?? "Girdi" : sub?.name ?? "Girdi"),
-      subName: sub?.name ?? "",
-      catName: cat?.name ?? "",
-      color: cat?.color ?? "#64748b",
-      date: ymdLocal(e.occurredAt),
-      occurredAt: e.occurredAt,
-      aliases: e.aliases,
-    };
-  });
-}
-
-/** Girdi iliştirme seçici için son girdiler (bağlamıyla). */
-export async function listEntriesForPicker(limit = 120): Promise<EntryPick[]> {
-  const entries = await db.entries
-    .orderBy("occurredAt")
-    .reverse()
-    .limit(limit)
-    .toArray();
-  return toEntryPicks(entries);
-}
-
-/** Belirli girdilerin kısa bilgisi (çip render'ı için). */
-export async function getEntryBriefs(
-  ids: string[]
-): Promise<Map<string, EntryPick>> {
-  if (!ids.length) return new Map();
-  const entries = (await db.entries.bulkGet(ids)).filter(Boolean) as Entry[];
-  const picks = await toEntryPicks(entries);
-  return new Map(picks.map((p) => [p.id, p]));
-}
-
-/** Wiki bağı: başlığıyla yeni bir not aç (öbek → not). */
-export async function createNoteWithTitle(
-  date: string,
-  title: string
-): Promise<Note> {
-  const note: Note = {
-    id: id(),
-    date,
-    title: title.trim(),
-    blocks: [{ id: id(), text: "" }],
-    createdAt: now(),
-    updatedAt: now(),
-  };
-  await db.notes.add(note);
-  return note;
-}
-
-/** Bu nota bağlanan (geri bağlantı) notlar. */
-export async function listNoteBacklinks(noteId: string): Promise<Note[]> {
-  const all = await db.notes.toArray();
-  return all
-    .filter(
-      (n) =>
-        n.id !== noteId &&
-        !noteIsEmpty(n) &&
-        n.blocks.some((b) =>
-          (b.links ?? []).some(
-            (l) => l.type === "note" && l.targetId === noteId
-          )
-        )
-    )
-    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
-}
-
-/** Bu girdiyi anan (kelime iliştiren) notlar — girdi tarafı backlink. */
-export async function listEntryBacklinks(entryId: string): Promise<Note[]> {
-  const all = await db.notes.toArray();
-  return all
-    .filter(
-      (n) =>
-        !noteIsEmpty(n) &&
-        n.blocks.some((b) =>
-          (b.links ?? []).some(
-            (l) => l.type === "entry" && l.targetId === entryId
-          )
-        )
-    )
-    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
-}
-
-export interface SubPick {
-  id: string;
-  name: string;
-  catName: string;
-  color: string;
-}
-
-/** Yeni girdi iliştirme için alt kategoriler (kök hariç), kategoriye göre. */
-export async function listSubcategoriesForPicker(): Promise<SubPick[]> {
-  const [subs, cats] = await Promise.all([
-    db.subcategories.toArray(),
-    db.categories.toArray(),
-  ]);
-  const catMap = new Map(cats.map((c) => [c.id, c]));
-  return subs
-    .filter((s) => !s.isCategoryRoot)
-    .map((s) => {
-      const c = catMap.get(s.categoryId);
-      return {
-        id: s.id,
-        name: s.name,
-        catName: c?.name ?? "",
-        color: c?.color ?? "#64748b",
-      };
-    })
-    .sort(
-      (a, b) =>
-        a.catName.localeCompare(b.catName, "en") ||
-        a.name.localeCompare(b.name, "en")
-    );
-}
-
-/** Otomatik bağ önerisi (unlinked mentions) için bağlanabilir hedefler:
- *  başlıklı notlar + başlıklı girdiler. Adı en az 3 karakter. */
-export interface LinkTarget {
-  type: "note" | "entry";
-  id: string;
-  /** Metinde eşleşen ad (başlık ya da takma ad) */
-  name: string;
-  /** Hedefin görünen adı (başlık) — seçici/çip için */
-  title: string;
-  date?: string;
-  color?: string;
-}
-
-export async function listLinkTargets(
-  excludeNoteId: string
-): Promise<LinkTarget[]> {
-  const [notes, entries] = await Promise.all([
-    db.notes.toArray(),
-    listEntriesForPicker(200),
-  ]);
-  const out: LinkTarget[] = [];
-  const add = (base: Omit<LinkTarget, "name">, name: string) => {
-    const nm = name.trim();
-    if (nm.length >= 3) out.push({ ...base, name: nm });
-  };
-  for (const n of notes) {
-    if (n.id === excludeNoteId || noteIsEmpty(n)) continue;
-    const title =
-      (n.title ?? "").trim() ||
-      n.blocks.map((b) => b.text.trim()).find(Boolean) ||
-      "Not";
-    const base = { type: "note" as const, id: n.id, title };
-    add(base, n.title ?? "");
-    for (const a of n.aliases ?? []) add(base, a);
-  }
-  for (const e of entries) {
-    const base = {
-      type: "entry" as const,
-      id: e.id,
-      title: e.title,
-      date: e.date,
-      color: e.color,
-    };
-    add(base, e.title);
-    for (const a of e.aliases ?? []) add(base, a);
-  }
-  return out;
+/** Son notlar — ana sayfanın son girdiler listesine karışır */
+export async function listRecentNotes(limit = 20): Promise<Note[]> {
+  const notes = await db.notes.orderBy("date").reverse().limit(limit * 3).toArray();
+  return notes
+    .filter((n) => !noteIsEmpty(n))
+    .sort((a, b) => noteMoment(b) - noteMoment(a))
+    .slice(0, limit);
 }

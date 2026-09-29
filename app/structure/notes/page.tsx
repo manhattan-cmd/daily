@@ -2,10 +2,9 @@
 
 import { useState } from "react";
 import { useT } from "@/lib/i18n";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronRight, Search, Waypoints, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { createNote, listAllNotes } from "@/lib/db/queries";
 import {
   StructureAddButton,
@@ -30,7 +29,7 @@ function todayStr(): string {
 }
 const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
 const noteText = (n: Note) =>
-  [n.title ?? "", ...(n.aliases ?? []), ...n.blocks.map((b) => b.text)].join(" ");
+  [n.title ?? "", ...n.blocks.map((b) => b.text)].join(" ");
 
 export default function StructureNotesPage() {
   const t = useT();
@@ -64,23 +63,6 @@ export default function StructureNotesPage() {
           />
         }
       />
-
-      {/* Hayat Haritası hub kartı */}
-      <Link
-        href="/structure/notes/map"
-        className="mb-6 flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-card/70"
-      >
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-          <Waypoints className="h-5 w-5 text-primary" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block font-medium">{t("structure.mapTitle")}</span>
-          <span className="block text-xs text-muted-foreground">
-            {t("notes.hubLead")}
-          </span>
-        </span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-      </Link>
 
       {/* Notlar — arama + güne göre liste */}
       <section className="mb-6">
@@ -127,7 +109,7 @@ export default function StructureNotesPage() {
                 <div className="mb-1.5 px-1 text-[11px] font-medium text-muted-foreground/70">
                   {dateLabel(g.date)}
                 </div>
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-2">
                   {g.notes.map((note) => (
                     <NoteCard key={note.id} note={note} />
                   ))}
