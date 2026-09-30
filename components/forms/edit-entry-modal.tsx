@@ -502,7 +502,7 @@ export function EditEntryModal({
           pencereyi artık dokununca yüklüyor, sorgular gelmeden açılırsa önce
           boş görünüp sonra dolardı. Bekleme birkaç on ms. */}
       <Dialog open={open && ready} onOpenChange={onOpenChange}>
-        <DialogContent className={cn(ENTRY_WINDOW, "gap-5")}>
+        <DialogContent className={cn(ENTRY_WINDOW, "gap-4")}>
           {pStep ? (
             /* Perspektif adımı — ekleme akışındaki t("action.saveAndContinue") davranışı */
             <>

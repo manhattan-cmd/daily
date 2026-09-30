@@ -130,7 +130,7 @@ function EditGoalSheetBody({ goal, open, onClose }: EditGoalSheetProps) {
       <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className={cn(ENTRY_WINDOW, "gap-0 overflow-hidden p-0")}>
         {/* Header */}
-        <div className="flex shrink-0 items-center gap-3 px-6 pb-4 pr-12 pt-6">
+        <div className="flex shrink-0 items-center gap-3 px-5 pb-4 pr-12 pt-5">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-0.5">
               <div
@@ -150,7 +150,7 @@ function EditGoalSheetBody({ goal, open, onClose }: EditGoalSheetProps) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto overscroll-contain px-6 pb-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5">
           <div className="flex flex-col gap-6">
             {/* Mod chips */}
             <div className="flex flex-col gap-2.5">
@@ -350,7 +350,7 @@ function EditGoalSheetBody({ goal, open, onClose }: EditGoalSheetProps) {
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 border-t border-[var(--ln-1)] px-6 pb-6 pt-3">
+        <div className="shrink-0 border-t border-[var(--ln-1)] px-5 pb-5 pt-3">
           <Button
             className="w-full"
             size="lg"
