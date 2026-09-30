@@ -179,11 +179,16 @@ function PlainEntryCard({
         )}
       </div>
 
-      <EditEntryModal
-        entry={entry}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-      />
+      {/* Pencere yalnız AÇIKKEN yüklenir. Kapalıyken de duruyordu ve içindeki
+          8 canlı sorgu her kart için ayrı çalışıyordu: 16 girdili bir günde
+          ~120 veritabanı işlemi, gün her değiştiğinde de hepsi yeniden. */}
+      {editOpen && (
+        <EditEntryModal
+          entry={entry}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+        />
+      )}
     </>
   );
 }

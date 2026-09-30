@@ -4,6 +4,7 @@
  * m-2026-07 (ay), y-2026 (yıl), c-2026-06-01_2026-07-08 (özel; bitiş dahil), all (tüm zamanlar).
  */
 
+import { dateFormatter } from "@/lib/utils";
 import { dayKey, startOfDayMs, weekStartMs } from "./analytics";
 import { intlTag, translate } from "./i18n";
 
@@ -38,8 +39,9 @@ function addDays(t: number, n: number): number {
   return d.getTime();
 }
 
+// Önbellekli biçimlendirici — bkz. lib/utils dateFormatter
 const fmt = (t: number, opt: Intl.DateTimeFormatOptions) =>
-  new Date(t).toLocaleDateString(intlTag(), opt);
+  dateFormatter(intlTag(), opt).format(t);
 
 export function dayPeriod(t: number): Period {
   const start = startOfDayMs(new Date(t));

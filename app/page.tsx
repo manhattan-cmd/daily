@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -25,6 +25,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { CardListSkeleton } from "@/components/ui/skeleton";
 import { EntryCard } from "@/components/dashboard/entry-card";
 import { NoteCard } from "@/components/notes/note-card";
+import { prefetchDay, prefetchDayOnPress, whenIdle } from "@/lib/db/day-cache";
 import { BackupReminder } from "@/components/dashboard/backup-reminder";
 import { WelcomeCard } from "@/components/dashboard/welcome-card";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
@@ -59,6 +60,23 @@ export default function HomePage() {
       .slice(0, RECENT_LIMIT);
   }, []);
   const week = useLiveQuery(() => getRecentDaySummaries(7), []);
+
+  // Ana sayfadan gidilen günler: bugün ve hafta şeridinde GİRDİSİ OLAN
+  // günler önceden okunsun, dokununca kartlar beklenmeden çizilsin (bkz.
+  // day-cache). Tarayıcı boşa çıkınca: açılışla yarışınca uygulamanın
+  // açılışını uzatıyordu (8 gün × 3 sorgu). Boş günün okunacak bir şeyi yok.
+  const weekDates = (week ?? [])
+    .filter((d) => d.count > 0)
+    .map((d) => d.date)
+    .join(",");
+  useEffect(
+    () =>
+      whenIdle(async () => {
+        await prefetchDay(today);
+        for (const d of weekDates.split(",").reverse()) if (d) await prefetchDay(d);
+      }),
+    [today, weekDates]
+  );
   const goals = useLiveQuery(() => listGoalsByDate(today), [today]);
   const hasCategories = useLiveQuery(
     async () => (await db.categories.count()) > 0,
@@ -264,6 +282,7 @@ function WeekBar({
   return (
     <Link
       href={routes.day(day.date)}
+      {...prefetchDayOnPress(day.date)}
       prefetch={false}
       aria-label={`${WEEKDAYS_SHORT[dt.getDay()]} ${dt.getDate()} · ${day.count} entries`}
       className="group flex flex-1 flex-col items-center gap-1.5"

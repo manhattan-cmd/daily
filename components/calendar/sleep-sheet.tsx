@@ -12,6 +12,7 @@ import { ChoiceWindow } from "@/components/forms/choice-window";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { useSheetPresence } from "@/lib/use-sheet-presence";
 
 interface SleepSheetProps {
   date: string;
@@ -20,7 +21,16 @@ interface SleepSheetProps {
 }
 
 /** Yerleşik Uyku akışı: Ekle → Uyku. Gece Uykusu altına süre + kalite kaydeder. */
-export function SleepSheet({ date, open, onClose }: SleepSheetProps) {
+/**
+ * Yalnız açıkken (ve kapanış animasyonu boyunca) DOM'da — kapalıyken
+ * içerik ve canlı sorgular hiç kurulmaz (bkz. useSheetPresence).
+ */
+export function SleepSheet(props: SleepSheetProps) {
+  const { mounted, visible } = useSheetPresence(props.open);
+  return mounted ? <SleepSheetBody {...props} open={visible} /> : null;
+}
+
+function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
   const t = useT();
   const [range, setRange] = useState("");
   const [quality, setQuality] = useState("");

@@ -169,7 +169,10 @@ export function SleepCard({
         )}
       </div>
 
-      <EditEntryModal entry={entry} open={editOpen} onOpenChange={setEditOpen} />
+      {/* Yalnız açıkken yüklenir — bkz. entry-card */}
+      {editOpen && (
+        <EditEntryModal entry={entry} open={editOpen} onOpenChange={setEditOpen} />
+      )}
     </>
   );
 }

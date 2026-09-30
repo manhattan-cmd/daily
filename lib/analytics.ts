@@ -3,6 +3,7 @@
  * Tüm hesaplar yerel saatte; gün anahtarı YYYY-MM-DD.
  */
 
+import { numberFormatter, dateFormatter } from "@/lib/utils";
 import { choiceLabel } from "@/lib/choice-level";
 import type {
   AnalysisPreset,
@@ -352,14 +353,14 @@ export function computeStreaks(
 export function fmtNum(n: number): string {
   const abs = Math.abs(n);
   if (abs >= 10000) {
-    return n.toLocaleString("en-US", {
+    return numberFormatter("en-US", {
       notation: "compact",
       maximumFractionDigits: 1,
-    });
+    }).format(n);
   }
-  return n.toLocaleString("en-US", {
+  return numberFormatter("en-US", {
     maximumFractionDigits: abs >= 100 ? 0 : 1,
-  });
+  }).format(n);
 }
 
 export function parseNumeric(value: string): number {
@@ -398,7 +399,7 @@ export function fmtEntryDateTime(t: number): string {
   // saat iki basamak olduğu için tek değişken buydu; sabitlenince sütun da
   // sabitlendi (rakamlar zaten tabular-nums).
   const date = `${SHORT_MONTHS[d.getMonth()]} ${String(d.getDate()).padStart(2, "0")}`;
-  const time = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  const time = dateFormatter("en-US", { hour: "2-digit", minute: "2-digit" }).format(d);
   return `${date} · ${time}`;
 }
 
@@ -518,7 +519,7 @@ export function textToNumber(raw: string): number {
 
 /** Oran gösterimi — işaretin yeri dile göre değişir ("%65" / "65%") */
 export function fmtPct(ratio: number): string {
-  return new Intl.NumberFormat(intlTag(), {
+  return numberFormatter(intlTag(), {
     style: "percent",
     maximumFractionDigits: 0,
   }).format(Number.isFinite(ratio) ? ratio : 0);

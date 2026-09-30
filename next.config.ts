@@ -24,6 +24,8 @@ const nextConfig: NextConfig = mobile
       output: "export",
       trailingSlash: true,
       images: { unoptimized: true },
+      // Yalnız performans profili için (PROFILE=1): küçültülmüş kodu kaynağa eşler
+      productionBrowserSourceMaps: process.env.PROFILE === "1",
     }
   : {
       // "X-Powered-By: Next.js" — sürüm bilgisini ele vermesin

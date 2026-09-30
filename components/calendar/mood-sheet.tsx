@@ -11,6 +11,7 @@ import { EmotionPicker } from "@/components/forms/emotion-picker";
 import { FieldWindow } from "@/components/forms/field-window";
 import { MoodScale } from "@/components/forms/mood-scale";
 import { FIELD_TONES } from "@/components/forms/field-tone";
+import { useSheetPresence } from "@/lib/use-sheet-presence";
 
 interface MoodSheetProps {
   date: string;
@@ -44,7 +45,16 @@ const SKIN = FIELD_TONES.mood;
  * Gün içinde istenildiği kadar kayıt açılabilir: ruh hali sabah ve akşam aynı
  * olmuyor, her kayıt kendi saatini taşıyor.
  */
-export function MoodSheet({ date, open, onClose }: MoodSheetProps) {
+/**
+ * Yalnız açıkken (ve kapanış animasyonu boyunca) DOM'da — kapalıyken
+ * içerik ve canlı sorgular hiç kurulmaz (bkz. useSheetPresence).
+ */
+export function MoodSheet(props: MoodSheetProps) {
+  const { mounted, visible } = useSheetPresence(props.open);
+  return mounted ? <MoodSheetBody {...props} open={visible} /> : null;
+}
+
+function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
   const t = useT();
   const [level, setLevel] = useState("");
   /** Seçili duygular, ham değer biçiminde ("Happy|70") — kayda olduğu gibi gider */

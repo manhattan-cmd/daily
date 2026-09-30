@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
 import { useRoutePath } from "@/lib/use-route-path";
+import { prefetchDayOnPress } from "@/lib/db/day-cache";
 
 const leftItems = [
   { href: "/", key: "nav.home" as MessageKey, icon: Home },
@@ -99,6 +100,7 @@ function NavBar({ day }: { day: string | null }) {
         {/* Bugün — ortadaki yükseltilmiş buton */}
         <Link
           href={todayHref}
+          {...prefetchDayOnPress(today)}
           className="relative flex flex-1 flex-col items-center justify-end gap-1 py-3 text-xs"
           aria-label={t("nav.todayPage")}
         >

@@ -5,7 +5,26 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export const Dialog = DialogPrimitive.Root;
+/**
+ * Pencereler KİPSİZ (modal={false}) açılıyor — bilinçli, performans için.
+ *
+ * Kipli Radix açılırken sayfanın tamamını etkileyen dört şey yapıyor: head'e
+ * kaydırma kilidi stil etiketi ekliyor, body'ye data-scroll-locked ve
+ * pointer-events:none koyuyor, uygulamanın ana kabına aria-hidden veriyor.
+ * Her biri bütün sayfanın stilini baştan hesaplatıyordu: 16 girdili gün
+ * sayfasında (~1300 öğe) bir kart açmak iki kez tam stil hesabı demekti
+ * (telefonda ~100 ms). Kaydırma kilidi zaten boşa çalışıyordu — uygulama
+ * body'de değil içerik kabında kayıyor.
+ *
+ * Kipin verdiği şeyler burada elle: karartılmış arka plan (dokununca kapanır,
+ * arkadaki sayfaya dokunulamaz), aria-modal (ekran okuyucu için "arkası
+ * devre dışı"); Esc ile kapanma Radix'te zaten var.
+ */
+export function Dialog(
+  props: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Root>
+) {
+  return <DialogPrimitive.Root modal={false} {...props} />;
+}
 export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogPortal = DialogPrimitive.Portal;
 export const DialogClose = DialogPrimitive.Close;
@@ -28,11 +47,18 @@ DialogOverlay.displayName = "DialogOverlay";
 export const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, onInteractOutside, ...props }, ref) => (
   <DialogPortal>
-    <DialogOverlay />
+    {/* Kipsiz Radix kendi karartmasını çizmiyor (bkz. Dialog). Dokununca
+        pencere kapanır: karartma pencerenin dışı sayılıyor. */}
+    <div
+      aria-hidden
+      data-dialog-overlay=""
+      className="animate-in fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
+    />
     <DialogPrimitive.Content
       ref={ref}
+      aria-modal="true"
       className={cn(
         // grid-cols-[minmax(0,1fr)]: ızgara satırlarının varsayılan en küçük
         // boyu "min-content" — içeride kendi asgari genişliği olan tek bir
@@ -43,6 +69,16 @@ export const DialogContent = React.forwardRef<
         className
       )}
       {...props}
+      // Yalnız kendi karartmasına dokunmak kapatır. Kipsiz Radix, pencerenin
+      // DIŞINA her dokunuşta ve odak dışarı kaydığında da kapatıyor — onay
+      // kutusu (confirmDialog, ayrı katman) açılıp odağı alınca düzenleme
+      // penceresi arkadan kapanırdı. Esc ayrı, o hep kapatır.
+      onInteractOutside={(e) => {
+        onInteractOutside?.(e);
+        if (e.defaultPrevented) return;
+        const target = e.target as Element | null;
+        if (!target?.closest?.("[data-dialog-overlay]")) e.preventDefault();
+      }}
     >
       {children}
       <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring">

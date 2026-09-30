@@ -133,6 +133,10 @@ export function EditEntryModal({
       new Set<string>());
   const allEntryTypes = useLiveQuery(() => listEntryTypes(), []);
   const poolMods = useLiveQuery(() => listMods(), []);
+  // Pencere bunlar gelince açılır (bkz. aşağıdaki Dialog). Alt kategori bu
+  // listede değil: silinmişse sorgu hiç dolmaz, pencere hiç açılmazdı.
+  const ready =
+    mods !== undefined && allEntryTypes !== undefined && poolMods !== undefined;
 
   // Satır anahtarı: isimli mod değerleri için modId, girdiye özel ölçüler için
   // "t:<typeId>". Değer DİZİ: bir girdi aynı özellikten birden çok değer
@@ -493,7 +497,10 @@ export function EditEntryModal({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      {/* İçeriği belirleyen listeler gelene kadar pencere görünmez: kart
+          pencereyi artık dokununca yüklüyor, sorgular gelmeden açılırsa önce
+          boş görünüp sonra dolardı. Bekleme birkaç on ms. */}
+      <Dialog open={open && ready} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto gap-5">
           {pStep ? (
             /* Perspektif adımı — ekleme akışındaki t("action.saveAndContinue") davranışı */

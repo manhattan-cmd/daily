@@ -46,6 +46,7 @@ import {
   selectAnalysisCategory,
 } from "@/components/analytics/analysis-selection";
 import { ChipRow } from "@/components/analytics/chip-row";
+import { LazyMount } from "@/components/ui/lazy-mount";
 import { useT } from "@/lib/i18n";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -491,23 +492,29 @@ export function PeriodView({
               }))}
             />
 
-            {/* Dönem ya da kategori değişince kırılımda inilen yol sıfırlansın */}
-            <PeriodCategoryPanel
-              key={`${selectedCat.id}|${period.key}`}
-              category={selectedCat}
-              period={period}
-              initialPath={carriedPath}
-              preferredMetricId={carried?.metricId ?? undefined}
-            />
+            {/* Panel ekranın altında kalıyor ve grafikleriyle ağır: görünür
+                alana yaklaşınca çizilir (bkz. LazyMount). Dönem ya da
+                kategori değişince kırılımda inilen yol sıfırlansın (key). */}
+            <LazyMount minHeight={640}>
+              <PeriodCategoryPanel
+                key={`${selectedCat.id}|${period.key}`}
+                category={selectedCat}
+                period={period}
+                initialPath={carriedPath}
+                preferredMetricId={carried?.metricId ?? undefined}
+              />
+            </LazyMount>
           </section>
         )}
 
-        {/* Tüm kategorilerin girdileri */}
-        <EntryListSection
-          title={t("insights.allEntries")}
-          rows={computed?.entryRows ?? []}
-          emptyText={t("insights.noEntriesInPeriod")}
-        />
+        {/* Tüm kategorilerin girdileri — sayfanın en altı, yaklaşınca çizilir */}
+        <LazyMount minHeight={480}>
+          <EntryListSection
+            title={t("insights.allEntries")}
+            rows={computed?.entryRows ?? []}
+            emptyText={t("insights.noEntriesInPeriod")}
+          />
+        </LazyMount>
       </div>
     </>
   );

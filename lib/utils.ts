@@ -26,12 +26,29 @@ export function toLocalDateTimeValue(timestamp: number): string {
   return `${toLocalDateValue(timestamp)}T${p2(d.getHours())}:${p2(d.getMinutes())}`;
 }
 
+/**
+ * Önbellekli Intl biçimlendiricileri. toLocale*String ve new Intl.* her
+ * çağrıda biçimlendiriciyi baştan kuruyor — pahalı: Analiz'de ve girdi
+ * listelerinde satır başına tekrarlanınca telefonda onlarca ms tutuyordu.
+ * Dil + seçenek başına bir kez kurulur, sonra yeniden kullanılır.
+ */
+const dtfCache = new Map<string, Intl.DateTimeFormat>();
+const nfCache = new Map<string, Intl.NumberFormat>();
+export function dateFormatter(locale: string, opts: Intl.DateTimeFormatOptions) {
+  const key = locale + JSON.stringify(opts);
+  let f = dtfCache.get(key);
+  if (!f) dtfCache.set(key, (f = new Intl.DateTimeFormat(locale, opts)));
+  return f;
+}
+export function numberFormatter(locale: string, opts: Intl.NumberFormatOptions = {}) {
+  const key = locale + JSON.stringify(opts);
+  let f = nfCache.get(key);
+  if (!f) nfCache.set(key, (f = new Intl.NumberFormat(locale, opts)));
+  return f;
+}
+
 export function formatTime(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return dateFormatter("en-US", { hour: "2-digit", minute: "2-digit" }).format(timestamp);
 }
 
 export function formatDate(timestamp: number): string {
@@ -46,11 +63,12 @@ export function formatDate(timestamp: number): string {
   if (isToday) return "Today";
   if (isYesterday) return "Yesterday";
 
-  return date.toLocaleDateString("en-US", {
-    day: "numeric",
-    month: "short",
-    year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
-  });
+  return dateFormatter(
+    "en-US",
+    date.getFullYear() === today.getFullYear()
+      ? { day: "numeric", month: "short" }
+      : { day: "numeric", month: "short", year: "numeric" }
+  ).format(date);
 }
 
 export function formatDateTime(timestamp: number): string {
@@ -58,7 +76,7 @@ export function formatDateTime(timestamp: number): string {
 }
 
 export function formatNumber(n: number): string {
-  return new Intl.NumberFormat("en-US").format(n);
+  return numberFormatter("en-US").format(n);
 }
 
 export function formatMoney(amount: number, currency: string = "TL"): string {

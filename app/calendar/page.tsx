@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { swallowNextClick } from "@/lib/use-long-press";
 import { routes } from "@/lib/routes";
+import { prefetchDayOnPress } from "@/lib/db/day-cache";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -217,6 +218,7 @@ export default function CalendarPage() {
             <Link
               key={day}
               href={routes.day(dateStr(day))}
+              {...prefetchDayOnPress(dateStr(day))}
               // Ay ızgarasında ~40 gün var; hepsini önden çekmek telefonda
               // ağı doldurup asıl gidilen sayfayı geciktiriyordu
               prefetch={false}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -29,6 +29,9 @@ const BALLOON_H = 72;
  * parça (rest). Oran metriği için: tek başına "3 evet" 3/3 mü 3/10 mu belli
  * etmiyor, payda çubuğun içinde durunca hem adet hem oran tek bakışta okunuyor.
  */
+/** Grafiğin yüksekliği (px) — kap ve ilk çizim aynı değeri kullanıyor */
+const CHART_H = 170;
+
 export function DailyBarChart({
   data,
   color,
@@ -121,6 +124,18 @@ export function DailyBarChart({
     { bucket: DayBucket; x: number; y: number } | null
   >(null);
   const boxRef = useRef<HTMLDivElement>(null);
+  /**
+   * Kabın genişliği — ekran BOYANMADAN önce ölçülür. ResponsiveContainer
+   * genişliği boyamadan sonra ölçüp grafiği ancak ondan sonra çiziyordu:
+   * sayfa açılınca kutu bir an boş kalıp grafik sonradan beliriyordu
+   * (telefonda 2–3 kare). Genişlik bilinince grafik aynı karede çiziliyor.
+   */
+  const [boxWidth, setBoxWidth] = useState(0);
+  useLayoutEffect(() => {
+    const w = boxRef.current?.clientWidth ?? 0;
+    // Boyamadan önce ölçmenin React'teki yolu bu; tek seferlik
+    if (w) setBoxWidth(w);
+  }, []);
   useEffect(
     () => () => {
       if (dismissTimer.current) clearTimeout(dismissTimer.current);
@@ -173,7 +188,8 @@ export function DailyBarChart({
     <>
     <div
       ref={boxRef}
-      className={`relative h-[170px] w-full select-none [-webkit-tap-highlight-color:transparent]${onSelect ? " cursor-pointer" : ""}`}
+      style={{ height: CHART_H }}
+      className={`relative w-full select-none [-webkit-tap-highlight-color:transparent]${onSelect ? " cursor-pointer" : ""}`}
       onPointerDown={(e) => {
         pointerDown.current = { x: e.clientX, y: e.clientY };
         if (dismissTimer.current) clearTimeout(dismissTimer.current);
@@ -191,7 +207,12 @@ export function DailyBarChart({
           </span>
         </div>
       )}
-      <ResponsiveContainer width="100%" height="100%">
+      {boxWidth > 0 && (
+      <ResponsiveContainer
+        width="100%"
+        height="100%"
+        initialDimension={{ width: boxWidth, height: CHART_H }}
+      >
         {variant === "line" ? (
         <LineChart
           data={lineData}
@@ -317,6 +338,7 @@ export function DailyBarChart({
         </BarChart>
         )}
       </ResponsiveContainer>
+      )}
 
       {/* Seçilen sütunun balonu — sütunun tepesinde, ön planda. Sütun uzunsa
           yukarıda yer kalmaz (balon karttan taşıp üstteki kutulara binerdi):

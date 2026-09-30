@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { ENTRY_VALUE_TYPE_LABELS } from "@/types";
 import type { GoalWithContext, EntryType } from "@/types";
+import { useSheetPresence } from "@/lib/use-sheet-presence";
 
 interface EditGoalSheetProps {
   goal: GoalWithContext;
@@ -28,7 +29,16 @@ interface EditGoalSheetProps {
   onClose: () => void;
 }
 
-export function EditGoalSheet({ goal, open, onClose }: EditGoalSheetProps) {
+/**
+ * Yalnız açıkken (ve kapanış animasyonu boyunca) DOM'da — kapalıyken
+ * içerik ve canlı sorgular hiç kurulmaz (bkz. useSheetPresence).
+ */
+export function EditGoalSheet(props: EditGoalSheetProps) {
+  const { mounted, visible } = useSheetPresence(props.open);
+  return mounted ? <EditGoalSheetBody {...props} open={visible} /> : null;
+}
+
+function EditGoalSheetBody({ goal, open, onClose }: EditGoalSheetProps) {
   const tr = useT();
   const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>(
     () => goal.targets.map((t) => t.modId ?? t.entryTypeId ?? "")

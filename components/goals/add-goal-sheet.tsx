@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { ENTRY_VALUE_TYPE_LABELS } from "@/types";
 import type { Category, EntryType, SubCategory } from "@/types";
+import { useSheetPresence } from "@/lib/use-sheet-presence";
 
 interface AddGoalSheetProps {
   date: string;
@@ -38,7 +39,16 @@ type Step =
   | { type: "sub"; category: Category }
   | { type: "mod"; category: Category; sub: SubCategory };
 
-export function AddGoalSheet({ date, open, onClose }: AddGoalSheetProps) {
+/**
+ * Yalnız açıkken (ve kapanış animasyonu boyunca) DOM'da — kapalıyken
+ * içerik ve canlı sorgular hiç kurulmaz (bkz. useSheetPresence).
+ */
+export function AddGoalSheet(props: AddGoalSheetProps) {
+  const { mounted, visible } = useSheetPresence(props.open);
+  return mounted ? <AddGoalSheetBody {...props} open={visible} /> : null;
+}
+
+function AddGoalSheetBody({ date, open, onClose }: AddGoalSheetProps) {
   const tr = useT();
   const [step, setStep] = useState<Step>({ type: "cat" });
   // Multiple selected type IDs (in order of selection)

@@ -1,18 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, ArrowRight, Boxes, CalendarDays, ChevronLeft, ChevronRight, MoonStar, NotebookPen, Smile, Target, PenLine } from "lucide-react";
 import { db } from "@/lib/db";
+import { createNote } from "@/lib/db/queries";
 import {
-  createNote,
-  listEntriesByDate,
-  listGoalsByDate,
-  listNotesByDate,
-  noteIsEmpty,
-} from "@/lib/db/queries";
+  prefetchDay,
+  whenIdle,
+  useDayEntries,
+  useDayGoals,
+  useDayNotes,
+} from "@/lib/db/day-cache";
 import {
   dayItemKey,
   deleteDayItems,
@@ -117,13 +118,11 @@ export function CalendarDayPage({
   const [yearN, monthN, dayN] = date.split("-").map(Number);
   const d = new Date(yearN, monthN - 1, dayN);
 
-  const entries = useLiveQuery(() => listEntriesByDate(date), [date]);
-  const goals = useLiveQuery(() => listGoalsByDate(date), [date]);
-  // Boş bırakılıp geri dönülen notlar listede görünmez
-  const notes = useLiveQuery(
-    async () => (await listNotesByDate(date)).filter((n) => !noteIsEmpty(n)),
-    [date]
-  );
+  // Önbellekli canlı sorgular: gün daha önce açıldıysa ya da komşusundan
+  // önceden okunduysa kartlar iskeletsiz, anında çizilir (bkz. day-cache)
+  const entries = useDayEntries(date);
+  const goals = useDayGoals(date);
+  const notes = useDayNotes(date);
   // Aktivite adları — tablo küçük, id → kayıt haritası kart başlıkları için
   const activities = useLiveQuery(() => db.activities.toArray(), []);
   const activityById = new Map((activities ?? []).map((a) => [a.id, a]));
@@ -187,6 +186,19 @@ export function CalendarDayPage({
     next.setDate(d.getDate() + days);
     return toLocalDateValue(next.getTime());
   };
+
+  // Komşu günleri arka planda oku — oklarla ya da kaydırarak geçince hazır
+  // olsunlar. Sayfanın kendi sorgularıyla yarışmasın diye biraz sonra.
+  const prevDay = shift(-1);
+  const nextDay = shift(1);
+  useEffect(
+    () =>
+      whenIdle(() => {
+        void prefetchDay(prevDay);
+        void prefetchDay(nextDay);
+      }, 400),
+    [prevDay, nextDay]
+  );
 
   return (
     <>

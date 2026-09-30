@@ -16,12 +16,14 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { getEntryCountsBySubcategory } from "@/lib/db/queries";
+import {
+  loadUsageCounts,
+  USAGE_COUNTS_KEY,
+  useCachedLiveQuery,
+} from "@/lib/db/live-cache";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { HScroll } from "@/components/ui/h-scroll";
 import { SymbolIcon } from "@/lib/icons";
-import { usageSince } from "@/lib/usage";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Category, SubCategory } from "@/types";
@@ -228,9 +230,9 @@ export function EntryPicker({
 
   // Sayım son 30 güne bakıyor (lib/usage): "sık kullanılanlar" şu anki
   // hayatı göstermeli, arşivi değil.
+  // Önbellekli: sık kullanılanlar şeridi pencereyle birlikte gelsin
   const entryCounts =
-    useLiveQuery(() => getEntryCountsBySubcategory(usageSince()), []) ??
-    NO_COUNTS;
+    useCachedLiveQuery(USAGE_COUNTS_KEY, loadUsageCounts) ?? NO_COUNTS;
 
   const focusObj: Focus = useMemo(() => {
     if (focus == null) return null;

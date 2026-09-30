@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, Boxes, Check, ChevronDown, Clock, Link2, Plus, X } from "lucide-react";
 import { nanoid } from "nanoid";
-import { db } from "@/lib/db";
 import {
   listModifiersForTarget,
   createEntry,
@@ -38,6 +37,12 @@ import { SymbolIcon } from "@/lib/icons";
 import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
 import { isScaleChoices, type Category, type SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
+import { useSheetPresence } from "@/lib/use-sheet-presence";
+import {
+  ENTRY_GROUPS_KEY,
+  loadEntryGroups,
+  useCachedLiveQuery,
+} from "@/lib/db/live-cache";
 
 /** Değer state anahtarı: global mod id (legacy atamalarda atama id'si) */
 const valueKey = (m: CategoryModifierWithType) => m.modId ?? m.id;
@@ -60,7 +65,16 @@ type Step =
   | { type: "form"; sub: SubCategory }
   | { type: "parallel-form"; sub: SubCategory; catName: string; queueIndex: number; queueTotal: number; groupId: string; carryover: Record<string, string> };
 
-export function DayEntrySheet({
+/**
+ * Yalnız açıkken (ve kapanış animasyonu boyunca) DOM'da — kapalıyken
+ * içerik ve canlı sorgular hiç kurulmaz (bkz. useSheetPresence).
+ */
+export function DayEntrySheet(props: DayEntrySheetProps) {
+  const { mounted, visible } = useSheetPresence(props.open);
+  return mounted ? <DayEntrySheetBody {...props} open={visible} /> : null;
+}
+
+function DayEntrySheetBody({
   date,
   open,
   onClose,
@@ -83,7 +97,10 @@ export function DayEntrySheet({
 
   useEffect(() => {
     if (!open) {
-      setTimeout(() => {
+      // Temizlenmeli: pencere artık ilk karede kapalı konumda kuruluyor
+      // (useSheetPresence); temizlenmeyen zamanlayıcı açılıştan 300 ms sonra
+      // formu — ör. aktivite akışının ilk adımını — sıfırlıyordu
+      const t = setTimeout(() => {
         setStep({ type: "pick" });
         setValues({});
         setNotes("");
@@ -93,6 +110,7 @@ export function DayEntrySheet({
         setActivity(null);
         setActivityCount(0);
       }, 300);
+      return () => clearTimeout(t);
     }
   }, [open]);
 
@@ -113,19 +131,8 @@ export function DayEntrySheet({
     }
   }
 
-  const groups = useLiveQuery(async () => {
-    const cats = await db.categories.orderBy("order").toArray();
-    const subs = await db.subcategories.toArray();
-    return cats
-      .filter((cat) => !cat.isBuiltIn) // Uyku'nun kendi akışı var (Ekle → Uyku)
-      .map((cat) => ({
-        category: cat,
-        topSubs: subs
-          .filter((s) => s.categoryId === cat.id && !s.parentId && !s.isCategoryRoot)
-          .sort((a, b) => a.order - b.order),
-        allSubs: subs.filter((s) => s.categoryId === cat.id),
-      }));
-  }, []);
+  // Önbellekli: pencere açılır açılmaz liste dolu gelsin (bkz. live-cache)
+  const groups = useCachedLiveQuery(ENTRY_GROUPS_KEY, loadEntryGroups);
 
   const currentSubId =
     step.type === "form" || step.type === "parallel-form" ? step.sub.id : "";

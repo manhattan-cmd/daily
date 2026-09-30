@@ -2365,19 +2365,35 @@ async function hydrateEntries(entries: Entry[]): Promise<EntryWithContext[]> {
   if (!entries.length) return [];
   const subIds = [...new Set(entries.map((e) => e.subcategoryId))];
   const entryIds = entries.map((e) => e.id);
-  const subs = await db.subcategories.bulkGet(subIds);
+  // İki dalga: önce yalnız girdilere bağlı olanlar AYNI ANDA (alt kategori,
+  // alan, değer), sonra onlara bağlı olanlar aynı anda (kategori, ölçü,
+  // özellik). Eskiden altı okuma birbirini sırayla bekliyordu; telefonda her
+  // bekleyiş gün sayfasındaki kartların gelişini geciktiriyordu.
+  const [subs, allFields, allValues] = await Promise.all([
+    db.subcategories.bulkGet(subIds),
+    db.fields.where("subcategoryId").anyOf(subIds).toArray(),
+    db.entryValues.where("entryId").anyOf(entryIds).toArray(),
+  ]);
   const subMap = new Map(subs.filter(Boolean).map((s) => [s!.id, s!]));
   const catIds = [...new Set(subs.filter(Boolean).map((s) => s!.categoryId))];
-  const cats = await db.categories.bulkGet(catIds);
+  const valueTypeIds = [
+    ...new Set(allValues.map((v) => v.entryTypeId).filter((x): x is string => !!x)),
+  ];
+  const valueModIds = [
+    ...new Set(allValues.map((v) => v.modId).filter((x): x is string => !!x)),
+  ];
+  const [cats, entryTypesRaw, modsRaw] = await Promise.all([
+    db.categories.bulkGet(catIds),
+    valueTypeIds.length ? db.entryTypes.bulkGet(valueTypeIds) : Promise.resolve([]),
+    valueModIds.length ? db.mods.bulkGet(valueModIds) : Promise.resolve([]),
+  ]);
   const catMap = new Map(cats.filter(Boolean).map((c) => [c!.id, c!]));
-  const allFields = await db.fields.where("subcategoryId").anyOf(subIds).toArray();
   const fieldsBySub = new Map<string, Field[]>();
   for (const f of allFields) {
     const arr = fieldsBySub.get(f.subcategoryId) ?? [];
     arr.push(f);
     fieldsBySub.set(f.subcategoryId, arr);
   }
-  const allValues = await db.entryValues.where("entryId").anyOf(entryIds).toArray();
   const valuesByEntry = new Map<string, EntryValue[]>();
   for (const v of allValues) {
     const arr = valuesByEntry.get(v.entryId) ?? [];
@@ -2385,22 +2401,11 @@ async function hydrateEntries(entries: Entry[]): Promise<EntryWithContext[]> {
     valuesByEntry.set(v.entryId, arr);
   }
 
-  // Collect all entryTypeIds referenced from EntryValues
-  const valueTypeIds = [
-    ...new Set(allValues.map((v) => v.entryTypeId).filter((x): x is string => !!x)),
-  ];
-  const entryTypesRaw = valueTypeIds.length
-    ? await db.entryTypes.bulkGet(valueTypeIds)
-    : [];
   const entryTypeMap = new Map(
     entryTypesRaw.filter(Boolean).map((t) => [t!.id, t!])
   );
 
-  // Havuz modlarını çöz — değer çipleri mod adını gösterir
-  const valueModIds = [
-    ...new Set(allValues.map((v) => v.modId).filter((x): x is string => !!x)),
-  ];
-  const modsRaw = valueModIds.length ? await db.mods.bulkGet(valueModIds) : [];
+  // Havuz modları — değer çipleri mod adını gösterir
   const modMap = new Map(modsRaw.filter(Boolean).map((m) => [m!.id, m!]));
 
   const results: EntryWithContext[] = [];

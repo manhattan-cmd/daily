@@ -17,6 +17,8 @@ import { StatusBar } from "./status-bar";
 import { UndoBar } from "./undo-bar";
 import { ConfirmHost } from "@/components/ui/confirm";
 import { isNative, listenBackButton } from "@/lib/native";
+import { warmSheetData } from "@/lib/db/live-cache";
+import { whenIdle } from "@/lib/db/day-cache";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const mainRef = useRef<HTMLElement>(null);
@@ -54,6 +56,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       await ensurePersistentStorage();
     })().catch((err) => console.error("Init error", err));
   }, []);
+
+  // Girdi ekleme penceresinin verisini açılıştan sonra, boşta hazırla —
+  // pencere açılınca liste beklemesin (bkz. live-cache)
+  useEffect(() => whenIdle(warmSheetData, 1500), []);
 
   // Mobil uygulamada Android geri tuşu: önce açık pencere, sonra sayfa
   useEffect(() => (isNative() ? listenBackButton() : undefined), []);
