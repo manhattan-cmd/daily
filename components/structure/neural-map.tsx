@@ -17,6 +17,7 @@ import { usageIntensity, usageRate, usageSince } from "@/lib/usage";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Category, SubCategory } from "@/types";
+import { routes } from "@/lib/routes";
 
 export type MapGroup = {
   category: Category;
@@ -504,8 +505,8 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
     focusObj == null
       ? ""
       : focusObj.type === "cat"
-        ? `/structure/${focusObj.cat.id}`
-        : `/structure/${focusObj.sub.categoryId}/${focusObj.sub.id}`;
+        ? routes.structureCategory(focusObj.cat.id)
+        : routes.structureSub(focusObj.sub.categoryId, focusObj.sub.id);
 
   const coreBox = { width: graph.coreR * 2, height: graph.coreR * 2 };
   const coreSkin: CSSProperties = {

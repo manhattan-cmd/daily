@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useRoutePath } from "@/lib/use-route-path";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +24,7 @@ export const STRUCTURE_TABS: { href: string; key: MessageKey }[] = [
  */
 export function StructureTabs() {
   const t = useT();
-  const pathname = usePathname();
+  const pathname = useRoutePath();
   const activeIndex = STRUCTURE_TABS.findIndex((tab) => tab.href === pathname);
 
   return (

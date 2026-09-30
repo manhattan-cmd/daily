@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { usePathname } from "next/navigation";
+import { Suspense, useEffect, useRef } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   ensureBuiltInDimensions,
   ensureBuiltInCategories,
@@ -16,10 +16,10 @@ import { BottomNav } from "./bottom-nav";
 import { StatusBar } from "./status-bar";
 import { UndoBar } from "./undo-bar";
 import { ConfirmHost } from "@/components/ui/confirm";
+import { isNative, listenBackButton } from "@/lib/native";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const mainRef = useRef<HTMLElement>(null);
-  const pathname = usePathname();
   const locale = useLocale();
   const skin = useSkin();
 
@@ -32,13 +32,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     applySkin(skin);
   }, [skin]);
-
-  // Kaydırma document'te değil bu container'da — Next'in sayfa geçişindeki
-  // otomatik başa alması burada işlemez, rota değişince kendimiz başa alırız
-  // (yoksa yeni sayfa önceki sayfanın kaydırma konumunda, başlığı görünmeden açılır)
-  useEffect(() => {
-    mainRef.current?.scrollTo({ top: 0 });
-  }, [pathname]);
 
   useEffect(() => {
     (async () => {
@@ -62,9 +55,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     })().catch((err) => console.error("Init error", err));
   }, []);
 
-  // Service worker yalnızca production'da — dev'de Turbopack'in HMR'ıyla çakışır
+  // Mobil uygulamada Android geri tuşu: önce açık pencere, sonra sayfa
+  useEffect(() => (isNative() ? listenBackButton() : undefined), []);
+
+  // Service worker yalnızca production'da — dev'de Turbopack'in HMR'ıyla çakışır.
+  // Mobil uygulamada hiç yok: dosyalar zaten uygulamanın içinde.
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") return;
+    if (isNative()) return;
     if (!("serviceWorker" in navigator)) return;
     const register = () => {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
@@ -104,6 +102,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           {children}
         </main>
+        <Suspense fallback={null}>
+          <ScrollReset target={mainRef} />
+        </Suspense>
 
         {/* Silme sonrası geri alma şeridi — navigasyonun hemen üstünde */}
         <UndoBar />
@@ -116,4 +117,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   );
+}
+
+/**
+ * Kaydırma document'te değil ana kapta — Next'in sayfa geçişindeki otomatik
+ * başa alması orada işlemez, adres değişince kendimiz başa alırız (yoksa yeni
+ * sayfa öncekinin kaydırma konumunda, başlığı görünmeden açılır).
+ *
+ * Sorgu da adresin parçası: gün, not ve kategori sayfaları kimliği sorguda
+ * taşıyor (bkz. lib/routes); günden güne geçişte yol aynı kalıyor.
+ */
+function ScrollReset({ target }: { target: React.RefObject<HTMLElement | null> }) {
+  const pathname = usePathname();
+  const query = useSearchParams().toString();
+  useEffect(() => {
+    target.current?.scrollTo({ top: 0 });
+  }, [pathname, query, target]);
+  return null;
 }

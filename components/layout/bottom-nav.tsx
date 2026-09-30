@@ -1,10 +1,13 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Home, CalendarDays, BarChart3, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
+import { routes } from "@/lib/routes";
+import { useRoutePath } from "@/lib/use-route-path";
 
 const leftItems = [
   { href: "/", key: "nav.home" as MessageKey, icon: Home },
@@ -48,12 +51,30 @@ function NavItem({
   );
 }
 
+/**
+ * Gün sayfasının tarihi adresin sorgusunda (/calendar/day?d=…, bkz.
+ * lib/routes) — "Bugün"ün vurgusu için okunması gerekiyor. Sorgu okuyan
+ * bileşen statik çıktıda bir Suspense sınırı istiyor; sınır dolana kadar
+ * menü aynı görünür, yalnız Bugün vurgusuz.
+ */
 export function BottomNav() {
-  const pathname = usePathname();
+  return (
+    <Suspense fallback={<NavBar day={null} />}>
+      <NavWithQuery />
+    </Suspense>
+  );
+}
+
+function NavWithQuery() {
+  return <NavBar day={useSearchParams().get("d")} />;
+}
+
+function NavBar({ day }: { day: string | null }) {
+  const pathname = useRoutePath();
   const t = useT();
   const today = todayStr();
-  const todayHref = `/calendar/${today}`;
-  const todayActive = pathname === todayHref;
+  const todayHref = routes.day(today);
+  const todayActive = pathname === "/calendar/day" && day === today;
 
   const isActive = (href: string) =>
     href === "/"

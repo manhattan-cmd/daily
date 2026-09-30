@@ -37,6 +37,7 @@ import { ScaleInput } from "@/components/ui/scale-input";
 import { SymbolIcon } from "@/lib/icons";
 import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
 import { isScaleChoices, type Category, type SubCategory } from "@/types";
+import { routes } from "@/lib/routes";
 
 /** Değer state anahtarı: global mod id (legacy atamalarda atama id'si) */
 const valueKey = (m: CategoryModifierWithType) => m.modId ?? m.id;
@@ -245,7 +246,7 @@ export function DayEntrySheet({
   ) {
     if (queue.length === 0) {
       onClose();
-      router.push(`/calendar/${date}`);
+      router.push(routes.day(date));
       return;
     }
     const next = queue[0];
@@ -298,7 +299,7 @@ export function DayEntrySheet({
           );
         } else {
           onClose();
-          router.push(`/calendar/${date}`);
+          router.push(routes.day(date));
         }
       } else if (step.type === "parallel-form") {
         await persistEntry(step.sub.id, formMods, values, step.groupId, notes);

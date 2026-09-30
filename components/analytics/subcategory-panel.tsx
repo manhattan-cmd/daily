@@ -35,6 +35,7 @@ import { MetricChips } from "./metric-chips";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
 import type { Category, Entry, SubCategory } from "@/types";
+import { routes } from "@/lib/routes";
 
 /**
  * Bir alt kategori düğümünün analiz paneli — CategoryPanel ile aynı desen,
@@ -243,7 +244,7 @@ export function SubcategoryPanel({
   const goTo = (subId: string) => {
     if (subId === subcategory.id) return;
     router.push(
-      `/analytics/${category.id}/${subId}?range=${shareRange}&metric=${metricParam}`
+      routes.analyticsSub(category.id, subId, `range=${shareRange}&metric=${metricParam}`)
     );
   };
 

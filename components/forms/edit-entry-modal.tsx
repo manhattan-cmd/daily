@@ -78,6 +78,7 @@ import {
   toLocalDateValue,
 } from "@/lib/utils";
 import type { EntryWithContext, EntryType } from "@/types";
+import { routes } from "@/lib/routes";
 
 interface EditEntryModalProps {
   entry: EntryWithContext;
@@ -332,8 +333,8 @@ export function EditEntryModal({
     ? entry.category.name
     : entry.subcategory.name;
   const structureHref = entry.subcategory.isCategoryRoot
-    ? `/structure/${entry.category.id}`
-    : `/structure/${entry.category.id}/${entry.subcategoryId}`;
+    ? routes.structureCategory(entry.category.id)
+    : routes.structureSub(entry.category.id, entry.subcategoryId);
   // Yerel biçim şart: kaydederken `new Date(occurredAt)` bunu yerel okuyor —
   // toISOString ile üretilirse her kayıtta zaman UTC farkı kadar kayıyordu
   const [occurredAt, setOccurredAt] = useState(() =>
@@ -726,7 +727,7 @@ export function EditEntryModal({
 
             {/* Girdinin kayıtlı olduğu gün — dokununca o günün sayfası */}
             <Link
-              href={`/calendar/${toLocalDateValue(entry.occurredAt)}`}
+              href={routes.day(toLocalDateValue(entry.occurredAt))}
               onClick={() => onOpenChange(false)}
               className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-full border border-border bg-card/60 py-1 pl-2.5 pr-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >

@@ -49,7 +49,7 @@ async function openApp(browser, { locale = "en-US" } = {}) {
     errors.push("NATIVE DIALOG: " + d.message());
     d.dismiss();
   });
-  await page.goto(`${BASE}/calendar/${today()}`);
+  await page.goto(`${BASE}/calendar/day?d=${today()}`);
   await page.waitForTimeout(4500);
   return { page, errors };
 }
@@ -413,7 +413,7 @@ async function listSearch(browser) {
     return subs.find((s) => s.name === "Cafe")?.categoryId;
   });
 
-  await page.goto(`${BASE}/analytics/${catId}`);
+  await page.goto(`${BASE}/analytics/category?id=${catId}`);
   await page.waitForTimeout(2600);
   await page.mouse.move(195, 500);
   await page.mouse.wheel(0, 8000);

@@ -26,6 +26,7 @@ import {
   type BackupPayload,
   type RestoreMode,
 } from "@/lib/db/backup";
+import { isNative, shareFileNative } from "@/lib/native";
 import {
   agoLabel,
   daysSince,
@@ -77,7 +78,17 @@ export function DataSection() {
     setMessage(null);
     try {
       const payload = await exportBackup();
-      downloadBackup(payload);
+      // Mobil uygulamada indirme yok — paylaşım menüsünden kaydedilir
+      if (isNative()) {
+        const r = await shareFileNative(
+          backupFileName(payload.exportedAt),
+          JSON.stringify(payload, null, 2),
+          "Routine backup"
+        );
+        if (r === "cancelled") return;
+      } else {
+        downloadBackup(payload);
+      }
       markBackupTaken(payload.exportedAt);
       const { total } = summarizeBackup(payload);
       setMessage({ type: "ok", text: `Backup downloaded — ${fmt(total)} records.` });
@@ -101,6 +112,17 @@ export function DataSection() {
     setMessage(null);
     try {
       const payload = await exportBackup();
+      if (isNative()) {
+        const r = await shareFileNative(
+          backupFileName(payload.exportedAt),
+          JSON.stringify(payload, null, 2),
+          "Routine backup"
+        );
+        if (r === "cancelled") return;
+        markBackupTaken(payload.exportedAt);
+        setMessage({ type: "ok", text: "Backup shared." });
+        return;
+      }
       const file = new File(
         [backupToBlob(payload)],
         backupFileName(payload.exportedAt),

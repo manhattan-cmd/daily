@@ -13,6 +13,7 @@ import {
 import { NoteCard } from "@/components/notes/note-card";
 import { Input } from "@/components/ui/input";
 import type { Note } from "@/types";
+import { routes } from "@/lib/routes";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -50,7 +51,7 @@ export default function StructureNotesPage() {
 
   async function handleNewNote() {
     const note = await createNote(todayStr());
-    router.push(`/notes/${note.id}`);
+    router.push(routes.note(note.id));
   }
 
   return (

@@ -14,6 +14,7 @@ import {
   weekPeriod,
   yearPeriod,
 } from "@/lib/period";
+import { routes } from "@/lib/routes";
 
 /** yyyy-mm-dd inputunu yerel Date'e çevir (Date.parse UTC varsayar, kullanma) */
 function parseInputDate(v: string): Date | null {
@@ -56,7 +57,7 @@ export function PeriodJump({ align = "right" }: { align?: "right" | "center" }) 
 
   const go = (key: string) => {
     setOpen(false);
-    router.push(`/analytics/period/${key}`);
+    router.push(routes.period(key));
   };
 
   const d = new Date(now);

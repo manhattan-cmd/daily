@@ -31,6 +31,7 @@ import {
   selectedCardClass,
   type EntrySelection,
 } from "@/components/calendar/entry-selection";
+import { routes } from "@/lib/routes";
 
 /**
  * Gün sayfasındaki aktivite kartı — farklı kategorilerden girdileri tek çatı
@@ -199,7 +200,7 @@ export function ActivityCard({
               )}
               <div className="flex items-center gap-3">
                 <Link
-                  href={`/analytics/activity/${encodeURIComponent(name)}`}
+                  href={routes.activity(name)}
                   className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Aktivite Analizi

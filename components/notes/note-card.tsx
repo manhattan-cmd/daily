@@ -12,6 +12,7 @@ import {
   selectedCardClass,
   type EntrySelection,
 } from "@/components/calendar/entry-selection";
+import { routes } from "@/lib/routes";
 
 /** Notların rengi — gün sayfasındaki "Notlar" başlığının ve Ekle menüsünün tonu */
 export const NOTE_COLOR = "#fb7185";
@@ -54,7 +55,7 @@ export function NoteCard({
       {...(selection && !selection.active ? longPress : {})}
     >
       <Link
-        href={`/notes/${note.id}`}
+        href={routes.note(note.id)}
         className="block rounded-2xl border px-2.5 py-2 transition-transform active:scale-[0.99]"
         style={{
           borderColor: `${c}59`,

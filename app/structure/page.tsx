@@ -9,6 +9,7 @@ import { CategoryTile } from "@/components/structure/category-tile";
 import { StructureHeader } from "@/components/structure/structure-header";
 import { ExampleHint } from "@/components/structure/example-hint";
 import { useT } from "@/lib/i18n";
+import { routes } from "@/lib/routes";
 
 export default function StructurePage() {
   const t = useT();
@@ -36,7 +37,7 @@ export default function StructurePage() {
           {categories.map((cat) => (
             <CategoryTile
               key={cat.id}
-              href={`/structure/${cat.id}`}
+              href={routes.structureCategory(cat.id)}
               color={cat.color}
               icon={cat.icon}
               name={cat.name}

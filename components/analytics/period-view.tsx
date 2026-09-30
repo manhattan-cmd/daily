@@ -50,6 +50,7 @@ import { useT } from "@/lib/i18n";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { routes } from "@/lib/routes";
 
 /**
  * Dönem analiz görünümü — herhangi bir zaman penceresinin (gün/hafta/ay/yıl/özel/tümü)
@@ -314,7 +315,7 @@ export function PeriodView({
           description={t("insights.empty.body")}
           action={
             <Button asChild>
-              <Link href={`/calendar/${toLocalDateValue()}`}>
+              <Link href={routes.day(toLocalDateValue())}>
                 <PenLine className="h-4 w-4" />
                 {t("insights.empty.action")}
               </Link>
@@ -376,7 +377,7 @@ export function PeriodView({
             <button
               type="button"
               disabled={!prev}
-              onClick={() => prev && router.push(`/analytics/period/${prev.key}`)}
+              onClick={() => prev && router.push(routes.period(prev.key))}
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
               aria-label={t("insights.previousPeriod")}
             >
@@ -389,7 +390,7 @@ export function PeriodView({
               type="button"
               disabled={nextDisabled}
               onClick={() =>
-                nextP && router.push(`/analytics/period/${nextP.key}`)
+                nextP && router.push(routes.period(nextP.key))
               }
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
               aria-label={t("insights.nextPeriod")}
@@ -434,7 +435,7 @@ export function PeriodView({
               unit="entries"
               caption={computed.seriesFrame?.caption}
               showAllTicks={computed.seriesFrame?.showAllTicks}
-              onSelect={(k) => router.push(`/analytics/period/${k}`)}
+              onSelect={(k) => router.push(routes.period(k))}
             />
           </div>
         )}
@@ -470,7 +471,7 @@ export function PeriodView({
               </h2>
               {/* Zaman penceresinden bağımsız, kategorinin tüm zamanlar analizi */}
               <Link
-                href={`/analytics/${selectedCat.id}`}
+                href={routes.analyticsCategory(selectedCat.id)}
                 prefetch={false}
                 className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
               >

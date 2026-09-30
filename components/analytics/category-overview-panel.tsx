@@ -26,6 +26,7 @@ import { MetricChips } from "./metric-chips";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
 import type { Category, Entry } from "@/types";
+import { routes } from "@/lib/routes";
 
 const DAY_MS = 86400000;
 /** Gelişim karşılaştırma penceresi: son 4 hafta vs önceki 4 hafta */
@@ -495,9 +496,9 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
             }
             onSelect={(subId) =>
               router.push(
-                `/analytics/${category.id}/${subId}?range=tum&metric=${
+                routes.analyticsSub(category.id, subId, `range=tum&metric=${
                   metric.type === "count" ? "count" : metric.mod.id
-                }`
+                }`)
               )
             }
           />

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
+import { CSP_META } from "@/lib/security-policy";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,6 +32,11 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#09090b",
+  // Mobil uygulamada Android içeriği durum çubuğunun altına kadar uzatıyor;
+  // "cover" ile telefon kenar boşluklarını bildiriyor ve pt-safe/pb-safe
+  // sınıfları başlığı ve alt menüyü saatin, çentiğin ve jest çubuğunun
+  // dışında tutuyor. Web'de değişiklik yok.
+  ...(process.env.BUILD_TARGET === "mobile" ? { viewportFit: "cover" as const } : {}),
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -46,6 +52,13 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
       suppressHydrationWarning
     >
+      {/* Mobil uygulamada sunucu yok, başlık gönderilemiyor — güvenlik politikası
+          sayfaya gömülü (bkz. lib/security-policy). Web'de başlık olarak gidiyor. */}
+      {process.env.BUILD_TARGET === "mobile" && (
+        <head>
+          <meta httpEquiv="Content-Security-Policy" content={CSP_META} />
+        </head>
+      )}
       <body className="min-h-dvh bg-background text-foreground">
         <AppShell>{children}</AppShell>
       </body>

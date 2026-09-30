@@ -30,6 +30,7 @@ import { WelcomeCard } from "@/components/dashboard/welcome-card";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import { intlTag, translate, useLocale, useT } from "@/lib/i18n";
+import { routes } from "@/lib/routes";
 
 const WEEKDAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 /** Ana sayfadaki son kayıtlar (girdi + not) */
@@ -91,7 +92,7 @@ export default function HomePage() {
       {/* Bugün — günün özeti + doğrudan girdi ekleme */}
       <section className="mb-4 overflow-hidden rounded-2xl border border-border bg-card">
         <Link
-          href={`/calendar/${today}`}
+          href={routes.day(today)}
           className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-[var(--sf-1)]"
         >
           <div className="min-w-0 flex-1">
@@ -262,7 +263,7 @@ function WeekBar({
 
   return (
     <Link
-      href={`/calendar/${day.date}`}
+      href={routes.day(day.date)}
       prefetch={false}
       aria-label={`${WEEKDAYS_SHORT[dt.getDay()]} ${dt.getDate()} · ${day.count} entries`}
       className="group flex flex-1 flex-col items-center gap-1.5"

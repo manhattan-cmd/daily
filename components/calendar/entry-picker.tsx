@@ -25,6 +25,7 @@ import { usageSince } from "@/lib/usage";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Category, SubCategory } from "@/types";
+import { routes } from "@/lib/routes";
 
 export type NetGroup = {
   category: Category;
@@ -495,8 +496,8 @@ export function EntryPicker({
     focusObj == null
       ? ""
       : focusObj.type === "cat"
-        ? `/structure/${focusObj.cat.id}`
-        : `/structure/${focusObj.sub.categoryId}/${focusObj.sub.id}`;
+        ? routes.structureCategory(focusObj.cat.id)
+        : routes.structureSub(focusObj.sub.categoryId, focusObj.sub.id);
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">

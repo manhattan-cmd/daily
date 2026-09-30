@@ -10,6 +10,7 @@ import {
 } from "@/lib/period";
 import { SectionNav, chipClass } from "@/components/ui/section-nav";
 import { PeriodJump } from "./period-jump";
+import { routes } from "@/lib/routes";
 
 /**
  * Dönem hızlı atlama çipleri — Bugün / Bu Hafta / Bu Ay / Bu Yıl / Tümü + Özel.
@@ -37,7 +38,7 @@ export function PeriodQuickNav({ activeKey }: { activeKey: string }) {
             key={c.key}
             type="button"
             onClick={() =>
-              !active && router.push(c.href || `/analytics/period/${c.key}`)
+              !active && router.push(c.href || routes.period(c.key))
             }
             className={chipClass(active)}
             aria-current={active ? "page" : undefined}

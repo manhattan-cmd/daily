@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useRoutePath } from "@/lib/use-route-path";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import { useT, type MessageKey } from "@/lib/i18n";
  */
 export function StructureHeader({ action }: { action?: React.ReactNode }) {
   const t = useT();
-  const pathname = usePathname();
+  const pathname = useRoutePath();
   const tab = STRUCTURE_TABS.find((x) => x.href === pathname);
   return (
     <PageHeader

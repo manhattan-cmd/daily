@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { EntryType, SubCategory } from "@/types";
+import { routes } from "@/lib/routes";
 
 type SubMods = { name?: string; entryType: EntryType }[];
 type TreeData = {
@@ -469,7 +470,7 @@ function TreeNode({
     <div className="flex flex-col gap-0.5">
       <div className="flex items-center gap-0.5">
         <Link
-          href={`/structure/${categoryId}/${sub.id}`}
+          href={routes.structureSub(categoryId, sub.id)}
           prefetch={false}
           data-drop-sub={sub.id}
           // Bağlantılar varsayılan olarak sürüklenebilir; tarayıcının yerel

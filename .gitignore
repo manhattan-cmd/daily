@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# İmza anahtarları ve parolaları — depo herkese açık, asla commitlenmemeli
+*.jks
+*.keystore
+*.p12
+key.properties
+keystore.properties

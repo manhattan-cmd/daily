@@ -37,6 +37,7 @@ import { useCategoryMetrics } from "./use-category-metrics";
 import { setAnalysisMetric, setAnalysisPath } from "./analysis-selection";
 import { modColor } from "@/lib/mod-color";
 import type { Category, ChartKind, Entry, StatKey, SubCategory } from "@/types";
+import { routes } from "@/lib/routes";
 
 /**
  * Dönem sayfasındaki kategori detayı — kategori metriklerinin donmuş bir zaman
@@ -443,7 +444,7 @@ export function PeriodCategoryPanel({
           {/* Kapsamın tüm zamanlar analizi — kırılım kutusu artık yaprak
               kalemlerde açılmadığı için bağlantı burada durur */}
           <Link
-            href={`/analytics/${category.id}/${focus.id}`}
+            href={routes.analyticsSub(category.id, focus.id)}
             prefetch={false}
             className="flex w-12 shrink-0 flex-col items-center gap-0.5 rounded-lg px-1 text-center text-[10px] font-medium leading-tight text-muted-foreground transition-colors hover:text-foreground"
           >
