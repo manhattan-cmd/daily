@@ -502,7 +502,7 @@ export function EditEntryModal({
           pencereyi artık dokununca yüklüyor, sorgular gelmeden açılırsa önce
           boş görünüp sonra dolardı. Bekleme birkaç on ms. */}
       <Dialog open={open && ready} onOpenChange={onOpenChange}>
-        <DialogContent className={cn(ENTRY_WINDOW, "gap-4")}>
+        <DialogContent className={cn(ENTRY_WINDOW, "gap-5")}>
           {pStep ? (
             /* Perspektif adımı — ekleme akışındaki t("action.saveAndContinue") davranışı */
             <>
@@ -745,7 +745,9 @@ export function EditEntryModal({
             </Link>
           </DialogHeader>
 
-          <div className="flex flex-col gap-4">
+          {/* flex-1: pencere sabit boyda; artan yer not kutusuna gider (aşağıda),
+              not ile Kaydet arasında boşluk kalmaz */}
+          <div className="flex flex-1 flex-col gap-4">
             {/* ── Özellikler: modalın ana gövdesi ── */}
             {rows.map((row) => (
               <ModInput
@@ -957,8 +959,10 @@ export function EditEntryModal({
             )}
 
             {/* ── Not — her zaman altta. Yerleşik akışta o akışın tonunda:
-                 uyku formunun içinde tek başına nötr duran bir kutu kalmasın. ── */}
-            <div className="border-t border-[var(--ln-1)] pt-3">
+                 uyku formunun içinde tek başına nötr duran bir kutu kalmasın.
+                 Pencerede artan yeri doldurur (flex-1): kısa bir girdide
+                 Kaydet'le arasında boşluk yerine daha geniş bir not kutusu. ── */}
+            <div className="flex flex-1 flex-col border-t border-[var(--ln-1)] pt-3">
               <FieldLabel
                 htmlFor="edit-entry-note"
                 icon={NotebookPen}
@@ -974,7 +978,7 @@ export function EditEntryModal({
                 placeholder={t("entry.notePlaceholder")}
                 rows={2}
                 className={cn(
-                  "w-full resize-none rounded-xl border px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring",
+                  "min-h-[64px] w-full flex-1 resize-none rounded-xl border px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring",
                   fieldTone !== "default" && FIELD_TONES[fieldTone].shell,
                   fieldTone === "default" && !fieldColor && "bg-input"
                 )}
