@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
 import { NotebookPen } from "lucide-react";
 import type { Note } from "@/types";
 import { cn, formatDateTime } from "@/lib/utils";
@@ -12,7 +12,7 @@ import {
   selectedCardClass,
   type EntrySelection,
 } from "@/components/calendar/entry-selection";
-import { routes } from "@/lib/routes";
+import { NoteWindow } from "@/components/notes/note-window";
 
 /** Notların rengi — gün sayfasındaki "Notlar" başlığının ve Ekle menüsünün tonu */
 export const NOTE_COLOR = "#fb7185";
@@ -25,7 +25,8 @@ export const NOTE_COLOR = "#fb7185";
  * olsun: kendi rengi, kalem sembolü, başlığın altında "Not" ve saç teli
  * çizginin altında yazılanın ilk satırları. Başlık yoksa ilk satır başlık olur.
  *
- * Dokununca editör açılır. `selection` verilirse basılı tutmak toplu seçimi
+ * Dokununca not penceresi açılır (girdi penceresiyle aynı ölçü — bkz.
+ * NoteWindow); eskiden tam sayfaya gidiyordu. `selection` verilirse basılı tutmak toplu seçimi
  * başlatır; kart bağlantı olduğu için seçim katmanı dış sarmalayıcıda.
  */
 export function NoteCard({
@@ -37,6 +38,7 @@ export function NoteCard({
 }) {
   const t = useT();
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
+  const [open, setOpen] = useState(false);
   const lines = note.blocks
     .flatMap((b) => b.text.split("\n"))
     .map((l) => l.trim())
@@ -47,6 +49,7 @@ export function NoteCard({
   const c = NOTE_COLOR;
 
   return (
+    <>
     <div
       className={cn(
         "relative select-none touch-manipulation rounded-2xl",
@@ -54,9 +57,15 @@ export function NoteCard({
       )}
       {...(selection && !selection.active ? longPress : {})}
     >
-      <Link
-        href={routes.note(note.id)}
-        className="block rounded-2xl border px-2.5 py-2 transition-transform active:scale-[0.99]"
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") setOpen(true);
+        }}
+        aria-label={`${title} — ${t("action.edit")}`}
+        className="block cursor-pointer rounded-2xl border px-2.5 py-2 text-left transition-transform active:scale-[0.99]"
         style={{
           borderColor: `${c}59`,
           background: `linear-gradient(135deg, ${c}24, ${c}0d 45%, transparent), var(--card)`,
@@ -93,7 +102,7 @@ export function NoteCard({
             {preview}
           </p>
         )}
-      </Link>
+      </div>
 
       {selection?.active && (
         <SelectionLayer
@@ -103,5 +112,10 @@ export function NoteCard({
         />
       )}
     </div>
+
+    {/* Kartın DIŞINDA: pencere içindeki basılı tutma React ağacında karta
+        kabarıp toplu seçimi başlatmasın */}
+    <NoteWindow noteId={note.id} open={open} onClose={() => setOpen(false)} />
+    </>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useT } from "@/lib/i18n";
-import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Search, X } from "lucide-react";
 import { createNote, listAllNotes } from "@/lib/db/queries";
@@ -11,9 +10,9 @@ import {
   StructureHeader,
 } from "@/components/structure/structure-header";
 import { NoteCard } from "@/components/notes/note-card";
+import { NoteWindow } from "@/components/notes/note-window";
 import { Input } from "@/components/ui/input";
 import type { Note } from "@/types";
-import { routes } from "@/lib/routes";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -34,7 +33,6 @@ const noteText = (n: Note) =>
 
 export default function StructureNotesPage() {
   const t = useT();
-  const router = useRouter();
   const notes = useLiveQuery(() => listAllNotes(), []);
   const [query, setQuery] = useState("");
 
@@ -49,9 +47,11 @@ export default function StructureNotesPage() {
     else groups.push({ date: n.date, notes: [n] });
   }
 
+  // Yeni not pencerede açılır — kartlardaki notlar gibi
+  const [newNoteId, setNewNoteId] = useState<string | null>(null);
   async function handleNewNote() {
     const note = await createNote(todayStr());
-    router.push(routes.note(note.id));
+    setNewNoteId(note.id);
   }
 
   return (
@@ -120,6 +120,9 @@ export default function StructureNotesPage() {
           </div>
         )}
       </section>
+      {newNoteId && (
+        <NoteWindow noteId={newNoteId} open onClose={() => setNewNoteId(null)} />
+      )}
     </>
   );
 }

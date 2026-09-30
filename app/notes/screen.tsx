@@ -1,21 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { nanoid } from "nanoid";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { confirmDialog } from "@/components/ui/confirm";
-import {
-  deleteNote,
-  discardEmptyNote,
-  getNote,
-  noteIsEmpty,
-  updateNote,
-} from "@/lib/db/queries";
-import type { Note } from "@/types";
 import { routes } from "@/lib/routes";
+import { useNoteDraft } from "@/components/notes/use-note-draft";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -30,11 +21,10 @@ function dateLabel(date: string): string {
   return `${dt.getDate()} ${MONTHS[dt.getMonth()]} ${WEEKDAYS_LONG[dt.getDay()]}`;
 }
 
-/** Notun gövdesi tek metin — eski notların paragraf blokları satırlarla birleşir */
-const bodyOf = (n: Note) => n.blocks.map((b) => b.text).join("\n");
 
 /**
- * Not editörü — başlık ve düz metin, o kadar.
+ * Not sayfası — eski bağlantılar için duruyor. Notlar artık pencerede
+ * açılıyor (NoteWindow); ikisi aynı mantığı kullanıyor (useNoteDraft).
  *
  * İlk aşama için sadeleştirildi: önceki sürüm bir wiki gibiydi (kelimeden
  * not/girdi bağı, bağ önerileri, takma adlar, geri bağlantılar, hayat
@@ -52,42 +42,17 @@ export function NoteEditorPage({
   const t = useT();
   const { noteId } = params;
   const router = useRouter();
-  // undefined: yükleniyor, null: bulunamadı
-  const [loaded, setLoaded] = useState<Note | null | undefined>(undefined);
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [dirty, setDirty] = useState(false);
+  const { loaded, title, setTitle, body, setBody, finish, remove } =
+    useNoteDraft(noteId);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
-  // DB'den bir kez yüklenir — canlı sorgu yazarken imleci zıplatırdı
-  useEffect(() => {
-    getNote(noteId).then((n) => {
-      setLoaded(n ?? null);
-      if (!n) return;
-      setTitle(n.title ?? "");
-      setBody(bodyOf(n));
-    });
-  }, [noteId]);
-
   // Yeni (boş) not doğrudan yazmaya açılır
+  const isEmpty = !!loaded && !title && !body;
   useEffect(() => {
-    if (loaded && noteIsEmpty(loaded)) bodyRef.current?.focus();
-  }, [loaded]);
-
-  const blocksOf = (text: string) => [
-    { id: loaded?.blocks[0]?.id ?? nanoid(12), text },
-  ];
-
-  // Yazdıkça kaydedilir (400ms sessizlikten sonra)
-  useEffect(() => {
-    if (!loaded || !dirty) return;
-    const timer = setTimeout(() => {
-      updateNote(noteId, { title, blocks: blocksOf(body) });
-    }, 400);
-    return () => clearTimeout(timer);
-    // blocksOf yalnız loaded'a bağlı
+    if (isEmpty) bodyRef.current?.focus();
+    // yalnız yüklendiği an
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [noteId, loaded, dirty, title, body]);
+  }, [loaded]);
 
   // Gövde yazdıkça uzar — sayfa kayar, kutunun içi değil
   useEffect(() => {
@@ -102,25 +67,13 @@ export function NoteEditorPage({
       router.push("/calendar");
       return;
     }
-    const current: Note = { ...loaded, title, blocks: blocksOf(body) };
-    // Boş bırakılan not saklanmaz. Önce son hali yazılır: bekleyen otomatik
-    // kayıt notu doldurmuşken sonradan boşaltılmışsa DB'deki eski dolu hali
-    // yüzünden atılmazdı.
-    if (dirty) await updateNote(noteId, { title, blocks: current.blocks });
-    if (noteIsEmpty(current)) await discardEmptyNote(noteId);
+    await finish();
     router.back();
   }
 
   async function handleDelete() {
     if (!loaded) return;
-    const ok = await confirmDialog({
-      title: t("confirm.deleteNote"),
-      body: t("confirm.deleteNoteBody"),
-      destructive: true,
-    });
-    if (!ok) return;
-    await deleteNote(noteId);
-    router.push(routes.day(loaded.date));
+    if (await remove()) router.push(routes.day(loaded.date));
   }
 
   if (loaded === undefined) return null;
@@ -160,10 +113,7 @@ export function NoteEditorPage({
 
       <input
         value={title}
-        onChange={(e) => {
-          setTitle(e.target.value);
-          setDirty(true);
-        }}
+        onChange={(e) => setTitle(e.target.value)}
         placeholder={t("note.title")}
         className="mb-3 w-full bg-transparent text-2xl font-bold tracking-tight outline-none placeholder:text-muted-foreground/30"
         onKeyDown={(e) => {
@@ -178,10 +128,7 @@ export function NoteEditorPage({
       <textarea
         ref={bodyRef}
         value={body}
-        onChange={(e) => {
-          setBody(e.target.value);
-          setDirty(true);
-        }}
+        onChange={(e) => setBody(e.target.value)}
         placeholder={t("note.placeholder")}
         rows={6}
         className="mb-28 w-full resize-none overflow-hidden bg-transparent text-[15px] leading-relaxed text-foreground/90 outline-none placeholder:text-muted-foreground/40"

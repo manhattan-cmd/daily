@@ -20,6 +20,7 @@ import {
   moveDayItems,
 } from "@/lib/db/day-items";
 import { NoteCard } from "@/components/notes/note-card";
+import { NoteWindow } from "@/components/notes/note-window";
 import { EntryCard } from "@/components/dashboard/entry-card";
 import { LinkedEntryCard } from "@/components/dashboard/linked-entry-card";
 import { GoalCard } from "@/components/goals/goal-card";
@@ -112,6 +113,8 @@ export function CalendarDayPage({
   const [goalSheetOpen, setGoalSheetOpen] = useState(false);
   const [sleepSheetOpen, setSleepSheetOpen] = useState(false);
   const [moodSheetOpen, setMoodSheetOpen] = useState(false);
+  // Ekle → Not ile açılan yeni notun penceresi
+  const [newNoteId, setNewNoteId] = useState<string | null>(null);
   // Toplu seçim — null: mod kapalı. Kart bazlı seçilir, girdi id'si tutulur.
   const [selected, setSelected] = useState<Set<string> | null>(null);
 
@@ -298,9 +301,10 @@ export function CalendarDayPage({
                 label: t("add.note"),
                 icon: NotebookPen,
                 iconClass: "text-rose-400",
+                // Yeni not da diğer kayıtlar gibi pencerede açılır
                 onSelect: async () => {
                   const note = await createNote(date);
-                  router.push(routes.note(note.id));
+                  setNewNoteId(note.id);
                 },
               },
               ...(hasSleepCategory
@@ -534,6 +538,10 @@ export function CalendarDayPage({
         open={sleepSheetOpen}
         onClose={() => setSleepSheetOpen(false)}
       />
+
+      {newNoteId && (
+        <NoteWindow noteId={newNoteId} open onClose={() => setNewNoteId(null)} />
+      )}
 
       <MoodSheet
         date={date}

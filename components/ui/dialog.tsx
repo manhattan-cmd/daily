@@ -47,11 +47,17 @@ DialogOverlay.displayName = "DialogOverlay";
 export const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, onInteractOutside, ...props }, ref) => (
+>(({ className, children, onInteractOutside, ...props }, ref) => {
+  // Kendi karartması — yalnız ONA dokunmak bu pencereyi kapatır. Üst üste iki
+  // pencerede (ör. hedef penceresi + özellik seçici) üstteki karartmaya
+  // dokunmak alttakini de kapatmasın.
+  const overlayRef = React.useRef<HTMLDivElement>(null);
+  return (
   <DialogPortal>
     {/* Kipsiz Radix kendi karartmasını çizmiyor (bkz. Dialog). Dokununca
         pencere kapanır: karartma pencerenin dışı sayılıyor. */}
     <div
+      ref={overlayRef}
       aria-hidden
       data-dialog-overlay=""
       className="animate-in fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
@@ -76,8 +82,7 @@ export const DialogContent = React.forwardRef<
       onInteractOutside={(e) => {
         onInteractOutside?.(e);
         if (e.defaultPrevented) return;
-        const target = e.target as Element | null;
-        if (!target?.closest?.("[data-dialog-overlay]")) e.preventDefault();
+        if (e.target !== overlayRef.current) e.preventDefault();
       }}
     >
       {children}
@@ -87,7 +92,8 @@ export const DialogContent = React.forwardRef<
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
-));
+  );
+});
 DialogContent.displayName = "DialogContent";
 
 export const DialogHeader = ({

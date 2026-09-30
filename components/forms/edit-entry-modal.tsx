@@ -28,6 +28,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ENTRY_WINDOW, ENTRY_WINDOW_FOOTER } from "@/components/ui/entry-window";
 import { Input } from "@/components/ui/input";
 import { db } from "@/lib/db";
 import {
@@ -501,7 +502,7 @@ export function EditEntryModal({
           pencereyi artık dokununca yüklüyor, sorgular gelmeden açılırsa önce
           boş görünüp sonra dolardı. Bekleme birkaç on ms. */}
       <Dialog open={open && ready} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto gap-5">
+        <DialogContent className={cn(ENTRY_WINDOW, "gap-5")}>
           {pStep ? (
             /* Perspektif adımı — ekleme akışındaki t("action.saveAndContinue") davranışı */
             <>
@@ -582,7 +583,7 @@ export function EditEntryModal({
                 )}
               </div>
 
-              <DialogFooter>
+              <DialogFooter className={ENTRY_WINDOW_FOOTER}>
                 <Button
                   variant="outline"
                   disabled={pSaving}
@@ -631,7 +632,7 @@ export function EditEntryModal({
                 }
               />
 
-              <DialogFooter>
+              <DialogFooter className={ENTRY_WINDOW_FOOTER}>
                 <Button
                   variant="outline"
                   onClick={() => setPickerView(false)}
@@ -989,7 +990,7 @@ export function EditEntryModal({
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className={ENTRY_WINDOW_FOOTER}>
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
