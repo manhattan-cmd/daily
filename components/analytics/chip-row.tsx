@@ -24,6 +24,8 @@ export interface ChipItem {
   /** Dönemde verisi yok — sönük çizilir ama seçilebilir */
   dim?: boolean;
   onPick: () => void;
+  /** Parmak değdiği an (seçimden önce) — ör. verisini önden okumaya başla */
+  onPress?: () => void;
 }
 
 export function ChipRow({ items }: { items: ChipItem[] }) {
@@ -72,6 +74,7 @@ export function ChipRow({ items }: { items: ChipItem[] }) {
             data-chip={c.key}
             data-active={c.active}
             aria-pressed={c.active}
+            onPointerDown={c.onPress}
             onClick={() => {
               if (!c.active) c.onPick();
             }}

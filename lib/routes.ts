@@ -36,6 +36,8 @@ export const routes = {
     `/analytics/sub?${q({ cat: categoryId, id: subcategoryId }, extra)}`,
   /** Analiz: bir aktivitenin geçmişi */
   activity: (name: string) => `/analytics/activity?${q({ name })}`,
-  /** Analiz: dönem görünümü — anahtar lib/period biçiminde ("m-2026-09") */
-  period: (key: string) => `/analytics/period?${q({ key })}`,
+  /** Analiz: dönem görünümü — anahtar lib/period biçiminde ("m-2026-09").
+   *  Bütün dönemler Analiz'in kendi sayfasında: dönemden döneme geçmek sayfa
+   *  değiştirmesin, görünüm baştan kurulmasın (bkz. app/analytics/page). */
+  period: (key: string) => `/analytics?${q({ key })}`,
 };

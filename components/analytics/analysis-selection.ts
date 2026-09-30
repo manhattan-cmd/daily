@@ -4,7 +4,8 @@ import type { SubCategory } from "@/types";
  * Analizde bakılan yer — dönem değişse de korunur.
  *
  * Dönem çipleri ve önceki/sonraki okları başka bir sayfaya gidiyor
- * (/analytics ↔ /analytics/period/…); sayfa değişince bileşen durumu da
+ * (eskiden /analytics ↔ /analytics/period; artık tek sayfa ama kategori
+ * paneli yine baştan kuruluyor); sayfa değişince bileşen durumu da
  * gidiyordu. "İş › Süre"ye bakarken haftadan aya geçen kişi aynı soruyu başka
  * bir pencerede sormak istiyor, baştan seçmek değil.
  *

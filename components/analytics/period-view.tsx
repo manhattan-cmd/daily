@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -26,11 +26,18 @@ import {
   type SeriesFrame,
 } from "@/lib/analytics";
 import {
+  allPeriod,
+  dayPeriod,
+  monthPeriod,
   periodProgress,
   periodShortLabel,
   shiftPeriod,
+  weekPeriod,
+  yearPeriod,
   type Period,
 } from "@/lib/period";
+import { prefetchPeriod, usePeriodData } from "@/components/analytics/period-data";
+import { whenIdle } from "@/lib/db/day-cache";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatTile } from "@/components/analytics/stat-tile";
 import { DailyBarChart } from "@/components/analytics/daily-bar-chart";
@@ -40,7 +47,12 @@ import {
   type EntryListRow,
 } from "@/components/analytics/entry-list";
 import { PeriodQuickNav } from "@/components/analytics/period-quick-nav";
-import { PeriodCategoryPanel } from "@/components/analytics/period-category-panel";
+import {
+  PeriodCategoryPanel,
+  panelWindow,
+} from "@/components/analytics/period-category-panel";
+import { prefetchCategoryMetrics } from "@/components/analytics/use-category-metrics";
+import { useExcludeRegular } from "@/components/analytics/regular-toggle";
 import {
   getAnalysisSelection,
   selectAnalysisCategory,
@@ -55,13 +67,13 @@ import { routes } from "@/lib/routes";
 
 /**
  * Dönem analiz görünümü — herhangi bir zaman penceresinin (gün/hafta/ay/yıl/özel/tümü)
- * tüm kategorileri kapsayan analizi. Hem /analytics (içinde bulunulan hafta, default)
- * hem /analytics/period/[periodKey] bunu render eder. Seri grafiği alt dönemlere
- * tıklanarak inilir (yıl → ay → hafta → gün); ay serisi haftalardan oluşur.
+ * tüm kategorileri kapsayan analizi. /analytics (içinde bulunulan hafta, default) ve
+ * /analytics?key=… (herhangi bir dönem) — aynı sayfa, görünüm dönemler arasında
+ * yerinde kalır. Seri grafiği alt dönemlere tıklanarak inilir (yıl → ay → hafta → gün); ay serisi haftalardan oluşur.
  * Devam eden dönemlerde seri bugünde kırpılır ve t("insights.soFar") rozeti gösterilir.
  */
 export function PeriodView({
-  period,
+  period: requestedPeriod,
   title,
   back,
   initialCatId,
@@ -76,6 +88,11 @@ export function PeriodView({
 }) {
   const t = useT();
   const router = useRouter();
+  // Ekranda gösterilen dönem VERİNİN dönemi: yeni dönemin verisi gelene kadar
+  // önceki dönem kendi başlığı ve rakamlarıyla tutarlı durur, sonra tek karede
+  // geçilir — iskelet ya da karışık bir ara görüntü yok (bkz. period-data).
+  const data = usePeriodData(requestedPeriod);
+  const period = data?.period ?? requestedPeriod;
   // Başka dönemden gelindiyse orada bakılan kategori taşınır (bkz.
   // analysis-selection); URL'deki ?cat her zaman önce gelir
   const [selectedCatId, setSelectedCatId] = useState<string | null>(
@@ -100,17 +117,6 @@ export function PeriodView({
   /** Uygulamada hiç girdi var mı — dönemden bağımsız */
   const totalEntries = useLiveQuery(() => db.entries.count(), []);
 
-  const data = useLiveQuery(async () => {
-    const [cats, subs, entries] = await Promise.all([
-      db.categories.orderBy("order").toArray(),
-      db.subcategories.toArray(),
-      db.entries
-        .where("occurredAt")
-        .between(period.start, period.end, true, false)
-        .toArray(),
-    ]);
-    return { cats, subs, entries };
-  }, [period.key]);
 
   const computed = useMemo(() => {
     if (!data) return null;
@@ -234,6 +240,24 @@ export function PeriodView({
   // Tamamen gelecekte kalan döneme gitmek anlamsız
   const nextDisabled = !nextP || nextP.start > new Date().getTime();
 
+  // Gidilebilecek dönemleri boşta önceden oku — hızlı çipler (bugün, bu hafta,
+  // bu ay, bu yıl, tümü) ve önceki/sonraki dönem. Geçiş anında olsun.
+  const prevKey = prev?.key;
+  const nextKey = nextDisabled ? undefined : nextP?.key;
+  useEffect(
+    () =>
+      whenIdle(async () => {
+        const now = Date.now();
+        const targets = [dayPeriod(now), weekPeriod(now), monthPeriod(now), yearPeriod(now), allPeriod()];
+        if (prev) targets.push(prev);
+        if (nextKey && nextP) targets.push(nextP);
+        for (const p of targets) await prefetchPeriod(p);
+      }),
+    // prev/nextP her çizimde yeni nesne; kimlikleri anahtar
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [period.key, prevKey, nextKey]
+  );
+
   // Varsayılan kategori: dönemde en çok girdisi olan; hiç girdi yoksa ilk kategori
   let topShareCatId: string | null = null;
   if (computed) {
@@ -283,6 +307,33 @@ export function PeriodView({
     }
     return kept;
   }, [carried, data]);
+
+  // Kategori panelinin verisi: dönemde girdisi olan kategoriler boşta, dokunulan
+  // kategori parmak değdiği an önden okunur — kategoriler arasında gezerken
+  // panel boşalıp yeniden dolmasın (bkz. use-category-metrics önbelleği)
+  const [excludeRegular] = useExcludeRegular();
+  const win = panelWindow(period);
+  const panelParams = (categoryId: string) => ({
+    categoryId,
+    fetchStart: win.start,
+    fetchEnd: win.end,
+    excludeRegular,
+  });
+  const activeCatIds = (computed?.catShare ?? [])
+    .filter((r) => r.value > 0)
+    .map((r) => r.id)
+    .join(",");
+  useEffect(
+    () =>
+      whenIdle(async () => {
+        for (const id of activeCatIds.split(",")) {
+          if (id) await prefetchCategoryMetrics(panelParams(id));
+        }
+      }),
+    // panelParams yalnız bu üçüne bağlı
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeCatIds, win.start, win.end, excludeRegular]
+  );
 
   // Kategori detayı çipleri — dönemde en çok girdisi olan başa; girdisi
   // olmayanlar (yapı sırasını koruyarak) sona, sayısı olmadan sönük görünür
@@ -336,7 +387,7 @@ export function PeriodView({
           description={t("insights.period")}
           back={back}
         />
-        <PeriodQuickNav activeKey={period.key} />
+        <PeriodQuickNav activeKey={requestedPeriod.key} />
         <div className="flex flex-col gap-4 pb-6">
           <div className="grid grid-cols-3 gap-2">
             <Skeleton className="h-[76px] rounded-2xl" />
@@ -369,7 +420,7 @@ export function PeriodView({
 
       {/* Hızlı atlama çipleri — Yapı sekmeleriyle aynı yerde: başlığın hemen
           altında, içerik akışının dışında */}
-      <PeriodQuickNav activeKey={period.key} />
+      <PeriodQuickNav activeKey={requestedPeriod.key} />
 
       <div className="flex flex-col gap-4 pb-6">
         {/* Dönem gezintisi: ◀ önceki · etiket · sonraki ▶ (Tümü'nde yön yok) */}
@@ -489,6 +540,7 @@ export function PeriodView({
                 count,
                 dim: count === 0,
                 onPick: () => pickCat(c.id),
+                onPress: () => void prefetchCategoryMetrics(panelParams(c.id)),
               }))}
             />
 

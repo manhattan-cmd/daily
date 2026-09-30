@@ -146,65 +146,45 @@ export interface MetricCompute {
  * ilk mod; URL'den initialMetricId gelirse o) ve girdi kümeleri üzerinde
  * toplama fonksiyonlarını sunar. Panellere kalan: pencere/kova kurgusu ve yerleşim.
  */
-export function useCategoryMetrics({
-  category,
+export interface CategoryMetricsParams {
+  categoryId: string;
+  rootSubId?: string;
+  fetchStart: number;
+  fetchEnd?: number;
+  excludeRegular: boolean;
+}
+
+const metricsKeyOf = (p: CategoryMetricsParams) =>
+  `${p.categoryId}|${p.rootSubId ?? ""}|${p.fetchStart}|${p.fetchEnd ?? ""}|${p.excludeRegular ? 1 : 0}`;
+
+/**
+ * Kapsamın son bilinen verisi — kategori değişince panel boşalmasın diye.
+ * Bir dönemin sayfasında en fazla birkaç düzine kapsam dolaşılıyor; sınır
+ * bellek şişmesin diye.
+ */
+const metricsCache = new Map<string, CategoryMetricsData | null>();
+const METRICS_CACHE_MAX = 40;
+const _set = metricsCache.set.bind(metricsCache);
+metricsCache.set = (k, v) => {
+  metricsCache.delete(k);
+  _set(k, v);
+  while (metricsCache.size > METRICS_CACHE_MAX) metricsCache.delete(metricsCache.keys().next().value!);
+  return metricsCache;
+};
+
+/** Bir kapsamın (kategori ya da alt ağaç, zaman penceresi) analiz verisi */
+export async function loadCategoryMetrics({
+  categoryId,
   rootSubId,
   fetchStart,
   fetchEnd,
-  initialMetricId,
-  preferredMetricId,
-  resetKey,
-  excludeRegular = false,
-}: {
-  category: Category;
-  /** Verilirse kapsam bu alt kategorinin alt ağacı; yoksa tüm kategori */
-  rootSubId?: string;
-  /** Girdi sorgusunun alt sınırı (dahil) */
-  fetchStart: number;
-  /** Girdi sorgusunun üst sınırı (hariç); yoksa sınırsız */
-  fetchEnd?: number;
-  /** URL'den gelen başlangıç metriği: "count" ya da mod id'si */
-  initialMetricId?: string;
-  /** Başka dönemden taşınan seçim: bu kapsamda verisi varsa o, yoksa
-   *  varsayılan. initialMetricId'den farkı bulunamayınca "Girdi"ye düşmemesi */
-  preferredMetricId?: string;
-  /** Değiştiğinde metrik seçimi sıfırlanır (örn. kategori değişimi) */
-  resetKey: string;
-  /** Düzenli/sabit işaretli alt ağaçların girdilerini pencereden çıkar */
-  excludeRegular?: boolean;
-}) {
-  const t = useT();
-  // null = kullanıcı henüz seçmedi → varsayılan render sırasında senkron türetilir,
-  // effect'le sonradan set edilirse "Girdi" bir an seçili görünüp titreme yaratıyor
-  const [metricChoice, setMetricChoice] = useState<Metric | null>(null);
-  // Çoktan seçmelide seriyi süzen seçenek; null = tüm girdiler
-  const [choiceFilter, setChoiceFilter] = useState<string | null>(null);
-  // Tercihin yazılacağı yer: alt kaleme bakılıyorsa o kalem, yoksa kategori
-  const scopeType: "category" | "subcategory" = rootSubId
-    ? "subcategory"
-    : "category";
-  const scopeId = rootSubId ?? category.id;
-
-  // Kapsam değişiminde seçimi render sırasında sıfırla (remount'suz geçişler için)
-  const [prevResetKey, setPrevResetKey] = useState(resetKey);
-  if (prevResetKey !== resetKey) {
-    setPrevResetKey(resetKey);
-    setMetricChoice(null);
-    setChoiceFilter(null);
-  }
-  // Seçenek süzgeci kapsama bağlı: başka kalemde o seçenek hiç olmayabilir,
-  // seri boş kalırdı. Özellik seçimi ise kapsamlar arasında korunur.
-  const [prevRootSubId, setPrevRootSubId] = useState(rootSubId);
-  if (prevRootSubId !== rootSubId) {
-    setPrevRootSubId(rootSubId);
-    setChoiceFilter(null);
-  }
-
-  const data = useLiveQuery(async (): Promise<CategoryMetricsData | null> => {
-    // (kapsam yukarıda hesaplandı)
+  excludeRegular,
+}: CategoryMetricsParams): Promise<CategoryMetricsData | null> {
+  const scopeType: "category" | "subcategory" = rootSubId ? "subcategory" : "category";
+  const scopeId = rootSubId ?? categoryId;
     const allSubs = await db.subcategories
       .where("categoryId")
-      .equals(category.id)
+      .equals(categoryId)
       .toArray();
     const subById = new Map(allSubs.map((s) => [s.id, s]));
 
@@ -322,7 +302,97 @@ export function useCategoryMetrics({
       regularSubNames,
       excludedEntryCount,
     };
-  }, [category.id, rootSubId, fetchStart, fetchEnd, excludeRegular]);
+}
+
+/**
+ * Kapsamı arka planda önbelleğe al — kategori çipine parmak değince ya da
+ * sayfa boşken. Zaten varsa dokunmaz.
+ */
+export async function prefetchCategoryMetrics(p: CategoryMetricsParams): Promise<void> {
+  const key = metricsKeyOf(p);
+  if (metricsCache.has(key)) return;
+  try {
+    metricsCache.set(key, await loadCategoryMetrics(p));
+  } catch {
+    // önden okuma başarısızsa panel kendisi okuyacak
+  }
+}
+
+export function useCategoryMetrics({
+  category,
+  rootSubId,
+  fetchStart,
+  fetchEnd,
+  initialMetricId,
+  preferredMetricId,
+  resetKey,
+  excludeRegular = false,
+}: {
+  category: Category;
+  /** Verilirse kapsam bu alt kategorinin alt ağacı; yoksa tüm kategori */
+  rootSubId?: string;
+  /** Girdi sorgusunun alt sınırı (dahil) */
+  fetchStart: number;
+  /** Girdi sorgusunun üst sınırı (hariç); yoksa sınırsız */
+  fetchEnd?: number;
+  /** URL'den gelen başlangıç metriği: "count" ya da mod id'si */
+  initialMetricId?: string;
+  /** Başka dönemden taşınan seçim: bu kapsamda verisi varsa o, yoksa
+   *  varsayılan. initialMetricId'den farkı bulunamayınca "Girdi"ye düşmemesi */
+  preferredMetricId?: string;
+  /** Değiştiğinde metrik seçimi sıfırlanır (örn. kategori değişimi) */
+  resetKey: string;
+  /** Düzenli/sabit işaretli alt ağaçların girdilerini pencereden çıkar */
+  excludeRegular?: boolean;
+}) {
+  const t = useT();
+  // null = kullanıcı henüz seçmedi → varsayılan render sırasında senkron türetilir,
+  // effect'le sonradan set edilirse "Girdi" bir an seçili görünüp titreme yaratıyor
+  const [metricChoice, setMetricChoice] = useState<Metric | null>(null);
+  // Çoktan seçmelide seriyi süzen seçenek; null = tüm girdiler
+  const [choiceFilter, setChoiceFilter] = useState<string | null>(null);
+  // Tercihin yazılacağı yer: alt kaleme bakılıyorsa o kalem, yoksa kategori
+  const scopeType: "category" | "subcategory" = rootSubId
+    ? "subcategory"
+    : "category";
+  const scopeId = rootSubId ?? category.id;
+
+  // Kapsam değişiminde seçimi render sırasında sıfırla (remount'suz geçişler için)
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
+  if (prevResetKey !== resetKey) {
+    setPrevResetKey(resetKey);
+    setMetricChoice(null);
+    setChoiceFilter(null);
+  }
+  // Seçenek süzgeci kapsama bağlı: başka kalemde o seçenek hiç olmayabilir,
+  // seri boş kalırdı. Özellik seçimi ise kapsamlar arasında korunur.
+  const [prevRootSubId, setPrevRootSubId] = useState(rootSubId);
+  if (prevRootSubId !== rootSubId) {
+    setPrevRootSubId(rootSubId);
+    setChoiceFilter(null);
+  }
+
+  // Önbellekli: panel kategori değişince baştan kuruluyor; son sonuç
+  // hafızadaysa ilk karede o çizilir, panel boşalıp yeniden dolmaz
+  // (bkz. loadCategoryMetrics). Taze sonuç gelince sessizce güncellenir.
+  const metricsParams = {
+    categoryId: category.id,
+    rootSubId,
+    fetchStart,
+    fetchEnd,
+    excludeRegular,
+  };
+  const metricsKey = metricsKeyOf(metricsParams);
+  const data = useLiveQuery(
+    async () => {
+      const v = await loadCategoryMetrics(metricsParams);
+      metricsCache.set(metricsKey, v);
+      return v;
+    },
+    // metricsParams her çizimde yeni nesne; anahtar onun özeti
+    [metricsKey],
+    metricsCache.get(metricsKey)
+  );
 
   // Varsayılan metrik: URL'den gelen mod; yoksa listedeki ilk mod
   // ("Girdi" yalnızca URL "count" derse ya da hiç mod yoksa varsayılan)

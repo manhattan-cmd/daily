@@ -1,27 +1,27 @@
 "use client";
 
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import { PeriodAnalyticsPage } from "./screen";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { routes } from "@/lib/routes";
 
 /**
- * Analiz: dönem — /analytics/period?key=…
- *
- * Kimlik yolda değil sorguda: statik çıktı (mobil uygulama) önceden
- * bilinmeyen yol parçalarını kabul etmiyor (bkz. lib/routes). Ekran
- * kimliğe göre anahtarlanıyor — başka bir kayda geçince eskiden olduğu gibi
- * baştan kuruluyor, önceki kaydın açık penceresi ya da seçimi taşınmıyor.
+ * Eski dönem adresi (/analytics/period?key=…) — artık dönemler Analiz'in
+ * kendi sayfasında (/analytics?key=…). Kayıtlı eski bağlantılar çalışsın
+ * diye yönlendirir; geri tuşu buraya düşmesin diye replace.
  */
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <Route />
+      <Redirect />
     </Suspense>
   );
 }
 
-function Route() {
-  const q = useSearchParams();
-  const periodKey = q.get("key") ?? "";
-  return <PeriodAnalyticsPage key={`${periodKey}`} params={{ periodKey }} />;
+function Redirect() {
+  const router = useRouter();
+  const key = useSearchParams().get("key") ?? "";
+  useEffect(() => {
+    router.replace(key ? routes.period(key) : "/analytics");
+  }, [router, key]);
+  return null;
 }

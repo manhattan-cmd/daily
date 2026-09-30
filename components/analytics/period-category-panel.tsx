@@ -45,6 +45,19 @@ import { routes } from "@/lib/routes";
  * günlük ortalama geçen gün sayısına bölünür ("perşembe günü 4 güne böl");
  * gün dönemlerinde o günü kapsayan haftanın günlük ortalamasıyla karşılaştırılır.
  */
+/**
+ * Panelin veri penceresi — gün dönemlerinde o günü kapsayan hafta (hafta
+ * bağlamı için), diğerlerinde dönemin kendisi. Panel ve önden okuma
+ * (PeriodView) AYNI pencereyi kullanmalı, yoksa önbellek anahtarı tutmaz.
+ */
+export function panelWindow(period: Period): { start: number; end: number } {
+  if (period.kind === "day") {
+    const w = weekPeriod(period.start);
+    return { start: w.start, end: w.end };
+  }
+  return { start: period.start, end: period.end };
+}
+
 export function PeriodCategoryPanel({
   category,
   period,
@@ -90,8 +103,8 @@ export function PeriodCategoryPanel({
   } = useCategoryMetrics({
     category,
     rootSubId: focus?.id,
-    fetchStart: containingWeek ? containingWeek.start : period.start,
-    fetchEnd: containingWeek ? containingWeek.end : period.end,
+    fetchStart: panelWindow(period).start,
+    fetchEnd: panelWindow(period).end,
     // Kırılımda inip çıkmak özellik seçimini SIFIRLAMAZ: "Öğrenme › Süre"ye
     // bakan kişi Okuma'ya bastığında Okuma'nın süresini görmek istiyor.
     // İnilen kalemde o özellik yoksa geçici olarak varsayılan gösterilir,

@@ -1,15 +1,19 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { weekPeriod } from "@/lib/period";
+import { parsePeriodKey, weekPeriod } from "@/lib/period";
 import { PeriodView } from "@/components/analytics/period-view";
 import { useT } from "@/lib/i18n";
 
 /**
- * Analiz sekmesinin kökü — default görünüm içinde bulunulan haftanın dönem
- * analizidir ("hafta tamamlanmadıysa şu ana kadar ne durumdayız" vizyonu).
- * Diğer pencerelere üstteki hızlı çipler ve seri drill-down'ı ile gidilir.
+ * Analiz sekmesi — bütün dönemler BU sayfada: /analytics (içinde bulunulan
+ * hafta) ve /analytics?key=… (herhangi bir dönem).
+ *
+ * Dönemler eskiden ayrı bir sayfadaydı (/analytics/period); bu haftadan aya
+ * geçmek sayfa değiştirmek demekti ve görünüm baştan kurulup yükleme
+ * iskeletine dönüyordu ("açılıp kapanıp yeniden açılıyor"). Tek sayfada
+ * görünüm yerinde kalıyor, yalnız verisi değişiyor (bkz. period-data).
  */
 export default function AnalyticsPage() {
   return (
@@ -24,10 +28,19 @@ function AnalyticsPageContent() {
   const searchParams = useSearchParams();
   // Alt kategori detayından geri dönüşte seçili kategori korunur (?cat=)
   const initialCatId = searchParams.get("cat");
+  const key = searchParams.get("key");
   // Sekme açık kaldığı sürece hafta sabit — lazy init, render başına yeniden hesaplanmaz
-  const [period] = useState(() => weekPeriod(Date.now()));
+  const [week] = useState(() => weekPeriod(Date.now()));
+  // Tanınmayan anahtar içinde bulunulan haftaya düşer
+  const period = useMemo(() => (key && parsePeriodKey(key)) || week, [key, week]);
+  const isDefault = period.key === week.key;
 
   return (
-    <PeriodView period={period} title={t("insights.title")} initialCatId={initialCatId} />
+    <PeriodView
+      period={period}
+      title={isDefault ? t("insights.title") : undefined}
+      back={isDefault ? undefined : "/analytics"}
+      initialCatId={initialCatId}
+    />
   );
 }

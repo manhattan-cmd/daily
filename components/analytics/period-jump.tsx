@@ -26,7 +26,7 @@ function parseInputDate(v: string): Date | null {
 
 /**
  * Özel dönem seçici — hızlı kısayollar (dün, geçen hafta...) ya da serbest
- * tarih aralığıyla /analytics/period/[key] dönem analiz sayfasına gider.
+ * tarih aralığıyla /analytics?key=… dönem analizine gider.
  * align: panelin butona göre hizası — buton ekranın ortasındaysa (dönem
  * sayfası gezinti satırı) "center" verilmeli, yoksa panel soldan taşar.
  */
