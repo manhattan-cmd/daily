@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { useSheetPresence } from "@/lib/use-sheet-presence";
+import { ENTRY_WINDOW } from "@/components/ui/entry-window";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface SleepSheetProps {
   date: string;
@@ -110,37 +112,24 @@ function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className={cn(
-          "fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px] transition-opacity duration-300",
-          open ? "opacity-100" : "opacity-0 pointer-events-none"
-        )}
-        onClick={onClose}
-      />
+      {/* Standart kayıt penceresi (bkz. entry-window): eskiden alttan açılan
+          bir yüzeydi; Ekle menüsündeki pencereler kart pencereleriyle aynı.
+          Kendi kapatma düğmesi başlıkta — standart çarpı gizli. */}
+      <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+        <DialogContent
+          hideClose
+          aria-describedby={undefined}
+          className={cn(ENTRY_WINDOW, "gap-0 overflow-hidden p-0")}
+        >
 
-      {/* Sheet */}
-      <div
-        className={cn(
-          "fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[390px]",
-          "flex flex-col rounded-t-3xl bg-background border-t border-[var(--ln-2)]",
-          "shadow-[0_-8px_40px_rgba(0,0,0,0.6)]",
-          "transition-transform duration-300 ease-out",
-          "max-h-[80vh]",
-          open ? "translate-y-0" : "translate-y-full"
-        )}
-      >
-        <div className="flex justify-center pt-3 pb-1 shrink-0">
-          <div className="h-[3px] w-10 rounded-full bg-[var(--sf-4)]" />
-        </div>
 
-        <div className="flex items-center gap-3 px-5 pt-2 pb-4 shrink-0">
+        <div className="flex items-center gap-3 px-5 pt-5 pb-4 shrink-0">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/15">
             <MoonStar className="h-4.5 w-4.5 text-violet-300" />
           </span>
-          <h2 className="flex-1 text-base font-semibold tracking-tight">
+          <DialogTitle className="flex-1 text-base font-semibold tracking-tight">
             {t("sleep.add")}
-          </h2>
+          </DialogTitle>
           <button
             onClick={onClose}
             className="h-7 w-7 flex items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground hover:bg-[var(--sf-4)] transition-colors"
@@ -150,7 +139,7 @@ function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-6 flex flex-col gap-5">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-6 flex flex-col gap-5">
           {target === null ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               {t("sleep.notFound")}
@@ -200,7 +189,8 @@ function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
             {saving ? t("entry.saving") : t("action.save")}
           </Button>
         </div>
-      </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

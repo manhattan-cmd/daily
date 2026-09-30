@@ -12,6 +12,8 @@ import { FieldWindow } from "@/components/forms/field-window";
 import { MoodScale } from "@/components/forms/mood-scale";
 import { FIELD_TONES } from "@/components/forms/field-tone";
 import { useSheetPresence } from "@/lib/use-sheet-presence";
+import { ENTRY_WINDOW } from "@/components/ui/entry-window";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface MoodSheetProps {
   date: string;
@@ -138,38 +140,27 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
 
   return (
     <>
-      <div
-        className={cn(
-          "fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px] transition-opacity duration-300",
-          open ? "opacity-100" : "pointer-events-none opacity-0"
-        )}
-        onClick={onClose}
-      />
+      {/* Standart kayıt penceresi (bkz. entry-window): eskiden alttan açılan
+          bir yüzeydi; Ekle menüsündeki pencereler kart pencereleriyle aynı.
+          Kendi kapatma düğmesi başlıkta — standart çarpı gizli. */}
+      <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+        <DialogContent
+          hideClose
+          aria-describedby={undefined}
+          className={cn(ENTRY_WINDOW, "gap-0 overflow-hidden p-0")}
+        >
 
-      <div
-        className={cn(
-          "fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[390px]",
-          "flex flex-col rounded-t-3xl border-t border-[var(--ln-2)] bg-background",
-          "shadow-[0_-8px_40px_rgba(0,0,0,0.6)]",
-          "transition-transform duration-300 ease-out",
-          "max-h-[85vh]",
-          open ? "translate-y-0" : "translate-y-full"
-        )}
-      >
-        <div className="flex shrink-0 justify-center pb-1 pt-3">
-          <div className="h-[3px] w-10 rounded-full bg-[var(--sf-4)]" />
-        </div>
 
-        <div className="flex shrink-0 items-center gap-3 px-5 pb-4 pt-2">
+        <div className="flex shrink-0 items-center gap-3 px-5 pb-4 pt-5">
           <span
             className="flex h-9 w-9 items-center justify-center rounded-xl"
             style={{ background: `${ACCENT}26` }}
           >
             <Smile className="h-[18px] w-[18px]" style={{ color: ACCENT }} />
           </span>
-          <h2 className="flex-1 text-base font-semibold tracking-tight">
+          <DialogTitle className="flex-1 text-base font-semibold tracking-tight">
             {t("mood.add")}
-          </h2>
+          </DialogTitle>
           <button
             onClick={onClose}
             className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground transition-colors hover:bg-[var(--sf-4)]"
@@ -257,7 +248,8 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
             {saving ? t("entry.saving") : t("action.add")}
           </Button>
         </div>
-      </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

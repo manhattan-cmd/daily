@@ -43,6 +43,8 @@ import {
   loadEntryGroups,
   useCachedLiveQuery,
 } from "@/lib/db/live-cache";
+import { ENTRY_WINDOW } from "@/components/ui/entry-window";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 /** Değer state anahtarı: global mod id (legacy atamalarda atama id'si) */
 const valueKey = (m: CategoryModifierWithType) => m.modId ?? m.id;
@@ -82,6 +84,7 @@ function DayEntrySheetBody({
   presetActivity,
 }: DayEntrySheetProps) {
   const router = useRouter();
+  const t = useT();
   const [step, setStep] = useState<Step>({ type: "pick" });
   const [values, setValues] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState("");
@@ -333,56 +336,21 @@ function DayEntrySheetBody({
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className={cn(
-          "fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px] transition-opacity duration-300",
-          open ? "opacity-100" : "opacity-0 pointer-events-none"
-        )}
-        onClick={onClose}
-      />
-
-      {/* Girdi yüzeyi — alttan açılan pencere.
-          Bir ara tam pencereye çıkmıştı: içindeki ağ yarım sheet'e sığmıyordu,
-          kökte ekranın üçte biri boş kalıyordu. Ağ Yapı > Harita'ya taşınınca
-          o gerekçe kalmadı; geriye aranabilir bir liste kaldı ve liste
-          ekranın tamamını istemiyor. Alttan açılan pencere gün sayfasını
-          görünür bırakıyor — nereye kayıt yaptığın kaybolmuyor. */}
-      <div
-        className={cn(
-          // `relative` EKLEME: tailwind-merge onu `fixed` ile çakıştırıp
-          // sonuncuyu seçiyor. `fixed` zaten mutlak konumlu çocuklara
-          // kapsayıcı blok oluşturur.
-          "fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[390px]",
-          "flex flex-col rounded-t-2xl border-t border-[var(--ln-2)] bg-background",
-          // Yükseklik SABİT 90vh. Bir ara seçim adımı içeriğe göre
-          // büyüyordu (kısa listede yarısı boş yüzey açmayalım diye) ama
-          // kademeler arası zıplıyordu: 7 alt kategorili Harcamalar'dan
-          // 2 alt kategorili Kişisel Bakım'a geçince sayfa küçülüyor,
-          // göz her dokunuşta yeniden yerleşiyordu. Gezinilen bir yüzeyde
-          // sabit taban, boşluk kazanmaktan önemli.
-          //
-          // Panel açan adımlarda zaten şarttı: panel `max-h-[86%]` ile
-          // açılıyor, yüzey içeriğe göre küçükken o yüzde de küçülüyor ve
-          // panel hem sıkışıyor hem dışarı taşıyordu.
-          //
-          // Tek istisna etkinlik adı: tek satırlık bir soru için tam boy
-          // yüzey açmak abes.
-          //
-          // 94vh, 90 değil: seçicinin üstünde artık iki pencere var (başlık
-          // ve yol) ve bunlar listeden yer alıyordu. Asıl iş listede olduğu
-          // için yüzey biraz büyüdü — altta gün sayfası hâlâ görünüyor.
-          step.type === "activity-name" ? "max-h-[90vh]" : "h-[94vh]",
-          "shadow-[0_-8px_40px_rgba(0,0,0,0.55)]",
-          "transition-transform duration-300 ease-out",
-          open ? "translate-y-0" : "translate-y-full"
-        )}
-      >
-        {/* Tutamaç — yüzeyin sürüklenebilir göründüğü yer */}
-        <div className="flex shrink-0 justify-center pb-1 pt-2.5">
-          <div className="h-[3px] w-10 rounded-full bg-[var(--sf-4)]" />
-        </div>
-
+      {/* Standart kayıt penceresi (bkz. entry-window): eskiden alttan açılan
+          bir yüzeydi; Ekle menüsündeki pencereler kart pencereleriyle aynı.
+          Kendi kapatma düğmesi başlıkta — standart çarpı gizli. */}
+      <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+        <DialogContent
+          hideClose
+          aria-describedby={undefined}
+          className={cn(
+            ENTRY_WINDOW,
+            "gap-0 overflow-hidden p-0",
+            // Etkinlik adı tek satırlık bir soru — tam boy pencere abes
+            step.type === "activity-name" && "h-auto"
+          )}
+        >
+        <DialogTitle className="sr-only">{t("home.addEntry")}</DialogTitle>
         {step.type === "activity-name" ? (
           <ActivityNameStep
             onConfirm={(name) => {
@@ -408,17 +376,9 @@ function DayEntrySheetBody({
 
             {step.type !== "pick" && (
               <>
-                <div
-                  className="absolute inset-0 z-40 bg-black/55 backdrop-blur-[1px]"
-                  onClick={handleBack}
-                />
-                {/* Seçimin üstüne açılan form. Seçim listesi altta
-                    duruyor: kullanıcı nereye kayıt yaptığını görmeye
-                    devam ediyor. */}
-                <div className="animate-in absolute inset-x-0 bottom-0 z-50 flex max-h-[86%] flex-col rounded-t-3xl border-t border-[var(--ln-2)] bg-background shadow-[0_-8px_40px_rgba(0,0,0,0.6)]">
-                  <div className="flex justify-center pt-2.5 pb-0.5 shrink-0">
-                    <div className="h-[3px] w-10 rounded-full bg-[var(--sf-4)]" />
-                  </div>
+                {/* Form seçimin yerine bütün pencereyi kaplar — kart
+                    pencereleriyle aynı görünüm; geri oku seçime döner. */}
+                <div className="animate-in fade-in absolute inset-0 z-50 flex flex-col bg-card">
                   <FormStep
             key={step.sub.id}
             sub={step.sub}
@@ -457,7 +417,8 @@ function DayEntrySheetBody({
             )}
           </>
         )}
-      </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -567,7 +528,7 @@ function PickStep({
           başlıkla aynı hizada dursun. Burada kalan tek şey aktivite bandı:
           o akışta hangi aktiviteye eklendiğini ve bitirme yolunu söylüyor. */}
       {activity && (
-        <div className="flex shrink-0 items-center justify-between gap-2 px-5 pb-1.5 pt-1">
+        <div className="flex shrink-0 items-center justify-between gap-2 px-5 pb-1.5 pt-4">
           <div className="flex min-w-0 items-center gap-1.5">
             <Boxes className="h-3 w-3 shrink-0 text-cyan-400" />
             <span className="truncate text-[10px] font-semibold uppercase tracking-wider text-cyan-400/80">
@@ -594,7 +555,7 @@ function PickStep({
           doldurmak doğru — pencere kısa listede de aynı boyda duruyor.
           (İçeriğe göre büyüyen bir yüzeyde bu yanlıştı: flex-basis:0
           zinciri çökertip listeyi alttan kırpıyordu.) */}
-      <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col">
+      <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col pt-3">
         {/* Kategori yokken de seçici çiziliyor: "hiç kategori yok" mesajı
             zaten onun içinde ve asıl önemlisi başlık satırı orada — kapatma
             ve "Kategori yarat" düğmeleri o satırda. Ayrı bir boş-durum
@@ -714,7 +675,7 @@ function FormStep({
 
   return (
     <>
-      <div className="flex items-center gap-3 px-5 pt-2 pb-4 shrink-0">
+      <div className="flex items-center gap-3 px-5 pt-5 pb-4 shrink-0">
         <button
           onClick={onBack}
           className="h-7 w-7 flex items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground hover:bg-[var(--sf-4)] transition-colors shrink-0"
@@ -807,7 +768,7 @@ function FormStep({
           altındaki her şey tek bir renkli yüzeyde. Seçicideki dilin aynısı;
           rengi buranın kaleminden geliyor. */}
       <div
-        className="mx-3 mb-3 flex-1 overflow-y-auto overscroll-contain rounded-2xl px-3 pb-4 pt-3"
+        className="mx-3 mb-3 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain rounded-2xl px-3 pb-4 pt-3"
         style={{
           background: `${accent}0f`,
           boxShadow: `inset 0 0 0 1px ${accent}2e`,
@@ -947,7 +908,7 @@ function FormStep({
         )}
 
         {/* ── Not — her zaman altta, doğrudan yazılabilir ── */}
-        <div className="mt-6 border-t border-[var(--ln-1)] pt-3">
+        <div className="mt-6 flex flex-1 flex-col border-t border-[var(--ln-1)] pt-3">
           <label
             htmlFor="entry-note"
             className="mb-2 block px-1 text-[11px] font-semibold uppercase tracking-wide"
@@ -961,7 +922,7 @@ function FormStep({
             onChange={(e) => onNotesChange(e.target.value)}
             placeholder={t("entry.notePlaceholder")}
             rows={2}
-            className="w-full resize-none rounded-xl px-3 py-2.5 text-sm leading-5 placeholder:text-muted-foreground/50 focus:outline-none"
+            className="min-h-[64px] w-full flex-1 resize-none rounded-xl px-3 py-2.5 text-sm leading-5 placeholder:text-muted-foreground/50 focus:outline-none"
             style={{
               background: `${accent}14`,
               boxShadow: `inset 0 0 0 1px ${accent}33`,

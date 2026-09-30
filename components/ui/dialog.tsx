@@ -46,8 +46,11 @@ DialogOverlay.displayName = "DialogOverlay";
 
 export const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, onInteractOutside, ...props }, ref) => {
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    /** Standart sağ üst çarpıyı çizme — içerik kendi kapatma düğmesini taşıyorsa */
+    hideClose?: boolean;
+  }
+>(({ className, children, onInteractOutside, hideClose, ...props }, ref) => {
   // Kendi karartması — yalnız ONA dokunmak bu pencereyi kapatır. Üst üste iki
   // pencerede (ör. hedef penceresi + özellik seçici) üstteki karartmaya
   // dokunmak alttakini de kapatmasın.
@@ -86,10 +89,12 @@ export const DialogContent = React.forwardRef<
       }}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring">
-        <X className="h-4 w-4" />
-        <span className="sr-only">{"Close"}</span>
-      </DialogPrimitive.Close>
+      {!hideClose && (
+        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring">
+          <X className="h-4 w-4" />
+          <span className="sr-only">{"Close"}</span>
+        </DialogPrimitive.Close>
+      )}
     </DialogPrimitive.Content>
   </DialogPortal>
   );
