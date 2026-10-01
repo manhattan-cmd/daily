@@ -20,3 +20,13 @@ export const ENTRY_WINDOW =
  */
 export const ENTRY_WINDOW_FOOTER =
   "sticky bottom-0 z-10 mt-auto -mx-6 border-t border-[var(--ln-1)] bg-card px-6 pb-6 pt-3";
+
+/**
+ * Girdi ekleme ve düzenleme pencereleri biraz daha kısa: not artık pencerede
+ * yazılmıyor (dokununca ayrı not görünümü açılıyor, bkz. note-editor), o
+ * yüzden geniş bir yazma alanına yer ayırmak gerekmiyor.
+ */
+export const ENTRY_WINDOW_COMPACT = ENTRY_WINDOW.replace(
+  "h-[min(680px,calc(100dvh-6rem))]",
+  "h-[min(580px,calc(100dvh-6rem))]"
+);

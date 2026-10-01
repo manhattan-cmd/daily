@@ -15,6 +15,7 @@ import {
   type ParallelSub,
 } from "@/lib/db/queries";
 import { useT } from "@/lib/i18n";
+import { NoteEditorView, NotePreview } from "@/components/forms/note-editor";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { modAtomIcon } from "@/components/structure/mod-atom";
 import { modColor } from "@/lib/mod-color";
@@ -43,7 +44,7 @@ import {
   loadEntryGroups,
   useCachedLiveQuery,
 } from "@/lib/db/live-cache";
-import { ENTRY_WINDOW } from "@/components/ui/entry-window";
+import { ENTRY_WINDOW_COMPACT } from "@/components/ui/entry-window";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 /** Değer state anahtarı: global mod id (legacy atamalarda atama id'si) */
@@ -344,7 +345,7 @@ function DayEntrySheetBody({
           hideClose
           aria-describedby={undefined}
           className={cn(
-            ENTRY_WINDOW,
+            ENTRY_WINDOW_COMPACT,
             "gap-0 overflow-hidden p-0",
             // Etkinlik adı tek satırlık bir soru — tam boy pencere abes
             step.type === "activity-name" && "h-auto"
@@ -649,6 +650,7 @@ function FormStep({
   const [modPickerOpen, setModPickerOpen] = useState(false);
   const [parallelPickerOpen, setParallelPickerOpen] = useState(false);
   const [panel, setPanel] = useState<Panel | null>(null);
+  const [noteOpen, setNoteOpen] = useState(false);
   // Seçiciden yeni eklenen özellik — alanı görünüme kaydırıp odaklarız
   const [focusModId, setFocusModId] = useState<string | null>(null);
   const togglePanel = (p: Panel) => setPanel((cur) => (cur === p ? null : p));
@@ -916,13 +918,11 @@ function FormStep({
           >
             {t("entry.note")}
           </label>
-          <textarea
+          <NotePreview
             id="entry-note"
             value={notes}
-            onChange={(e) => onNotesChange(e.target.value)}
-            placeholder={t("entry.notePlaceholder")}
-            rows={2}
-            className="min-h-[64px] w-full flex-1 resize-none rounded-xl px-3 py-2.5 text-sm leading-5 placeholder:text-muted-foreground/50 focus:outline-none"
+            onOpen={() => setNoteOpen(true)}
+            className="border-transparent"
             style={{
               background: `${accent}14`,
               boxShadow: `inset 0 0 0 1px ${accent}33`,
@@ -948,6 +948,19 @@ function FormStep({
           {saveLabel}
         </button>
       </div>
+
+      {/* Not yazma görünümü formun üstünü kaplar — klavye açılınca yazılan
+          yer pencerenin tepesinde kalır */}
+      {noteOpen && (
+        <NoteEditorView
+          value={notes}
+          onChange={onNotesChange}
+          onDone={() => setNoteOpen(false)}
+          subtitle={sub.isCategoryRoot ? (category?.name ?? sub.name) : sub.name}
+          accent={accent}
+          className="absolute inset-0 z-20 bg-card px-5 pb-6 pt-5"
+        />
+      )}
 
       {/* Paralel perspektif seçici — düzenleme modalıyla ortak bileşen */}
       {!parallelContext && (

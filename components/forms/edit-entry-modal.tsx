@@ -28,7 +28,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ENTRY_WINDOW, ENTRY_WINDOW_FOOTER } from "@/components/ui/entry-window";
+import { ENTRY_WINDOW_COMPACT, ENTRY_WINDOW_FOOTER } from "@/components/ui/entry-window";
+import { NoteEditorView, NotePreview } from "@/components/forms/note-editor";
 import { Input } from "@/components/ui/input";
 import { db } from "@/lib/db";
 import {
@@ -173,6 +174,8 @@ export function EditEntryModal({
   // Radix dialog'u kırılgandı (alttaki kendini kapatıp akışı limboda bırakıyordu)
   const [newParallels, setNewParallels] = useState<ParallelSub[]>([]);
   const [pickerView, setPickerView] = useState(false);
+  // Not yazma görünümü — formun yerine aynı pencerede (bkz. note-editor)
+  const [noteOpen, setNoteOpen] = useState(false);
 
   // Kaydet sonrası adım adım perspektif formu — ekleme akışıyla aynı davranış:
   // her yeni perspektifin kendi modları sorulur, ana girdiden taşınan ortak
@@ -212,6 +215,7 @@ export function EditEntryModal({
       setPValues({});
       setNewParallels([]);
       setPickerView(false);
+      setNoteOpen(false);
     }
   }
 
@@ -502,7 +506,7 @@ export function EditEntryModal({
           pencereyi artık dokununca yüklüyor, sorgular gelmeden açılırsa önce
           boş görünüp sonra dolardı. Bekleme birkaç on ms. */}
       <Dialog open={open && ready} onOpenChange={onOpenChange}>
-        <DialogContent className={cn(ENTRY_WINDOW, "gap-5")}>
+        <DialogContent className={cn(ENTRY_WINDOW_COMPACT, "gap-5")}>
           {pStep ? (
             /* Perspektif adımı — ekleme akışındaki t("action.saveAndContinue") davranışı */
             <>
@@ -659,6 +663,19 @@ export function EditEntryModal({
             </>
           ) : (
             <>
+          {noteOpen && (
+            <NoteEditorView
+              value={notes}
+              onChange={setNotes}
+              onDone={() => setNoteOpen(false)}
+              subtitle={structureName}
+              accent={fieldColor}
+              className="pb-6"
+            />
+          )}
+          {/* Not yazılırken form gizlenir ama kurulu kalır — dönünce her şey
+              bıraktığı gibi (açık panel, girilen değerler) */}
+          <div className={cn("contents", noteOpen && "hidden")}>
           <DialogHeader>
             <div className="flex items-start gap-2">
               {/* Başlığa dokunmak kalemin yapı sayfasına götürür — oradan
@@ -971,14 +988,12 @@ export function EditEntryModal({
               >
                 {t("entry.note")}
               </FieldLabel>
-              <textarea
+              <NotePreview
                 id="edit-entry-note"
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder={t("entry.notePlaceholder")}
-                rows={2}
+                onOpen={() => setNoteOpen(true)}
                 className={cn(
-                  "min-h-[64px] w-full flex-1 resize-none rounded-xl border px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring",
+                  "py-2",
                   fieldTone !== "default" && FIELD_TONES[fieldTone].shell,
                   fieldTone === "default" && !fieldColor && "bg-input"
                 )}
@@ -1010,6 +1025,7 @@ export function EditEntryModal({
                   : t("action.save")}
             </Button>
           </DialogFooter>
+          </div>
             </>
           )}
         </DialogContent>
