@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { EmotionFace, emotionLook } from "@/lib/icons/emotions";
@@ -77,10 +77,25 @@ export function EmotionPicker({
     ...[...picked.keys()].filter((k) => !choices.includes(k)),
   ];
 
+  // Şerit yalnız ızgara kendi içinde kayıyorsa: ızgaranın tamamı görünürken
+  // seçilenler zaten orada işaretli, şerit aynı bilgiyi tekrar edip pencereyi
+  // uzatıyordu (ruh hali penceresinde ızgara kaydırmadan görünmüyordu).
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [gridScrolls, setGridScrolls] = useState(false);
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() =>
+      setGridScrolls(el.scrollHeight > el.clientHeight + 1)
+    );
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   return (
     <>
       {/* Seçilenler şeridi — pencerenin en üstü */}
-      {selected.length > 0 && (
+      {gridScrolls && selected.length > 0 && (
         <div className="px-4 pt-2.5">
           <HScroll className="gap-1.5">
             {selected.map((c) => {
@@ -106,6 +121,7 @@ export function EmotionPicker({
       )}
 
       <div
+        ref={gridRef}
         className="no-scrollbar overflow-y-auto overscroll-contain px-4 pb-3 pt-2.5"
         style={{ maxHeight: gridHeight }}
       >

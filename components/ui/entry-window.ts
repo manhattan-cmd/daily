@@ -33,9 +33,10 @@ export const ENTRY_WINDOW_COMPACT = ENTRY_WINDOW.replace(
 
 /**
  * Ruh hali penceresi büyük: duygu ızgarası, yoğunluk ve not tek bakışta
- * sığsın. Yine de pencere — kenarlarda pay ve köşeler kalıyor, tam ekran değil.
+ * sığsın. Yine de pencere — kenarlarda (üstte ve altta 16 px) pay ve köşeler
+ * kalıyor, tam ekran değil.
  */
 export const ENTRY_WINDOW_LARGE = ENTRY_WINDOW.replace(
   "h-[min(680px,calc(100dvh-6rem))]",
-  "h-[calc(100dvh-4rem)]"
+  "h-[calc(100dvh-2rem)]"
 );

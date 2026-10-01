@@ -1338,8 +1338,14 @@ function ModInput({
     }
   };
 
+  // Ruh halinde başlık kutunun İÇİNDE (ekleme penceresindeki gibi): dışarıda
+  // ayrı bir başlık satırı iki kutuya ~60 px ekliyor, duygu ızgarası pencereye
+  // kaydırmadan sığmıyordu. Yerleşik özellik olduğu için çıkarma çarpısı da yok.
+  const captionInside = tone === "mood" && !isShared;
+
   return (
     <div className="flex flex-col gap-1.5" ref={scrollOnMount}>
+      {!captionInside && (
       <div className="flex items-center justify-between">
         <FieldLabel
           icon={modAtomIcon({ name: label, entryType })}
@@ -1368,6 +1374,7 @@ function ModInput({
           )}
         </div>
       </div>
+      )}
 
       {/* Sayı/metin/evet-hayır: renk verilmişse alan kendi penceresinde ve
           kategori renginde — uyku/ruh hali formlarındaki iskeletin sıradan
@@ -1467,7 +1474,10 @@ function ModInput({
           arayüzü tutmak, birinde yapılan her düzeltmeyi ötekinde unutmak
           demekti. */}
       {vt === "select" && isEmotionRow ? (
-        <FieldWindow tone="mood">
+        <FieldWindow
+          tone="mood"
+          caption={captionInside ? t("mood.emotions") : undefined}
+        >
           <EmotionPicker
             choices={entryType.choices ?? []}
             values={values}

@@ -158,7 +158,7 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
         >
 
 
-        <div className="flex shrink-0 items-center gap-3 px-5 pb-4 pt-5">
+        <div className="flex shrink-0 items-center gap-3 px-5 pb-3 pt-4">
           <span
             className="flex h-9 w-9 items-center justify-center rounded-xl"
             style={{ background: `${ACCENT}26` }}
@@ -177,7 +177,7 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto [&>*]:shrink-0 overscroll-contain px-5 pb-6">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto [&>*]:shrink-0 overscroll-contain px-5 pb-4">
           {target === null ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               {t("mood.missing")}
@@ -253,7 +253,7 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
           )}
         </div>
 
-        <div className="shrink-0 border-t border-[var(--ln-2)] px-5 pb-8 pt-3">
+        <div className="shrink-0 border-t border-[var(--ln-2)] px-5 pb-5 pt-3">
           <Button
             className="w-full"
             size="lg"
