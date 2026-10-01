@@ -9,9 +9,11 @@
  * Yerleşim: başlık üstte, eylemler (Kaydet…) altta sabit, arası kayar.
  * İçerik kısaysa eylemler yine en altta durur (mt-auto); uzunsa kaydırırken
  * görünür kalır (sticky).
+ *
+ * Açılış yaylı (window-pop, globals.css) — girdi ekleme ekranıyla aynı his.
  */
 export const ENTRY_WINDOW =
-  "flex flex-col w-[calc(100%-2rem)] max-w-md h-[min(680px,calc(100dvh-6rem))] overflow-y-auto overscroll-contain pb-0";
+  "window-pop flex flex-col w-[calc(100%-2rem)] max-w-md h-[min(680px,calc(100dvh-6rem))] overflow-y-auto overscroll-contain pb-0";
 
 /**
  * Alt eylem bölümü — kenardan kenara uzanır. Alt dolgu pencerede değil
