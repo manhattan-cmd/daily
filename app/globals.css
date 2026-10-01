@@ -411,3 +411,53 @@ input[type="number"] {
     animation: none;
   }
 }
+
+/* ── Girdi ekleme ekranı ────────────────────────────────────────────────
+   Uygulamanın en sık yapılan işi: açılışı kısa, yaylı ve tatmin edici.
+   Yüzey aşağıdan hafif bir sekmeyle oturur; içindeki bölümler peş peşe,
+   birkaç on ms arayla belirir — ekran "kuruluyor" hissi, ama toplam
+   yarım saniyeyi geçmiyor. Hareket azaltma tercihinde hepsi kapanır. */
+@keyframes entryScreenIn {
+  from { opacity: 0; transform: translateY(32px) scale(0.97); }
+  60%  { opacity: 1; }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.entry-screen-in {
+  animation: entryScreenIn 0.42s cubic-bezier(0.32, 1.32, 0.56, 1) both;
+}
+@keyframes entryItemIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.entry-stagger > * {
+  animation: entryItemIn 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.entry-stagger > *:nth-child(1) { animation-delay: 0.06s; }
+.entry-stagger > *:nth-child(2) { animation-delay: 0.11s; }
+.entry-stagger > *:nth-child(3) { animation-delay: 0.16s; }
+.entry-stagger > *:nth-child(4) { animation-delay: 0.21s; }
+.entry-stagger > *:nth-child(n + 5) { animation-delay: 0.25s; }
+/* Hızlı ekle karoları — küçük bir "pop" */
+@keyframes entryTilePop {
+  from { opacity: 0; transform: scale(0.82); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.entry-tile-pop {
+  animation: entryTilePop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+/* Bir dala girmek / forma geçmek — sağdan kısa bir itiş */
+@keyframes entryPush {
+  from { opacity: 0; transform: translateX(18px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.entry-push {
+  animation: entryPush 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .entry-screen-in,
+  .entry-stagger > *,
+  .entry-tile-pop,
+  .entry-push {
+    animation: none;
+  }
+}

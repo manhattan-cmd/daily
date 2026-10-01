@@ -40,3 +40,14 @@ export const ENTRY_WINDOW_LARGE = ENTRY_WINDOW.replace(
   "h-[min(680px,calc(100dvh-6rem))]",
   "h-[calc(100dvh-2rem)]"
 );
+
+/**
+ * Girdi ekleme ekranı — TAM EKRAN. Uygulamada en sık yapılan iş; pencerede
+ * liste dar kalıyordu ve klavye açılınca geriye pek bir şey görünmüyordu.
+ * Telefonda ekranın tamamı; masaüstünde telefon çerçevesinin tam üstüne
+ * oturur (app-shell'deki ölçüler). Kabuk saydam ve hareketsiz: açılış
+ * animasyonu içteki yüzeyde (entry-screen-in), çünkü masaüstündeki ortalama
+ * transform'u animasyon ezerdi.
+ */
+export const ENTRY_SCREEN =
+  "inset-0 left-0 top-0 flex h-dvh w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 bg-transparent p-0 shadow-none md:left-1/2 md:top-1/2 md:h-[min(844px,calc(100dvh-4rem))] md:w-[390px] md:-translate-x-1/2 md:-translate-y-1/2";

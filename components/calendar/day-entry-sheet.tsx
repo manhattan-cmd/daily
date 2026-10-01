@@ -44,7 +44,7 @@ import {
   loadEntryGroups,
   useCachedLiveQuery,
 } from "@/lib/db/live-cache";
-import { ENTRY_WINDOW_COMPACT } from "@/components/ui/entry-window";
+import { ENTRY_SCREEN } from "@/components/ui/entry-window";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 /** Değer state anahtarı: global mod id (legacy atamalarda atama id'si) */
@@ -337,21 +337,22 @@ function DayEntrySheetBody({
 
   return (
     <>
-      {/* Standart kayıt penceresi (bkz. entry-window): eskiden alttan açılan
-          bir yüzeydi; Ekle menüsündeki pencereler kart pencereleriyle aynı.
-          Kendi kapatma düğmesi başlıkta — standart çarpı gizli. */}
+      {/* Tam ekran girdi ekleme (bkz. ENTRY_SCREEN). Kendi kapatma düğmesi
+          üst çubukta — standart çarpı gizli. */}
       <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
         <DialogContent
           hideClose
           aria-describedby={undefined}
-          className={cn(
-            ENTRY_WINDOW_COMPACT,
-            "gap-0 overflow-hidden p-0",
-            // Etkinlik adı tek satırlık bir soru — tam boy pencere abes
-            step.type === "activity-name" && "h-auto"
-          )}
+          className={ENTRY_SCREEN}
         >
         <DialogTitle className="sr-only">{t("home.addEntry")}</DialogTitle>
+        {/* Yüzey aşağıdan yaylanarak gelir. Üst güvenli alan (durum çubuğu)
+            burada; içteki katmanlar (form, not) bunun altında kalır. */}
+        <div
+          className="entry-screen-in flex h-full min-h-0 flex-col overflow-hidden bg-background md:rounded-[3rem]"
+          style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+        >
+        <div className="relative flex min-h-0 flex-1 flex-col">
         {step.type === "activity-name" ? (
           <ActivityNameStep
             onConfirm={(name) => {
@@ -379,7 +380,7 @@ function DayEntrySheetBody({
               <>
                 {/* Form seçimin yerine bütün pencereyi kaplar — kart
                     pencereleriyle aynı görünüm; geri oku seçime döner. */}
-                <div className="animate-in fade-in absolute inset-0 z-50 flex flex-col bg-card">
+                <div className="entry-push absolute inset-0 z-50 flex flex-col bg-background">
                   <FormStep
             key={step.sub.id}
             sub={step.sub}
@@ -418,6 +419,8 @@ function DayEntrySheetBody({
             )}
           </>
         )}
+        </div>
+        </div>
         </DialogContent>
       </Dialog>
     </>
@@ -445,25 +448,26 @@ function ActivityNameStep({
 
   return (
     <>
-      <div className="flex items-center justify-between px-5 pt-2 pb-3 shrink-0">
-        <div className="min-w-0">
-          <h2 className="text-base font-semibold tracking-tight">
-            Yeni Aktivite
-          </h2>
-          <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-            Farklı kategorilerden girdileri tek çatı altında topla
-          </p>
-        </div>
+      {/* Seçicinin üst çubuğu ve büyük başlığıyla aynı düzen */}
+      <div className="flex shrink-0 items-center px-4 pb-1 pt-3">
         <button
           onClick={onClose}
-          className="h-7 w-7 flex items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground hover:bg-[var(--sf-4)] transition-colors shrink-0"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--sf-2)] text-foreground/80 transition-[background-color,transform] hover:bg-[var(--sf-3)] active:scale-95"
           aria-label={t("action.close")}
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="h-[18px] w-[18px]" />
         </button>
       </div>
+      <div className="entry-stagger shrink-0 px-5 pb-5 pt-2">
+        <h2 className="text-[28px] font-bold leading-tight tracking-tight">
+          Yeni Aktivite
+        </h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          Farklı kategorilerden girdileri tek çatı altında topla
+        </p>
+      </div>
 
-      <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-10">
+      <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-10 pt-1">
         <form onSubmit={submit} className="flex flex-col gap-4">
           {suggestions.length > 0 && (
             <div className="flex flex-col gap-2">
@@ -489,9 +493,9 @@ function ActivityNameStep({
             onChange={(e) => setName(e.target.value)}
             placeholder={t("entry.activityName")}
             autoFocus={suggestions.length === 0}
-            className="h-12 text-base"
+            className="h-12 rounded-2xl text-base"
           />
-          <Button type="submit" size="lg" disabled={!name.trim()}>
+          <Button type="submit" size="lg" className="h-12 rounded-2xl" disabled={!name.trim()}>
             Devam →
           </Button>
         </form>
@@ -556,7 +560,7 @@ function PickStep({
           doldurmak doğru — pencere kısa listede de aynı boyda duruyor.
           (İçeriğe göre büyüyen bir yüzeyde bu yanlıştı: flex-basis:0
           zinciri çökertip listeyi alttan kırpıyordu.) */}
-      <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col pt-3">
+      <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col">
         {/* Kategori yokken de seçici çiziliyor: "hiç kategori yok" mesajı
             zaten onun içinde ve asıl önemlisi başlık satırı orada — kapatma
             ve "Kategori yarat" düğmeleri o satırda. Ayrı bir boş-durum
@@ -677,65 +681,17 @@ function FormStep({
 
   return (
     <>
-      <div className="flex items-center gap-3 px-5 pt-5 pb-4 shrink-0">
+      {/* Üst çubuk — seçicideki gibi: solda geri, sağda seçenekler. Kalemin
+          kendisi altında büyük başlık olarak duruyor. */}
+      <div className="flex shrink-0 items-center px-4 pb-1 pt-3">
         <button
           onClick={onBack}
-          className="h-7 w-7 flex items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground hover:bg-[var(--sf-4)] transition-colors shrink-0"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--sf-2)] text-foreground/80 transition-[background-color,transform] hover:bg-[var(--sf-3)] active:scale-95"
           aria-label={parallelContext ? t("action.skip") : t("action.back")}
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
+          <ArrowLeft className="h-[18px] w-[18px]" />
         </button>
-        {/* Kalemin karosu — nereye kayıt yaptığın bir bakışta. Başlık
-            yalnız yazıyken form "hangi kalemdeyim" sorusunu zayıf
-            cevaplıyordu; seçici listesinde de aynı karo duruyor, göz
-            aynı şeyi tanıyor. */}
-        {!parallelContext && category && (
-          <span
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px]"
-            style={{
-              backgroundColor: category.color,
-              boxShadow:
-                "inset 0 1px 0 rgba(255,255,255,0.25), inset 0 0 0 1px rgba(0,0,0,0.14)",
-            }}
-          >
-            <SymbolIcon
-              name={sub.isCategoryRoot ? category.icon : sub.icon}
-              size={20}
-              style={{ color: "#fff" }}
-            />
-          </span>
-        )}
-        <div className="flex-1 min-w-0">
-          {parallelContext && (
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <Link2 className="h-3 w-3 text-violet-400" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/80">
-                {parallelContext.catName}
-                {parallelContext.total > 1 && ` · ${parallelContext.index}/${parallelContext.total}`}
-              </span>
-            </div>
-          )}
-          {activityName && !parallelContext && (
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <Boxes className="h-3 w-3 text-cyan-400" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan-400/80 truncate">
-                {activityName}
-              </span>
-            </div>
-          )}
-          {!parallelContext && !activityName && category && (
-            <span
-              className="block truncate text-[10px] font-semibold uppercase tracking-[0.14em]"
-              style={{ color: `${category.color}cc` }}
-            >
-              {category.name}
-            </span>
-          )}
-          <h2 className="text-base font-semibold tracking-tight truncate">
-            {sub.isCategoryRoot ? (category?.name ?? sub.name) : sub.name}
-          </h2>
-        </div>
-
+        <div className="flex-1" />
         {/* Zaman ve paralel perspektif ortada durup akışı karıştırmasın */}
         <OptionsMenu
           touched={optionsTouched}
@@ -766,24 +722,68 @@ function FormStep({
         />
       </div>
 
-      {/* Gövde kendi PENCERESİNDE: üstte kalem (karo + kategori + ad),
-          altındaki her şey tek bir renkli yüzeyde. Seçicideki dilin aynısı;
-          rengi buranın kaleminden geliyor. */}
-      <div
-        className="mx-3 mb-3 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain rounded-2xl px-3 pb-4 pt-3"
-        style={{
-          background: `${accent}0f`,
-          boxShadow: `inset 0 0 0 1px ${accent}2e`,
-        }}
-      >
+      <div className="flex shrink-0 items-center gap-3 px-5 pb-5 pt-2">
+        {/* Kalemin karosu — nereye kayıt yaptığın bir bakışta. Başlık
+            yalnız yazıyken form "hangi kalemdeyim" sorusunu zayıf
+            cevaplıyordu; seçici listesinde de aynı karo duruyor, göz
+            aynı şeyi tanıyor. */}
+        {!parallelContext && category && (
+          <span
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px]"
+            style={{
+              backgroundColor: category.color,
+              boxShadow:
+                "inset 0 1px 0 rgba(255,255,255,0.25), inset 0 0 0 1px rgba(0,0,0,0.14)",
+            }}
+          >
+            <SymbolIcon
+              name={sub.isCategoryRoot ? category.icon : sub.icon}
+              size={24}
+              style={{ color: "#fff" }}
+            />
+          </span>
+        )}
+        <div className="flex-1 min-w-0">
+          {parallelContext && (
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <Link2 className="h-3 w-3 text-violet-400" />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/80">
+                {parallelContext.catName}
+                {parallelContext.total > 1 && ` · ${parallelContext.index}/${parallelContext.total}`}
+              </span>
+            </div>
+          )}
+          {activityName && !parallelContext && (
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <Boxes className="h-3 w-3 text-cyan-400" />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan-400/80 truncate">
+                {activityName}
+              </span>
+            </div>
+          )}
+          {!parallelContext && !activityName && category && (
+            <span
+              className="block truncate text-[10px] font-semibold uppercase tracking-[0.14em]"
+              style={{ color: `${category.color}cc` }}
+            >
+              {category.name}
+            </span>
+          )}
+          <h2 className="truncate text-[24px] font-bold leading-tight tracking-tight">
+            {sub.isCategoryRoot ? (category?.name ?? sub.name) : sub.name}
+          </h2>
+        </div>
+      </div>
+
+      {/* Gövde — çerçevesiz, seçicideki gibi: bölümler küçük sessiz
+          başlıklarla ayrılıyor, renk karoda ve asli eylemde. Eskiden her şey
+          kalemin renginde ikinci bir kutunun içindeydi. */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 pb-6">
         {/* ── Özellikler: formun ana gövdesi ──
             Başlık şart: alanlar başlıksızken "bunlar ne" sorusu ekranda
             cevapsız kalıyordu. Nottaki başlıkla aynı dil. */}
         {mods.length > 0 && (
-          <div
-            className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide"
-            style={{ color: accent }}
-          >
+          <div className="mb-2 px-1 text-[12px] font-semibold text-muted-foreground">
             {t("entry.features")}
           </div>
         )}
@@ -910,11 +910,10 @@ function FormStep({
         )}
 
         {/* ── Not — her zaman altta, doğrudan yazılabilir ── */}
-        <div className="mt-6 flex flex-1 flex-col border-t border-[var(--ln-1)] pt-3">
+        <div className="mt-6 flex flex-col">
           <label
             htmlFor="entry-note"
-            className="mb-2 block px-1 text-[11px] font-semibold uppercase tracking-wide"
-            style={{ color: accent }}
+            className="mb-2 block px-1 text-[12px] font-semibold text-muted-foreground"
           >
             {t("entry.note")}
           </label>
@@ -922,11 +921,9 @@ function FormStep({
             id="entry-note"
             value={notes}
             onOpen={() => setNoteOpen(true)}
-            className="border-transparent"
-            style={{
-              background: `${accent}14`,
-              boxShadow: `inset 0 0 0 1px ${accent}33`,
-            }}
+            // Tam ekranda boşluğu doldurmuyor: ekranın yarısını kaplayan
+            // boş bir kutu "doldurman gereken alan" gibi duruyordu
+            className="min-h-[88px] flex-none rounded-2xl border-[var(--ln-1)] bg-[var(--sf-1)]"
           />
         </div>
       </div>
@@ -934,7 +931,10 @@ function FormStep({
       {/* Asli eylem: kalemin renginde, iri ve tek. "Kaydet" bir düzenlemeyi
           bitiriyormuş gibi duruyordu; burada yapılan şey yeni bir kayıt
           YARATMAK. */}
-      <div className="shrink-0 border-t border-[var(--ln-2)] px-5 pb-8 pt-3">
+      <div
+        className="shrink-0 border-t border-[var(--ln-2)] px-5 pt-3"
+        style={{ paddingBottom: "max(2rem, calc(env(safe-area-inset-bottom, 0px) + 1rem))" }}
+      >
         <button
           type="button"
           onClick={onSave}
@@ -958,7 +958,7 @@ function FormStep({
           onDone={() => setNoteOpen(false)}
           subtitle={sub.isCategoryRoot ? (category?.name ?? sub.name) : sub.name}
           accent={accent}
-          className="absolute inset-0 z-20 bg-card px-5 pb-6 pt-5"
+          className="absolute inset-0 z-20 bg-background px-5 pb-6 pt-5"
         />
       )}
 
