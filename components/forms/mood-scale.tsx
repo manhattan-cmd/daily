@@ -31,7 +31,7 @@ export function MoodScale({
 }) {
   const skin = FIELD_TONES[tone];
   return (
-    <div className="flex gap-1.5 px-4 pb-3.5 pt-2.5">
+    <div className="flex gap-1.5 px-4 pb-3 pt-2">
       {choices.map((c, i) => {
         const on = value === c;
         return (
@@ -42,7 +42,7 @@ export function MoodScale({
             aria-pressed={on}
             aria-label={c}
             className={cn(
-              "flex flex-1 items-center justify-center rounded-xl border py-2.5 transition-colors",
+              "flex flex-1 items-center justify-center rounded-xl border py-2 transition-colors",
               on ? "border-transparent" : skin.choiceOff
             )}
             style={
@@ -57,7 +57,7 @@ export function MoodScale({
             <ScaleFace
               index={i}
               total={choices.length}
-              size={26}
+              size={22}
               className={on ? undefined : "text-muted-foreground"}
               style={on ? { color: ACCENT } : undefined}
             />

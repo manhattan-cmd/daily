@@ -120,12 +120,14 @@ export function EmotionPicker({
         </div>
       )}
 
+      {/* overscroll-contain YOK: ızgara kaymıyorken bile kaydırmayı yutuyor,
+          parmak duygular kutusunun üstündeyken pencere kaydırılamıyordu. */}
       <div
         ref={gridRef}
-        className="no-scrollbar overflow-y-auto overscroll-contain px-4 pb-3 pt-2.5"
+        className="no-scrollbar overflow-y-auto px-4 pb-3 pt-2"
         style={{ maxHeight: gridHeight }}
       >
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-1.5">
           {choices.map((c) => {
             const look = emotionLook(c);
             const on = picked.has(c);
@@ -136,7 +138,7 @@ export function EmotionPicker({
                 onClick={() => toggle(c)}
                 aria-pressed={on}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-xl border px-1.5 pb-2 pt-2 transition-colors",
+                  "flex flex-col items-center gap-1 rounded-xl border px-1.5 pb-1.5 pt-1.5 transition-colors",
                   !on && skin.choiceOff
                 )}
                 style={
@@ -150,7 +152,7 @@ export function EmotionPicker({
               >
                 <EmotionFace
                   name={c}
-                  size={22}
+                  size={20}
                   style={{ color: look.color, opacity: on ? 1 : 0.62 }}
                 />
                 <span
