@@ -11,6 +11,7 @@ import { EmotionPicker } from "@/components/forms/emotion-picker";
 import { FieldWindow } from "@/components/forms/field-window";
 import { MoodScale } from "@/components/forms/mood-scale";
 import { FIELD_TONES } from "@/components/forms/field-tone";
+import { NoteEditorView, ToneNoteSection } from "@/components/forms/note-editor";
 import { useSheetPresence } from "@/lib/use-sheet-presence";
 import { ENTRY_WINDOW_LARGE } from "@/components/ui/entry-window";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -61,6 +62,8 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
   const [level, setLevel] = useState("");
   /** Seçili duygular, ham değer biçiminde ("Happy|70") — kayda olduğu gibi gider */
   const [emotions, setEmotions] = useState<string[]>([]);
+  const [notes, setNotes] = useState("");
+  const [noteOpen, setNoteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -68,6 +71,8 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
       const timer = setTimeout(() => {
         setLevel("");
         setEmotions([]);
+        setNotes("");
+        setNoteOpen(false);
       }, 300);
       return () => clearTimeout(timer);
     }
@@ -93,7 +98,8 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
   const scaleChoices = target?.scale?.entryType.choices ?? [];
   const emotionChoices = target?.feelings?.entryType.choices ?? [];
   const pickedCount = emotions.length;
-  const nothingPicked = !level && pickedCount === 0;
+  // Yalnız not da bir kayıt — düzenleme penceresinde olduğu gibi
+  const nothingPicked = !level && pickedCount === 0 && !notes.trim();
   const scaleLabels = target?.scale?.mod?.scaleLabels;
 
   async function handleSave() {
@@ -131,6 +137,7 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
         subcategoryId: target.sub.id,
         typeValues,
         occurredAt: when.getTime(),
+        notes: notes.trim() || undefined,
       });
       onClose();
     } finally {
@@ -235,6 +242,13 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
                   />
                 </FieldWindow>
               )}
+
+              <ToneNoteSection
+                id="mood-note"
+                tone="mood"
+                value={notes}
+                onOpen={() => setNoteOpen(true)}
+              />
             </>
           )}
         </div>
@@ -250,6 +264,18 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
             {saving ? t("entry.saving") : t("action.add")}
           </Button>
         </div>
+
+        {/* Not yazma görünümü pencerenin tamamını kaplar (bkz. note-editor) */}
+        {noteOpen && (
+          <NoteEditorView
+            value={notes}
+            onChange={setNotes}
+            onDone={() => setNoteOpen(false)}
+            subtitle={target?.sub.name}
+            accent={ACCENT}
+            className="absolute inset-0 z-20 bg-card px-5 pb-6 pt-5"
+          />
+        )}
         </DialogContent>
       </Dialog>
     </>

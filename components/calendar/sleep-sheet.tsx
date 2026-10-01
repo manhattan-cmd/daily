@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { createElement, useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { MoonStar, X } from "lucide-react";
 import { createEntry, getBuiltInTarget } from "@/lib/db/queries";
@@ -12,6 +12,8 @@ import { ChoiceWindow } from "@/components/forms/choice-window";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { NoteEditorView, ToneNoteSection } from "@/components/forms/note-editor";
+import { modAtomIcon } from "@/components/structure/mod-atom";
 import { useSheetPresence } from "@/lib/use-sheet-presence";
 import { ENTRY_WINDOW_COMPACT } from "@/components/ui/entry-window";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -36,6 +38,8 @@ function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
   const t = useT();
   const [range, setRange] = useState("");
   const [quality, setQuality] = useState("");
+  const [notes, setNotes] = useState("");
+  const [noteOpen, setNoteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -43,6 +47,8 @@ function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
       const t = setTimeout(() => {
         setRange("");
         setQuality("");
+        setNotes("");
+        setNoteOpen(false);
       }, 300);
       return () => clearTimeout(t);
     }
@@ -103,6 +109,7 @@ function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
         subcategoryId: target.sub.id,
         typeValues,
         occurredAt,
+        notes: notes.trim() || undefined,
       });
       onClose();
     } finally {
@@ -148,7 +155,11 @@ function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
             <>
               {target.rangeMod && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium">
+                  <label className="mb-0 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-300/50">
+                    {/* Düzenleme penceresiyle aynı başlık: özelliğin simgesi + adı */}
+                    {createElement(modAtomIcon(target.rangeMod), {
+                      className: "h-3 w-3 shrink-0",
+                    })}
                     {target.rangeMod.name ?? t("sleep.duration")}
                   </label>
                   <DateTimeRangeInput
@@ -162,7 +173,11 @@ function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
 
               {target.qualityMod && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium">
+                  <label className="mb-0 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-300/50">
+                    {/* Düzenleme penceresiyle aynı başlık: özelliğin simgesi + adı */}
+                    {createElement(modAtomIcon(target.qualityMod), {
+                      className: "h-3 w-3 shrink-0",
+                    })}
                     {target.qualityMod.name ?? t("sleep.quality")}
                   </label>
                   <ChoiceWindow
@@ -175,20 +190,39 @@ function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
                   />
                 </div>
               )}
+
+              <ToneNoteSection
+                id="sleep-note"
+                tone="sleep"
+                value={notes}
+                onOpen={() => setNoteOpen(true)}
+              />
             </>
           )}
         </div>
 
-        <div className="px-5 pb-8 pt-2 shrink-0 border-t border-[var(--ln-2)]">
+        <div className="px-5 pb-8 pt-3 shrink-0 border-t border-[var(--ln-2)]">
           <Button
             className="w-full bg-violet-600 hover:bg-violet-700"
             size="lg"
             onClick={handleSave}
             disabled={saving || !target}
           >
-            {saving ? t("entry.saving") : t("action.save")}
+            {saving ? t("entry.saving") : t("action.add")}
           </Button>
         </div>
+
+        {/* Not yazma görünümü pencerenin tamamını kaplar (bkz. note-editor) */}
+        {noteOpen && (
+          <NoteEditorView
+            value={notes}
+            onChange={setNotes}
+            onDone={() => setNoteOpen(false)}
+            subtitle={target?.sub.name}
+            accent="#7c3aed"
+            className="absolute inset-0 z-20 bg-card px-5 pb-6 pt-5"
+          />
+        )}
         </DialogContent>
       </Dialog>
     </>

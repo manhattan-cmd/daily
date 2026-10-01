@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, NotebookPen } from "lucide-react";
+import { FIELD_TONES, type FieldTone } from "@/components/forms/field-tone";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 
@@ -49,6 +50,47 @@ export function NotePreview({
         </span>
       )}
     </button>
+  );
+}
+
+/**
+ * Yerleşik akışların (uyku, ruh hali) not bölümü — düzenleme penceresindeki
+ * not bölümünün aynısı: akışın tonunda başlık ve önizleme. Ekleme ile
+ * düzenleme penceresi aynı görünsün diye tek yerde.
+ */
+export function ToneNoteSection({
+  id,
+  tone,
+  value,
+  onOpen,
+}: {
+  id: string;
+  tone: FieldTone;
+  value: string;
+  onOpen: () => void;
+}) {
+  const t = useT();
+  const skin = FIELD_TONES[tone];
+  return (
+    <div className="flex flex-1 flex-col border-t border-[var(--ln-1)] pt-3">
+      <label
+        htmlFor={id}
+        className={cn(
+          "mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em]",
+          skin.caption
+        )}
+      >
+        <NotebookPen className="h-3 w-3 shrink-0" />
+        {t("entry.note")}
+      </label>
+      <NotePreview
+        id={id}
+        value={value}
+        onOpen={onOpen}
+        className={cn("py-2", skin.shell)}
+        style={{ borderColor: skin.shellBorder }}
+      />
+    </div>
   );
 }
 
