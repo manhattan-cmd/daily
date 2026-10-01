@@ -28,7 +28,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ENTRY_WINDOW_COMPACT, ENTRY_WINDOW_FOOTER } from "@/components/ui/entry-window";
+import {
+  ENTRY_WINDOW_COMPACT,
+  ENTRY_WINDOW_FOOTER,
+  ENTRY_WINDOW_LARGE,
+} from "@/components/ui/entry-window";
 import { NoteEditorView, NotePreview } from "@/components/forms/note-editor";
 import { Input } from "@/components/ui/input";
 import { db } from "@/lib/db";
@@ -506,7 +510,13 @@ export function EditEntryModal({
           pencereyi artık dokununca yüklüyor, sorgular gelmeden açılırsa önce
           boş görünüp sonra dolardı. Bekleme birkaç on ms. */}
       <Dialog open={open && ready} onOpenChange={onOpenChange}>
-        <DialogContent className={cn(ENTRY_WINDOW_COMPACT, "gap-5")}>
+        <DialogContent
+          className={cn(
+            // Ruh hali Ekle menüsündeki gibi büyük pencerede; diğerleri kısa
+            fieldTone === "mood" ? ENTRY_WINDOW_LARGE : ENTRY_WINDOW_COMPACT,
+            "gap-5"
+          )}
+        >
           {pStep ? (
             /* Perspektif adımı — ekleme akışındaki t("action.saveAndContinue") davranışı */
             <>

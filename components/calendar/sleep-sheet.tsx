@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { useSheetPresence } from "@/lib/use-sheet-presence";
-import { ENTRY_WINDOW } from "@/components/ui/entry-window";
+import { ENTRY_WINDOW_COMPACT } from "@/components/ui/entry-window";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface SleepSheetProps {
@@ -119,7 +119,7 @@ function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
         <DialogContent
           hideClose
           aria-describedby={undefined}
-          className={cn(ENTRY_WINDOW, "gap-0 overflow-hidden p-0")}
+          className={cn(ENTRY_WINDOW_COMPACT, "gap-0 overflow-hidden p-0")}
         >
 
 
@@ -139,7 +139,7 @@ function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-6 flex flex-col gap-5">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-6 flex flex-col gap-5 [&>*]:shrink-0">
           {target === null ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               {t("sleep.notFound")}

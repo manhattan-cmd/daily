@@ -12,7 +12,7 @@ import { FieldWindow } from "@/components/forms/field-window";
 import { MoodScale } from "@/components/forms/mood-scale";
 import { FIELD_TONES } from "@/components/forms/field-tone";
 import { useSheetPresence } from "@/lib/use-sheet-presence";
-import { ENTRY_WINDOW } from "@/components/ui/entry-window";
+import { ENTRY_WINDOW_LARGE } from "@/components/ui/entry-window";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface MoodSheetProps {
@@ -147,7 +147,7 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
         <DialogContent
           hideClose
           aria-describedby={undefined}
-          className={cn(ENTRY_WINDOW, "gap-0 overflow-hidden p-0")}
+          className={cn(ENTRY_WINDOW_LARGE, "gap-0 overflow-hidden p-0")}
         >
 
 
@@ -170,7 +170,7 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
           </button>
         </div>
 
-        <div className="flex flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-5 pb-6">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto [&>*]:shrink-0 overscroll-contain px-5 pb-6">
           {target === null ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               {t("mood.missing")}
@@ -230,6 +230,8 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
                     choices={emotionChoices}
                     values={emotions}
                     onChange={setEmotions}
+                    // Büyük pencere: ızgaranın tamamı kaydırmadan görünsün
+                    gridHeight={400}
                   />
                 </FieldWindow>
               )}
