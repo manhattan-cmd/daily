@@ -66,6 +66,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { routes } from "@/lib/routes";
 
 /**
+ * Dönem özeti — girdi sayısı / aktif gün / kategori kutuları ve dönemin
+ * girdi serisi — şimdilik RAFTA (2026-10). Kullanıcı Analiz'e girince önce
+ * dönemin kategori dağılımını görmek, oradan bir kategoriye inmek istiyor;
+ * özet en üstte bu yolu aşağı itiyordu. Geri getirmek için true yap.
+ */
+const SHOW_PERIOD_SUMMARY = false;
+
+/**
  * Dönem analiz görünümü — herhangi bir zaman penceresinin (gün/hafta/ay/yıl/özel/tümü)
  * tüm kategorileri kapsayan analizi. /analytics (içinde bulunulan hafta, default) ve
  * /analytics?key=… (herhangi bir dönem) — aynı sayfa, görünüm dönemler arasında
@@ -452,6 +460,9 @@ export function PeriodView({
           </div>
         )}
 
+        {/* Özet (KPI kutuları + dönem serisi) RAFTA — bkz. SHOW_PERIOD_SUMMARY */}
+        {SHOW_PERIOD_SUMMARY && (
+          <>
         {/* KPI'lar — her kutu neyin, hangi aralıkta sayısı olduğunu söyler */}
         <div className="grid grid-cols-3 gap-2">
           <StatTile
@@ -490,6 +501,8 @@ export function PeriodView({
               onSelect={(k) => router.push(routes.period(k))}
             />
           </div>
+        )}
+          </>
         )}
 
         {/* Kategori dağılımı — satıra basınca aynı dönemin kategori detayına
