@@ -8,7 +8,7 @@ import {
   DateTimeRangeInput,
   parseDTR,
 } from "@/components/forms/datetime-range-input";
-import { ChoiceWindow } from "@/components/forms/choice-window";
+import { ScaleInput } from "@/components/ui/scale-input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
@@ -180,13 +180,14 @@ function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
                     })}
                     {target.qualityMod.name ?? t("sleep.quality")}
                   </label>
-                  <ChoiceWindow
+                  {/* Tek parça şerit — kart penceresindekiyle aynı (eskiden
+                      üstünde anlamsız bir "ÖLÇEK" başlığı vardı) */}
+                  <ScaleInput
                     choices={target.qualityMod.entryType.choices ?? []}
+                    labels={target.qualityMod.mod?.scaleLabels}
                     value={quality}
                     onChange={setQuality}
-                    captionKey="field.scale"
-                    hintKey="sleep.qualityHint"
-                    tone="sleep"
+                    color="#8b5cf6"
                   />
                 </div>
               )}

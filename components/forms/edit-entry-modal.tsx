@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { createElement, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { nanoid } from "nanoid";
@@ -61,7 +61,7 @@ import {
   formatDTRDisplay,
 } from "@/components/forms/datetime-range-input";
 import { ParallelPickList } from "@/components/forms/parallel-pick-dialog";
-import { ChoiceWindow } from "@/components/forms/choice-window";
+import { ScaleInput, ToggleSwitch } from "@/components/ui/scale-input";
 import { EmotionPicker } from "@/components/forms/emotion-picker";
 import { FieldWindow } from "@/components/forms/field-window";
 import { MoodScale } from "@/components/forms/mood-scale";
@@ -1081,6 +1081,13 @@ function FieldLabel({
  * birden çok değer taşıyor. Tek değerli türler dizinin ilk elemanını okuyup
  * tek elemanlı dizi yazıyor — çağıran taraf iki ayrı yol tutmuyor.
  */
+/** Yerleşik akışların sabit rengi — alanlar (anahtar, şerit) bununla boyanır */
+const TONE_COLOR: Record<FieldTone, string> = {
+  default: "#6366f1",
+  sleep: "#8b5cf6",
+  mood: "#f472b6",
+};
+
 function ModInput({
   label,
   entryType,
@@ -1128,6 +1135,58 @@ function ModInput({
   // ayrı bir başlık satırı iki kutuya ~60 px ekliyor, duygu ızgarası pencereye
   // kaydırmadan sığmıyordu. Yerleşik özellik olduğu için çıkarma çarpısı da yok.
   const captionInside = tone === "mood" && !isShared;
+  // Alanın rengi: sıradan girdide kategori, uykuda mor, ruh halinde pembe
+  const fieldColor = color ?? TONE_COLOR[tone];
+
+  // Evet/hayır TEK SATIR: simge + ad + anahtar. Eskiden başlık + tam
+  // genişlikte "Evet/Hayır" düğmesiydi; birkaç tanesi alt alta gelince form
+  // özellik değil dağınık düğmeler gibi duruyordu.
+  if (vt === "boolean") {
+    const on = value === "true";
+    return (
+      <div
+        ref={scrollOnMount}
+        className="flex items-center gap-3 rounded-2xl py-2.5 pl-3 pr-2 transition-colors"
+        style={{
+          background: `${fieldColor}${on ? "1a" : "0d"}`,
+          boxShadow: `inset 0 0 0 1px ${fieldColor}${on ? "59" : "2e"}`,
+        }}
+      >
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+          style={{ background: `${fieldColor}26`, color: fieldColor }}
+        >
+          {createElement(modAtomIcon({ name: label, entryType }), {
+            className: "h-4 w-4",
+            strokeWidth: 2,
+          })}
+        </span>
+        <button
+          type="button"
+          onClick={() => setOne(on ? "false" : "true")}
+          className="min-w-0 flex-1 truncate text-left text-sm font-medium"
+        >
+          {label}
+        </button>
+        <ToggleSwitch
+          checked={on}
+          onChange={(v) => setOne(v ? "true" : "false")}
+          color={fieldColor}
+          label={label}
+        />
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/40 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+            aria-label={t("entry.removeFromEntry")}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-1.5" ref={scrollOnMount}>
@@ -1215,46 +1274,6 @@ function ModInput({
           />
         ))}
 
-      {vt === "boolean" &&
-        (color ? (
-          <FieldWindow color={color}>
-            <div className="px-4 pb-3 pt-2.5">
-              <button
-                type="button"
-                onClick={() => setOne(value === "true" ? "false" : "true")}
-                className="flex h-10 w-full items-center justify-center rounded-xl border text-sm font-semibold transition-colors"
-                style={
-                  value === "true"
-                    ? {
-                        borderColor: colorSkin(color).shellBorder,
-                        background: colorSkin(color).fieldBg,
-                        color,
-                      }
-                    : {
-                        borderColor: colorSkin(color).fieldBorder,
-                        color: "var(--muted-foreground)",
-                      }
-                }
-              >
-                {value === "true" ? t("entry.yes") : t("entry.no")}
-              </button>
-            </div>
-          </FieldWindow>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setOne(value === "true" ? "false" : "true")}
-            className={cn(
-              "flex h-10 w-full items-center justify-center rounded-xl border text-sm font-medium transition-colors",
-              value === "true"
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border bg-input text-muted-foreground"
-            )}
-          >
-            {value === "true" ? t("entry.yes") : t("entry.no")}
-          </button>
-        ))}
-
       {/* Duygular: ekleme penceresindekinin AYNI bileşeni — ızgara sabit,
           yoğunluk çubukları altta toplanıyor. İki yerde iki ayrı duygu
           arayüzü tutmak, birinde yapılan her düzeltmeyi ötekinde unutmak
@@ -1300,14 +1319,12 @@ function ModInput({
       {vt === "select" &&
         !isEmotionRow &&
         tone !== "mood" &&
-        (tone === "sleep" ? (
-          <ChoiceWindow
+        (isNumericChoiceSet(entryType.choices) ? (
+          <ScaleInput
             choices={entryType.choices ?? []}
             value={value}
             onChange={setOne}
-            captionKey="field.scale"
-            hintKey="sleep.qualityHint"
-            tone={tone}
+            color={fieldColor}
           />
         ) : (
           <ChoiceButtons

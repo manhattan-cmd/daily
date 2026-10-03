@@ -34,7 +34,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SHORT_MONTHS } from "@/lib/analytics";
-import { ScaleInput } from "@/components/ui/scale-input";
+import { ScaleInput, ToggleSwitch } from "@/components/ui/scale-input";
 import { SymbolIcon } from "@/lib/icons";
 import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
 import { isScaleChoices, type Category, type SubCategory } from "@/types";
@@ -1139,6 +1139,7 @@ function FeatureRow({
   const inlineDone = vt === "number" || vt === "text";
   const label = mod.name ?? mod.entryType.name;
   const summary = valueSummary(mod, value);
+  const isBool = vt === "boolean";
 
   return (
     <div
@@ -1151,8 +1152,10 @@ function FeatureRow({
       <div className="flex items-center">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
+        onClick={() =>
+          isBool ? onChange(value === "true" ? "false" : "true") : setOpen((o) => !o)
+        }
+        aria-expanded={isBool ? undefined : open}
         className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-3 pr-1 text-left"
       >
         <span
@@ -1179,7 +1182,7 @@ function FeatureRow({
             </span>
           )}
         </span>
-        {summary && !open && (
+        {!isBool && summary && !open && (
           <span
             className="shrink-0 text-sm font-semibold leading-5"
             style={{ color }}
@@ -1187,13 +1190,24 @@ function FeatureRow({
             {summary}
           </span>
         )}
-        <ChevronDown
-          className={cn(
-            "h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform",
-            open && "rotate-180"
-          )}
-        />
+        {!isBool && (
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform",
+              open && "rotate-180"
+            )}
+          />
+        )}
       </button>
+      {/* Evet/hayır: değer satırın kendisinde — çekmece açmaya gerek yok */}
+      {isBool && (
+        <ToggleSwitch
+          checked={value === "true"}
+          onChange={(v) => onChange(v ? "true" : "false")}
+          color={color}
+          label={label}
+        />
+      )}
       {/* Yalnız bu girdiden çıkarır — kalem bir dahaki kayıtta yine
           yapıdaki özellikleriyle gelir */}
       <button
@@ -1207,7 +1221,7 @@ function FeatureRow({
       </button>
       </div>
 
-      {open && (
+      {open && !isBool && (
         // Sayı ve metin tek satıra sığıyor: onay alanın YANINDA duruyor ve
         // çekmece yarı yüksekliğe iniyor. Skala, zaman aralığı ve evet/hayır
         // tam genişlik istiyor — orada onay alta düşüyor.
@@ -1227,6 +1241,7 @@ function FeatureRow({
               autoFocus={defaultOpen}
               hideLabel
               compact
+              color={color}
             />
           </div>
           {/* Kapatan bir onay: değer girildikten sonra çekmeceyi kapatmanın
@@ -1266,8 +1281,11 @@ export function ModInput({
   autoFocus = false,
   hideLabel = false,
   compact = false,
+  color,
 }: {
   mod: CategoryModifierWithType;
+  /** Özelliğin rengi — skala şeridi bununla dolar */
+  color?: string;
   value: string;
   onChange: (v: string) => void;
   onRemove?: () => void;
@@ -1394,6 +1412,7 @@ export function ModInput({
           labels={mod.mod?.scaleLabels}
           value={value}
           onChange={onChange}
+          color={color}
         />
       )}
 
