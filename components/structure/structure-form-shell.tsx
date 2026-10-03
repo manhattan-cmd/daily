@@ -85,19 +85,23 @@ export function StructureFormShell({
 export function FormSection({
   label,
   hint,
+  action,
   children,
 }: {
   label: string;
   hint?: string;
+  /** Başlık satırının sağındaki küçük eylem (ör. "+ Yeni") */
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-2.5 rounded-2xl bg-[var(--sf-1)] px-3.5 pb-3.5 pt-3 ring-1 ring-inset ring-[var(--ln-1)]">
-      <div className="flex items-baseline gap-2">
+      <div className="flex min-h-6 items-center gap-2">
         <span className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70">
           {label}
         </span>
         {hint && <span className="text-[11px] text-muted-foreground/60">{hint}</span>}
+        {action && <div className="ml-auto">{action}</div>}
       </div>
       {children}
     </section>

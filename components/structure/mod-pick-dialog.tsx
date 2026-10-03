@@ -7,7 +7,6 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -150,11 +149,8 @@ export function ModPickDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(ENTRY_WINDOW_LARGE, "gap-0")}
-        // Yaratma görünümünde açıklama satırı yok — Radix'in uyarısı sussun
-        // diye bağlantı bilinçli olarak boşa çekiliyor. Seçme görünümünde
-        // özniteliğin hiç geçilmemesi gerek, yoksa Radix'in kendi kimliği
-        // ezilir; bu yüzden koşullu yayma.
-        {...(mode === "create" ? { "aria-describedby": undefined } : {})}
+        // Açıklama satırı yok — Radix'in uyarısı sussun
+        aria-describedby={undefined}
         // Açılışta klavye fırlamasın — arama ya da ad alanına dokununca açılır
         onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => {
@@ -165,7 +161,7 @@ export function ModPickDialog({
         }}
       >
         {/* Başlık — yaratmada çekirdek seçilen ölçüm türüyle değişir */}
-        <div className="flex items-center gap-3.5 pb-5 pr-6">
+        <div className="flex items-center gap-3.5 pb-4 pr-6">
           {mode === "create" ? (
             <button
               type="button"
@@ -179,11 +175,7 @@ export function ModPickDialog({
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-          ) : (
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-primary/15 text-primary">
-              <Plus className="h-6 w-6" strokeWidth={2.25} />
-            </span>
-          )}
+          ) : null}
           <div className="min-w-0 flex-1">
             <div className="mb-0.5 truncate text-[12px] font-medium text-muted-foreground">
               {targetName}
@@ -201,38 +193,28 @@ export function ModPickDialog({
             </DialogTitle>
           </div>
         </div>
-        {mode === "pick" && (
-          <DialogDescription className="sr-only">
-            {t("features.pickHint", { name: targetName })}
-          </DialogDescription>
-        )}
 
         <div className="flex flex-col gap-2.5 pb-6">
           {mode === "pick" ? (
             <>
-              {/* Yeni özellik — havuzda yoksa ilk bakılan yer */}
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("create");
-                  if (search.trim()) setName(search.trim());
-                }}
-                className="flex items-center gap-3 rounded-2xl border border-dashed border-primary/35 bg-primary/[0.06] px-3.5 py-3 text-left transition-colors hover:bg-primary/10"
+              <FormSection
+                label={t("features.pickFromPool")}
+                action={
+                  // Havuzda yoksa yeni yarat — küçük bir kapsül; aranan ad
+                  // yaratma formuna taşınır
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("create");
+                      if (search.trim()) setName(search.trim());
+                    }}
+                    className="flex h-7 items-center gap-1 rounded-full bg-primary/15 pl-2 pr-2.5 text-[12px] font-medium text-primary transition-colors hover:bg-primary/25"
+                  >
+                    <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+                    {t("features.addNew")}
+                  </button>
+                }
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary">
-                  <Plus className="h-4 w-4" strokeWidth={2.5} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">
-                    {t("features.createNew")}
-                  </span>
-                  <span className="block truncate text-[11px] text-muted-foreground">
-                    {t("features.pickHint", { name: targetName })}
-                  </span>
-                </span>
-              </button>
-
-              <FormSection label={t("features.pickFromPool")}>
                 {/* Arama hep açık — eskiden büyütece basınca beliriyordu */}
                 <label className="flex h-10 items-center gap-2 rounded-xl bg-[var(--sf-2)] px-3 ring-1 ring-inset ring-[var(--ln-1)] focus-within:ring-2 focus-within:ring-primary/50">
                   <Search className="h-4 w-4 shrink-0 text-muted-foreground/60" />
@@ -256,7 +238,7 @@ export function ModPickDialog({
 
                 {/* Özellik atomları — dairesel çekirdekler, 4 sütun */}
                 {filtered.length > 0 && (
-                  <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
+                  <div className="grid grid-cols-4 gap-x-2 gap-y-3 pt-1">
                     {filtered.map((m: ModWithType) => (
                       <ModAtom
                         key={m.id}
