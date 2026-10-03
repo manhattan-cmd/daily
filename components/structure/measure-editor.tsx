@@ -44,10 +44,13 @@ export function MeasureEditor({
   /** Havuzda hâlihazırda kullanılan birimler — önce bunlar önerilir ki
    *  "adet / Adet / tane" gibi ayrışma olmasın */
   knownUnits = [],
+  hideLabel = false,
 }: {
   value: ModMeasure;
   onChange: (next: ModMeasure) => void;
   knownUnits?: string[];
+  /** Başlık dışarıda (bölmenin kendi başlığı) — içeride tekrar etmesin */
+  hideLabel?: boolean;
 }) {
   const t = useT();
   const kind = uiKindOf(value);
@@ -88,7 +91,7 @@ export function MeasureEditor({
 
   return (
     <div className="flex flex-col gap-2.5">
-      <Label>{t("measure.howMeasured")}</Label>
+      {!hideLabel && <Label>{t("measure.howMeasured")}</Label>}
 
       <div className="grid grid-cols-3 gap-1.5">
         {MEASURE_UI_KINDS.map((k) => {
