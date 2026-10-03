@@ -290,9 +290,10 @@ export function ModPickDialog({
                 {/* Özellik atomları — dairesel çekirdekler, 4 sütun */}
                 {filtered.length > 0 && (
                   // Renkli daireler, üç sütun: dört sütunda adlar kesiliyordu,
-                  // burada iki satıra kadar tam okunuyor. Dokunmak SEÇER (halka +
-                  // köşede tik); ekleme alttaki düğmeyle.
-                  <div className="grid grid-cols-3 gap-x-2 gap-y-4 pt-1">
+                  // burada iki satıra kadar tam okunuyor. Dokunmak SEÇER: daire
+                  // ve adı özelliğin renginde bir karenin içine girer, köşede
+                  // tik belirir. Ekleme alttaki düğmeyle.
+                  <div className="grid grid-cols-3 gap-2 pt-1">
                     {filtered.map((m: ModWithType) => {
                       const c = modColor(m);
                       const on = selected.includes(m.id);
@@ -303,28 +304,25 @@ export function ModPickDialog({
                           onClick={() => toggle(m.id)}
                           aria-pressed={on}
                           disabled={saving}
-                          className="flex flex-col items-center gap-2 rounded-2xl px-1 py-1.5 transition-transform active:scale-[0.94] disabled:opacity-50"
+                          className="relative flex flex-col items-center gap-2 rounded-2xl px-1.5 pb-2.5 pt-3 transition-all duration-200 active:scale-[0.94] disabled:opacity-50"
+                          style={
+                            on
+                              ? {
+                                  background: `${c}1f`,
+                                  boxShadow: `inset 0 0 0 1.5px ${c}`,
+                                }
+                              : { boxShadow: "inset 0 0 0 1px transparent" }
+                          }
                         >
-                          <span className="relative">
+                          {on && (
                             <span
-                              className="block rounded-full transition-shadow duration-200"
-                              style={
-                                on
-                                  ? { boxShadow: `0 0 0 2px var(--sf-1), 0 0 0 4px ${c}` }
-                                  : undefined
-                              }
+                              className="entry-tile-pop absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-white"
+                              style={{ background: c }}
                             >
-                              <ModAtomCore icon={modAtomIcon(m)} color={c} />
+                              <Check className="h-3 w-3" strokeWidth={3} />
                             </span>
-                            {on && (
-                              <span
-                                className="entry-tile-pop absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-white ring-2 ring-[var(--sf-1)]"
-                                style={{ background: c }}
-                              >
-                                <Check className="h-3 w-3" strokeWidth={3} />
-                              </span>
-                            )}
-                          </span>
+                          )}
+                          <ModAtomCore icon={modAtomIcon(m)} color={c} />
                           <span
                             className={cn(
                               "line-clamp-2 w-full break-words text-center text-[12px] font-medium leading-[15px]",
