@@ -43,7 +43,14 @@ export function StructureFormShell({
   children: React.ReactNode;
 }) {
   return (
-    <DialogContent aria-describedby={undefined} className={cn(ENTRY_WINDOW, "gap-0")}>
+    <DialogContent
+      aria-describedby={undefined}
+      className={cn(ENTRY_WINDOW, "gap-0")}
+      // Açılır açılmaz ad alanına odaklanıp klavyeyi açmasın: önce öneriye,
+      // renge ya da sembole bakan kullanıcı için ekranın yarısı kapanıyordu.
+      // Klavye ad alanına dokununca açılır.
+      onOpenAutoFocus={(e) => e.preventDefault()}
+    >
       <form onSubmit={onSubmit} className="flex flex-1 flex-col">
         <div className="flex items-center gap-4 pb-5 pr-6">
           <PreviewTile color={color} icon={icon} size={56} />
@@ -59,7 +66,7 @@ export function StructureFormShell({
           </div>
         </div>
 
-        <div className="flex flex-col gap-6 pb-6">{children}</div>
+        <div className="flex flex-col gap-3 pb-6">{children}</div>
 
         <DialogFooter className={ENTRY_WINDOW_FOOTER}>{footer}</DialogFooter>
       </form>
@@ -67,7 +74,11 @@ export function StructureFormShell({
   );
 }
 
-/** Bölüm — küçük sessiz başlık (girdi ekleme ekranıyla aynı dil) */
+/**
+ * Bölme — kendi kibar penceresinde: hafif zemin, ince çerçeve, başlığı
+ * içinde. Bölümler çıplak dururken ad, öneriler ve semboller tek bir uzun
+ * akışa karışıyordu; her biri kendi kutusunda olunca göz sırayla geziyor.
+ */
 export function FormSection({
   label,
   hint,
@@ -78,13 +89,13 @@ export function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-baseline gap-2 px-0.5">
+    <section className="flex flex-col gap-3 rounded-2xl bg-[var(--sf-1)] p-4 ring-1 ring-inset ring-[var(--ln-1)]">
+      <div className="flex items-baseline gap-2">
         <span className="text-[12px] font-semibold text-muted-foreground">{label}</span>
         {hint && <span className="text-[11px] text-muted-foreground/60">{hint}</span>}
       </div>
       {children}
-    </div>
+    </section>
   );
 }
 
