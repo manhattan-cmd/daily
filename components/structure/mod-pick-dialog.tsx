@@ -67,6 +67,14 @@ export function ModPickDialog({
   const [saving, setSaving] = useState(false);
   // Havuzda arama — yazdıkça süzülür
   const [search, setSearch] = useState("");
+  // Seçilenler (dokunma sırasıyla) — "Ekle" hepsini birden bağlar. Eskiden
+  // dokunmak anında ekleyip pencereyi kapatıyordu; birkaç özellik eklemek
+  // için pencere her seferinde yeniden açılıyordu.
+  const [selected, setSelected] = useState<string[]>([]);
+  const toggle = (id: string) =>
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   // Ekleme ile kapanışta Radix odağı tetikleyiciye geri verir — bu, yeni
   // eklenen alanın autoFocus'unu çalar; bir kereliğine bastırılır
   const attachedRef = useRef(false);
@@ -102,6 +110,7 @@ export function ModPickDialog({
         setError(null);
         setExistingId(null);
         setSearch("");
+        setSelected([]);
       }, 200);
       return () => clearTimeout(t);
     }
@@ -124,6 +133,22 @@ export function ModPickDialog({
       onOpenChange(false);
       const picked = (pool ?? []).find((m) => m.id === modId);
       if (picked) onAttached?.(picked);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /** Seçilenleri sırayla bağla. Çağırana ilk seçilen bildirilir — girdi
+   *  akışları eklenen özelliğe odaklanıp değer soruyor, bir tanesi yeter. */
+  async function handleAttachSelected() {
+    if (selected.length === 0) return;
+    setSaving(true);
+    try {
+      for (const id of selected) await attachMod(targetType, targetId, id);
+      attachedRef.current = true;
+      onOpenChange(false);
+      const first = (pool ?? []).find((m) => m.id === selected[0]);
+      if (first) onAttached?.(first);
     } finally {
       setSaving(false);
     }
@@ -264,26 +289,48 @@ export function ModPickDialog({
 
                 {/* Özellik atomları — dairesel çekirdekler, 4 sütun */}
                 {filtered.length > 0 && (
-                  // Üç sütun, her özellik kendi renginde bir kart. Dört sütunluk
-                  // daire ızgarasında adlar kesiliyordu ("Çalışma …"); burada
-                  // iki satıra kadar tam okunuyor.
-                  <div className="grid grid-cols-3 gap-2 pt-1">
+                  // Renkli daireler, üç sütun: dört sütunda adlar kesiliyordu,
+                  // burada iki satıra kadar tam okunuyor. Dokunmak SEÇER (halka +
+                  // köşede tik); ekleme alttaki düğmeyle.
+                  <div className="grid grid-cols-3 gap-x-2 gap-y-4 pt-1">
                     {filtered.map((m: ModWithType) => {
                       const c = modColor(m);
+                      const on = selected.includes(m.id);
                       return (
                         <button
                           key={m.id}
                           type="button"
-                          onClick={() => handleAttach(m.id)}
+                          onClick={() => toggle(m.id)}
+                          aria-pressed={on}
                           disabled={saving}
-                          className="flex min-h-[92px] flex-col items-center justify-center gap-2 rounded-2xl px-1.5 py-3 text-center transition-transform active:scale-[0.95] disabled:opacity-50"
-                          style={{
-                            background: `${c}14`,
-                            boxShadow: `inset 0 0 0 1px ${c}33`,
-                          }}
+                          className="flex flex-col items-center gap-2 rounded-2xl px-1 py-1.5 transition-transform active:scale-[0.94] disabled:opacity-50"
                         >
-                          <ModAtomCore icon={modAtomIcon(m)} color={c} size="sm" />
-                          <span className="line-clamp-2 w-full break-words text-[12px] font-medium leading-[15px] text-foreground">
+                          <span className="relative">
+                            <span
+                              className="block rounded-full transition-shadow duration-200"
+                              style={
+                                on
+                                  ? { boxShadow: `0 0 0 2px var(--sf-1), 0 0 0 4px ${c}` }
+                                  : undefined
+                              }
+                            >
+                              <ModAtomCore icon={modAtomIcon(m)} color={c} />
+                            </span>
+                            {on && (
+                              <span
+                                className="entry-tile-pop absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-white ring-2 ring-[var(--sf-1)]"
+                                style={{ background: c }}
+                              >
+                                <Check className="h-3 w-3" strokeWidth={3} />
+                              </span>
+                            )}
+                          </span>
+                          <span
+                            className={cn(
+                              "line-clamp-2 w-full break-words text-center text-[12px] font-medium leading-[15px]",
+                              on ? "text-foreground" : "text-foreground/75"
+                            )}
+                          >
                             {m.name}
                           </span>
                         </button>
@@ -358,6 +405,18 @@ export function ModPickDialog({
           >
             {t("action.cancel")}
           </Button>
+          {mode === "pick" && (
+            <Button
+              onClick={handleAttachSelected}
+              disabled={saving || selected.length === 0}
+              className="text-white"
+              style={{ backgroundColor: accent }}
+            >
+              {selected.length > 0
+                ? `${t("action.add")} (${selected.length})`
+                : t("action.add")}
+            </Button>
+          )}
           {mode === "create" && (
             <Button
               onClick={handleCreate}
