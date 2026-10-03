@@ -40,6 +40,13 @@ import { useT } from "@/lib/i18n";
 /**
  * Mod ekleme: havuzdaki atomlardan seç ya da yeni atom yarat (isim tekildir).
  * Aynı mod birden çok yerde paylaşılır — "Para" hem Market'te hem Bira'da.
+ *
+ * İki kullanım:
+ *  - YAPI (varsayılan, persist): seçilenler hedefe kalıcı olarak bağlanır.
+ *  - GİRDİ (persist=false): hiçbir şey bağlanmaz, seçilenler onPicked ile
+ *    çağırana verilir — yalnız o girdinin formunda durur, yapıya dokunmaz.
+ *    Yeni yaratılan özellik yine havuza girer (adı tekil, başka yerde de
+ *    seçilebilsin) ama bu kaleme bağlanmaz.
  */
 export function ModPickDialog({
   open,
@@ -48,6 +55,9 @@ export function ModPickDialog({
   targetId,
   targetName,
   onAttached,
+  persist = true,
+  excludeModIds,
+  onPicked,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -57,6 +67,11 @@ export function ModPickDialog({
   /** Bir özellik eklendiğinde (seçilen ya da yeni yaratılan) çağrılır —
    * girdi kartı akışı bunu değer sorma adımına bağlar */
   onAttached?: (mod: ModWithType) => void;
+  /** false: yapıya bağlama, seçilenleri onPicked ile ver (girdiye özel) */
+  persist?: boolean;
+  /** persist=false iken listeden düşülecekler — formda zaten duranlar */
+  excludeModIds?: string[];
+  onPicked?: (mods: ModWithType[]) => void;
 }) {
   const t = useT();
   const [mode, setMode] = useState<"pick" | "create">("pick");
@@ -117,7 +132,9 @@ export function ModPickDialog({
   }, [open]);
 
   const attachedModIds = new Set(
-    (attached ?? []).map((a) => a.modId).filter(Boolean)
+    persist
+      ? (attached ?? []).map((a) => a.modId).filter(Boolean)
+      : excludeModIds ?? []
   );
   const available = (pool ?? []).filter((m) => !attachedModIds.has(m.id));
   const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
@@ -126,6 +143,13 @@ export function ModPickDialog({
     : available;
 
   async function handleAttach(modId: string) {
+    if (!persist) {
+      const picked = (pool ?? []).find((m) => m.id === modId);
+      attachedRef.current = true;
+      onOpenChange(false);
+      if (picked) onPicked?.([picked]);
+      return;
+    }
     setSaving(true);
     try {
       await attachMod(targetType, targetId, modId);
@@ -142,6 +166,16 @@ export function ModPickDialog({
    *  akışları eklenen özelliğe odaklanıp değer soruyor, bir tanesi yeter. */
   async function handleAttachSelected() {
     if (selected.length === 0) return;
+    if (!persist) {
+      const byId = new Map((pool ?? []).map((m) => [m.id, m]));
+      const picked = selected
+        .map((id) => byId.get(id))
+        .filter((m): m is ModWithType => !!m);
+      attachedRef.current = true;
+      onOpenChange(false);
+      onPicked?.(picked);
+      return;
+    }
     setSaving(true);
     try {
       for (const id of selected) await attachMod(targetType, targetId, id);
@@ -173,10 +207,17 @@ export function ModPickDialog({
         return;
       }
       const { mod } = await createMod(name, measure);
+      const withType = { ...mod, entryType: measureOf(mod) };
+      if (!persist) {
+        attachedRef.current = true;
+        onOpenChange(false);
+        onPicked?.([withType]);
+        return;
+      }
       await attachMod(targetType, targetId, mod.id);
       attachedRef.current = true;
       onOpenChange(false);
-      onAttached?.({ ...mod, entryType: measureOf(mod) });
+      onAttached?.(withType);
     } finally {
       setSaving(false);
     }
@@ -222,6 +263,7 @@ export function ModPickDialog({
           <div className="min-w-0 flex-1">
             <div className="mb-0.5 truncate text-[12px] font-medium text-muted-foreground">
               {targetName}
+              {!persist && ` · ${t("entry.onlyThisEntry")}`}
             </div>
             <DialogTitle className="flex items-center gap-2 truncate text-lg font-semibold tracking-tight">
               {mode === "create" && (

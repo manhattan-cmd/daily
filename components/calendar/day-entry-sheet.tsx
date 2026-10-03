@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, Boxes, Check, ChevronDown, Clock, Link2, Plus, X } from "lucide-react";
@@ -12,6 +12,7 @@ import {
   getOrCreateCategoryRootSub,
   listActivityNameSuggestions,
   type CategoryModifierWithType,
+  type ModWithType,
   type ParallelSub,
 } from "@/lib/db/queries";
 import { useT } from "@/lib/i18n";
@@ -48,6 +49,9 @@ import { ENTRY_SCREEN } from "@/components/ui/entry-window";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 /** Değer state anahtarı: global mod id (legacy atamalarda atama id'si) */
+/** Sabit boş liste — her çizimde yeni [] bağımlılıkları boşuna tazeliyordu */
+const NO_MODS: CategoryModifierWithType[] = [];
+
 const valueKey = (m: CategoryModifierWithType) => m.modId ?? m.id;
 /** Paralel perspektifler arası taşıma anahtarı: aynı atom = aynı anahtar */
 const sharedKey = (m: CategoryModifierWithType) => m.modId ?? m.entryTypeId ?? m.id;
@@ -148,7 +152,80 @@ function DayEntrySheetBody({
       return listModifiersForTarget("subcategory", currentSubId);
     },
     [currentSubId]
-  ) ?? [];
+  ) ?? NO_MODS;
+
+  /*
+   * GİRDİYE ÖZEL özellikler. Girdi eklerken "Özellik ekle" yapıya dokunmuyor:
+   * seçilenler yalnız bu formda durur, değerleri kayda yazılır (havuz
+   * modunun kimliğiyle — analiz onları yine tanır), kalem bir dahaki açılışta
+   * yapıdaki haliyle gelir. Çarpı da aynı ölçüde: kalemin bir özelliğini
+   * yalnız bu girdi için gizler. Kalıcı değişiklik Yapı'dan yapılır.
+   * Kalem değişince (başka kalem, sıradaki perspektif, seçime dönüş) sıfırlanır.
+   */
+  const [extraMods, setExtraMods] = useState<CategoryModifierWithType[]>([]);
+  const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(() => new Set());
+  const [extrasFor, setExtrasFor] = useState(currentSubId);
+  if (extrasFor !== currentSubId) {
+    setExtrasFor(currentSubId);
+    setExtraMods([]);
+    setHiddenKeys(new Set());
+  }
+  const activeMods = useMemo(() => {
+    const base = formMods.filter((m) => !hiddenKeys.has(valueKey(m)));
+    const seen = new Set(base.map(valueKey));
+    return [...base, ...extraMods.filter((m) => !seen.has(valueKey(m)))];
+  }, [formMods, extraMods, hiddenKeys]);
+
+  function addEntryMods(picked: ModWithType[]) {
+    const attachedIds = new Set(formMods.map((m) => m.modId));
+    const unhide: string[] = [];
+    const extras: CategoryModifierWithType[] = [];
+    for (const m of picked) {
+      // Kalemin kendi özelliği gizlenmişse geri gelir, kopyası açılmaz
+      if (attachedIds.has(m.id)) unhide.push(m.id);
+      else
+        extras.push({
+          id: `entry-${m.id}`,
+          modId: m.id,
+          name: m.name,
+          targetType: "subcategory",
+          targetId: currentSubId,
+          order: 9999,
+          createdAt: 0,
+          updatedAt: 0,
+          mod: m,
+          entryType: m.entryType,
+        });
+    }
+    if (unhide.length)
+      setHiddenKeys((prev) => {
+        const next = new Set(prev);
+        unhide.forEach((id) => next.delete(id));
+        return next;
+      });
+    if (extras.length) setExtraMods((prev) => [...prev, ...extras]);
+    setValues((prev) => {
+      const next = { ...prev };
+      for (const m of picked)
+        if (!(m.id in next))
+          next[m.id] = m.entryType.valueType === "boolean" ? "false" : "";
+      return next;
+    });
+  }
+
+  function removeEntryMod(mod: CategoryModifierWithType) {
+    const key = valueKey(mod);
+    if (mod.id.startsWith("entry-"))
+      setExtraMods((prev) => prev.filter((m) => m.id !== mod.id));
+    else setHiddenKeys((prev) => new Set(prev).add(key));
+    // Değeri de bırakma — gizlenen özellik kayda yazılmasın
+    setValues((prev) => {
+      if (!(key in prev)) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
 
   // Yeni özellik eklendiğinde values'a ilk değerini otomatik ekle.
   // NOT: Bu bilerek effect olarak kaldı. Türetilmiş değere çevirmek denendi
@@ -293,7 +370,7 @@ function DayEntrySheetBody({
     try {
       if (step.type === "form") {
         const groupId = selectedParallels.length > 0 ? nanoid(12) : undefined;
-        await persistEntry(step.sub.id, formMods, values, groupId);
+        await persistEntry(step.sub.id, activeMods, values, groupId);
         // Aktivite modunda seri giriş: kaydet → seçim adımına dön, sheet açık kalır
         if (activity) {
           setActivityCount((c) => c + 1);
@@ -306,15 +383,15 @@ function DayEntrySheetBody({
           setSelectedParallels([]);
           await advanceToNextParallel(
             selectedParallels, groupId!, 0, selectedParallels.length,
-            toSharedKeyed(formMods, values)
+            toSharedKeyed(activeMods, values)
           );
         } else {
           onClose();
           router.push(routes.day(date));
         }
       } else if (step.type === "parallel-form") {
-        await persistEntry(step.sub.id, formMods, values, step.groupId, notes);
-        const accumulated = { ...step.carryover, ...toSharedKeyed(formMods, values) };
+        await persistEntry(step.sub.id, activeMods, values, step.groupId, notes);
+        const accumulated = { ...step.carryover, ...toSharedKeyed(activeMods, values) };
         await advanceToNextParallel(parallelQueue, step.groupId, step.queueIndex, step.queueTotal, accumulated);
       }
     } finally {
@@ -388,7 +465,9 @@ function DayEntrySheetBody({
               (groups ?? []).find((g) => g.category.id === step.sub.categoryId)
                 ?.category
             }
-            mods={formMods}
+            mods={activeMods}
+            onAddMods={addEntryMods}
+            onRemoveMod={removeEntryMod}
             currentCategoryId={step.sub.categoryId}
             hideParallels={!!activity}
             activityName={activity?.name}
@@ -608,6 +687,8 @@ function FormStep({
   sub,
   category,
   mods,
+  onAddMods,
+  onRemoveMod,
   currentCategoryId,
   hideParallels,
   activityName,
@@ -630,6 +711,10 @@ function FormStep({
   sub: SubCategory;
   category?: Category;
   mods: CategoryModifierWithType[];
+  /** Girdiye özel özellik ekle — yapıya bağlanmaz */
+  onAddMods: (mods: ModWithType[]) => void;
+  /** Özelliği yalnız bu girdi için kaldır */
+  onRemoveMod: (mod: CategoryModifierWithType) => void;
   currentCategoryId: string;
   /** Aktivite akışında paralel perspektif bölümü gizlenir (seri giriş sade kalsın) */
   hideParallels?: boolean;
@@ -815,11 +900,17 @@ function FormStep({
                 değer girmek isteyen satıra dokunup açıyor. Hepsi birden açık
                 dururken üç ölçülü bir kalemde form uzuyor ve "ne kaydediyorum"
                 yerine "bu alanları doldurmam mı lazım" hissi veriyordu. */}
-            <div className="overflow-hidden rounded-xl border border-[var(--ln-2)] bg-[var(--sf-1)]">
+            {/* Her özellik KENDİ NESNESİ: ayrı, kendi renginde kart. Tek bir
+                kutunun dilimleri gibi durduklarında üstteki ve alttaki köşeli,
+                ortadaki düz dikdörtgen kalıyordu — bir bütünün maddeleri değil,
+                bölünmüş bir pencere gibi okunuyordu. */}
+            <div className="flex flex-col gap-2">
               {mods.map((mod) => (
                 <FeatureRow
                   key={mod.id}
                   mod={mod}
+                  onRemove={() => onRemoveMod(mod)}
+                  entryOnly={mod.id.startsWith("entry-")}
                   icon={modAtomIcon(mod)}
                   color={modColor(mod.mod ?? { name: mod.name ?? mod.entryType.name })}
                   value={values[valueKey(mod)] ?? ""}
@@ -829,12 +920,11 @@ function FormStep({
                   defaultOpen={mod.modId === focusModId}
                 />
               ))}
-              {/* Kartın son satırı: ayrı duran kesikli bir kutu listeyle
-                  aynı şeyin parçası olmadığını söylüyordu */}
+              {/* Ekleme de bir nesne — kesik çizgili, "buraya bir madde daha" */}
               <button
                 type="button"
                 onClick={() => setModPickerOpen(true)}
-                className="flex w-full items-center gap-3 border-t border-[var(--ln-1)] px-3 py-3 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground active:bg-[var(--sf-2)]"
+                className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-[var(--ln-2)] px-3 py-2.5 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-[var(--sf-1)] hover:text-foreground"
               >
                 <span
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
@@ -981,7 +1071,12 @@ function FormStep({
         targetType="subcategory"
         targetId={sub.id}
         targetName={sub.name}
-        onAttached={(m) => setFocusModId(m.id)}
+        persist={false}
+        excludeModIds={mods.map((m) => m.modId).filter((x): x is string => !!x)}
+        onPicked={(picked) => {
+          onAddMods(picked);
+          if (picked[0]) setFocusModId(picked[0].id);
+        }}
       />
     </>
   );
@@ -1020,8 +1115,14 @@ function FeatureRow({
   isLocked,
   entryDate,
   defaultOpen,
+  onRemove,
+  entryOnly,
 }: {
   mod: CategoryModifierWithType;
+  /** Yalnız bu girdi için kaldır */
+  onRemove: () => void;
+  /** Bu girdiye özel eklendi (yapıda yok) */
+  entryOnly: boolean;
   icon: LucideIcon;
   color: string;
   value: string;
@@ -1040,12 +1141,19 @@ function FeatureRow({
   const summary = valueSummary(mod, value);
 
   return (
-    <div className="border-t border-[var(--ln-1)] first:border-t-0">
+    <div
+      className="overflow-hidden rounded-2xl transition-shadow"
+      style={{
+        background: `${color}0d`,
+        boxShadow: `inset 0 0 0 1px ${color}${open ? "66" : "2e"}`,
+      }}
+    >
+      <div className="flex items-center">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--sf-2)] active:bg-[var(--sf-2)]"
+        className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-3 pr-1 text-left"
       >
         <span
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
@@ -1060,6 +1168,14 @@ function FeatureRow({
           {mod.entryType.unit && (
             <span className="shrink-0 text-xs leading-5 text-muted-foreground">
               {mod.entryType.unit}
+            </span>
+          )}
+          {entryOnly && (
+            <span
+              className="shrink-0 rounded-full px-1.5 text-[10px] font-medium leading-4"
+              style={{ background: `${color}24`, color }}
+            >
+              {t("entry.onlyThisEntry")}
             </span>
           )}
         </span>
@@ -1078,6 +1194,18 @@ function FeatureRow({
           )}
         />
       </button>
+      {/* Yalnız bu girdiden çıkarır — kalem bir dahaki kayıtta yine
+          yapıdaki özellikleriyle gelir */}
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={t("entry.removeFromEntry")}
+        title={t("entry.removeFromEntry")}
+        className="mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground/50 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+      >
+        <X className="h-4 w-4" />
+      </button>
+      </div>
 
       {open && (
         // Sayı ve metin tek satıra sığıyor: onay alanın YANINDA duruyor ve
@@ -1085,7 +1213,7 @@ function FeatureRow({
         // tam genişlik istiyor — orada onay alta düşüyor.
         <div
           className={cn(
-            "border-t border-[var(--ln-1)] bg-[var(--sf-1)] px-3 py-2.5",
+            "border-t px-3 py-2.5",
             inlineDone ? "flex items-center gap-2" : "flex flex-col gap-2.5"
           )}
         >
