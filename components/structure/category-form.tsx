@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { Dialog } from "@/components/ui/dialog";
 import { CATEGORY_COLORS, type Category } from "@/types";
 import { createCategory, updateCategory } from "@/lib/db/queries";
-import { IconChooser } from "@/components/structure/icon-picker";
+import { IconGrid } from "@/components/structure/icon-picker";
 import {
   FormActions,
   FormSection,
@@ -161,13 +161,12 @@ export function CategoryForm({
               </div>
             </div>
           )}
+        </FormSection>
+
         {/* Öneriler — dokununca ad, renk ve sembol birlikte dolar */}
-          {presets.length > 0 && (
-            <div className="flex flex-col gap-2 pt-1">
-              <span className="text-[11px] text-muted-foreground/70">
-                {t("form.suggestions")}
-              </span>
-              <div className="flex flex-wrap gap-1.5">
+        {presets.length > 0 && (
+          <FormSection label={t("form.suggestions")}>
+            <div className="flex flex-wrap gap-1.5">
               {presets.map((p) => (
                 <button
                   key={p.name}
@@ -180,15 +179,13 @@ export function CategoryForm({
                   }}
                   className={SUGGESTION_CHIP}
                 >
-                  <PreviewTile color={p.color} icon={p.icon} size={22} />
+                  <PreviewTile color={p.color} icon={p.icon} size={20} />
                   {p.name}
                 </button>
               ))}
-              </div>
             </div>
-          )}
-
-        </FormSection>
+          </FormSection>
+        )}
 
         <FormSection label={t("tree.colour")}>
           <div className="grid grid-cols-5 justify-items-center gap-3">
@@ -200,7 +197,7 @@ export function CategoryForm({
                 aria-label={`Renk ${c}`}
                 aria-pressed={color === c}
                 className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-full transition-transform active:scale-90",
+                  "flex h-8 w-8 items-center justify-center rounded-full transition-transform active:scale-90",
                   color === c && "ring-2 ring-white/70 ring-offset-2 ring-offset-[var(--sf-1)]"
                 )}
                 style={{ backgroundColor: c }}
@@ -211,7 +208,9 @@ export function CategoryForm({
           </div>
         </FormSection>
 
-        <IconChooser value={icon} onChange={setIcon} color={color} name={name} />
+        <FormSection label={t("tree.icon")}>
+          <IconGrid value={icon} onChange={setIcon} color={color} />
+        </FormSection>
       </StructureFormShell>
     </Dialog>
   );

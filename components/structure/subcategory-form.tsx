@@ -19,7 +19,7 @@ import {
   moveSubCategory,
   updateSubCategory,
 } from "@/lib/db/queries";
-import { IconChooser } from "@/components/structure/icon-picker";
+import { IconGrid } from "@/components/structure/icon-picker";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 
@@ -275,10 +275,6 @@ export function SubCategoryForm({
           (c) => c.id === (location?.categoryId ?? subcategory?.categoryId)
         )?.color
       : context?.cat?.color) ?? "#6366f1";
-  // Öneriye bağlam: altına eklenen dalın (yoksa kategorinin) sembolü
-  const contextIcon = isEdit
-    ? tree?.cats.find((c) => c.id === subcategory?.categoryId)?.icon
-    : parentSub?.icon ?? context?.cat?.icon;
   const eyebrow = isEdit
     ? location && tree
       ? locationLabel(location, tree.cats, tree.subs)
@@ -349,13 +345,12 @@ export function SubCategoryForm({
               </div>
             </div>
           )}
+        </FormSection>
+
         {/* Öneriler — bağlama göre (bkz. presets) */}
-          {!isEdit && presets.length > 0 && (
-            <div className="flex flex-col gap-2 pt-1">
-              <span className="text-[11px] text-muted-foreground/70">
-                {t("form.suggestions")}
-              </span>
-              <div className="flex flex-wrap gap-1.5">
+        {!isEdit && presets.length > 0 && (
+          <FormSection label={t("form.suggestions")}>
+            <div className="flex flex-wrap gap-1.5">
               {presets.map((p) => (
                 <button
                   key={p}
@@ -369,11 +364,9 @@ export function SubCategoryForm({
                   {p}
                 </button>
               ))}
-              </div>
             </div>
-          )}
-
-        </FormSection>
+          </FormSection>
+        )}
 
         {/* Düzenli/sabit işareti — analizlerde tek dokunuşla hariç tutulabilir */}
         {isEdit && (
@@ -435,13 +428,9 @@ export function SubCategoryForm({
           </FormSection>
         )}
 
-        <IconChooser
-          value={icon}
-          onChange={setIcon}
-          color={previewColor}
-          name={name}
-          contextIcon={contextIcon}
-        />
+        <FormSection label={t("tree.icon")}>
+          <IconGrid value={icon} onChange={setIcon} color={previewColor} />
+        </FormSection>
       </StructureFormShell>
     </Dialog>
   );

@@ -6,7 +6,10 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ENTRY_WINDOW, ENTRY_WINDOW_FOOTER } from "@/components/ui/entry-window";
+import {
+  ENTRY_WINDOW_FOOTER,
+  ENTRY_WINDOW_LARGE,
+} from "@/components/ui/entry-window";
 import { Button } from "@/components/ui/button";
 import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -45,28 +48,28 @@ export function StructureFormShell({
   return (
     <DialogContent
       aria-describedby={undefined}
-      className={cn(ENTRY_WINDOW, "gap-0")}
+      className={cn(ENTRY_WINDOW_LARGE, "gap-0")}
       // Açılır açılmaz ad alanına odaklanıp klavyeyi açmasın: önce öneriye,
       // renge ya da sembole bakan kullanıcı için ekranın yarısı kapanıyordu.
       // Klavye ad alanına dokununca açılır.
       onOpenAutoFocus={(e) => e.preventDefault()}
     >
       <form onSubmit={onSubmit} className="flex flex-1 flex-col">
-        <div className="flex items-center gap-4 pb-5 pr-6">
-          <PreviewTile color={color} icon={icon} size={56} />
+        <div className="flex items-center gap-3.5 pb-5 pr-6">
+          <PreviewTile color={color} icon={icon} size={48} />
           <div className="min-w-0 flex-1">
             {eyebrow && (
               <div className="mb-0.5 truncate text-[12px] font-medium text-muted-foreground">
                 {eyebrow}
               </div>
             )}
-            <DialogTitle className="truncate text-xl font-bold tracking-tight">
+            <DialogTitle className="truncate text-lg font-semibold tracking-tight">
               {title}
             </DialogTitle>
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 pb-6">{children}</div>
+        <div className="flex flex-col gap-2.5 pb-6">{children}</div>
 
         <DialogFooter className={ENTRY_WINDOW_FOOTER}>{footer}</DialogFooter>
       </form>
@@ -89,9 +92,11 @@ export function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-3 rounded-2xl bg-[var(--sf-1)] p-4 ring-1 ring-inset ring-[var(--ln-1)]">
+    <section className="flex flex-col gap-2.5 rounded-2xl bg-[var(--sf-1)] px-3.5 pb-3.5 pt-3 ring-1 ring-inset ring-[var(--ln-1)]">
       <div className="flex items-baseline gap-2">
-        <span className="text-[12px] font-semibold text-muted-foreground">{label}</span>
+        <span className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70">
+          {label}
+        </span>
         {hint && <span className="text-[11px] text-muted-foreground/60">{hint}</span>}
       </div>
       {children}
@@ -101,11 +106,11 @@ export function FormSection({
 
 /** Ad alanı — büyük, yuvarlak; pencerenin asıl sorusu */
 export const NAME_INPUT =
-  "h-12 w-full rounded-2xl bg-[var(--sf-2)] px-4 text-base ring-1 ring-inset ring-[var(--ln-1)] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50";
+  "h-11 w-full rounded-xl bg-[var(--sf-2)] px-3.5 text-[15px] ring-1 ring-inset ring-[var(--ln-1)] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50";
 
 /** Öneri çipi — dokununca adı (ve kategoride rengi/sembolü) doldurur */
 export const SUGGESTION_CHIP =
-  "flex items-center gap-1.5 rounded-full bg-[var(--sf-2)] py-1.5 pl-1.5 pr-3 text-sm font-medium ring-1 ring-inset ring-[var(--ln-1)] transition-transform active:scale-95";
+  "flex items-center gap-1.5 rounded-full bg-[var(--sf-2)] py-1 pl-1 pr-2.5 text-[13px] font-medium ring-1 ring-inset ring-[var(--ln-1)] transition-transform active:scale-95";
 
 /** Önizleme karosu — dolu renk, beyaz sembol (listelerdeki karonun aynısı) */
 export function PreviewTile({
