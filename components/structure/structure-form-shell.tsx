@@ -86,16 +86,23 @@ export function FormSection({
   label,
   hint,
   action,
+  className,
   children,
 }: {
   label: string;
   hint?: string;
   /** Başlık satırının sağındaki küçük eylem (ör. "+ Yeni") */
   action?: React.ReactNode;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-2.5 rounded-2xl bg-[var(--sf-1)] px-3.5 pb-3.5 pt-3 ring-1 ring-inset ring-[var(--ln-1)]">
+    <section
+      className={cn(
+        "flex flex-col gap-2.5 rounded-2xl bg-[var(--sf-1)] px-3.5 pb-3.5 pt-3 ring-1 ring-inset ring-[var(--ln-1)]",
+        className
+      )}
+    >
       <div className="flex min-h-6 items-center gap-2">
         <span className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70">
           {label}

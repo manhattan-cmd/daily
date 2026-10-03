@@ -217,6 +217,8 @@ export function ModPickDialog({
           {mode === "pick" ? (
             <>
               <FormSection
+                // Pencerenin kenarlarına yaklaşır: kartlar daha geniş, adlar rahat
+                className="-mx-4 px-3"
                 label={t("features.pickFromPool")}
                 action={
                   // Havuzda yoksa yeni yarat — küçük bir kapsül; aranan ad
