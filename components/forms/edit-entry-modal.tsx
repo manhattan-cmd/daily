@@ -1,21 +1,18 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { nanoid } from "nanoid";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   CalendarDays,
-  ChevronDown,
   ChevronRight,
   Clock,
-  LayoutGrid,
   Link2,
   NotebookPen,
   Plus,
   Repeat,
-  Search,
   Trash2,
   X,
 } from "lucide-react";
@@ -28,6 +25,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import {
   ENTRY_WINDOW_COMPACT,
   ENTRY_WINDOW_FOOTER,
@@ -53,14 +51,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
 import { isNumericChoiceSet, SHORT_MONTHS } from "@/lib/analytics";
-import { ModAtom, modAtomIcon } from "@/components/structure/mod-atom";
-import { modColor } from "@/lib/mod-color";
-import {
-  MEASURE_KIND_META,
-  MEASURE_UI_KINDS,
-  uiKindOf,
-  type MeasureUiKind,
-} from "@/lib/measure-kinds";
+import { modAtomIcon } from "@/components/structure/mod-atom";
 import type { LucideIcon } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { confirmDialog } from "@/components/ui/confirm";
@@ -322,7 +313,6 @@ export function EditEntryModal({
   }
 
   const [addModOpen, setAddModOpen] = useState(false);
-  const [modQuery, setModQuery] = useState("");
   const [notes, setNotes] = useState(entry.notes ?? "");
   // İkincil ayarlar başlıktaki menüden açılır — aynı anda yalnız biri
   const [panel, setPanel] = useState<Panel | null>(null);
@@ -433,11 +423,6 @@ export function EditEntryModal({
     return result;
   }, [mods, extraModIds, extraTypeIds, removedKeys, entry.values, entryTypeMap, poolModMap]);
 
-  // Girdiye özel eklenebilecek havuz modları
-  const availableToAdd = useMemo(() => {
-    const visibleModIds = new Set(rows.map((r) => r.modId).filter(Boolean));
-    return (poolMods ?? []).filter((m) => !visibleModIds.has(m.id));
-  }, [poolMods, rows]);
 
   const entryDate = toLocalDateValue(entry.occurredAt);
 
@@ -445,18 +430,20 @@ export function EditEntryModal({
     setRemovedKeys((prev) => new Set([...prev, key]));
   }
 
-  function handleAddMod(modId: string) {
+  /** Özellik ekleme penceresinden gelenler — yalnız bu girdiye (yapıya
+   *  bağlanmaz). Çarpıyla kaldırılmış biri seçilirse geri gelir. */
+  function handleAddMods(modIds: string[]) {
+    if (modIds.length === 0) return;
     setRemovedKeys((prev) => {
       const next = new Set(prev);
-      next.delete(modId);
+      modIds.forEach((id) => next.delete(id));
       return next;
     });
-    setExtraModIds((prev) =>
-      prev.includes(modId) ? prev : [...prev, modId]
-    );
-    setFocusKey(modId);
-    setAddModOpen(false);
-    setModQuery("");
+    setExtraModIds((prev) => [
+      ...prev,
+      ...modIds.filter((id) => !prev.includes(id)),
+    ]);
+    setFocusKey(modIds[0]);
   }
 
   async function handleSave() {
@@ -797,20 +784,10 @@ export function EditEntryModal({
             {/* Yerleşik akışların (uyku, ruh hali) alanları sabittir: havuzdan
                 rastgele bir özellik eklemek bu formlara ait değil. Boşalan yer
                 duygu ızgarasına gidiyor (bkz. ModInput gridHeight). */}
-            {availableToAdd.length > 0 && fieldTone === "default" &&
-              (addModOpen ? (
-                <AddModPanel
-                  mods={availableToAdd}
-                  color={accent}
-                  query={modQuery}
-                  onQuery={setModQuery}
-                  onPick={handleAddMod}
-                  onClose={() => {
-                    setAddModOpen(false);
-                    setModQuery("");
-                  }}
-                />
-              ) : (
+            {/* Girdiye özel ekleme — uygulamanın her yerindeki özellik ekleme
+                penceresi (yalnız bu girdi modunda). Eskiden burada kartın
+                içinde açılan ayrı, eski bir seçici vardı. */}
+            {fieldTone === "default" && (
                 <button
                   type="button"
                   onClick={() => setAddModOpen(true)}
@@ -825,7 +802,7 @@ export function EditEntryModal({
                   </span>
                   {t("entry.addFeatureHere")}
                 </button>
-              ))}
+            )}
 
             {/* ── Menüden açılan bölümler ── */}
             {panel === "time" && (
@@ -1041,210 +1018,19 @@ export function EditEntryModal({
         </DialogContent>
       </Dialog>
 
+      <ModPickDialog
+        open={addModOpen}
+        onOpenChange={setAddModOpen}
+        targetType="subcategory"
+        targetId={entry.subcategory.id}
+        targetName={structureName}
+        persist={false}
+        excludeModIds={rows
+          .map((r) => r.modId)
+          .filter((x): x is string => !!x)}
+        onPicked={(picked) => handleAddMods(picked.map((m) => m.id))}
+      />
     </>
-  );
-}
-
-/**
- * Girdiye özellik ekleme — kartın İÇİNDE, butonun yerinde açılır.
- *
- * Önceden üstüne ikinci bir pencere açılıyordu (üst üste Dialog kırılgan) ve
- * her satırda ad + ölçü türü + birim + seçenekler yazıyordu: seçerken bakılan
- * şey yalnız ad, gerisi kalabalıktı. Artık havuzdaki gibi renkli atomlar —
- * aynı özellik her ekranda aynı renk ve simgeyle tanınıyor.
- */
-function AddModPanel({
-  mods,
-  color,
-  query,
-  onQuery,
-  onPick,
-  onClose,
-}: {
-  mods: ModWithType[];
-  color: string;
-  query: string;
-  onQuery: (q: string) => void;
-  onPick: (modId: string) => void;
-  onClose: () => void;
-}) {
-  const t = useT();
-  // Tür filtresi — "süre gibi bir sayı mıydı, evet/hayır mı?" diye hatırlanan
-  // özelliği adını bilmeden bulmak için. Yalnız havuzda olan türler çıkar.
-  const [kind, setKind] = useState<MeasureUiKind | null>(null);
-  const [kindOpen, setKindOpen] = useState(false);
-  const kindRef = useRef<HTMLDivElement>(null);
-  // Dışarı dokununca / Esc ile kapanır. Radix Select yerine elle: liste
-  // Dialog'un içinde, kutunun üstünde açılıyor — portal ve odak tuzağı gerekmiyor
-  useEffect(() => {
-    if (!kindOpen) return;
-    const onDown = (e: PointerEvent) => {
-      if (!kindRef.current?.contains(e.target as Node)) setKindOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        setKindOpen(false);
-      }
-    };
-    document.addEventListener("pointerdown", onDown);
-    window.addEventListener("keydown", onKey, true);
-    return () => {
-      document.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("keydown", onKey, true);
-    };
-  }, [kindOpen]);
-  const kinds = MEASURE_UI_KINDS.filter((k) =>
-    mods.some((m) => uiKindOf(m.entryType) === k)
-  );
-  const q = query.trim().toLocaleLowerCase("tr");
-  const shown = mods.filter(
-    (m) =>
-      (!q || m.name.toLocaleLowerCase("tr").includes(q)) &&
-      (!kind || uiKindOf(m.entryType) === kind)
-  );
-  const skin = colorSkin(color);
-  const KindIcon = kind ? MEASURE_KIND_META[kind].icon : null;
-  return (
-    <div className="animate-in flex flex-col gap-1.5">
-      {/* Başlık kutunun dışında, formdaki diğer alanların başlığıyla aynı:
-          seçici de bir alan gibi okunuyor, "+" ne yapıldığını söylüyor */}
-      <div className="flex items-center justify-between">
-        <FieldLabel icon={Plus} tone="default" color={color}>
-          {t("entry.addFeatureHere")}
-        </FieldLabel>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={t("action.close")}
-          className="rounded-md p-0.5 text-muted-foreground/40 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-      </div>
-
-      <div
-        className="relative rounded-2xl border p-3"
-        style={{ background: skin.shellBg, borderColor: skin.shellBorder }}
-      >
-        {/* Arama + tür filtresi tek satırda: filtre ayrı bir çip sırası
-            olunca kutunun üstü kalabalıklaşıyordu. Tür listesi hapın altında,
-            ızgaranın üstüne açılıyor — telefonun kendi seçim penceresi
-            uygulamanın diliyle uyuşmuyordu. */}
-        {(mods.length > 8 || kinds.length > 1) && (
-          // Çerçeve dış kutuda, yazı alanı esnek: kapsül türün tam adı kadar
-          // uzayabiliyor ve yazılan metin onun altına girmiyor
-          <div className="relative mb-2 flex h-9 items-center gap-1 rounded-lg border border-border bg-input pl-9 pr-1 transition-colors focus-within:ring-2 focus-within:ring-ring">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
-            <Input
-              value={query}
-              onChange={(e) => onQuery(e.target.value)}
-              placeholder={t("features.search")}
-              className="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 focus-visible:ring-0"
-            />
-            {kinds.length > 1 && (
-              <div ref={kindRef} className="relative shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setKindOpen((o) => !o)}
-                  aria-haspopup="listbox"
-                  aria-expanded={kindOpen}
-                  aria-label={t("measure.howMeasured")}
-                  className="flex h-7 items-center gap-1 whitespace-nowrap rounded-full border border-[var(--ln-2)] px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-                  style={
-                    kind
-                      ? { background: `${color}2e`, borderColor: `${color}66`, color }
-                      : undefined
-                  }
-                >
-                  {KindIcon && <KindIcon className="h-3 w-3 shrink-0" />}
-                  {kind ? t(MEASURE_KIND_META[kind].labelKey) : t("features.allKinds")}
-                  <ChevronDown
-                    className={cn(
-                      "h-3 w-3 shrink-0 opacity-70 transition-transform",
-                      kindOpen && "rotate-180"
-                    )}
-                  />
-                </button>
-
-                {kindOpen && (
-                  <div
-                    role="listbox"
-                    className="animate-in absolute right-0 top-[calc(100%+8px)] z-20 w-[190px] rounded-[14px] border border-border bg-card p-1 shadow-2xl"
-                  >
-                    {[null, ...kinds].map((k) => {
-                      const on = k === kind;
-                      const Icon = k ? MEASURE_KIND_META[k].icon : LayoutGrid;
-                      const n = k
-                        ? mods.filter((m) => uiKindOf(m.entryType) === k).length
-                        : mods.length;
-                      return (
-                        <button
-                          key={k ?? "all"}
-                          type="button"
-                          role="option"
-                          aria-selected={on}
-                          onClick={() => {
-                            setKind(k);
-                            setKindOpen(false);
-                          }}
-                          className={cn(
-                            "flex w-full items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-left transition-colors",
-                            !on && "hover:bg-[var(--sf-2)]"
-                          )}
-                          style={on ? { background: `${color}1f` } : undefined}
-                        >
-                          <span
-                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
-                            style={{
-                              background: on ? `${color}33` : "var(--sf-2)",
-                              color: on ? color : undefined,
-                            }}
-                          >
-                            <Icon className="h-3 w-3" />
-                          </span>
-                          <span
-                            className="min-w-0 flex-1 truncate text-[12px] font-medium"
-                            style={on ? { color } : undefined}
-                          >
-                            {k ? t(MEASURE_KIND_META[k].labelKey) : t("features.allKinds")}
-                          </span>
-                          <span className="text-[10.5px] tabular-nums text-muted-foreground/60">
-                            {n}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Sabit yükseklik: süzgeç ya da arama sonucu daralınca kutu ve
-            altındaki form zıplamasın. Boş sonuç mesajı da bu alanın içinde. */}
-        <div className="h-[244px] overflow-y-auto overscroll-contain">
-          {shown.length > 0 ? (
-            <div className="grid grid-cols-4 gap-x-1 gap-y-0.5">
-              {shown.map((m) => (
-                <ModAtom
-                  key={m.id}
-                  icon={modAtomIcon(m)}
-                  name={m.name}
-                  color={modColor(m)}
-                  onClick={() => onPick(m.id)}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="flex h-full items-center justify-center text-xs text-muted-foreground/70">
-              {t("entry.noFeatureMatch")}
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
   );
 }
 
