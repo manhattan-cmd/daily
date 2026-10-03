@@ -17,6 +17,7 @@ import {
 import {
   FormSection,
   NAME_INPUT,
+  PreviewTile,
 } from "@/components/structure/structure-form-shell";
 import {
   listMods,
@@ -29,7 +30,9 @@ import {
   type ModWithType,
 } from "@/lib/db/queries";
 import { MeasureEditor, isMeasureComplete } from "@/components/structure/measure-editor";
-import { ModAtom, ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
+import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
+import { modColor } from "@/lib/mod-color";
+import { db } from "@/lib/db";
 import { MEASURE_KIND_META, uiKindOf } from "@/lib/measure-kinds";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
@@ -69,6 +72,19 @@ export function ModPickDialog({
   const attachedRef = useRef(false);
 
   const pool = useLiveQuery(() => listMods(), []);
+  // Pencerenin rengi hedefin kategorisinden: başlık karosu ve asli eylemler
+  // onun renginde. Renksiz gri bir pencere hangi kaleme eklendiğini
+  // söylemiyordu.
+  const target = useLiveQuery(async () => {
+    if (targetType === "category") {
+      const c = await db.categories.get(targetId);
+      return c ? { color: c.color, icon: c.icon } : null;
+    }
+    const sub = await db.subcategories.get(targetId);
+    const c = sub ? await db.categories.get(sub.categoryId) : undefined;
+    return c ? { color: c.color, icon: sub?.icon ?? c.icon } : null;
+  }, [targetType, targetId]);
+  const accent = target?.color ?? "#6366f1";
   const attached = useLiveQuery(
     () => listModifiersForTarget(targetType, targetId),
     [targetType, targetId]
@@ -175,7 +191,9 @@ export function ModPickDialog({
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-          ) : null}
+          ) : (
+            <PreviewTile color={accent} icon={target?.icon} size={48} />
+          )}
           <div className="min-w-0 flex-1">
             <div className="mb-0.5 truncate text-[12px] font-medium text-muted-foreground">
               {targetName}
@@ -185,6 +203,7 @@ export function ModPickDialog({
                 <ModAtomCore
                   icon={MEASURE_KIND_META[uiKindOf(measure)].icon}
                   size="sm"
+                  color={accent}
                 />
               )}
               {mode === "create"
@@ -208,7 +227,12 @@ export function ModPickDialog({
                       setMode("create");
                       if (search.trim()) setName(search.trim());
                     }}
-                    className="flex h-7 items-center gap-1 rounded-full bg-primary/15 pl-2 pr-2.5 text-[12px] font-medium text-primary transition-colors hover:bg-primary/25"
+                    className="flex h-7 items-center gap-1 rounded-full pl-2 pr-2.5 text-[12px] font-semibold transition-opacity hover:opacity-85"
+                    style={{
+                      background: `${accent}2e`,
+                      color: accent,
+                      boxShadow: `inset 0 0 0 1px ${accent}55`,
+                    }}
                   >
                     <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
                     {t("features.addNew")}
@@ -238,16 +262,31 @@ export function ModPickDialog({
 
                 {/* Özellik atomları — dairesel çekirdekler, 4 sütun */}
                 {filtered.length > 0 && (
-                  <div className="grid grid-cols-4 gap-x-2 gap-y-3 pt-1">
-                    {filtered.map((m: ModWithType) => (
-                      <ModAtom
-                        key={m.id}
-                        icon={modAtomIcon(m)}
-                        name={m.name}
-                        onClick={() => handleAttach(m.id)}
-                        disabled={saving}
-                      />
-                    ))}
+                  // Üç sütun, her özellik kendi renginde bir kart. Dört sütunluk
+                  // daire ızgarasında adlar kesiliyordu ("Çalışma …"); burada
+                  // iki satıra kadar tam okunuyor.
+                  <div className="grid grid-cols-3 gap-2 pt-1">
+                    {filtered.map((m: ModWithType) => {
+                      const c = modColor(m);
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => handleAttach(m.id)}
+                          disabled={saving}
+                          className="flex min-h-[92px] flex-col items-center justify-center gap-2 rounded-2xl px-1.5 py-3 text-center transition-transform active:scale-[0.95] disabled:opacity-50"
+                          style={{
+                            background: `${c}14`,
+                            boxShadow: `inset 0 0 0 1px ${c}33`,
+                          }}
+                        >
+                          <ModAtomCore icon={modAtomIcon(m)} color={c} size="sm" />
+                          <span className="line-clamp-2 w-full break-words text-[12px] font-medium leading-[15px] text-foreground">
+                            {m.name}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -321,6 +360,8 @@ export function ModPickDialog({
             <Button
               onClick={handleCreate}
               disabled={saving || !name.trim() || !isMeasureComplete(measure)}
+              className="text-white"
+              style={{ backgroundColor: accent }}
             >
               {t("features.createAndAttach")}
             </Button>
