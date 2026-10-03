@@ -1,12 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Layers } from "lucide-react";
 import { listUserCategories } from "@/lib/db/queries";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CategoryQuickAdd } from "@/components/structure/category-quick-add";
+import { CategoryForm } from "@/components/structure/category-form";
 import { CategoryTile } from "@/components/structure/category-tile";
-import { StructureHeader } from "@/components/structure/structure-header";
+import {
+  StructureAddButton,
+  StructureHeader,
+} from "@/components/structure/structure-header";
 import { ExampleHint } from "@/components/structure/example-hint";
 import { useT } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
@@ -15,12 +19,20 @@ export default function StructurePage() {
   const t = useT();
   const categories = useLiveQuery(() => listUserCategories(), []);
 
-  const existingNames = new Set(categories?.map((c) => c.name) ?? []);
+  // Kategori ekleme girdi ekleme ekranındakiyle AYNI pencere (CategoryForm).
+  // Eskiden burada açılır küçük bir menü vardı: hazır listeye dokununca
+  // sormadan kategori açıyor, "kendin yaz" satırı sıkışık kalıyordu.
+  const [addOpen, setAddOpen] = useState(false);
 
   return (
     <>
       <StructureHeader
-        action={<CategoryQuickAdd existingNames={existingNames} />}
+        action={
+          <StructureAddButton
+            labelKey="structure.addCategory"
+            onClick={() => setAddOpen(true)}
+          />
+        }
       />
 
       <ExampleHint />
@@ -45,6 +57,7 @@ export default function StructurePage() {
           ))}
         </div>
       )}
+      <CategoryForm open={addOpen} onOpenChange={setAddOpen} />
     </>
   );
 }

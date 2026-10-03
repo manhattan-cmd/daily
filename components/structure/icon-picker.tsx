@@ -37,15 +37,24 @@ export function IconPicker({
   value,
   onChange,
   color,
+  bare = false,
 }: {
   value?: string;
   onChange: (icon: string | undefined) => void;
   /** Seçili sembolün arkasına konan kategori rengi */
   color?: string;
+  /** Kendi kaydırma kutusu olmadan — pencerenin kendisi kayıyorsa iç içe
+   *  ikinci bir kaydırma alanı parmağı yutuyordu */
+  bare?: boolean;
 }) {
   const t = useT();
   return (
-    <div className="flex max-h-56 flex-col gap-3 overflow-y-auto pr-1">
+    <div
+      className={cn(
+        "flex flex-col gap-3",
+        !bare && "max-h-56 overflow-y-auto pr-1"
+      )}
+    >
       {ICON_GROUPS.map((g) => (
         <div key={g.key} className="flex flex-col gap-1.5">
           <span className="px-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
@@ -62,10 +71,11 @@ export function IconPicker({
                   aria-label={n}
                   aria-pressed={selected}
                   className={cn(
-                    "flex h-9 items-center justify-center rounded-lg border transition-all active:scale-95",
+                    "flex h-9 items-center justify-center rounded-xl transition-all active:scale-90",
                     selected
-                      ? "border-foreground/70"
-                      : "border-border bg-card hover:bg-muted"
+                      ? "ring-2 ring-inset ring-white/60"
+                      : "bg-[var(--sf-1)] ring-1 ring-inset ring-[var(--ln-1)] hover:bg-[var(--sf-2)]",
+                    selected && !color && "bg-primary"
                   )}
                   style={
                     selected && color ? { backgroundColor: color } : undefined
@@ -86,13 +96,3 @@ export function IconPicker({
   );
 }
 
-/** Alt kategori formu da aynı seçiciyi kullanır — renk arka planı olmadan */
-export function EmojiPicker({
-  value,
-  onChange,
-}: {
-  value?: string;
-  onChange: (icon: string | undefined) => void;
-}) {
-  return <IconPicker value={value} onChange={onChange} />;
-}

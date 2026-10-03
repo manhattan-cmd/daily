@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Check, ChevronDown, CornerDownRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Dialog } from "@/components/ui/dialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  FormActions,
+  FormSection,
+  NAME_INPUT,
+  StructureFormShell,
+  SUGGESTION_CHIP,
+} from "@/components/structure/structure-form-shell";
 import { type Category, type SubCategory } from "@/types";
 import { db } from "@/lib/db";
 import {
@@ -19,7 +19,7 @@ import {
   moveSubCategory,
   updateSubCategory,
 } from "@/lib/db/queries";
-import { EmojiPicker } from "@/components/structure/icon-picker";
+import { IconPicker } from "@/components/structure/icon-picker";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 
@@ -268,200 +268,171 @@ export function SubCategoryForm({
     await save(name);
   }
 
-  const iconSection = (
-    <div className="flex flex-col gap-2">
-      <p className="text-xs text-muted-foreground">{t("tree.icon")}</p>
-      <EmojiPicker value={icon} onChange={setIcon} />
-    </div>
-  );
+  // Önizlemenin rengi kategorinin rengi — alt kalem kendi rengini taşımıyor
+  const previewColor =
+    (isEdit
+      ? tree?.cats.find(
+          (c) => c.id === (location?.categoryId ?? subcategory?.categoryId)
+        )?.color
+      : context?.cat?.color) ?? "#6366f1";
+  const eyebrow = isEdit
+    ? location && tree
+      ? locationLabel(location, tree.cats, tree.subs)
+      : t("tree.editSubcategory")
+    : targetPath
+      ? `${targetPath} ${t("form.under")}`
+      : undefined;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {isEdit ? t("tree.editSubcategory") : "Yeni alt kategori"}
-          </DialogTitle>
-          {/* Nereye eklendiği — kategori renk noktası + yol */}
-          {!isEdit && targetPath && (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span
-                className="h-2 w-2 shrink-0 rounded-full"
-                style={{ backgroundColor: context?.cat?.color ?? "#6366f1" }}
-              />
-              <span className="truncate font-medium text-foreground/80">
-                {targetPath}
-              </span>
-              <span className="shrink-0 text-muted-foreground/60">{t("form.under")}</span>
-            </div>
-          )}
-        </DialogHeader>
+      <StructureFormShell
+        color={previewColor}
+        icon={icon}
+        title={
+          name.trim() ||
+          (isEdit ? t("tree.editSubcategory") : t("tree.newSubcategory"))
+        }
+        eyebrow={eyebrow}
+        onSubmit={onSubmit}
+        footer={
+          <FormActions
+            submitLabel={isEdit ? t("action.save") : t("action.create")}
+            cancelLabel={t("action.cancel")}
+            disabled={!name.trim() || saving}
+            onCancel={() => onOpenChange(false)}
+          />
+        }
+      >
+        <FormSection label={t("tree.name")}>
+          <input
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setDuplicate(null);
+            }}
+            placeholder={t("tree.subcategoryNamePlaceholder")}
+            autoFocus={isEdit}
+            className={NAME_INPUT}
+          />
 
-        {/* Edit mode: simple form */}
-        {isEdit ? (
-          <form onSubmit={onSubmit} className="flex flex-col gap-4">
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t("form.subcategoryName")}
-              autoFocus
-            />
-            {iconSection}
-
-            {/* Düzenli/sabit işareti — analizlerde tek dokunuşla hariç tutulabilir */}
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-input px-3 py-2.5">
-              <div className="min-w-0">
-                <p className="text-sm font-medium">{t("entry.regular")}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  Kira, fatura gibi düzenli kalemler — analizlerde tek dokunuşla
-                  hariç tutulabilir
-                </p>
-              </div>
-              <Switch checked={isRegular} onCheckedChange={setIsRegular} />
-            </div>
-
-            {/* Konum — başka bir kategorinin/alt kategorinin altına taşı */}
-            {location && tree && (
-              <div className="flex flex-col gap-2">
-                <p className="text-xs text-muted-foreground">{t("form.position")}</p>
+          {/* Aynı ad uyarısı — var olanı kullan ya da bilerek ikinciyi aç */}
+          {duplicate && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed text-amber-200/90">
+              <span className="font-semibold">&bdquo;{duplicate.name}&rdquo;</span>{" "}
+              bu kategoride zaten var —{" "}
+              <span className="font-medium">{pathOf(duplicate)}</span> altında.
+              Aynı adla ikinci bir dal analizlerde karışıklık yaratabilir.
+              <div className="mt-2 flex items-center gap-4">
                 <button
                   type="button"
-                  onClick={() => setLocationOpen((v) => !v)}
-                  className="flex items-center justify-between gap-2 rounded-xl border border-border bg-input px-3 py-2.5 text-sm text-left"
+                  onClick={() => {
+                    onSaved?.(duplicate);
+                    setDuplicate(null);
+                    setName("");
+                    setIcon(undefined);
+                    onOpenChange(false);
+                  }}
+                  className="font-semibold text-amber-100 hover:underline"
                 >
-                  <span className="truncate">
-                    {locationLabel(location, tree.cats, tree.subs)}
-                  </span>
-                  <ChevronDown
-                    className={cn(
-                      "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                      locationOpen && "rotate-180"
-                    )}
-                  />
+                  Var olanı kullan
                 </button>
-                {locationOpen && (
-                  <div className="max-h-48 overflow-y-auto rounded-xl border border-border divide-y divide-border/50">
-                    {tree.cats
-                      .filter(
-                        (c) => !c.isBuiltIn || c.id === subcategory!.categoryId
-                      )
-                      .map((cat) => (
-                        <LocationGroup
-                          key={cat.id}
-                          category={cat}
-                          subs={tree.subs}
-                          excludedIds={excludedIds}
-                          selected={location}
-                          onPick={(loc) => {
-                            setLocation(loc);
-                            setLocationOpen(false);
-                          }}
-                        />
-                      ))}
-                  </div>
-                )}
-                {locationChanged && (
-                  <p className="text-[11px] text-muted-foreground">
-                    Alt kategorileri ve girdileriyle birlikte taşınır; analizler
-                    yeni konuma göre kendiliğinden güncellenir.
-                  </p>
-                )}
+                <button
+                  type="button"
+                  onClick={() => save(name, true)}
+                  className="text-amber-200/70 transition-colors hover:text-amber-100"
+                >
+                  Yine de oluştur
+                </button>
               </div>
-            )}
-
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-                İptal
-              </Button>
-              <Button type="submit" disabled={!name.trim() || saving}>
-                Kaydet
-              </Button>
             </div>
-          </form>
-        ) : (
-          <div className="flex flex-col gap-5">
-            {/* Presets */}
-            {presets.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {presets.map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => {
-                      setName(p);
-                      setDuplicate(null);
-                    }}
-                    className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium transition-all hover:bg-muted active:scale-95"
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-            )}
+          )}
+        </FormSection>
 
-            {/* Dominant custom input */}
-            <form onSubmit={onSubmit} className="flex flex-col gap-3">
-              {presets.length > 0 && (
-                <p className="text-xs text-muted-foreground">{t("form.orWriteYourOwn")}</p>
-              )}
-              <Input
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  setDuplicate(null);
-                }}
-                placeholder={t("tree.subcategoryNamePlaceholder")}
-                autoFocus={presets.length === 0}
-                className="h-12 text-base"
-              />
+        {/* Öneriler — bağlama göre (bkz. presets) */}
+        {!isEdit && presets.length > 0 && (
+          <FormSection label={t("form.suggestions")}>
+            <div className="flex flex-wrap gap-2">
+              {presets.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => {
+                    setName(p);
+                    setDuplicate(null);
+                  }}
+                  className={cn(SUGGESTION_CHIP, "pl-3")}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </FormSection>
+        )}
 
-              {/* Aynı ad uyarısı — var olanı kullan ya da bilerek ikinciyi aç */}
-              {duplicate && (
-                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed text-amber-200/90">
-                  <span className="font-semibold">
-                    &bdquo;{duplicate.name}&rdquo;
-                  </span>{" "}
-                  bu kategoride zaten var —{" "}
-                  <span className="font-medium">{pathOf(duplicate)}</span>{" "}
-                  altında. Aynı adla ikinci bir dal analizlerde karışıklık
-                  yaratabilir.
-                  <div className="mt-2 flex items-center gap-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onSaved?.(duplicate);
-                        setDuplicate(null);
-                        setName("");
-                        setIcon(undefined);
-                        onOpenChange(false);
-                      }}
-                      className="font-semibold text-amber-100 hover:underline"
-                    >
-                      Var olanı kullan
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => save(name, true)}
-                      className="text-amber-200/70 hover:text-amber-100 transition-colors"
-                    >
-                      Yine de oluştur
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {iconSection}
-              <Button
-                type="submit"
-                className="w-full"
-                size="lg"
-                disabled={!name.trim() || saving}
-              >
-                Oluştur
-              </Button>
-            </form>
+        {/* Düzenli/sabit işareti — analizlerde tek dokunuşla hariç tutulabilir */}
+        {isEdit && (
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-[var(--sf-1)] px-4 py-3 ring-1 ring-inset ring-[var(--ln-1)]">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">{t("entry.regular")}</p>
+              <p className="text-[11px] text-muted-foreground">
+                Kira, fatura gibi düzenli kalemler — analizlerde tek dokunuşla
+                hariç tutulabilir
+              </p>
+            </div>
+            <Switch checked={isRegular} onCheckedChange={setIsRegular} />
           </div>
         )}
-      </DialogContent>
+
+        {/* Konum — başka bir kategorinin/alt kategorinin altına taşı */}
+        {isEdit && location && tree && (
+          <FormSection label={t("form.position")}>
+            <button
+              type="button"
+              onClick={() => setLocationOpen((v) => !v)}
+              className="flex items-center justify-between gap-2 rounded-2xl bg-[var(--sf-1)] px-4 py-3 text-left text-sm ring-1 ring-inset ring-[var(--ln-1)]"
+            >
+              <span className="truncate">
+                {locationLabel(location, tree.cats, tree.subs)}
+              </span>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                  locationOpen && "rotate-180"
+                )}
+              />
+            </button>
+            {locationOpen && (
+              <div className="max-h-48 divide-y divide-border/50 overflow-y-auto rounded-2xl ring-1 ring-inset ring-[var(--ln-1)]">
+                {tree.cats
+                  .filter((c) => !c.isBuiltIn || c.id === subcategory!.categoryId)
+                  .map((cat) => (
+                    <LocationGroup
+                      key={cat.id}
+                      category={cat}
+                      subs={tree.subs}
+                      excludedIds={excludedIds}
+                      selected={location}
+                      onPick={(loc) => {
+                        setLocation(loc);
+                        setLocationOpen(false);
+                      }}
+                    />
+                  ))}
+              </div>
+            )}
+            {locationChanged && (
+              <p className="text-[11px] text-muted-foreground">
+                Alt kategorileri ve girdileriyle birlikte taşınır; analizler
+                yeni konuma göre kendiliğinden güncellenir.
+              </p>
+            )}
+          </FormSection>
+        )}
+
+        <FormSection label={t("tree.icon")}>
+          <IconPicker value={icon} onChange={setIcon} color={previewColor} bare />
+        </FormSection>
+      </StructureFormShell>
     </Dialog>
   );
 }
