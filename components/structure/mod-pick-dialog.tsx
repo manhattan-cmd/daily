@@ -290,9 +290,10 @@ export function ModPickDialog({
                 {/* Özellik atomları — dairesel çekirdekler, 4 sütun */}
                 {filtered.length > 0 && (
                   // Renkli daireler, üç sütun: dört sütunda adlar kesiliyordu,
-                  // burada iki satıra kadar tam okunuyor. Dokunmak SEÇER: daire
-                  // ve adı özelliğin renginde bir karenin içine girer, köşede
-                  // tik belirir. Ekleme alttaki düğmeyle.
+                  // burada iki satıra kadar tam okunuyor. Her özellik kendi
+                  // renginde hafif bir karenin içinde; dokunmak SEÇER — kare
+                  // koyulaşır, çerçevesi belirginleşir, köşede tik belirir.
+                  // Ekleme alttaki düğmeyle.
                   <div className="grid grid-cols-3 gap-2 pt-1">
                     {filtered.map((m: ModWithType) => {
                       const c = modColor(m);
@@ -308,10 +309,13 @@ export function ModPickDialog({
                           style={
                             on
                               ? {
-                                  background: `${c}1f`,
+                                  background: `${c}29`,
                                   boxShadow: `inset 0 0 0 1.5px ${c}`,
                                 }
-                              : { boxShadow: "inset 0 0 0 1px transparent" }
+                              : {
+                                  background: `${c}0f`,
+                                  boxShadow: `inset 0 0 0 1px ${c}2e`,
+                                }
                           }
                         >
                           {on && (
