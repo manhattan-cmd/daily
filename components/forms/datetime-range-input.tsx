@@ -64,13 +64,6 @@ interface DateTimeRangeInputProps {
   color?: string;
 }
 
-/** İki gün arasındaki tam gün farkı — şeridin nereye kaydırılacağını verir */
-function dayOffset(from: string, to: string): number {
-  const a = new Date(from + "T00:00:00").getTime();
-  const b = new Date(to + "T00:00:00").getTime();
-  return Math.round((b - a) / 86400000);
-}
-
 /** Yerel takvim gününü koru — toISOString UTC'ye çevirip günü kaydırır */
 function offsetDate(entryDate: string, offset: number): string {
   const d = new Date(entryDate + "T00:00:00");
@@ -90,13 +83,6 @@ const SIDES = {
 >;
 
 type Side = keyof typeof SIDES;
-
-/**
- * Tarih şeridinde girdinin gününün iki yanına kaç gün dizilir. Üç kapsül
- * (dün/bugün/yarın) yetmiyordu: geçmiş bir geceyi sonradan girerken şerit
- * kullanıcıyı o üç günün içine hapsediyordu. Şerit artık yana kaydırılıyor.
- */
-const DAY_SPAN = 7;
 
 export function DateTimeRangeInput({
   value,
@@ -235,78 +221,29 @@ function DateTimePanel({
   const cfg = SIDES[side];
   const [datePart = "", timePart = ""] = value.split("T");
 
-  const chips = useMemo(() => {
-    // Seçili gün şeridin dışında kalıyorsa (eski kayıt, elle düzeltilmiş
-    // tarih) şerit onu kapsayacak kadar uzar — seçili kapsül hep listede olsun
-    const sel = datePart ? dayOffset(entryDate, datePart) : 0;
-    const lo = Math.min(-DAY_SPAN, sel);
-    const hi = Math.max(DAY_SPAN, sel);
-    return Array.from({ length: hi - lo + 1 }, (_, i) => {
-      const d = offsetDate(entryDate, lo + i);
-      return { date: d, label: shortDate(d) };
-    });
-  }, [entryDate, datePart]);
-
-  // Seçili kapsülü şeridin ortasına al: açılışta anında, sonraki seçimlerde
-  // yumuşak. Yoksa uzak bir gün seçilince şerit başında kalıp yalan söylüyor.
-  const stripRef = useRef<HTMLDivElement>(null);
-  const centered = useRef(false);
-  useEffect(() => {
-    const el = stripRef.current;
-    const anchor =
-      el?.querySelector<HTMLElement>('[data-on="true"]') ??
-      // Tarih henüz seçilmemişse (dokunulmamış taraf) şerit girdinin gününde
-      // dursun — başında bıraksak bir hafta öncesini gösteriyordu
-      el?.querySelector<HTMLElement>(`[data-day="${entryDate}"]`);
-    if (!el || !anchor) return;
-    el.scrollTo({
-      left: anchor.offsetLeft - (el.clientWidth - anchor.offsetWidth) / 2,
-      behavior: centered.current ? "smooth" : "auto",
-    });
-    centered.current = true;
-  }, [datePart, chips, entryDate]);
-
-  function selectDate(d: string) {
-    onChange(`${d}T${timePart || cfg.time}`);
+  /** Gün bir adım ileri/geri — boşsa girdinin gününden başlar */
+  function stepDate(delta: number) {
+    const base = datePart || offsetDate(entryDate, cfg.offset);
+    onChange(`${offsetDate(base, delta)}T${timePart || cfg.time}`);
   }
 
   const hasValue = !!(datePart && timePart);
+  const shownDate = datePart || offsetDate(entryDate, cfg.offset);
 
+  /*
+   * Kibar düzen: başlık · saat (yumuşak bir kutuda, ince rakam) · gün
+   * adımlayıcı. Eskiden kalın, kocaman rakamlar ve yana kayan bir gün
+   * kapsülleri şeridi vardı; iki sütun yan yana ağır ve kalabalık duruyordu.
+   * Gün çoğu zaman doğru geliyor (başlangıç dün, bitiş bugün) — o yüzden tek
+   * satırlık bir "‹ 11 Eyl ›" yeterli.
+   */
   return (
-    <div className="flex flex-col gap-3 p-4">
-      <div className="flex items-center gap-1.5 text-muted-foreground/50">
+    <div className="flex flex-col gap-2 p-3">
+      <div className="flex items-center gap-1.5 px-0.5 text-muted-foreground/60">
         {icon}
-        <span className="text-[9px] font-bold uppercase tracking-[0.15em]">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.12em]">
           {t(cfg.labelKey)}
         </span>
-      </div>
-
-      {/* Gün şeridi — yana kaydırılır, kenarda yarım kalan kapsül bunu söyler */}
-      <div
-        ref={stripRef}
-        role="group"
-        aria-label={t("datetime.pickDate")}
-        className="no-scrollbar relative -mx-1 flex gap-1 overflow-x-auto overscroll-x-contain px-1"
-        style={{ maskImage: STRIP_FADE, WebkitMaskImage: STRIP_FADE }}
-      >
-        {chips.map((chip) => (
-          <button
-            key={chip.date}
-            type="button"
-            disabled={disabled}
-            data-on={datePart === chip.date}
-            data-day={chip.date}
-            onClick={() => selectDate(chip.date)}
-            className={cn(
-              "shrink-0 whitespace-nowrap rounded-lg px-1.5 py-1 text-[9px] font-semibold tracking-tight transition-all",
-              datePart === chip.date
-                ? skin.chipOn
-                : "bg-muted/40 text-muted-foreground/60 hover:bg-muted hover:text-foreground"
-            )}
-          >
-            {chip.label}
-          </button>
-        ))}
       </div>
 
       {/* Saat — dokununca altta çark açılır (native picker kaba) */}
@@ -317,16 +254,49 @@ function DateTimePanel({
         aria-label={t("datetime.pickSideTime", { side: t(cfg.labelKey) })}
         aria-expanded={open}
         className={cn(
-          "w-full bg-transparent text-left outline-none",
-          "text-[1.85rem] font-bold leading-tight tabular-nums",
-          "cursor-pointer transition-colors",
-          hasValue ? "text-foreground" : "text-muted-foreground/30",
-          open && skin.open,
+          "w-full rounded-xl bg-[var(--sf-2)] px-3 py-2 text-left outline-none ring-1 ring-inset transition-colors",
+          "text-[22px] font-semibold leading-tight tabular-nums tracking-tight",
+          hasValue ? "text-foreground" : "text-muted-foreground/35",
+          open ? cn("ring-current", skin.open) : "ring-transparent",
           disabled && "cursor-not-allowed opacity-50"
         )}
       >
         {timePart || "--:--"}
       </button>
+
+      {/* Gün — tek satır adımlayıcı */}
+      <div
+        role="group"
+        aria-label={t("datetime.pickDate")}
+        className="flex items-center justify-between"
+      >
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => stepDate(-1)}
+          aria-label={t("datetime.prevDay")}
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </button>
+        <span
+          className={cn(
+            "text-[12px] font-medium tabular-nums",
+            datePart ? "text-muted-foreground" : "text-muted-foreground/40"
+          )}
+        >
+          {shortDate(shownDate)}
+        </span>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => stepDate(1)}
+          aria-label={t("datetime.nextDay")}
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+        >
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -499,14 +469,6 @@ const ALL_MINUTES = Array.from({ length: 60 }, (_, i) =>
 const ITEM = 34;
 const VISIBLE = 5;
 const PAD = ITEM * ((VISIBLE - 1) / 2);
-/**
- * Gün şeridinin yanlarında solma. Şerit tam üç kapsül genişliğindeydi: hiçbiri
- * yarım kalmadığı için sabit bir satır gibi duruyor, kaydırılabildiği
- * anlaşılmıyordu. Solma + daha dar kapsül = kenarda görünen dördüncü.
- */
-const STRIP_FADE =
-  "linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 10px), transparent)";
-
 /** Üst/alt solma — düz listeyi silindir gibi gösteren asıl numara */
 const FADE =
   "linear-gradient(to bottom, transparent, #000 26%, #000 74%, transparent)";
