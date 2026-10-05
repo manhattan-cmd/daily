@@ -1,155 +1,330 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarRange } from "lucide-react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { CalendarRange, ChevronLeft, ChevronRight } from "lucide-react";
+import { db } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { useT } from "@/lib/i18n";
+import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { chipClass } from "@/components/ui/section-nav";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ENTRY_WINDOW, ENTRY_WINDOW_FOOTER } from "@/components/ui/entry-window";
 import { dayKey } from "@/lib/analytics";
 import {
   customPeriod,
   dayPeriod,
   monthPeriod,
+  parsePeriodKey,
   weekPeriod,
-  yearPeriod,
 } from "@/lib/period";
 import { routes } from "@/lib/routes";
 
-/** yyyy-mm-dd inputunu yerel Date'e çevir (Date.parse UTC varsayar, kullanma) */
-function parseInputDate(v: string): Date | null {
-  const [y, m, d] = v.split("-").map(Number);
-  if (!y || !m || !d) return null;
-  const date = new Date(y, m - 1, d);
-  return Number.isNaN(date.getTime()) ? null : date;
+const DAY = 86400000;
+
+/** Yerel gün başı — saat dilimi/yaz saati kaymasına karşı tarih üzerinden */
+function startOfDay(t: number): number {
+  const d = new Date(t);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+function addDays(t: number, n: number): number {
+  const d = new Date(t);
+  d.setDate(d.getDate() + n);
+  return d.getTime();
 }
 
 /**
- * Özel dönem seçici — hızlı kısayollar (dün, geçen hafta...) ya da serbest
- * tarih aralığıyla /analytics?key=… dönem analizine gider.
- * align: panelin butona göre hizası — buton ekranın ortasındaysa (dönem
- * sayfası gezinti satırı) "center" verilmeli, yoksa panel soldan taşar.
+ * Özel dönem seçici — takvimden iki gün seç, ikisi ve arası analiz edilir.
+ *
+ * Eskiden çip satırının içinde açılan küçük bir kutuydu: satır yana kaydığı
+ * için taşan içeriği kesiyordu ve kutu ya hiç görünmüyor ya da yarım
+ * kalıyordu; içinde de tarayıcının kaba tarih alanları vardı. Artık kendi
+ * penceresi var:
+ *  - ay takvimi: ilk dokunuş başlangıç, ikincisi bitiş (önceki bir güne
+ *    dokunulursa yer değiştirir); aradaki günler tek bir bantla boyanır;
+ *  - girdisi olan günlerin altında küçük bir nokta — boş bir aralığı seçip
+ *    boş bir analize bakmamak için;
+ *  - hızlı aralıklar (dün, son 7/30 gün, geçen hafta/ay) takvimi doldurur,
+ *    analiz düğmesi seçimi onaylar. Gelecek günler seçilemez.
  */
-export function PeriodJump({ align = "right" }: { align?: "right" | "center" }) {
+export function PeriodJump({ activeKey }: { activeKey?: string }) {
+  // Özel bir dönemdeyken çip vurgulu, pencere o aralıkla açılır
+  const current = activeKey?.startsWith("c-") ? parsePeriodKey(activeKey) : null;
   const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  // Açılış anı — "bugün" ve hızlı aralıklar ona göre (render saf kalsın)
+  const [today, setToday] = useState(() => startOfDay(Date.now()));
+  const [start, setStart] = useState<number | null>(null);
+  const [end, setEnd] = useState<number | null>(null);
+  // Gösterilen ayın ilk günü
+  const [month, setMonth] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+  });
 
-  // Zaman okuması başlatıcı içinde: render gövdesinde Date.now() çağırmak
-  // bileşeni saf olmaktan çıkarır (her yeniden çizimde farklı sonuç).
-  const [startStr, setStartStr] = useState(() =>
-    dayKey(Date.now() - 6 * 86400000)
-  );
-  const [endStr, setEndStr] = useState(() => dayKey(Date.now()));
-  // Hızlı kısayolların dayandığı an — menü her açıldığında tazelenir.
-  // Render gövdesinde okunursa bileşen saf olmaktan çıkar.
-  const [now, setNow] = useState(() => Date.now());
+  function openPicker() {
+    const now = startOfDay(Date.now());
+    setToday(now);
+    // Bakılan özel aralık ya da son 7 gün hazır seçili gelir
+    const a = current ? current.start : addDays(now, -6);
+    const b = current ? addDays(current.end, -1) : now;
+    setStart(a);
+    setEnd(b);
+    const d = new Date(b);
+    setMonth(new Date(d.getFullYear(), d.getMonth(), 1).getTime());
+    setOpen(true);
+  }
 
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
+  function pick(day: number) {
+    if (day > today) return;
+    // Aralık tamamsa ya da hiç yoksa yeni başlangıç; yarımsa bitiş
+    if (start === null || end !== null) {
+      setStart(day);
+      setEnd(null);
+    } else if (day < start) {
+      setEnd(start);
+      setStart(day);
+    } else {
+      setEnd(day);
+    }
+  }
 
-  const go = (key: string) => {
+  function setRange(a: number, b: number) {
+    setStart(a);
+    setEnd(b);
+    const d = new Date(b);
+    setMonth(new Date(d.getFullYear(), d.getMonth(), 1).getTime());
+  }
+
+  function analyse() {
+    if (start === null) return;
+    const e = end ?? start;
+    const key =
+      dayKey(start) === dayKey(e)
+        ? dayPeriod(start).key
+        : customPeriod(start, e).key;
     setOpen(false);
     router.push(routes.period(key));
-  };
+  }
 
-  const d = new Date(now);
-  const quick: { label: string; key: string }[] = [
-    { label: t("period.yesterday"), key: dayPeriod(now - 86400000).key },
-    { label: t("period.lastWeek"), key: weekPeriod(now - 7 * 86400000).key },
-    {
-      label: t("period.lastMonth"),
-      key: monthPeriod(new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime()).key,
-    },
-    {
-      label: t("period.lastYear"),
-      key: yearPeriod(new Date(d.getFullYear() - 1, 0, 1).getTime()).key,
-    },
+  // Takvim ızgarası: ayın ilk haftasının pazartesisinden 6 hafta
+  const m = new Date(month);
+  const gridStart = addDays(month, -((m.getDay() + 6) % 7));
+  const days = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
+  const lastRowNeeded = new Date(days[35]).getMonth() === m.getMonth();
+  const shown = lastRowNeeded ? days : days.slice(0, 35);
+
+  // Görünen aralıkta girdisi olan günler
+  const entryDays = useLiveQuery(async () => {
+    if (!open) return new Set<string>();
+    const from = shown[0];
+    const to = addDays(shown[shown.length - 1], 1);
+    const list = await db.entries
+      .where("occurredAt")
+      .between(from, to, true, false)
+      .toArray();
+    return new Set(list.map((e) => dayKey(e.occurredAt)));
+  }, [open, month]);
+
+  const tag = intlTag(locale);
+  const weekdays = useMemo(() => {
+    const f = new Intl.DateTimeFormat(tag, { weekday: "narrow" });
+    // 2024-01-01 pazartesi
+    return Array.from({ length: 7 }, (_, i) => f.format(new Date(2024, 0, 1 + i)));
+  }, [tag]);
+  const monthLabel = new Intl.DateTimeFormat(tag, {
+    month: "long",
+    year: "numeric",
+  }).format(month);
+  const short = (x: number) =>
+    new Intl.DateTimeFormat(tag, { day: "numeric", month: "short" }).format(x);
+
+  const lo = start;
+  const hi = end ?? start;
+  const count =
+    lo !== null && hi !== null ? Math.round((startOfDay(hi) - startOfDay(lo)) / DAY) + 1 : 0;
+  const nextMonthStart = new Date(m.getFullYear(), m.getMonth() + 1, 1).getTime();
+
+  const d = new Date(today);
+  const quick: { label: string; range: [number, number] }[] = [
+    { label: t("period.yesterday"), range: [addDays(today, -1), addDays(today, -1)] },
+    { label: t("period.last7"), range: [addDays(today, -6), today] },
+    { label: t("period.last30"), range: [addDays(today, -29), today] },
+    (() => {
+      const w = weekPeriod(addDays(today, -7));
+      return { label: t("period.lastWeek"), range: [w.start, addDays(w.end, -1)] as [number, number] };
+    })(),
+    (() => {
+      const mp = monthPeriod(new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime());
+      return { label: t("period.lastMonth"), range: [mp.start, addDays(mp.end, -1)] as [number, number] };
+    })(),
   ];
 
-  const submit = () => {
-    const a = parseInputDate(startStr);
-    const b = parseInputDate(endStr);
-    if (!a || !b) return;
-    const [s, e] = a.getTime() <= b.getTime() ? [a, b] : [b, a];
-    const key =
-      dayKey(s.getTime()) === dayKey(e.getTime())
-        ? dayPeriod(s.getTime()).key
-        : customPeriod(s.getTime(), e.getTime()).key;
-    go(key);
-  };
-
   return (
-    <div className="relative shrink-0" ref={ref}>
+    <>
       <button
         type="button"
-        onClick={() => {
-          setNow(Date.now());
-          setOpen((o) => !o);
-        }}
-        className={cn(chipClass(false), "flex items-center gap-1.5")}
+        onClick={openPicker}
+        className={cn(chipClass(!!current), "flex shrink-0 items-center gap-1.5")}
+        aria-current={current ? "page" : undefined}
       >
         <CalendarRange className="h-3.5 w-3.5" />
         {t("period.custom")}
       </button>
 
-      {open && (
-        <div
-          className={`absolute top-full z-30 mt-1 w-64 rounded-2xl border border-border bg-card p-3 shadow-xl ${
-            align === "center" ? "left-1/2 -translate-x-1/2" : "right-0"
-          }`}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent
+          aria-describedby={undefined}
+          className={cn(ENTRY_WINDOW, "h-auto gap-0")}
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {quick.map((q) => (
-              <button
-                key={q.key}
-                type="button"
-                onClick={() => go(q.key)}
-                className="rounded-lg border border-border bg-muted/50 px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {q.label}
-              </button>
-            ))}
+          {/* Başlık — seçili aralık canlı */}
+          <div className="pb-4 pr-6">
+            <DialogTitle className="text-lg font-semibold tracking-tight">
+              {t("period.customTitle")}
+            </DialogTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {lo === null
+                ? t("period.pickStart")
+                : end === null
+                  ? `${short(lo)} – … · ${t("period.pickEnd")}`
+                  : `${short(lo)} – ${short(hi!)} · ${t("period.dayCount", { n: count })}`}
+            </p>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-              {t("datetime.start")}
-              <input
-                type="date"
-                value={startStr}
-                max={dayKey(now)}
-                onChange={(e) => setStartStr(e.target.value)}
-                className="rounded-lg border border-border bg-muted/50 px-2 py-1.5 text-xs text-foreground [color-scheme:dark]"
-              />
-            </label>
-            <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-              {t("datetime.end")}
-              <input
-                type="date"
-                value={endStr}
-                max={dayKey(now)}
-                onChange={(e) => setEndStr(e.target.value)}
-                className="rounded-lg border border-border bg-muted/50 px-2 py-1.5 text-xs text-foreground [color-scheme:dark]"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={submit}
-              className="mt-1 rounded-xl bg-primary/15 border border-primary/60 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-primary/25"
-            >
-              {t("period.analyse")}
-            </button>
+          {/* Hızlı aralıklar — takvimi doldurur */}
+          <div className="no-scrollbar -mx-6 mb-4 flex gap-1.5 overflow-x-auto px-6">
+            {quick.map((q) => {
+              const on = lo === q.range[0] && hi === q.range[1] && end !== null;
+              return (
+                <button
+                  key={q.label}
+                  type="button"
+                  onClick={() => setRange(q.range[0], q.range[1])}
+                  className={cn(
+                    "shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors",
+                    on
+                      ? "bg-primary/20 text-primary ring-1 ring-inset ring-primary/50"
+                      : "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {q.label}
+                </button>
+              );
+            })}
           </div>
-        </div>
-      )}
-    </div>
+
+          {/* Takvim */}
+          <div className="rounded-2xl bg-[var(--sf-1)] p-3 ring-1 ring-inset ring-[var(--ln-1)]">
+            <div className="mb-2 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setMonth(new Date(m.getFullYear(), m.getMonth() - 1, 1).getTime())}
+                aria-label={t("period.prevMonth")}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-sm font-semibold capitalize">{monthLabel}</span>
+              <button
+                type="button"
+                onClick={() => setMonth(nextMonthStart)}
+                disabled={nextMonthStart > today}
+                aria-label={t("period.nextMonth")}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground disabled:opacity-25"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-7">
+              {weekdays.map((w, i) => (
+                <span
+                  key={i}
+                  className="pb-1.5 text-center text-[10px] font-semibold uppercase text-muted-foreground/50"
+                >
+                  {w}
+                </span>
+              ))}
+              {shown.map((day) => {
+                const inMonth = new Date(day).getMonth() === m.getMonth();
+                const future = day > today;
+                const isStart = lo !== null && day === lo;
+                const isEnd = hi !== null && end !== null && day === hi;
+                const inRange = lo !== null && hi !== null && day >= lo && day <= hi;
+                const single = isStart && (end === null || lo === hi);
+                const hasEntries = entryDays?.has(dayKey(day));
+                const dow = (new Date(day).getDay() + 6) % 7;
+                return (
+                  <div
+                    key={day}
+                    className="relative flex h-10 items-center justify-center"
+                  >
+                    {/* Aralık bandı — uçlarda yarım, satır başı/sonunda yuvarlak */}
+                    {inRange && !single && (
+                      <span
+                        className={cn(
+                          "absolute inset-y-1 bg-primary/15",
+                          isStart ? "left-1/2 right-0" : isEnd ? "left-0 right-1/2" : "inset-x-0",
+                          !isStart && dow === 0 && "rounded-l-full",
+                          !isEnd && dow === 6 && "rounded-r-full"
+                        )}
+                      />
+                    )}
+                    <button
+                      type="button"
+                      disabled={future}
+                      onClick={() => pick(day)}
+                      aria-pressed={isStart || isEnd}
+                      aria-label={dayKey(day)}
+                      className={cn(
+                        "relative flex h-9 w-9 flex-col items-center justify-center rounded-full text-[13px] tabular-nums transition-colors",
+                        isStart || isEnd
+                          ? "bg-primary font-semibold text-primary-foreground"
+                          : inRange
+                            ? "font-medium text-foreground"
+                            : inMonth
+                              ? "text-foreground/85 hover:bg-[var(--sf-2)]"
+                              : "text-muted-foreground/35 hover:bg-[var(--sf-2)]",
+                        future && "pointer-events-none opacity-25",
+                        day === today && !(isStart || isEnd) && "ring-1 ring-inset ring-primary/50"
+                      )}
+                    >
+                      {new Date(day).getDate()}
+                      {hasEntries && (
+                        <span
+                          className={cn(
+                            "absolute bottom-1 h-1 w-1 rounded-full",
+                            isStart || isEnd ? "bg-primary-foreground/80" : "bg-primary/70"
+                          )}
+                        />
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <DialogFooter className={cn(ENTRY_WINDOW_FOOTER, "mt-4")}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              {t("action.cancel")}
+            </Button>
+            <Button type="button" onClick={analyse} disabled={start === null}>
+              {t("period.analyse")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

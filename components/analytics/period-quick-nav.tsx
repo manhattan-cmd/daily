@@ -47,7 +47,7 @@ export function PeriodQuickNav({ activeKey }: { activeKey: string }) {
           </button>
         );
       })}
-      <PeriodJump />
+      <PeriodJump activeKey={activeKey} />
     </SectionNav>
   );
 }
