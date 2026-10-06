@@ -142,7 +142,7 @@ export function PeriodCategoryPanel({
   const levelShare = useMemo(() => {
     const d = level.data;
     const c = level.compute;
-    if (!d || !c || c.isChoice) return null;
+    if (!d || !c) return null;
     const by = new Map<string, Entry[]>();
     for (const e of d.entries) {
       const top = bucketAncestorId(e.subcategoryId, d.subById, levelParent?.id);
@@ -151,9 +151,23 @@ export function PeriodCategoryPanel({
       list.push(e);
       by.set(top, list);
     }
+    // Girdi sayısına düşülen durumlar: çoktan seçmelide paylaştırılacak bir
+    // sayı yok; paylaşım modunda kademede o özelliğe hiç değer girilmemişse
+    // kutu "veri yok" yazısına dönüp yine kısalırdı
+    const byCount =
+      c.isChoice ||
+      (!c.isRate && !c.scale && [...by.values()].every((l) => c.aggregate(l) === 0));
+    // SATIRLAR ÖZELLİKTEN BAĞIMSIZ: dönemde girdisi olan her kalem satırda
+    // kalır, özellik değişince yalnız çubuklar ve rakamlar değişir. Eskiden o
+    // özelliği olmayan kalemler (ya da çoktan seçmelide kutunun tamamı)
+    // düşüyordu; kutu birden kısalınca altındaki her şey yukarı kayıyor,
+    // özellik kapsülleri arasında gezerken sayfa fırlamış gibi oluyordu.
     const rows: ShareRow[] = [...by.entries()]
-      .map(([id, list]) => ({ id, value: c.aggregate(list), outOf: c.filledCount(list) }))
-      .filter((r) => (c.isRate || c.scale ? r.outOf > 0 : r.value > 0))
+      .map(([id, list]) =>
+        byCount
+          ? { id, value: list.length, outOf: list.length }
+          : { id, value: c.aggregate(list), outOf: c.filledCount(list) }
+      )
       .map(({ id, value, outOf }) => {
         const sub = d.subById.get(id)!;
         // Kademenin KENDİ doğrudan girdileri (kategori kökü ya da ebeveynin
@@ -165,7 +179,12 @@ export function PeriodCategoryPanel({
           color: category.color,
           value,
           outOf,
-          display: c.unit ? `${fmtNum(value)} ${c.unit}` : fmtNum(value),
+          display:
+            !byCount && (c.isRate || c.scale ? outOf === 0 : value === 0)
+              ? "—"
+              : !byCount && c.unit
+                ? `${fmtNum(value)} ${c.unit}`
+                : fmtNum(value),
           drillable: !isSelf,
         };
       });
@@ -173,9 +192,9 @@ export function PeriodCategoryPanel({
     return {
       rows,
       counts,
-      isRate: c.isRate,
-      scale: c.scale,
-      aggregateNote: c.aggregateNote,
+      isRate: !byCount && c.isRate,
+      scale: byCount ? undefined : c.scale,
+      aggregateNote: byCount ? undefined : c.aggregateNote,
     };
   }, [level.data, level.compute, levelParent?.id, category.name, category.color]);
   /** Kademenin kalemleri — kapsül satırı (kullanıcının kendi sırasıyla) */
