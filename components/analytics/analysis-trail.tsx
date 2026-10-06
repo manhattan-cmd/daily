@@ -30,24 +30,17 @@ export interface TrailLens {
  * döner ve sayfayı oraya kaydırır. Bulunulan yer (son kalem) kategorinin
  * renginde dolu; özellik onun yanında kendi renginde.
  */
-export function AnalysisTrail({
-  steps,
-  lens,
-}: {
-  steps: TrailStep[];
-  lens?: TrailLens;
-}) {
+export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
   // Son kalem — "buradasın"
   const placeIdx = steps.length - 1;
   return (
-    <div className="flex items-center gap-2">
     <HScroll
       className="items-center gap-1"
-      wrapperClassName="min-w-0 flex-1"
       followEnd={steps.map((s) => s.key).join("|")}
     >
       {steps.map((s, i) => {
         const isPlace = i === placeIdx && i > 0;
+        const isPeriod = i === 0;
         return (
           <span key={s.key} className="flex shrink-0 items-center gap-1">
             {i > 0 && (
@@ -57,8 +50,12 @@ export function AnalysisTrail({
               type="button"
               onClick={s.onClick}
               aria-current={isPlace ? "location" : undefined}
+              // Dönem yalnız simge: adı hemen üstteki sayfa başlığında yazıyor
+              aria-label={isPeriod ? s.label : undefined}
+              title={isPeriod ? s.label : undefined}
               className={cn(
-                "flex h-7 max-w-[160px] shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition-colors",
+                "flex h-7 max-w-[170px] shrink-0 items-center gap-1.5 rounded-full text-[12px] font-medium transition-colors",
+                isPeriod ? "w-7 justify-center bg-[var(--sf-2)]" : "px-2.5",
                 !isPlace && "text-muted-foreground hover:text-foreground"
               )}
               style={
@@ -71,43 +68,57 @@ export function AnalysisTrail({
                   : undefined
               }
             >
-              {i === 0 ? (
+              {isPeriod ? (
                 <CalendarDays className="h-3.5 w-3.5 shrink-0" />
               ) : (
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: s.color }}
-                />
+                <>
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: s.color }}
+                  />
+                  <span className="truncate">{s.label}</span>
+                </>
               )}
-              <span className="truncate">{s.label}</span>
             </button>
           </span>
         );
       })}
     </HScroll>
+  );
+}
 
-      {/* Mercek — yolun adımı değil: hangi YERDE olduğun soldaki yol, ona
-          HANGİ GÖZLE baktığın burası. Yol kayarken bu sabit durur; rengi
-          aşağıda o özelliğin gösterildiği her yere (kademe çubukları,
-          kutular, grafikler) siner. */}
-      {lens && (
-        <button
-          type="button"
-          onClick={lens.onClick}
-          className="flex h-7 max-w-[120px] shrink-0 items-center gap-1.5 rounded-lg pl-2 pr-2.5 text-[12px] font-semibold"
-          style={{
-            background: `${lens.color}24`,
-            color: lens.color,
-            boxShadow: `inset 0 -2px 0 ${lens.color}`,
-          }}
-        >
-          <span
-            className="h-2 w-2 shrink-0 rotate-45 rounded-[2px]"
-            style={{ backgroundColor: lens.color }}
-          />
-          <span className="truncate">{lens.label}</span>
-        </button>
+/**
+ * Mercek — incelenen özellik. Yolun bir adımı DEĞİL: yol (alttaki satır)
+ * nerede olduğunu söyler, mercek ona hangi gözle bakıldığını. Bu yüzden ayrı
+ * bir düzlemde, sayfa başlığının sağında durur. Özellik seçiliyken kendi
+ * renginde — aynı renk aşağıda o özelliğin gösterildiği her yere (kademe
+ * çubukları, kutular, grafikler, liste) siner; "Girdi"de sade, çünkü orada
+ * renk yere (kategoriye) ait.
+ */
+export function AnalysisLens({ lens }: { lens: TrailLens & { neutral?: boolean } }) {
+  return (
+    <button
+      type="button"
+      onClick={lens.onClick}
+      className={cn(
+        "flex h-8 max-w-[140px] items-center gap-1.5 rounded-full px-3 text-[12px] font-semibold transition-colors",
+        lens.neutral && "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground"
       )}
-    </div>
+      style={
+        lens.neutral
+          ? undefined
+          : {
+              background: `${lens.color}24`,
+              color: lens.color,
+              boxShadow: `inset 0 0 0 1px ${lens.color}66`,
+            }
+      }
+    >
+      <span
+        className="h-2 w-2 shrink-0 rotate-45 rounded-[2px]"
+        style={{ backgroundColor: lens.neutral ? "currentColor" : lens.color }}
+      />
+      <span className="truncate">{lens.label}</span>
+    </button>
   );
 }

@@ -58,7 +58,7 @@ import {
   setAnalysisPath,
 } from "@/components/analytics/analysis-selection";
 import { DrillLevel } from "@/components/analytics/drill-level";
-import { AnalysisTrail } from "@/components/analytics/analysis-trail";
+import { AnalysisLens, AnalysisTrail } from "@/components/analytics/analysis-trail";
 import { modColor } from "@/lib/mod-color";
 import type { SubCategory } from "@/types";
 import { LazyMount } from "@/components/ui/lazy-mount";
@@ -492,9 +492,16 @@ export function PeriodView({
                   onClick: () => goTo(path.slice(0, i + 1)),
                 })),
               ]}
+            />
+          ) : undefined
+        }
+        action={
+          selectedCat ? (
+            <AnalysisLens
               lens={{
                 label: metricMod ? metricMod.name : t("list.entry"),
                 color: metricMod ? modColor(metricMod) : selectedCat.color,
+                neutral: !metricMod,
                 onClick: () => setScrollTarget("focus"),
               }}
             />
