@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import Link from "next/link";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
@@ -77,13 +77,29 @@ export function PeriodCategoryPanel({
   // sayfasına gidiliyordu; o sayfa "şimdi"ye göreli çalıştığından geçmiş bir
   // dönemden tıklandığında sessizce tüm zamanları gösteriyordu.
   const [path, setPathState] = useState<SubCategory[]>(initialPath);
+  /*
+   * Panel içi geçişlerde (özellik, alt kategori) panelin o anki boyu alt
+   * sınır olarak tutulur. Yeni görünüm kısaysa (Para seçilince liste yalnız
+   * tutarı olan kayıtlara iniyor, bazı grafikler düşüyor) sayfa kısalıyordu;
+   * dibe yakın bakan kullanıcıda tarayıcı kaydırmayı yeni dibe çekmek
+   * zorunda kalıyor, sayfa yukarı fırlıyordu. Kategori ya da dönem değişince
+   * panel baştan kurulur, sınır da sıfırlanır.
+   */
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [minHeight, setMinHeight] = useState<number | undefined>(undefined);
+  const holdHeight = () => {
+    const h = rootRef.current?.offsetHeight;
+    if (h) setMinHeight(h);
+  };
   // Yol her değiştiğinde hatırlanır — dönem değişince aynı kaleme dönülsün
-  const setPath = (next: SubCategory[] | ((p: SubCategory[]) => SubCategory[])) =>
+  const setPath = (next: SubCategory[] | ((p: SubCategory[]) => SubCategory[])) => {
+    holdHeight();
     setPathState((p) => {
       const v = typeof next === "function" ? next(p) : next;
       setAnalysisPath(category.id, v);
       return v;
     });
+  };
   const focus = path[path.length - 1];
   // Gün dönemlerinde hafta bağlamı gerekir — o günü kapsayan haftanın tamamı çekilir,
   // günün kendi rakamları pencere filtresiyle hesaplanır
@@ -497,7 +513,11 @@ export function PeriodCategoryPanel({
   const metricLabel = metric.type === "count" ? "entries" : unit;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div
+      ref={rootRef}
+      className="flex flex-col gap-4"
+      style={minHeight ? { minHeight } : undefined}
+    >
       {/* Kapsam şeridi — derine inildiğinde aşağıdaki HER ŞEYİN (istatistik,
           grafik, kırılım, liste) hangi kaleme ait olduğunu söyler. Yoksa
           Yemek rakamlarına bakarken Harcamalar sanılabiliyordu. */}
@@ -634,6 +654,7 @@ export function PeriodCategoryPanel({
         metric={metric}
         color={category.color}
         onChange={(m) => {
+          holdHeight();
           setMetricChoice(m);
           setAnalysisMetric(category.id, m.type === "count" ? "count" : m.mod.id);
         }}
