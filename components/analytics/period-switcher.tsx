@@ -30,7 +30,7 @@ const KINDS: { kind: Exclude<PeriodKind, "custom">; label: MessageKey }[] = [
 
 /** Bölmeli düğmenin bir bölmesi — seçili olan ters renkte (menü gibi) */
 const SEGMENT =
-  "flex h-7 min-w-0 flex-1 items-center justify-center rounded-[9px] text-[12px] font-semibold transition-colors";
+  "flex h-8 min-w-0 flex-1 items-center justify-center rounded-[10px] text-[12.5px] font-semibold transition-colors";
 const segmentState = (on: boolean) =>
   on
     ? "bg-foreground text-background shadow-sm"
@@ -78,10 +78,10 @@ export function PeriodSwitcher({ period }: { period: Period }) {
   const nextP = shiftPeriod(period, 1);
   const nextDisabled = !nextP || nextP.start > nowMs();
   const arrow =
-    "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--sf-2)] text-muted-foreground ring-1 ring-inset ring-[var(--ln-1)] transition-colors hover:text-foreground disabled:opacity-25";
+    "flex h-10 w-9 shrink-0 items-center justify-center rounded-[14px] text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground disabled:opacity-25";
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="-mx-1.5 flex items-center gap-0.5">
       <button
         type="button"
         disabled={!prev}
@@ -95,7 +95,7 @@ export function PeriodSwitcher({ period }: { period: Period }) {
       <div
         role="tablist"
         aria-label={t("insights.period")}
-        className="flex min-w-0 flex-1 gap-0.5 rounded-xl bg-[var(--sf-2)] p-0.5 ring-1 ring-inset ring-[var(--ln-1)]"
+        className="flex min-w-0 flex-1 gap-0.5 rounded-[14px] bg-[var(--sf-2)] p-1 ring-1 ring-inset ring-[var(--ln-1)]"
       >
         {KINDS.map(({ kind, label }) => {
           const on = period.kind === kind;

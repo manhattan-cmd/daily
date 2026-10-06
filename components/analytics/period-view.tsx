@@ -439,8 +439,8 @@ export function PeriodView({
     return (
       <>
         <PageHeader
+          compact
           title={title ?? period.label}
-          description={t("insights.period")}
           back={back}
           nav={<PeriodSwitcher period={requestedPeriod} />}
         />
@@ -465,11 +465,15 @@ export function PeriodView({
   return (
     <>
       <PageHeader
+        compact
         title={title ?? period.label}
         description={
           showProgress
-            ? `In progress · ${progress.elapsedDays}/${progress.totalDays} days`
-            : t("insights.period")
+            ? t("period.progress", {
+                n: progress.elapsedDays,
+                total: progress.totalDays,
+              })
+            : undefined
         }
         back={back}
         nav={
@@ -574,7 +578,7 @@ export function PeriodView({
             tıklanan rakam dönemin, açılan sayfa tüm zamanlarındı. */}
         <div
           data-section="top"
-          className="scroll-mt-44 rounded-2xl border border-border bg-card p-4"
+          className="scroll-mt-40 rounded-2xl border border-border bg-card p-4"
         >
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
             Category breakdown
@@ -632,7 +636,7 @@ export function PeriodView({
 
             {/* Seçilen yerin özellikleri. Panel ekranın altında kalıyor ve
                 grafikleriyle ağır: görünür alana yaklaşınca çizilir. */}
-            <section data-section="focus" className="scroll-mt-44">
+            <section data-section="focus" className="scroll-mt-40">
               <LazyMount minHeight={640}>
                 <PeriodCategoryPanel
                   key={`${selectedCat.id}|${period.key}`}
