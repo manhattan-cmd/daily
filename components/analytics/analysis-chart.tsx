@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { fmtEntryDateTime, MAX_CHARTS, type DayBucket, type ScaleRange } from "@/lib/analytics";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { DailyBarChart } from "./daily-bar-chart";
@@ -129,23 +129,31 @@ export function AnalysisCharts({
           key={`${kind}-${slot}`}
           className="rounded-2xl border border-border bg-card p-4"
         >
-          <ViewMenu
-            label={t("board.chartType")}
-            value={kind}
-            options={[
-              ...options.map((o) => ({
-                key: o,
-                label: t(CHART_LABEL[o]),
-                hint: t(CHART_HINT[o]),
-              })),
-              { key: "__remove__", label: t("board.remove"), danger: true },
-            ]}
-            onPick={(k) =>
-              onPick(slot, k === "__remove__" ? null : (k as ChartKind))
-            }
-          >
-            {title(kind)}
-          </ViewMenu>
+          {/* Başlık + sağ üstte "Düzenle". Eskiden başlığın kendisi menüyü
+              açıyordu; grafiğin üstüne dokunan kullanıcı istemeden pencere
+              açıyordu. Grafik türü artık yalnız bu düğmeyle değişir. */}
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">{title(kind)}</div>
+            <ViewMenu
+              label={t("board.chartType")}
+              value={kind}
+              options={[
+                ...options.map((o) => ({
+                  key: o,
+                  label: t(CHART_LABEL[o]),
+                  hint: t(CHART_HINT[o]),
+                })),
+                { key: "__remove__", label: t("board.remove"), danger: true },
+              ]}
+              onPick={(k) =>
+                onPick(slot, k === "__remove__" ? null : (k as ChartKind))
+              }
+              triggerClassName="-mr-1 -mt-1 flex h-7 shrink-0 items-center gap-1 rounded-full bg-[var(--sf-2)] px-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-[var(--sf-3)] hover:text-foreground"
+            >
+              <Pencil className="h-3 w-3" />
+              {t("action.edit")}
+            </ViewMenu>
+          </div>
 
           {kind === "distribution" ? (
             <ChoiceDistribution

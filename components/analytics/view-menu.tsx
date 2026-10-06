@@ -29,6 +29,7 @@ export function ViewMenu({
   onPick,
   children,
   label,
+  triggerClassName = "block h-full w-full text-left",
 }: {
   options: { key: string; label: string; hint?: string; danger?: boolean }[];
   value: string;
@@ -37,10 +38,14 @@ export function ViewMenu({
   children: React.ReactNode;
   /** Pencerenin başlığı da bu — "Bu kutuda ne görünsün?" */
   label: string;
+  /** Tetikleyici düğmenin biçimi — varsayılan: içeriği tümüyle kaplar */
+  triggerClassName?: string;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const selectedRef = useRef<HTMLButtonElement>(null);
+  // Dokunuş zeminde BAŞLADI mı — kapatma dokunuşun sonunda (tıklamada)
+  const downOnBackdrop = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -76,7 +81,7 @@ export function ViewMenu({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={label}
-        className="block h-full w-full text-left"
+        className={triggerClassName}
       >
         {children}
       </button>
@@ -86,8 +91,18 @@ export function ViewMenu({
         createPortal(
           <div
             className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+            // Zemine dokunmak YALNIZ pencereyi kapatır. Eskiden dokunuşun
+            // başında (pointerdown) kapanıyordu: zemin hemen kalkıyor, dokunuş
+            // bitince tıklama alttaki kutuya düşüp onun penceresini açıyordu.
+            // Kapatma tıklamada — tıklamayı zemin yutar.
             onPointerDown={(e) => {
-              if (e.target === e.currentTarget) setOpen(false);
+              downOnBackdrop.current = e.target === e.currentTarget;
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget && downOnBackdrop.current) {
+                setOpen(false);
+              }
+              downOnBackdrop.current = false;
             }}
           >
             <div
