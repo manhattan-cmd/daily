@@ -491,14 +491,12 @@ export function PeriodView({
                   color: selectedCat.color,
                   onClick: () => goTo(path.slice(0, i + 1)),
                 })),
-                {
-                  key: "metric",
-                  label: metricMod ? metricMod.name : t("list.entry"),
-                  color: metricMod ? modColor(metricMod) : selectedCat.color,
-                  feature: true,
-                  onClick: () => setScrollTarget("focus"),
-                },
               ]}
+              lens={{
+                label: metricMod ? metricMod.name : t("list.entry"),
+                color: metricMod ? modColor(metricMod) : selectedCat.color,
+                onClick: () => setScrollTarget("focus"),
+              }}
             />
           ) : undefined
         }

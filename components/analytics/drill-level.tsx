@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { bucketAncestorId, fmtNum } from "@/lib/analytics";
 import { useT } from "@/lib/i18n";
+import { modColor } from "@/lib/mod-color";
 import type { Category, Entry, SubCategory } from "@/types";
 import { ShareBars, type ShareRow } from "./share-bars";
 import { useCategoryMetrics } from "./use-category-metrics";
@@ -78,6 +79,10 @@ export function DrillLevel({
       (!compute.isRate &&
         !compute.scale &&
         [...by.values()].every((l) => compute.aggregate(l) === 0));
+    // Mercek rengi — özellik seçiliyse çubuklar onun renginde (bakılan göz
+    // her kartta aynı renkle okunur), girdi sayısında kategorinin
+    const raw = metric.type !== "count" ? data.rawMods.get(metric.mod.id) : undefined;
+    const barColor = !byCount && raw ? modColor(raw) : category.color;
     const rows: ShareRow[] = [...by.entries()].map(([id, list]) => {
       const value = byCount ? list.length : compute.aggregate(list);
       const outOf = byCount ? list.length : compute.filledCount(list);
@@ -94,7 +99,7 @@ export function DrillLevel({
           : id === parent?.id
             ? `${parent.name} (${t("insights.itself")})`
             : sub.name,
-        color: category.color,
+        color: barColor,
         value,
         outOf,
         display: empty
@@ -107,11 +112,12 @@ export function DrillLevel({
     });
     return {
       rows,
+      barColor,
       byCount,
       isRate: !byCount && compute.isRate,
       scale: byCount ? undefined : compute.scale,
     };
-  }, [data, compute, parent, category.name, category.color, t]);
+  }, [data, compute, metric, parent, category.name, category.color, t]);
 
   const metricLabel =
     share && !share.byCount && metric.type !== "count" ? metric.mod.name : null;
@@ -137,8 +143,12 @@ export function DrillLevel({
         {metricLabel && (
           <span
             className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
-            style={{ background: `${category.color}1f`, color: category.color }}
+            style={{ background: `${share!.barColor}1f`, color: share!.barColor }}
           >
+            <span
+              className="mr-1 inline-block h-1.5 w-1.5 rotate-45 rounded-[1px] align-middle"
+              style={{ backgroundColor: share!.barColor }}
+            />
             {metricLabel}
           </span>
         )}

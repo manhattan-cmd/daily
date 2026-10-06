@@ -134,6 +134,12 @@ export function PeriodCategoryPanel({
     excludeRegular,
   });
 
+  // Mercek rengi — özellik seçiliyken kutular ve grafikler o özelliğin
+  // renginde; girdi sayısında kategorinin
+  const lensRaw =
+    metric.type !== "count" ? data?.rawMods.get(metric.mod.id) : undefined;
+  const lensColor = lensRaw ? modColor(lensRaw) : category.color;
+
   // Yeni görünüm çizildi — kapsül satırı ölçülen yerine geri getirilir
   const metricKey = metric.type === "count" ? "count" : metric.mod.id;
   useLayoutEffect(() => {
@@ -526,7 +532,7 @@ export function PeriodCategoryPanel({
           options={compute.statOptions}
           onPick={pickStat}
           keys={compute.stats}
-          color={category.color}
+          color={lensColor}
           unit={unit}
           periodSub={periodShortLabel(period)}
           daysSub={dayCountLabel}
@@ -567,7 +573,7 @@ export function PeriodCategoryPanel({
           · this day{" "}
           <span
             className="font-semibold"
-            style={{ color: category.color }}
+            style={{ color: lensColor }}
           >
             {weekContext.inPoints
               ? t("stat.points", { n: fmtNum(Math.abs(weekContext.delta)) })
@@ -590,7 +596,7 @@ export function PeriodCategoryPanel({
           distribution={computed.distribution}
           choiceFilter={choiceFilter}
           onChoiceFilter={setChoiceFilter}
-          color={category.color}
+          color={lensColor}
           unit={metric.type === "count" ? "entries" : unit}
           caption={computed.seriesFrame?.caption}
           showAllTicks={computed.seriesFrame?.showAllTicks}
@@ -618,7 +624,7 @@ export function PeriodCategoryPanel({
       {/* Girdi listesi */}
       <EntryListSection
         title={focus ? `${focus.name} · Entry list` : "Entry list"}
-        accent={category.color}
+        accent={lensColor}
         rows={computed.entryRows}
         emptyText={
           metric.type === "mod"
