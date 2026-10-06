@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, ChevronRight } from "lucide-react";
+import { ChevronRight, LayoutGrid } from "lucide-react";
 import { HScroll } from "@/components/ui/h-scroll";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +9,8 @@ export interface TrailStep {
   label: string;
   /** Renk noktası — kategori ve alt kalemlerde kategorinin rengi */
   color?: string;
+  /** Yolun kökü ("Kategoriler") — nokta yerine ızgara simgesi */
+  root?: boolean;
   onClick: () => void;
 }
 
@@ -39,8 +41,7 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
       followEnd={steps.map((s) => s.key).join("|")}
     >
       {steps.map((s, i) => {
-        const isPlace = i === placeIdx && i > 0;
-        const isPeriod = i === 0;
+        const isPlace = i === placeIdx;
         return (
           <span key={s.key} className="flex shrink-0 items-center gap-1">
             {i > 0 && (
@@ -50,13 +51,11 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
               type="button"
               onClick={s.onClick}
               aria-current={isPlace ? "location" : undefined}
-              // Dönem yalnız simge: adı hemen üstteki sayfa başlığında yazıyor
-              aria-label={isPeriod ? s.label : undefined}
-              title={isPeriod ? s.label : undefined}
               className={cn(
-                "flex h-7 max-w-[170px] shrink-0 items-center gap-1.5 rounded-full text-[12px] font-medium transition-colors",
-                isPeriod ? "w-7 justify-center bg-[var(--sf-2)]" : "px-2.5",
-                !isPlace && "text-muted-foreground hover:text-foreground"
+                "flex h-7 max-w-[170px] shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition-colors",
+                !isPlace && "text-muted-foreground hover:text-foreground",
+                // Kök buradaysa (kategori seçili değil) sade dolgu
+                isPlace && s.root && "bg-[var(--sf-3)] text-foreground"
               )}
               style={
                 isPlace && s.color
@@ -68,17 +67,15 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
                   : undefined
               }
             >
-              {isPeriod ? (
-                <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+              {s.root ? (
+                <LayoutGrid className="h-3.5 w-3.5 shrink-0" />
               ) : (
-                <>
-                  <span
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: s.color }}
-                  />
-                  <span className="truncate">{s.label}</span>
-                </>
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: s.color }}
+                />
               )}
+              <span className="truncate">{s.label}</span>
             </button>
           </span>
         );

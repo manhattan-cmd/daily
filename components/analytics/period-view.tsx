@@ -117,9 +117,12 @@ export function PeriodView({
     setPrevPeriodKey(period.key);
     setCatPicked(false);
   }
+  // "Kategoriler"e dönüldü — hiçbir kategori seçili değil, altta kademe yok
+  const [catsOnly, setCatsOnly] = useState(false);
   const pickCat = (id: string) => {
     setSelectedCatId(id);
     setCatPicked(true);
+    setCatsOnly(false);
     selectAnalysisCategory(id);
   };
 
@@ -305,8 +308,9 @@ export function PeriodView({
   const catCounts = new Map(
     (computed?.catShare ?? []).map((r) => [r.id, r.value])
   );
-  const selectedCat =
-    data?.cats.find(
+  const selectedCat = catsOnly
+    ? null
+    : data?.cats.find(
       (c) =>
         c.id === selectedCatId &&
         (catPicked || (catCounts.get(c.id) ?? 0) > 0)
@@ -471,29 +475,37 @@ export function PeriodView({
         }
         back={back}
         nav={
-          selectedCat ? (
-            <AnalysisTrail
-              steps={[
-                {
-                  key: "period",
-                  label: period.label,
-                  onClick: () => setScrollTarget("top"),
+          <AnalysisTrail
+            steps={[
+              // Yolun kökü: bütün kategoriler. Dokununca seçim kalkar ve
+              // kategori dağılımına dönülür
+              {
+                key: "cats",
+                label: t("structure.categories"),
+                root: true,
+                onClick: () => {
+                  setCatsOnly(true);
+                  setScrollTarget("top");
                 },
-                {
-                  key: selectedCat.id,
-                  label: selectedCat.name,
-                  color: selectedCat.color,
-                  onClick: () => goTo([]),
-                },
-                ...path.map((node, i) => ({
-                  key: node.id,
-                  label: node.name,
-                  color: selectedCat.color,
-                  onClick: () => goTo(path.slice(0, i + 1)),
-                })),
-              ]}
-            />
-          ) : undefined
+              },
+              ...(selectedCat
+                ? [
+                    {
+                      key: selectedCat.id,
+                      label: selectedCat.name,
+                      color: selectedCat.color,
+                      onClick: () => goTo([]),
+                    },
+                    ...path.map((node, i) => ({
+                      key: node.id,
+                      label: node.name,
+                      color: selectedCat.color,
+                      onClick: () => goTo(path.slice(0, i + 1)),
+                    })),
+                  ]
+                : []),
+            ]}
+          />
         }
         action={
           selectedCat ? (
