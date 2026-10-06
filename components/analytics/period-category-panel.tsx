@@ -32,6 +32,7 @@ import { ShareBars, type ShareRow } from "./share-bars";
 import { AnalysisCharts, CHART_LABEL } from "./analysis-chart";
 import { EntryListSection, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
+import { ChipRow } from "./chip-row";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
 import { setAnalysisMetric, setAnalysisPath } from "./analysis-selection";
@@ -116,6 +117,81 @@ export function PeriodCategoryPanel({
     excludeRegular,
   });
 
+  /*
+   * BULUNULAN KADEME — sayfanın en üstündeki kategori düzeninin aynısı bir
+   * kademe aşağıda: önce o kademenin DAĞILIMI (kategorinin bütün alt
+   * kategorileri; bir alt kategoriye odaklanıldıysa onun kardeşleri, kendisi
+   * vurgulu), hemen altında aynı kalemlerin KAPSÜLLERİ, onların altında da
+   * seçilen kapsamın özellikleri ve grafikleri. Odaklanılan kalemin verisi
+   * yalnız kendi alt ağacını kapsadığı için kademe ayrıca okunuyor (aynı
+   * parametreler önbellekte paylaşılıyor — odak yokken ek okuma yok).
+   */
+  const levelPath = focus ? path.slice(0, -1) : path;
+  const levelParent = levelPath[levelPath.length - 1];
+  const level = useCategoryMetrics({
+    category,
+    rootSubId: levelParent?.id,
+    fetchStart: panelWindow(period).start,
+    fetchEnd: panelWindow(period).end,
+    resetKey: category.id,
+    // Kırılım aşağıda seçilen özelliğe göre (Harcamalar'da Para gibi)
+    preferredMetricId: metric.type === "count" ? "count" : metric.mod.id,
+    initialMetricId: "count",
+    excludeRegular,
+  });
+  const levelShare = useMemo(() => {
+    const d = level.data;
+    const c = level.compute;
+    if (!d || !c || c.isChoice) return null;
+    const by = new Map<string, Entry[]>();
+    for (const e of d.entries) {
+      const top = bucketAncestorId(e.subcategoryId, d.subById, levelParent?.id);
+      if (!top) continue;
+      const list = by.get(top) ?? [];
+      list.push(e);
+      by.set(top, list);
+    }
+    const rows: ShareRow[] = [...by.entries()]
+      .map(([id, list]) => ({ id, value: c.aggregate(list), outOf: c.filledCount(list) }))
+      .filter((r) => (c.isRate || c.scale ? r.outOf > 0 : r.value > 0))
+      .map(({ id, value, outOf }) => {
+        const sub = d.subById.get(id)!;
+        // Kademenin KENDİ doğrudan girdileri (kategori kökü ya da ebeveynin
+        // kendisi) bir kalem değil — seçilecek bir kapsülü yok
+        const isSelf = id === levelParent?.id || sub.isCategoryRoot;
+        return {
+          id,
+          name: sub.isCategoryRoot ? category.name : sub.name,
+          color: category.color,
+          value,
+          outOf,
+          display: c.unit ? `${fmtNum(value)} ${c.unit}` : fmtNum(value),
+          drillable: !isSelf,
+        };
+      });
+    const counts = new Map([...by.entries()].map(([id, l]) => [id, l.length]));
+    return {
+      rows,
+      counts,
+      isRate: c.isRate,
+      scale: c.scale,
+      aggregateNote: c.aggregateNote,
+    };
+  }, [level.data, level.compute, levelParent?.id, category.name, category.color]);
+  /** Kademenin kalemleri — kapsül satırı (kullanıcının kendi sırasıyla) */
+  const levelSubs = useMemo(
+    () =>
+      [...(data?.subById.values() ?? [])]
+        .filter(
+          (s) =>
+            s.categoryId === category.id &&
+            !s.isCategoryRoot &&
+            (s.parentId ?? undefined) === (levelParent?.id ?? undefined)
+        )
+        .sort((a, b) => a.order - b.order),
+    [data?.subById, category.id, levelParent?.id]
+  );
+  const pickSub = (sub: SubCategory) => setPath([...levelPath, sub]);
 
   /**
    * Pano düzenleme: yuvayı değiştir, kaldır (key null) ya da sona ekle
@@ -406,7 +482,7 @@ export function PeriodCategoryPanel({
       {/* Kapsam şeridi — derine inildiğinde aşağıdaki HER ŞEYİN (istatistik,
           grafik, kırılım, liste) hangi kaleme ait olduğunu söyler. Yoksa
           Yemek rakamlarına bakarken Harcamalar sanılabiliyordu. */}
-      {focus && (
+      {path.length >= 2 && (
         <div
           className="flex items-center gap-2.5 rounded-2xl border px-2.5 py-2.5"
           style={{
@@ -465,6 +541,67 @@ export function PeriodCategoryPanel({
             <span>{t("stat.allTime")}</span>
           </Link>
         </div>
+      )}
+
+      {levelShare && levelShare.rows.some((r) => r.drillable) && (
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <h3 className="mb-3 min-w-0 text-xs font-semibold uppercase leading-tight tracking-wider text-muted-foreground">
+            {levelParent && (
+              <span style={{ color: `${category.color}dd` }}>{levelParent.name} · </span>
+            )}
+            Subcategory breakdown
+            {levelShare.aggregateNote && (
+              <span className="normal-case font-normal text-muted-foreground/60">
+                {" "}
+                ({levelShare.aggregateNote})
+              </span>
+            )}
+          </h3>
+          <ShareBars
+            rows={levelShare.rows}
+            mode={levelShare.isRate ? "rate" : levelShare.scale ? "level" : "share"}
+            range={levelShare.scale}
+            // Odaklanılan kalem vurgulu, kardeşleri soluk — üstteki kategori
+            // dağılımındaki gibi "şu an bunun içindesin"
+            selectedId={focus?.id ?? null}
+            onSelect={(subId) => {
+              const sub = data.subById.get(subId);
+              if (!sub || sub.isCategoryRoot || sub.id === levelParent?.id) return;
+              // Seçili satıra yeniden dokunmak kademeye geri döner
+              if (sub.id === focus?.id) setPath(levelPath);
+              else pickSub(sub);
+            }}
+          />
+        </div>
+      )}
+
+      {/* Kademenin kapsülleri — dağılımın hemen altında; ilk kapsül kademenin
+          tamamı (kategori ya da üst kalem). Seçilen kapsülün özellikleri
+          aşağıda. */}
+      {levelSubs.length > 0 && (
+        <ChipRow
+          items={[
+            {
+              key: "__level",
+              label: levelParent ? levelParent.name : t("insights.all"),
+              color: category.color,
+              active: !focus,
+              onPick: () => setPath(levelPath),
+            },
+            ...levelSubs.map((sub) => {
+              const n = levelShare?.counts.get(sub.id) ?? 0;
+              return {
+                key: sub.id,
+                label: sub.name,
+                color: category.color,
+                active: focus?.id === sub.id,
+                count: n,
+                dim: n === 0,
+                onPick: () => pickSub(sub),
+              };
+            }),
+          ]}
+        />
       )}
 
       <MetricChips
@@ -581,7 +718,7 @@ export function PeriodCategoryPanel({
           görülür, istenirse bir kademe derine inilir (dönemden çıkılmadan),
           sonra o kapsamın zaman serisi incelenir. İnilecek kademe kalmadıysa
           bölüm hiç açılmaz */}
-      {!compute.isChoice && computed.hasBreakdown && (
+      {!!focus && !compute.isChoice && computed.hasBreakdown && (
         <div className="rounded-2xl border border-border bg-card p-4">
           {/* Odaklıyken de gösterilen şey aynı: bu kalemin altındaki
               kalemlerin dağılımı — başlık da aynı kalır */}
