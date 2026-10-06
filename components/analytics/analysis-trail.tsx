@@ -3,6 +3,7 @@
 import { ChevronRight, LayoutGrid } from "lucide-react";
 import { HScroll } from "@/components/ui/h-scroll";
 import { cn } from "@/lib/utils";
+import { RAIL, RAIL_ITEM } from "./header-rail";
 
 export interface TrailStep {
   key: string;
@@ -36,40 +37,40 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
   // Son kalem — "buradasın"
   const placeIdx = steps.length - 1;
   return (
+    <div className={RAIL}>
     <HScroll
-      className="items-center gap-1"
+      className="items-center gap-0.5"
+      wrapperClassName="min-w-0 flex-1"
       followEnd={steps.map((s) => s.key).join("|")}
     >
       {steps.map((s, i) => {
         const isPlace = i === placeIdx;
         return (
-          <span key={s.key} className="flex shrink-0 items-center gap-1">
+          <span key={s.key} className="flex shrink-0 items-center gap-0.5">
             {i > 0 && (
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
+              <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/35" />
             )}
             <button
               type="button"
               onClick={s.onClick}
               aria-current={isPlace ? "location" : undefined}
               className={cn(
-                "flex h-7 max-w-[170px] shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition-colors",
-                !isPlace && !s.root && "text-muted-foreground hover:text-foreground",
-                // Kök hep canlı: yolun başlangıcı, her yerden tek dokunuşla dönülen yer
-                s.root && "font-semibold text-white"
+                RAIL_ITEM,
+                "max-w-[170px] gap-1.5 px-2.5",
+                !isPlace && !s.root && "text-muted-foreground hover:text-foreground"
               )}
               style={
                 s.root
-                  ? {
-                      background: "linear-gradient(135deg, #6366f1, #a855f7)",
-                      boxShadow: isPlace
-                        ? "0 0 0 2px var(--background), 0 0 0 3px #a855f7aa, 0 4px 14px #6366f155"
-                        : "0 2px 10px #6366f140",
+                  ? // Kök hep canlı (mor) — bulunulan yerse dolu, değilse hafif
+                    {
+                      background: isPlace ? "#6366f1" : "#6366f124",
+                      color: isPlace ? "#fff" : "#a5b4fc",
                     }
                   : isPlace && s.color
                     ? {
-                        background: `${s.color}2e`,
+                        background: `${s.color}33`,
                         color: "var(--foreground)",
-                        boxShadow: `inset 0 0 0 1px ${s.color}80`,
+                        boxShadow: `inset 0 0 0 1px ${s.color}73`,
                       }
                     : undefined
               }
@@ -88,6 +89,7 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
         );
       })}
     </HScroll>
+    </div>
   );
 }
 

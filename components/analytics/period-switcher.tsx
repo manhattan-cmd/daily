@@ -16,6 +16,7 @@ import {
 } from "@/lib/period";
 import { routes } from "@/lib/routes";
 import { PeriodJump } from "./period-jump";
+import { RAIL, RAIL_ITEM } from "./header-rail";
 
 /** Şu an — bileşen dışında: çizim saf kalsın, okuma tıklamada/çizimde taze */
 const nowMs = () => Date.now();
@@ -29,8 +30,7 @@ const KINDS: { kind: Exclude<PeriodKind, "custom">; label: MessageKey }[] = [
 ];
 
 /** Bölmeli düğmenin bir bölmesi — seçili olan ters renkte (menü gibi) */
-const SEGMENT =
-  "flex h-8 min-w-0 flex-1 items-center justify-center rounded-[10px] text-[12.5px] font-semibold transition-colors";
+const SEGMENT = `${RAIL_ITEM} min-w-0 flex-1`;
 const segmentState = (on: boolean) =>
   on
     ? "bg-foreground text-background shadow-sm"
@@ -78,10 +78,10 @@ export function PeriodSwitcher({ period }: { period: Period }) {
   const nextP = shiftPeriod(period, 1);
   const nextDisabled = !nextP || nextP.start > nowMs();
   const arrow =
-    "flex h-10 w-9 shrink-0 items-center justify-center rounded-[14px] text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground disabled:opacity-25";
+    `${RAIL_ITEM} w-7 text-muted-foreground hover:bg-[var(--sf-3)] hover:text-foreground disabled:opacity-25`;
 
   return (
-    <div className="-mx-1.5 flex items-center gap-0.5">
+    <div role="tablist" aria-label={t("insights.period")} className={RAIL}>
       <button
         type="button"
         disabled={!prev}
@@ -92,11 +92,6 @@ export function PeriodSwitcher({ period }: { period: Period }) {
         <ChevronLeft className="h-4 w-4" />
       </button>
 
-      <div
-        role="tablist"
-        aria-label={t("insights.period")}
-        className="flex min-w-0 flex-1 gap-0.5 rounded-[14px] bg-[var(--sf-2)] p-1 ring-1 ring-inset ring-[var(--ln-1)]"
-      >
         {KINDS.map(({ kind, label }) => {
           const on = period.kind === kind;
           return (
@@ -114,7 +109,6 @@ export function PeriodSwitcher({ period }: { period: Period }) {
         })}
         {/* Özel aralık — takvim; özel dönemdeyken seçili */}
         <PeriodJump activeKey={period.key} segment />
-      </div>
 
       <button
         type="button"
