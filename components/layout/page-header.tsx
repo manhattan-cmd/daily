@@ -26,6 +26,11 @@ interface PageHeaderProps {
    * işi menülerse (analizde zaman + yol) odak başlıkta kalmasın diye.
    */
   compact?: boolean;
+  /**
+   * Kısılmış hal — sayfa aşağı kaydırılınca. Başlık küçülür, açıklama gizlenir,
+   * bandın içindeki öğeler data-collapsed işaretine bakarak incelir.
+   */
+  collapsed?: boolean;
   className?: string;
 }
 
@@ -37,24 +42,31 @@ export function PageHeader({
   action,
   nav,
   compact = false,
+  collapsed = false,
   className,
 }: PageHeaderProps) {
   const t = useT();
   return (
     <header
+      data-collapsed={collapsed}
       className={cn(
-        "sticky top-0 z-30 -mx-4 mb-6 border-b border-border bg-background/85 px-4 pt-safe backdrop-blur-xl",
-        nav ? "pb-3" : "pb-4",
+        "group/hdr sticky top-0 z-30 -mx-4 mb-6 border-b border-border bg-background/85 px-4 pt-safe backdrop-blur-xl",
+        nav ? (collapsed ? "pb-2" : "pb-3") : "pb-4",
         className
       )}
     >
-      <div className={cn("flex items-center", compact ? "gap-2 pt-3" : "gap-3 pt-4")}>
+      <div
+        className={cn(
+          "flex items-center",
+          compact ? (collapsed ? "gap-2 pt-1.5" : "gap-2 pt-3") : "gap-3 pt-4"
+        )}
+      >
         {back ? (
           <Link
             href={back}
             className={cn(
               "flex shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-              compact ? "-ml-1.5 h-8 w-8" : "h-9 w-9"
+              compact ? (collapsed ? "-ml-1.5 h-7 w-7" : "-ml-1.5 h-8 w-8") : "h-9 w-9"
             )}
             aria-label={t("action.back")}
           >
@@ -63,10 +75,15 @@ export function PageHeader({
         ) : null}
         {compact ? (
           <div className="flex min-w-0 flex-1 items-baseline gap-2">
-            <h1 className="truncate text-[15px] font-semibold tracking-tight">
+            <h1
+              className={cn(
+                "truncate font-semibold tracking-tight",
+                collapsed ? "text-[13px]" : "text-[15px]"
+              )}
+            >
               {title}
             </h1>
-            {description ? (
+            {description && !collapsed ? (
               <span className="shrink-0 truncate text-[12px] text-muted-foreground">
                 {description}
               </span>
@@ -91,7 +108,7 @@ export function PageHeader({
         )}
         {action ? <div className="shrink-0">{action}</div> : null}
       </div>
-      {nav ? <div className="mt-3">{nav}</div> : null}
+      {nav ? <div className={collapsed ? "mt-2" : "mt-3"}>{nav}</div> : null}
     </header>
   );
 }

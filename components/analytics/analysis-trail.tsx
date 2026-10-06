@@ -47,12 +47,9 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
           onClick={root.onClick}
           aria-current={root.key === placeKey ? "location" : undefined}
           className={cn(RAIL_ITEM, "gap-1.5 px-2.5")}
-          // Kök hep canlı (mor): bulunulan yerse dolu, değilse yine belirgin
-          style={
-            root.key === placeKey
-              ? { background: "#6366f1", color: "#fff" }
-              : { background: "#6366f13d", color: "#c7d2fe" }
-          }
+          // Kök hep aynı: dolu mor, beyaz yazı. Bir ara seçili değilken
+          // açık tona dönüyordu; telefonda neredeyse okunmuyordu
+          style={{ background: "#6366f1", color: "#fff" }}
         >
           <LayoutGrid className="h-3.5 w-3.5 shrink-0" />
           <span className="truncate">{root.label}</span>
@@ -117,7 +114,7 @@ export function AnalysisLens({ lens }: { lens: TrailLens & { neutral?: boolean }
       type="button"
       onClick={lens.onClick}
       className={cn(
-        "flex h-7 max-w-[130px] items-center gap-1.5 rounded-full px-2.5 text-[12px] font-semibold transition-colors",
+        "flex h-7 max-w-[130px] items-center gap-1.5 rounded-full px-2.5 text-[12px] font-semibold transition-colors group-data-[collapsed=true]/hdr:h-6 group-data-[collapsed=true]/hdr:text-[11px]",
         lens.neutral && "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground"
       )}
       style={

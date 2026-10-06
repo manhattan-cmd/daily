@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -138,18 +138,69 @@ export function PeriodView({
    */
   const [drill, setDrill] = useState<{ catId: string; path: SubCategory[] } | null>(null);
   const [metricSel, setMetricSel] = useState<{ catId: string; id: string } | null>(null);
+  /*
+   * DİNAMİK BANT. Sayfa biraz aşağı kayınca başlık bandı kısılır (başlık
+   * küçülür, raylar incelir), en üste dönünce tam haline gelir. Açılma ve
+   * kapanma eşikleri arasında pay var (80 / 20 px) ki eşikte titremesin.
+   * Bant akışta durduğu için kısılınca altındaki her şey yukarı zıplardı;
+   * boy farkı kadar kaydırma konumu aynı karede düzeltilir.
+   */
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  useEffect(() => {
+    const main = document.querySelector("main");
+    if (!main) return;
+    const onScroll = () => {
+      const y = main.scrollTop;
+      setHeaderCollapsed((c) => (c ? y > 20 : y > 80));
+    };
+    main.addEventListener("scroll", onScroll, { passive: true });
+    return () => main.removeEventListener("scroll", onScroll);
+  }, []);
+  const headerHeight = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const header = document.querySelector<HTMLElement>("main header");
+    const main = document.querySelector("main");
+    if (!header || !main) return;
+    const h = header.offsetHeight;
+    const before = headerHeight.current;
+    headerHeight.current = h;
+    // Yalnız KISILIRKEN: en üste dönüp açılırken sayfa yeniden aşağı itilmesin
+    if (before !== null && h < before) main.scrollTop += h - before;
+  }, [headerCollapsed]);
+
   // Seçimden sonra hangi karta kayılacak — yeni kart çizildikten sonra
   const [scrollTarget, setScrollTarget] = useState<string | null>(null);
   useEffect(() => {
     if (!scrollTarget) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const id = requestAnimationFrame(() => {
       // Kartlar data-section ile işaretli (top · cat · alt kalem id · focus)
-      document
-        .querySelector(`[data-section="${CSS.escape(scrollTarget)}"]`)
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const el = document.querySelector<HTMLElement>(
+        `[data-section="${CSS.escape(scrollTarget)}"]`
+      );
+      const main = document.querySelector("main");
       setScrollTarget(null);
+      if (!el || !main) return;
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Kayarken bant kısılıyor; varılan yer bandın altında kalabiliyor.
+      // Kayma bitince kart bandın hemen altına yeniden oturtulur.
+      const realign = () => {
+        main.removeEventListener("scrollend", realign);
+        clearTimeout(timer);
+        if (scrollTarget === "top") return;
+        const header = main.querySelector("header");
+        const want = (header?.getBoundingClientRect().bottom ?? 0) + 12;
+        const off = el.getBoundingClientRect().top - want;
+        if (Math.abs(off) > 2) main.scrollBy({ top: off, behavior: "smooth" });
+      };
+      main.addEventListener("scrollend", realign);
+      // scrollend desteklenmiyorsa (eski WebView) yedek
+      timer = setTimeout(realign, 900);
     });
-    return () => cancelAnimationFrame(id);
+    return () => {
+      cancelAnimationFrame(id);
+      clearTimeout(timer);
+    };
   }, [scrollTarget]);
 
   /** Uygulamada hiç girdi var mı — dönemden bağımsız */
@@ -471,6 +522,7 @@ export function PeriodView({
     <>
       <PageHeader
         compact
+        collapsed={headerCollapsed}
         // Bandın kendi zemini — sayfanın üstünde ayrı bir bölüm olduğu belli
         // olsun: açık yüzey, yuvarlak alt köşeler, altına düşen yumuşak gölge
         className={ANALYSIS_HEADER}
@@ -586,7 +638,7 @@ export function PeriodView({
             tıklanan rakam dönemin, açılan sayfa tüm zamanlarındı. */}
         <div
           data-section="top"
-          className="scroll-mt-40 rounded-2xl border border-border bg-card p-4"
+          className="scroll-mt-36 rounded-2xl border border-border bg-card p-4"
         >
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
             Category breakdown
@@ -644,7 +696,7 @@ export function PeriodView({
 
             {/* Seçilen yerin özellikleri. Panel ekranın altında kalıyor ve
                 grafikleriyle ağır: görünür alana yaklaşınca çizilir. */}
-            <section data-section="focus" className="scroll-mt-40">
+            <section data-section="focus" className="scroll-mt-36">
               <LazyMount minHeight={640}>
                 <PeriodCategoryPanel
                   key={`${selectedCat.id}|${period.key}`}
