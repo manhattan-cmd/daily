@@ -54,7 +54,14 @@ function addDays(t: number, n: number): number {
  *  - hızlı aralıklar (dün, son 7/30 gün, geçen hafta/ay) takvimi doldurur,
  *    analiz düğmesi seçimi onaylar. Gelecek günler seçilemez.
  */
-export function PeriodJump({ activeKey }: { activeKey?: string }) {
+export function PeriodJump({
+  activeKey,
+  segment = false,
+}: {
+  activeKey?: string;
+  /** Zaman seçicinin bölmesi olarak — yalnız takvim simgesi */
+  segment?: boolean;
+}) {
   // Özel bir dönemdeyken çip vurgulu, pencere o aralıkla açılır
   const current = activeKey?.startsWith("c-") ? parsePeriodKey(activeKey) : null;
   const t = useT();
@@ -174,11 +181,22 @@ export function PeriodJump({ activeKey }: { activeKey?: string }) {
       <button
         type="button"
         onClick={openPicker}
-        className={cn(chipClass(!!current), "flex shrink-0 items-center gap-1.5")}
+        className={
+          segment
+            ? cn(
+                "flex h-7 w-9 shrink-0 items-center justify-center rounded-[9px] transition-colors",
+                current
+                  ? "bg-foreground text-background shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )
+            : cn(chipClass(!!current), "flex shrink-0 items-center gap-1.5")
+        }
         aria-current={current ? "page" : undefined}
+        aria-label={segment ? t("period.custom") : undefined}
+        title={segment ? t("period.custom") : undefined}
       >
         <CalendarRange className="h-3.5 w-3.5" />
-        {t("period.custom")}
+        {!segment && t("period.custom")}
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>

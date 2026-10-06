@@ -6,8 +6,6 @@ import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   BarChart3,
-  ChevronLeft,
-  ChevronRight,
   PenLine,
 } from "lucide-react";
 import { db } from "@/lib/db";
@@ -45,7 +43,7 @@ import {
   EntryListSection,
   type EntryListRow,
 } from "@/components/analytics/entry-list";
-import { PeriodQuickNav } from "@/components/analytics/period-quick-nav";
+import { PeriodSwitcher } from "@/components/analytics/period-switcher";
 import {
   PeriodCategoryPanel,
   panelWindow,
@@ -444,8 +442,8 @@ export function PeriodView({
           title={title ?? period.label}
           description={t("insights.period")}
           back={back}
+          nav={<PeriodSwitcher period={requestedPeriod} />}
         />
-        <PeriodQuickNav activeKey={requestedPeriod.key} />
         <div className="flex flex-col gap-4 pb-6">
           <div className="grid grid-cols-3 gap-2">
             <Skeleton className="h-[76px] rounded-2xl" />
@@ -475,6 +473,9 @@ export function PeriodView({
         }
         back={back}
         nav={
+          // Bant iki kat: önce ZAMAN (menü gibi, renksiz), sonra YER (renkli yol)
+          <div className="flex flex-col gap-2.5">
+          <PeriodSwitcher period={period} />
           <AnalysisTrail
             steps={[
               // Yolun kökü: bütün kategoriler. Dokununca seçim kalkar ve
@@ -506,6 +507,7 @@ export function PeriodView({
                 : []),
             ]}
           />
+          </div>
         }
         action={
           selectedCat ? (
@@ -521,40 +523,7 @@ export function PeriodView({
         }
       />
 
-      {/* Hızlı atlama çipleri — Yapı sekmeleriyle aynı yerde: başlığın hemen
-          altında, içerik akışının dışında */}
-      <PeriodQuickNav activeKey={requestedPeriod.key} />
-
       <div className="flex flex-col gap-4 pb-6">
-        {/* Dönem gezintisi: ◀ önceki · etiket · sonraki ▶ (Tümü'nde yön yok) */}
-        {(prev || nextP) && (
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              disabled={!prev}
-              onClick={() => prev && router.push(routes.period(prev.key))}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-              aria-label={t("insights.previousPeriod")}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <span className="text-xs font-medium text-muted-foreground truncate">
-              {period.label}
-            </span>
-            <button
-              type="button"
-              disabled={nextDisabled}
-              onClick={() =>
-                nextP && router.push(routes.period(nextP.key))
-              }
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-              aria-label={t("insights.nextPeriod")}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-
         {/* Özet (KPI kutuları + dönem serisi) RAFTA — bkz. SHOW_PERIOD_SUMMARY */}
         {SHOW_PERIOD_SUMMARY && (
           <>
@@ -605,7 +574,7 @@ export function PeriodView({
             tıklanan rakam dönemin, açılan sayfa tüm zamanlarındı. */}
         <div
           data-section="top"
-          className="scroll-mt-40 rounded-2xl border border-border bg-card p-4"
+          className="scroll-mt-44 rounded-2xl border border-border bg-card p-4"
         >
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
             Category breakdown
@@ -663,7 +632,7 @@ export function PeriodView({
 
             {/* Seçilen yerin özellikleri. Panel ekranın altında kalıyor ve
                 grafikleriyle ağır: görünür alana yaklaşınca çizilir. */}
-            <section data-section="focus" className="scroll-mt-40">
+            <section data-section="focus" className="scroll-mt-44">
               <LazyMount minHeight={640}>
                 <PeriodCategoryPanel
                   key={`${selectedCat.id}|${period.key}`}

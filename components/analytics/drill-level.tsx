@@ -126,7 +126,7 @@ export function DrillLevel({
     <section
       data-section={sectionKey}
       // Yapışkan başlık + konum çubuğunun altında kalmasın
-      className="scroll-mt-40 rounded-2xl border bg-card p-4"
+      className="scroll-mt-44 rounded-2xl border bg-card p-4"
       style={{ borderColor: `${category.color}40` }}
     >
       <div className="mb-3 flex items-center gap-2">

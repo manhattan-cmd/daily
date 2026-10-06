@@ -53,18 +53,25 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
               aria-current={isPlace ? "location" : undefined}
               className={cn(
                 "flex h-7 max-w-[170px] shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition-colors",
-                !isPlace && "text-muted-foreground hover:text-foreground",
-                // Kök buradaysa (kategori seçili değil) sade dolgu
-                isPlace && s.root && "bg-[var(--sf-3)] text-foreground"
+                !isPlace && !s.root && "text-muted-foreground hover:text-foreground",
+                // Kök hep canlı: yolun başlangıcı, her yerden tek dokunuşla dönülen yer
+                s.root && "font-semibold text-white"
               )}
               style={
-                isPlace && s.color
+                s.root
                   ? {
-                      background: `${s.color}2e`,
-                      color: "var(--foreground)",
-                      boxShadow: `inset 0 0 0 1px ${s.color}80`,
+                      background: "linear-gradient(135deg, #6366f1, #a855f7)",
+                      boxShadow: isPlace
+                        ? "0 0 0 2px var(--background), 0 0 0 3px #a855f7aa, 0 4px 14px #6366f155"
+                        : "0 2px 10px #6366f140",
                     }
-                  : undefined
+                  : isPlace && s.color
+                    ? {
+                        background: `${s.color}2e`,
+                        color: "var(--foreground)",
+                        boxShadow: `inset 0 0 0 1px ${s.color}80`,
+                      }
+                    : undefined
               }
             >
               {s.root ? (
