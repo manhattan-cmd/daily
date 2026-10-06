@@ -74,6 +74,10 @@ import { routes } from "@/lib/routes";
  */
 const SHOW_PERIOD_SUMMARY = false;
 
+/** Analiz başlık bandının zemini (zaman + yol menülerinin bölümü) */
+const ANALYSIS_HEADER =
+  "rounded-b-[24px] border-[var(--ln-2)] bg-card shadow-[0_12px_28px_-14px_rgba(0,0,0,0.75)]";
+
 /**
  * Dönem analiz görünümü — herhangi bir zaman penceresinin (gün/hafta/ay/yıl/özel/tümü)
  * tüm kategorileri kapsayan analizi. /analytics (içinde bulunulan hafta, default) ve
@@ -440,6 +444,7 @@ export function PeriodView({
       <>
         <PageHeader
           compact
+          className={ANALYSIS_HEADER}
           title={title ?? period.label}
           back={back}
           nav={<PeriodSwitcher period={requestedPeriod} />}
@@ -466,6 +471,9 @@ export function PeriodView({
     <>
       <PageHeader
         compact
+        // Bandın kendi zemini — sayfanın üstünde ayrı bir bölüm olduğu belli
+        // olsun: açık yüzey, yuvarlak alt köşeler, altına düşen yumuşak gölge
+        className={ANALYSIS_HEADER}
         title={title ?? period.label}
         description={
           showProgress

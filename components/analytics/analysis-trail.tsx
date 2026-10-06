@@ -34,61 +34,71 @@ export interface TrailLens {
  * renginde dolu; özellik onun yanında kendi renginde.
  */
 export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
-  // Son kalem — "buradasın"
-  const placeIdx = steps.length - 1;
+  // Kök ("Kategoriler") rayın solunda SABİT: yol uzayıp sona kayınca kök
+  // kayan kısmın kenar solmasına giriyor, yarım ve soluk kalıyordu
+  const root = steps.find((s) => s.root);
+  const rest = steps.filter((s) => !s.root);
+  const placeKey = steps[steps.length - 1]?.key;
   return (
     <div className={RAIL}>
-    <HScroll
-      className="items-center gap-0.5"
-      wrapperClassName="min-w-0 flex-1"
-      followEnd={steps.map((s) => s.key).join("|")}
-    >
-      {steps.map((s, i) => {
-        const isPlace = i === placeIdx;
-        return (
-          <span key={s.key} className="flex shrink-0 items-center gap-0.5">
-            {i > 0 && (
-              <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/35" />
-            )}
-            <button
-              type="button"
-              onClick={s.onClick}
-              aria-current={isPlace ? "location" : undefined}
-              className={cn(
-                RAIL_ITEM,
-                "max-w-[170px] gap-1.5 px-2.5",
-                !isPlace && !s.root && "text-muted-foreground hover:text-foreground"
-              )}
-              style={
-                s.root
-                  ? // Kök hep canlı (mor) — bulunulan yerse dolu, değilse hafif
-                    {
-                      background: isPlace ? "#6366f1" : "#6366f124",
-                      color: isPlace ? "#fff" : "#a5b4fc",
-                    }
-                  : isPlace && s.color
-                    ? {
-                        background: `${s.color}33`,
-                        color: "var(--foreground)",
-                        boxShadow: `inset 0 0 0 1px ${s.color}73`,
-                      }
-                    : undefined
-              }
-            >
-              {s.root ? (
-                <LayoutGrid className="h-3.5 w-3.5 shrink-0" />
-              ) : (
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: s.color }}
-                />
-              )}
-              <span className="truncate">{s.label}</span>
-            </button>
-          </span>
-        );
-      })}
-    </HScroll>
+      {root && (
+        <button
+          type="button"
+          onClick={root.onClick}
+          aria-current={root.key === placeKey ? "location" : undefined}
+          className={cn(RAIL_ITEM, "gap-1.5 px-2.5")}
+          // Kök hep canlı (mor): bulunulan yerse dolu, değilse yine belirgin
+          style={
+            root.key === placeKey
+              ? { background: "#6366f1", color: "#fff" }
+              : { background: "#6366f13d", color: "#c7d2fe" }
+          }
+        >
+          <LayoutGrid className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">{root.label}</span>
+        </button>
+      )}
+      {rest.length > 0 && (
+        <HScroll
+          className="items-center gap-0.5"
+          wrapperClassName="min-w-0 flex-1"
+          followEnd={rest.map((s) => s.key).join("|")}
+        >
+          {rest.map((s) => {
+            const isPlace = s.key === placeKey;
+            return (
+              <span key={s.key} className="flex shrink-0 items-center gap-0.5">
+                <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/35" />
+                <button
+                  type="button"
+                  onClick={s.onClick}
+                  aria-current={isPlace ? "location" : undefined}
+                  className={cn(
+                    RAIL_ITEM,
+                    "max-w-[170px] gap-1.5 px-2.5",
+                    !isPlace && "text-muted-foreground hover:text-foreground"
+                  )}
+                  style={
+                    isPlace && s.color
+                      ? {
+                          background: `${s.color}33`,
+                          color: "var(--foreground)",
+                          boxShadow: `inset 0 0 0 1px ${s.color}73`,
+                        }
+                      : undefined
+                  }
+                >
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: s.color }}
+                  />
+                  <span className="truncate">{s.label}</span>
+                </button>
+              </span>
+            );
+          })}
+        </HScroll>
+      )}
     </div>
   );
 }
