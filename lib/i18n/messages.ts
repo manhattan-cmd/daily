@@ -228,6 +228,8 @@ export const en = {
   "insights.soFar": "so far",
   "insights.dailyAvgShort": "Daily avg.",
   "insights.all": "All",
+  "insights.subcategories": "subcategories",
+  "insights.itself": "itself",
 
   // ── Hedefler ve uyku ─────────────────────────────────────────────────
   "goal.deleteConfirm": "Delete this goal?",
@@ -842,6 +844,8 @@ export const tr: Record<MessageKey, string> = {
   "insights.soFar": "şu ana kadar",
   "insights.dailyAvgShort": "Günlük ort.",
   "insights.all": "Tümü",
+  "insights.subcategories": "alt kategoriler",
+  "insights.itself": "kendisi",
 
   "goal.deleteConfirm": "Bu hedefi silmek istediğine emin misin?",
   "goal.completedUndo": "Tamamlandı — geri al",

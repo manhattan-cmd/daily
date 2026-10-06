@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import Link from "next/link";
-import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import {
   bucketAncestorId,
   bucketKeyOf,
@@ -28,14 +28,13 @@ import {
 } from "@/lib/period";
 import { StatTile } from "./stat-tile";
 import { StatTiles } from "./stat-tiles";
-import { ShareBars, type ShareRow } from "./share-bars";
+import type { ShareRow } from "./share-bars";
 import { AnalysisCharts, CHART_LABEL } from "./analysis-chart";
 import { EntryListSection, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
-import { ChipRow } from "./chip-row";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
-import { setAnalysisMetric, setAnalysisPath } from "./analysis-selection";
+import { setAnalysisMetric } from "./analysis-selection";
 import { modColor } from "@/lib/mod-color";
 import type { Category, ChartKind, Entry, StatKey, SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
@@ -62,43 +61,46 @@ export function panelWindow(period: Period): { start: number; end: number } {
 export function PeriodCategoryPanel({
   category,
   period,
-  initialPath = [],
-  preferredMetricId,
+  path,
+  metricId,
+  onMetricChange,
 }: {
   category: Category;
   period: Period;
-  /** Başka dönemden taşınan kırılım yolu — bu dönemde dolu kademeye kırpılmış */
-  initialPath?: SubCategory[];
-  /** Başka dönemden taşınan özellik; bu dönemde verisi yoksa varsayılana düşülür */
-  preferredMetricId?: string;
+  /** Bakılan yer — sayfanın kademe yığını yönetir (boş = kategorinin tamamı) */
+  path: SubCategory[];
+  /** Seçili özellik ("count" = girdi sayısı); bu kapsamda yoksa varsayılana düşülür */
+  metricId: string;
+  onMetricChange: (id: string) => void;
 }) {
   const t = useT();
-  // Kırılımdan derine inme — dönemin İÇİNDE kalır. Eskiden alt kategori
-  // sayfasına gidiliyordu; o sayfa "şimdi"ye göreli çalıştığından geçmiş bir
-  // dönemden tıklandığında sessizce tüm zamanları gösteriyordu.
-  const [path, setPathState] = useState<SubCategory[]>(initialPath);
   /*
-   * Panel içi geçişlerde (özellik, alt kategori) panelin o anki boyu alt
-   * sınır olarak tutulur. Yeni görünüm kısaysa (Para seçilince liste yalnız
-   * tutarı olan kayıtlara iniyor, bazı grafikler düşüyor) sayfa kısalıyordu;
-   * dibe yakın bakan kullanıcıda tarayıcı kaydırmayı yeni dibe çekmek
-   * zorunda kalıyor, sayfa yukarı fırlıyordu. Kategori ya da dönem değişince
-   * panel baştan kurulur, sınır da sıfırlanır.
+   * ÖZELLİK GEÇİŞİNDE SAYFA OYNAMASIN. İki ayrı sebep vardı:
+   *  1) yeni görünüm kısaysa (Para seçilince liste yalnız tutarı olan
+   *     kayıtlara iniyor) sayfa kısalıyor, dibe yakın bakan kullanıcıda
+   *     tarayıcı kaydırmayı yeni dibe çekiyordu → panelin o anki boyu alt
+   *     sınır olarak tutulur;
+   *  2) içerik değişirken tarayıcının kaydırma çapası başka bir öğeye
+   *     atlayabiliyordu → kapsül satırının ekrandaki yeri geçişten önce
+   *     ölçülür, yeni görünüm çizilince sayfa tam o kadar düzeltilir:
+   *     parmağın altındaki satır yerinden oynamaz.
    */
   const rootRef = useRef<HTMLDivElement>(null);
+  const chipsRef = useRef<HTMLDivElement>(null);
+  const pinTop = useRef<number | null>(null);
   const [minHeight, setMinHeight] = useState<number | undefined>(undefined);
-  const holdHeight = () => {
+  // Bakılan yer değişince sınır kalkar — kısa bir kaleme geçince altta boşluk kalmasın
+  const focusKey = path[path.length - 1]?.id ?? "";
+  const [heldFor, setHeldFor] = useState(focusKey);
+  if (heldFor !== focusKey) {
+    setHeldFor(focusKey);
+    setMinHeight(undefined);
+  }
+  const holdPosition = () => {
     const h = rootRef.current?.offsetHeight;
     if (h) setMinHeight(h);
-  };
-  // Yol her değiştiğinde hatırlanır — dönem değişince aynı kaleme dönülsün
-  const setPath = (next: SubCategory[] | ((p: SubCategory[]) => SubCategory[])) => {
-    holdHeight();
-    setPathState((p) => {
-      const v = typeof next === "function" ? next(p) : next;
-      setAnalysisPath(category.id, v);
-      return v;
-    });
+    const top = chipsRef.current?.getBoundingClientRect().top;
+    pinTop.current = top ?? null;
   };
   const focus = path[path.length - 1];
   // Gün dönemlerinde hafta bağlamı gerekir — o günü kapsayan haftanın tamamı çekilir,
@@ -113,7 +115,6 @@ export function PeriodCategoryPanel({
     data,
     metric,
     saveView,
-    setMetricChoice,
     compute,
     choiceFilter,
     setChoiceFilter,
@@ -127,106 +128,23 @@ export function PeriodCategoryPanel({
     // İnilen kalemde o özellik yoksa geçici olarak varsayılan gösterilir,
     // geri çıkınca seçim döner (bkz. useCategoryMetrics metric).
     resetKey: category.id,
-    preferredMetricId,
+    preferredMetricId: metricId,
     // Kategori ilk açıldığında "Girdi": önce kalemlere dağılım görülsün
     initialMetricId: "count",
     excludeRegular,
   });
 
-  /*
-   * BULUNULAN KADEME — sayfanın en üstündeki kategori düzeninin aynısı bir
-   * kademe aşağıda: önce o kademenin DAĞILIMI (kategorinin bütün alt
-   * kategorileri; bir alt kategoriye odaklanıldıysa onun kardeşleri, kendisi
-   * vurgulu), hemen altında aynı kalemlerin KAPSÜLLERİ, onların altında da
-   * seçilen kapsamın özellikleri ve grafikleri. Odaklanılan kalemin verisi
-   * yalnız kendi alt ağacını kapsadığı için kademe ayrıca okunuyor (aynı
-   * parametreler önbellekte paylaşılıyor — odak yokken ek okuma yok).
-   */
-  const levelPath = focus ? path.slice(0, -1) : path;
-  const levelParent = levelPath[levelPath.length - 1];
-  const level = useCategoryMetrics({
-    category,
-    rootSubId: levelParent?.id,
-    fetchStart: panelWindow(period).start,
-    fetchEnd: panelWindow(period).end,
-    resetKey: category.id,
-    // Kırılım aşağıda seçilen özelliğe göre (Harcamalar'da Para gibi)
-    preferredMetricId: metric.type === "count" ? "count" : metric.mod.id,
-    initialMetricId: "count",
-    excludeRegular,
-  });
-  const levelShare = useMemo(() => {
-    const d = level.data;
-    const c = level.compute;
-    if (!d || !c) return null;
-    const by = new Map<string, Entry[]>();
-    for (const e of d.entries) {
-      const top = bucketAncestorId(e.subcategoryId, d.subById, levelParent?.id);
-      if (!top) continue;
-      const list = by.get(top) ?? [];
-      list.push(e);
-      by.set(top, list);
-    }
-    // Girdi sayısına düşülen durumlar: çoktan seçmelide paylaştırılacak bir
-    // sayı yok; paylaşım modunda kademede o özelliğe hiç değer girilmemişse
-    // kutu "veri yok" yazısına dönüp yine kısalırdı
-    const byCount =
-      c.isChoice ||
-      (!c.isRate && !c.scale && [...by.values()].every((l) => c.aggregate(l) === 0));
-    // SATIRLAR ÖZELLİKTEN BAĞIMSIZ: dönemde girdisi olan her kalem satırda
-    // kalır, özellik değişince yalnız çubuklar ve rakamlar değişir. Eskiden o
-    // özelliği olmayan kalemler (ya da çoktan seçmelide kutunun tamamı)
-    // düşüyordu; kutu birden kısalınca altındaki her şey yukarı kayıyor,
-    // özellik kapsülleri arasında gezerken sayfa fırlamış gibi oluyordu.
-    const rows: ShareRow[] = [...by.entries()]
-      .map(([id, list]) =>
-        byCount
-          ? { id, value: list.length, outOf: list.length }
-          : { id, value: c.aggregate(list), outOf: c.filledCount(list) }
-      )
-      .map(({ id, value, outOf }) => {
-        const sub = d.subById.get(id)!;
-        // Kademenin KENDİ doğrudan girdileri (kategori kökü ya da ebeveynin
-        // kendisi) bir kalem değil — seçilecek bir kapsülü yok
-        const isSelf = id === levelParent?.id || sub.isCategoryRoot;
-        return {
-          id,
-          name: sub.isCategoryRoot ? category.name : sub.name,
-          color: category.color,
-          value,
-          outOf,
-          display:
-            !byCount && (c.isRate || c.scale ? outOf === 0 : value === 0)
-              ? "—"
-              : !byCount && c.unit
-                ? `${fmtNum(value)} ${c.unit}`
-                : fmtNum(value),
-          drillable: !isSelf,
-        };
-      });
-    const counts = new Map([...by.entries()].map(([id, l]) => [id, l.length]));
-    return {
-      rows,
-      counts,
-      isRate: !byCount && c.isRate,
-      scale: byCount ? undefined : c.scale,
-      aggregateNote: byCount ? undefined : c.aggregateNote,
-    };
-  }, [level.data, level.compute, levelParent?.id, category.name, category.color]);
-  /** Kademenin kalemleri — kapsül satırı (kullanıcının kendi sırasıyla) */
-  const levelSubs = useMemo(
-    () =>
-      [...(data?.subById.values() ?? [])]
-        .filter(
-          (s) =>
-            s.categoryId === category.id &&
-            !s.isCategoryRoot &&
-            (s.parentId ?? undefined) === (levelParent?.id ?? undefined)
-        )
-        .sort((a, b) => a.order - b.order),
-    [data?.subById, category.id, levelParent?.id]
-  );
-  const pickSub = (sub: SubCategory) => setPath([...levelPath, sub]);
+  // Yeni görünüm çizildi — kapsül satırı ölçülen yerine geri getirilir
+  const metricKey = metric.type === "count" ? "count" : metric.mod.id;
+  useLayoutEffect(() => {
+    const before = pinTop.current;
+    const el = chipsRef.current;
+    pinTop.current = null;
+    if (before === null || !el) return;
+    const delta = el.getBoundingClientRect().top - before;
+    const scroller = el.closest("main");
+    if (scroller && Math.abs(delta) > 1) scroller.scrollTop += delta;
+  }, [metricKey]);
 
   /**
    * Pano düzenleme: yuvayı değiştir, kaldır (key null) ya da sona ekle
@@ -518,131 +436,34 @@ export function PeriodCategoryPanel({
       className="flex flex-col gap-4"
       style={minHeight ? { minHeight } : undefined}
     >
-      {/* Kapsam şeridi — derine inildiğinde aşağıdaki HER ŞEYİN (istatistik,
-          grafik, kırılım, liste) hangi kaleme ait olduğunu söyler. Yoksa
-          Yemek rakamlarına bakarken Harcamalar sanılabiliyordu. */}
-      {path.length >= 2 && (
-        <div
-          className="flex items-center gap-2.5 rounded-2xl border px-2.5 py-2.5"
-          style={{
-            borderColor: `${category.color}55`,
-            backgroundColor: `${category.color}14`,
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setPath(path.slice(0, -1))}
-            aria-label={t("insights.backLevel")}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--sf-3)] text-muted-foreground transition-colors hover:bg-[var(--sf-4)] hover:text-foreground"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <div className="min-w-0 flex-1">
-            {/* Üst satır — geldiğimiz yol; her adımına basıp dönülebilir */}
-            <div className="flex min-w-0 flex-wrap items-center text-[11px] leading-tight text-muted-foreground">
-              <button
-                type="button"
-                onClick={() => setPath([])}
-                className="rounded px-0.5 underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground"
-              >
-                {category.name}
-              </button>
-              {path.slice(0, -1).map((s, i) => (
-                <span key={s.id} className="flex min-w-0 items-center">
-                  <ChevronRight className="h-3 w-3 shrink-0 opacity-40" />
-                  <button
-                    type="button"
-                    onClick={() => setPath(path.slice(0, i + 1))}
-                    className="max-w-[110px] truncate rounded px-0.5 underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground"
-                  >
-                    {s.name}
-                  </button>
-                </span>
-              ))}
-              <ChevronRight className="h-3 w-3 shrink-0 opacity-40" />
-            </div>
-            {/* Alt satır — bulunulan katman, şeridin en belirgin öğesi */}
-            <div
-              className="truncate text-[17px] font-bold leading-tight"
-              style={{ color: category.color }}
-            >
-              {focus.name}
-            </div>
-          </div>
-          {/* Kapsamın tüm zamanlar analizi — kırılım kutusu artık yaprak
-              kalemlerde açılmadığı için bağlantı burada durur */}
-          <Link
-            href={routes.analyticsSub(category.id, focus.id)}
-            prefetch={false}
-            className="flex w-12 shrink-0 flex-col items-center gap-0.5 rounded-lg px-1 text-center text-[10px] font-medium leading-tight text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowRight className="h-3.5 w-3.5" />
-            <span>{t("stat.allTime")}</span>
-          </Link>
-        </div>
-      )}
-
-      {levelShare && levelShare.rows.some((r) => r.drillable) && (
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <h3 className="mb-3 min-w-0 text-xs font-semibold uppercase leading-tight tracking-wider text-muted-foreground">
-            {levelParent && (
-              <span style={{ color: `${category.color}dd` }}>{levelParent.name} · </span>
-            )}
-            Subcategory breakdown
-            {levelShare.aggregateNote && (
-              <span className="normal-case font-normal text-muted-foreground/60">
-                {" "}
-                ({levelShare.aggregateNote})
-              </span>
-            )}
-          </h3>
-          <ShareBars
-            rows={levelShare.rows}
-            mode={levelShare.isRate ? "rate" : levelShare.scale ? "level" : "share"}
-            range={levelShare.scale}
-            // Odaklanılan kalem vurgulu, kardeşleri soluk — üstteki kategori
-            // dağılımındaki gibi "şu an bunun içindesin"
-            selectedId={focus?.id ?? null}
-            onSelect={(subId) => {
-              const sub = data.subById.get(subId);
-              if (!sub || sub.isCategoryRoot || sub.id === levelParent?.id) return;
-              // Seçili satıra yeniden dokunmak kademeye geri döner
-              if (sub.id === focus?.id) setPath(levelPath);
-              else pickSub(sub);
-            }}
-          />
-        </div>
-      )}
-
-      {/* Kademenin kapsülleri — dağılımın hemen altında; ilk kapsül kademenin
-          tamamı (kategori ya da üst kalem). Seçilen kapsülün özellikleri
-          aşağıda. */}
-      {levelSubs.length > 0 && (
-        <ChipRow
-          items={[
-            {
-              key: "__level",
-              label: levelParent ? levelParent.name : t("insights.all"),
-              color: category.color,
-              active: !focus,
-              onPick: () => setPath(levelPath),
-            },
-            ...levelSubs.map((sub) => {
-              const n = levelShare?.counts.get(sub.id) ?? 0;
-              return {
-                key: sub.id,
-                label: sub.name,
-                color: category.color,
-                active: focus?.id === sub.id,
-                count: n,
-                dim: n === 0,
-                onPick: () => pickSub(sub),
-              };
-            }),
-          ]}
+      {/* Bölüm başlığı — bu kutunun HANGİ kalemin özellikleri olduğu */}
+      <div className="flex items-center gap-2 px-1">
+        <span
+          className="h-2.5 w-2.5 shrink-0 rounded-full"
+          style={{ backgroundColor: category.color }}
         />
-      )}
+        <h3 className="min-w-0 truncate text-[15px] font-semibold">
+          {focus ? focus.name : category.name}
+        </h3>
+        <span className="shrink-0 text-[12px] text-muted-foreground">
+          · {t("entry.features")}
+        </span>
+        {/* Kapsamın tüm zamanlar analizi */}
+        <Link
+          href={
+            focus
+              ? routes.analyticsSub(category.id, focus.id)
+              : routes.analyticsCategory(category.id)
+          }
+          prefetch={false}
+          className="ml-auto flex shrink-0 items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {t("stat.allTime")}
+          <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
 
+      <div ref={chipsRef}>
       <MetricChips
         countFirst
         asRow
@@ -654,11 +475,13 @@ export function PeriodCategoryPanel({
         metric={metric}
         color={category.color}
         onChange={(m) => {
-          holdHeight();
-          setMetricChoice(m);
-          setAnalysisMetric(category.id, m.type === "count" ? "count" : m.mod.id);
+          holdPosition();
+          const id = m.type === "count" ? "count" : m.mod.id;
+          setAnalysisMetric(category.id, id);
+          onMetricChange(id);
         }}
       />
+      </div>
 
       {data.hasRegular && (
         <RegularToggle
@@ -751,43 +574,6 @@ export function PeriodCategoryPanel({
               : fmtPct(Math.abs(weekContext.delta) / 100)}{" "}
             {weekContext.delta >= 0 ? "above" : "below"}
           </span>
-        </div>
-      )}
-
-      {/* Alt kategori kırılımı — seriden ÖNCE: önce "ne nereye gitmiş"
-          görülür, istenirse bir kademe derine inilir (dönemden çıkılmadan),
-          sonra o kapsamın zaman serisi incelenir. İnilecek kademe kalmadıysa
-          bölüm hiç açılmaz */}
-      {!!focus && !compute.isChoice && computed.hasBreakdown && (
-        <div className="rounded-2xl border border-border bg-card p-4">
-          {/* Odaklıyken de gösterilen şey aynı: bu kalemin altındaki
-              kalemlerin dağılımı — başlık da aynı kalır */}
-          <h3 className="mb-3 min-w-0 text-xs font-semibold uppercase leading-tight tracking-wider text-muted-foreground">
-            {scopePrefix}
-            Subcategory breakdown
-            {compute.aggregateNote && (
-              <span className="normal-case font-normal text-muted-foreground/60">
-                {" "}
-                ({compute.aggregateNote})
-              </span>
-            )}
-          </h3>
-
-          {/* Yol artık panelin tepesindeki kapsam şeridinde — burada tekrar etmez */}
-          <ShareBars
-            rows={computed.shareRows}
-            mode={compute.isRate ? "rate" : compute.scale ? "level" : "share"}
-            range={compute.scale}
-            onSelect={(subId) => {
-              const sub = data.subById.get(subId);
-              if (!sub) return;
-              // Kalemin kendi doğrudan girdileri (kategori kökü ya da odağın
-              // kendisi) bir alt kademe değil — inilecek bir yer yok
-              if (sub.isCategoryRoot || sub.id === focus?.id) return;
-              // Aynı düğüm yolda varsa tekrar eklenmez (döngü koruması)
-              setPath((p) => (p.some((s) => s.id === sub.id) ? p : [...p, sub]));
-            }}
-          />
         </div>
       )}
 
