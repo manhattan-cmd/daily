@@ -1,17 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft,
   Check,
-  ChevronRight,
   Folder,
   FolderOpen,
   FolderPlus,
   Layers,
+  MoreHorizontal,
   Plus,
   Search,
+  Star,
   X,
 } from "lucide-react";
 import {
@@ -32,42 +32,27 @@ export type NetGroup = {
   allSubs: SubCategory[];
 };
 
-/** Odak — id tabanlı, veri güncellemesine dayanıklı */
-type Focus =
-  | null
-  | { type: "cat"; cat: Category }
-  | { type: "sub"; sub: SubCategory };
-
-type FocusRef =
-  | null
-  | { type: "cat"; id: string }
-  | { type: "sub"; id: string };
-
-type Node =
-  | { kind: "cat"; cat: Category }
-  | { kind: "sub"; sub: SubCategory };
-
 const NO_COUNTS: ReadonlyMap<string, number> = new Map();
 
-/** Bu sayıdan sonra arama kutusu çıkıyor */
-const SEARCH_FROM = 10;
-/** Bu sayıdan sonra A–Z bölümlere ayrılıyor */
-const SECTIONS_FROM = 14;
-/** Hızlı ekle ızgarası: iki satır × dört karo */
+/** Hızlı ekle bölmesindeki en fazla kalem */
 const QUICK_MAX = 8;
+/** Rayın ilk durağı — kategori değil, hızlı ekle bölmesi */
+const QUICK = "quick";
 
 /**
- * Şeride elle sabitlenen kalemler (localStorage).
+ * Hızlı eklemeye elle sabitlenen kalemler (localStorage).
  *
- * Şerit kendiliğinden en çok kullanılanlarla doluyor ama bu her zaman
+ * Bölme kendiliğinden en çok kullanılanlarla doluyor ama bu her zaman
  * yetmiyor: yeni edinilen bir alışkanlık daha sayı biriktirmediği için
- * şeride giremiyor, oysa kullanıcının en çok gireceği yer tam da orası.
+ * oraya giremiyor, oysa kullanıcının en çok gireceği yer tam da orası.
  * Sabitlenenler önde, kalan yerleri sıklık dolduruyor.
  *
  * Cihazda kalan bir görünüm tercihi olduğu için localStorage yetiyor —
  * Dexie'ye tablo açmak yedek/senkron yüzeyini de büyütürdü.
  */
 const LS_PINS = "entrypicker:pins";
+/** Rayda en son bakılan durak — pencere yeniden açılınca oradan başlar */
+const LS_RAIL = "entrypicker:rail";
 
 function readPins(): string[] {
   if (typeof window === "undefined") return [];
@@ -78,76 +63,33 @@ function readPins(): string[] {
     return []; // okunamayan tercih sessizce boş sayılır
   }
 }
-
-/** Türkçe duyarlı bölüm başlığı — ada göre A–Z gruplaması */
-function sectionKeyOf(name: string): string {
-  const ch = name.trim().charAt(0).toLocaleUpperCase("tr");
-  return /\p{L}/u.test(ch) ? ch : "#";
+function readRail(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(LS_RAIL);
+  } catch {
+    return null;
+  }
 }
+
 const norm = (s: string) => s.toLocaleLowerCase("tr").trim();
 
-/** Rengi ton çemberinde kaydır — aynı ailenin komşu tonları */
-function shiftHue(hex: string, deg: number): string {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return hex;
-  const num = parseInt(m[1], 16);
-  const r = (num >> 16) / 255;
-  const g = ((num >> 8) & 255) / 255;
-  const b = (num & 255) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  const d = max - min;
-  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
-  let h = 0;
-  if (d !== 0) {
-    if (max === r) h = ((g - b) / d) % 6;
-    else if (max === g) h = (b - r) / d + 2;
-    else h = (r - g) / d + 4;
-  }
-  h = (h * 60 + deg + 360) % 360;
-  const c = (1 - Math.abs(2 * l - 1)) * s;
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-  const mm = l - c / 2;
-  const [rr, gg, bb] =
-    h < 60
-      ? [c, x, 0]
-      : h < 120
-        ? [x, c, 0]
-        : h < 180
-          ? [0, c, x]
-          : h < 240
-            ? [0, x, c]
-            : h < 300
-              ? [x, 0, c]
-              : [c, 0, x];
-  const hx = (v: number) =>
-    Math.round((v + mm) * 255)
-      .toString(16)
-      .padStart(2, "0");
-  return `#${hx(rr)}${hx(gg)}${hx(bb)}`;
-}
-
-type Row = {
-  node: Node;
-  id: string;
-  name: string;
-  icon?: string;
-  color: string;
-  /** Kaç alt kalemi var */
-  kids: number;
-  /** Aramada kalemin yolu ("Sağlık › Su") */
-  path?: string;
-};
+type Result =
+  | { kind: "cat"; cat: Category }
+  | { kind: "sub"; sub: SubCategory; path: string; kids: number };
 
 /**
- * Girdi eklerken "nereye" sorusunun cevabı — aranabilir, kademeli bir liste.
+ * Girdi eklerken "nereye" sorusunun cevabı — RAY düzeni.
  *
- * Bir süre burada bir sinir ağı vardı: kategoriler daireler, aralarında ışıyan
- * bağlar, sürüklenip yakınlaştırılan bir tuval. Harita olarak güzeldi ama
- * girdi eklemek SERİ bir iş — "koştum" demek için haritada gezinmek istemiyor
- * insan. Ağ Yapı > Harita'ya taşındı; burada kalan şey en kısa yol: dokun, in,
- * ekle.
+ * Solda dikey kategori rayı, sağda seçilen kategorinin BÜTÜN kalemleri.
+ * Eskiden her kademe yeni bir sayfaydı: "Harcamalar › Yemek › Dışardan
+ * Yemek" için iki sayfa ileri, yanlışta iki sayfa geri. Şimdi sayfa hiç
+ * değişmiyor; kategoriye dokunmak yalnız sağ bölmeyi değiştiriyor, alt
+ * kalemler kendi grubunda girintili duruyor. Kategori adları rayda hep
+ * okunur.
+ *
+ * Bir süre burada bir sinir ağı vardı (Yapı > Harita'ya taşındı): girdi
+ * eklemek SERİ bir iş, seçicinin ölçüsü hız.
  */
 export function EntryPicker({
   groups,
@@ -158,25 +100,41 @@ export function EntryPicker({
 }: {
   groups: NetGroup[] | undefined;
   /**
-   * Bir kaleme kayıt aç. Seçicinin tek çıkışı bu: yaprağa dokunmak, hızlı
-   * ekle şeridi ve "buraya ekle" aynı yüzeyi açıyor.
+   * Bir kaleme kayıt aç. Seçicinin tek çıkışı bu: kaleme dokunmak, hızlı
+   * ekle ve dalın kendisi aynı yüzeyi açıyor.
    */
   onPick: (sub: SubCategory) => void;
   onPickCategory: (category: Category) => void;
   onClose: () => void;
-  /** Ana kategori yaratma formunu aç — düğmesi kökteki yol izinin sağında */
+  /** Ana kategori yaratma formunu aç — ⋯ menüsünde */
   onCreateCategory?: () => void;
 }) {
   const t = useT();
-  const [focus, setFocus] = useState<FocusRef>(null);
+  const [rail, setRailState] = useState<string>(() => readRail() ?? QUICK);
+  // Kullanıcı raya kendisi dokunduysa boş "Hızlı ekle"den kaçırılmaz
+  const [railTouched, setRailTouched] = useState(false);
   const [addSub, setAddSub] = useState<{
     categoryId: string;
     parentId?: string;
   } | null>(null);
   const [query, setQuery] = useState("");
-  // Şeride elle eklenenler + onları seçtiren panel
+  const [menuOpen, setMenuOpen] = useState(false);
+  // Aramadan bir dala gelinince o grup ortalanıp kısa süre vurgulanır
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const paneRef = useRef<HTMLDivElement>(null);
+  // Hızlı eklemeye elle eklenenler + onları seçtiren panel
   const [pins, setPins] = useState<string[]>(readPins);
   const [pinOpen, setPinOpen] = useState(false);
+
+  function setRail(id: string) {
+    setRailState(id);
+    setRailTouched(true);
+    try {
+      localStorage.setItem(LS_RAIL, id);
+    } catch {
+      /* kalıcı yazılamazsa oturum boyunca geçerli */
+    }
+  }
 
   function togglePin(id: string) {
     setPins((prev) => {
@@ -225,84 +183,33 @@ export function EntryPicker({
     [groups]
   );
 
+  /** Kalemin yolu — "Harcamalar › Yemek"; aynı adlı iki kalemi ayırır */
+  const pathOf = useMemo(
+    () => (s: SubCategory) => {
+      const parts: string[] = [];
+      let cur = s.parentId ? subById.get(s.parentId) : undefined;
+      while (cur) {
+        parts.unshift(cur.name);
+        cur = cur.parentId ? subById.get(cur.parentId) : undefined;
+      }
+      return [catById.get(s.categoryId)?.name, ...parts]
+        .filter(Boolean)
+        .join(" › ");
+    },
+    [subById, catById]
+  );
+
   // Sayım son 30 güne bakıyor (lib/usage): "sık kullanılanlar" şu anki
   // hayatı göstermeli, arşivi değil.
-  // Önbellekli: sık kullanılanlar şeridi pencereyle birlikte gelsin
   const entryCounts =
     useCachedLiveQuery(USAGE_COUNTS_KEY, loadUsageCounts) ?? NO_COUNTS;
 
-  const focusObj: Focus = useMemo(() => {
-    if (focus == null) return null;
-    if (focus.type === "cat") {
-      const c = catById.get(focus.id);
-      return c ? { type: "cat", cat: c } : null;
-    }
-    const s = subById.get(focus.id);
-    return s ? { type: "sub", sub: s } : null;
-  }, [focus, catById, subById]);
-
-  const centerColor =
-    focusObj == null
-      ? "#818cf8"
-      : focusObj.type === "cat"
-        ? focusObj.cat.color
-        : catById.get(focusObj.sub.categoryId)?.color ?? "#818cf8";
-
-  const nodes: Node[] = useMemo(() => {
-    if (focusObj == null)
-      return categories.map((cat) => ({ kind: "cat", cat }));
-    if (focusObj.type === "cat")
-      return (topSubsByCat.get(focusObj.cat.id) ?? []).map((sub) => ({
-        kind: "sub",
-        sub,
-      }));
-    return (childrenMap.get(focusObj.sub.id) ?? []).map((sub) => ({
-      kind: "sub",
-      sub,
-    }));
-  }, [focusObj, categories, topSubsByCat, childrenMap]);
-
-  const rows: Row[] = useMemo(() => {
-    const n = nodes.length;
-    const spread = Math.max(28, Math.min(72, 18 * (n - 1)));
-    return nodes.map((node, i) => {
-      const isCat = node.kind === "cat";
-      return {
-        node,
-        id: isCat ? node.cat.id : node.sub.id,
-        name: isCat ? node.cat.name : node.sub.name,
-        icon: isCat ? node.cat.icon : node.sub.icon,
-        color: isCat
-          ? node.cat.color
-          : n <= 1
-            ? centerColor
-            : shiftHue(centerColor, (i / (n - 1) - 0.5) * spread),
-        kids: isCat
-          ? topSubsByCat.get(node.cat.id)?.length ?? 0
-          : childrenMap.get(node.sub.id)?.length ?? 0,
-      };
-    });
-  }, [nodes, centerColor, topSubsByCat, childrenMap]);
-
-  const q = norm(query);
-  /** Bulunulan yerin altı var mı — sayfanın düzeni buna göre değişiyor */
-  const hasKids = rows.length > 0;
-  const filtered = q ? rows.filter((r) => norm(r.name).includes(q)) : rows;
-
   /**
-   * Hızlı ekle — ağacın HER YERİNDEN, en çok kayıt alan kalemler.
-   *
-   * Bulunulan kademenin çocukları değil: kayıt "Sağlık > Su"ya giriliyor,
-   * "Sağlık"a değil. Kökte gezinmeden oraya atlamak iki üç dokunuş
-   * kazandırıyor — seçicinin bütün ölçüsü bu. Sayım kalemin KENDİ girdisi
-   * (alt ağaç toplamı değil): dokunulunca kayıt oraya gidecek.
-   *
-   * Yalnız kökte ve arama yokken: bir dalın içine girmiş kullanıcı zaten
-   * daraltmış oluyor.
+   * Hızlı ekle — ağacın HER YERİNDEN, en çok kayıt alan kalemler. Önce
+   * elle sabitlenenler (kullanıcının sırasıyla), sonra sıklık. Sayım
+   * kalemin KENDİ girdisi: dokunulunca kayıt oraya gidecek.
    */
   const quick = useMemo(() => {
-    if (q || focus != null) return [];
-    // Önce elle sabitlenenler (kullanıcının sırasıyla), sonra sıklık
     const pinned = pins
       .map((id) => subById.get(id))
       .filter((s): s is SubCategory => !!s);
@@ -313,432 +220,400 @@ export function EntryPicker({
       .filter((x) => x.n > 0)
       .sort((a, b) => b.n - a.n)
       .map((x) => x.sub);
-    return [...pinned, ...byUse].slice(0, QUICK_MAX).map((sub) => ({
-      id: sub.id,
-      name: sub.name,
-      icon: sub.icon,
-      color: catById.get(sub.categoryId)?.color ?? "#818cf8",
-      parent: catById.get(sub.categoryId)?.name ?? "",
-      sub,
-    }));
-  }, [visibleSubs, subById, entryCounts, catById, q, focus, pins]);
+    return [...pinned, ...byUse].slice(0, QUICK_MAX);
+  }, [visibleSubs, subById, entryCounts, pins]);
 
-  /**
-   * Şeride eklenebilecekler: bütün kalemler, sabitlenmişler en üstte.
-   * Yol yazısı ("Spor › Koşu") aynı adı taşıyan iki kalemi ayırt ettiriyor.
+  /** Hızlı eklemeye eklenebilecekler: bütün kalemler, sabitlenmişler üstte */
+  const pinCandidates = useMemo(
+    () =>
+      visibleSubs
+        .map((sub) => ({
+          id: sub.id,
+          name: sub.name,
+          icon: sub.icon,
+          color: catById.get(sub.categoryId)?.color ?? "#818cf8",
+          path: pathOf(sub),
+        }))
+        .sort((a, b) => {
+          const pa = pins.indexOf(a.id);
+          const pb = pins.indexOf(b.id);
+          if (pa !== pb) return (pa < 0 ? 99 : pa) - (pb < 0 ? 99 : pb);
+          return a.path.localeCompare(b.path, "en") || a.name.localeCompare(b.name, "en");
+        }),
+    [visibleSubs, catById, pins, pathOf]
+  );
+
+  /*
+   * Gösterilen durak. Hızlı ekle boşken (yeni kullanıcı, sabitleme yok)
+   * açılış ilk kategoriye düşer — boş bir bölmeyle karşılamasın. Kullanıcı
+   * raydan "Hızlı"ya kendisi dokunduysa boş hâli (sabitleme düğmesiyle)
+   * görür. Silinmiş bir kategori hatırlanmışsa da yine ilk kategoriye.
    */
-  const pinCandidates = useMemo(() => {
-    const pathOf = (s: SubCategory) => {
-      const parts: string[] = [];
-      let cur = s.parentId ? subById.get(s.parentId) : undefined;
-      while (cur) {
-        parts.unshift(cur.name);
-        cur = cur.parentId ? subById.get(cur.parentId) : undefined;
-      }
-      const cat = catById.get(s.categoryId)?.name;
-      return [cat, ...parts].filter(Boolean).join(" › ");
-    };
-    return visibleSubs
-      .map((sub) => ({
-        id: sub.id,
-        name: sub.name,
-        icon: sub.icon,
-        color: catById.get(sub.categoryId)?.color ?? "#818cf8",
-        path: pathOf(sub),
-      }))
-      .sort((a, b) => {
-        const pa = pins.indexOf(a.id);
-        const pb = pins.indexOf(b.id);
-        if (pa !== pb) return (pa < 0 ? 99 : pa) - (pb < 0 ? 99 : pb);
-        return a.path.localeCompare(b.path, "en") || a.name.localeCompare(b.name, "en");
-      });
-  }, [visibleSubs, subById, catById, pins]);
+  const firstCat = categories[0]?.id ?? QUICK;
+  const railSel =
+    rail === QUICK
+      ? quick.length === 0 && !railTouched
+        ? firstCat
+        : QUICK
+      : catById.has(rail)
+        ? rail
+        : firstCat;
+  const selCat = railSel === QUICK ? null : catById.get(railSel) ?? null;
 
-  /**
-   * A–Z bölümleri YALNIZ kökte. Bir kategorinin içinde kalemlerin sırası
-   * kullanıcının kendi sırası (haritada sürükleyerek dizdiği sıra) ve o sıra
-   * anlam taşıyor — alfabeye bölmek onu bozuyordu. Kökte ise kategori sayısı
-   * arttıkça harfe göre aramak işe yarıyor.
-   */
-  const sections = useMemo(() => {
-    if (q || focus != null || filtered.length < SECTIONS_FROM)
-      return [{ key: "", items: filtered }];
-    const m = new Map<string, Row[]>();
-    for (const r of filtered) {
-      const k = sectionKeyOf(r.name);
-      const arr = m.get(k) ?? [];
-      arr.push(r);
-      m.set(k, arr);
-    }
-    return [...m.entries()]
-      .sort((a, b) =>
-        a[0] === "#" ? 1 : b[0] === "#" ? -1 : a[0].localeCompare(b[0], "en")
-      )
-      .map(([key, items]) => ({
-        key,
-        items: items.sort((x, y) => x.name.localeCompare(y.name, "en")),
-      }));
-  }, [filtered, q, focus]);
-
-  const trail = useMemo(() => {
-    const list: { label: string; focus: FocusRef }[] = [
-      { label: t("structure.categories"), focus: null },
-    ];
-    if (focusObj == null) return list;
-    if (focusObj.type === "cat") {
-      list.push({
-        label: focusObj.cat.name,
-        focus: { type: "cat", id: focusObj.cat.id },
-      });
-      return list;
-    }
-    const chain: SubCategory[] = [];
-    let cur: SubCategory | undefined = focusObj.sub;
-    while (cur) {
-      chain.unshift(cur);
-      cur = cur.parentId ? subById.get(cur.parentId) : undefined;
-    }
-    const cat = catById.get(focusObj.sub.categoryId);
-    if (cat) list.push({ label: cat.name, focus: { type: "cat", id: cat.id } });
-    for (const s of chain)
-      list.push({ label: s.name, focus: { type: "sub", id: s.id } });
-    return list;
-  }, [focusObj, subById, catById, t]);
-
-  /**
-   * Bir satıra dokunmak. Altı VARSA içine giriliyor; altı YOKSA gezinilecek
-   * bir şey kalmadığı için doğrudan ekleme formu açılıyor — orada özellikler,
-   * not ve zaman açık duruyor.
-   *
-   * Bir ara altı olmayan kalem de bir "son durak" sayfası açıyordu ve
-   * kullanıcı orada bir kez daha "Detay ekle"ye basıyordu: gidilecek yer
-   * yokken sayfa göstermek fazladan bir dokunuş. Değer girmeden hızlı kayıt
-   * isteyen "Hızlı ekle" şeridini kullanıyor, o yol duruyor.
-   */
-  function drill(node: Node) {
-    const kids =
-      node.kind === "cat"
-        ? topSubsByCat.get(node.cat.id)?.length ?? 0
-        : childrenMap.get(node.sub.id)?.length ?? 0;
-    if (kids === 0) {
-      if (node.kind === "cat") onPickCategory(node.cat);
-      else onPick(node.sub);
-      return;
-    }
-    setQuery("");
-    setFocus(
-      node.kind === "cat"
-        ? { type: "cat", id: node.cat.id }
-        : { type: "sub", id: node.sub.id }
-    );
-  }
-  /** Bulunulan yerin kendisine kayıt — kategoriyse gizli kökü üzerinden */
-  function pickHere() {
-    if (focusObj == null) return;
-    if (focusObj.type === "cat") onPickCategory(focusObj.cat);
-    else onPick(focusObj.sub);
-  }
-  function openAddSub() {
-    if (focusObj == null) return;
-    if (focusObj.type === "cat") setAddSub({ categoryId: focusObj.cat.id });
-    else
-      setAddSub({
-        categoryId: focusObj.sub.categoryId,
-        parentId: focusObj.sub.id,
-      });
-  }
-
-  const focusName =
-    focusObj == null
-      ? t("structure.categories")
-      : focusObj.type === "cat"
-        ? focusObj.cat.name
-        : focusObj.sub.name;
-  const focusIcon =
-    focusObj == null
-      ? undefined
-      : focusObj.type === "cat"
-        ? focusObj.cat.icon
-        : focusObj.sub.icon;
-  /** Gezinme listesinin başlığı; aramada yok, sonuçlar zaten kendini anlatıyor */
-  const listLabel = q
-    ? ""
-    : focusObj != null
-      ? t("entry.childrenOf", { name: focusName })
-      : t("entry.allCategories");
-
-  const structureHref =
-    focusObj == null
-      ? ""
-      : focusObj.type === "cat"
-        ? routes.structureCategory(focusObj.cat.id)
-        : routes.structureSub(focusObj.sub.categoryId, focusObj.sub.id);
-
-  /** Kademe değişince başlık ve gövde yeniden kurulup kısa bir itişle gelir */
-  const focusKey = focus == null ? "root" : `${focus.type}:${focus.id}`;
-
-  /** Bir üst kademe — yol izinin bir önceki basamağı */
-  function goUp() {
-    setQuery("");
-    setFocus(trail.length > 1 ? trail[trail.length - 2].focus : null);
-  }
-
-  /**
-   * Kökte arama BÜTÜN ağaçta. Eskiden yalnız bulunulan kademeyi süzüyordu:
-   * "su" yazan kişi, Su'nun Sağlık'ın içinde olduğunu bilmek zorundaydı.
-   * Şimdi kategoriler ve her derinlikteki kalemler birlikte geliyor; aynı adlı
-   * iki kalem yollarıyla ("Sağlık › Su") ayrılıyor. Bir dalın içindeyken
-   * arama yine o dalı süzüyor — orada kullanıcı zaten daraltmış.
-   */
-  const globalResults = useMemo<Row[] | null>(() => {
-    if (!q || focus != null) return null;
-    const pathOf = (s: SubCategory) => {
-      const parts: string[] = [];
-      let cur = s.parentId ? subById.get(s.parentId) : undefined;
-      while (cur) {
-        parts.unshift(cur.name);
-        cur = cur.parentId ? subById.get(cur.parentId) : undefined;
-      }
-      return [catById.get(s.categoryId)?.name, ...parts]
-        .filter(Boolean)
-        .join(" › ");
-    };
-    const cats = rows.filter((r) => norm(r.name).includes(q));
+  /** Arama BÜTÜN ağaçta — kategoriler ve her derinlikteki kalemler */
+  const q = norm(query);
+  const results = useMemo<Result[] | null>(() => {
+    if (!q) return null;
+    const cats = categories
+      .filter((c) => norm(c.name).includes(q))
+      .map<Result>((cat) => ({ kind: "cat", cat }));
     const subs = visibleSubs
       .filter((s) => norm(s.name).includes(q))
       .slice(0, 40)
-      .map<Row>((sub) => ({
-        node: { kind: "sub", sub },
-        id: sub.id,
-        name: sub.name,
-        icon: sub.icon,
-        color: catById.get(sub.categoryId)?.color ?? "#818cf8",
-        kids: childrenMap.get(sub.id)?.length ?? 0,
+      .map<Result>((sub) => ({
+        kind: "sub",
+        sub,
         path: pathOf(sub),
+        kids: childrenMap.get(sub.id)?.length ?? 0,
       }));
     return [...cats, ...subs];
-  }, [q, focus, rows, visibleSubs, subById, catById, childrenMap]);
+  }, [q, categories, visibleSubs, childrenMap, pathOf]);
 
-  // Kökte arama her zaman var (bütün ağaçta arıyor); dalın içinde yalnız
-  // uzun listede
-  const showSearch = focusObj == null || rows.length >= SEARCH_FROM;
-
-  /*
-   * TAM EKRAN GİRDİ EKLEME — sade bir düzen:
-   *   üst çubuk (kapat/geri · yaratma) → büyük başlık → arama → gövde.
-   * Gövde kökte "Hızlı ekle" ızgarası + kategoriler, bir dalın içinde
-   * "Buraya ekle" + alt kalemler. Kutu içinde kutu yok: bölümler başlıkla
-   * ayrılıyor, renk yalnız karolarda ve asli eylemde. Eski düzende başlık,
-   * yol izi, gövde ayrı ayrı renkli pencerelerdeydi; ekran üç katman çerçeve
-   * taşıyordu.
+  /**
+   * Arama sonucuna dokunmak: kategori → rayda o kategori; alt kalemi olan
+   * bir dal → kategorisi açılır ve dalın grubu ortalanıp vurgulanır (altına
+   * bakmak isteyen dalı arıyor); yaprak → doğrudan form.
    */
+  function openResult(r: Result) {
+    setQuery("");
+    if (r.kind === "cat") {
+      setRail(r.cat.id);
+      return;
+    }
+    if (r.kids === 0) {
+      onPick(r.sub);
+      return;
+    }
+    setRail(r.sub.categoryId);
+    setFlashId(r.sub.id);
+  }
+  useEffect(() => {
+    if (!flashId) return;
+    const el = paneRef.current?.querySelector(`[data-sub="${flashId}"]`);
+    el?.scrollIntoView({ block: "center" });
+    const tm = setTimeout(() => setFlashId(null), 1400);
+    return () => clearTimeout(tm);
+  }, [flashId]);
+
+  // Durak değişince bölme başa döner
+  useEffect(() => {
+    if (!flashId) paneRef.current?.scrollTo({ top: 0 });
+    // flashId'de kendi kaydırması var
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [railSel]);
+
+  const accent = selCat?.color ?? "#818cf8";
+
+  /** Bir dalı (ve altını) çizer — alt kalemi olan dal kendi grubunda */
+  function renderSub(sub: SubCategory, depth: number): React.ReactNode {
+    const kids = childrenMap.get(sub.id) ?? [];
+    const color = catById.get(sub.categoryId)?.color ?? accent;
+    const flashing = flashId === sub.id;
+    if (kids.length === 0) {
+      return (
+        <PaneRow
+          key={sub.id}
+          dataSub={sub.id}
+          color={color}
+          icon={sub.icon}
+          name={sub.name}
+          small={depth > 0}
+          flashing={flashing}
+          onClick={() => onPick(sub)}
+        />
+      );
+    }
+    return (
+      <div
+        key={sub.id}
+        data-sub={sub.id}
+        className={cn(
+          "flex flex-col rounded-2xl p-1 transition-shadow duration-500",
+          depth === 0 ? "my-1 bg-[var(--sf-1)]" : "bg-[var(--sf-2)]"
+        )}
+        style={flashing ? { boxShadow: `inset 0 0 0 1.5px ${color}` } : undefined}
+      >
+        <PaneRow
+          color={color}
+          icon={sub.icon}
+          name={sub.name}
+          sub={t("entry.subCount", { n: kids.length })}
+          small={depth > 0}
+          plus
+          onClick={() => onPick(sub)}
+        />
+        <div className="flex flex-col pl-3">
+          {kids.map((k) => renderSub(k, depth + 1))}
+        </div>
+      </div>
+    );
+  }
+
+  const structureHref = selCat ? routes.structureCategory(selCat.id) : "";
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      {/* Üst çubuk — solda kapat (kökte) ya da bir üst kademe, sağda o
-          kademeye yapı ekleme. Dalın içinde kapat ayrıca sağda: üç kademe
-          derindeyken çıkmak için üç kez geri basmak gerekmesin. */}
+      {/* Üst çubuk — solda kapat, ortada soru, sağda yapı işlemleri (⋯).
+          Yapı kurmak girdi eklemeye gelen kişinin ilk işi değil; eskiden
+          "Kategori yarat" ekranın en görünür düğmesiydi. */}
       <div className="flex shrink-0 items-center gap-2 px-4 pb-1 pt-3">
         <button
           type="button"
-          onClick={focusObj == null ? onClose : goUp}
-          aria-label={focusObj == null ? t("action.close") : t("action.back")}
+          onClick={onClose}
+          aria-label={t("action.close")}
           className={ROUND}
         >
-          {focusObj == null ? (
-            <X className="h-[18px] w-[18px]" />
-          ) : (
-            <ArrowLeft className="h-[18px] w-[18px]" />
-          )}
+          <X className="h-[18px] w-[18px]" />
         </button>
-        <div className="flex-1" />
-        {focusObj == null
-          ? onCreateCategory && (
-              <button type="button" onClick={onCreateCategory} className={PILL}>
-                <Plus className="h-4 w-4" strokeWidth={2.25} />
-                {t("entry.createCategory")}
-              </button>
-            )
-          : (
-              <button type="button" onClick={openAddSub} className={PILL}>
-                <FolderPlus className="h-4 w-4" strokeWidth={2} />
-                {t("tree.createSubcategory")}
-              </button>
-            )}
-        {focusObj != null && (
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("action.close")}
-            className={ROUND}
-          >
-            <X className="h-[18px] w-[18px]" />
-          </button>
-        )}
-      </div>
-
-      {/* Başlık — kökte soru, dalın içinde bulunulan yer (karosu ve adıyla).
-          Yol izi başlığın üstünde küçük ve sessiz: basamaklara dokunmak
-          oraya döner. */}
-      <div
-        key={`h-${focusKey}`}
-        className={cn("shrink-0 px-5 pb-4 pt-2", focusObj != null && "entry-push")}
-      >
-        {focusObj == null ? (
-          <h2 className="text-[28px] font-bold leading-tight tracking-tight">
-            {t("entry.pickTitle")}
-          </h2>
-        ) : (
-          <>
-            <div className="mb-2 flex flex-wrap items-center gap-1 text-[12px] font-medium text-muted-foreground">
-              {trail.slice(0, -1).map((tr, i) => (
-                <span key={i} className="flex items-center gap-1">
-                  {i > 0 && <ChevronRight className="h-3 w-3 opacity-50" />}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQuery("");
-                      setFocus(tr.focus);
-                    }}
-                    className="rounded px-0.5 transition-colors hover:text-foreground"
-                  >
-                    {tr.label}
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex items-center gap-3">
-              <Tile color={centerColor} icon={focusIcon} fallback={FolderOpen} size={40} />
-              <h2 className="min-w-0 flex-1 truncate text-[24px] font-bold leading-tight tracking-tight">
-                {focusName}
-              </h2>
-              {/* prefetch açıkça: pencere içindeki bağlantıda görünürlük
-                  tabanlı önden çekme tetiklenmiyor, tıklamada bekleniyordu */}
-              <Link
-                href={structureHref}
-                prefetch
-                onClick={onClose}
-                aria-label={t("tree.structurePage")}
-                title={t("tree.structurePage")}
-                className={ROUND}
-              >
-                <Layers className="h-[18px] w-[18px]" />
-              </Link>
-            </div>
-          </>
-        )}
-      </div>
-
-      {showSearch && (
-        <div className="shrink-0 px-4 pb-3">
-          <label className="flex h-12 items-center gap-2.5 rounded-2xl bg-[var(--sf-2)] px-4 ring-1 ring-inset ring-[var(--ln-1)] transition-shadow focus-within:ring-2 focus-within:ring-primary/50">
-            <Search className="h-[18px] w-[18px] shrink-0 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={
-                focusObj == null ? t("entry.searchAll") : t("action.search")
-              }
-              className="h-full min-w-0 flex-1 bg-transparent text-[15px] placeholder:text-muted-foreground/60 focus:outline-none"
-            />
-            {query && (
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                aria-label={t("action.close")}
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sf-4)] text-muted-foreground"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </label>
-        </div>
-      )}
-
-      {/* Gövde — kademe ya da arama değişince bölümler peş peşe yeniden gelir */}
-      <div
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
-      >
-        <div
-          key={`b-${focusKey}-${q ? "q" : ""}`}
-          className="entry-stagger flex flex-col gap-6"
+        <h2 className="min-w-0 flex-1 truncate text-center text-[17px] font-bold tracking-tight">
+          {t("entry.pickTitle")}
+        </h2>
+        <button
+          type="button"
+          onClick={() => setMenuOpen((o) => !o)}
+          aria-label={t("entry.moreActions")}
+          aria-expanded={menuOpen}
+          className={ROUND}
         >
-          {globalResults ? (
-            globalResults.length === 0 ? (
-              <p className="px-1 py-10 text-center text-sm text-muted-foreground">
-                {t("entry.noMatch")}
-              </p>
-            ) : (
-              <Group>
-                {globalResults.map((r) => (
-                  <PickRow key={r.id} row={r} onOpen={drill} />
-                ))}
-              </Group>
-            )
+          <MoreHorizontal className="h-[18px] w-[18px]" />
+        </button>
+      </div>
+
+      <div className="shrink-0 px-4 pb-3 pt-2">
+        <label className="flex h-11 items-center gap-2.5 rounded-2xl bg-[var(--sf-2)] px-4 ring-1 ring-inset ring-[var(--ln-1)] transition-shadow focus-within:ring-2 focus-within:ring-primary/50">
+          <Search className="h-[18px] w-[18px] shrink-0 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("entry.searchAll")}
+            className="h-full min-w-0 flex-1 bg-transparent text-[15px] placeholder:text-muted-foreground/60 focus:outline-none"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label={t("action.close")}
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sf-4)] text-muted-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </label>
+      </div>
+
+      {results ? (
+        /* Aramada ray çekilir: sonuçlar yollarıyla birlikte tam genişlikte */
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3"
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
+        >
+          {results.length === 0 ? (
+            <p className="px-1 py-10 text-center text-sm text-muted-foreground">
+              {t("entry.noMatch")}
+            </p>
           ) : (
-            <>
-              {focusObj == null && (
-                <QuickGrid
-                  items={quick}
-                  onPick={onPick}
-                  onEdit={() => setPinOpen(true)}
-                />
+            <div className="entry-stagger flex flex-col">
+              {results.map((r) =>
+                r.kind === "cat" ? (
+                  <PaneRow
+                    key={r.cat.id}
+                    color={r.cat.color}
+                    icon={r.cat.icon}
+                    name={r.cat.name}
+                    sub={t("structure.categories")}
+                    onClick={() => openResult(r)}
+                  />
+                ) : (
+                  <PaneRow
+                    key={r.sub.id}
+                    color={catById.get(r.sub.categoryId)?.color ?? "#818cf8"}
+                    icon={r.sub.icon}
+                    name={r.sub.name}
+                    sub={r.path}
+                    onClick={() => openResult(r)}
+                  />
+                )
               )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1">
+          {/* RAY — hızlı ekle + kategoriler. Seçili durak kendi renginde
+              zeminlenir; adlar hep okunur. */}
+          <nav
+            className="no-scrollbar flex w-[78px] shrink-0 flex-col gap-1 overflow-y-auto overscroll-contain pl-2.5"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
+          >
+            <RailItem
+              active={railSel === QUICK}
+              activeBg="var(--sf-3)"
+              label={t("entry.quickShort")}
+              onClick={() => setRail(QUICK)}
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[var(--sf-3)]">
+                <Star className="h-[17px] w-[17px] fill-amber-400 text-amber-400" />
+              </span>
+            </RailItem>
+            {categories.map((c) => (
+              <RailItem
+                key={c.id}
+                active={railSel === c.id}
+                activeBg={`${c.color}29`}
+                label={c.name}
+                onClick={() => setRail(c.id)}
+              >
+                <Tile color={c.color} icon={c.icon} size={36} />
+              </RailItem>
+            ))}
+          </nav>
 
-              {/* Altı olan bir kalemin KENDİSİNE kayıt — asli eylem, kalemin
-                  renginde. Altı yoksa bu sayfaya hiç gelinmiyor (drill
-                  doğrudan formu açıyor). */}
-              {focusObj != null && hasKids && (
-                <button
-                  type="button"
-                  onClick={pickHere}
-                  className="flex h-14 shrink-0 items-center gap-3 rounded-2xl px-3 text-left text-[15px] font-semibold transition-transform active:scale-[0.98]"
-                  style={{
-                    background: `${centerColor}1f`,
-                    boxShadow: `inset 0 0 0 1px ${centerColor}40`,
-                  }}
-                >
-                  <span
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                    style={{ background: centerColor, color: inkOn(centerColor) }}
-                  >
-                    <Plus className="h-4 w-4" strokeWidth={2.75} />
-                  </span>
-                  {t("entry.addHere")}
-                </button>
-              )}
-
-              {filtered.length === 0
-                ? q && (
-                    <p className="px-1 py-10 text-center text-sm text-muted-foreground">
-                      {t("entry.noMatch")}
-                    </p>
-                  )
-                : sections.map((sec) => (
-                    <Group
-                      key={sec.key}
-                      label={sec.key || (sections.length === 1 ? listLabel : "")}
+          {/* BÖLME — seçilen durağın bütün kalemleri */}
+          <div
+            ref={paneRef}
+            className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pl-2 pr-3"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
+          >
+            <div key={railSel} className="entry-stagger flex flex-col">
+              {selCat == null ? (
+                <>
+                  <PaneHead
+                    title={t("entry.quickAdd")}
+                    action={
+                      <button
+                        type="button"
+                        onClick={() => setPinOpen(true)}
+                        className="rounded-full px-2.5 py-1 text-[12px] font-semibold text-primary transition-colors hover:bg-primary/10"
+                      >
+                        {quick.length ? t("action.edit") : t("action.add")}
+                      </button>
+                    }
+                  />
+                  {quick.length > 0 ? (
+                    quick.map((sub) => (
+                      <PaneRow
+                        key={sub.id}
+                        color={catById.get(sub.categoryId)?.color ?? "#818cf8"}
+                        icon={sub.icon}
+                        name={sub.name}
+                        sub={pathOf(sub)}
+                        onClick={() => onPick(sub)}
+                      />
+                    ))
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setPinOpen(true)}
+                      className="mt-1 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--ln-2)] py-4 text-sm text-muted-foreground transition-colors hover:text-foreground"
                     >
-                      {sec.items.map((r) => (
-                        <PickRow key={r.id} row={r} onOpen={drill} />
-                      ))}
-                    </Group>
-                  ))}
-
-              {focusObj == null && rows.length === 0 && (
+                      <Plus className="h-4 w-4" />
+                      {t("entry.pinTitle")}
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Kategorinin kendisine kayıt başlıkta, küçük bir düğme —
+                      eskiden ayrı, iri bir "Buraya ekle" şeridiydi */}
+                  <PaneHead
+                    title={selCat.name}
+                    action={
+                      <button
+                        type="button"
+                        onClick={() => onPickCategory(selCat)}
+                        className="flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-[12px] font-semibold transition-transform active:scale-95"
+                        style={{ background: `${selCat.color}24`, color: selCat.color }}
+                      >
+                        <Plus className="h-3.5 w-3.5" strokeWidth={2.75} />
+                        {t("entry.general")}
+                      </button>
+                    }
+                  />
+                  {(topSubsByCat.get(selCat.id) ?? []).map((s) => renderSub(s, 0))}
+                  {(topSubsByCat.get(selCat.id) ?? []).length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setAddSub({ categoryId: selCat.id })}
+                      className="mt-1 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--ln-2)] py-4 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <FolderPlus className="h-4 w-4" />
+                      {t("tree.createSubcategory")}
+                    </button>
+                  )}
+                </>
+              )}
+              {categories.length === 0 && (
                 <p className="px-1 py-10 text-center text-sm text-muted-foreground">
                   {t("tree.noCategoriesYet")}
                 </p>
               )}
-            </>
-          )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* ── Şeride ekle ────────────────────────────────────────────────
-          Ayrı bir diyalog değil, aynı yüzeyin üstünde bir panel: üst üste
-          açılan diyaloglar bu uygulamada kırılgan. Seçilen kalem şeritte
-          en öne geçiyor, tekrar dokunmak çıkarıyor. */}
+      {/* ⋯ — yapı işlemleri. Ayrı diyalog değil, aynı yüzeyde küçük bir
+          menü: üst üste açılan diyaloglar bu uygulamada kırılgan. */}
+      {menuOpen && (
+        <>
+          <div className="absolute inset-0 z-30" onClick={() => setMenuOpen(false)} />
+          <div className="animate-in fade-in zoom-in-95 absolute right-4 top-[60px] z-40 flex min-w-[220px] flex-col overflow-hidden rounded-2xl border border-[var(--ln-2)] bg-card p-1 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.8)]">
+            {onCreateCategory && (
+              <MenuItem
+                icon={<Plus className="h-4 w-4" strokeWidth={2.25} />}
+                label={t("entry.createCategory")}
+                onClick={() => {
+                  setMenuOpen(false);
+                  onCreateCategory();
+                }}
+              />
+            )}
+            {selCat && (
+              <MenuItem
+                icon={<FolderPlus className="h-4 w-4" />}
+                label={t("tree.createSubcategory")}
+                hint={selCat.name}
+                onClick={() => {
+                  setMenuOpen(false);
+                  setAddSub({ categoryId: selCat.id });
+                }}
+              />
+            )}
+            {selCat && (
+              /* prefetch açıkça: pencere içindeki bağlantıda görünürlük
+                 tabanlı önden çekme tetiklenmiyor */
+              <Link
+                href={structureHref}
+                prefetch
+                onClick={onClose}
+                className={MENU_ITEM}
+              >
+                <Layers className="h-4 w-4 text-muted-foreground" />
+                <span className="min-w-0 flex-1">
+                  <span className="block">{t("tree.structurePage")}</span>
+                  <span className="block truncate text-[11px] text-muted-foreground">
+                    {selCat.name}
+                  </span>
+                </span>
+              </Link>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── Hızlı eklemeye ekle ─────────────────────────────────────────
+          Ayrı bir diyalog değil, aynı yüzeyin üstünde bir panel. Seçilen
+          kalem bölmede en öne geçiyor, tekrar dokunmak çıkarıyor. */}
       {pinOpen && (
         <>
           <div
@@ -887,132 +762,141 @@ function Tile({
 /** Üst çubuğun yuvarlak simge düğmesi */
 const ROUND =
   "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--sf-2)] text-foreground/80 transition-[background-color,transform] hover:bg-[var(--sf-3)] active:scale-95";
-/** Üst çubuğun yazılı düğmesi — yapı ekleme (kategori / alt kategori) */
-const PILL =
-  "flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-[var(--sf-2)] pl-3 pr-4 text-[13px] font-medium text-foreground/80 transition-[background-color,transform] hover:bg-[var(--sf-3)] active:scale-95";
+const MENU_ITEM =
+  "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[14px] font-medium transition-colors hover:bg-[var(--sf-2)] active:bg-[var(--sf-3)]";
 
-/** Bölüm — küçük sessiz başlık, altında çerçevesiz satırlar */
-function Group({
+function MenuItem({
+  icon,
   label,
+  hint,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  hint?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" onClick={onClick} className={MENU_ITEM}>
+      <span className="text-muted-foreground">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block">{label}</span>
+        {hint && (
+          <span className="block truncate text-[11px] text-muted-foreground">{hint}</span>
+        )}
+      </span>
+    </button>
+  );
+}
+
+/** Rayın bir durağı — karo ve altında adı; seçili durak zeminlenir */
+function RailItem({
+  active,
+  activeBg,
+  label,
+  onClick,
   children,
 }: {
-  label?: string;
+  active: boolean;
+  activeBg: string;
+  label: string;
+  onClick: () => void;
   children: React.ReactNode;
 }) {
   return (
-    <div className="shrink-0">
-      {label && (
-        <div className="mb-1 px-2 text-[12px] font-semibold text-muted-foreground">
-          {label}
-        </div>
-      )}
-      <div className="flex flex-col">{children}</div>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className="flex shrink-0 flex-col items-center gap-1 rounded-2xl px-0.5 pb-1.5 pt-2 transition-[background-color,transform] active:scale-95"
+      style={active ? { background: activeBg } : undefined}
+    >
+      {children}
+      <span
+        className={cn(
+          "block w-full truncate text-center text-[10px] leading-3",
+          active ? "font-semibold text-foreground" : "text-muted-foreground"
+        )}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
+
+/** Bölmenin başlığı — durağın adı, sağda bir eylem */
+function PaneHead({ title, action }: { title: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 px-1.5 pb-2 pt-1.5">
+      <h3 className="min-w-0 flex-1 truncate text-[19px] font-bold tracking-tight">
+        {title}
+      </h3>
+      {action}
     </div>
   );
 }
 
 /**
- * Liste satırı — çerçevesiz, dokununca hafifçe zeminlenir. Renk yalnız
- * karoda; sağdaki işaret dokununca ne olacağını söylüyor: altı varsa içine
- * girilir (ok), yoksa kayıt oraya eklenir (artı). Aramada altında yolu
- * yazar — aynı adlı iki kalem ayırt edilsin.
+ * Bölme satırı — çerçevesiz, dokununca hafifçe zeminlenir; dokunmak kaydı
+ * oraya açar. Alt kalemi olan dalın satırı (plus) kendi grubunun başında:
+ * sağdaki artı dalın KENDİSİNE de kayıt girileceğini söyler.
  */
-function PickRow({ row: r, onOpen }: { row: Row; onOpen: (node: Node) => void }) {
+function PaneRow({
+  color,
+  icon,
+  name,
+  sub,
+  small,
+  plus,
+  flashing,
+  dataSub,
+  onClick,
+}: {
+  color: string;
+  icon?: string;
+  name: string;
+  sub?: string;
+  small?: boolean;
+  plus?: boolean;
+  flashing?: boolean;
+  dataSub?: string;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
-      onClick={() => onOpen(r.node)}
-      className="flex min-h-[56px] w-full items-center gap-3 rounded-2xl px-2 py-2 text-left transition-colors hover:bg-[var(--sf-1)] active:bg-[var(--sf-2)]"
+      data-sub={dataSub}
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-xl px-1.5 text-left transition-[background-color,box-shadow] duration-300 hover:bg-[var(--sf-2)] active:bg-[var(--sf-3)]",
+        small ? "min-h-[44px] py-1.5" : "min-h-[52px] py-2"
+      )}
+      style={flashing ? { boxShadow: `inset 0 0 0 1.5px ${color}` } : undefined}
     >
-      <Tile
-        color={r.color}
-        icon={r.icon}
-        fallback={r.kids > 0 ? FolderOpen : Folder}
-        size={40}
-      />
+      <Tile color={color} icon={icon} fallback={plus ? FolderOpen : Folder} size={small ? 30 : 36} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] font-medium leading-5 text-foreground">
-          {r.name}
+        <span
+          className={cn(
+            "block truncate leading-5 text-foreground",
+            small ? "text-[14px]" : "text-[15px] font-semibold"
+          )}
+        >
+          {name}
         </span>
-        {r.path && (
+        {sub && (
           <span className="block truncate text-xs leading-4 text-muted-foreground">
-            {r.path}
+            {sub}
           </span>
         )}
       </span>
-      {r.kids > 0 ? (
-        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40" />
-      ) : (
+      {plus && (
         <span
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-          style={{ background: `${r.color}22`, color: r.color }}
+          style={{ background: `${color}22`, color }}
         >
           <Plus className="h-4 w-4" strokeWidth={2.5} />
         </span>
       )}
     </button>
-  );
-}
-
-/**
- * Hızlı ekle — en çok kayıt aldığın (ve sabitlediğin) kalemler, IZGARA
- * olarak. Yatay şeritte dördüncü karodan sonrası ekranın dışında kalıyordu;
- * iki satırlık ızgarada sekizi birden görünüyor ve parmak hedefleri büyük.
- * Karolar açılışta peş peşe "pop" ile gelir.
- */
-function QuickGrid({
-  items,
-  onPick,
-  onEdit,
-}: {
-  items: { id: string; name: string; icon?: string; color: string; parent: string; sub: SubCategory }[];
-  onPick: (sub: SubCategory) => void;
-  /** Sabitlenenleri düzenle — sıklık her zaman doğru tahmin etmiyor */
-  onEdit: () => void;
-}) {
-  const t = useT();
-  return (
-    <div className="shrink-0">
-      <div className="mb-2 flex items-center px-2">
-        <span className="text-[12px] font-semibold text-muted-foreground">
-          {t("entry.quickAdd")}
-        </span>
-        <button
-          type="button"
-          onClick={onEdit}
-          className="-mr-1 ml-auto rounded-full px-2 py-0.5 text-[12px] font-medium text-primary transition-colors hover:bg-primary/10"
-        >
-          {items.length ? t("action.edit") : t("action.add")}
-        </button>
-      </div>
-      {items.length > 0 ? (
-        <div className="grid grid-cols-4 gap-2">
-          {items.map((it, i) => (
-            <button
-              key={it.id}
-              type="button"
-              onClick={() => onPick(it.sub)}
-              title={`${it.parent} › ${it.name}`}
-              className="entry-tile-pop flex min-w-0 flex-col items-center gap-1.5 rounded-2xl bg-[var(--sf-1)] px-1 pb-2.5 pt-3 ring-1 ring-inset ring-[var(--ln-1)] transition-transform active:scale-[0.94]"
-              style={{ animationDelay: `${120 + i * 28}ms` }}
-            >
-              <Tile color={it.color} icon={it.icon} size={40} />
-              <span className="block w-full truncate text-center text-[11px] font-medium leading-4 text-foreground">
-                {it.name}
-              </span>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={onEdit}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--ln-2)] py-4 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <Plus className="h-4 w-4" />
-          {t("entry.pinTitle")}
-        </button>
-      )}
-    </div>
   );
 }
