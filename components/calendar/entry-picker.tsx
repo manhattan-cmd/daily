@@ -195,16 +195,16 @@ export function EntryPicker({
   /*
    * ÇİFT DOKUNUŞ. Kategoriye ya da dala çift dokunmak onun KENDİSİNE kayıt
    * açar (eskiden başlıktaki "+ genel" düğmesiydi; o yere "+ alt kategori"
-   * geldi). Raydaki duraklarda tek dokunuş hemen çalışır, ikincisi kaydı
-   * açar. Bölmedeki dalda tek dokunuş dalı raya taşıyıp bölmeyi değiştirdiği
-   * için kısa bir süre ikinci dokunuş beklenir — yoksa ikinci dokunuş
-   * değişen bölmede başka bir kaleme düşerdi.
+   * geldi). Tek dokunuş HER YERDE hemen çalışır. Bölmedeki dalda tek
+   * dokunuş bölmeyi dalın altına çevirdiği için ikinci dokunuş yeni bölmede
+   * başka bir kaleme düşer — iniş anından sonraki kısa sürede bölmeye gelen
+   * dokunuş o kaleme gitmez, dalın kendisine kayıt açar.
+   *
+   * Önceki hâl ikinci dokunuşu BEKLEYİP sonra iniyordu: dala her basışta
+   * 280 ms gecikme, "kasma" diye hissediliyordu.
    */
   const lastTap = useRef<{ key: string; t: number } | null>(null);
-  const pendingDrill = useRef<{ id: string; timer: ReturnType<typeof setTimeout> } | null>(null);
-  useEffect(() => () => {
-    if (pendingDrill.current) clearTimeout(pendingDrill.current.timer);
-  }, []);
+  const lastDrill = useRef<{ sub: SubCategory; t: number } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   // Dala basınca karosu bölmeden raydaki yerine uçar (bkz. useLayoutEffect)
   const fly = useRef<{ id: string; rect: DOMRect; node: HTMLElement } | null>(null);
@@ -416,22 +416,20 @@ export function EntryPicker({
     return false;
   }
 
-  /** Bölmede alt kalemi olan dala dokunuş: tekse in, çiftse kendisine kayıt */
+  /** Bölmede alt kalemi olan dala dokunuş: hemen in */
   function tapBranch(sub: SubCategory, el: HTMLElement) {
-    const p = pendingDrill.current;
-    if (p) clearTimeout(p.timer);
-    pendingDrill.current = null;
-    if (p?.id === sub.id) {
-      onPick(sub);
-      return;
-    }
-    pendingDrill.current = {
-      id: sub.id,
-      timer: setTimeout(() => {
-        pendingDrill.current = null;
-        drill(sub, el);
-      }, DOUBLE_TAP_MS),
-    };
+    lastDrill.current = { sub, t: tapClock() };
+    drill(sub, el);
+  }
+  /** İnişin hemen ardından bölmeye gelen dokunuş çift dokunuşun ikincisi */
+  function onPaneClickCapture(e: React.MouseEvent) {
+    const d = lastDrill.current;
+    if (!d) return;
+    lastDrill.current = null;
+    if (tapClock() - d.t > DOUBLE_TAP_MS) return;
+    e.preventDefault();
+    e.stopPropagation();
+    onPick(d.sub);
   }
 
   /** Bir dala in — karosu raydaki yerine uçacak */
@@ -767,6 +765,7 @@ export function EntryPicker({
           {/* BÖLME — seçilen durağın bütün kalemleri */}
           <div
             ref={paneRef}
+            onClickCapture={onPaneClickCapture}
             className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pl-3 pr-3"
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
           >
