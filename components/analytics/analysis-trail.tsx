@@ -114,7 +114,7 @@ export function AnalysisLens({ lens }: { lens: TrailLens & { neutral?: boolean }
       type="button"
       onClick={lens.onClick}
       className={cn(
-        "flex h-7 max-w-[130px] items-center gap-1.5 rounded-full px-2.5 text-[12px] font-semibold transition-colors group-data-[collapsed=true]/hdr:h-6 group-data-[collapsed=true]/hdr:text-[11px]",
+        "flex h-7 max-w-[130px] items-center gap-1.5 rounded-[9px] px-2.5 text-[12px] font-semibold transition-colors",
         lens.neutral && "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground"
       )}
       style={

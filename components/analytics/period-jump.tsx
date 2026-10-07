@@ -184,7 +184,7 @@ export function PeriodJump({
         className={
           segment
             ? cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] transition-colors group-data-[collapsed=true]/hdr:h-[26px]",
+                "flex h-7 w-8 shrink-0 items-center justify-center rounded-[9px] transition-colors",
                 current
                   ? "bg-foreground text-background shadow-sm"
                   : "text-muted-foreground hover:text-foreground"

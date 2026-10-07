@@ -1,6 +1,7 @@
 "use client";
 
 import { fmtNum, fmtPct } from "@/lib/analytics";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type ShareRow = {
@@ -70,7 +71,7 @@ export function ShareBars({
   );
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className={cn("flex flex-col", onSelect ? "-mx-1.5 gap-1.5" : "gap-3")}>
       {sorted.map((r) => {
         const pct = isRate
           ? ratioOf(r) * 100
@@ -87,12 +88,27 @@ export function ShareBars({
             type="button"
             onClick={canDrill ? () => onSelect!(r.id) : undefined}
             aria-pressed={selectedId !== null ? r.id === selectedId : undefined}
+            // Dokunulabilir satır bir KARTÇIK: kendi zemini, sağda ok, basınca
+            // hafifçe içe göçer. Çıplak çizgiyken incelemek için basılacağı
+            // anlaşılmıyordu. Seçili satır kendi renginde çerçevelenir.
             className={cn(
-              "min-w-0 text-left transition-opacity",
-              canDrill ? "cursor-pointer hover:opacity-70" : "cursor-default",
+              "flex min-w-0 items-center gap-2 text-left transition-[opacity,transform,background-color]",
+              onSelect && "rounded-xl px-2.5 py-2",
+              canDrill
+                ? "cursor-pointer bg-[var(--sf-1)] ring-1 ring-inset ring-[var(--ln-1)] hover:bg-[var(--sf-2)] active:scale-[0.985]"
+                : "cursor-default",
               dimmed && "opacity-40"
             )}
+            style={
+              canDrill && selectedId === r.id
+                ? {
+                    background: `${r.color}1a`,
+                    boxShadow: `inset 0 0 0 1px ${r.color}80`,
+                  }
+                : undefined
+            }
           >
+            <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-1.5 mb-1">
               <span
                 className="h-1.5 w-1.5 rounded-full shrink-0 self-center"
@@ -127,6 +143,13 @@ export function ShareBars({
                 }}
               />
             </div>
+            </div>
+            {canDrill && (
+              <ChevronRight
+                className="h-4 w-4 shrink-0 text-muted-foreground/60"
+                style={selectedId === r.id ? { color: r.color } : undefined}
+              />
+            )}
           </button>
         );
       })}

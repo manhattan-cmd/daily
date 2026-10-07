@@ -51,14 +51,14 @@ export function PageHeader({
       data-collapsed={collapsed}
       className={cn(
         "group/hdr sticky top-0 z-30 -mx-4 mb-6 border-b border-border bg-background/85 px-4 pt-safe backdrop-blur-xl",
-        nav ? (collapsed ? "pb-2" : "pb-3") : "pb-4",
+        nav ? (collapsed || compact ? "pb-2.5" : "pb-3") : "pb-4",
         className
       )}
     >
       <div
         className={cn(
           "flex items-center",
-          compact ? (collapsed ? "gap-2 pt-1.5" : "gap-2 pt-3") : "gap-3 pt-4"
+          compact ? (collapsed ? "gap-2 pt-1.5" : "gap-2 pt-2.5") : "gap-3 pt-4"
         )}
       >
         {back ? (
@@ -78,7 +78,7 @@ export function PageHeader({
             <h1
               className={cn(
                 "truncate font-semibold tracking-tight",
-                collapsed ? "text-[13px]" : "text-[15px]"
+                collapsed ? "text-[13px]" : "text-[14px]"
               )}
             >
               {title}
@@ -108,7 +108,7 @@ export function PageHeader({
         )}
         {action ? <div className="shrink-0">{action}</div> : null}
       </div>
-      {nav ? <div className={collapsed ? "mt-2" : "mt-3"}>{nav}</div> : null}
+      {nav ? <div className={collapsed || compact ? "mt-2" : "mt-3"}>{nav}</div> : null}
     </header>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -44,6 +44,7 @@ import {
   type EntryListRow,
 } from "@/components/analytics/entry-list";
 import { PeriodSwitcher } from "@/components/analytics/period-switcher";
+import { MENU_PANEL } from "@/components/analytics/header-rail";
 import {
   PeriodCategoryPanel,
   panelWindow,
@@ -138,36 +139,6 @@ export function PeriodView({
    */
   const [drill, setDrill] = useState<{ catId: string; path: SubCategory[] } | null>(null);
   const [metricSel, setMetricSel] = useState<{ catId: string; id: string } | null>(null);
-  /*
-   * DİNAMİK BANT. Sayfa biraz aşağı kayınca başlık bandı kısılır (başlık
-   * küçülür, raylar incelir), en üste dönünce tam haline gelir. Açılma ve
-   * kapanma eşikleri arasında pay var (80 / 20 px) ki eşikte titremesin.
-   * Bant akışta durduğu için kısılınca altındaki her şey yukarı zıplardı;
-   * boy farkı kadar kaydırma konumu aynı karede düzeltilir.
-   */
-  const [headerCollapsed, setHeaderCollapsed] = useState(false);
-  useEffect(() => {
-    const main = document.querySelector("main");
-    if (!main) return;
-    const onScroll = () => {
-      const y = main.scrollTop;
-      setHeaderCollapsed((c) => (c ? y > 20 : y > 80));
-    };
-    main.addEventListener("scroll", onScroll, { passive: true });
-    return () => main.removeEventListener("scroll", onScroll);
-  }, []);
-  const headerHeight = useRef<number | null>(null);
-  useLayoutEffect(() => {
-    const header = document.querySelector<HTMLElement>("main header");
-    const main = document.querySelector("main");
-    if (!header || !main) return;
-    const h = header.offsetHeight;
-    const before = headerHeight.current;
-    headerHeight.current = h;
-    // Yalnız KISILIRKEN: en üste dönüp açılırken sayfa yeniden aşağı itilmesin
-    if (before !== null && h < before) main.scrollTop += h - before;
-  }, [headerCollapsed]);
-
   // Seçimden sonra hangi karta kayılacak — yeni kart çizildikten sonra
   const [scrollTarget, setScrollTarget] = useState<string | null>(null);
   useEffect(() => {
@@ -347,30 +318,20 @@ export function PeriodView({
     [period.key, prevKey, nextKey]
   );
 
-  // Varsayılan kategori: dönemde en çok girdisi olan; hiç girdi yoksa ilk kategori
-  let topShareCatId: string | null = null;
-  if (computed) {
-    let max = 0;
-    for (const r of computed.catShare) {
-      if (r.value > max) {
-        max = r.value;
-        topShareCatId = r.id;
-      }
-    }
-  }
   const catCounts = new Map(
     (computed?.catShare ?? []).map((r) => [r.id, r.value])
   );
+  // Analiz SEÇİMSİZ açılır: önce kategorilerin dağılımı, kullanıcı birine
+  // dokununca kademeler açılır. Eskiden en çok girdisi olan kategori (ve
+  // taşınan alt kalem) kendiliğinden seçili geliyordu. Bu oturumda seçilmiş
+  // bir kategori dönem değişince korunur — o dönemde verisi varsa.
   const selectedCat = catsOnly
     ? null
     : data?.cats.find(
-      (c) =>
-        c.id === selectedCatId &&
-        (catPicked || (catCounts.get(c.id) ?? 0) > 0)
-    ) ??
-    data?.cats.find((c) => c.id === topShareCatId) ??
-    data?.cats[0] ??
-    null;
+        (c) =>
+          c.id === selectedCatId &&
+          (catPicked || (catCounts.get(c.id) ?? 0) > 0)
+      ) ?? null;
 
   // Kırılımda inilen yol da taşınır — ama yalnız bu dönemde girdisi olan
   // kademeye kadar: boş bir kaleme inilmiş halde açılmak "veri yok" duvarı
@@ -498,7 +459,11 @@ export function PeriodView({
           className={ANALYSIS_HEADER}
           title={title ?? period.label}
           back={back}
-          nav={<PeriodSwitcher period={requestedPeriod} />}
+          nav={
+            <div className={MENU_PANEL}>
+              <PeriodSwitcher period={requestedPeriod} />
+            </div>
+          }
         />
         <div className="flex flex-col gap-4 pb-6">
           <div className="grid grid-cols-3 gap-2">
@@ -522,7 +487,6 @@ export function PeriodView({
     <>
       <PageHeader
         compact
-        collapsed={headerCollapsed}
         // Bandın kendi zemini — sayfanın üstünde ayrı bir bölüm olduğu belli
         // olsun: açık yüzey, yuvarlak alt köşeler, altına düşen yumuşak gölge
         className={ANALYSIS_HEADER}
@@ -537,9 +501,10 @@ export function PeriodView({
         }
         back={back}
         nav={
-          // Bant iki kat: önce ZAMAN (menü gibi, renksiz), sonra YER (renkli yol)
-          <div className="flex flex-col gap-2.5">
+          // Tek menü paneli: üstte ZAMAN (renksiz ayar), altta YER (renkli yol)
+          <div className={MENU_PANEL}>
           <PeriodSwitcher period={period} />
+          <div className="mx-2 h-px bg-[var(--ln-1)]" />
           <AnalysisTrail
             steps={[
               // Yolun kökü: bütün kategoriler. Dokununca seçim kalkar ve

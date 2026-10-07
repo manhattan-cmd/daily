@@ -78,7 +78,7 @@ export function PeriodSwitcher({ period }: { period: Period }) {
   const nextP = shiftPeriod(period, 1);
   const nextDisabled = !nextP || nextP.start > nowMs();
   const arrow =
-    `${RAIL_ITEM} w-7 text-muted-foreground hover:bg-[var(--sf-3)] hover:text-foreground disabled:opacity-25`;
+    `${RAIL_ITEM} w-6 text-muted-foreground hover:bg-[var(--sf-3)] hover:text-foreground disabled:opacity-25`;
 
   return (
     <div role="tablist" aria-label={t("insights.period")} className={RAIL}>
