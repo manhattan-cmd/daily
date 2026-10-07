@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Check,
+  ChevronRight,
   Folder,
   FolderOpen,
   FolderPlus,
@@ -119,9 +120,17 @@ export function EntryPicker({
   } | null>(null);
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
-  // Aramadan bir dala gelinince o grup ortalanıp kısa süre vurgulanır
-  const [flashId, setFlashId] = useState<string | null>(null);
+  /*
+   * İLERLEYEN RAY. Bölme her seferinde TEK kat gösterir; alt kalemi olan
+   * bir dala basınca dal raya, kategorisinin altına bir iple ilişir ve
+   * bölme onun sayfasına geçer. Raydaki her basamak bir geri dönüş noktası.
+   * path: seçili kategorinin altında inilen dallar (kökten derine).
+   */
+  const [path, setPath] = useState<string[]>([]);
   const paneRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  // Dala basınca karosu bölmeden raydaki yerine uçar (bkz. useLayoutEffect)
+  const fly = useRef<{ id: string; rect: DOMRect; node: HTMLElement } | null>(null);
   // Hızlı eklemeye elle eklenenler + onları seçtiren panel
   const [pins, setPins] = useState<string[]>(readPins);
   const [pinOpen, setPinOpen] = useState(false);
@@ -129,6 +138,7 @@ export function EntryPicker({
   function setRail(id: string) {
     setRailState(id);
     setRailTouched(true);
+    setPath([]);
     try {
       localStorage.setItem(LS_RAIL, id);
     } catch {
@@ -259,6 +269,20 @@ export function EntryPicker({
         ? rail
         : firstCat;
   const selCat = railSel === QUICK ? null : catById.get(railSel) ?? null;
+  /** Rayda ilişik duran dallar — silinmiş ya da başka kategoriye ait olan düşer */
+  const pathNodes = selCat
+    ? path
+        .map((id) => subById.get(id))
+        .filter((x): x is SubCategory => !!x && x.categoryId === selCat.id)
+    : [];
+  const node = pathNodes[pathNodes.length - 1] ?? null;
+  /** Bölmenin gösterdiği katın kalemleri */
+  const level = selCat
+    ? node
+      ? childrenMap.get(node.id) ?? []
+      : topSubsByCat.get(selCat.id) ?? []
+    : [];
+  const nodeKey = node ? node.id : railSel;
 
   /** Arama BÜTÜN ağaçta — kategoriler ve her derinlikteki kalemler */
   const q = norm(query);
@@ -281,7 +305,7 @@ export function EntryPicker({
 
   /**
    * Arama sonucuna dokunmak: kategori → rayda o kategori; alt kalemi olan
-   * bir dal → kategorisi açılır ve dalın grubu ortalanıp vurgulanır (altına
+   * bir dal → kategorisi açılır ve dal bütün yoluyla raya ilişir (altına
    * bakmak isteyen dalı arıyor); yaprak → doğrudan form.
    */
   function openResult(r: Result) {
@@ -295,74 +319,87 @@ export function EntryPicker({
       return;
     }
     setRail(r.sub.categoryId);
-    setFlashId(r.sub.id);
-  }
-  useEffect(() => {
-    if (!flashId) return;
-    const el = paneRef.current?.querySelector(`[data-sub="${flashId}"]`);
-    el?.scrollIntoView({ block: "center" });
-    const tm = setTimeout(() => setFlashId(null), 1400);
-    return () => clearTimeout(tm);
-  }, [flashId]);
-
-  // Durak değişince bölme başa döner
-  useEffect(() => {
-    if (!flashId) paneRef.current?.scrollTo({ top: 0 });
-    // flashId'de kendi kaydırması var
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [railSel]);
-
-  const accent = selCat?.color ?? "#818cf8";
-
-  /** Bir dalı (ve altını) çizer — alt kalemi olan dal kendi grubunda */
-  function renderSub(sub: SubCategory, depth: number): React.ReactNode {
-    const kids = childrenMap.get(sub.id) ?? [];
-    const color = catById.get(sub.categoryId)?.color ?? accent;
-    const flashing = flashId === sub.id;
-    if (kids.length === 0) {
-      return (
-        <PaneRow
-          key={sub.id}
-          dataSub={sub.id}
-          color={color}
-          icon={sub.icon}
-          name={sub.name}
-          small={depth > 0}
-          flashing={flashing}
-          onClick={() => onPick(sub)}
-        />
-      );
+    const chain: string[] = [];
+    let cur: SubCategory | undefined = r.sub;
+    while (cur) {
+      chain.unshift(cur.id);
+      cur = cur.parentId ? subById.get(cur.parentId) : undefined;
     }
-    return (
-      <div
-        key={sub.id}
-        data-sub={sub.id}
-        className={cn(
-          "flex flex-col rounded-2xl p-1 transition-shadow duration-500",
-          depth === 0 ? "my-1 bg-[var(--sf-1)]" : "bg-[var(--sf-2)]"
-        )}
-        style={flashing ? { boxShadow: `inset 0 0 0 1.5px ${color}` } : undefined}
-      >
-        <PaneRow
-          color={color}
-          icon={sub.icon}
-          name={sub.name}
-          sub={t("entry.subCount", { n: kids.length })}
-          small={depth > 0}
-          plus
-          onClick={() => onPick(sub)}
-        />
-        <div className="flex flex-col pl-3">
-          {kids.map((k) => renderSub(k, depth + 1))}
-        </div>
-      </div>
-    );
+    setPath(chain);
   }
+
+  /** Bir dala in — karosu raydaki yerine uçacak */
+  function drill(sub: SubCategory, from: HTMLElement) {
+    const tile = from.querySelector<HTMLElement>("[data-tile]");
+    if (tile)
+      fly.current = {
+        id: sub.id,
+        rect: tile.getBoundingClientRect(),
+        node: tile.cloneNode(true) as HTMLElement,
+      };
+    setPath(pathNodes.map((p) => p.id).concat(sub.id));
+  }
+
+  /*
+   * İLİŞME HAREKETİ. Basılan dalın karosunun bir kopyası bölmedeki yerinden
+   * raydaki yeni basamağın karosuna kayıp küçülür; varınca kopya kalkar,
+   * gerçek karo görünür. Kopya pencerenin kendi kutusuna eklenir: pencere
+   * dönüşümlü (transform) olduğu için sabit konum ona göre kayardı.
+   */
+  useLayoutEffect(() => {
+    const f = fly.current;
+    fly.current = null;
+    const root = rootRef.current;
+    if (!f || !root || f.id !== node?.id) return;
+    const target = root.querySelector<HTMLElement>(
+      `[data-rail-node="${f.id}"] [data-tile]`
+    );
+    if (!target) return;
+    target.scrollIntoView({ block: "nearest" });
+    const rr = root.getBoundingClientRect();
+    const tr = target.getBoundingClientRect();
+    const clone = f.node;
+    Object.assign(clone.style, {
+      position: "absolute",
+      left: `${f.rect.left - rr.left}px`,
+      top: `${f.rect.top - rr.top}px`,
+      margin: "0",
+      zIndex: "50",
+      pointerEvents: "none",
+      transformOrigin: "top left",
+    });
+    root.appendChild(clone);
+    target.style.opacity = "0";
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const anim = clone.animate(
+      [
+        { transform: "none" },
+        {
+          transform: `translate(${tr.left - f.rect.left}px, ${tr.top - f.rect.top}px) scale(${tr.width / f.rect.width})`,
+        },
+      ],
+      { duration: reduce ? 0 : 440, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)", fill: "forwards" }
+    );
+    const done = () => {
+      clone.remove();
+      target.style.opacity = "";
+    };
+    anim.onfinish = done;
+    return () => {
+      anim.cancel();
+      done();
+    };
+  }, [node?.id]);
+
+  // Kat değişince bölme başa döner
+  useEffect(() => {
+    paneRef.current?.scrollTo({ top: 0 });
+  }, [nodeKey]);
 
   const structureHref = selCat ? routes.structureCategory(selCat.id) : "";
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
+    <div ref={rootRef} className="relative flex min-h-0 flex-1 flex-col">
       {/* Üst çubuk — solda kapat, ortada soru, sağda yapı işlemleri (⋯).
           Yapı kurmak girdi eklemeye gelen kişinin ilk işi değil; eskiden
           "Kategori yarat" ekranın en görünür düğmesiydi. */}
@@ -466,15 +503,53 @@ export function EntryPicker({
               </span>
             </RailItem>
             {categories.map((c) => (
-              <RailItem
-                key={c.id}
-                active={railSel === c.id}
-                activeBg={`${c.color}29`}
-                label={c.name}
-                onClick={() => setRail(c.id)}
-              >
-                <Tile color={c.color} icon={c.icon} size={36} />
-              </RailItem>
+              <div key={c.id} className="flex shrink-0 flex-col">
+                <RailItem
+                  active={railSel === c.id}
+                  activeBg={pathNodes.length && railSel === c.id ? `${c.color}17` : `${c.color}29`}
+                  label={c.name}
+                  onClick={() => (railSel === c.id ? setPath([]) : setRail(c.id))}
+                >
+                  <Tile color={c.color} icon={c.icon} size={36} />
+                </RailItem>
+                {/* İnilen dallar kategorinin altına bir iple ilişik durur;
+                    basamağa basmak o kata döner */}
+                {railSel === c.id && pathNodes.length > 0 && (
+                  <div className="relative flex flex-col gap-0.5 pb-1 pt-0.5">
+                    <span
+                      aria-hidden
+                      className="absolute -top-1 bottom-6 left-1/2 w-[2px] -translate-x-1/2 rounded-full"
+                      style={{ background: `${c.color}66` }}
+                    />
+                    {pathNodes.map((p, i) => {
+                      const last = i === pathNodes.length - 1;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          data-rail-node={p.id}
+                          onClick={() => setPath(path.slice(0, i + 1))}
+                          aria-pressed={last}
+                          className="entry-tile-pop relative flex flex-col items-center gap-0.5 rounded-xl px-0.5 pb-1 pt-1.5 transition-[background-color,transform] active:scale-95"
+                          style={last ? { background: `${c.color}29` } : undefined}
+                        >
+                          <span data-tile className="shrink-0">
+                            <Tile color={c.color} icon={p.icon} size={28} />
+                          </span>
+                          <span
+                            className={cn(
+                              "block w-full truncate text-center text-[9.5px] leading-3",
+                              last ? "font-semibold text-foreground" : "text-muted-foreground"
+                            )}
+                          >
+                            {p.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             ))}
           </nav>
 
@@ -484,7 +559,7 @@ export function EntryPicker({
             className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pl-2 pr-3"
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
           >
-            <div key={railSel} className="entry-stagger flex flex-col">
+            <div key={nodeKey} className={cn("entry-stagger flex flex-col", node && "entry-push")}>
               {selCat == null ? (
                 <>
                   <PaneHead
@@ -526,11 +601,11 @@ export function EntryPicker({
                   {/* Kategorinin kendisine kayıt başlıkta, küçük bir düğme —
                       eskiden ayrı, iri bir "Buraya ekle" şeridiydi */}
                   <PaneHead
-                    title={selCat.name}
+                    title={node ? node.name : selCat.name}
                     action={
                       <button
                         type="button"
-                        onClick={() => onPickCategory(selCat)}
+                        onClick={() => (node ? onPick(node) : onPickCategory(selCat))}
                         className="flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-[12px] font-semibold transition-transform active:scale-95"
                         style={{ background: `${selCat.color}24`, color: selCat.color }}
                       >
@@ -539,11 +614,26 @@ export function EntryPicker({
                       </button>
                     }
                   />
-                  {(topSubsByCat.get(selCat.id) ?? []).map((s) => renderSub(s, 0))}
-                  {(topSubsByCat.get(selCat.id) ?? []).length === 0 && (
+                  {level.map((sub) => {
+                    const kids = childrenMap.get(sub.id)?.length ?? 0;
+                    return (
+                      <PaneRow
+                        key={sub.id}
+                        color={selCat.color}
+                        icon={sub.icon}
+                        name={sub.name}
+                        sub={kids ? t("entry.subCount", { n: kids }) : undefined}
+                        branch={kids > 0}
+                        onClick={(e) => (kids ? drill(sub, e.currentTarget) : onPick(sub))}
+                      />
+                    );
+                  })}
+                  {level.length === 0 && (
                     <button
                       type="button"
-                      onClick={() => setAddSub({ categoryId: selCat.id })}
+                      onClick={() =>
+                        setAddSub({ categoryId: selCat.id, parentId: node?.id })
+                      }
                       className="mt-1 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--ln-2)] py-4 text-sm text-muted-foreground transition-colors hover:text-foreground"
                     >
                       <FolderPlus className="h-4 w-4" />
@@ -582,10 +672,10 @@ export function EntryPicker({
               <MenuItem
                 icon={<FolderPlus className="h-4 w-4" />}
                 label={t("tree.createSubcategory")}
-                hint={selCat.name}
+                hint={node ? node.name : selCat.name}
                 onClick={() => {
                   setMenuOpen(false);
-                  setAddSub({ categoryId: selCat.id });
+                  setAddSub({ categoryId: selCat.id, parentId: node?.id });
                 }}
               />
             )}
@@ -837,50 +927,36 @@ function PaneHead({ title, action }: { title: string; action?: React.ReactNode }
 }
 
 /**
- * Bölme satırı — çerçevesiz, dokununca hafifçe zeminlenir; dokunmak kaydı
- * oraya açar. Alt kalemi olan dalın satırı (plus) kendi grubunun başında:
- * sağdaki artı dalın KENDİSİNE de kayıt girileceğini söyler.
+ * Bölme satırı — çerçevesiz, dokununca hafifçe zeminlenir. Altı olmayan
+ * kalem kaydı açar; altı olan dal (branch, sağda ok) raya ilişip kendi
+ * katını açar — dalın KENDİSİNE kayıt bölme başlığındaki "+ genel"de.
  */
 function PaneRow({
   color,
   icon,
   name,
   sub,
-  small,
-  plus,
-  flashing,
-  dataSub,
+  branch,
   onClick,
 }: {
   color: string;
   icon?: string;
   name: string;
   sub?: string;
-  small?: boolean;
-  plus?: boolean;
-  flashing?: boolean;
-  dataSub?: string;
-  onClick: () => void;
+  branch?: boolean;
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   return (
     <button
       type="button"
-      data-sub={dataSub}
       onClick={onClick}
-      className={cn(
-        "flex w-full items-center gap-3 rounded-xl px-1.5 text-left transition-[background-color,box-shadow] duration-300 hover:bg-[var(--sf-2)] active:bg-[var(--sf-3)]",
-        small ? "min-h-[44px] py-1.5" : "min-h-[52px] py-2"
-      )}
-      style={flashing ? { boxShadow: `inset 0 0 0 1.5px ${color}` } : undefined}
+      className="flex min-h-[52px] w-full items-center gap-3 rounded-xl px-1.5 py-2 text-left transition-colors hover:bg-[var(--sf-2)] active:bg-[var(--sf-3)]"
     >
-      <Tile color={color} icon={icon} fallback={plus ? FolderOpen : Folder} size={small ? 30 : 36} />
+      <span data-tile className="shrink-0">
+        <Tile color={color} icon={icon} fallback={branch ? FolderOpen : Folder} size={36} />
+      </span>
       <span className="min-w-0 flex-1">
-        <span
-          className={cn(
-            "block truncate leading-5 text-foreground",
-            small ? "text-[14px]" : "text-[15px] font-semibold"
-          )}
-        >
+        <span className="block truncate text-[15px] font-semibold leading-5 text-foreground">
           {name}
         </span>
         {sub && (
@@ -889,14 +965,7 @@ function PaneRow({
           </span>
         )}
       </span>
-      {plus && (
-        <span
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-          style={{ background: `${color}22`, color }}
-        >
-          <Plus className="h-4 w-4" strokeWidth={2.5} />
-        </span>
-      )}
+      {branch && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />}
     </button>
   );
 }
