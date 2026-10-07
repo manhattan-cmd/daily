@@ -837,11 +837,25 @@ export function EntryPicker({
                         </div>
                       )}
                     </div>
+                    {/* Bu kata alt kategori ekleme — başlığın yanında küçük,
+                        yazısız ve soluk. Listenin sonunda renkli bir satırken
+                        girdi eklemeye gelen gözü dağıtıyordu. */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAddSub({ categoryId: selCat.id, parentId: node?.id })
+                      }
+                      aria-label={t("entry.addSub")}
+                      title={t("entry.addSub")}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground/70 transition-[background-color,color,transform] hover:bg-[var(--sf-2)] hover:text-foreground active:scale-90"
+                    >
+                      <FolderPlus className="h-[17px] w-[17px]" />
+                    </button>
                   </div>
                   <div className="relative ml-[26px] flex flex-col pl-2.5">
                     <span
                       aria-hidden
-                      className="absolute bottom-7 left-0 top-0 w-[2px] -translate-x-1/2 rounded-full"
+                      className="absolute bottom-6 left-0 top-0 w-[2px] -translate-x-1/2 rounded-full"
                       style={{ background: `${selCat.color}59` }}
                     />
                     {level.map((sub) => {
@@ -858,29 +872,6 @@ export function EntryPicker({
                         />
                       );
                     })}
-                    {/* Bu kata alt kategori ekleme — listenin sonunda, aynı
-                        ipin ucunda; kesik çerçeveli karo kategorinin renginde.
-                        (Kendisine kayıt çift dokunuşla.) */}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAddSub({ categoryId: selCat.id, parentId: node?.id })
-                      }
-                      className="flex min-h-[52px] w-full items-center gap-3 rounded-xl px-1.5 py-2 text-left transition-colors hover:bg-[var(--sf-2)] active:bg-[var(--sf-3)]"
-                    >
-                      <span
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border-[1.5px] border-dashed"
-                        style={{ borderColor: `${selCat.color}99`, color: selCat.color }}
-                      >
-                        <Plus className="h-[18px] w-[18px]" strokeWidth={2.5} />
-                      </span>
-                      <span
-                        className="truncate text-[14px] font-semibold"
-                        style={{ color: selCat.color }}
-                      >
-                        {t("entry.addSub")}
-                      </span>
-                    </button>
                   </div>
                 </>
               )}
