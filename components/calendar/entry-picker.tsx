@@ -809,49 +809,80 @@ export function EntryPicker({
                 </>
               ) : (
                 <>
-                  {/* Başlıkta bu kata alt kategori açma. Kendisine kayıt
-                      artık çift dokunuşla (raydaki durak ya da bölmedeki dal) */}
-                  <PaneHead
-                    title={node ? node.name : selCat.name}
-                    action={
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAddSub({ categoryId: selCat.id, parentId: node?.id })
-                        }
-                        className="flex h-7 shrink-0 items-center gap-1 rounded-full bg-[var(--sf-2)] px-2.5 text-[12px] font-semibold text-muted-foreground transition-[transform,color] hover:text-foreground active:scale-95"
-                      >
-                        <Plus className="h-3.5 w-3.5" strokeWidth={2.75} />
-                        {t("entry.subShort")}
-                      </button>
-                    }
-                  />
-                  {level.map((sub) => {
-                    const kids = childrenMap.get(sub.id)?.length ?? 0;
-                    return (
-                      <PaneRow
-                        key={sub.id}
-                        color={selCat.color}
-                        icon={sub.icon}
-                        name={sub.name}
-                        sub={kids ? t("entry.subCount", { n: kids }) : undefined}
-                        branch={kids > 0}
-                        onClick={(e) => (kids ? tapBranch(sub, e.currentTarget) : onPick(sub))}
-                      />
-                    );
-                  })}
-                  {level.length === 0 && (
+                  {/*
+                    Bölmenin başında SEÇİLEN YER: karosu ve adı (dala
+                    inildiyse üstte küçük yolu). Altındaki kalemler,
+                    karonun ortasından inen bir iple ona bağlı — raydaki
+                    iple aynı dil. Sağda ray, solda "bu kategorinin
+                    içi" olduğu ilk bakışta okunur; yoksa yeni kullanıcı
+                    iki sütunun ilişkisini çözemiyordu.
+                  */}
+                  <div className="flex items-center gap-3 px-1.5 pb-2.5 pt-1.5">
+                    <Tile
+                      color={selCat.color}
+                      icon={node ? node.icon : selCat.icon}
+                      size={40}
+                    />
+                    <div className="min-w-0 flex-1">
+                      {node && (
+                        <div className="truncate text-[12px] font-medium leading-4 text-muted-foreground">
+                          {[selCat.name, ...pathNodes.slice(0, -1).map((p) => p.name)].join(" › ")}
+                        </div>
+                      )}
+                      <h3 className="truncate text-[19px] font-bold leading-6 tracking-tight">
+                        {node ? node.name : selCat.name}
+                      </h3>
+                      {!node && (
+                        <div className="text-[12px] leading-4 text-muted-foreground">
+                          {t("entry.subCount", { n: level.length })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="relative ml-[26px] flex flex-col pl-2.5">
+                    <span
+                      aria-hidden
+                      className="absolute bottom-7 left-0 top-0 w-[2px] -translate-x-1/2 rounded-full"
+                      style={{ background: `${selCat.color}59` }}
+                    />
+                    {level.map((sub) => {
+                      const kids = childrenMap.get(sub.id)?.length ?? 0;
+                      return (
+                        <PaneRow
+                          key={sub.id}
+                          color={selCat.color}
+                          icon={sub.icon}
+                          name={sub.name}
+                          sub={kids ? t("entry.subCount", { n: kids }) : undefined}
+                          branch={kids > 0}
+                          onClick={(e) => (kids ? tapBranch(sub, e.currentTarget) : onPick(sub))}
+                        />
+                      );
+                    })}
+                    {/* Bu kata alt kategori ekleme — listenin sonunda, aynı
+                        ipin ucunda; kesik çerçeveli karo kategorinin renginde.
+                        (Kendisine kayıt çift dokunuşla.) */}
                     <button
                       type="button"
                       onClick={() =>
                         setAddSub({ categoryId: selCat.id, parentId: node?.id })
                       }
-                      className="mt-1 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--ln-2)] py-4 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                      className="flex min-h-[52px] w-full items-center gap-3 rounded-xl px-1.5 py-2 text-left transition-colors hover:bg-[var(--sf-2)] active:bg-[var(--sf-3)]"
                     >
-                      <FolderPlus className="h-4 w-4" />
-                      {t("tree.createSubcategory")}
+                      <span
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border-[1.5px] border-dashed"
+                        style={{ borderColor: `${selCat.color}99`, color: selCat.color }}
+                      >
+                        <Plus className="h-[18px] w-[18px]" strokeWidth={2.5} />
+                      </span>
+                      <span
+                        className="truncate text-[14px] font-semibold"
+                        style={{ color: selCat.color }}
+                      >
+                        {t("entry.addSub")}
+                      </span>
                     </button>
-                  )}
+                  </div>
                 </>
               )}
               {categories.length === 0 && (
