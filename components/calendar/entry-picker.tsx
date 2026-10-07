@@ -485,11 +485,21 @@ export function EntryPicker({
           )}
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1">
+        <div className="relative flex min-h-0 flex-1">
+          {/* Rayı bölmeden ayıran ince çizgi — uçlarda söner, kayan rayla
+              birlikte kaymaz */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-[96px] w-px"
+            style={{
+              background:
+                "linear-gradient(to bottom, transparent, var(--ln-2) 10%, var(--ln-2) 90%, transparent)",
+            }}
+          />
           {/* RAY — hızlı ekle + kategoriler. Seçili durak kendi renginde
               zeminlenir; adlar hep okunur. */}
           <nav
-            className="no-scrollbar flex w-[78px] shrink-0 flex-col gap-1 overflow-y-auto overscroll-contain pl-2.5"
+            className="no-scrollbar flex w-[96px] shrink-0 flex-col gap-1 overflow-y-auto overscroll-contain pl-2 pr-2"
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
           >
             <RailItem
@@ -498,8 +508,8 @@ export function EntryPicker({
               label={t("entry.quickShort")}
               onClick={() => setRail(QUICK)}
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[var(--sf-3)]">
-                <Star className="h-[17px] w-[17px] fill-amber-400 text-amber-400" />
+              <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[var(--sf-3)]">
+                <Star className="h-[21px] w-[21px] fill-amber-400 text-amber-400" />
               </span>
             </RailItem>
             {categories.map((c) => (
@@ -510,7 +520,7 @@ export function EntryPicker({
                   label={c.name}
                   onClick={() => (railSel === c.id ? setPath([]) : setRail(c.id))}
                 >
-                  <Tile color={c.color} icon={c.icon} size={36} />
+                  <Tile color={c.color} icon={c.icon} size={44} />
                 </RailItem>
                 {/* İnilen dallar kategorinin altına bir iple ilişik durur;
                     basamağa basmak o kata döner */}
@@ -534,11 +544,11 @@ export function EntryPicker({
                           style={last ? { background: `${c.color}29` } : undefined}
                         >
                           <span data-tile className="shrink-0">
-                            <Tile color={c.color} icon={p.icon} size={28} />
+                            <Tile color={c.color} icon={p.icon} size={34} />
                           </span>
                           <span
                             className={cn(
-                              "block w-full truncate text-center text-[9.5px] leading-3",
+                              "block w-full truncate text-center text-[10.5px] leading-[14px]",
                               last ? "font-semibold text-foreground" : "text-muted-foreground"
                             )}
                           >
@@ -556,7 +566,7 @@ export function EntryPicker({
           {/* BÖLME — seçilen durağın bütün kalemleri */}
           <div
             ref={paneRef}
-            className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pl-2 pr-3"
+            className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pl-3 pr-3"
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
           >
             <div key={nodeKey} className={cn("entry-stagger flex flex-col", node && "entry-push")}>
@@ -904,7 +914,7 @@ function RailItem({
       {children}
       <span
         className={cn(
-          "block w-full truncate text-center text-[10px] leading-3",
+          "block w-full truncate text-center text-[11px] leading-[14px]",
           active ? "font-semibold text-foreground" : "text-muted-foreground"
         )}
       >
