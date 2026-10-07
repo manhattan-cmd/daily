@@ -24,7 +24,7 @@ import { splitChoiceLevel } from "@/lib/choice-level";
 import type { LucideIcon } from "lucide-react";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
-import { EntryPicker } from "@/components/calendar/entry-picker";
+import { EntryPicker, RAIL_COMPACT_W } from "@/components/calendar/entry-picker";
 import { CategoryForm } from "@/components/structure/category-form";
 import {
   DateTimeInput,
@@ -404,6 +404,11 @@ function DayEntrySheetBody({
       advanceToNextParallel(parallelQueue, step.groupId, step.queueIndex, step.queueTotal, step.carryover);
       return;
     }
+    leaveForm();
+  }
+
+  /** Formu kapatıp seçiciye dön (raya dokunmak da bunu yapar) */
+  function leaveForm() {
     setStep({ type: "pick" });
     setValues({});
     setNotes("");
@@ -451,13 +456,20 @@ function DayEntrySheetBody({
               onPickCategory={handlePickCategory}
               onClose={onClose}
               activity={activity ? { name: activity.name, count: activityCount } : null}
+              compact={step.type !== "pick"}
+              onRailNavigate={leaveForm}
             />
 
             {step.type !== "pick" && (
               <>
-                {/* Form seçimin yerine bütün pencereyi kaplar — kart
-                    pencereleriyle aynı görünüm; geri oku seçime döner. */}
-                <div className="entry-push absolute inset-0 z-50 flex flex-col bg-background">
+                {/* Form SAĞDAN kayarak gelir ve rayın yanında durur: ray
+                    simgelere daralıp solda kalır, nereden geldiğin görünür;
+                    raya dokunmak formu kapatıp oraya gider. Geri oku da
+                    seçime döner. */}
+                <div
+                  className="form-slide-in absolute inset-y-0 right-0 z-50 flex flex-col overflow-hidden rounded-l-[28px] border-l border-[var(--ln-2)] bg-background shadow-[-28px_0_48px_-28px_rgba(0,0,0,0.95)]"
+                  style={{ left: RAIL_COMPACT_W }}
+                >
                   <FormStep
             key={step.sub.id}
             sub={step.sub}
@@ -591,10 +603,15 @@ function PickStep({
   onPickCategory,
   onClose,
   activity,
+  compact,
+  onRailNavigate,
 }: {
   groups:
     | { category: Category; topSubs: SubCategory[]; allSubs: SubCategory[] }[]
     | undefined;
+  /** Form yandan açık — seçici rayı daraltır */
+  compact?: boolean;
+  onRailNavigate?: () => void;
   /** Bir kaleme kayıt aç — standart ekleme yüzeyi */
   onPick: (sub: SubCategory) => void;
   onPickCategory: (category: Category) => void;
@@ -650,6 +667,8 @@ function PickStep({
           onPickCategory={onPickCategory}
           onClose={onClose}
           onCreateCategory={() => setAddCatOpen(true)}
+          compact={compact}
+          onRailNavigate={onRailNavigate}
         />
       </div>
 

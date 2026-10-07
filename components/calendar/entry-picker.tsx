@@ -39,6 +39,9 @@ const NO_COUNTS: ReadonlyMap<string, number> = new Map();
 const QUICK_MAX = 8;
 /** Rayın ilk durağı — kategori değil, hızlı ekle bölmesi */
 const QUICK = "quick";
+/** Rayın genişliği; form yandan açıkken yalnız simgelere daralır */
+const RAIL_W = 96;
+export const RAIL_COMPACT_W = 64;
 
 /**
  * Hızlı eklemeye elle sabitlenen kalemler (localStorage).
@@ -98,6 +101,8 @@ export function EntryPicker({
   onPickCategory,
   onClose,
   onCreateCategory,
+  compact = false,
+  onRailNavigate,
 }: {
   groups: NetGroup[] | undefined;
   /**
@@ -109,6 +114,12 @@ export function EntryPicker({
   onClose: () => void;
   /** Ana kategori yaratma formunu aç — ⋯ menüsünde */
   onCreateCategory?: () => void;
+  /**
+   * Form sağdan açık: ray simgelere daralır, arama ve başlık formun
+   * altında kalır. Raya dokunmak formu kapatıp oraya gider.
+   */
+  compact?: boolean;
+  onRailNavigate?: () => void;
 }) {
   const t = useT();
   const [rail, setRailState] = useState<string>(() => readRail() ?? QUICK);
@@ -412,7 +423,12 @@ export function EntryPicker({
         >
           <X className="h-[18px] w-[18px]" />
         </button>
-        <h2 className="min-w-0 flex-1 truncate text-center text-[17px] font-bold tracking-tight">
+        <h2
+          className={cn(
+            "min-w-0 flex-1 truncate text-center text-[17px] font-bold tracking-tight transition-opacity duration-200",
+            compact && "opacity-0"
+          )}
+        >
           {t("entry.pickTitle")}
         </h2>
         <button
@@ -426,7 +442,12 @@ export function EntryPicker({
         </button>
       </div>
 
-      <div className="shrink-0 px-4 pb-3 pt-2">
+      <div
+        className={cn(
+          "shrink-0 px-4 pb-3 pt-2 transition-opacity duration-200",
+          compact && "pointer-events-none opacity-0"
+        )}
+      >
         <label className="flex h-11 items-center gap-2.5 rounded-2xl bg-[var(--sf-2)] px-4 ring-1 ring-inset ring-[var(--ln-1)] transition-shadow focus-within:ring-2 focus-within:ring-primary/50">
           <Search className="h-[18px] w-[18px] shrink-0 text-muted-foreground" />
           <input
@@ -490,8 +511,12 @@ export function EntryPicker({
               birlikte kaymaz */}
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 left-[96px] w-px"
+            className={cn(
+              "pointer-events-none absolute inset-y-0 w-px transition-opacity",
+              compact && "opacity-0"
+            )}
             style={{
+              left: RAIL_W,
               background:
                 "linear-gradient(to bottom, transparent, var(--ln-2) 10%, var(--ln-2) 90%, transparent)",
             }}
@@ -499,13 +524,18 @@ export function EntryPicker({
           {/* RAY — hızlı ekle + kategoriler. Seçili durak kendi renginde
               zeminlenir; adlar hep okunur. */}
           <nav
-            className="no-scrollbar flex w-[96px] shrink-0 flex-col gap-1 overflow-y-auto overscroll-contain pl-2 pr-2"
-            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
+            onClickCapture={compact ? () => onRailNavigate?.() : undefined}
+            className="no-scrollbar flex shrink-0 flex-col gap-1 overflow-y-auto overscroll-contain pl-2 pr-2 transition-[width] duration-300 ease-out"
+            style={{
+              width: compact ? RAIL_COMPACT_W : RAIL_W,
+              paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+            }}
           >
             <RailItem
               active={railSel === QUICK}
               activeBg="var(--sf-3)"
               label={t("entry.quickShort")}
+              compact={compact}
               onClick={() => setRail(QUICK)}
             >
               <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[var(--sf-3)]">
@@ -518,6 +548,7 @@ export function EntryPicker({
                   active={railSel === c.id}
                   activeBg={pathNodes.length && railSel === c.id ? `${c.color}17` : `${c.color}29`}
                   label={c.name}
+                  compact={compact}
                   onClick={() => (railSel === c.id ? setPath([]) : setRail(c.id))}
                 >
                   <Tile color={c.color} icon={c.icon} size={44} />
@@ -549,7 +580,8 @@ export function EntryPicker({
                           <span
                             className={cn(
                               "block w-full truncate text-center text-[10.5px] leading-[14px]",
-                              last ? "font-semibold text-foreground" : "text-muted-foreground"
+                              last ? "font-semibold text-foreground" : "text-muted-foreground",
+                              compact && "hidden"
                             )}
                           >
                             {p.name}
@@ -894,12 +926,15 @@ function RailItem({
   active,
   activeBg,
   label,
+  compact,
   onClick,
   children,
 }: {
   active: boolean;
   activeBg: string;
   label: string;
+  /** Form açıkken yalnız karo — ad gizli */
+  compact?: boolean;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -908,14 +943,19 @@ function RailItem({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className="flex shrink-0 flex-col items-center gap-1 rounded-2xl px-0.5 pb-1.5 pt-2 transition-[background-color,transform] active:scale-95"
+      aria-label={compact ? label : undefined}
+      className={cn(
+        "flex shrink-0 flex-col items-center gap-1 rounded-2xl px-0.5 transition-[background-color,transform] active:scale-95",
+        compact ? "py-1.5" : "pb-1.5 pt-2"
+      )}
       style={active ? { background: activeBg } : undefined}
     >
       {children}
       <span
         className={cn(
           "block w-full truncate text-center text-[11px] leading-[14px]",
-          active ? "font-semibold text-foreground" : "text-muted-foreground"
+          active ? "font-semibold text-foreground" : "text-muted-foreground",
+          compact && "hidden"
         )}
       >
         {label}
