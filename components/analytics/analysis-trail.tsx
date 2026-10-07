@@ -1,7 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { LayoutGrid } from "lucide-react";
-import { HScroll } from "@/components/ui/h-scroll";
 import { cn } from "@/lib/utils";
 
 export interface TrailStep {
@@ -32,6 +32,22 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
   const rest = steps.filter((s) => !s.root);
   const placeKey = steps[steps.length - 1]?.key;
   const sep = <span className="shrink-0 px-1 text-muted-foreground/35">/</span>;
+
+  // Yolun kayan kısmı — kendi kaydırması: ok YOK (genel kaydırma bileşeninin
+  // kenar okları "Kategoriler"in dibine biniyordu), kayan kenar yumuşakça
+  // söner. Yol değişince sona yaslanır: bulunulan yer hep görünür.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrolled, setScrolled] = useState(false);
+  const pathKey = rest.map((s) => s.key).join("|");
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ left: el.scrollWidth, behavior: "smooth" });
+  }, [pathKey]);
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (el) setScrolled(el.scrollLeft > 1);
+  };
   return (
     // Yol bir kapsülün içinde — içeriği kadar geniş, uzayınca bandın
     // genişliğinde durup kendi içinde kayar
@@ -51,16 +67,27 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
         </button>
       )}
       {rest.length > 0 && (
-        <HScroll
-          className="items-center"
-          wrapperClassName="min-w-0"
-          followEnd={rest.map((s) => s.key).join("|")}
+        <>
+        {/* Kökten sonraki ayraç SABİT — kayan yazı köke yapışmasın */}
+        {sep}
+        <div
+          ref={scrollRef}
+          onScroll={onScroll}
+          className="no-scrollbar flex min-w-0 items-center overflow-x-auto"
+          style={
+            scrolled
+              ? {
+                  maskImage: "linear-gradient(to right, transparent, #000 18px)",
+                  WebkitMaskImage: "linear-gradient(to right, transparent, #000 18px)",
+                }
+              : undefined
+          }
         >
-          {rest.map((s) => {
+          {rest.map((s, i) => {
             const isPlace = s.key === placeKey;
             return (
               <span key={s.key} className="flex shrink-0 items-center">
-                {sep}
+                {i > 0 && sep}
                 <button
                   type="button"
                   onClick={s.onClick}
@@ -81,7 +108,8 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
               </span>
             );
           })}
-        </HScroll>
+        </div>
+        </>
       )}
     </div>
   );
