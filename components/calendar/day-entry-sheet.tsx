@@ -24,7 +24,7 @@ import { splitChoiceLevel } from "@/lib/choice-level";
 import type { LucideIcon } from "lucide-react";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
-import { EntryPicker } from "@/components/calendar/entry-picker";
+import { EntryPicker, useEntryLayout } from "@/components/calendar/entry-picker";
 import { SideFormWindow } from "@/components/calendar/side-form-window";
 import { CategoryForm } from "@/components/structure/category-form";
 import {
@@ -91,6 +91,8 @@ function DayEntrySheetBody({
 }: DayEntrySheetProps) {
   const router = useRouter();
   const t = useT();
+  // Raf görünümünde form eskisi gibi bütün yüzeyi kaplar; rayda soldan pencere
+  const layout = useEntryLayout();
   const [step, setStep] = useState<Step>({ type: "pick" });
   const [values, setValues] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState("");
@@ -457,7 +459,7 @@ function DayEntrySheetBody({
               onPickCategory={handlePickCategory}
               onClose={onClose}
               activity={activity ? { name: activity.name, count: activityCount } : null}
-              compact={step.type !== "pick"}
+              compact={layout === "ray" && step.type !== "pick"}
               onRailNavigate={leaveForm}
             />
 
@@ -467,7 +469,7 @@ function DayEntrySheetBody({
                     durur: ray simgelere daralıp sağda kalır, nereden
                     geldiğin görünür; raya dokunmak formu kapatıp oraya
                     gider. Sola kaydır: kapat, yukarı çek: tam ekran. */}
-                <SideFormWindow key={step.sub.id} onDismiss={leaveForm}>
+                <FormFrame layout={layout} key={step.sub.id} onDismiss={leaveForm}>
                   <FormStep
             key={step.sub.id}
             sub={step.sub}
@@ -503,7 +505,7 @@ function DayEntrySheetBody({
             saving={saving}
             entryDate={date}
                   />
-                </SideFormWindow>
+                </FormFrame>
               </>
             )}
           </>
@@ -513,6 +515,25 @@ function DayEntrySheetBody({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/** Formun kabı: rayda soldan kayan pencere, rafta bütün yüzeyi kaplayan sayfa */
+function FormFrame({
+  layout,
+  onDismiss,
+  children,
+}: {
+  layout: "ray" | "raf";
+  onDismiss: () => void;
+  children: React.ReactNode;
+}) {
+  if (layout === "ray")
+    return <SideFormWindow onDismiss={onDismiss}>{children}</SideFormWindow>;
+  return (
+    <div className="entry-push absolute inset-0 z-50 flex flex-col bg-background">
+      {children}
+    </div>
   );
 }
 

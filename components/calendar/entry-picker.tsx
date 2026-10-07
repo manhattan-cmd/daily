@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
 import {
   Check,
@@ -14,6 +21,9 @@ import {
   Search,
   Star,
   X,
+  ChevronDown,
+  LayoutList,
+  PanelRight,
 } from "lucide-react";
 import {
   loadUsageCounts,
@@ -57,6 +67,44 @@ export const RAIL_COMPACT_W = 64;
 const LS_PINS = "entrypicker:pins";
 /** Rayda en son bakılan durak — pencere yeniden açılınca oradan başlar */
 const LS_RAIL = "entrypicker:rail";
+
+/*
+ * GÖRÜNÜM: "ray" (sağda kategori rayı, form soldan pencere) ya da "raf"
+ * (tek uzun sayfa, her kategori bir raf; form eskisi gibi bütün yüzeyi
+ * kaplar). İkisi de deneniyor; seçim cihazda kalır, ⋯ menüsünden değişir.
+ * Seçici de girdi penceresi de aynı değeri okur (form nasıl açılacak).
+ */
+export type EntryLayout = "ray" | "raf";
+const LS_LAYOUT = "entrypicker:layout";
+const layoutListeners = new Set<() => void>();
+function readLayout(): EntryLayout {
+  if (typeof window === "undefined") return "raf";
+  try {
+    return localStorage.getItem(LS_LAYOUT) === "ray" ? "ray" : "raf";
+  } catch {
+    return "raf";
+  }
+}
+export function setEntryLayout(v: EntryLayout) {
+  try {
+    localStorage.setItem(LS_LAYOUT, v);
+  } catch {
+    /* kalıcı yazılamazsa da bu oturumda geçerli olsun diye aşağıda */
+  }
+  memLayout = v;
+  layoutListeners.forEach((l) => l());
+}
+let memLayout: EntryLayout | null = null;
+export function useEntryLayout(): EntryLayout {
+  return useSyncExternalStore(
+    (cb) => {
+      layoutListeners.add(cb);
+      return () => layoutListeners.delete(cb);
+    },
+    () => memLayout ?? readLayout(),
+    () => "raf"
+  );
+}
 
 function readPins(): string[] {
   if (typeof window === "undefined") return [];
@@ -122,6 +170,7 @@ export function EntryPicker({
   onRailNavigate?: () => void;
 }) {
   const t = useT();
+  const layout = useEntryLayout();
   const [rail, setRailState] = useState<string>(() => readRail() ?? QUICK);
   // Kullanıcı raya kendisi dokunduysa boş "Hızlı ekle"den kaçırılmaz
   const [railTouched, setRailTouched] = useState(false);
@@ -506,6 +555,18 @@ export function EntryPicker({
             </div>
           )}
         </div>
+      ) : layout === "raf" ? (
+        <ShelfBody
+          categories={categories}
+          topSubsByCat={topSubsByCat}
+          childrenMap={childrenMap}
+          quick={quick}
+          catById={catById}
+          onPick={onPick}
+          onPickCategory={onPickCategory}
+          onEditQuick={() => setPinOpen(true)}
+          onAddSub={(categoryId, parentId) => setAddSub({ categoryId, parentId })}
+        />
       ) : (
         /* Ray SAĞDA: sağ elle tutan kişinin başparmağı kategorilerin
            üstünde. Form soldan gelip rayın yanında durur. */
@@ -713,7 +774,21 @@ export function EntryPicker({
                 }}
               />
             )}
-            {selCat && (
+            <MenuItem
+              icon={
+                layout === "raf" ? (
+                  <PanelRight className="h-4 w-4" />
+                ) : (
+                  <LayoutList className="h-4 w-4" />
+                )
+              }
+              label={layout === "raf" ? t("entry.layoutToRay") : t("entry.layoutToRaf")}
+              onClick={() => {
+                setMenuOpen(false);
+                setEntryLayout(layout === "raf" ? "ray" : "raf");
+              }}
+            />
+            {layout === "ray" && selCat && (
               <MenuItem
                 icon={<FolderPlus className="h-4 w-4" />}
                 label={t("tree.createSubcategory")}
@@ -724,7 +799,7 @@ export function EntryPicker({
                 }}
               />
             )}
-            {selCat && (
+            {layout === "ray" && selCat && (
               /* prefetch açıkça: pencere içindeki bağlantıda görünürlük
                  tabanlı önden çekme tetiklenmiyor */
               <Link
@@ -919,6 +994,308 @@ function MenuItem({
         {hint && (
           <span className="block truncate text-[11px] text-muted-foreground">{hint}</span>
         )}
+      </span>
+    </button>
+  );
+}
+
+/**
+ * RAF görünümü — tek uzun sayfa. Üstte kategorilere atlatan şerit; altında
+ * önce hızlı ekle, sonra her kategori bir raf: kalemler hap hâlinde yan
+ * yana. Altı olan dal (sayısı ve aşağı ok) dokununca altını OLDUĞU YERDE
+ * açar; açılan kutunun ilk hapı dalın kendisine kayıt. Sayfa hiç değişmez,
+ * bütün ağaç bir bakışta.
+ */
+function ShelfBody({
+  categories,
+  topSubsByCat,
+  childrenMap,
+  quick,
+  catById,
+  onPick,
+  onPickCategory,
+  onEditQuick,
+  onAddSub,
+}: {
+  categories: Category[];
+  topSubsByCat: Map<string, SubCategory[]>;
+  childrenMap: Map<string, SubCategory[]>;
+  quick: SubCategory[];
+  catById: Map<string, Category>;
+  onPick: (sub: SubCategory) => void;
+  onPickCategory: (cat: Category) => void;
+  onEditQuick: () => void;
+  onAddSub: (categoryId: string, parentId?: string) => void;
+}) {
+  const t = useT();
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
+  // Şeritte vurgulanan raf — sayfa kaydıkça güncellenir
+  const [active, setActive] = useState<string>(QUICK);
+
+  function toggle(id: string) {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function jump(id: string) {
+    const body = bodyRef.current;
+    const sec = body?.querySelector<HTMLElement>(`[data-shelf="${id}"]`);
+    if (!body || !sec) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    body.scrollTo({ top: sec.offsetTop - 4, behavior: reduce ? "auto" : "smooth" });
+  }
+
+  function onScroll() {
+    const body = bodyRef.current;
+    if (!body) return;
+    let cur = QUICK;
+    for (const el of body.querySelectorAll<HTMLElement>("[data-shelf]")) {
+      if (el.offsetTop - 24 <= body.scrollTop) cur = el.dataset.shelf ?? cur;
+    }
+    if (cur !== active) {
+      setActive(cur);
+      stripRef.current
+        ?.querySelector(`[data-jump="${cur}"]`)
+        ?.scrollIntoView({ inline: "nearest", block: "nearest" });
+    }
+  }
+
+  /** Bir kalemin hapı; altı varsa dokununca altı yerinde açılır */
+  function pill(sub: SubCategory, color: string): React.ReactNode {
+    const kids = childrenMap.get(sub.id) ?? [];
+    if (kids.length === 0) {
+      return (
+        <button
+          key={sub.id}
+          type="button"
+          onClick={() => onPick(sub)}
+          className={PILL_CLS}
+        >
+          <PillGlyph icon={sub.icon} color={color} />
+          <span className="truncate">{sub.name}</span>
+        </button>
+      );
+    }
+    const isOpen = open.has(sub.id);
+    return [
+      <button
+        key={sub.id}
+        type="button"
+        onClick={() => toggle(sub.id)}
+        aria-expanded={isOpen}
+        className={cn(PILL_CLS, isOpen && "bg-[var(--sf-3)]")}
+        style={isOpen ? { boxShadow: `inset 0 0 0 1px ${color}66` } : undefined}
+      >
+        <PillGlyph icon={sub.icon} color={color} />
+        <span className="truncate">{sub.name}</span>
+        <span className="flex shrink-0 items-center gap-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+          {kids.length}
+          <ChevronDown
+            className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-180")}
+          />
+        </span>
+      </button>,
+      isOpen && (
+        <div
+          key={`${sub.id}-in`}
+          className="entry-stagger flex w-full flex-wrap gap-1.5 rounded-2xl p-2"
+          style={{ background: `${color}12`, boxShadow: `inset 0 0 0 1px ${color}38` }}
+        >
+          {/* Dalın KENDİSİNE kayıt — kesik çerçeveli ilk hap */}
+          <button
+            type="button"
+            onClick={() => onPick(sub)}
+            className={cn(PILL_CLS, "bg-transparent font-medium text-foreground/80")}
+            style={{ boxShadow: `inset 0 0 0 1px ${color}66`, borderStyle: "dashed" }}
+          >
+            <Plus className="h-3.5 w-3.5 shrink-0" style={{ color }} strokeWidth={2.75} />
+            <span className="truncate">
+              {sub.name} {t("entry.general")}
+            </span>
+          </button>
+          {kids.map((k) => pill(k, color))}
+        </div>
+      ),
+    ];
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Atlama şeridi — rafa kaydırır; bulunulan raf vurgulu */}
+      <div
+        ref={stripRef}
+        className="no-scrollbar flex shrink-0 gap-1 overflow-x-auto px-3 pb-2"
+      >
+        <JumpItem
+          id={QUICK}
+          active={active === QUICK}
+          activeBg="var(--sf-3)"
+          label={t("entry.quickShort")}
+          onClick={() => jump(QUICK)}
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[var(--sf-3)]">
+            <Star className="h-[17px] w-[17px] fill-amber-400 text-amber-400" />
+          </span>
+        </JumpItem>
+        {categories.map((c) => (
+          <JumpItem
+            key={c.id}
+            id={c.id}
+            active={active === c.id}
+            activeBg={`${c.color}29`}
+            label={c.name}
+            onClick={() => jump(c.id)}
+          >
+            <Tile color={c.color} icon={c.icon} size={36} />
+          </JumpItem>
+        ))}
+      </div>
+
+      <div
+        ref={bodyRef}
+        onScroll={onScroll}
+        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-4"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 40vh)" }}
+      >
+        <div className="entry-stagger flex flex-col gap-6 pt-2">
+          <section data-shelf={QUICK} className="flex flex-col gap-2.5">
+            <div className="flex items-center gap-2 px-0.5">
+              <h3 className="flex-1 text-[13px] font-semibold text-muted-foreground">
+                {t("entry.quickAdd")}
+              </h3>
+              <button
+                type="button"
+                onClick={onEditQuick}
+                className="rounded-full px-2.5 py-1 text-[12px] font-semibold text-primary transition-colors hover:bg-primary/10"
+              >
+                {quick.length ? t("action.edit") : t("action.add")}
+              </button>
+            </div>
+            {quick.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {quick.map((sub) => (
+                  <button
+                    key={sub.id}
+                    type="button"
+                    onClick={() => onPick(sub)}
+                    className={PILL_CLS}
+                  >
+                    <PillGlyph
+                      icon={sub.icon}
+                      color={catById.get(sub.categoryId)?.color ?? "#818cf8"}
+                    />
+                    <span className="truncate">{sub.name}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={onEditQuick}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--ln-2)] py-3.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <Plus className="h-4 w-4" />
+                {t("entry.pinTitle")}
+              </button>
+            )}
+          </section>
+
+          {categories.map((c) => {
+            const top = topSubsByCat.get(c.id) ?? [];
+            return (
+              <section key={c.id} data-shelf={c.id} className="flex flex-col gap-2.5">
+                <div className="flex items-center gap-2.5">
+                  <Tile color={c.color} icon={c.icon} size={28} />
+                  <h3 className="min-w-0 flex-1 truncate text-[16px] font-bold tracking-tight">
+                    {c.name}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => onPickCategory(c)}
+                    className="flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-[12px] font-semibold transition-transform active:scale-95"
+                    style={{ background: `${c.color}24`, color: c.color }}
+                  >
+                    <Plus className="h-3.5 w-3.5" strokeWidth={2.75} />
+                    {t("entry.general")}
+                  </button>
+                </div>
+                {top.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">{top.map((s) => pill(s, c.color))}</div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onAddSub(c.id)}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--ln-2)] py-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <FolderPlus className="h-4 w-4" />
+                    {t("tree.createSubcategory")}
+                  </button>
+                )}
+              </section>
+            );
+          })}
+          {categories.length === 0 && (
+            <p className="px-1 py-10 text-center text-sm text-muted-foreground">
+              {t("tree.noCategoriesYet")}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const PILL_CLS =
+  "flex h-10 max-w-full items-center gap-2 rounded-[14px] bg-[var(--sf-2)] pl-2.5 pr-3 text-[14px] font-semibold transition-[background-color,transform] hover:bg-[var(--sf-3)] active:scale-[0.96]";
+
+/** Hapın sembolü — karo yok, sembol kategorinin renginde */
+function PillGlyph({ icon, color }: { icon?: string; color: string }) {
+  return icon ? (
+    <SymbolIcon name={icon} size={18} style={{ color }} />
+  ) : (
+    <Folder className="h-[18px] w-[18px] shrink-0" style={{ color }} />
+  );
+}
+
+/** Atlama şeridinin bir durağı */
+function JumpItem({
+  id,
+  active,
+  activeBg,
+  label,
+  onClick,
+  children,
+}: {
+  id: string;
+  active: boolean;
+  activeBg: string;
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      data-jump={id}
+      onClick={onClick}
+      aria-pressed={active}
+      className="flex w-[60px] shrink-0 flex-col items-center gap-1 rounded-2xl px-0.5 pb-1.5 pt-1.5 transition-[background-color,transform] active:scale-95"
+      style={active ? { background: activeBg } : undefined}
+    >
+      {children}
+      <span
+        className={cn(
+          "block w-full truncate text-center text-[10px] leading-3",
+          active ? "font-semibold text-foreground" : "text-muted-foreground"
+        )}
+      >
+        {label}
       </span>
     </button>
   );
