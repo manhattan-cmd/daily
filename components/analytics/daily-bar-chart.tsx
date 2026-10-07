@@ -111,11 +111,17 @@ export function DailyBarChart({
   // çifti DOM değişiminden etkilenmez; hareket eşiği kaydırmayı dokunuştan ayırır.
   const pointerDown = useRef<{ x: number; y: number } | null>(null);
 
-  // Dokunuşta tarayıcının emüle hover'ı tooltip'i grafikte takılı bırakıyor —
-  // parmak kalktıktan kısa süre sonra gizlenir (true → Tooltip'e active={false});
-  // böylece dokunulan değer görünüp kendiliğinden kaybolur. Yeni basış ya da
-  // gerçek fare hareketi serbest bırakır; masaüstü hover akışı etkilenmez.
-  const [tipDismissed, setTipDismissed] = useState(false);
+  /*
+   * Değer balonu DOKUNMATİKTE yalnız kasıtlı bir dokunuşta açılır: parmak
+   * değip kaymadan kalkarsa. Eskiden grafik parmağın değdiği AN değeri
+   * gösteriyordu — sayfayı kaydırırken çizgiye/noktaya değmek yanlışlıkla
+   * balon açıyordu. Kaydırma başlayınca tarayıcı dokunuşu iptal eder
+   * (pointercancel), balon hiç açılmaz. Açılan balon birkaç saniye sonra
+   * kendiliğinden kapanır. Farede imleçle üzerine gelmek eskisi gibi.
+   */
+  const [touchMode, setTouchMode] = useState(false);
+  const [tapShown, setTapShown] = useState(false);
+  const tipActive = touchMode ? tapShown : undefined;
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Seçilen kova + balonun sütuna göre konumu. Dokunuş doğrudan gitmez:
   // sütunun üstünde küçük bir balon açılır, gitmek balonun içindeki
@@ -154,16 +160,17 @@ export function DailyBarChart({
   }, [picked]);
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType !== "mouse") {
-      if (dismissTimer.current) clearTimeout(dismissTimer.current);
-      dismissTimer.current = setTimeout(() => setTipDismissed(true), 1500);
-    }
     const down = pointerDown.current;
     pointerDown.current = null;
-    if (!onSelect || !data.length || !down) return;
     // Kaydırma/sürükleme dokunuş sayılmaz
-    if (Math.abs(e.clientX - down.x) > 10 || Math.abs(e.clientY - down.y) > 10)
-      return;
+    const moved =
+      !down || Math.abs(e.clientX - down.x) > 10 || Math.abs(e.clientY - down.y) > 10;
+    if (e.pointerType !== "mouse" && !moved) {
+      setTapShown(true);
+      if (dismissTimer.current) clearTimeout(dismissTimer.current);
+      dismissTimer.current = setTimeout(() => setTapShown(false), 2500);
+    }
+    if (!onSelect || !data.length || moved) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const plotLeft = Y_AXIS_WIDTH + MARGIN_LEFT;
     const plotWidth = rect.width - plotLeft - MARGIN_RIGHT;
@@ -193,11 +200,19 @@ export function DailyBarChart({
       onPointerDown={(e) => {
         pointerDown.current = { x: e.clientX, y: e.clientY };
         if (dismissTimer.current) clearTimeout(dismissTimer.current);
-        setTipDismissed(false);
+        const touch = e.pointerType !== "mouse";
+        setTouchMode(touch);
+        // Yeni dokunuş: önceki balon kapanır, bu dokunuş kaymadan biterse açılır
+        if (touch) setTapShown(false);
       }}
       onPointerUp={handlePointerUp}
+      // Kaydırma başladı — dokunuş iptal, balon açılmaz
+      onPointerCancel={() => {
+        pointerDown.current = null;
+        setTapShown(false);
+      }}
       onPointerMove={(e) => {
-        if (e.pointerType === "mouse" && tipDismissed) setTipDismissed(false);
+        if (e.pointerType === "mouse" && touchMode) setTouchMode(false);
       }}
     >
       {allZero && (
@@ -243,7 +258,7 @@ export function DailyBarChart({
           />
           <Tooltip
             cursor={false}
-            active={tipDismissed ? false : undefined}
+            active={tipActive}
             content={<ChartTip unit={unit} />}
           />
           <Line
@@ -305,7 +320,7 @@ export function DailyBarChart({
           {!onSelect && (
             <Tooltip
               cursor={false}
-              active={tipDismissed ? false : undefined}
+              active={tipActive}
               content={<ChartTip unit={unit} stack={stack} />}
             />
           )}
