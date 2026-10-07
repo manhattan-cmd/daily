@@ -119,8 +119,12 @@ export function DrillLevel({
     };
   }, [data, compute, metric, parent, category.name, category.color, t]);
 
-  const metricLabel =
-    share && !share.byCount && metric.type !== "count" ? metric.mod.name : null;
+  // Rozet her zaman: kartın rakamları hangi gözle — "Girdi"de de
+  const metricLabel = share
+    ? share.byCount || metric.type === "count"
+      ? t("list.entry")
+      : metric.mod.name
+    : null;
 
   return (
     <section

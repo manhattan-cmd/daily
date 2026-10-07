@@ -452,7 +452,7 @@ export function PeriodView({
           compact
           className={ANALYSIS_HEADER}
           title={title ?? period.label}
-          titleSlot={<PeriodNav period={requestedPeriod} label={title} />}
+          titleSlot={<PeriodNav period={requestedPeriod} />}
           nav={<PeriodTabs period={requestedPeriod} />}
         />
         <div className="flex flex-col gap-4 pb-6">
@@ -486,7 +486,6 @@ export function PeriodView({
         titleSlot={
           <PeriodNav
             period={period}
-            label={title}
             note={
               showProgress
                 ? t("period.progress", {
@@ -602,6 +601,11 @@ export function PeriodView({
             emptyText={t("insights.noEntriesInPeriod")}
             selectedId={selectedCat?.id ?? null}
             onSelect={(id) => {
+              // Seçili kategoriye yeniden dokunmak seçimi kaldırır
+              if (id === selectedCat?.id) {
+                setCatsOnly(true);
+                return;
+              }
               pickCat(id);
               const cat = data?.cats.find((c) => c.id === id);
               const kids = data?.subs.some(
