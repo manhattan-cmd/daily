@@ -43,8 +43,7 @@ import {
   EntryListSection,
   type EntryListRow,
 } from "@/components/analytics/entry-list";
-import { PeriodSwitcher } from "@/components/analytics/period-switcher";
-import { MENU_PANEL } from "@/components/analytics/header-rail";
+import { PeriodArrows, PeriodTabs } from "@/components/analytics/period-switcher";
 import {
   PeriodCategoryPanel,
   panelWindow,
@@ -57,8 +56,7 @@ import {
   setAnalysisPath,
 } from "@/components/analytics/analysis-selection";
 import { DrillLevel } from "@/components/analytics/drill-level";
-import { AnalysisLens, AnalysisTrail } from "@/components/analytics/analysis-trail";
-import { modColor } from "@/lib/mod-color";
+import { AnalysisTrail } from "@/components/analytics/analysis-trail";
 import type { SubCategory } from "@/types";
 import { LazyMount } from "@/components/ui/lazy-mount";
 import { useT } from "@/lib/i18n";
@@ -369,10 +367,6 @@ export function PeriodView({
       ? metricSel.id
       : carried?.metricId ?? "count"
     : "count";
-  const metricMod = useLiveQuery(
-    () => (metricId !== "count" ? db.mods.get(metricId) : undefined),
-    [metricId]
-  );
   /** Kalemin altında başka kalem var mı — varsa kendi kartı açılır */
   const hasKids = (node: SubCategory | null): boolean =>
     !!data &&
@@ -458,12 +452,8 @@ export function PeriodView({
           compact
           className={ANALYSIS_HEADER}
           title={title ?? period.label}
-          back={back}
-          nav={
-            <div className={MENU_PANEL}>
-              <PeriodSwitcher period={requestedPeriod} />
-            </div>
-          }
+          action={<PeriodArrows period={requestedPeriod} />}
+          nav={<PeriodTabs period={requestedPeriod} />}
         />
         <div className="flex flex-col gap-4 pb-6">
           <div className="grid grid-cols-3 gap-2">
@@ -499,12 +489,15 @@ export function PeriodView({
               })
             : undefined
         }
-        back={back}
+        // Tarih okları başlığın hizasında; geri oku yok — başlığı içeri itip
+        // altındaki sekmeler ve yolla hizasını bozuyordu, dönemler arasında
+        // zaten sekmeler ve oklarla geziliyor
+        action={<PeriodArrows period={period} />}
         nav={
-          // Tek menü paneli: üstte ZAMAN (renksiz ayar), altta YER (renkli yol)
-          <div className={MENU_PANEL}>
-          <PeriodSwitcher period={period} />
-          <div className="mx-2 h-px bg-[var(--ln-1)]" />
+          // Sade menü: ZAMAN sekmeleri (renksiz), altında YER yolu (tek vurgu:
+          // bulunulan kalem). Hepsi başlıkla aynı sol çizgiden başlar.
+          <div className="flex flex-col gap-1">
+          <PeriodTabs period={period} />
           <AnalysisTrail
             steps={[
               // Yolun kökü: bütün kategoriler. Dokununca seçim kalkar ve
@@ -537,18 +530,6 @@ export function PeriodView({
             ]}
           />
           </div>
-        }
-        action={
-          selectedCat ? (
-            <AnalysisLens
-              lens={{
-                label: metricMod ? metricMod.name : t("list.entry"),
-                color: metricMod ? modColor(metricMod) : selectedCat.color,
-                neutral: !metricMod,
-                onClick: () => setScrollTarget("focus"),
-              }}
-            />
-          ) : undefined
         }
       />
 
