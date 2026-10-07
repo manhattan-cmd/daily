@@ -21,7 +21,6 @@ import {
   Search,
   Star,
   X,
-  ChevronDown,
   LayoutList,
   PanelRight,
 } from "lucide-react";
@@ -1000,12 +999,19 @@ function MenuItem({
 }
 
 /**
- * RAF görünümü — tek uzun sayfa. Üstte kategorilere atlatan şerit; altında
- * önce hızlı ekle, sonra her kategori bir raf: kalemler hap hâlinde yan
- * yana. Altı olan dal (sayısı ve aşağı ok) dokununca altını OLDUĞU YERDE
- * açar; açılan kutunun ilk hapı dalın kendisine kayıt. Sayfa hiç değişmez,
- * bütün ağaç bir bakışta.
+ * RAF görünümü — tek uzun sayfa. Üstte raflara atlatan sakin bir sekme
+ * şeridi; altında önce hızlı ekle, sonra her kategori bir raf.
+ *
+ * İlk denemede kalemler farklı genişlikte haplardı, her hapın sembolü ayrı
+ * renkteydi, her rafın "+ genel"i renkli bir çipti: ekranda aynı anda on
+ * renk ve hizasız satırlar — "korkunç karışık". Şimdi her raf 4 sütunlu
+ * DÜZGÜN bir ızgara, renk yalnız karolarda (seçicinin her yerindeki karo
+ * dili), başlıklar sessiz. Altı olan dal klasör gibi açılır: kendi satırının
+ * hemen altında, bütün satırı kaplayan bir kutu; içinde önce dalın kendisi
+ * ("Genel"), sonra alt kalemler. Aynı anda tek dal yolu açık kalır.
  */
+const SHELF_COLS = 4;
+
 function ShelfBody({
   categories,
   topSubsByCat,
@@ -1030,17 +1036,15 @@ function ShelfBody({
   const t = useT();
   const bodyRef = useRef<HTMLDivElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState<Set<string>>(() => new Set());
+  /** Açık dal yolu — kökten derine; başka dala basmak öncekini kapatır */
+  const [openPath, setOpenPath] = useState<string[]>([]);
   // Şeritte vurgulanan raf — sayfa kaydıkça güncellenir
   const [active, setActive] = useState<string>(QUICK);
 
-  function toggle(id: string) {
-    setOpen((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  function toggle(id: string, depth: number) {
+    setOpenPath((prev) =>
+      prev[depth] === id ? prev.slice(0, depth) : [...prev.slice(0, depth), id]
+    );
   }
 
   function jump(id: string) {
@@ -1066,132 +1070,112 @@ function ShelfBody({
     }
   }
 
-  /** Bir kalemin hapı; altı varsa dokununca altı yerinde açılır */
-  function pill(sub: SubCategory, color: string): React.ReactNode {
-    const kids = childrenMap.get(sub.id) ?? [];
-    if (kids.length === 0) {
-      return (
-        <button
+  /**
+   * Bir kalem ızgarası. Açık dalın kutusu, dalın bulunduğu SATIRIN sonuna
+   * (bütün satırı kaplayarak) yerleşir — klasör gibi.
+   */
+  function grid(items: SubCategory[], color: string, depth: number, lead?: React.ReactNode) {
+    const cells: React.ReactNode[] = [];
+    if (lead) cells.push(lead);
+    let panel: React.ReactNode = null;
+    let panelAfter = -1;
+    items.forEach((sub) => {
+      const kids = childrenMap.get(sub.id) ?? [];
+      const isOpen = openPath[depth] === sub.id;
+      cells.push(
+        <ShelfTile
           key={sub.id}
-          type="button"
-          onClick={() => onPick(sub)}
-          className={PILL_CLS}
-        >
-          <PillGlyph icon={sub.icon} color={color} />
-          <span className="truncate">{sub.name}</span>
-        </button>
+          color={color}
+          icon={sub.icon}
+          label={sub.name}
+          count={kids.length || undefined}
+          open={isOpen}
+          onClick={() => (kids.length ? toggle(sub.id, depth) : onPick(sub))}
+        />
       );
-    }
-    const isOpen = open.has(sub.id);
-    return [
-      <button
-        key={sub.id}
-        type="button"
-        onClick={() => toggle(sub.id)}
-        aria-expanded={isOpen}
-        className={cn(PILL_CLS, isOpen && "bg-[var(--sf-3)]")}
-        style={isOpen ? { boxShadow: `inset 0 0 0 1px ${color}66` } : undefined}
-      >
-        <PillGlyph icon={sub.icon} color={color} />
-        <span className="truncate">{sub.name}</span>
-        <span className="flex shrink-0 items-center gap-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
-          {kids.length}
-          <ChevronDown
-            className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-180")}
-          />
-        </span>
-      </button>,
-      isOpen && (
-        <div
-          key={`${sub.id}-in`}
-          className="entry-stagger flex w-full flex-wrap gap-1.5 rounded-2xl p-2"
-          style={{ background: `${color}12`, boxShadow: `inset 0 0 0 1px ${color}38` }}
-        >
-          {/* Dalın KENDİSİNE kayıt — kesik çerçeveli ilk hap */}
-          <button
-            type="button"
-            onClick={() => onPick(sub)}
-            className={cn(PILL_CLS, "bg-transparent font-medium text-foreground/80")}
-            style={{ boxShadow: `inset 0 0 0 1px ${color}66`, borderStyle: "dashed" }}
+      if (isOpen && kids.length) {
+        const idx = cells.length - 1;
+        panelAfter = Math.min(
+          Math.ceil((idx + 1) / SHELF_COLS) * SHELF_COLS - 1,
+          items.length + (lead ? 1 : 0) - 1
+        );
+        panel = (
+          <div
+            key={`${sub.id}-in`}
+            className="entry-stagger col-span-full rounded-2xl bg-[var(--sf-1)] p-1.5 ring-1 ring-inset ring-[var(--ln-1)]"
           >
-            <Plus className="h-3.5 w-3.5 shrink-0" style={{ color }} strokeWidth={2.75} />
-            <span className="truncate">
-              {sub.name} {t("entry.general")}
-            </span>
-          </button>
-          {kids.map((k) => pill(k, color))}
-        </div>
-      ),
-    ];
+            {grid(
+              kids,
+              color,
+              depth + 1,
+              <ShelfTile
+                key={`${sub.id}-self`}
+                color={color}
+                label={t("entry.general")}
+                self
+                onClick={() => onPick(sub)}
+              />
+            )}
+          </div>
+        );
+      }
+    });
+    if (panel) cells.splice(panelAfter + 1, 0, panel);
+    return <div className="grid grid-cols-4 gap-x-1 gap-y-2">{cells}</div>;
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* Atlama şeridi — rafa kaydırır; bulunulan raf vurgulu */}
+      {/* Atlama şeridi — yazı sekmeleri; renk yalnız küçük noktada */}
       <div
         ref={stripRef}
         className="no-scrollbar flex shrink-0 gap-1 overflow-x-auto px-3 pb-2"
       >
-        <JumpItem
-          id={QUICK}
-          active={active === QUICK}
-          activeBg="var(--sf-3)"
-          label={t("entry.quickShort")}
-          onClick={() => jump(QUICK)}
-        >
-          <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[var(--sf-3)]">
-            <Star className="h-[17px] w-[17px] fill-amber-400 text-amber-400" />
-          </span>
-        </JumpItem>
-        {categories.map((c) => (
-          <JumpItem
-            key={c.id}
-            id={c.id}
-            active={active === c.id}
-            activeBg={`${c.color}29`}
-            label={c.name}
-            onClick={() => jump(c.id)}
-          >
-            <Tile color={c.color} icon={c.icon} size={36} />
-          </JumpItem>
-        ))}
+        {[{ id: QUICK, name: t("entry.quickShort"), color: "#fbbf24" }, ...categories.map((c) => ({ id: c.id, name: c.name, color: c.color }))].map(
+          (s) => (
+            <button
+              key={s.id}
+              type="button"
+              data-jump={s.id}
+              onClick={() => jump(s.id)}
+              aria-pressed={active === s.id}
+              className={cn(
+                "flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition-colors",
+                active === s.id
+                  ? "bg-[var(--sf-3)] text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: s.color }} />
+              {s.name}
+            </button>
+          )
+        )}
       </div>
 
       <div
         ref={bodyRef}
         onScroll={onScroll}
-        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-4"
+        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-3"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 40vh)" }}
       >
-        <div className="entry-stagger flex flex-col gap-6 pt-2">
-          <section data-shelf={QUICK} className="flex flex-col gap-2.5">
-            <div className="flex items-center gap-2 px-0.5">
-              <h3 className="flex-1 text-[13px] font-semibold text-muted-foreground">
-                {t("entry.quickAdd")}
-              </h3>
-              <button
-                type="button"
-                onClick={onEditQuick}
-                className="rounded-full px-2.5 py-1 text-[12px] font-semibold text-primary transition-colors hover:bg-primary/10"
-              >
-                {quick.length ? t("action.edit") : t("action.add")}
-              </button>
-            </div>
+        <div className="entry-stagger flex flex-col gap-7 pt-2">
+          <section data-shelf={QUICK} className="flex flex-col gap-2">
+            <ShelfHead
+              title={t("entry.quickAdd")}
+              action={quick.length ? t("action.edit") : t("action.add")}
+              onAction={onEditQuick}
+            />
             {quick.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="grid grid-cols-4 gap-x-1 gap-y-2">
                 {quick.map((sub) => (
-                  <button
+                  <ShelfTile
                     key={sub.id}
-                    type="button"
+                    color={catById.get(sub.categoryId)?.color ?? "#818cf8"}
+                    icon={sub.icon}
+                    label={sub.name}
                     onClick={() => onPick(sub)}
-                    className={PILL_CLS}
-                  >
-                    <PillGlyph
-                      icon={sub.icon}
-                      color={catById.get(sub.categoryId)?.color ?? "#818cf8"}
-                    />
-                    <span className="truncate">{sub.name}</span>
-                  </button>
+                  />
                 ))}
               </div>
             ) : (
@@ -1209,24 +1193,19 @@ function ShelfBody({
           {categories.map((c) => {
             const top = topSubsByCat.get(c.id) ?? [];
             return (
-              <section key={c.id} data-shelf={c.id} className="flex flex-col gap-2.5">
-                <div className="flex items-center gap-2.5">
-                  <Tile color={c.color} icon={c.icon} size={28} />
-                  <h3 className="min-w-0 flex-1 truncate text-[16px] font-bold tracking-tight">
-                    {c.name}
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => onPickCategory(c)}
-                    className="flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-[12px] font-semibold transition-transform active:scale-95"
-                    style={{ background: `${c.color}24`, color: c.color }}
-                  >
-                    <Plus className="h-3.5 w-3.5" strokeWidth={2.75} />
-                    {t("entry.general")}
-                  </button>
-                </div>
+              <section key={c.id} data-shelf={c.id} className="flex flex-col gap-2">
+                <ShelfHead
+                  title={c.name}
+                  color={c.color}
+                  action={`+ ${t("entry.general")}`}
+                  onAction={() => onPickCategory(c)}
+                />
                 {top.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">{top.map((s) => pill(s, c.color))}</div>
+                  grid(
+                    top,
+                    c.color,
+                    0
+                  )
                 ) : (
                   <button
                     type="button"
@@ -1251,50 +1230,85 @@ function ShelfBody({
   );
 }
 
-const PILL_CLS =
-  "flex h-10 max-w-full items-center gap-2 rounded-[14px] bg-[var(--sf-2)] pl-2.5 pr-3 text-[14px] font-semibold transition-[background-color,transform] hover:bg-[var(--sf-3)] active:scale-[0.96]";
-
-/** Hapın sembolü — karo yok, sembol kategorinin renginde */
-function PillGlyph({ icon, color }: { icon?: string; color: string }) {
-  return icon ? (
-    <SymbolIcon name={icon} size={18} style={{ color }} />
-  ) : (
-    <Folder className="h-[18px] w-[18px] shrink-0" style={{ color }} />
+/** Rafın başlığı — sessiz: küçük renk noktası, ad, sağda yazı düğmesi */
+function ShelfHead({
+  title,
+  color,
+  action,
+  onAction,
+}: {
+  title: string;
+  color?: string;
+  action: string;
+  onAction: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 px-1.5">
+      {color && <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />}
+      <h3 className="min-w-0 flex-1 truncate text-[15px] font-bold tracking-tight">{title}</h3>
+      <button
+        type="button"
+        onClick={onAction}
+        className="shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+      >
+        {action}
+      </button>
+    </div>
   );
 }
 
-/** Atlama şeridinin bir durağı */
-function JumpItem({
-  id,
-  active,
-  activeBg,
+/**
+ * Izgara karosu — dolu renkli kare + altında ad. Altı olan dalda köşede
+ * sayısı; açıkken karo çerçevelenir. `self`: açılan dalın kendisine kayıt
+ * (kesik çerçeveli artı).
+ */
+function ShelfTile({
+  color,
+  icon,
   label,
+  count,
+  open,
+  self,
   onClick,
-  children,
 }: {
-  id: string;
-  active: boolean;
-  activeBg: string;
+  color: string;
+  icon?: string;
   label: string;
+  count?: number;
+  open?: boolean;
+  self?: boolean;
   onClick: () => void;
-  children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
-      data-jump={id}
       onClick={onClick}
-      aria-pressed={active}
-      className="flex w-[60px] shrink-0 flex-col items-center gap-1 rounded-2xl px-0.5 pb-1.5 pt-1.5 transition-[background-color,transform] active:scale-95"
-      style={active ? { background: activeBg } : undefined}
+      aria-expanded={count ? !!open : undefined}
+      className="flex min-w-0 flex-col items-center gap-1.5 rounded-2xl px-0.5 pb-1.5 pt-2 transition-[background-color,transform] hover:bg-[var(--sf-1)] active:scale-[0.95]"
     >
-      {children}
-      <span
-        className={cn(
-          "block w-full truncate text-center text-[10px] leading-3",
-          active ? "font-semibold text-foreground" : "text-muted-foreground"
+      <span className="relative">
+        {self ? (
+          <span
+            className="flex h-12 w-12 items-center justify-center rounded-[14px] border-[1.5px] border-dashed"
+            style={{ borderColor: `${color}99`, color }}
+          >
+            <Plus className="h-5 w-5" strokeWidth={2.5} />
+          </span>
+        ) : (
+          <span
+            className="block rounded-[14px] transition-shadow"
+            style={open ? { boxShadow: `0 0 0 2px var(--background), 0 0 0 4px ${color}` } : undefined}
+          >
+            <Tile color={color} icon={icon} size={48} />
+          </span>
         )}
-      >
+        {count ? (
+          <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-background px-1 text-[10px] font-bold tabular-nums text-foreground ring-1 ring-[var(--ln-2)]">
+            {count}
+          </span>
+        ) : null}
+      </span>
+      <span className="line-clamp-2 w-full text-center text-[11.5px] font-medium leading-[14px] text-foreground/90 first-letter:uppercase">
         {label}
       </span>
     </button>
