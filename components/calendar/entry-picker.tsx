@@ -48,6 +48,10 @@ const NO_COUNTS: ReadonlyMap<string, number> = new Map();
 const QUICK_MAX = 8;
 /** Rayın ilk durağı — kategori değil, hızlı ekle bölmesi */
 const QUICK = "quick";
+/** Olay işleyicisinde okunan saat — çizim saf kalsın diye modül düzeyinde */
+const tapClock = () => performance.now();
+/** İki dokunuş arası bu kadar kısaysa çift dokunuş */
+const DOUBLE_TAP_MS = 280;
 /** Rayın genişliği; form yandan açıkken yalnız simgelere daralır */
 const RAIL_W = 96;
 export const RAIL_COMPACT_W = 64;
@@ -187,6 +191,20 @@ export function EntryPicker({
    */
   const [path, setPath] = useState<string[]>([]);
   const paneRef = useRef<HTMLDivElement>(null);
+  const railRef = useRef<HTMLElement>(null);
+  /*
+   * ÇİFT DOKUNUŞ. Kategoriye ya da dala çift dokunmak onun KENDİSİNE kayıt
+   * açar (eskiden başlıktaki "+ genel" düğmesiydi; o yere "+ alt kategori"
+   * geldi). Raydaki duraklarda tek dokunuş hemen çalışır, ikincisi kaydı
+   * açar. Bölmedeki dalda tek dokunuş dalı raya taşıyıp bölmeyi değiştirdiği
+   * için kısa bir süre ikinci dokunuş beklenir — yoksa ikinci dokunuş
+   * değişen bölmede başka bir kaleme düşerdi.
+   */
+  const lastTap = useRef<{ key: string; t: number } | null>(null);
+  const pendingDrill = useRef<{ id: string; timer: ReturnType<typeof setTimeout> } | null>(null);
+  useEffect(() => () => {
+    if (pendingDrill.current) clearTimeout(pendingDrill.current.timer);
+  }, []);
   const rootRef = useRef<HTMLDivElement>(null);
   // Dala basınca karosu bölmeden raydaki yerine uçar (bkz. useLayoutEffect)
   const fly = useRef<{ id: string; rect: DOMRect; node: HTMLElement } | null>(null);
@@ -387,6 +405,35 @@ export function EntryPicker({
     setPath(chain);
   }
 
+  function isDoubleTap(key: string): boolean {
+    const now = tapClock();
+    const last = lastTap.current;
+    if (last && last.key === key && now - last.t < DOUBLE_TAP_MS) {
+      lastTap.current = null;
+      return true;
+    }
+    lastTap.current = { key, t: now };
+    return false;
+  }
+
+  /** Bölmede alt kalemi olan dala dokunuş: tekse in, çiftse kendisine kayıt */
+  function tapBranch(sub: SubCategory, el: HTMLElement) {
+    const p = pendingDrill.current;
+    if (p) clearTimeout(p.timer);
+    pendingDrill.current = null;
+    if (p?.id === sub.id) {
+      onPick(sub);
+      return;
+    }
+    pendingDrill.current = {
+      id: sub.id,
+      timer: setTimeout(() => {
+        pendingDrill.current = null;
+        drill(sub, el);
+      }, DOUBLE_TAP_MS),
+    };
+  }
+
   /** Bir dala in — karosu raydaki yerine uçacak */
   function drill(sub: SubCategory, from: HTMLElement) {
     const tile = from.querySelector<HTMLElement>("[data-tile]");
@@ -410,9 +457,21 @@ export function EntryPicker({
     fly.current = null;
     const root = rootRef.current;
     if (!f || !root || f.id !== node?.id) return;
-    const target = root.querySelector<HTMLElement>(
+    // Ray döngüde: aynı basamak her kopyada var — görünen yere en yakını
+    const railBox = railRef.current?.getBoundingClientRect();
+    const mid = railBox ? railBox.top + railBox.height / 2 : 0;
+    let target: HTMLElement | null = null;
+    let best = Infinity;
+    for (const el of root.querySelectorAll<HTMLElement>(
       `[data-rail-node="${f.id}"] [data-tile]`
-    );
+    )) {
+      const r = el.getBoundingClientRect();
+      const d = Math.abs(r.top + r.height / 2 - mid);
+      if (d < best) {
+        best = d;
+        target = el;
+      }
+    }
     if (!target) return;
     target.scrollIntoView({ block: "nearest" });
     const rr = root.getBoundingClientRect();
@@ -449,6 +508,36 @@ export function EntryPicker({
       done();
     };
   }, [node?.id]);
+
+  /*
+   * SONSUZ RAY. Duraklar kopyalanıp alt alta diziliyor; kaydırma ortadaki
+   * kopyanın yarısından taşınca görünmeden bir kopya boyu geri alınıyor.
+   * Böylece ray ne üstte ne altta bitiyor: istenen kategori başparmağın
+   * rahat ettiği yüksekliğe getirilip basılabiliyor. Çok az kategoride
+   * (ikiden az) döngü yok.
+   */
+  const railCopies = categories.length < 2 ? 1 : categories.length < 6 ? 5 : 3;
+  const railMid = Math.floor(railCopies / 2);
+  const copyHeight = () => {
+    const el = railRef.current;
+    const a = el?.querySelector<HTMLElement>('[data-rail-copy="0"]');
+    const b = el?.querySelector<HTMLElement>('[data-rail-copy="1"]');
+    return a && b ? b.offsetTop - a.offsetTop : 0;
+  };
+  const showRail = !results;
+  useLayoutEffect(() => {
+    const el = railRef.current;
+    if (!el || railCopies === 1) return;
+    el.scrollTop = copyHeight() * railMid;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showRail, railCopies]);
+  function onRailScroll() {
+    const el = railRef.current;
+    const h = copyHeight();
+    if (!el || !h || railCopies === 1) return;
+    if (el.scrollTop < h * (railMid - 0.5)) el.scrollTop += h;
+    else if (el.scrollTop > h * (railMid + 0.5)) el.scrollTop -= h;
+  }
 
   // Kat değişince bölme başa döner
   useEffect(() => {
@@ -587,73 +676,90 @@ export function EntryPicker({
           {/* RAY — hızlı ekle + kategoriler. Seçili durak kendi renginde
               zeminlenir; adlar hep okunur. */}
           <nav
+            ref={railRef}
+            onScroll={onRailScroll}
             onClickCapture={compact ? () => onRailNavigate?.() : undefined}
-            className="no-scrollbar flex shrink-0 flex-col gap-1 overflow-y-auto overscroll-contain pl-2 pr-2 transition-[width] duration-300 ease-out"
-            style={{
-              width: compact ? RAIL_COMPACT_W : RAIL_W,
-              paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
-            }}
+            className="no-scrollbar flex shrink-0 flex-col overflow-y-auto overscroll-contain pl-2 pr-2 transition-[width] duration-300 ease-out"
+            style={{ width: compact ? RAIL_COMPACT_W : RAIL_W }}
           >
-            <RailItem
-              active={railSel === QUICK}
-              activeBg="var(--sf-3)"
-              label={t("entry.quickShort")}
-              compact={compact}
-              onClick={() => setRail(QUICK)}
-            >
-              <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[var(--sf-3)]">
-                <Star className="h-[21px] w-[21px] fill-amber-400 text-amber-400" />
-              </span>
-            </RailItem>
-            {categories.map((c) => (
-              <div key={c.id} className="flex shrink-0 flex-col">
+            {Array.from({ length: railCopies }, (_, copy) => (
+              <div
+                key={copy}
+                data-rail-copy={copy}
+                // Ekran okuyucu ortadaki kopyayı okur; ötekiler yalnız döngü için
+                aria-hidden={copy !== railMid || undefined}
+                className="flex shrink-0 flex-col gap-1 pb-1"
+              >
                 <RailItem
-                  active={railSel === c.id}
-                  activeBg={pathNodes.length && railSel === c.id ? `${c.color}17` : `${c.color}29`}
-                  label={c.name}
+                  active={railSel === QUICK}
+                  activeBg="var(--sf-3)"
+                  label={t("entry.quickShort")}
                   compact={compact}
-                  onClick={() => (railSel === c.id ? setPath([]) : setRail(c.id))}
+                  onClick={() => setRail(QUICK)}
                 >
-                  <Tile color={c.color} icon={c.icon} size={44} />
+                  <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[var(--sf-3)]">
+                    <Star className="h-[21px] w-[21px] fill-amber-400 text-amber-400" />
+                  </span>
                 </RailItem>
-                {/* İnilen dallar kategorinin altına bir iple ilişik durur;
-                    basamağa basmak o kata döner */}
-                {railSel === c.id && pathNodes.length > 0 && (
-                  <div className="relative flex flex-col gap-0.5 pb-1 pt-0.5">
-                    <span
-                      aria-hidden
-                      className="absolute -top-1 bottom-6 left-1/2 w-[2px] -translate-x-1/2 rounded-full"
-                      style={{ background: `${c.color}66` }}
-                    />
-                    {pathNodes.map((p, i) => {
-                      const last = i === pathNodes.length - 1;
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          data-rail-node={p.id}
-                          onClick={() => setPath(path.slice(0, i + 1))}
-                          aria-pressed={last}
-                          className="entry-tile-pop relative flex flex-col items-center gap-0.5 rounded-xl px-0.5 pb-1 pt-1.5 transition-[background-color,transform] active:scale-95"
-                          style={last ? { background: `${c.color}29` } : undefined}
-                        >
-                          <span data-tile className="shrink-0">
-                            <Tile color={c.color} icon={p.icon} size={34} />
-                          </span>
-                          <span
-                            className={cn(
-                              "block w-full truncate text-center text-[10.5px] leading-[14px]",
-                              last ? "font-semibold text-foreground" : "text-muted-foreground",
-                              compact && "hidden"
-                            )}
-                          >
-                            {p.name}
-                          </span>
-                        </button>
-                      );
-                    })}
+                {categories.map((c) => (
+                  <div key={c.id} className="flex shrink-0 flex-col">
+                    <RailItem
+                      active={railSel === c.id}
+                      activeBg={pathNodes.length && railSel === c.id ? `${c.color}17` : `${c.color}29`}
+                      label={c.name}
+                      compact={compact}
+                      onClick={() => {
+                        if (isDoubleTap(`c:${c.id}`)) return onPickCategory(c);
+                        if (railSel === c.id) setPath([]);
+                        else setRail(c.id);
+                      }}
+                    >
+                      <Tile color={c.color} icon={c.icon} size={44} />
+                    </RailItem>
+                    {/* İnilen dallar kategorinin altına bir iple ilişik durur;
+                        basamağa basmak o kata döner, çift dokunmak kendisine
+                        kayıt açar */}
+                    {railSel === c.id && pathNodes.length > 0 && (
+                      <div className="relative flex flex-col gap-0.5 pb-1 pt-0.5">
+                        <span
+                          aria-hidden
+                          className="absolute -top-1 bottom-6 left-1/2 w-[2px] -translate-x-1/2 rounded-full"
+                          style={{ background: `${c.color}66` }}
+                        />
+                        {pathNodes.map((p, i) => {
+                          const last = i === pathNodes.length - 1;
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              data-rail-node={p.id}
+                              onClick={() => {
+                                if (isDoubleTap(`s:${p.id}`)) return onPick(p);
+                                setPath(path.slice(0, i + 1));
+                              }}
+                              aria-pressed={last}
+                              className="entry-tile-pop relative flex flex-col items-center gap-0.5 rounded-xl px-0.5 pb-1 pt-1.5 transition-[background-color,transform] active:scale-95"
+                              style={last ? { background: `${c.color}29` } : undefined}
+                            >
+                              <span data-tile className="shrink-0">
+                                <Tile color={c.color} icon={p.icon} size={34} />
+                              </span>
+                              <span
+                                className={cn(
+                                  "block w-full truncate text-center text-[10.5px] leading-[14px]",
+                                  last ? "font-semibold text-foreground" : "text-muted-foreground",
+                                  compact && "hidden"
+                                )}
+                              >
+                                {p.name}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
+                ))}
               </div>
             ))}
           </nav>
@@ -703,19 +809,20 @@ export function EntryPicker({
                 </>
               ) : (
                 <>
-                  {/* Kategorinin kendisine kayıt başlıkta, küçük bir düğme —
-                      eskiden ayrı, iri bir "Buraya ekle" şeridiydi */}
+                  {/* Başlıkta bu kata alt kategori açma. Kendisine kayıt
+                      artık çift dokunuşla (raydaki durak ya da bölmedeki dal) */}
                   <PaneHead
                     title={node ? node.name : selCat.name}
                     action={
                       <button
                         type="button"
-                        onClick={() => (node ? onPick(node) : onPickCategory(selCat))}
-                        className="flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-[12px] font-semibold transition-transform active:scale-95"
-                        style={{ background: `${selCat.color}24`, color: selCat.color }}
+                        onClick={() =>
+                          setAddSub({ categoryId: selCat.id, parentId: node?.id })
+                        }
+                        className="flex h-7 shrink-0 items-center gap-1 rounded-full bg-[var(--sf-2)] px-2.5 text-[12px] font-semibold text-muted-foreground transition-[transform,color] hover:text-foreground active:scale-95"
                       >
                         <Plus className="h-3.5 w-3.5" strokeWidth={2.75} />
-                        {t("entry.general")}
+                        {t("entry.subShort")}
                       </button>
                     }
                   />
@@ -729,7 +836,7 @@ export function EntryPicker({
                         name={sub.name}
                         sub={kids ? t("entry.subCount", { n: kids }) : undefined}
                         branch={kids > 0}
-                        onClick={(e) => (kids ? drill(sub, e.currentTarget) : onPick(sub))}
+                        onClick={(e) => (kids ? tapBranch(sub, e.currentTarget) : onPick(sub))}
                       />
                     );
                   })}
