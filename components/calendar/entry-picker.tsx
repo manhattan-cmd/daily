@@ -411,10 +411,11 @@ export function EntryPicker({
 
   return (
     <div ref={rootRef} className="relative flex min-h-0 flex-1 flex-col">
-      {/* Üst çubuk — solda kapat, ortada soru, sağda yapı işlemleri (⋯).
-          Yapı kurmak girdi eklemeye gelen kişinin ilk işi değil; eskiden
-          "Kategori yarat" ekranın en görünür düğmesiydi. */}
-      <div className="flex shrink-0 items-center gap-2 px-4 pb-1 pt-3">
+      {/* Üst çubuk — SAĞDA kapat (ray gibi sağ başparmağın altında), ortada
+          soru, solda yapı işlemleri (⋯). Yapı kurmak girdi eklemeye gelen
+          kişinin ilk işi değil; eskiden "Kategori yarat" ekranın en görünür
+          düğmesiydi. */}
+      <div className="flex shrink-0 flex-row-reverse items-center gap-2 px-4 pb-1 pt-3">
         <button
           type="button"
           onClick={onClose}
@@ -506,7 +507,9 @@ export function EntryPicker({
           )}
         </div>
       ) : (
-        <div className="relative flex min-h-0 flex-1">
+        /* Ray SAĞDA: sağ elle tutan kişinin başparmağı kategorilerin
+           üstünde. Form soldan gelip rayın yanında durur. */
+        <div className="relative flex min-h-0 flex-1 flex-row-reverse">
           {/* Rayı bölmeden ayıran ince çizgi — uçlarda söner, kayan rayla
               birlikte kaymaz */}
           <span
@@ -516,7 +519,7 @@ export function EntryPicker({
               compact && "opacity-0"
             )}
             style={{
-              left: RAIL_W,
+              right: RAIL_W,
               background:
                 "linear-gradient(to bottom, transparent, var(--ln-2) 10%, var(--ln-2) 90%, transparent)",
             }}
@@ -699,7 +702,7 @@ export function EntryPicker({
       {menuOpen && (
         <>
           <div className="absolute inset-0 z-30" onClick={() => setMenuOpen(false)} />
-          <div className="animate-in fade-in zoom-in-95 absolute right-4 top-[60px] z-40 flex min-w-[220px] flex-col overflow-hidden rounded-2xl border border-[var(--ln-2)] bg-card p-1 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.8)]">
+          <div className="animate-in fade-in zoom-in-95 absolute left-4 top-[60px] z-40 flex min-w-[220px] flex-col overflow-hidden rounded-2xl border border-[var(--ln-2)] bg-card p-1 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.8)]">
             {onCreateCategory && (
               <MenuItem
                 icon={<Plus className="h-4 w-4" strokeWidth={2.25} />}

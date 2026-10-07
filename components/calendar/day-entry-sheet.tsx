@@ -24,7 +24,8 @@ import { splitChoiceLevel } from "@/lib/choice-level";
 import type { LucideIcon } from "lucide-react";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
-import { EntryPicker, RAIL_COMPACT_W } from "@/components/calendar/entry-picker";
+import { EntryPicker } from "@/components/calendar/entry-picker";
+import { SideFormWindow } from "@/components/calendar/side-form-window";
 import { CategoryForm } from "@/components/structure/category-form";
 import {
   DateTimeInput,
@@ -462,14 +463,11 @@ function DayEntrySheetBody({
 
             {step.type !== "pick" && (
               <>
-                {/* Form SAĞDAN kayarak gelir ve rayın yanında durur: ray
-                    simgelere daralıp solda kalır, nereden geldiğin görünür;
-                    raya dokunmak formu kapatıp oraya gider. Geri oku da
-                    seçime döner. */}
-                <div
-                  className="form-slide-in absolute inset-y-0 right-0 z-50 flex flex-col overflow-hidden rounded-l-[28px] border-l border-[var(--ln-2)] bg-background shadow-[-28px_0_48px_-28px_rgba(0,0,0,0.95)]"
-                  style={{ left: RAIL_COMPACT_W }}
-                >
+                {/* Form SOLDAN bir pencere olarak gelir ve rayın yanında
+                    durur: ray simgelere daralıp sağda kalır, nereden
+                    geldiğin görünür; raya dokunmak formu kapatıp oraya
+                    gider. Sola kaydır: kapat, yukarı çek: tam ekran. */}
+                <SideFormWindow key={step.sub.id} onDismiss={leaveForm}>
                   <FormStep
             key={step.sub.id}
             sub={step.sub}
@@ -505,7 +503,7 @@ function DayEntrySheetBody({
             saving={saving}
             entryDate={date}
                   />
-                </div>
+                </SideFormWindow>
               </>
             )}
           </>

@@ -474,15 +474,29 @@ input[type="number"] {
 }
 .chevron-nudge { animation: chevron-nudge 520ms ease-in-out both; }
 
-/* Girdi formu sağdan, rayın yanına kayarak gelir */
-@keyframes form-slide-in {
-  from { transform: translateX(100%); }
+/* Girdi formu soldan, sağdaki rayın yanına kayarak gelir. Dolgu yalnız
+   "backwards": bittikten sonra parmağı izleyen satır içi dönüşüm geçerli
+   olsun (both olsaydı animasyonun son değeri onu ezerdi). */
+@keyframes form-slide-in-left {
+  from { transform: translateX(calc(-100% - 16px)); }
   to { transform: none; }
 }
-.form-slide-in { animation: form-slide-in 420ms cubic-bezier(0.22, 0.9, 0.25, 1) both; }
+.form-slide-in-left { animation: form-slide-in-left 420ms cubic-bezier(0.22, 0.9, 0.25, 1) backwards; }
 
 @media (prefers-reduced-motion: reduce) {
-  .form-slide-in { animation: none; }
+  .form-slide-in-left { animation: none; }
+}
+
+/* Form penceresinde yatay hareket pencereye (sola kaydır: kapat), dikey
+   hareket içeriğin kaydırmasına. Her öğeye ayrı yazılıyor: içteki
+   kaydırma kabı kendi değeriyle yatay kaydırmayı tarayıcıya bırakıp
+   dokunuşu iptal ettiriyordu. Tutamaçta ikisi de pencereye. */
+[data-side-form],
+[data-side-form] * {
+  touch-action: pan-y;
+}
+[data-side-form] [data-grip] {
+  touch-action: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
