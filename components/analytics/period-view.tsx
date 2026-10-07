@@ -75,7 +75,7 @@ const SHOW_PERIOD_SUMMARY = false;
 
 /** Analiz başlık bandının zemini (zaman + yol menülerinin bölümü) */
 const ANALYSIS_HEADER =
-  "rounded-b-[24px] border-[var(--ln-2)] bg-card shadow-[0_12px_28px_-14px_rgba(0,0,0,0.75)]";
+  "rounded-b-[24px] border-[var(--ln-2)] bg-card pb-0 shadow-[0_12px_28px_-14px_rgba(0,0,0,0.75)]";
 
 /**
  * Dönem analiz görünümü — herhangi bir zaman penceresinin (gün/hafta/ay/yıl/özel/tümü)
@@ -500,8 +500,11 @@ export function PeriodView({
         nav={
           // Sade menü: ZAMAN sekmeleri (renksiz), altında YER yolu (tek vurgu:
           // bulunulan kalem). Hepsi başlıkla aynı sol çizgiden başlar.
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col">
           <PeriodTabs period={period} />
+          {/* Yol kapsülü sekme çizgisiyle bandın alt kenarı arasında dikeyde
+              ortada: üstünde ve altında eşit pay (band alt dolgusu sıfır) */}
+          <div className="py-2">
           <AnalysisTrail
             steps={[
               // Yolun kökü: bütün kategoriler. Dokununca seçim kalkar ve
@@ -533,6 +536,7 @@ export function PeriodView({
                 : []),
             ]}
           />
+          </div>
           </div>
         }
       />

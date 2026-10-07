@@ -33,7 +33,9 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
   const placeKey = steps[steps.length - 1]?.key;
   const sep = <span className="shrink-0 px-1 text-muted-foreground/35">/</span>;
   return (
-    <div className="flex h-8 min-w-0 items-center text-[12.5px] font-semibold">
+    // Yol bir kapsülün içinde — içeriği kadar geniş, uzayınca bandın
+    // genişliğinde durup kendi içinde kayar
+    <div className="inline-flex h-8 max-w-full items-center rounded-full bg-[var(--sf-2)] px-3 text-[12.5px] font-semibold ring-1 ring-inset ring-[var(--ln-1)]">
       {root && (
         <button
           type="button"
@@ -51,7 +53,7 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
       {rest.length > 0 && (
         <HScroll
           className="items-center"
-          wrapperClassName="min-w-0 flex-1"
+          wrapperClassName="min-w-0"
           followEnd={rest.map((s) => s.key).join("|")}
         >
           {rest.map((s) => {
