@@ -38,6 +38,7 @@ export function ShareBars({
   mode = "share",
   range,
   selectedId = null,
+  nudge = false,
 }: {
   rows: ShareRow[];
   emptyText?: string;
@@ -48,6 +49,8 @@ export function ShareBars({
   range?: { min: number; max: number };
   /** Süzgeç olarak seçili satır — diğerleri soluklaşır */
   selectedId?: string | null;
+  /** Satır oklarını sırayla bir kez sağa it — "bunlara basılır" ipucu */
+  nudge?: boolean;
 }) {
   const isRate = mode === "rate";
   const isLevel = mode === "level" && !!range;
@@ -72,7 +75,7 @@ export function ShareBars({
 
   return (
     <div className={cn("flex flex-col", onSelect ? "-mx-1.5 gap-1.5" : "gap-3")}>
-      {sorted.map((r) => {
+      {sorted.map((r, i) => {
         const pct = isRate
           ? ratioOf(r) * 100
           : isLevel
@@ -146,8 +149,14 @@ export function ShareBars({
             </div>
             {canDrill && (
               <ChevronRight
-                className="h-4 w-4 shrink-0 text-muted-foreground/60"
-                style={selectedId === r.id ? { color: r.color } : undefined}
+                className={cn(
+                  "h-4 w-4 shrink-0 text-muted-foreground/60",
+                  nudge && "chevron-nudge"
+                )}
+                style={{
+                  ...(selectedId === r.id ? { color: r.color } : null),
+                  ...(nudge ? { animationDelay: `${700 + i * 90}ms` } : null),
+                }}
               />
             )}
           </button>

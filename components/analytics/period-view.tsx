@@ -57,6 +57,7 @@ import {
 } from "@/components/analytics/analysis-selection";
 import { DrillLevel } from "@/components/analytics/drill-level";
 import { AnalysisTrail } from "@/components/analytics/analysis-trail";
+import { AnalysisGhost } from "@/components/analytics/analysis-ghost";
 import type { SubCategory } from "@/types";
 import { LazyMount } from "@/components/ui/lazy-mount";
 import { useT } from "@/lib/i18n";
@@ -125,6 +126,15 @@ export function PeriodView({
     setCatPicked(true);
     setCatsOnly(false);
     selectAnalysisCategory(id);
+  };
+  /** Kategoriyi seç ve sayfayı açılan ilk karta kaydır */
+  const openCat = (id: string) => {
+    pickCat(id);
+    const cat = data?.cats.find((c) => c.id === id);
+    const kids = data?.subs.some(
+      (x) => x.categoryId === id && !x.parentId && !x.isCategoryRoot
+    );
+    if (cat) setScrollTarget(kids ? "cat" : "focus");
   };
 
   /*
@@ -396,6 +406,11 @@ export function PeriodView({
     fetchEnd: win.end,
     excludeRegular,
   });
+  // Dağılımın en büyük satırı — seçim yokken hayalet kartın rengi ve kestirmesi
+  const topShare = (computed?.catShare ?? []).reduce<ShareRow | null>(
+    (best, r) => (r.value > 0 && (!best || r.value > best.value) ? r : best),
+    null
+  );
   const activeCatIds = (computed?.catShare ?? [])
     .filter((r) => r.value > 0)
     .map((r) => r.id)
@@ -600,21 +615,23 @@ export function PeriodView({
             rows={computed?.catShare ?? []}
             emptyText={t("insights.noEntriesInPeriod")}
             selectedId={selectedCat?.id ?? null}
+            nudge={!selectedCat}
             onSelect={(id) => {
               // Seçili kategoriye yeniden dokunmak seçimi kaldırır
               if (id === selectedCat?.id) {
                 setCatsOnly(true);
                 return;
               }
-              pickCat(id);
-              const cat = data?.cats.find((c) => c.id === id);
-              const kids = data?.subs.some(
-                (x) => x.categoryId === id && !x.parentId && !x.isCategoryRoot
-              );
-              if (cat) setScrollTarget(kids ? "cat" : "focus");
+              openCat(id);
             }}
           />
         </div>
+
+        {/* Seçim yokken yığının yerinde açılacak analizin silüeti — en büyük
+            kategorinin renginde; basınca onu açar */}
+        {!selectedCat && topShare && (
+          <AnalysisGhost color={topShare.color} onPick={() => openCat(topShare.id)} />
+        )}
 
         {/* Kademe yığını — seçilen kategorinin alt kategorileri, seçilen alt
             kategorinin alt kalemleri… ve en sonda seçilen yerin özellikleri */}
