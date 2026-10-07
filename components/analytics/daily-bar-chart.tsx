@@ -32,6 +32,37 @@ const BALLOON_H = 72;
 /** Grafiğin yüksekliği (px) — kap ve ilk çizim aynı değeri kullanıyor */
 const CHART_H = 170;
 
+/*
+ * EKRANDA TEK BALON. Bir balon açıkken yapılan dokunuş — aynı grafiğin başka
+ * noktasına, başka bir grafiğe ya da boşluğa — YALNIZ onu kapatır; yeni
+ * balon ancak bir sonraki dokunuşta açılır. Eskiden açık balon dururken başka
+ * noktaya dokunmak hemen yenisini açıyordu (ya da iki grafikte iki balon
+ * birden kalıyordu).
+ *
+ * Pencere düzeyinde yakalama aşamasında dinlenir: grafik kendi dokunuşunu
+ * işlemeden önce açık balon kapatılır ve bu dokunuş "yutuldu" diye işaretlenir.
+ */
+let closeOpenTip: (() => void) | null = null;
+let swallowedStamp = -1;
+let listening = false;
+function listenOnce() {
+  if (listening || typeof window === "undefined") return;
+  listening = true;
+  window.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (!closeOpenTip) return;
+      // Balonun kendi içi ("Aç" bağlantısı) kuralın dışında
+      if ((e.target as Element | null)?.closest?.("[data-tip-balloon]")) return;
+      const close = closeOpenTip;
+      closeOpenTip = null;
+      swallowedStamp = e.timeStamp;
+      close();
+    },
+    { capture: true }
+  );
+}
+
 export function DailyBarChart({
   data,
   color,
@@ -149,15 +180,20 @@ export function DailyBarChart({
     []
   );
 
-  // Grafiğin dışına dokunmak balonu kapatır
+  // Bu grafiğin balonlarını kapatan işlev — ortak "tek balon" düzenine verilir
+  const closeMine = useRef(() => {});
   useEffect(() => {
-    if (!picked) return;
-    const onDown = (e: PointerEvent) => {
-      if (!boxRef.current?.contains(e.target as Node)) setPicked(null);
+    listenOnce();
+    closeMine.current = () => {
+      setTapShown(false);
+      setPicked(null);
     };
-    window.addEventListener("pointerdown", onDown);
-    return () => window.removeEventListener("pointerdown", onDown);
-  }, [picked]);
+    return () => {
+      if (closeOpenTip === closeMine.current) closeOpenTip = null;
+    };
+  }, []);
+  /** Bu dokunuş açık bir balonu kapatmak için mi kullanıldı */
+  const swallowed = useRef(false);
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     const down = pointerDown.current;
@@ -165,10 +201,19 @@ export function DailyBarChart({
     // Kaydırma/sürükleme dokunuş sayılmaz
     const moved =
       !down || Math.abs(e.clientX - down.x) > 10 || Math.abs(e.clientY - down.y) > 10;
+    // Açık bir balonu kapatan dokunuş yeni balon açmaz
+    if (swallowed.current) {
+      swallowed.current = false;
+      return;
+    }
     if (e.pointerType !== "mouse" && !moved) {
       setTapShown(true);
+      closeOpenTip = closeMine.current;
       if (dismissTimer.current) clearTimeout(dismissTimer.current);
-      dismissTimer.current = setTimeout(() => setTapShown(false), 2500);
+      dismissTimer.current = setTimeout(() => {
+        setTapShown(false);
+        if (closeOpenTip === closeMine.current) closeOpenTip = null;
+      }, 2500);
     }
     if (!onSelect || !data.length || moved) return;
     const rect = e.currentTarget.getBoundingClientRect();
@@ -189,6 +234,7 @@ export function DailyBarChart({
     const x = bar ? bar.left + bar.width / 2 - rect.left : e.clientX - rect.left;
     const y = bar ? bar.top - rect.top : e.clientY - rect.top - 12;
     setPicked({ bucket: b, x, y });
+    closeOpenTip = closeMine.current;
   };
 
   return (
@@ -199,6 +245,8 @@ export function DailyBarChart({
       className={`relative w-full select-none [-webkit-tap-highlight-color:transparent]${onSelect ? " cursor-pointer" : ""}`}
       onPointerDown={(e) => {
         pointerDown.current = { x: e.clientX, y: e.clientY };
+        // Pencere düzeyindeki dinleyici bu dokunuşla açık bir balonu kapattıysa
+        swallowed.current = swallowedStamp === e.timeStamp;
         if (dismissTimer.current) clearTimeout(dismissTimer.current);
         const touch = e.pointerType !== "mouse";
         setTouchMode(touch);
@@ -360,6 +408,7 @@ export function DailyBarChart({
           o durumda sütunun üstüne doğru aşağı açılır. */}
       {onSelect && picked && (
         <div
+          data-tip-balloon=""
           className="animate-in pointer-events-none absolute z-20"
           style={{
             left: Math.min(
