@@ -29,11 +29,13 @@ const KINDS: { kind: Exclude<PeriodKind, "custom">; label: MessageKey }[] = [
 ];
 
 /** Sekme — kutusuz; seçili olanın altında ince çizgi */
+// Etiket genişliğinde, satıra uçtan uca yayılır (justify-between): ilk
+// sekmenin yazısı tam sol kenardan başlar — altındaki yolla aynı hizada
 export const TAB =
-  "relative flex h-8 min-w-0 flex-1 items-center justify-center text-[12.5px] font-semibold transition-colors";
+  "relative flex h-8 shrink-0 items-center text-[12.5px] font-semibold transition-colors";
 export const tabState = (on: boolean) =>
   on
-    ? "text-foreground after:absolute after:inset-x-[22%] after:-bottom-px after:h-[2px] after:rounded-full after:bg-foreground"
+    ? "text-foreground after:absolute after:-inset-x-1 after:-bottom-px after:h-[2px] after:rounded-full after:bg-foreground"
     : "text-muted-foreground hover:text-foreground";
 
 /**
@@ -74,7 +76,7 @@ export function PeriodTabs({ period }: { period: Period }) {
     <div
       role="tablist"
       aria-label={t("insights.period")}
-      className="flex items-center border-b border-[var(--ln-1)]"
+      className="flex items-center justify-between border-b border-[var(--ln-1)]"
     >
       {KINDS.map(({ kind, label }) => {
         const on = period.kind === kind;
@@ -87,7 +89,7 @@ export function PeriodTabs({ period }: { period: Period }) {
             onClick={() => pickKind(kind)}
             className={cn(TAB, tabState(on))}
           >
-            <span className="truncate">{t(label)}</span>
+            {t(label)}
           </button>
         );
       })}
@@ -98,19 +100,31 @@ export function PeriodTabs({ period }: { period: Period }) {
 }
 
 /**
- * Önceki / sonraki dönem — başlığın sağında, tarihin hizasında. Aynı türde
- * bir önceki ya da sonraki döneme; tamamen gelecekte kalan döneme gidilmez.
+ * Tarih kumandası — ortada dönemin adı yumuşak bir kapsülde, iki yanında ‹ ›.
+ * Bant ortadan okunur: hangi dönemde olduğun tek bakışta, bir önceki/sonraki
+ * döneme geçiş hemen yanında. Aynı türde bir önceki ya da sonraki döneme;
+ * tamamen gelecekte kalan döneme gidilmez.
  */
-export function PeriodArrows({ period }: { period: Period }) {
+export function PeriodNav({
+  period,
+  label,
+  note,
+}: {
+  period: Period;
+  /** Kapsüldeki ad — verilmezse dönemin kendi etiketi */
+  label?: string;
+  /** Adın yanında sönük ek ("3/30. gün") */
+  note?: string;
+}) {
   const t = useT();
   const router = useRouter();
   const prev = shiftPeriod(period, -1);
   const nextP = shiftPeriod(period, 1);
   const nextDisabled = !nextP || nextP.start > nowMs();
   const btn =
-    "flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground disabled:opacity-25";
+    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground disabled:opacity-25";
   return (
-    <div className="-mr-1.5 flex items-center">
+    <div className="flex items-center justify-center gap-1.5">
       <button
         type="button"
         disabled={!prev}
@@ -120,6 +134,14 @@ export function PeriodArrows({ period }: { period: Period }) {
       >
         <ChevronLeft className="h-[18px] w-[18px]" />
       </button>
+      <h1 className="flex h-8 min-w-0 max-w-[240px] items-center gap-1.5 rounded-full bg-[var(--sf-2)] px-4 ring-1 ring-inset ring-[var(--ln-1)]">
+        <span className="truncate text-[14px] font-semibold tracking-tight">
+          {label ?? period.label}
+        </span>
+        {note && (
+          <span className="shrink-0 text-[11.5px] text-muted-foreground">{note}</span>
+        )}
+      </h1>
       <button
         type="button"
         disabled={nextDisabled}

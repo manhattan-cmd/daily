@@ -185,9 +185,9 @@ export function PeriodJump({
           segment
             ? cn(
                 // Dönem sekmelerinin sonuncusu gibi — seçiliyken altı çizili
-                "relative flex h-8 w-10 shrink-0 items-center justify-center transition-colors",
+                "relative flex h-8 shrink-0 items-center transition-colors",
                 current
-                  ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-[2px] after:rounded-full after:bg-foreground"
+                  ? "text-foreground after:absolute after:-inset-x-1 after:-bottom-px after:h-[2px] after:rounded-full after:bg-foreground"
                   : "text-muted-foreground hover:text-foreground"
               )
             : cn(chipClass(!!current), "flex shrink-0 items-center gap-1.5")

@@ -43,7 +43,7 @@ import {
   EntryListSection,
   type EntryListRow,
 } from "@/components/analytics/entry-list";
-import { PeriodArrows, PeriodTabs } from "@/components/analytics/period-switcher";
+import { PeriodNav, PeriodTabs } from "@/components/analytics/period-switcher";
 import {
   PeriodCategoryPanel,
   panelWindow,
@@ -452,7 +452,7 @@ export function PeriodView({
           compact
           className={ANALYSIS_HEADER}
           title={title ?? period.label}
-          action={<PeriodArrows period={requestedPeriod} />}
+          titleSlot={<PeriodNav period={requestedPeriod} label={title} />}
           nav={<PeriodTabs period={requestedPeriod} />}
         />
         <div className="flex flex-col gap-4 pb-6">
@@ -481,18 +481,22 @@ export function PeriodView({
         // olsun: açık yüzey, yuvarlak alt köşeler, altına düşen yumuşak gölge
         className={ANALYSIS_HEADER}
         title={title ?? period.label}
-        description={
-          showProgress
-            ? t("period.progress", {
-                n: progress.elapsedDays,
-                total: progress.totalDays,
-              })
-            : undefined
+        // Ortada tarih kapsülü, iki yanında ‹ ›. Geri oku yok — dönemler
+        // arasında sekmeler ve oklarla geziliyor
+        titleSlot={
+          <PeriodNav
+            period={period}
+            label={title}
+            note={
+              showProgress
+                ? t("period.progress", {
+                    n: progress.elapsedDays,
+                    total: progress.totalDays,
+                  })
+                : undefined
+            }
+          />
         }
-        // Tarih okları başlığın hizasında; geri oku yok — başlığı içeri itip
-        // altındaki sekmeler ve yolla hizasını bozuyordu, dönemler arasında
-        // zaten sekmeler ve oklarla geziliyor
-        action={<PeriodArrows period={period} />}
         nav={
           // Sade menü: ZAMAN sekmeleri (renksiz), altında YER yolu (tek vurgu:
           // bulunulan kalem). Hepsi başlıkla aynı sol çizgiden başlar.

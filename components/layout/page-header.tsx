@@ -31,6 +31,8 @@ interface PageHeaderProps {
    * bandın içindeki öğeler data-collapsed işaretine bakarak incelir.
    */
   collapsed?: boolean;
+  /** Başlık satırının YERİNE çizilecek içerik (ör. ortalanmış tarih kumandası) */
+  titleSlot?: React.ReactNode;
   className?: string;
 }
 
@@ -43,6 +45,7 @@ export function PageHeader({
   nav,
   compact = false,
   collapsed = false,
+  titleSlot,
   className,
 }: PageHeaderProps) {
   const t = useT();
@@ -55,6 +58,9 @@ export function PageHeader({
         className
       )}
     >
+      {titleSlot ? (
+        <div className="pt-2.5">{titleSlot}</div>
+      ) : (
       <div
         className={cn(
           "flex items-center",
@@ -108,6 +114,7 @@ export function PageHeader({
         )}
         {action ? <div className="shrink-0">{action}</div> : null}
       </div>
+      )}
       {nav ? <div className={collapsed || compact ? "mt-2" : "mt-3"}>{nav}</div> : null}
     </header>
   );
