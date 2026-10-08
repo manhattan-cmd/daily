@@ -904,7 +904,8 @@ function FormStep({
       </div>
 
       {/* Başlık — kalemin karosu, yolu ve adı; bütün genişlik onun */}
-      <div className="flex shrink-0 items-center gap-3 px-3 pb-3">
+      {/* items-start: zaman seçenekleri açılınca sütun uzar, karo yerinde kalsın */}
+      <div className="flex shrink-0 items-start gap-3 px-3 pb-3">
         <span
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px]"
           style={{
