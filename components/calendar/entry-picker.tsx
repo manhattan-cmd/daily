@@ -816,12 +816,29 @@ export function EntryPicker({
                     içi" olduğu ilk bakışta okunur; yoksa yeni kullanıcı
                     iki sütunun ilişkisini çözemiyordu.
                   */}
-                  <div className="flex items-center gap-3 px-1.5 pb-2.5 pt-1.5">
-                    <Tile
-                      color={selCat.color}
-                      icon={node ? node.icon : selCat.icon}
-                      size={40}
-                    />
+                  <div className="flex items-center gap-1 pb-2.5 pt-1.5">
+                    {/* Başlığa (karo ya da ad) dokunmak bulunulan yerin
+                        KENDİSİNE kayıt açar — çift dokunuşla aynı iş. Karonun
+                        köşesindeki küçük artı bunu söyler. */}
+                    <button
+                      type="button"
+                      onClick={() => (node ? onPick(node) : onPickCategory(selCat))}
+                      aria-label={`${node ? node.name : selCat.name} — ${t("entry.addHere")}`}
+                      className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-1.5 py-1 text-left transition-[background-color,transform] hover:bg-[var(--sf-1)] active:scale-[0.98] active:bg-[var(--sf-2)]"
+                    >
+                    <span className="relative shrink-0">
+                      <Tile
+                        color={selCat.color}
+                        icon={node ? node.icon : selCat.icon}
+                        size={40}
+                      />
+                      <span
+                        className="absolute -bottom-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full ring-2 ring-background"
+                        style={{ background: selCat.color, color: inkOn(selCat.color) }}
+                      >
+                        <Plus className="h-3 w-3" strokeWidth={3.25} />
+                      </span>
+                    </span>
                     <div className="min-w-0 flex-1">
                       {node && (
                         <div className="truncate text-[12px] font-medium leading-4 text-muted-foreground">
@@ -837,6 +854,7 @@ export function EntryPicker({
                         </div>
                       )}
                     </div>
+                    </button>
                     {/* Bu kata alt kategori ekleme — başlığın yanında küçük,
                         yazısız ve soluk. Listenin sonunda renkli bir satırken
                         girdi eklemeye gelen gözü dağıtıyordu. */}
