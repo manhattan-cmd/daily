@@ -18,18 +18,28 @@ export function isFieldFilled(vt: EntryValueType, value: string): boolean {
   return vt === "boolean" ? value === "true" : value !== "";
 }
 
+/** Öneri ızgarasının yuva sayısı — öneri az da olsa hizalar değişmez */
+const SUGGEST_SLOTS = 3;
+
 /**
- * AÇIK DEFTER satırı — girdi formunda bir özelliğin değeri.
+ * AÇIK DEFTER kutusu — girdi formunda bir özelliğin değeri.
  *
- * Bütün türler aynı kalıpta: solda özelliğin sembolü (kendi renginde küçük
- * daire), adı; sayı ve evet/hayır değeri satırın sağında, ölçek, seçenek,
- * metin ve aralık satırın altında. Satır hiç kapanmaz — eskiden her özellik
- * kapalı geliyordu, açıp "Bitti"ye basmak üç özellikli kalemde 6 dokunuştu.
+ * KURALLAR (her tür için aynı anatomi; yeni bir tür ya da durum bunları
+ * bozmasın diye):
  *
- * RENK DOLDUKÇA GELİR: boş satır sakin (nötr zemin), değer girilince satır
- * özelliğin kendi renginde hafifçe boyanır ve değer o renkte yazılır. Form
- * ilk açıldığında gökkuşağı değil; dolduran kişi neyi doldurduğunu renkten
- * görür.
+ *  1. BAŞLIK satırında yalnız sembol, ad (+ birim) ve kaldır düğmesi. Değer
+ *     ya da denetim BAŞLIĞA GİRMEZ — eskiden sayı ve evet/hayır başlığın
+ *     sağındaydı; uzun adlı evet/hayır kutusunda ad ezilip kutu taşıyordu.
+ *  2. DEĞER her türde başlığın ALTINDA, tam genişlikte bir GİRİŞ YUVASINDA:
+ *     koyu zeminli, özelliğin renginde çerçeveli — "buraya yazılır" belli.
+ *     Sayı, metin ve evet/hayır yuvası aynı yükseklikte (48 px).
+ *  3. ÖNERİLER (son değerler) hep aynı ÜÇ yuvalı ızgarada, solda "Son"
+ *     etiketiyle. Tek öneri sağa yaslı yalnız bir çip gibi "eksik", iki
+ *     öneri kaymış duruyordu; ızgarada sayı ne olursa olsun hizalar aynı.
+ *  4. Seçenekler iki sütunlu ızgara; evet/hayır iki eşit yarı; ölçek tam
+ *     genişlikte bölmeli şerit; aralık kendi iki sütunlu seçicisi.
+ *  5. RENK: kutu boşken özelliğin renginde hafif, doluyken güçlü; sembol
+ *     doluyken dolu renkli daire. Değer o renkte yazılır.
  */
 export function LedgerField({
   mod,
@@ -77,6 +87,13 @@ export function LedgerField({
     if (input) setTimeout(() => input.focus(), 300);
   };
 
+  /** Giriş yuvası — koyu zemin, özelliğin renginde çerçeve; odakta güçlenir */
+  const well =
+    "flex h-12 w-full items-center rounded-xl bg-black/25 px-3.5 ring-1 ring-inset transition-shadow focus-within:ring-2";
+  const wellStyle = {
+    ["--tw-ring-color" as string]: filled ? `${color}b3` : `${color}66`,
+  };
+
   const lockedText =
     vt === "boolean"
       ? value === "true"
@@ -92,134 +109,121 @@ export function LedgerField({
     <div
       ref={onMount}
       data-ledger-field=""
-      className="rounded-2xl px-3 py-2.5 transition-[background-color,box-shadow] duration-300"
+      className="flex flex-col gap-2.5 rounded-2xl p-3 transition-[background-color,box-shadow] duration-300"
       style={
         filled
           ? { background: `${color}24`, boxShadow: `inset 0 0 0 1.5px ${color}8c` }
           : { background: `${color}0f`, boxShadow: `inset 0 0 0 1px ${color}2e` }
       }
     >
-      <div className="flex min-h-8 items-center gap-2.5">
+      {/* 1 — başlık: sembol, ad, birim, kaldır */}
+      <div className="flex min-h-7 items-center gap-2.5">
         <span
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors"
           style={filled ? { background: color, color: "#fff" } : { background: `${color}33`, color }}
         >
           <Icon className="h-[15px] w-[15px]" strokeWidth={2.2} />
         </span>
-        <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5">
-          <span className="truncate text-[14px] font-semibold leading-5">{label}</span>
-          {unit && vt !== "number" && (
-            <span className="text-xs text-muted-foreground">{unit}</span>
-          )}
-          {entryOnly && (
-            <span
-              className="rounded-full px-1.5 text-[10px] font-medium leading-4"
-              style={{ background: `${color}24`, color }}
-            >
-              {t("entry.onlyThisEntry")}
-            </span>
-          )}
+        <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
+          {/* Ad kesilmez: uzunsa ikinci satıra iner */}
+          <span className="line-clamp-2 break-words text-[14px] font-semibold leading-5">{label}</span>
+          {unit && <span className="shrink-0 text-xs text-muted-foreground">{unit}</span>}
         </span>
-
-        {isLocked ? (
-          <span className="flex shrink-0 items-center gap-1 text-[13px] font-semibold text-violet-300/90">
-            <Link2 className="h-3.5 w-3.5" />
-            {lockedText}
+        {entryOnly && (
+          <span
+            className="shrink-0 rounded-full px-1.5 text-[10px] font-medium leading-4"
+            style={{ background: `${color}24`, color }}
+          >
+            {t("entry.onlyThisEntry")}
           </span>
-        ) : vt === "number" ? (
-          <label className="flex shrink-0 items-baseline gap-1">
-            <input
-              type="text"
-              inputMode="decimal"
-              value={value}
-              onChange={(e) =>
-                onChange(e.target.value.replace(",", ".").replace(/[^0-9.\-]/g, ""))
-              }
-              placeholder="0"
-              aria-label={label}
-              className="min-w-[2ch] max-w-[9ch] bg-transparent text-right font-mono text-[22px] font-bold leading-7 outline-none [field-sizing:content] placeholder:text-muted-foreground/35"
-              style={filled ? { color } : undefined}
-            />
-            {unit && (
-              <span className="font-mono text-[13px] font-semibold text-muted-foreground">
-                {unit}
-              </span>
-            )}
-          </label>
-        ) : vt === "boolean" ? (
-          <div className="flex shrink-0 rounded-[10px] bg-[var(--sf-2)] p-0.5 ring-1 ring-inset ring-[var(--ln-1)]">
-            {[false, true].map((yes) => {
-              const on = (value === "true") === yes;
-              return (
-                <button
-                  key={String(yes)}
-                  type="button"
-                  onClick={() => onChange(yes ? "true" : "false")}
-                  aria-pressed={on}
-                  className={cn(
-                    "h-7 rounded-lg px-3 text-[12px] font-bold transition-colors",
-                    on ? (yes ? "text-white" : "bg-[var(--sf-4)] text-foreground") : "text-muted-foreground"
-                  )}
-                  style={on && yes ? { background: color } : undefined}
-                >
-                  {yes ? t("entry.yes") : t("entry.no")}
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
-
+        )}
         {onRemove && !isLocked && (
           <button
             type="button"
             onClick={onRemove}
             aria-label={t("entry.removeFromEntry")}
             title={t("entry.removeFromEntry")}
-            className="-mr-1.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/40 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+            className="-mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/50 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
 
-      {!isLocked && vt === "number" && recent.length > 0 && (
-        <div className="mt-1.5 flex flex-wrap justify-end gap-1.5">
-          {recent.map((r) => {
-            const on = value === r;
+      {/* 2 — değer: başlığın altında, tam genişlik */}
+      {isLocked ? (
+        <div className={cn(well, "gap-2 text-[15px] font-semibold text-violet-200/90")} style={wellStyle}>
+          <Link2 className="h-4 w-4 shrink-0 text-violet-300" />
+          <span className="truncate">{lockedText}</span>
+        </div>
+      ) : vt === "number" ? (
+        <label className={cn(well, "cursor-text gap-2")} style={wellStyle}>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={value}
+            onChange={(e) =>
+              onChange(e.target.value.replace(",", ".").replace(/[^0-9.\-]/g, ""))
+            }
+            placeholder="0"
+            aria-label={label}
+            className="min-w-0 flex-1 bg-transparent font-mono text-[22px] font-bold outline-none placeholder:text-muted-foreground/35"
+            style={filled ? { color } : undefined}
+          />
+          {unit && (
+            <span className="shrink-0 font-mono text-[14px] font-semibold text-muted-foreground">
+              {unit}
+            </span>
+          )}
+        </label>
+      ) : vt === "boolean" ? (
+        <div
+          className="grid h-12 grid-cols-2 gap-1 rounded-xl bg-black/25 p-1 ring-1 ring-inset"
+          style={wellStyle}
+        >
+          {[false, true].map((yes) => {
+            const on = (value === "true") === yes;
             return (
               <button
-                key={r}
+                key={String(yes)}
                 type="button"
-                onClick={() => onChange(on ? "" : r)}
-                className="h-7 rounded-full px-2.5 font-mono text-[12px] font-semibold transition-colors"
-                style={
+                onClick={() => onChange(yes ? "true" : "false")}
+                aria-pressed={on}
+                className={cn(
+                  "rounded-lg text-[14px] font-bold transition-colors",
                   on
-                    ? { background: color, color: "#fff" }
-                    : { background: `${color}1a`, color, boxShadow: `inset 0 0 0 1px ${color}38` }
-                }
+                    ? yes
+                      ? "text-white"
+                      : "bg-[var(--sf-4)] text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                style={on && yes ? { background: color } : undefined}
               >
-                {r}
-                {unit ? ` ${unit}` : ""}
+                {yes ? t("entry.yes") : t("entry.no")}
               </button>
             );
           })}
         </div>
-      )}
-
-      {!isLocked && vt === "select" && isScaleChoices(mod.entryType.choices) && (
-        <div className="mt-2.5">
-          <ScaleInput
-            choices={mod.entryType.choices ?? []}
-            labels={mod.mod?.scaleLabels}
+      ) : vt === "text" ? (
+        <label className={cn(well, "cursor-text")} style={wellStyle}>
+          <input
             value={value}
-            onChange={onChange}
-            color={color}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={t("entry.textPlaceholder")}
+            aria-label={label}
+            className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted-foreground/50"
           />
-        </div>
-      )}
-
-      {!isLocked && vt === "select" && !isScaleChoices(mod.entryType.choices) && (
-        <div className="mt-2.5 flex flex-wrap gap-1.5">
+        </label>
+      ) : vt === "select" && isScaleChoices(mod.entryType.choices) ? (
+        <ScaleInput
+          choices={mod.entryType.choices ?? []}
+          labels={mod.mod?.scaleLabels}
+          value={value}
+          onChange={onChange}
+          color={color}
+        />
+      ) : vt === "select" ? (
+        <div className="grid grid-cols-2 gap-1.5">
           {(mod.entryType.choices ?? []).map((choice) => {
             const on = value === choice;
             return (
@@ -229,36 +233,54 @@ export function LedgerField({
                 onClick={() => onChange(on ? "" : choice)}
                 aria-pressed={on}
                 className={cn(
-                  "h-8 rounded-full px-3 text-[13px] font-semibold transition-colors",
-                  !on && "bg-[var(--sf-2)] text-muted-foreground ring-1 ring-inset ring-[var(--ln-1)] hover:text-foreground"
+                  "flex h-10 min-w-0 items-center justify-center rounded-xl px-2 text-[13.5px] font-semibold transition-colors",
+                  !on && "bg-black/25 text-muted-foreground ring-1 ring-inset hover:text-foreground"
                 )}
-                style={on ? { background: color, color: "#fff" } : undefined}
+                style={
+                  on
+                    ? { background: color, color: "#fff" }
+                    : { ["--tw-ring-color" as string]: `${color}40` }
+                }
               >
-                {choice}
+                <span className="truncate">{choice}</span>
               </button>
             );
           })}
         </div>
-      )}
-
-      {!isLocked && vt === "text" && (
-        <input
+      ) : vt === "datetime-range" ? (
+        <DateTimeRangeInput
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={t("entry.textPlaceholder")}
-          aria-label={label}
-          className="mt-2 h-10 w-full rounded-xl bg-[var(--sf-2)] px-3 text-[14px] outline-none ring-1 ring-inset ring-[var(--ln-1)] placeholder:text-muted-foreground/50 focus:ring-2"
-          style={{ ["--tw-ring-color" as string]: filled ? `${color}80` : undefined }}
+          onChange={onChange}
+          entryDate={entryDate ?? toLocalDateValue()}
         />
-      )}
+      ) : null}
 
-      {!isLocked && vt === "datetime-range" && (
-        <div className="mt-2.5">
-          <DateTimeRangeInput
-            value={value}
-            onChange={onChange}
-            entryDate={entryDate ?? toLocalDateValue()}
-          />
+      {/* 3 — öneriler: hep üç yuvalı ızgara */}
+      {!isLocked && vt === "number" && recent.length > 0 && (
+        <div className="flex items-center gap-2">
+          <span className="w-7 shrink-0 text-[11px] font-semibold text-muted-foreground">
+            {t("entry.recentShort")}
+          </span>
+          <div className="grid min-w-0 flex-1 grid-cols-3 gap-1.5">
+            {recent.slice(0, SUGGEST_SLOTS).map((r) => {
+              const on = value === r;
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => onChange(on ? "" : r)}
+                  className="flex h-8 min-w-0 items-center justify-center rounded-lg px-1 font-mono text-[12.5px] font-semibold transition-colors"
+                  style={
+                    on
+                      ? { background: color, color: "#fff" }
+                      : { background: `${color}1a`, color, boxShadow: `inset 0 0 0 1px ${color}38` }
+                  }
+                >
+                  <span className="truncate">{r}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
