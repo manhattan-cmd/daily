@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, Moon, Sun } from "lucide-react";
 import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
-import { useT, type MessageKey } from "@/lib/i18n";
+import { intlTag, useT, type MessageKey } from "@/lib/i18n";
 import { SHORT_MONTHS } from "@/lib/analytics";
 import {
   colorSkin,
@@ -331,7 +331,7 @@ export function DateTimeInput({
           : null;
 
   const pretty = datePart
-    ? new Date(datePart + "T00:00:00").toLocaleDateString("en-US", {
+    ? new Date(datePart + "T00:00:00").toLocaleDateString(intlTag(), {
         weekday: "long",
         day: "numeric",
         month: "long",

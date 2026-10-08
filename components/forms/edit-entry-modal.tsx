@@ -7,6 +7,7 @@ import { nanoid } from "nanoid";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   CalendarDays,
+  Check,
   ChevronRight,
   Clock,
   Link2,
@@ -43,6 +44,7 @@ import {
   getLinkedSiblingModIds,
   listEntryTypes,
   listMods,
+  listRecentModValues,
   updateSubCategory,
   type CategoryModifierWithType,
   type ModWithType,
@@ -76,12 +78,19 @@ import {
 } from "@/lib/utils";
 import type { EntryWithContext, EntryType } from "@/types";
 import { routes } from "@/lib/routes";
+import { LedgerField } from "@/components/forms/ledger-field";
+import { EntryTime } from "@/components/forms/entry-time";
+import { SmartText } from "@/components/ui/smart-text";
+import { SymbolIcon } from "@/lib/icons";
+import { modColor } from "@/lib/mod-color";
 
 interface EditEntryModalProps {
   entry: EntryWithContext;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+const NO_RECENT: Record<string, string[]> = {};
 
 /** Başlık menüsünden açılan bölümler — aynı anda yalnız biri açık kalır */
 type Panel = "time" | "parallel" | "regular" | "delete";
@@ -425,6 +434,27 @@ export function EditEntryModal({
 
 
   const entryDate = toLocalDateValue(entry.occurredAt);
+  /** Zaman seçeneklerinde Dün / Şimdi / Yarın bugüne göre */
+  const todayDate = toLocalDateValue();
+  // Sıradan girdi yeni (açık defter) görünümde; yerleşikler kendi formunda
+  const isLedger = fieldTone === "default" && !pStep && !pickerView;
+  const recent =
+    useLiveQuery(() => listRecentModValues(entry.subcategoryId), [entry.subcategoryId]) ??
+    NO_RECENT;
+  const attachedModIds = useMemo(
+    () => new Set((mods ?? []).map((m) => m.modId).filter((x): x is string => !!x)),
+    [mods]
+  );
+  /** Satırı açık defter kutusunun beklediği biçime çevir */
+  const rowAsMod = (r: Row) =>
+    ({
+      id: r.key,
+      modId: r.modId,
+      entryTypeId: r.entryTypeId,
+      name: r.label,
+      entryType: r.entryType,
+      mod: r.modId ? poolModMap.get(r.modId) : undefined,
+    }) as unknown as CategoryModifierWithType;
 
   function handleRemove(key: string) {
     setRemovedKeys((prev) => new Set([...prev, key]));
@@ -491,6 +521,159 @@ export function EditEntryModal({
     }
   }
 
+  // Menüden açılan bölümler (perspektif, düzenli, sil) — iki görünüm de kullanır
+  const panels = (
+    <>
+            {panel === "parallel" && (
+              <PanelBlock
+                icon={Link2}
+                title={t("entry.parallel")}
+                onClose={() => setPanel(null)}
+              >
+                <div className="flex flex-col gap-2">
+                  {siblings.map((sib) => (
+                    <div
+                      key={sib.id}
+                      className="flex items-center gap-3 rounded-xl border border-violet-500/50 bg-violet-500/10 px-3 py-2.5"
+                    >
+                      <div className="flex-1 min-w-0 leading-tight">
+                        <span className="text-xs text-muted-foreground">
+                          {sib.catName}
+                        </span>
+                        <span className="text-xs text-muted-foreground mx-1">/</span>
+                        <span className="text-sm font-medium">{sib.subName}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeSibling(sib)}
+                        className="h-5 w-5 flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-destructive transition-colors shrink-0"
+                        aria-label={`${sib.subName} perspektifini sil`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  {newParallels.map((ps) => (
+                    <div
+                      key={ps.id}
+                      className="flex items-center gap-3 rounded-xl border border-dashed border-violet-500/40 bg-violet-500/5 px-3 py-2.5"
+                    >
+                      <div className="flex-1 min-w-0 leading-tight">
+                        <span className="text-xs text-muted-foreground">
+                          {ps.categoryName}
+                        </span>
+                        <span className="text-xs text-muted-foreground mx-1">/</span>
+                        <span className="text-sm font-medium">
+                          {ps.isCategoryRoot ? ps.categoryName : ps.name}
+                        </span>
+                        <span className="ml-1.5 text-[10px] text-violet-300/60">
+                          kaydedince detayları sorulacak
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNewParallels((prev) =>
+                            prev.filter((p) => p.id !== ps.id)
+                          )
+                        }
+                        className="h-5 w-5 flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-muted-foreground transition-colors shrink-0"
+                        aria-label={`${ps.name} paralel perspektifini kaldır`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setPickerView(true)}
+                    className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-violet-500/30 py-2.5 text-sm font-medium text-violet-300/80 transition-colors hover:border-violet-500/50 hover:text-violet-200"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {totalParallels > 0 ? t("entry.anotherPerspective") : t("entry.pickPerspective")}
+                  </button>
+                </div>
+              </PanelBlock>
+            )}
+
+            {panel === "regular" && (
+              <PanelBlock
+                icon={Repeat}
+                title={t("entry.regular")}
+                onClose={() => setPanel(null)}
+              >
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-input px-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">
+                      {regularScopeName} düzenli kalem
+                    </p>
+                    <p className="text-[11px] leading-snug text-muted-foreground">
+                      Kira, fatura gibi sabit kalemler analizlerde tek dokunuşla
+                      hariç tutulabilir. Bu ayar tek girdiye değil,{" "}
+                      <span className="text-foreground/80">
+                        {regularScopeName}
+                      </span>{" "}
+                      altındaki tüm girdilere işler.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={isRegular}
+                    onCheckedChange={(v) =>
+                      updateSubCategory(entry.subcategoryId, { isRegular: v })
+                    }
+                  />
+                </div>
+              </PanelBlock>
+            )}
+
+            {panel === "delete" && (
+              <PanelBlock
+                icon={Trash2}
+                title={t("entry.delete")}
+                onClose={() => setPanel(null)}
+              >
+                <div className="rounded-xl border border-destructive/30 bg-destructive/[0.07] p-3">
+                  <p className="text-[11px] leading-snug text-muted-foreground">
+                    <span className="font-medium text-foreground">
+                      {structureName}
+                    </span>{" "}
+                    girdisi değerleriyle birlikte kalıcı olarak silinecek.
+                    {siblings.length > 0 &&
+                      ` Its parallel perspectives (${siblings.length}) stay in place.`}
+                  </p>
+                  <div className="mt-2.5 flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="h-9 flex-1"
+                      onClick={() => setPanel(null)}
+                      disabled={deleting}
+                    >
+                      Vazgeç
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      className="h-9 flex-1"
+                      disabled={deleting}
+                      onClick={async () => {
+                        setDeleting(true);
+                        try {
+                          await deleteEntry(entry.id);
+                          onOpenChange(false);
+                        } finally {
+                          setDeleting(false);
+                        }
+                      }}
+                    >
+                      {deleting ? t("entry.deleting") : t("action.delete")}
+                    </Button>
+                  </div>
+                </div>
+              </PanelBlock>
+            )}
+
+    </>
+  );
+
   return (
     <>
       {/* İçeriği belirleyen listeler gelene kadar pencere görünmez: kart
@@ -498,10 +681,14 @@ export function EditEntryModal({
           boş görünüp sonra dolardı. Bekleme birkaç on ms. */}
       <Dialog open={open && ready} onOpenChange={onOpenChange}>
         <DialogContent
+          hideClose={isLedger}
           className={cn(
             // Ruh hali Ekle menüsündeki gibi büyük pencerede; diğerleri kısa
             fieldTone === "mood" ? ENTRY_WINDOW_LARGE : ENTRY_WINDOW_COMPACT,
-            "gap-5"
+            "gap-5",
+            // Açık defter görünümü: kap kaymaz, gövde kendi içinde kayar
+            // (zamanın "Özel" penceresi kabı kaplar)
+            isLedger && "h-[min(660px,calc(100dvh-3rem))] gap-0 overflow-hidden p-0"
           )}
         >
           {pStep ? (
@@ -658,6 +845,213 @@ export function EditEntryModal({
                 </Button>
               </DialogFooter>
             </>
+          ) : isLedger ? (
+            /*
+              SIRADAN GİRDİNİN DÜZENLEMESİ — ekleme formunun dili: başlıkta
+              kalemin karosu, yolu ve adı; altında zaman hapı; gövde açık
+              defter (aynı LedgerField kutuları, aynı kurallar); altta not ve
+              Kaydet. Başlık ve alt düğmeler sabit, yalnız gövde kayar.
+              Uyku ve ruh hali kendi özel düzenlemelerinde kalır (aşağıda).
+            */
+            <div className="relative flex min-h-0 flex-1 flex-col">
+              <DialogTitle className="sr-only">{structureName}</DialogTitle>
+              {/* Tepede kategorinin renginde ışık */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64"
+                style={{
+                  background: `radial-gradient(120% 90% at 15% 0%, ${accent}40 0%, ${accent}14 45%, transparent 75%)`,
+                }}
+              />
+              {/* Üst şerit — seçenekler solda, kapat sağda */}
+              <div className="flex h-12 shrink-0 items-center justify-between px-3 pt-1.5">
+                <OptionsMenu
+                  align="left"
+                  touched={totalParallels > 0 || isRegular}
+                  items={[
+                    {
+                      key: "parallel",
+                      icon: Link2,
+                      title: t("entry.parallel"),
+                      subtitle: totalParallels
+                        ? `${totalParallels} perspektif`
+                        : t("entry.alsoLog"),
+                      active: panel === "parallel",
+                      onSelect: () => togglePanel("parallel"),
+                    },
+                    {
+                      key: "regular",
+                      icon: Repeat,
+                      title: t("entry.regular"),
+                      subtitle: isRegular ? t("entry.regularOn") : t("entry.regularOff"),
+                      active: panel === "regular",
+                      onSelect: () => togglePanel("regular"),
+                    },
+                    {
+                      key: "delete",
+                      icon: Trash2,
+                      title: t("entry.delete"),
+                      subtitle: t("entry.deleteHint"),
+                      tone: "destructive",
+                      active: panel === "delete",
+                      onSelect: () => togglePanel("delete"),
+                    },
+                  ]}
+                />
+                <button
+                  type="button"
+                  onClick={() => onOpenChange(false)}
+                  aria-label={t("action.close")}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sf-2)] text-foreground/80 transition-[background-color,transform] hover:bg-[var(--sf-3)] active:scale-95"
+                >
+                  <X className="h-[17px] w-[17px]" />
+                </button>
+              </div>
+
+              {/* Başlık — karo, yol, ad (dokununca kalemin yapı sayfası), zaman */}
+              <div className="flex shrink-0 items-start gap-3 px-4 pb-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenChange(false);
+                    router.push(structureHref);
+                  }}
+                  aria-label={`${structureName} yapı sayfasına git`}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] transition-transform active:scale-95"
+                  style={{
+                    backgroundColor: accent,
+                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25), inset 0 0 0 1px rgba(0,0,0,0.14)",
+                  }}
+                >
+                  <SymbolIcon
+                    name={entry.subcategory.isCategoryRoot ? entry.category.icon : entry.subcategory.icon}
+                    size={22}
+                    style={{ color: "#fff" }}
+                  />
+                </button>
+                <div className="min-w-0 flex-1 leading-tight">
+                  <SmartText
+                    text={entry.subcategory.isCategoryRoot ? t("entry.general") : entry.category.name}
+                    className="text-[12px] font-medium text-muted-foreground"
+                  />
+                  <SmartText
+                    text={structureName}
+                    lines={2}
+                    className="text-[19px] font-bold leading-6 tracking-tight"
+                  />
+                  <EntryTime
+                    occurredAt={occurredAt}
+                    onChange={setOccurredAt}
+                    baseDate={todayDate}
+                    accent={accent}
+                  />
+                </div>
+              </div>
+
+              {/* Gövde — açık defter */}
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 pb-4">
+                <div className="relative ml-[22px] flex flex-col gap-2 pl-3">
+                  <span
+                    aria-hidden
+                    className="absolute -top-2.5 bottom-4 left-0 w-[2px] -translate-x-1/2 rounded-full"
+                    style={{ background: `${accent}59` }}
+                  />
+                  {rows.map((row) => {
+                    const m = rowAsMod(row);
+                    return (
+                      <LedgerField
+                        key={row.key}
+                        mod={m}
+                        icon={modAtomIcon({ name: row.label, entryType: row.entryType })}
+                        color={modColor(m.mod ?? { name: row.label })}
+                        value={(values[row.key] ?? [])[0] ?? ""}
+                        onChange={(v) =>
+                          setValues((prev) => ({ ...prev, [row.key]: v === "" ? [] : [v] }))
+                        }
+                        recent={recent[row.modId ?? row.entryTypeId ?? ""] ?? []}
+                        entryDate={entryDate}
+                        entryOnly={!!row.modId && !attachedModIds.has(row.modId)}
+                        dense={rows.length >= 5}
+                        onRemove={() => handleRemove(row.key)}
+                        autoFocus={row.key === focusKey}
+                      />
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setAddModOpen(true)}
+                    className="flex h-9 items-center gap-1.5 self-start rounded-full px-3 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+                  >
+                    <Plus className="h-4 w-4" />
+                    {t("entry.addFeature")}
+                  </button>
+                </div>
+
+                {panels}
+
+                {/* Not — tam genişlik, ilk üç satırı okunur */}
+                <div className="mt-4 flex shrink-0 flex-col gap-1.5">
+                  <div className="px-1 text-[12px] font-semibold text-muted-foreground">
+                    {t("entry.note")}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setNoteOpen(true)}
+                    className="flex min-h-[76px] w-full items-start gap-2.5 rounded-2xl bg-[var(--sf-1)] px-3.5 py-3 text-left ring-1 ring-inset ring-[var(--ln-1)] transition-colors hover:bg-[var(--sf-2)]"
+                  >
+                    <NotebookPen className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span
+                      className={cn(
+                        "line-clamp-3 min-w-0 whitespace-pre-wrap break-words text-[14px] leading-5",
+                        notes ? "text-foreground" : "text-muted-foreground/70"
+                      )}
+                    >
+                      {notes || t("entry.notePlaceholder")}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Alt — vazgeç ve kaydet (kalemin renginde) */}
+              <div
+                className="grid shrink-0 grid-cols-[auto_1fr] gap-2 border-t border-[var(--ln-1)] px-4 pt-3"
+                style={{ paddingBottom: "max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem))" }}
+              >
+                <button
+                  type="button"
+                  onClick={() => onOpenChange(false)}
+                  disabled={saving}
+                  className="h-12 rounded-2xl bg-[var(--sf-2)] px-5 text-[14px] font-semibold text-foreground/85 transition-colors hover:bg-[var(--sf-3)]"
+                >
+                  {t("action.cancel")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex h-12 items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-60"
+                  style={{ background: accent }}
+                >
+                  {!saving && <Check className="h-5 w-5" strokeWidth={2.75} />}
+                  {saving
+                    ? t("entry.saving")
+                    : newParallels.length > 0
+                      ? t("action.saveAndContinue")
+                      : t("action.save")}
+                </button>
+              </div>
+
+              {noteOpen && (
+                <NoteEditorView
+                  value={notes}
+                  onChange={setNotes}
+                  onDone={() => setNoteOpen(false)}
+                  subtitle={structureName}
+                  accent={accent}
+                  className="absolute inset-0 z-20 bg-background px-5 pb-6 pt-5"
+                />
+              )}
+            </div>
           ) : (
             <>
           {noteOpen && (
@@ -815,152 +1209,7 @@ export function EditEntryModal({
               </PanelBlock>
             )}
 
-            {panel === "parallel" && (
-              <PanelBlock
-                icon={Link2}
-                title={t("entry.parallel")}
-                onClose={() => setPanel(null)}
-              >
-                <div className="flex flex-col gap-2">
-                  {siblings.map((sib) => (
-                    <div
-                      key={sib.id}
-                      className="flex items-center gap-3 rounded-xl border border-violet-500/50 bg-violet-500/10 px-3 py-2.5"
-                    >
-                      <div className="flex-1 min-w-0 leading-tight">
-                        <span className="text-xs text-muted-foreground">
-                          {sib.catName}
-                        </span>
-                        <span className="text-xs text-muted-foreground mx-1">/</span>
-                        <span className="text-sm font-medium">{sib.subName}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeSibling(sib)}
-                        className="h-5 w-5 flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-destructive transition-colors shrink-0"
-                        aria-label={`${sib.subName} perspektifini sil`}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                  {newParallels.map((ps) => (
-                    <div
-                      key={ps.id}
-                      className="flex items-center gap-3 rounded-xl border border-dashed border-violet-500/40 bg-violet-500/5 px-3 py-2.5"
-                    >
-                      <div className="flex-1 min-w-0 leading-tight">
-                        <span className="text-xs text-muted-foreground">
-                          {ps.categoryName}
-                        </span>
-                        <span className="text-xs text-muted-foreground mx-1">/</span>
-                        <span className="text-sm font-medium">
-                          {ps.isCategoryRoot ? ps.categoryName : ps.name}
-                        </span>
-                        <span className="ml-1.5 text-[10px] text-violet-300/60">
-                          kaydedince detayları sorulacak
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setNewParallels((prev) =>
-                            prev.filter((p) => p.id !== ps.id)
-                          )
-                        }
-                        className="h-5 w-5 flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-muted-foreground transition-colors shrink-0"
-                        aria-label={`${ps.name} paralel perspektifini kaldır`}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setPickerView(true)}
-                    className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-violet-500/30 py-2.5 text-sm font-medium text-violet-300/80 transition-colors hover:border-violet-500/50 hover:text-violet-200"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    {totalParallels > 0 ? t("entry.anotherPerspective") : t("entry.pickPerspective")}
-                  </button>
-                </div>
-              </PanelBlock>
-            )}
-
-            {panel === "regular" && (
-              <PanelBlock
-                icon={Repeat}
-                title={t("entry.regular")}
-                onClose={() => setPanel(null)}
-              >
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-input px-3 py-2.5">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">
-                      {regularScopeName} düzenli kalem
-                    </p>
-                    <p className="text-[11px] leading-snug text-muted-foreground">
-                      Kira, fatura gibi sabit kalemler analizlerde tek dokunuşla
-                      hariç tutulabilir. Bu ayar tek girdiye değil,{" "}
-                      <span className="text-foreground/80">
-                        {regularScopeName}
-                      </span>{" "}
-                      altındaki tüm girdilere işler.
-                    </p>
-                  </div>
-                  <Switch
-                    checked={isRegular}
-                    onCheckedChange={(v) =>
-                      updateSubCategory(entry.subcategoryId, { isRegular: v })
-                    }
-                  />
-                </div>
-              </PanelBlock>
-            )}
-
-            {panel === "delete" && (
-              <PanelBlock
-                icon={Trash2}
-                title={t("entry.delete")}
-                onClose={() => setPanel(null)}
-              >
-                <div className="rounded-xl border border-destructive/30 bg-destructive/[0.07] p-3">
-                  <p className="text-[11px] leading-snug text-muted-foreground">
-                    <span className="font-medium text-foreground">
-                      {structureName}
-                    </span>{" "}
-                    girdisi değerleriyle birlikte kalıcı olarak silinecek.
-                    {siblings.length > 0 &&
-                      ` Its parallel perspectives (${siblings.length}) stay in place.`}
-                  </p>
-                  <div className="mt-2.5 flex gap-2">
-                    <Button
-                      variant="outline"
-                      className="h-9 flex-1"
-                      onClick={() => setPanel(null)}
-                      disabled={deleting}
-                    >
-                      Vazgeç
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      className="h-9 flex-1"
-                      disabled={deleting}
-                      onClick={async () => {
-                        setDeleting(true);
-                        try {
-                          await deleteEntry(entry.id);
-                          onOpenChange(false);
-                        } finally {
-                          setDeleting(false);
-                        }
-                      }}
-                    >
-                      {deleting ? t("entry.deleting") : t("action.delete")}
-                    </Button>
-                  </div>
-                </div>
-              </PanelBlock>
-            )}
+            {panels}
 
             {/* ── Not — her zaman altta. Yerleşik akışta o akışın tonunda:
                  uyku formunun içinde tek başına nötr duran bir kutu kalmasın.

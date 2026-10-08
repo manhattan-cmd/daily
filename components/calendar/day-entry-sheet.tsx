@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Boxes, Check, ChevronDown, Clock, Link2, ListPlus, PanelLeftClose, PenLine, Plus, X } from "lucide-react";
+import { ArrowLeft, Boxes, Check, Link2, ListPlus, PanelLeftClose, PenLine, Plus, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import {
   listModifiersForTarget,
@@ -20,6 +20,7 @@ import { useT } from "@/lib/i18n";
 import { NoteEditorView } from "@/components/forms/note-editor";
 import { LedgerField } from "@/components/forms/ledger-field";
 import { SmartText } from "@/components/ui/smart-text";
+import { EntryTime } from "@/components/forms/entry-time";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { modAtomIcon } from "@/components/structure/mod-atom";
 import { modColor } from "@/lib/mod-color";
@@ -29,13 +30,11 @@ import { EntryPicker, useEntryLayout } from "@/components/calendar/entry-picker"
 import { SideFormWindow } from "@/components/calendar/side-form-window";
 import { CategoryForm } from "@/components/structure/category-form";
 import {
-  DateTimeInput,
   DateTimeRangeInput,
   formatDTRDisplay,
 } from "@/components/forms/datetime-range-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SHORT_MONTHS } from "@/lib/analytics";
 import { ScaleInput } from "@/components/ui/scale-input";
 import { SymbolIcon } from "@/lib/icons";
 import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
@@ -749,47 +748,12 @@ function PickStep({
 
 // ─── Form Step ───────────────────────────────────────────────────────────────
 
-/** Zaman çipinin etiketi — gün formun günüyse yalnız saat, değilse gün de */
-function occurredAtLabel(
-  occurredAt: string,
-  entryDate: string,
-  emptyLabel: string
-): string {
-  const [d = "", t = ""] = occurredAt.split("T");
-  if (!t) return emptyLabel;
-  if (d === entryDate) return t;
-  const dt = new Date(d + "T00:00:00");
-  return `${SHORT_MONTHS[dt.getMonth()]} ${dt.getDate()} · ${t}`;
-}
 
 
 /** Menüden açılan bölümler — aynı anda yalnız biri açık kalır */
-type Panel = "time" | "parallel";
+type Panel = "parallel";
 
-/** Zaman çiplerinin "şimdi"si — olay işleyicide değil çizimde okunuyor, saf kalsın diye modülde */
-const nowDate = () => new Date();
 const NO_RECENT: Record<string, string[]> = {};
-
-/**
- * Hazır zaman çipleri — girdinin anı tek dokunuşla. Gerçek veride
- * girdilerin dörtte biri 3 saatten geç giriliyor; eskiden saat ⋯
- * menüsünde saklıydı. Çiplerin hepsi formun gününe göre (sayfa dünün
- * günüyse "Şimdi" dünün bu saati).
- */
-function timePresets(entryDate: string, t: ReturnType<typeof useT>) {
-  const [y, m, d] = entryDate.split("-").map(Number);
-  const n = nowDate();
-  const at = (day: number, h: number, mi: number) =>
-    toLocalDateTimeValue(new Date(y, m - 1, day, h, mi, 0, 0).getTime());
-  const nowTs = new Date(y, m - 1, d, n.getHours(), n.getMinutes(), 0, 0).getTime();
-  return [
-    { key: "now", label: t("entry.timeNow"), value: at(d, n.getHours(), n.getMinutes()) },
-    { key: "h1", label: t("entry.timeHourAgo"), value: toLocalDateTimeValue(nowTs - 3600_000) },
-    { key: "noon", label: t("entry.timeNoon"), value: at(d, 12, 30) },
-    { key: "eve", label: t("entry.timeEvening"), value: at(d, 19, 30) },
-    { key: "yday", label: t("entry.timeYesterday"), value: at(d - 1, n.getHours(), n.getMinutes()) },
-  ];
-}
 
 /**
  * Girdi formu — AÇIK DEFTER.
@@ -868,15 +832,6 @@ function FormStep({
   const [focusModId, setFocusModId] = useState<string | null>(null);
   const togglePanel = (p: Panel) => setPanel((cur) => (cur === p ? null : p));
   const recent = useLiveQuery(() => listRecentModValues(sub.id), [sub.id]) ?? NO_RECENT;
-  // Çipler pencere açıldığında bir kez hesaplanır — "şimdi" kaymasın
-  const [presets] = useState(() => timePresets(entryDate, t));
-  const activePreset = presets.find((p) => p.value === occurredAt)?.key ?? null;
-  // Zaman kutusunda "Saat" açık mı (gün + saat seçici)
-  const [customTime, setCustomTime] = useState(false);
-  const clock = occurredAt.split("T")[1] ?? "";
-  const timeSummary = activePreset
-    ? `${presets.find((p) => p.key === activePreset)?.label} · ${clock}`
-    : occurredAtLabel(occurredAt, entryDate, t("entry.time"));
 
   const showParallelOption = !parallelContext && !hideParallels;
   const hasParallelSelected = selectedParallels.length > 0;
@@ -976,74 +931,15 @@ function FormStep({
           <h2>
             <SmartText text={itemName} lines={2} className="text-[19px] font-bold leading-6 tracking-tight" />
           </h2>
-          <button
-            type="button"
-            onClick={() => togglePanel("time")}
-            aria-expanded={panel === "time"}
-            className="mt-1 flex h-7 items-center gap-1.5 rounded-full pl-2 pr-2.5 text-[12.5px] font-semibold transition-[background-color,transform] active:scale-95"
-            style={{ background: `${accent}26`, color: accent }}
-          >
-            <Clock className="h-3.5 w-3.5" />
-            <span className="font-mono">{timeSummary}</span>
-            <ChevronDown
-              className={cn("h-3.5 w-3.5 transition-transform", panel === "time" && "rotate-180")}
-            />
-          </button>
+          {/* Zaman — küçük hap; Dün · Şimdi · Yarın · Özel (bkz. EntryTime) */}
+          <EntryTime
+            occurredAt={occurredAt}
+            onChange={onOccurredAtChange}
+            baseDate={entryDate}
+            accent={accent}
+          />
         </div>
       </div>
-
-      {/*
-        Zaman AÇILINCA — hazır anlar 3×2 ızgarada, "Saat" kendi gününü ve
-        saatini seçtirir. Seçince kutu kapanır. Kapalıyken zaman yalnız
-        başlığın altındaki küçük hap: odak özelliklerde kalsın (açık
-        ızgara formun üçte birini kaplıyordu).
-      */}
-      {panel === "time" && (
-        <div className="mx-3 mb-3 shrink-0 rounded-2xl bg-[var(--sf-1)] p-2 ring-1 ring-inset ring-[var(--ln-1)]">
-          <div className="grid grid-cols-3 gap-1.5">
-            {presets.map((p) => {
-              const on = activePreset === p.key;
-              return (
-                <button
-                  key={p.key}
-                  type="button"
-                  onClick={() => {
-                    onOccurredAtChange(p.value);
-                    setCustomTime(false);
-                    setPanel(null);
-                  }}
-                  aria-pressed={on}
-                  className={cn(
-                    "flex h-9 min-w-0 items-center justify-center rounded-xl px-1.5 text-[13px] font-semibold transition-colors",
-                    !on && "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground"
-                  )}
-                  style={on ? { background: accent, color: "#fff" } : undefined}
-                >
-                  <span className="truncate">{p.label}</span>
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => setCustomTime((v) => !v)}
-              aria-expanded={customTime}
-              className={cn(
-                "flex h-9 min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 text-[13px] font-semibold transition-colors",
-                activePreset ? "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground" : "text-white"
-              )}
-              style={activePreset ? undefined : { background: accent }}
-            >
-              <Clock className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{t("entry.timeCustom")}</span>
-            </button>
-          </div>
-          {customTime && (
-            <div className="mt-2">
-              <DateTimeInput value={occurredAt} onChange={onOccurredAtChange} />
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Gövde — açık defter */}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3 pb-4">
