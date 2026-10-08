@@ -24,8 +24,13 @@ export function isFieldFilled(vt: EntryValueType, value: string): boolean {
  * uzun adlar, büyük sayılar) ölçülerek kondu. Yeni bir durum bu
  * sayılarla karşılanır, kutu "duruma göre" yeniden çizilmez.
  */
-/** Evet/hayırda anahtarın adın yanında kalabileceği en uzun ad */
-const BOOL_INLINE_MAX = 30;
+/**
+ * Evet/hayırda anahtar adın yanında YALNIZ ad tek satıra sığıyorsa durur
+ * (anahtar + kaldır düğmesi yanında ~14 harflik yer kalıyor). Daha uzun ad
+ * dar sütunda alt alta bölünüyordu ("Yüz / nemlendirici"): ad tam
+ * genişlikte, anahtar altında.
+ */
+const BOOL_INLINE_MAX = 14;
 /** Birim giriş yuvasına bu uzunluğa kadar sığar; uzunsa yalnız başlıkta */
 const UNIT_IN_WELL_MAX = 6;
 /** Bundan çok seçenek "büyük küme": kapalı gelir, açılınca listelenir */
@@ -62,11 +67,13 @@ function optionLayout(choices: string[]) {
  * KURALLAR (her tür için aynı anatomi):
  *
  *  0. YAZI KESİLMEZ: ad, seçenek, öneri hiçbir yerde "…" ile kısalmaz;
- *     gereken kadar satıra iner. Yanındaki sembol / anahtar / kaldır adın
+ *     gereken kadar satıra iner — KELİME BÖLÜNMEDEN (yalnız sığmayan tek
+ *     bir kelime bölünür; "her yerden kır" dar sütunda harf harf bölüyordu). Yanındaki sembol / anahtar / kaldır adın
  *     ilk satırına hizalanır.
  *  1. BAŞLIK: sembol, ad (+ birim), girdiye özel ise ⓘ, kaldır. Değer
  *     başlığa girmez. "Yalnız bu girdi" rozeti başlığı bozuyordu: yerine
- *     ⓘ — dokununca açıklama kutunun içinde açılır.
+ *     ⓘ — dokununca simgenin yanında küçük bir pencere, boşluğa dokununca
+ *     kapanır.
  *  2. DEĞER her türde başlığın altında, tam genişlik GİRİŞ YUVASINDA (koyu
  *     zemin, özelliğin renginde çerçeve, 48 px). Birim yuvaya ≤ 6 harfse
  *     girer, uzunsa ("mililitre", "deniz mili") yalnız başlıkta — ikisinde
@@ -79,8 +86,8 @@ function optionLayout(choices: string[]) {
  *     kendiliğinden kapanır. (30 ülkelik kutu 746 px'ti.)
  *  5. YOĞUN FORM (5+ özellik): zaman aralığı da kapalı gelir, yuvada
  *     "Başlangıç ve bitişi seç" — 150 px'lik seçici formu uzatıyordu.
- *  6. EVET/HAYIR tek istisna: tek satır, anahtar sağda; ad 30 harften
- *     uzunsa anahtar alta iner.
+ *  6. EVET/HAYIR tek istisna: tek satır, anahtar sağda; ad tek satıra
+ *     sığmıyorsa (14 harften uzun) ad tam genişlik, anahtar altta.
  *  7. METİN uzadıkça yuva da uzar — yazılan hep görünür.
  *  8. RENK: boşken özelliğin renginde hafif, doluyken güçlü.
  */
@@ -246,13 +253,14 @@ export function LedgerField({
         >
           <Icon className="h-[15px] w-[15px]" strokeWidth={2.2} />
         </span>
-        <span className="min-w-0 flex-1 break-words pt-1 text-[14px] font-semibold leading-5 [overflow-wrap:anywhere]">
+        <span className="min-w-0 flex-1 break-words pt-1 text-[14px] font-semibold leading-5 break-words">
           {label}
           {unit && !unitInWell && (
             <span className="ml-1.5 text-xs font-normal text-muted-foreground">{unit}</span>
           )}
         </span>
         {entryOnly && (
+          <span className="relative flex shrink-0">
           <button
             type="button"
             onClick={(e) => {
@@ -266,6 +274,30 @@ export function LedgerField({
           >
             <Info className={cn("h-4 w-4", !infoOpen && "text-muted-foreground/70")} />
           </button>
+          {/* ⓘ penceresi — simgenin altında küçük kutu; boşluğa dokununca kapanır */}
+          {infoOpen && (
+            <>
+              <span
+                className="fixed inset-0 z-40"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setInfoOpen(false);
+                }}
+              />
+              <span
+                role="dialog"
+                onClick={(e) => e.stopPropagation()}
+                className="animate-in fade-in zoom-in-95 absolute right-0 top-8 z-50 w-60 rounded-2xl bg-card p-3 text-[12.5px] font-normal leading-[18px] text-foreground/90 shadow-[0_16px_36px_-10px_rgba(0,0,0,0.85)] ring-1 ring-[var(--ln-2)]"
+              >
+                <span className="mb-1 flex items-center gap-1.5 text-[12px] font-semibold" style={{ color }}>
+                  <Info className="h-3.5 w-3.5" />
+                  <span className="inline-block first-letter:uppercase">{t("entry.onlyThisEntry")}</span>
+                </span>
+                {t("entry.onlyThisEntryHint")}
+              </span>
+            </>
+          )}
+          </span>
         )}
         {isBool && !isLocked && !longBool && (
           <span onClick={(e) => e.stopPropagation()} className="flex shrink-0">
@@ -302,14 +334,6 @@ export function LedgerField({
       </div>
 
       {/* ⓘ — girdiye özel özelliğin açıklaması, kutunun içinde */}
-      {entryOnly && infoOpen && (
-        <p
-          className="rounded-xl px-3 py-2 text-[12.5px] leading-[18px]"
-          style={{ background: `${color}1f`, color }}
-        >
-          {t("entry.onlyThisEntryHint")}
-        </p>
-      )}
 
       {/* 2 — değer */}
       {isLocked ? (
@@ -407,7 +431,7 @@ export function LedgerField({
                   }}
                   aria-pressed={on}
                   className={cn(
-                    "flex min-h-10 min-w-0 items-center justify-center rounded-xl px-2.5 py-1.5 text-center text-[13.5px] font-semibold leading-[18px] transition-colors [overflow-wrap:anywhere]",
+                    "flex min-h-10 min-w-0 items-center justify-center rounded-xl px-2.5 py-1.5 text-center text-[13.5px] font-semibold leading-[18px] transition-colors break-words",
                     !on && "bg-black/25 text-muted-foreground ring-1 ring-inset hover:text-foreground"
                   )}
                   style={{
@@ -453,7 +477,7 @@ export function LedgerField({
                   key={raw}
                   type="button"
                   onClick={() => onChange(on ? "" : raw)}
-                  className="flex min-h-8 min-w-0 items-center justify-center rounded-lg px-1.5 py-1 font-mono text-[12.5px] font-semibold leading-4 transition-colors [overflow-wrap:anywhere]"
+                  className="flex min-h-8 min-w-0 items-center justify-center rounded-lg px-1.5 py-1 font-mono text-[12.5px] font-semibold leading-4 transition-colors break-words"
                   style={
                     on
                       ? { background: color, color: "#fff" }

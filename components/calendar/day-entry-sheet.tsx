@@ -973,7 +973,7 @@ function FormStep({
               {topLine}
             </div>
           )}
-          <h2 className="break-words text-[19px] font-bold leading-6 tracking-tight [overflow-wrap:anywhere]">{itemName}</h2>
+          <h2 className="break-words text-[19px] font-bold leading-6 tracking-tight ">{itemName}</h2>
           <button
             type="button"
             onClick={() => togglePanel("time")}
