@@ -894,10 +894,46 @@ function FormStep({
 
   return (
     <>
-      {/* Başlık — geri, kalemin karosu + adı + yolu, paralel seçeneği */}
-      <div className="flex shrink-0 items-center gap-2.5 px-3 pb-2.5 pt-1">
+      {/*
+        Üst şerit — paralel seçeneği solda, kapat sağda, ortada pencerenin
+        tutamacı. Eskiden ikisi başlık satırındaydı ve kalemin adını
+        kesiyordu ("Ağırlık antrenma…").
+      */}
+      <div className="flex h-11 shrink-0 items-center justify-between px-2.5 pt-1">
+        <div className="flex min-w-9 items-center">
+          {showParallelOption && (
+            <OptionsMenu
+              touched={hasParallelSelected}
+              items={[
+                {
+                  key: "parallel",
+                  icon: Link2,
+                  title: t("entry.parallel"),
+                  subtitle: hasParallelSelected
+                    ? `${selectedParallels.length} seçili`
+                    : t("entry.alsoLog"),
+                  active: panel === "parallel",
+                  onSelect: () => togglePanel("parallel"),
+                },
+              ]}
+            />
+          )}
+        </div>
+        {/* Kapat — pencereyi kapatıp seçiciye döner (sola kaydırmak da) */}
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sf-2)] text-foreground/80 transition-[background-color,transform] hover:bg-[var(--sf-3)] active:scale-95"
+          aria-label={parallelContext ? t("action.skip") : t("action.close")}
+        >
+          {parallelContext ? <ArrowLeft className="h-[17px] w-[17px]" /> : <PanelLeftClose className="h-[17px] w-[17px]" />}
+        </button>
+      </div>
+
+      {/* Başlık — kalemin karosu, yolu ve adı; bütün genişlik onun */}
+      <div className="flex shrink-0 items-center gap-3 px-3 pb-3">
         <span
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px]"
           style={{
             backgroundColor: accent,
             boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25), inset 0 0 0 1px rgba(0,0,0,0.14)",
@@ -910,49 +946,27 @@ function FormStep({
           ) : (
             <SymbolIcon
               name={sub.isCategoryRoot ? (category?.icon ?? sub.icon) : sub.icon}
-              size={20}
+              size={22}
               style={{ color: "#fff" }}
             />
           )}
         </span>
         <div className="min-w-0 flex-1 leading-tight">
           {topLine && (
-            <div className="truncate text-[11.5px] font-medium text-muted-foreground">
+            <div className="truncate text-[12px] font-medium text-muted-foreground">
               {topLine}
             </div>
           )}
-          <h2 className="truncate text-[18px] font-bold tracking-tight">{itemName}</h2>
+          <h2 className="line-clamp-2 text-[19px] font-bold leading-6 tracking-tight">{itemName}</h2>
         </div>
-        {showParallelOption && (
-          <OptionsMenu
-            touched={hasParallelSelected}
-            items={[
-              {
-                key: "parallel",
-                icon: Link2,
-                title: t("entry.parallel"),
-                subtitle: hasParallelSelected
-                  ? `${selectedParallels.length} seçili`
-                  : t("entry.alsoLog"),
-                active: panel === "parallel",
-                onSelect: () => togglePanel("parallel"),
-              },
-            ]}
-          />
-        )}
-        {/* Kapat — pencereyi kapatıp seçiciye döner (sola kaydırmak da) */}
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sf-2)] text-foreground/80 transition-[background-color,transform] hover:bg-[var(--sf-3)] active:scale-95"
-          aria-label={parallelContext ? t("action.skip") : t("action.close")}
-        >
-          {parallelContext ? <ArrowLeft className="h-[17px] w-[17px]" /> : <PanelLeftClose className="h-[17px] w-[17px]" />}
-        </button>
       </div>
 
-      {/* Zaman çipleri — hazır anlar + kendi saatin */}
-      <div className="no-scrollbar flex shrink-0 gap-1.5 overflow-x-auto px-3 pb-2.5">
+      {/*
+        Zaman — sabit 3×2 ızgara, kaymaz. Yatay kayan şerit pencereyi
+        sola kaydırıp kapatma hareketiyle çakışıyordu; "Akşam" yarım
+        kalıyor, "Saat" (kendi zamanın) ekranın dışında görünmüyordu.
+      */}
+      <div className="grid shrink-0 grid-cols-3 gap-1.5 px-3 pb-3">
         {presets.map((p) => {
           const on = activePreset === p.key;
           return (
@@ -965,13 +979,12 @@ function FormStep({
               }}
               aria-pressed={on}
               className={cn(
-                "flex h-8 shrink-0 items-center gap-1 rounded-full px-3 text-[12.5px] font-semibold transition-colors",
+                "flex h-9 min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 text-[13px] font-semibold transition-colors",
                 !on && "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground"
               )}
               style={on ? { background: accent, color: "#fff" } : undefined}
             >
-              {p.key === "now" && <Clock className="h-3.5 w-3.5" />}
-              {p.label}
+              <span className="truncate">{p.label}</span>
             </button>
           );
         })}
@@ -980,13 +993,19 @@ function FormStep({
           onClick={() => togglePanel("time")}
           aria-expanded={panel === "time"}
           className={cn(
-            "flex h-8 shrink-0 items-center gap-1 rounded-full px-3 font-mono text-[12.5px] font-semibold transition-colors",
-            activePreset ? "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground" : "text-white"
+            "flex h-9 min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 text-[13px] font-semibold transition-colors",
+            activePreset
+              ? panel === "time"
+                ? "bg-[var(--sf-3)] text-foreground"
+                : "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground"
+              : "text-white"
           )}
           style={activePreset ? undefined : { background: accent }}
         >
-          <Clock className="h-3.5 w-3.5" />
-          {activePreset ? t("entry.timeCustom") : occurredAtLabel(occurredAt, entryDate, t("entry.time"))}
+          <Clock className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">
+            {activePreset ? t("entry.timeCustom") : occurredAtLabel(occurredAt, entryDate, t("entry.time"))}
+          </span>
         </button>
       </div>
       {panel === "time" && (
@@ -1038,6 +1057,15 @@ function FormStep({
                 autoFocus={mod.modId === focusModId}
               />
             ))}
+            {/* Bu girdiye özellik ekle — alanların sonunda, sessiz */}
+            <button
+              type="button"
+              onClick={() => setModPickerOpen(true)}
+              className="flex h-9 items-center gap-1.5 self-start rounded-full px-3 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+            >
+              <Plus className="h-4 w-4" />
+              {t("entry.addFeature")}
+            </button>
           </div>
         )}
 
@@ -1082,28 +1110,30 @@ function FormStep({
           </div>
         )}
 
-        {/* Not ve özellik — ikinci planda, tek satır */}
-        <div className="mt-3 flex shrink-0 gap-2">
+        {/*
+          Not — tam genişlik, başlıklı; yazılanın ilk üç satırı okunur.
+          Basınca not penceresi açılır. Tek satırlık kutuda yazı
+          okunmuyordu.
+        */}
+        <div className="mt-4 flex shrink-0 flex-col gap-1.5">
+          <div className="px-1 text-[12px] font-semibold text-muted-foreground">
+            {t("entry.note")}
+          </div>
           <button
             type="button"
             onClick={() => setNoteOpen(true)}
-            className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-xl bg-[var(--sf-1)] px-3 text-left text-[13px] ring-1 ring-inset ring-[var(--ln-1)] transition-colors hover:bg-[var(--sf-2)]"
+            className="flex min-h-[76px] w-full items-start gap-2.5 rounded-2xl bg-[var(--sf-1)] px-3.5 py-3 text-left ring-1 ring-inset ring-[var(--ln-1)] transition-colors hover:bg-[var(--sf-2)]"
           >
-            <PenLine className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className={cn("truncate", notes ? "text-foreground" : "text-muted-foreground/70")}>
-              {notes ? notes.split("\n")[0] : t("entry.notePlaceholder")}
+            <PenLine className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <span
+              className={cn(
+                "line-clamp-3 min-w-0 whitespace-pre-wrap break-words text-[14px] leading-5",
+                notes ? "text-foreground" : "text-muted-foreground/70"
+              )}
+            >
+              {notes || t("entry.notePlaceholder")}
             </span>
           </button>
-          {mods.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setModPickerOpen(true)}
-              className="flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-[var(--sf-1)] px-3 text-[13px] font-semibold text-muted-foreground ring-1 ring-inset ring-[var(--ln-1)] transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
-            >
-              <Plus className="h-4 w-4" />
-              {t("entry.featureShort")}
-            </button>
-          )}
         </div>
       </div>
 

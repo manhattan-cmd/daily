@@ -228,7 +228,7 @@ export function SideFormWindow({
           if (e.detail === 0) setFull((f) => !f);
         }}
         aria-label={full ? t("entry.windowed") : t("entry.fullscreen")}
-        className="flex h-5 shrink-0 cursor-grab touch-none items-center justify-center"
+        className="absolute left-1/2 top-0 z-10 flex h-7 w-28 -translate-x-1/2 cursor-grab touch-none items-start justify-center pt-2"
       >
         <span className="h-1 w-10 rounded-full bg-[var(--ln-2)]" />
       </button>
