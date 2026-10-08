@@ -95,14 +95,14 @@ export function LedgerField({
       className="rounded-2xl px-3 py-2.5 transition-[background-color,box-shadow] duration-300"
       style={
         filled
-          ? { background: `${color}14`, boxShadow: `inset 0 0 0 1px ${color}59` }
-          : { background: "var(--sf-1)", boxShadow: "inset 0 0 0 1px var(--ln-1)" }
+          ? { background: `${color}24`, boxShadow: `inset 0 0 0 1.5px ${color}8c` }
+          : { background: `${color}0f`, boxShadow: `inset 0 0 0 1px ${color}2e` }
       }
     >
       <div className="flex min-h-8 items-center gap-2.5">
         <span
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors"
-          style={{ background: `${color}${filled ? "38" : "1f"}`, color }}
+          style={filled ? { background: color, color: "#fff" } : { background: `${color}33`, color }}
         >
           <Icon className="h-[15px] w-[15px]" strokeWidth={2.2} />
         </span>
@@ -191,11 +191,12 @@ export function LedgerField({
                 key={r}
                 type="button"
                 onClick={() => onChange(on ? "" : r)}
-                className={cn(
-                  "h-7 rounded-full px-2.5 font-mono text-[12px] font-semibold transition-colors",
-                  !on && "bg-[var(--sf-2)] text-muted-foreground ring-1 ring-inset ring-[var(--ln-1)] hover:text-foreground"
-                )}
-                style={on ? { background: color, color: "#fff" } : undefined}
+                className="h-7 rounded-full px-2.5 font-mono text-[12px] font-semibold transition-colors"
+                style={
+                  on
+                    ? { background: color, color: "#fff" }
+                    : { background: `${color}1a`, color, boxShadow: `inset 0 0 0 1px ${color}38` }
+                }
               >
                 {r}
                 {unit ? ` ${unit}` : ""}

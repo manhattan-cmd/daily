@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Boxes, Check, Clock, Link2, ListPlus, PanelLeftClose, PenLine, Plus, X } from "lucide-react";
+import { ArrowLeft, Boxes, Check, ChevronDown, Clock, Link2, ListPlus, PanelLeftClose, PenLine, Plus, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import {
   listModifiersForTarget,
@@ -870,6 +870,12 @@ function FormStep({
   // Çipler pencere açıldığında bir kez hesaplanır — "şimdi" kaymasın
   const [presets] = useState(() => timePresets(entryDate, t));
   const activePreset = presets.find((p) => p.value === occurredAt)?.key ?? null;
+  // Zaman kutusunda "Saat" açık mı (gün + saat seçici)
+  const [customTime, setCustomTime] = useState(false);
+  const clock = occurredAt.split("T")[1] ?? "";
+  const timeSummary = activePreset
+    ? `${presets.find((p) => p.key === activePreset)?.label} · ${clock}`
+    : occurredAtLabel(occurredAt, entryDate, t("entry.time"));
 
   const showParallelOption = !parallelContext && !hideParallels;
   const hasParallelSelected = selectedParallels.length > 0;
@@ -894,6 +900,16 @@ function FormStep({
 
   return (
     <>
+      {/* Pencerenin tepesinde kategorinin renginde ışık — form kalemin
+          rengini taşısın; düz siyah zemin "karanlık, renksiz" duruyordu.
+          z -1: pencerenin zemininin üstünde, içeriğin altında. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72"
+        style={{
+          background: `radial-gradient(120% 90% at 15% 0%, ${accent}40 0%, ${accent}14 45%, transparent 75%)`,
+        }}
+      />
       {/*
         Üst şerit — paralel seçeneği solda, kapat sağda, ortada pencerenin
         tutamacı. Eskiden ikisi başlık satırındaydı ve kalemin adını
@@ -958,59 +974,72 @@ function FormStep({
             </div>
           )}
           <h2 className="line-clamp-2 text-[19px] font-bold leading-6 tracking-tight">{itemName}</h2>
+          <button
+            type="button"
+            onClick={() => togglePanel("time")}
+            aria-expanded={panel === "time"}
+            className="mt-1 flex h-7 items-center gap-1.5 rounded-full pl-2 pr-2.5 text-[12.5px] font-semibold transition-[background-color,transform] active:scale-95"
+            style={{ background: `${accent}26`, color: accent }}
+          >
+            <Clock className="h-3.5 w-3.5" />
+            <span className="font-mono">{timeSummary}</span>
+            <ChevronDown
+              className={cn("h-3.5 w-3.5 transition-transform", panel === "time" && "rotate-180")}
+            />
+          </button>
         </div>
       </div>
 
       {/*
-        Zaman — sabit 3×2 ızgara, kaymaz. Yatay kayan şerit pencereyi
-        sola kaydırıp kapatma hareketiyle çakışıyordu; "Akşam" yarım
-        kalıyor, "Saat" (kendi zamanın) ekranın dışında görünmüyordu.
+        Zaman AÇILINCA — hazır anlar 3×2 ızgarada, "Saat" kendi gününü ve
+        saatini seçtirir. Seçince kutu kapanır. Kapalıyken zaman yalnız
+        başlığın altındaki küçük hap: odak özelliklerde kalsın (açık
+        ızgara formun üçte birini kaplıyordu).
       */}
-      <div className="grid shrink-0 grid-cols-3 gap-1.5 px-3 pb-3">
-        {presets.map((p) => {
-          const on = activePreset === p.key;
-          return (
+      {panel === "time" && (
+        <div className="mx-3 mb-3 shrink-0 rounded-2xl bg-[var(--sf-1)] p-2 ring-1 ring-inset ring-[var(--ln-1)]">
+          <div className="grid grid-cols-3 gap-1.5">
+            {presets.map((p) => {
+              const on = activePreset === p.key;
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => {
+                    onOccurredAtChange(p.value);
+                    setCustomTime(false);
+                    setPanel(null);
+                  }}
+                  aria-pressed={on}
+                  className={cn(
+                    "flex h-9 min-w-0 items-center justify-center rounded-xl px-1.5 text-[13px] font-semibold transition-colors",
+                    !on && "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground"
+                  )}
+                  style={on ? { background: accent, color: "#fff" } : undefined}
+                >
+                  <span className="truncate">{p.label}</span>
+                </button>
+              );
+            })}
             <button
-              key={p.key}
               type="button"
-              onClick={() => {
-                onOccurredAtChange(p.value);
-                setPanel((cur) => (cur === "time" ? null : cur));
-              }}
-              aria-pressed={on}
+              onClick={() => setCustomTime((v) => !v)}
+              aria-expanded={customTime}
               className={cn(
                 "flex h-9 min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 text-[13px] font-semibold transition-colors",
-                !on && "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground"
+                activePreset ? "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground" : "text-white"
               )}
-              style={on ? { background: accent, color: "#fff" } : undefined}
+              style={activePreset ? undefined : { background: accent }}
             >
-              <span className="truncate">{p.label}</span>
+              <Clock className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{t("entry.timeCustom")}</span>
             </button>
-          );
-        })}
-        <button
-          type="button"
-          onClick={() => togglePanel("time")}
-          aria-expanded={panel === "time"}
-          className={cn(
-            "flex h-9 min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 text-[13px] font-semibold transition-colors",
-            activePreset
-              ? panel === "time"
-                ? "bg-[var(--sf-3)] text-foreground"
-                : "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground"
-              : "text-white"
+          </div>
+          {customTime && (
+            <div className="mt-2">
+              <DateTimeInput value={occurredAt} onChange={onOccurredAtChange} />
+            </div>
           )}
-          style={activePreset ? undefined : { background: accent }}
-        >
-          <Clock className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">
-            {activePreset ? t("entry.timeCustom") : occurredAtLabel(occurredAt, entryDate, t("entry.time"))}
-          </span>
-        </button>
-      </div>
-      {panel === "time" && (
-        <div className="shrink-0 px-3 pb-3">
-          <DateTimeInput value={occurredAt} onChange={onOccurredAtChange} />
         </div>
       )}
 
