@@ -35,11 +35,18 @@ export function OptionsMenu({
   /** Menünün üstünde bağlam şeridi — hangi öğenin menüsü olduğunu söyler */
   header,
   className,
+  align = "right",
 }: {
   items: OptionItem[];
   touched?: boolean;
   header?: React.ReactNode;
   className?: string;
+  /**
+   * Menünün düğmeye hangi kenardan yaslandığı. Düğme pencerenin SOL
+   * kenarındaysa "left": sağa yaslı menü sola, pencerenin dışına açılıp
+   * kesiliyordu (girdi formunun sol üstündeki ⋯).
+   */
+  align?: "left" | "right";
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -74,7 +81,7 @@ export function OptionsMenu({
             className="fixed inset-0 z-30 bg-black/60 backdrop-blur-[2px]"
             onClick={() => setOpen(false)}
           />
-          <div className="animate-in absolute right-0 top-10 z-40 w-64 origin-top-right overflow-hidden rounded-2xl border border-[var(--ln-2)] bg-card/95 shadow-[0_16px_48px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+          <div className={cn("animate-in absolute top-10 z-40 w-64 overflow-hidden", align === "left" ? "left-0 origin-top-left" : "right-0 origin-top-right")}><div className="overflow-hidden rounded-2xl border border-[var(--ln-2)] bg-card/95 shadow-[0_16px_48px_rgba(0,0,0,0.55)] backdrop-blur-xl">
             {header && (
               <div className="border-b border-[var(--ln-1)] bg-[var(--sf-1)] px-3 py-2.5">
                 {header}
@@ -106,7 +113,7 @@ export function OptionsMenu({
                 ))}
               </div>
             )}
-          </div>
+          </div></div>
         </>
       )}
     </div>

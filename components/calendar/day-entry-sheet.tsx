@@ -920,6 +920,7 @@ function FormStep({
         <div className="flex min-w-9 items-center">
           {showParallelOption && (
             <OptionsMenu
+              align="left"
               touched={hasParallelSelected}
               items={[
                 {

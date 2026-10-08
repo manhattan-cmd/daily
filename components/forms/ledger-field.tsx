@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Info, Link2, Search, X } from "lucide-react";
+import { ChevronDown, Info, Link2, Search, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ScaleInput, ToggleSwitch } from "@/components/ui/scale-input";
 import { ScaleSlider } from "@/components/ui/scale-slider";
@@ -68,12 +68,10 @@ function optionLayout(choices: string[]) {
  * KURALLAR (her tür için aynı anatomi):
  *
  *  0. YAZININ HİZASINA SİMGE KONMAZ: başlık satırında yalnız özelliğin
- *     sembolü (solda) ve adı. Kaldır, ⓘ, aç/kapa oku başlıktan çıktı —
- *     adın yanında durunca adı sıkıştırıp ("Emotions" alt satıra
- *     düşüyordu) hizayı bozuyordu. Kaldır ve açıklama SEMBOLE dokununca
- *     açılan küçük pencerede; girdiye özel özellik sembolün köşesinde
- *     küçük bir noktayla belli. Kapalı kutu yuvasından açılır, listenin
- *     sonundaki "Kapat"la kapanır.
+ *     sembolü (solda) ve adı. Aç/kapa ve kaldır kutunun SAĞ ÜST KÖŞESİNDE,
+ *     yazı hizasının üstünde küçük düğmeler (kutunun üst boşluğu onlar
+ *     için açılır — ad satırı daralmaz). Girdiye özel özelliğin açıklaması
+ *     SEMBOLE dokununca küçük pencerede; sembolün köşesinde nokta.
  *  1. AD en fazla iki satır; sığmazsa KELİME SONUNDA "…" ve dokununca tam
  *     hâli kapsülde (SmartText). Kelime ortadan bölünmez.
  *  2. DEĞER her türde başlığın altında, tam genişlik GİRİŞ YUVASINDA (koyu
@@ -148,7 +146,10 @@ export function LedgerField({
     scrolled.current = true;
     el.scrollIntoView({ block: "center", behavior: "smooth" });
     // Seçici pencere kapanırken odak tuzağı autoFocus'u yutuyor
-    const input = el.querySelector("input");
+    // Klavye yalnız yazılacak alanda açılsın — seçenek listesinin arama
+    // kutusu odaklanınca klavye boş yere açılıyordu (Emotions)
+    if (vt !== "number" && vt !== "text") return;
+    const input = el.querySelector<HTMLElement>("input, textarea");
     if (input) setTimeout(() => input.focus(), 300);
   };
 
@@ -162,7 +163,12 @@ export function LedgerField({
       label={label}
     />
   );
-  const hasMenu = !isLocked && (!!onRemove || entryOnly);
+  // Sembolün penceresi yalnız girdiye özel özelliğin açıklaması için
+  const hasMenu = !isLocked && entryOnly;
+  // Köşe düğmeleri — aç/kapa ve kaldır, kutunun sağ üst köşesinde
+  const cornerToggle = collapsible && !isLocked;
+  const cornerRemove = !!onRemove && !isLocked;
+  const hasCorner = cornerToggle || cornerRemove;
 
   /** Giriş yuvası — koyu zemin, özelliğin renginde çerçeve; odakta güçlenir */
   const well =
@@ -206,8 +212,10 @@ export function LedgerField({
       ref={onMount}
       data-ledger-field=""
       className={cn(
-        "flex flex-col gap-2.5 rounded-2xl transition-[background-color,box-shadow] duration-300",
-        isBool && !isLocked ? "px-3 py-2.5" : "p-3"
+        "relative flex flex-col gap-2.5 rounded-2xl transition-[background-color,box-shadow] duration-300",
+        isBool && !isLocked ? "px-3 py-2.5" : "p-3",
+        // Köşe düğmeleri yazının biraz üstünde dursun — ad satırı daralmasın
+        hasCorner && "pt-[26px]"
       )}
       style={
         filled
@@ -215,6 +223,34 @@ export function LedgerField({
           : { background: `${color}0f`, boxShadow: `inset 0 0 0 1px ${color}2e` }
       }
     >
+      {/* Köşe — aç/kapa ve kaldır: sağ üstte, yazı hizasının üstünde */}
+      {hasCorner && (
+        <div className="absolute right-1.5 top-1 flex items-center gap-0.5">
+          {cornerToggle && (
+            <button
+              type="button"
+              onClick={() => (open ? close() : setOpen(true))}
+              aria-expanded={open}
+              aria-label={open ? t("action.close") : t("entry.expand")}
+              className="flex h-[22px] w-[22px] items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+            >
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+            </button>
+          )}
+          {cornerRemove && (
+            <button
+              type="button"
+              onClick={onRemove}
+              aria-label={t("entry.removeFromEntry")}
+              title={t("entry.removeFromEntry")}
+              className="flex h-[22px] w-[22px] items-center justify-center rounded-full text-muted-foreground/60 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* 0 — başlık: sembol + ad. Hizasında başka simge yok. */}
       <div
         className={cn("flex min-h-7 items-start gap-2.5", isBool && !isLocked && "cursor-pointer")}
@@ -263,20 +299,6 @@ export function LedgerField({
                     <Info className="mt-px h-4 w-4 shrink-0" style={{ color }} />
                     {t("entry.onlyThisEntryHint")}
                   </span>
-                )}
-                {onRemove && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onRemove();
-                    }}
-                    className="flex items-center gap-2 rounded-xl px-2.5 py-2 text-left font-semibold text-foreground transition-colors hover:bg-[var(--sf-2)]"
-                  >
-                    <X className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    {t("entry.removeFromEntry")}
-                  </button>
                 )}
               </span>
             </>
@@ -327,7 +349,6 @@ export function LedgerField({
                 ? t("entry.pickRange")
                 : t("entry.pickFrom", { n: choices.length })}
           </span>
-          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
         </button>
       ) : vt === "number" ? (
         <label className={cn(well, "cursor-text gap-2")} style={wellStyle}>
@@ -441,7 +462,6 @@ export function LedgerField({
               </p>
             )}
           </div>
-          {collapsible && <CloseBar onClick={close} label={t("action.close")} />}
         </div>
       ) : vt === "datetime-range" ? (
         <div className="flex flex-col gap-2">
@@ -450,7 +470,6 @@ export function LedgerField({
             onChange={onChange}
             entryDate={entryDate ?? toLocalDateValue()}
           />
-          {collapsible && <CloseBar onClick={close} label={t("action.close")} />}
         </div>
       ) : null}
 
@@ -486,19 +505,5 @@ export function LedgerField({
         </div>
       )}
     </div>
-  );
-}
-
-/** Açık büyük kümenin / aralığın sonunda kapatma — başlıkta ok yerine */
-function CloseBar({ onClick, label }: { onClick: () => void; label: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="mx-auto flex h-8 items-center gap-1 rounded-full px-3 text-[12.5px] font-semibold text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
-    >
-      <ChevronUp className="h-4 w-4" />
-      {label}
-    </button>
   );
 }
