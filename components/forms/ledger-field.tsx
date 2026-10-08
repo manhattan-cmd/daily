@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { Link2, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { ScaleInput } from "@/components/ui/scale-input";
+import { ScaleInput, ToggleSwitch } from "@/components/ui/scale-input";
 import {
   DateTimeRangeInput,
   formatDTRDisplay,
@@ -36,8 +36,11 @@ const SUGGEST_SLOTS = 3;
  *  3. ÖNERİLER (son değerler) hep aynı ÜÇ yuvalı ızgarada, solda "Son"
  *     etiketiyle. Tek öneri sağa yaslı yalnız bir çip gibi "eksik", iki
  *     öneri kaymış duruyordu; ızgarada sayı ne olursa olsun hizalar aynı.
- *  4. Seçenekler iki sütunlu ızgara; evet/hayır iki eşit yarı; ölçek tam
- *     genişlikte bölmeli şerit; aralık kendi iki sütunlu seçicisi.
+ *  4. Seçenekler iki sütunlu ızgara; ölçek tam genişlikte bölmeli şerit;
+ *     aralık kendi iki sütunlu seçicisi.
+ *  4b. TEK İSTİSNA evet/hayır: tek satır — ad solda, küçük anahtar sağda,
+ *     satırın tamamı dokunulabilir. Tam genişlik iki yarılı yuva bir
+ *     soruya göre fazla iriydi. Anahtar dar (48 px), ad yine kesilmez.
  *  5. RENK: kutu boşken özelliğin renginde hafif, doluyken güçlü; sembol
  *     doluyken dolu renkli daire. Değer o renkte yazılır.
  */
@@ -77,6 +80,7 @@ export function LedgerField({
   const label = mod.name ?? mod.entryType.name;
   const unit = mod.entryType.unit;
   const filled = isFieldFilled(vt, value);
+  const isBool = vt === "boolean";
   const scrolled = useRef(false);
   const onMount = (el: HTMLDivElement | null) => {
     if (!el || !autoFocus || scrolled.current) return;
@@ -109,15 +113,21 @@ export function LedgerField({
     <div
       ref={onMount}
       data-ledger-field=""
-      className="flex flex-col gap-2.5 rounded-2xl p-3 transition-[background-color,box-shadow] duration-300"
+      className={cn(
+        "flex flex-col gap-2.5 rounded-2xl transition-[background-color,box-shadow] duration-300",
+        isBool && !isLocked ? "px-3 py-2.5" : "p-3"
+      )}
       style={
         filled
           ? { background: `${color}24`, boxShadow: `inset 0 0 0 1.5px ${color}8c` }
           : { background: `${color}0f`, boxShadow: `inset 0 0 0 1px ${color}2e` }
       }
     >
-      {/* 1 — başlık: sembol, ad, birim, kaldır */}
-      <div className="flex min-h-7 items-center gap-2.5">
+      {/* 1 — başlık: sembol, ad, birim, kaldır (evet/hayırda + anahtar) */}
+      <div
+        className={cn("flex min-h-7 items-center gap-2.5", isBool && !isLocked && "cursor-pointer")}
+        onClick={isBool && !isLocked ? () => onChange(value === "true" ? "false" : "true") : undefined}
+      >
         <span
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors"
           style={filled ? { background: color, color: "#fff" } : { background: `${color}33`, color }}
@@ -137,10 +147,23 @@ export function LedgerField({
             {t("entry.onlyThisEntry")}
           </span>
         )}
+        {isBool && !isLocked && (
+          <span onClick={(e) => e.stopPropagation()} className="flex shrink-0">
+            <ToggleSwitch
+              checked={value === "true"}
+              onChange={(v) => onChange(v ? "true" : "false")}
+              color={color}
+              label={label}
+            />
+          </span>
+        )}
         {onRemove && !isLocked && (
           <button
             type="button"
-            onClick={onRemove}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
             aria-label={t("entry.removeFromEntry")}
             title={t("entry.removeFromEntry")}
             className="-mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/50 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
@@ -176,35 +199,7 @@ export function LedgerField({
             </span>
           )}
         </label>
-      ) : vt === "boolean" ? (
-        <div
-          className="grid h-12 grid-cols-2 gap-1 rounded-xl bg-black/25 p-1 ring-1 ring-inset"
-          style={wellStyle}
-        >
-          {[false, true].map((yes) => {
-            const on = (value === "true") === yes;
-            return (
-              <button
-                key={String(yes)}
-                type="button"
-                onClick={() => onChange(yes ? "true" : "false")}
-                aria-pressed={on}
-                className={cn(
-                  "rounded-lg text-[14px] font-bold transition-colors",
-                  on
-                    ? yes
-                      ? "text-white"
-                      : "bg-[var(--sf-4)] text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                style={on && yes ? { background: color } : undefined}
-              >
-                {yes ? t("entry.yes") : t("entry.no")}
-              </button>
-            );
-          })}
-        </div>
-      ) : vt === "text" ? (
+      ) : isBool ? null : vt === "text" ? (
         <label className={cn(well, "cursor-text")} style={wellStyle}>
           <input
             value={value}
