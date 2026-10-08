@@ -969,11 +969,11 @@ function FormStep({
         </span>
         <div className="min-w-0 flex-1 leading-tight">
           {topLine && (
-            <div className="truncate text-[12px] font-medium text-muted-foreground">
+            <div className="break-words text-[12px] font-medium text-muted-foreground">
               {topLine}
             </div>
           )}
-          <h2 className="line-clamp-2 text-[19px] font-bold leading-6 tracking-tight">{itemName}</h2>
+          <h2 className="break-words text-[19px] font-bold leading-6 tracking-tight [overflow-wrap:anywhere]">{itemName}</h2>
           <button
             type="button"
             onClick={() => togglePanel("time")}
@@ -1082,6 +1082,7 @@ function FormStep({
                 isLocked={lockedTypeIds.has(sharedKey(mod))}
                 entryDate={entryDate}
                 entryOnly={mod.id.startsWith("entry-")}
+                dense={mods.length >= 5}
                 onRemove={() => onRemoveMod(mod)}
                 autoFocus={mod.modId === focusModId}
               />
