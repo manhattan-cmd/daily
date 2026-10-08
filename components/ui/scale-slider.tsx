@@ -2,16 +2,16 @@
 
 import { useRef } from "react";
 import type { ScaleLabels } from "@/types";
-import { useT } from "@/lib/i18n";
 
 /**
- * KAYDIRILAN ÖLÇEK — 5'ten çok basamaklı ölçekler (1–10 gibi) için.
+ * KAYDIRILAN ÖLÇEK — bütün ölçekler (1–5, −2…+2, 1–10).
  *
- * Bölmeli şerit beş basamakta iyi, on basamakta her bölme parmaktan dar
- * kalıyordu; basamak arttıkça daha kötü. Burada tek bir ray: dokunulan ya
- * da sürüklenen yere en yakın basamağa oturur, seçilen değer büyük
- * yazılır. Ray boşken basamak noktaları soluk; seçince ray değere kadar
- * özelliğin renginde dolar.
+ * Kalın bir ray: seçilen değere kadar özelliğin renginde, koyulaşan bir
+ * dolguyla dolar; beyaz, renkli halkalı bir başparmak. Rayın altında her
+ * basamağın numarası — seçilen numara renkli ve büyük; ayrı bir "4 / 5"
+ * satırına gerek kalmadı. En altta uçların anlamı. Raya dokunmak ya da
+ * sürüklemek en yakın basamağa oturur; bir numaraya dokunmak onu seçer,
+ * seçili numaraya yeniden dokunmak temizler.
  *
  * Pencerenin "sola kaydır = kapat" hareketiyle çakışmasın diye
  * `data-no-swipe`: dokunuş bu bileşenin.
@@ -29,7 +29,6 @@ export function ScaleSlider({
   onChange: (v: string) => void;
   color?: string;
 }) {
-  const t = useT();
   const trackRef = useRef<HTMLDivElement>(null);
   const n = choices.length;
   const idx = choices.indexOf(value);
@@ -46,32 +45,8 @@ export function ScaleSlider({
   }
 
   return (
-    <div className="flex flex-col gap-2" data-no-swipe="">
-      {/* Seçilen değer — büyük; boşken ne yapılacağı */}
-      <div className="flex items-baseline justify-between px-0.5">
-        <span className="flex items-baseline gap-1">
-          <span
-            className="font-mono text-[24px] font-bold leading-7"
-            style={has ? { color } : undefined}
-          >
-            {has ? value : "—"}
-          </span>
-          <span className="font-mono text-[13px] font-semibold text-muted-foreground">
-            {has ? `/ ${choices[n - 1]}` : t("entry.slideHint")}
-          </span>
-        </span>
-        {has && (
-          <button
-            type="button"
-            onClick={() => onChange("")}
-            className="rounded-full px-2 py-0.5 text-[12px] font-semibold text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
-          >
-            {t("entry.clear")}
-          </button>
-        )}
-      </div>
-
-      {/* Ray — dokun ya da sürükle; en yakın basamağa oturur */}
+    <div className="flex flex-col gap-1.5 px-1" data-no-swipe="">
+      {/* Ray — dokun ya da sürükle */}
       <div
         ref={trackRef}
         role="slider"
@@ -92,49 +67,64 @@ export function ScaleSlider({
         onPointerMove={(e) => {
           if (e.currentTarget.hasPointerCapture(e.pointerId)) pick(e.clientX);
         }}
-        className="relative h-11 cursor-pointer touch-none select-none outline-none"
+        className="relative mx-2.5 h-10 cursor-pointer touch-none select-none outline-none"
       >
         {/* zemin */}
-        <div className="absolute inset-x-3 top-1/2 h-2 -translate-y-1/2 rounded-full bg-black/30 ring-1 ring-inset ring-[var(--ln-1)]">
-          {has && (
-            <div
-              className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-150"
-              style={{ width: `${pct(idx)}%`, background: color }}
-            />
-          )}
-        </div>
-        {/* basamak noktaları + başparmak */}
-        <div className="absolute inset-x-3 top-1/2 -translate-y-1/2">
-          {choices.map((c, i) => (
-            <span
-              key={c}
-              className="absolute top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
-              style={{
-                left: `${pct(i)}%`,
-                background: has && i <= idx ? "rgba(255,255,255,0.75)" : "var(--ln-2)",
-              }}
-            />
-          ))}
-          {has && (
-            <span
-              className="absolute top-1/2 h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full ring-4 ring-background transition-[left] duration-150"
-              style={{ left: `${pct(idx)}%`, background: color, boxShadow: `0 0 14px ${color}88` }}
-            />
-          )}
-        </div>
+        <div className="absolute inset-x-0 top-1/2 h-3 -translate-y-1/2 rounded-full bg-black/35 ring-1 ring-inset ring-[var(--ln-1)]" />
+        {/* dolgu — açıktan koyuya */}
+        {has && (
+          <div
+            className="absolute left-0 top-1/2 h-3 -translate-y-1/2 rounded-full transition-[width] duration-200 ease-out"
+            style={{
+              width: `${pct(idx)}%`,
+              minWidth: 12,
+              background: `linear-gradient(90deg, ${color}66, ${color})`,
+            }}
+          />
+        )}
+        {/* başparmak */}
+        {has && (
+          <span
+            className="absolute top-1/2 h-[26px] w-[26px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white transition-[left] duration-200 ease-out"
+            style={{
+              left: `${pct(idx)}%`,
+              boxShadow: `0 0 0 4px ${color}, 0 4px 14px rgba(0,0,0,0.55)`,
+            }}
+          />
+        )}
       </div>
 
-      {/* Uçların anlamı ve sayıları */}
-      <div className="flex justify-between px-0.5 text-[11px] text-muted-foreground">
-        <span>
-          <span className="font-mono">{choices[0]}</span>
-          {labels?.low ? ` · ${labels.low}` : ""}
-        </span>
-        <span className="text-right">
-          {labels?.high ? `${labels.high} · ` : ""}
-          <span className="font-mono">{choices[n - 1]}</span>
-        </span>
+      {/* Basamak numaraları — seçilen renkli ve büyük; dokunmak seçer */}
+      <div className="relative mx-2.5 h-7">
+        {choices.map((c, i) => {
+          const on = i === idx;
+          return (
+            <button
+              key={c}
+              type="button"
+              onClick={() => onChange(on ? "" : c)}
+              aria-pressed={on}
+              className="absolute top-0 flex h-7 min-w-7 -translate-x-1/2 items-center justify-center rounded-lg px-1 font-mono tabular-nums transition-[color,font-size] duration-150"
+              style={{
+                left: `${pct(i)}%`,
+                fontSize: on ? 17 : 12.5,
+                fontWeight: on ? 800 : 600,
+                color: on ? color : "var(--muted-foreground)",
+              }}
+            >
+              {c}
+            </button>
+          );
+        })}
       </div>
+
+      {/* Uçların anlamı */}
+      {(labels?.low || labels?.high) && (
+        <div className="flex justify-between gap-3 text-[11.5px] font-medium text-muted-foreground">
+          <span>{labels?.low}</span>
+          <span className="text-right">{labels?.high}</span>
+        </div>
+      )}
     </div>
   );
 }
