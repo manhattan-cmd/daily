@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { cn, toLocalDateTimeValue } from "@/lib/utils";
 import { intlTag, useT } from "@/lib/i18n";
+import { TimeWheel } from "@/components/ui/time-wheel";
 
 /** Hazır anlar — çizimde değil açılışta bir kez okunur, saf kalsın diye modülde */
 const nowDate = () => new Date();
@@ -187,23 +188,12 @@ export function EntryTime({
                 <ChevronRight className="h-5 w-5" />
               </button>
             </div>
-            {/* Saat — büyük; dokununca telefonun saat seçicisi */}
-            <label
-              className="relative mx-auto block cursor-pointer rounded-2xl px-5 py-1 text-center font-mono text-[46px] font-bold leading-[56px] tracking-tight transition-colors hover:bg-[var(--sf-2)]"
-              style={{ color: accent }}
-            >
-              {custom.split("T")[1] ?? "--:--"}
-              <input
-                type="time"
-                value={custom.split("T")[1] ?? ""}
-                onChange={(e) =>
-                  e.target.value && setCustom(`${custom.split("T")[0]}T${e.target.value}`)
-                }
-                onClick={(e) => e.currentTarget.showPicker?.()}
-                aria-label={t("entry.timeCustom")}
-                className="absolute inset-0 cursor-pointer opacity-0"
-              />
-            </label>
+            {/* Saat — pencerenin içinde kendi çarkı (telefonun seçicisi uyumsuzdu) */}
+            <TimeWheel
+              value={custom.split("T")[1] ?? "12:00"}
+              onChange={(time) => setCustom(`${custom.split("T")[0]}T${time}`)}
+              accent={accent}
+            />
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
