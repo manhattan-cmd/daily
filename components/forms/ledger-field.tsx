@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { ChevronDown, Info, Link2, Search, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { ScaleInput, ToggleSwitch } from "@/components/ui/scale-input";
+import { ToggleSwitch } from "@/components/ui/scale-input";
 import { ScaleSlider } from "@/components/ui/scale-slider";
 import { SmartText } from "@/components/ui/smart-text";
 import {
@@ -37,8 +37,6 @@ const LABEL_LINES = 2;
 const LARGE_SET = 8;
 /** Bundan çok seçenekte açılan listenin başında arama */
 const SEARCH_FROM = 12;
-/** Bundan çok basamaklı ölçek bölmeli şerit değil kaydırılan ray */
-const SLIDER_FROM = 6;
 /** Öneri çipi yuvası */
 const SUGGEST_SLOTS = 3;
 
@@ -81,8 +79,8 @@ function optionLayout(choices: string[]) {
  *  4. SEÇENEK: ≤ 8 ise açık ızgara (sütun uzunluğa göre 3/2, uzun seçenek
  *     bütün satır). 8'den çoksa BÜYÜK KÜME: kapalı gelir; açılınca 12'den
  *     çoksa arama, seçince kendiliğinden kapanır.
- *  5. ÖLÇEK: ≤ 5 basamak bölmeli şerit; daha çoksa KAYDIRILAN RAY (on
- *     bölme parmağa dar kalıyordu).
+ *  5. ÖLÇEK: her basamak sayısında KAYDIRILAN RAY (1–5, −2…+2, 1–10 aynı
+ *     görünüm; on bölmeli şerit parmağa dar kalıyordu).
  *  6. YOĞUN FORM (5+ özellik): zaman aralığı da kapalı gelir.
  *  7. EVET/HAYIR tek istisna: kısa ad (tek satır) → anahtar yanında;
  *     uzunsa ad tam genişlik, anahtar altta.
@@ -394,23 +392,14 @@ export function LedgerField({
           />
         </label>
       ) : isScale ? (
-        choices.length >= SLIDER_FROM ? (
-          <ScaleSlider
-            choices={choices}
-            labels={mod.mod?.scaleLabels}
-            value={value}
-            onChange={onChange}
-            color={color}
-          />
-        ) : (
-          <ScaleInput
-            choices={choices}
-            labels={mod.mod?.scaleLabels}
-            value={value}
-            onChange={onChange}
-            color={color}
-          />
-        )
+        // Her ölçek kaydırılan ray — basamak sayısı ne olursa olsun aynı görünüm
+        <ScaleSlider
+          choices={choices}
+          labels={mod.mod?.scaleLabels}
+          value={value}
+          onChange={onChange}
+          color={color}
+        />
       ) : isOptions ? (
         <div className="flex flex-col gap-2">
           {choices.length > SEARCH_FROM && (
