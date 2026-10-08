@@ -1,9 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ChevronDown, Info, Link2, Search, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Info, Link2, Search, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ScaleInput, ToggleSwitch } from "@/components/ui/scale-input";
+import { ScaleSlider } from "@/components/ui/scale-slider";
+import { SmartText } from "@/components/ui/smart-text";
 import {
   DateTimeRangeInput,
   formatDTRDisplay,
@@ -26,17 +28,17 @@ export function isFieldFilled(vt: EntryValueType, value: string): boolean {
  */
 /**
  * Evet/hayırda anahtar adın yanında YALNIZ ad tek satıra sığıyorsa durur
- * (anahtar + kaldır düğmesi yanında ~14 harflik yer kalıyor). Daha uzun ad
- * dar sütunda alt alta bölünüyordu ("Yüz / nemlendirici"): ad tam
- * genişlikte, anahtar altında.
+ * (~14 harf). Daha uzun ad: ad tam genişlik, anahtar altında.
  */
 const BOOL_INLINE_MAX = 14;
-/** Birim giriş yuvasına bu uzunluğa kadar sığar; uzunsa yalnız başlıkta */
-const UNIT_IN_WELL_MAX = 6;
+/** Özellik adı en fazla bu kadar satır; sonra kelime sonunda "…" + kapsül */
+const LABEL_LINES = 2;
 /** Bundan çok seçenek "büyük küme": kapalı gelir, açılınca listelenir */
 const LARGE_SET = 8;
 /** Bundan çok seçenekte açılan listenin başında arama */
 const SEARCH_FROM = 12;
+/** Bundan çok basamaklı ölçek bölmeli şerit değil kaydırılan ray */
+const SLIDER_FROM = 6;
 /** Öneri çipi yuvası */
 const SUGGEST_SLOTS = 3;
 
@@ -49,9 +51,8 @@ function fmtNum(v: string): string {
 
 /**
  * Seçenek ızgarasının sütunu ve tam satıra yayılacak seçenekler.
- * Sütun sayısı uzunlukların çoğuna göre (en uzuna göre değil — tek bir
- * "Amerika Birleşik Devletleri" 30 ülkeyi tek sütuna düşürmesin); sütuna
- * sığmayan uzun seçenek bütün satırı alır. Yazı hiç kesilmez.
+ * Sütun sayısı uzunlukların çoğuna göre (en uzuna göre değil); sütuna
+ * sığmayan uzun seçenek bütün satırı alır.
  */
 function optionLayout(choices: string[]) {
   const lens = choices.map((c) => c.length).sort((a, b) => a - b);
@@ -66,30 +67,29 @@ function optionLayout(choices: string[]) {
  *
  * KURALLAR (her tür için aynı anatomi):
  *
- *  0. YAZI KESİLMEZ: ad, seçenek, öneri hiçbir yerde "…" ile kısalmaz;
- *     gereken kadar satıra iner — KELİME BÖLÜNMEDEN (yalnız sığmayan tek
- *     bir kelime bölünür; "her yerden kır" dar sütunda harf harf bölüyordu). Yanındaki sembol / anahtar / kaldır adın
- *     ilk satırına hizalanır.
- *  1. BAŞLIK: sembol, ad (+ birim), girdiye özel ise ⓘ, kaldır. Değer
- *     başlığa girmez. "Yalnız bu girdi" rozeti başlığı bozuyordu: yerine
- *     ⓘ — dokununca simgenin yanında küçük bir pencere, boşluğa dokununca
- *     kapanır.
+ *  0. YAZININ HİZASINA SİMGE KONMAZ: başlık satırında yalnız özelliğin
+ *     sembolü (solda) ve adı. Kaldır, ⓘ, aç/kapa oku başlıktan çıktı —
+ *     adın yanında durunca adı sıkıştırıp ("Emotions" alt satıra
+ *     düşüyordu) hizayı bozuyordu. Kaldır ve açıklama SEMBOLE dokununca
+ *     açılan küçük pencerede; girdiye özel özellik sembolün köşesinde
+ *     küçük bir noktayla belli. Kapalı kutu yuvasından açılır, listenin
+ *     sonundaki "Kapat"la kapanır.
+ *  1. AD en fazla iki satır; sığmazsa KELİME SONUNDA "…" ve dokununca tam
+ *     hâli kapsülde (SmartText). Kelime ortadan bölünmez.
  *  2. DEĞER her türde başlığın altında, tam genişlik GİRİŞ YUVASINDA (koyu
- *     zemin, özelliğin renginde çerçeve, 48 px). Birim yuvaya ≤ 6 harfse
- *     girer, uzunsa ("mililitre", "deniz mili") yalnız başlıkta — ikisinde
- *     birden yazmaz.
+ *     zemin, özelliğin renginde çerçeve, 48 px). Sayının birimi yuvada.
  *  3. ÖNERİLER (son değerler) üç yuvalı ızgarada, "Son" etiketiyle; uzun
- *     sayılar okunur biçimde (104.181,75) ve gerekirse iki / tek sütun.
+ *     sayılar okunur biçimde ve gerekirse iki / tek sütun.
  *  4. SEÇENEK: ≤ 8 ise açık ızgara (sütun uzunluğa göre 3/2, uzun seçenek
- *     bütün satır). 8'den çoksa BÜYÜK KÜME: kutu kapalı gelir, yuvada seçili
- *     değer ya da "30 seçenekten seç"; açılınca 12'den çoksa arama, seçince
- *     kendiliğinden kapanır. (30 ülkelik kutu 746 px'ti.)
- *  5. YOĞUN FORM (5+ özellik): zaman aralığı da kapalı gelir, yuvada
- *     "Başlangıç ve bitişi seç" — 150 px'lik seçici formu uzatıyordu.
- *  6. EVET/HAYIR tek istisna: tek satır, anahtar sağda; ad tek satıra
- *     sığmıyorsa (14 harften uzun) ad tam genişlik, anahtar altta.
- *  7. METİN uzadıkça yuva da uzar — yazılan hep görünür.
- *  8. RENK: boşken özelliğin renginde hafif, doluyken güçlü.
+ *     bütün satır). 8'den çoksa BÜYÜK KÜME: kapalı gelir; açılınca 12'den
+ *     çoksa arama, seçince kendiliğinden kapanır.
+ *  5. ÖLÇEK: ≤ 5 basamak bölmeli şerit; daha çoksa KAYDIRILAN RAY (on
+ *     bölme parmağa dar kalıyordu).
+ *  6. YOĞUN FORM (5+ özellik): zaman aralığı da kapalı gelir.
+ *  7. EVET/HAYIR tek istisna: kısa ad (tek satır) → anahtar yanında;
+ *     uzunsa ad tam genişlik, anahtar altta.
+ *  8. METİN uzadıkça yuva da uzar.
+ *  9. RENK: boşken özelliğin renginde hafif, doluyken güçlü.
  */
 export function LedgerField({
   mod,
@@ -134,14 +134,13 @@ export function LedgerField({
   const isBool = vt === "boolean";
   const isScale = vt === "select" && isScaleChoices(choices);
   const isOptions = vt === "select" && !isScale;
-  const unitInWell = vt === "number" && !!unit && unit.length <= UNIT_IN_WELL_MAX;
 
   // Kapalı gelebilen alanlar: büyük seçenek kümesi; yoğun formda aralık
   const collapsible =
     (isOptions && choices.length > LARGE_SET) || (vt === "datetime-range" && dense);
   const [open, setOpen] = useState(!collapsible || autoFocus);
   const [query, setQuery] = useState("");
-  const [infoOpen, setInfoOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const scrolled = useRef(false);
   const onMount = (el: HTMLDivElement | null) => {
@@ -153,12 +152,8 @@ export function LedgerField({
     if (input) setTimeout(() => input.focus(), 300);
   };
 
-  /*
-   * Evet/hayırda adın uzunluğuna göre yerleşim: kısa ad → anahtar adın
-   * yanında (tek satır); uzun ad → ad bütün genişliğe yayılır, anahtar
-   * altta sağda.
-   */
   const longBool = isBool && label.length > BOOL_INLINE_MAX;
+  const flip = () => onChange(value === "true" ? "false" : "true");
   const toggle = (
     <ToggleSwitch
       checked={value === "true"}
@@ -167,6 +162,7 @@ export function LedgerField({
       label={label}
     />
   );
+  const hasMenu = !isLocked && (!!onRemove || entryOnly);
 
   /** Giriş yuvası — koyu zemin, özelliğin renginde çerçeve; odakta güçlenir */
   const well =
@@ -186,34 +182,6 @@ export function LedgerField({
           ? `${vt === "number" ? fmtNum(value) : value}${unit ? ` ${unit}` : ""}`
           : "—";
 
-  /** Kapalı alanın yuvası — seçili değer ya da ne seçileceği */
-  const summaryWell = (
-    <button
-      type="button"
-      onClick={() => setOpen(true)}
-      aria-expanded={false}
-      className={cn(well, "gap-2 py-2.5 text-left")}
-      style={wellStyle}
-    >
-      <span
-        className={cn(
-          "min-w-0 flex-1 break-words text-[15px] font-semibold leading-5",
-          !filled && "font-medium text-muted-foreground/70"
-        )}
-        style={filled ? { color } : undefined}
-      >
-        {filled
-          ? vt === "datetime-range"
-            ? formatDTRDisplay(value)
-            : value
-          : vt === "datetime-range"
-            ? t("entry.pickRange")
-            : t("entry.pickFrom", { n: choices.length })}
-      </span>
-      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-    </button>
-  );
-
   // Seçenekler — arama süzgeci yalnız büyük kümede
   const shown =
     isOptions && query.trim()
@@ -227,6 +195,11 @@ export function LedgerField({
   const sugg = recent.slice(0, SUGGEST_SLOTS).map((r) => ({ raw: r, text: fmtNum(r) }));
   const longest = Math.max(0, ...sugg.map((s) => s.text.length));
   const suggCols = longest <= 5 ? 3 : longest <= 10 ? 2 : 1;
+
+  const close = () => {
+    setOpen(false);
+    setQuery("");
+  };
 
   return (
     <div
@@ -242,98 +215,87 @@ export function LedgerField({
           : { background: `${color}0f`, boxShadow: `inset 0 0 0 1px ${color}2e` }
       }
     >
-      {/* 1 — başlık */}
+      {/* 0 — başlık: sembol + ad. Hizasında başka simge yok. */}
       <div
         className={cn("flex min-h-7 items-start gap-2.5", isBool && !isLocked && "cursor-pointer")}
-        onClick={isBool && !isLocked ? () => onChange(value === "true" ? "false" : "true") : undefined}
+        onClick={isBool && !isLocked ? flip : undefined}
       >
-        <span
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors"
-          style={filled ? { background: color, color: "#fff" } : { background: `${color}33`, color }}
-        >
-          <Icon className="h-[15px] w-[15px]" strokeWidth={2.2} />
-        </span>
-        <span className="min-w-0 flex-1 break-words pt-1 text-[14px] font-semibold leading-5 break-words">
-          {label}
-          {unit && !unitInWell && (
-            <span className="ml-1.5 text-xs font-normal text-muted-foreground">{unit}</span>
-          )}
-        </span>
-        {entryOnly && (
-          <span className="relative flex shrink-0">
+        {/* Sembol — dokununca bu özelliğin küçük penceresi (kaldır, açıklama) */}
+        <span className="relative flex shrink-0">
           <button
             type="button"
+            disabled={!hasMenu}
             onClick={(e) => {
               e.stopPropagation();
-              setInfoOpen((o) => !o);
+              setMenuOpen((o) => !o);
             }}
-            aria-label={t("entry.onlyThisEntry")}
-            aria-expanded={infoOpen}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[var(--sf-2)]"
-            style={{ color: infoOpen ? color : undefined }}
+            aria-label={label}
+            aria-expanded={hasMenu ? menuOpen : undefined}
+            className="flex h-7 w-7 items-center justify-center rounded-full transition-[background-color,transform] enabled:active:scale-90"
+            style={filled ? { background: color, color: "#fff" } : { background: `${color}33`, color }}
           >
-            <Info className={cn("h-4 w-4", !infoOpen && "text-muted-foreground/70")} />
+            <Icon className="h-[15px] w-[15px]" strokeWidth={2.2} />
           </button>
-          {/* ⓘ penceresi — simgenin altında küçük kutu; boşluğa dokununca kapanır */}
-          {infoOpen && (
+          {/* Girdiye özel — sembolün köşesinde nokta, yazının yanında değil */}
+          {entryOnly && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-background"
+              style={{ background: color }}
+            />
+          )}
+          {menuOpen && (
             <>
               <span
                 className="fixed inset-0 z-40"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setInfoOpen(false);
+                  setMenuOpen(false);
                 }}
               />
               <span
-                role="dialog"
+                role="menu"
                 onClick={(e) => e.stopPropagation()}
-                className="animate-in fade-in zoom-in-95 absolute right-0 top-8 z-50 w-60 rounded-2xl bg-card p-3 text-[12.5px] font-normal leading-[18px] text-foreground/90 shadow-[0_16px_36px_-10px_rgba(0,0,0,0.85)] ring-1 ring-[var(--ln-2)]"
+                className="animate-in fade-in zoom-in-95 absolute left-0 top-9 z-50 flex w-64 flex-col gap-1 rounded-2xl bg-card p-1.5 text-[13px] shadow-[0_16px_36px_-10px_rgba(0,0,0,0.85)] ring-1 ring-[var(--ln-2)]"
               >
-                <span className="mb-1 flex items-center gap-1.5 text-[12px] font-semibold" style={{ color }}>
-                  <Info className="h-3.5 w-3.5" />
-                  <span className="inline-block first-letter:uppercase">{t("entry.onlyThisEntry")}</span>
-                </span>
-                {t("entry.onlyThisEntryHint")}
+                {entryOnly && (
+                  <span className="flex gap-2 rounded-xl px-2.5 py-2 leading-[18px] text-foreground/85">
+                    <Info className="mt-px h-4 w-4 shrink-0" style={{ color }} />
+                    {t("entry.onlyThisEntryHint")}
+                  </span>
+                )}
+                {onRemove && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onRemove();
+                    }}
+                    className="flex items-center gap-2 rounded-xl px-2.5 py-2 text-left font-semibold text-foreground transition-colors hover:bg-[var(--sf-2)]"
+                  >
+                    <X className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    {t("entry.removeFromEntry")}
+                  </button>
+                )}
               </span>
             </>
           )}
-          </span>
-        )}
+        </span>
+
+        <SmartText
+          text={label}
+          lines={isBool && !longBool ? 1 : LABEL_LINES}
+          className="flex-1 pt-1 text-[14px] font-semibold leading-5"
+        />
+
+        {/* Evet/hayır — kısa adda anahtar yanında (ad tek satır, çakışmaz) */}
         {isBool && !isLocked && !longBool && (
           <span onClick={(e) => e.stopPropagation()} className="flex shrink-0">
             {toggle}
           </span>
         )}
-        {collapsible && open && !isLocked && (
-          <button
-            type="button"
-            onClick={() => {
-              setOpen(false);
-              setQuery("");
-            }}
-            aria-label={t("action.close")}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
-          >
-            <ChevronDown className="h-4 w-4 rotate-180" />
-          </button>
-        )}
-        {onRemove && !isLocked && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove();
-            }}
-            aria-label={t("entry.removeFromEntry")}
-            title={t("entry.removeFromEntry")}
-            className="-mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/50 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
       </div>
-
-      {/* ⓘ — girdiye özel özelliğin açıklaması, kutunun içinde */}
 
       {/* 2 — değer */}
       {isLocked ? (
@@ -342,7 +304,31 @@ export function LedgerField({
           <span className="break-words">{lockedText}</span>
         </div>
       ) : collapsible && !open ? (
-        summaryWell
+        // Kapalı kutu: yuvaya dokununca açılır
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-expanded={false}
+          className={cn(well, "gap-2 py-2.5 text-left")}
+          style={wellStyle}
+        >
+          <span
+            className={cn(
+              "min-w-0 flex-1 break-words text-[15px] font-semibold leading-5",
+              !filled && "font-medium text-muted-foreground/70"
+            )}
+            style={filled ? { color } : undefined}
+          >
+            {filled
+              ? vt === "datetime-range"
+                ? formatDTRDisplay(value)
+                : value
+              : vt === "datetime-range"
+                ? t("entry.pickRange")
+                : t("entry.pickFrom", { n: choices.length })}
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
       ) : vt === "number" ? (
         <label className={cn(well, "cursor-text gap-2")} style={wellStyle}>
           <input
@@ -357,18 +343,15 @@ export function LedgerField({
             className="h-12 min-w-0 flex-1 bg-transparent font-mono text-[22px] font-bold outline-none placeholder:text-muted-foreground/35"
             style={filled ? { color } : undefined}
           />
-          {unitInWell && (
-            <span className="shrink-0 font-mono text-[14px] font-semibold text-muted-foreground">
+          {unit && (
+            <span className="max-w-[45%] shrink-0 text-right font-mono text-[14px] font-semibold leading-4 text-muted-foreground">
               {unit}
             </span>
           )}
         </label>
       ) : isBool ? (
         longBool ? (
-          <div
-            className="-mt-0.5 flex cursor-pointer items-center justify-end gap-2.5"
-            onClick={() => onChange(value === "true" ? "false" : "true")}
-          >
+          <div className="-mt-0.5 flex cursor-pointer items-center justify-end gap-2.5" onClick={flip}>
             <span className="text-[13px] font-semibold" style={value === "true" ? { color } : undefined}>
               {value === "true" ? t("entry.yes") : t("entry.no")}
             </span>
@@ -390,13 +373,23 @@ export function LedgerField({
           />
         </label>
       ) : isScale ? (
-        <ScaleInput
-          choices={choices}
-          labels={mod.mod?.scaleLabels}
-          value={value}
-          onChange={onChange}
-          color={color}
-        />
+        choices.length >= SLIDER_FROM ? (
+          <ScaleSlider
+            choices={choices}
+            labels={mod.mod?.scaleLabels}
+            value={value}
+            onChange={onChange}
+            color={color}
+          />
+        ) : (
+          <ScaleInput
+            choices={choices}
+            labels={mod.mod?.scaleLabels}
+            value={value}
+            onChange={onChange}
+            color={color}
+          />
+        )
       ) : isOptions ? (
         <div className="flex flex-col gap-2">
           {choices.length > SEARCH_FROM && (
@@ -424,14 +417,11 @@ export function LedgerField({
                   onClick={() => {
                     onChange(on ? "" : choice);
                     // Büyük kümede seçince kutu kapanır, seçilen yuvada okunur
-                    if (collapsible && !on) {
-                      setOpen(false);
-                      setQuery("");
-                    }
+                    if (collapsible && !on) close();
                   }}
                   aria-pressed={on}
                   className={cn(
-                    "flex min-h-10 min-w-0 items-center justify-center rounded-xl px-2.5 py-1.5 text-center text-[13.5px] font-semibold leading-[18px] transition-colors break-words",
+                    "flex min-h-10 min-w-0 items-center justify-center break-words rounded-xl px-2.5 py-1.5 text-center text-[13.5px] font-semibold leading-[18px] transition-colors",
                     !on && "bg-black/25 text-muted-foreground ring-1 ring-inset hover:text-foreground"
                   )}
                   style={{
@@ -451,13 +441,17 @@ export function LedgerField({
               </p>
             )}
           </div>
+          {collapsible && <CloseBar onClick={close} label={t("action.close")} />}
         </div>
       ) : vt === "datetime-range" ? (
-        <DateTimeRangeInput
-          value={value}
-          onChange={onChange}
-          entryDate={entryDate ?? toLocalDateValue()}
-        />
+        <div className="flex flex-col gap-2">
+          <DateTimeRangeInput
+            value={value}
+            onChange={onChange}
+            entryDate={entryDate ?? toLocalDateValue()}
+          />
+          {collapsible && <CloseBar onClick={close} label={t("action.close")} />}
+        </div>
       ) : null}
 
       {/* 3 — öneriler */}
@@ -477,7 +471,7 @@ export function LedgerField({
                   key={raw}
                   type="button"
                   onClick={() => onChange(on ? "" : raw)}
-                  className="flex min-h-8 min-w-0 items-center justify-center rounded-lg px-1.5 py-1 font-mono text-[12.5px] font-semibold leading-4 transition-colors break-words"
+                  className="flex min-h-8 min-w-0 items-center justify-center break-words rounded-lg px-1.5 py-1 font-mono text-[12.5px] font-semibold leading-4 transition-colors"
                   style={
                     on
                       ? { background: color, color: "#fff" }
@@ -492,5 +486,19 @@ export function LedgerField({
         </div>
       )}
     </div>
+  );
+}
+
+/** Açık büyük kümenin / aralığın sonunda kapatma — başlıkta ok yerine */
+function CloseBar({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mx-auto flex h-8 items-center gap-1 rounded-full px-3 text-[12.5px] font-semibold text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+    >
+      <ChevronUp className="h-4 w-4" />
+      {label}
+    </button>
   );
 }

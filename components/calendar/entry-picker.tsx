@@ -31,6 +31,7 @@ import {
 } from "@/lib/db/live-cache";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { SymbolIcon } from "@/lib/icons";
+import { SmartText } from "@/components/ui/smart-text";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Category, SubCategory } from "@/types";
@@ -804,15 +805,15 @@ export function EntryPicker({
                               <span data-tile className="shrink-0">
                                 <Tile color={c.color} icon={p.icon} size={34} />
                               </span>
-                              <span
+                              <SmartText
+                                text={p.name}
+                                interactive
                                 className={cn(
-                                  "block w-full truncate text-center text-[10.5px] leading-[14px]",
+                                  "w-full text-center text-[10.5px] leading-[14px]",
                                   last ? "font-semibold text-foreground" : "text-muted-foreground",
                                   compact && "hidden"
                                 )}
-                              >
-                                {p.name}
-                              </span>
+                              />
                             </button>
                           );
                         })}
@@ -903,12 +904,19 @@ export function EntryPicker({
                     </span>
                     <div className="min-w-0 flex-1">
                       {node && (
-                        <div className="truncate text-[12px] font-medium leading-4 text-muted-foreground">
-                          {[selCat.name, ...pathNodes.slice(0, -1).map((p) => p.name)].join(" › ")}
-                        </div>
+                        <SmartText
+                          interactive
+                          text={[selCat.name, ...pathNodes.slice(0, -1).map((p) => p.name)].join(" › ")}
+                          className="text-[12px] font-medium leading-4 text-muted-foreground"
+                        />
                       )}
-                      <h3 className="truncate text-[19px] font-bold leading-6 tracking-tight">
-                        {node ? node.name : selCat.name}
+                      <h3>
+                        <SmartText
+                          interactive
+                          lines={2}
+                          text={node ? node.name : selCat.name}
+                          className="text-[19px] font-bold leading-6 tracking-tight"
+                        />
                       </h3>
                       {!node && (
                         <div className="text-[12px] leading-4 text-muted-foreground">
@@ -1516,9 +1524,12 @@ function ShelfTile({
           </span>
         ) : null}
       </span>
-      <span className="line-clamp-2 w-full text-center text-[11.5px] font-medium leading-[14px] text-foreground/90 first-letter:uppercase">
-        {label}
-      </span>
+      <SmartText
+        text={label}
+        interactive
+        lines={2}
+        className="w-full text-center text-[11.5px] font-medium leading-[14px] text-foreground/90 first-letter:uppercase"
+      />
     </button>
   );
 }
@@ -1573,15 +1584,15 @@ function RailItem({
     >
       {marker && <RailMarker color={marker} />}
       {children}
-      <span
+      <SmartText
+        text={label}
+        interactive
         className={cn(
-          "block w-full truncate text-center text-[11px] leading-[14px]",
+          "w-full text-center text-[11px] leading-[14px]",
           active ? "font-semibold text-foreground" : "text-muted-foreground",
           compact && "hidden"
         )}
-      >
-        {label}
-      </span>
+      />
     </button>
   );
 }
@@ -1628,13 +1639,14 @@ function PaneRow({
         <Tile color={color} icon={icon} fallback={branch ? FolderOpen : Folder} size={36} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] font-semibold leading-5 text-foreground">
-          {name}
-        </span>
+        <SmartText
+          text={name}
+          interactive
+          lines={2}
+          className="text-[15px] font-semibold leading-5 text-foreground"
+        />
         {sub && (
-          <span className="block truncate text-xs leading-4 text-muted-foreground">
-            {sub}
-          </span>
+          <SmartText text={sub} interactive className="text-xs leading-4 text-muted-foreground" />
         )}
       </span>
       {branch && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />}

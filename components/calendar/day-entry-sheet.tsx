@@ -19,6 +19,7 @@ import {
 import { useT } from "@/lib/i18n";
 import { NoteEditorView } from "@/components/forms/note-editor";
 import { LedgerField } from "@/components/forms/ledger-field";
+import { SmartText } from "@/components/ui/smart-text";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { modAtomIcon } from "@/components/structure/mod-atom";
 import { modColor } from "@/lib/mod-color";
@@ -969,11 +970,11 @@ function FormStep({
         </span>
         <div className="min-w-0 flex-1 leading-tight">
           {topLine && (
-            <div className="break-words text-[12px] font-medium text-muted-foreground">
-              {topLine}
-            </div>
+            <SmartText text={topLine} className="text-[12px] font-medium text-muted-foreground" />
           )}
-          <h2 className="break-words text-[19px] font-bold leading-6 tracking-tight ">{itemName}</h2>
+          <h2>
+            <SmartText text={itemName} lines={2} className="text-[19px] font-bold leading-6 tracking-tight" />
+          </h2>
           <button
             type="button"
             onClick={() => togglePanel("time")}

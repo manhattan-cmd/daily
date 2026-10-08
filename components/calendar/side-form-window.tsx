@@ -77,6 +77,11 @@ export function SideFormWindow({
 
     const start = (x: number, y: number, time: number, target: EventTarget | null) => {
       if (closing) return;
+      // Kendi sürüklemesi olan denetimler (kaydırılan ölçek) pencerenin değil
+      if ((target as Element | null)?.closest?.("[data-no-swipe]")) {
+        g = null;
+        return;
+      }
       const onGrip = !!(target as Element | null)?.closest?.("[data-grip]");
       g = {
         x,

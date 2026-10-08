@@ -498,6 +498,11 @@ input[type="number"] {
 [data-side-form] [data-grip] {
   touch-action: none;
 }
+/* Kendi sürüklemesi olan denetim (kaydırılan ölçek): dokunuş tamamen onun */
+[data-side-form] [data-no-swipe],
+[data-side-form] [data-no-swipe] * {
+  touch-action: none;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .ghost-in,
