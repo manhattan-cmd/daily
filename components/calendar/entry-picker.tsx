@@ -50,8 +50,12 @@ const QUICK_MAX = 8;
 const QUICK = "quick";
 /** Olay işleyicisinde okunan saat — çizim saf kalsın diye modül düzeyinde */
 const tapClock = () => performance.now();
+const RAIL_MASK =
+  "linear-gradient(to bottom, transparent, #000 14px, #000 calc(100% - 14px), transparent)";
 /** İki dokunuş arası bu kadar kısaysa çift dokunuş */
 const DOUBLE_TAP_MS = 280;
+/** Form açıkken etkin durağın raydaki yüksekliği — pencere başlığının karosu hizası */
+const RAIL_ALIGN_TOP = 22;
 /** Rayın genişliği; form yandan açıkken yalnız simgelere daralır */
 const RAIL_W = 96;
 export const RAIL_COMPACT_W = 64;
@@ -392,7 +396,7 @@ export function EntryPicker({
       return;
     }
     if (r.kids === 0) {
-      onPick(r.sub);
+      pickSynced(r.sub);
       return;
     }
     setRail(r.sub.categoryId);
@@ -403,6 +407,24 @@ export function EntryPicker({
       cur = cur.parentId ? subById.get(cur.parentId) : undefined;
     }
     setPath(chain);
+  }
+
+  /**
+   * Bölmenin dışından (hızlı ekle, arama) açılan kalemde ray kalemin yerine
+   * geçer: kategorisi seçilir, üst dalları ipe ilişir. Form açıkken sağdaki
+   * ray "neredesin"i söylemeye devam etsin — Hızlı'da kalsaydı kalemin
+   * nereye ait olduğu kaybolurdu.
+   */
+  function pickSynced(sub: SubCategory) {
+    const chain: string[] = [];
+    let cur = sub.parentId ? subById.get(sub.parentId) : undefined;
+    while (cur) {
+      chain.unshift(cur.id);
+      cur = cur.parentId ? subById.get(cur.parentId) : undefined;
+    }
+    setRail(sub.categoryId);
+    setPath(chain);
+    onPick(sub);
   }
 
   function isDoubleTap(key: string): boolean {
@@ -537,6 +559,34 @@ export function EntryPicker({
     else if (el.scrollTop > h * (railMid + 0.5)) el.scrollTop -= h;
   }
 
+  /*
+   * Form açıkken etkin durak (kategori ya da en derin dal) pencerenin
+   * başlığıyla aynı yüksekliğe kayar: soldaki karo ile sağdaki karo yan
+   * yana — "bu pencere buradan". Döngüdeki kopyalardan görünene en yakını.
+   */
+  const railFocusKey = compact ? `${railSel}|${pathNodes.map((p) => p.id).join(">")}` : "";
+  useEffect(() => {
+    const el = railRef.current;
+    if (!railFocusKey || !el) return;
+    const box = el.getBoundingClientRect();
+    let best: HTMLElement | null = null;
+    let dist = Infinity;
+    for (const a of el.querySelectorAll<HTMLElement>("[data-rail-active]")) {
+      const r = a.getBoundingClientRect();
+      const d = Math.abs(r.top - box.top - box.height / 3);
+      if (d < dist) {
+        dist = d;
+        best = a;
+      }
+    }
+    if (!best) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollBy({
+      top: best.getBoundingClientRect().top - box.top - RAIL_ALIGN_TOP,
+      behavior: reduce ? "auto" : "smooth",
+    });
+  }, [railFocusKey]);
+
   // Kat değişince bölme başa döner
   useEffect(() => {
     paneRef.current?.scrollTo({ top: 0 });
@@ -572,7 +622,8 @@ export function EntryPicker({
           onClick={() => setMenuOpen((o) => !o)}
           aria-label={t("entry.moreActions")}
           aria-expanded={menuOpen}
-          className={ROUND}
+          tabIndex={compact ? -1 : undefined}
+          className={cn(ROUND, compact && "pointer-events-none opacity-0")}
         >
           <MoreHorizontal className="h-[18px] w-[18px]" />
         </button>
@@ -580,8 +631,10 @@ export function EntryPicker({
 
       <div
         className={cn(
-          "shrink-0 px-4 pb-3 pt-2 transition-opacity duration-200",
-          compact && "pointer-events-none opacity-0"
+          // Form açıkken arama satırı KAPANIR: ray üst çubuğun hemen
+          // altından başlar, pencere de oradan — ikisi aynı hizada iki sütun
+          "max-h-20 shrink-0 overflow-hidden px-4 pb-3 pt-2 transition-[max-height,padding,opacity] duration-300",
+          compact && "pointer-events-none max-h-0 py-0 opacity-0"
         )}
       >
         <label className="flex h-11 items-center gap-2.5 rounded-2xl bg-[var(--sf-2)] px-4 ring-1 ring-inset ring-[var(--ln-1)] transition-shadow focus-within:ring-2 focus-within:ring-primary/50">
@@ -678,7 +731,12 @@ export function EntryPicker({
             onScroll={onRailScroll}
             onClickCapture={compact ? () => onRailNavigate?.() : undefined}
             className="no-scrollbar flex shrink-0 flex-col overflow-y-auto overscroll-contain pl-2 pr-2 transition-[width] duration-300 ease-out"
-            style={{ width: compact ? RAIL_COMPACT_W : RAIL_W }}
+            style={{
+              width: compact ? RAIL_COMPACT_W : RAIL_W,
+              // Döngüde üst ve alt kenarda yarım karo kesik durmasın: söner
+              maskImage: RAIL_MASK,
+              WebkitMaskImage: RAIL_MASK,
+            }}
           >
             {Array.from({ length: railCopies }, (_, copy) => (
               <div
@@ -689,6 +747,7 @@ export function EntryPicker({
                 className="flex shrink-0 flex-col gap-1 pb-1"
               >
                 <RailItem
+                  marker={compact && railSel === QUICK ? "#fbbf24" : undefined}
                   active={railSel === QUICK}
                   activeBg="var(--sf-3)"
                   label={t("entry.quickShort")}
@@ -702,6 +761,7 @@ export function EntryPicker({
                 {categories.map((c) => (
                   <div key={c.id} className="flex shrink-0 flex-col">
                     <RailItem
+                      marker={compact && railSel === c.id && !pathNodes.length ? c.color : undefined}
                       active={railSel === c.id}
                       activeBg={pathNodes.length && railSel === c.id ? `${c.color}17` : `${c.color}29`}
                       label={c.name}
@@ -731,6 +791,7 @@ export function EntryPicker({
                               key={p.id}
                               type="button"
                               data-rail-node={p.id}
+                              data-rail-active={compact && last ? "" : undefined}
                               onClick={() => {
                                 if (isDoubleTap(`s:${p.id}`)) return onPick(p);
                                 setPath(path.slice(0, i + 1));
@@ -739,6 +800,7 @@ export function EntryPicker({
                               className="entry-tile-pop relative flex flex-col items-center gap-0.5 rounded-xl px-0.5 pb-1 pt-1.5 transition-[background-color,transform] active:scale-95"
                               style={last ? { background: `${c.color}29` } : undefined}
                             >
+                              {compact && last && <RailMarker color={c.color} />}
                               <span data-tile className="shrink-0">
                                 <Tile color={c.color} icon={p.icon} size={34} />
                               </span>
@@ -792,7 +854,7 @@ export function EntryPicker({
                         icon={sub.icon}
                         name={sub.name}
                         sub={pathOf(sub)}
-                        onClick={() => onPick(sub)}
+                        onClick={() => pickSynced(sub)}
                       />
                     ))
                   ) : (
@@ -1461,12 +1523,28 @@ function ShelfTile({
   );
 }
 
+/**
+ * Form açıkken bulunulan durağın SOL kenarında, pencereye bakan renkli
+ * çentik — "bu pencere buradan açıldı". Raydaki zemin vurgusu tek başına
+ * pencereyle bağı kurmuyordu.
+ */
+function RailMarker({ color }: { color: string }) {
+  return (
+    <span
+      aria-hidden
+      className="absolute -left-1.5 top-1/2 h-7 w-[4px] -translate-y-1/2 rounded-full"
+      style={{ background: color, boxShadow: `0 0 10px ${color}99` }}
+    />
+  );
+}
+
 /** Rayın bir durağı — karo ve altında adı; seçili durak zeminlenir */
 function RailItem({
   active,
   activeBg,
   label,
   compact,
+  marker,
   onClick,
   children,
 }: {
@@ -1475,6 +1553,8 @@ function RailItem({
   label: string;
   /** Form açıkken yalnız karo — ad gizli */
   compact?: boolean;
+  /** Form açıkken bulunulan durak: pencereye bakan renkli işaret */
+  marker?: string;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -1485,11 +1565,13 @@ function RailItem({
       aria-pressed={active}
       aria-label={compact ? label : undefined}
       className={cn(
-        "flex shrink-0 flex-col items-center gap-1 rounded-2xl px-0.5 transition-[background-color,transform] active:scale-95",
+        "relative flex shrink-0 flex-col items-center gap-1 rounded-2xl px-0.5 transition-[background-color,transform] active:scale-95",
         compact ? "py-1.5" : "pb-1.5 pt-2"
       )}
       style={active ? { background: activeBg } : undefined}
+      data-rail-active={marker ? "" : undefined}
     >
+      {marker && <RailMarker color={marker} />}
       {children}
       <span
         className={cn(

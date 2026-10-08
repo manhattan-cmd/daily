@@ -1523,6 +1523,36 @@ export async function findParallelSubcategories(subId: string): Promise<Parallel
   return matches.map((s) => ({ ...s, categoryName: catMap.get(s.categoryId)?.name ?? "" }));
 }
 
+/**
+ * Bir kalemin son girdilerinde özelliklere girilmiş değerler — en yeniden
+ * eskiye, her özellik için en fazla `perMod` FARKLI değer. Formda geçmiş
+ * tutar çipleri bunlardan çıkıyor (Dışardan Yemek hep ₺400 civarı, Sig hep
+ * ₺550): yazmak yerine tek dokunuş. Anahtar mod kimliği, yoksa ölçü türü.
+ */
+export async function listRecentModValues(
+  subcategoryId: string,
+  perMod = 3
+): Promise<Record<string, string[]>> {
+  const recent = await db.entries
+    .where("subcategoryId")
+    .equals(subcategoryId)
+    .reverse()
+    .sortBy("occurredAt");
+  const ids = recent.slice(0, 30).map((e) => e.id);
+  if (!ids.length) return {};
+  const order = new Map(ids.map((id, i) => [id, i]));
+  const vals = await db.entryValues.where("entryId").anyOf(ids).toArray();
+  vals.sort((a, b) => (order.get(a.entryId) ?? 0) - (order.get(b.entryId) ?? 0));
+  const out: Record<string, string[]> = {};
+  for (const v of vals) {
+    const key = v.modId ?? v.entryTypeId;
+    if (!key || v.value === "" || v.value == null) continue;
+    const list = (out[key] ??= []);
+    if (list.length < perMod && !list.includes(v.value)) list.push(v.value);
+  }
+  return out;
+}
+
 export async function createEntry(input: {
   subcategoryId: string;
   title?: string;

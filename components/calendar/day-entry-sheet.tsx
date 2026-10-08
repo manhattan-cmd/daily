@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Boxes, Check, ChevronDown, Clock, Link2, Plus, X } from "lucide-react";
+import { ArrowLeft, Boxes, Check, Clock, Link2, ListPlus, PanelLeftClose, PenLine, Plus, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import {
   listModifiersForTarget,
@@ -11,17 +11,17 @@ import {
   ensureActivity,
   getOrCreateCategoryRootSub,
   listActivityNameSuggestions,
+  listRecentModValues,
   type CategoryModifierWithType,
   type ModWithType,
   type ParallelSub,
 } from "@/lib/db/queries";
 import { useT } from "@/lib/i18n";
-import { NoteEditorView, NotePreview } from "@/components/forms/note-editor";
+import { NoteEditorView } from "@/components/forms/note-editor";
+import { LedgerField } from "@/components/forms/ledger-field";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { modAtomIcon } from "@/components/structure/mod-atom";
 import { modColor } from "@/lib/mod-color";
-import { splitChoiceLevel } from "@/lib/choice-level";
-import type { LucideIcon } from "lucide-react";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
 import { EntryPicker, useEntryLayout } from "@/components/calendar/entry-picker";
@@ -35,7 +35,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SHORT_MONTHS } from "@/lib/analytics";
-import { ScaleInput, ToggleSwitch } from "@/components/ui/scale-input";
+import { ScaleInput } from "@/components/ui/scale-input";
 import { SymbolIcon } from "@/lib/icons";
 import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
 import { isScaleChoices, type Category, type SubCategory } from "@/types";
@@ -368,12 +368,33 @@ function DayEntrySheetBody({
     });
   }
 
-  async function handleFormSave() {
+  /** Kayıttan sonra pencerenin altında kısa bir "eklendi" bandı */
+  const [toast, setToast] = useState<string | null>(null);
+  useEffect(() => {
+    if (!toast) return;
+    const tm = setTimeout(() => setToast(null), 1800);
+    return () => clearTimeout(tm);
+  }, [toast]);
+
+  /** stay: kaydet ve seçiciye dön, pencere kapanmasın (seri giriş) */
+  async function handleFormSave(stay = false) {
     setSaving(true);
     try {
       if (step.type === "form") {
         const groupId = selectedParallels.length > 0 ? nanoid(12) : undefined;
         await persistEntry(step.sub.id, activeMods, values, groupId);
+        if (stay && !activity && selectedParallels.length === 0) {
+          const group = (groups ?? []).find((g) => g.category.id === step.sub.categoryId);
+          setToast(
+            t("entry.added", {
+              name: step.sub.isCategoryRoot ? (group?.category.name ?? step.sub.name) : step.sub.name,
+            })
+          );
+          setValues({});
+          setNotes("");
+          setStep({ type: "pick" });
+          return;
+        }
         // Aktivite modunda seri giriş: kaydet → seçim adımına dön, sheet açık kalır
         if (activity) {
           setActivityCount((c) => c + 1);
@@ -400,6 +421,21 @@ function DayEntrySheetBody({
     } finally {
       setSaving(false);
     }
+  }
+
+  /** Kalemin üstündeki yol: kategori › üst dallar (kalemin kendisi hariç) */
+  function pathLabelFor(sub: SubCategory): string {
+    const group = (groups ?? []).find((g) => g.category.id === sub.categoryId);
+    if (!group) return "";
+    if (sub.isCategoryRoot) return t("entry.general");
+    const byId = new Map(group.allSubs.map((x) => [x.id, x]));
+    const parts: string[] = [];
+    let cur = sub.parentId ? byId.get(sub.parentId) : undefined;
+    while (cur) {
+      parts.unshift(cur.name);
+      cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+    }
+    return [group.category.name, ...parts].join(" › ");
   }
 
   function handleBack() {
@@ -477,6 +513,7 @@ function DayEntrySheetBody({
               (groups ?? []).find((g) => g.category.id === step.sub.categoryId)
                 ?.category
             }
+            pathLabel={pathLabelFor(step.sub)}
             mods={activeMods}
             onAddMods={addEntryMods}
             onRemoveMod={removeEntryMod}
@@ -501,7 +538,8 @@ function DayEntrySheetBody({
             occurredAt={occurredAt}
             onOccurredAtChange={setOccurredAt}
             onBack={handleBack}
-            onSave={handleFormSave}
+            onSave={() => handleFormSave()}
+            onSaveStay={() => handleFormSave(true)}
             saving={saving}
             entryDate={date}
                   />
@@ -511,6 +549,18 @@ function DayEntrySheetBody({
           </>
         )}
         </div>
+        {toast && (
+          <div
+            role="status"
+            className="animate-in fade-in slide-in-from-bottom-2 pointer-events-none absolute inset-x-0 bottom-0 z-[60] flex justify-center px-4"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)" }}
+          >
+            <span className="flex items-center gap-2 rounded-full bg-foreground px-4 py-2.5 text-[13px] font-semibold text-background shadow-lg">
+              <Check className="h-4 w-4" strokeWidth={3} />
+              {toast}
+            </span>
+          </div>
+        )}
         </div>
         </DialogContent>
       </Dialog>
@@ -715,15 +765,45 @@ function occurredAtLabel(
 /** Menüden açılan bölümler — aynı anda yalnız biri açık kalır */
 type Panel = "time" | "parallel";
 
+/** Zaman çiplerinin "şimdi"si — olay işleyicide değil çizimde okunuyor, saf kalsın diye modülde */
+const nowDate = () => new Date();
+const NO_RECENT: Record<string, string[]> = {};
+
 /**
- * Girdi formu. Ana gövde yalnız ÖZELLİKLERdir (sorulan değerler + "özellik
- * ekle"), hemen altında her zaman görünen not alanı. Zaman ve paralel
- * perspektif ortada durup akışı karıştırmasın diye başlıktaki küçük seçenek
- * menüsüne alındı; seçilince özelliklerin altında yerinde açılırlar.
+ * Hazır zaman çipleri — girdinin anı tek dokunuşla. Gerçek veride
+ * girdilerin dörtte biri 3 saatten geç giriliyor; eskiden saat ⋯
+ * menüsünde saklıydı. Çiplerin hepsi formun gününe göre (sayfa dünün
+ * günüyse "Şimdi" dünün bu saati).
+ */
+function timePresets(entryDate: string, t: ReturnType<typeof useT>) {
+  const [y, m, d] = entryDate.split("-").map(Number);
+  const n = nowDate();
+  const at = (day: number, h: number, mi: number) =>
+    toLocalDateTimeValue(new Date(y, m - 1, day, h, mi, 0, 0).getTime());
+  const nowTs = new Date(y, m - 1, d, n.getHours(), n.getMinutes(), 0, 0).getTime();
+  return [
+    { key: "now", label: t("entry.timeNow"), value: at(d, n.getHours(), n.getMinutes()) },
+    { key: "h1", label: t("entry.timeHourAgo"), value: toLocalDateTimeValue(nowTs - 3600_000) },
+    { key: "noon", label: t("entry.timeNoon"), value: at(d, 12, 30) },
+    { key: "eve", label: t("entry.timeEvening"), value: at(d, 19, 30) },
+    { key: "yday", label: t("entry.timeYesterday"), value: at(d - 1, n.getHours(), n.getMinutes()) },
+  ];
+}
+
+/**
+ * Girdi formu — AÇIK DEFTER.
+ *
+ * Başlık seçicinin diliyle: kategorinin renginde karo, kalemin adı, üstte
+ * yolu. Altında zaman çipleri. Gövde kalemin özellikleri: hepsi açık, alt
+ * alta; başlık karosundan inen bir ip onları kaleme bağlar (raydaki ipin
+ * aynısı). Not ve "özellik ekle" ikinci planda, küçük. Altta kategorinin
+ * renginde Ekle ve yanında "ekle ve devam et" (pencere kapanmadan seçiciye
+ * döner — akşam üç harcamayı peş peşe girmek için).
  */
 function FormStep({
   sub,
   category,
+  pathLabel,
   mods,
   onAddMods,
   onRemoveMod,
@@ -743,11 +823,14 @@ function FormStep({
   onOccurredAtChange,
   onBack,
   onSave,
+  onSaveStay,
   saving,
   entryDate,
 }: {
   sub: SubCategory;
   category?: Category;
+  /** Kalemin üstündeki yol — "Harcamalar › Yemek" */
+  pathLabel?: string;
   mods: CategoryModifierWithType[];
   /** Girdiye özel özellik ekle — yapıya bağlanmaz */
   onAddMods: (mods: ModWithType[]) => void;
@@ -770,6 +853,8 @@ function FormStep({
   onOccurredAtChange: (v: string) => void;
   onBack: () => void;
   onSave: () => void;
+  /** Kaydet ve seçiciye dön — pencere açık kalır */
+  onSaveStay?: () => void;
   saving: boolean;
   entryDate: string;
 }) {
@@ -781,310 +866,283 @@ function FormStep({
   // Seçiciden yeni eklenen özellik — alanı görünüme kaydırıp odaklarız
   const [focusModId, setFocusModId] = useState<string | null>(null);
   const togglePanel = (p: Panel) => setPanel((cur) => (cur === p ? null : p));
+  const recent = useLiveQuery(() => listRecentModValues(sub.id), [sub.id]) ?? NO_RECENT;
+  // Çipler pencere açıldığında bir kez hesaplanır — "şimdi" kaymasın
+  const [presets] = useState(() => timePresets(entryDate, t));
+  const activePreset = presets.find((p) => p.value === occurredAt)?.key ?? null;
 
-  const timeChanged = occurredAt.split("T")[0] !== entryDate;
   const showParallelOption = !parallelContext && !hideParallels;
-  // Menüde bir şey ayarlanmışsa düğmede nokta belirir
-  const optionsTouched = timeChanged || selectedParallels.length > 0;
-
+  const hasParallelSelected = selectedParallels.length > 0;
 
   /** Bu sayfanın rengi — paralel perspektifte mor, yoksa kalemin kategorisi */
   const accent = parallelContext ? "#7c3aed" : category?.color ?? "#6366f1";
+  const itemName = sub.isCategoryRoot ? (category?.name ?? sub.name) : sub.name;
+  const topLine = parallelContext
+    ? `${parallelContext.catName}${parallelContext.total > 1 ? ` · ${parallelContext.index}/${parallelContext.total}` : ""}`
+    : activityName ?? pathLabel ?? category?.name ?? "";
 
-  const hasParallelSelected = selectedParallels.length > 0;
   const saveLabel = saving
     ? t("entry.saving")
     : parallelContext
-    ? parallelContext.index < parallelContext.total
-      ? t("action.saveAndContinue")
-      : t("entry.addNow")
-    : hasParallelSelected
-    ? t("action.saveAndContinue")
-    : t("entry.addNow");
+      ? parallelContext.index < parallelContext.total
+        ? t("action.saveAndContinue")
+        : t("entry.addNow")
+      : hasParallelSelected
+        ? t("action.saveAndContinue")
+        : t("entry.addNow");
+  const canStay = !!onSaveStay && !parallelContext && !hasParallelSelected && !activityName;
 
   return (
     <>
-      {/* Üst çubuk — seçicideki gibi: solda geri, sağda seçenekler. Kalemin
-          kendisi altında büyük başlık olarak duruyor. */}
-      <div className="flex shrink-0 items-center px-4 pb-1 pt-3">
-        <button
-          onClick={onBack}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--sf-2)] text-foreground/80 transition-[background-color,transform] hover:bg-[var(--sf-3)] active:scale-95"
-          aria-label={parallelContext ? t("action.skip") : t("action.back")}
+      {/* Başlık — geri, kalemin karosu + adı + yolu, paralel seçeneği */}
+      <div className="flex shrink-0 items-center gap-2.5 px-3 pb-2.5 pt-1">
+        <span
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]"
+          style={{
+            backgroundColor: accent,
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25), inset 0 0 0 1px rgba(0,0,0,0.14)",
+          }}
         >
-          <ArrowLeft className="h-[18px] w-[18px]" />
-        </button>
-        <div className="flex-1" />
-        {/* Zaman ve paralel perspektif ortada durup akışı karıştırmasın */}
-        <OptionsMenu
-          touched={optionsTouched}
-          items={[
-            {
-              key: "time",
-              icon: Clock,
-              title: t("entry.time"),
-              subtitle: occurredAtLabel(occurredAt, entryDate, t("entry.time")),
-              active: panel === "time",
-              onSelect: () => togglePanel("time"),
-            },
-            ...(showParallelOption
-              ? [
-                  {
-                    key: "parallel",
-                    icon: Link2,
-                    title: t("entry.parallel"),
-                    subtitle: selectedParallels.length
-                      ? `${selectedParallels.length} seçili`
-                      : t("entry.alsoLog"),
-                    active: panel === "parallel",
-                    onSelect: () => togglePanel("parallel"),
-                  },
-                ]
-              : []),
-          ]}
-        />
-      </div>
-
-      <div className="flex shrink-0 items-center gap-3 px-5 pb-5 pt-2">
-        {/* Kalemin karosu — nereye kayıt yaptığın bir bakışta. Başlık
-            yalnız yazıyken form "hangi kalemdeyim" sorusunu zayıf
-            cevaplıyordu; seçici listesinde de aynı karo duruyor, göz
-            aynı şeyi tanıyor. */}
-        {!parallelContext && category && (
-          <span
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px]"
-            style={{
-              backgroundColor: category.color,
-              boxShadow:
-                "inset 0 1px 0 rgba(255,255,255,0.25), inset 0 0 0 1px rgba(0,0,0,0.14)",
-            }}
-          >
+          {parallelContext ? (
+            <Link2 className="h-5 w-5 text-white" />
+          ) : activityName ? (
+            <Boxes className="h-5 w-5 text-white" />
+          ) : (
             <SymbolIcon
-              name={sub.isCategoryRoot ? category.icon : sub.icon}
-              size={24}
+              name={sub.isCategoryRoot ? (category?.icon ?? sub.icon) : sub.icon}
+              size={20}
               style={{ color: "#fff" }}
             />
-          </span>
-        )}
-        <div className="flex-1 min-w-0">
-          {parallelContext && (
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <Link2 className="h-3 w-3 text-violet-400" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/80">
-                {parallelContext.catName}
-                {parallelContext.total > 1 && ` · ${parallelContext.index}/${parallelContext.total}`}
-              </span>
+          )}
+        </span>
+        <div className="min-w-0 flex-1 leading-tight">
+          {topLine && (
+            <div className="truncate text-[11.5px] font-medium text-muted-foreground">
+              {topLine}
             </div>
           )}
-          {activityName && !parallelContext && (
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <Boxes className="h-3 w-3 text-cyan-400" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan-400/80 truncate">
-                {activityName}
-              </span>
-            </div>
-          )}
-          {!parallelContext && !activityName && category && (
-            <span
-              className="block truncate text-[10px] font-semibold uppercase tracking-[0.14em]"
-              style={{ color: `${category.color}cc` }}
-            >
-              {category.name}
-            </span>
-          )}
-          <h2 className="truncate text-[24px] font-bold leading-tight tracking-tight">
-            {sub.isCategoryRoot ? (category?.name ?? sub.name) : sub.name}
-          </h2>
+          <h2 className="truncate text-[18px] font-bold tracking-tight">{itemName}</h2>
         </div>
+        {showParallelOption && (
+          <OptionsMenu
+            touched={hasParallelSelected}
+            items={[
+              {
+                key: "parallel",
+                icon: Link2,
+                title: t("entry.parallel"),
+                subtitle: hasParallelSelected
+                  ? `${selectedParallels.length} seçili`
+                  : t("entry.alsoLog"),
+                active: panel === "parallel",
+                onSelect: () => togglePanel("parallel"),
+              },
+            ]}
+          />
+        )}
+        {/* Kapat — pencereyi kapatıp seçiciye döner (sola kaydırmak da) */}
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sf-2)] text-foreground/80 transition-[background-color,transform] hover:bg-[var(--sf-3)] active:scale-95"
+          aria-label={parallelContext ? t("action.skip") : t("action.close")}
+        >
+          {parallelContext ? <ArrowLeft className="h-[17px] w-[17px]" /> : <PanelLeftClose className="h-[17px] w-[17px]" />}
+        </button>
       </div>
 
-      {/* Gövde — çerçevesiz, seçicideki gibi: bölümler küçük sessiz
-          başlıklarla ayrılıyor, renk karoda ve asli eylemde. Eskiden her şey
-          kalemin renginde ikinci bir kutunun içindeydi. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 pb-6">
-        {/* ── Özellikler: formun ana gövdesi ──
-            Başlık şart: alanlar başlıksızken "bunlar ne" sorusu ekranda
-            cevapsız kalıyordu. Nottaki başlıkla aynı dil. */}
-        {mods.length > 0 && (
-          <div className="mb-2 px-1 text-[12px] font-semibold text-muted-foreground">
-            {t("entry.features")}
-          </div>
-        )}
+      {/* Zaman çipleri — hazır anlar + kendi saatin */}
+      <div className="no-scrollbar flex shrink-0 gap-1.5 overflow-x-auto px-3 pb-2.5">
+        {presets.map((p) => {
+          const on = activePreset === p.key;
+          return (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => {
+                onOccurredAtChange(p.value);
+                setPanel((cur) => (cur === "time" ? null : cur));
+              }}
+              aria-pressed={on}
+              className={cn(
+                "flex h-8 shrink-0 items-center gap-1 rounded-full px-3 text-[12.5px] font-semibold transition-colors",
+                !on && "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground"
+              )}
+              style={on ? { background: accent, color: "#fff" } : undefined}
+            >
+              {p.key === "now" && <Clock className="h-3.5 w-3.5" />}
+              {p.label}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => togglePanel("time")}
+          aria-expanded={panel === "time"}
+          className={cn(
+            "flex h-8 shrink-0 items-center gap-1 rounded-full px-3 font-mono text-[12.5px] font-semibold transition-colors",
+            activePreset ? "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground" : "text-white"
+          )}
+          style={activePreset ? undefined : { background: accent }}
+        >
+          <Clock className="h-3.5 w-3.5" />
+          {activePreset ? t("entry.timeCustom") : occurredAtLabel(occurredAt, entryDate, t("entry.time"))}
+        </button>
+      </div>
+      {panel === "time" && (
+        <div className="shrink-0 px-3 pb-3">
+          <DateTimeInput value={occurredAt} onChange={onOccurredAtChange} />
+        </div>
+      )}
+
+      {/* Gövde — açık defter */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3 pb-4">
         {mods.length === 0 ? (
           <button
             type="button"
             onClick={() => setModPickerOpen(true)}
-            className="flex w-full flex-col items-center gap-2 rounded-2xl border border-[var(--ln-2)] bg-[var(--sf-1)] px-5 py-7 text-center transition-colors hover:bg-[var(--sf-2)]"
+            className="flex w-full flex-col items-center gap-2 rounded-2xl border border-dashed border-[var(--ln-2)] px-5 py-6 text-center transition-colors hover:bg-[var(--sf-1)]"
           >
             <span
-              className="flex h-11 w-11 items-center justify-center rounded-full"
-              style={{
-                background: `${category?.color ?? "#818cf8"}26`,
-                color: category?.color ?? "#818cf8",
-              }}
+              className="flex h-10 w-10 items-center justify-center rounded-full"
+              style={{ background: `${accent}26`, color: accent }}
             >
               <Plus className="h-5 w-5" strokeWidth={2.5} />
             </span>
-            <span className="text-sm font-semibold leading-5">
-              {t("entry.addFeature")}
-            </span>
+            <span className="text-sm font-semibold leading-5">{t("entry.addFeature")}</span>
             <span className="max-w-[240px] text-[11px] leading-4 text-muted-foreground">
               {t("entry.featuresHint")}
             </span>
           </button>
         ) : (
-          <div>
-            {/* Katlanır satırlar: hangi ölçüler var SORUSUNU liste cevaplıyor,
-                değer girmek isteyen satıra dokunup açıyor. Hepsi birden açık
-                dururken üç ölçülü bir kalemde form uzuyor ve "ne kaydediyorum"
-                yerine "bu alanları doldurmam mı lazım" hissi veriyordu. */}
-            {/* Her özellik KENDİ NESNESİ: ayrı, kendi renginde kart. Tek bir
-                kutunun dilimleri gibi durduklarında üstteki ve alttaki köşeli,
-                ortadaki düz dikdörtgen kalıyordu — bir bütünün maddeleri değil,
-                bölünmüş bir pencere gibi okunuyordu. */}
-            <div className="flex flex-col gap-2">
-              {mods.map((mod) => (
-                <FeatureRow
-                  key={mod.id}
-                  mod={mod}
-                  onRemove={() => onRemoveMod(mod)}
-                  entryOnly={mod.id.startsWith("entry-")}
-                  icon={modAtomIcon(mod)}
-                  color={modColor(mod.mod ?? { name: mod.name ?? mod.entryType.name })}
-                  value={values[valueKey(mod)] ?? ""}
-                  onChange={(v) => onValueChange(valueKey(mod), v)}
-                  isLocked={lockedTypeIds.has(sharedKey(mod))}
-                  entryDate={entryDate}
-                  defaultOpen={mod.modId === focusModId}
-                />
-              ))}
-              {/* Ekleme de bir nesne — kesik çizgili, "buraya bir madde daha" */}
-              <button
-                type="button"
-                onClick={() => setModPickerOpen(true)}
-                className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-[var(--ln-2)] px-3 py-2.5 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-[var(--sf-1)] hover:text-foreground"
-              >
-                <span
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-                  style={{
-                    background: `${category?.color ?? "#818cf8"}1f`,
-                    color: category?.color ?? "#818cf8",
-                  }}
-                >
-                  <Plus className="h-[18px] w-[18px]" strokeWidth={2.25} />
-                </span>
-                {t("entry.addFeature")}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── Menüden açılan bölümler ── */}
-        {panel === "time" && (
-          <div className="mt-5">
-            <PanelBlock
-              icon={Clock}
-              title={t("entry.time")}
-              onClose={() => setPanel(null)}
-            >
-              <DateTimeInput value={occurredAt} onChange={onOccurredAtChange} />
-            </PanelBlock>
+          <div className="relative ml-[20px] flex flex-col gap-2 pl-3">
+            {/* İp — başlık karosundan iner, özellikleri kaleme bağlar */}
+            <span
+              aria-hidden
+              className="absolute -top-14 bottom-4 left-0 w-[2px] -translate-x-1/2 rounded-full"
+              style={{ background: `${accent}59` }}
+            />
+            {mods.map((mod) => (
+              <LedgerField
+                key={mod.id}
+                mod={mod}
+                icon={modAtomIcon(mod)}
+                color={modColor(mod.mod ?? { name: mod.name ?? mod.entryType.name })}
+                value={values[valueKey(mod)] ?? ""}
+                onChange={(v) => onValueChange(valueKey(mod), v)}
+                recent={recent[mod.modId ?? mod.entryTypeId ?? ""] ?? []}
+                isLocked={lockedTypeIds.has(sharedKey(mod))}
+                entryDate={entryDate}
+                entryOnly={mod.id.startsWith("entry-")}
+                onRemove={() => onRemoveMod(mod)}
+                autoFocus={mod.modId === focusModId}
+              />
+            ))}
           </div>
         )}
 
         {panel === "parallel" && showParallelOption && (
-          <div className="mt-5">
-          <PanelBlock
-            icon={Link2}
-            title={t("entry.parallel")}
-            onClose={() => setPanel(null)}
-          >
-            <div className="flex flex-col gap-2">
-              <p className="text-[11px] leading-snug text-muted-foreground/70">
-                Aynı olayı başka bir kategoride de kaydet — kaydettikten sonra
-                her biri için detaylar sorulur.
-              </p>
-              {selectedParallels.map((ps) => (
-                <div
-                  key={ps.id}
-                  className="flex items-center gap-3 rounded-xl border border-violet-500/50 bg-violet-500/10 px-3 py-2.5"
-                >
-                  <div className="flex-1 min-w-0 leading-tight">
-                    <span className="text-xs text-muted-foreground">{ps.categoryName}</span>
-                    <span className="text-xs text-muted-foreground mx-1">/</span>
-                    <span className="text-sm font-medium">{ps.name}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onRemoveParallel(ps.id)}
-                    className="h-5 w-5 flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-muted-foreground transition-colors shrink-0"
-                    aria-label={`${ps.name} paralel perspektifini kaldır`}
+          <div className="mt-4">
+            <PanelBlock icon={Link2} title={t("entry.parallel")} onClose={() => setPanel(null)}>
+              <div className="flex flex-col gap-2">
+                <p className="text-[11px] leading-snug text-muted-foreground/70">
+                  Aynı olayı başka bir kategoride de kaydet — kaydettikten sonra
+                  her biri için detaylar sorulur.
+                </p>
+                {selectedParallels.map((ps) => (
+                  <div
+                    key={ps.id}
+                    className="flex items-center gap-3 rounded-xl border border-violet-500/50 bg-violet-500/10 px-3 py-2.5"
                   >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setParallelPickerOpen(true)}
-                className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-violet-500/30 py-2.5 text-sm font-medium text-violet-300/80 transition-colors hover:border-violet-500/50 hover:text-violet-200"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                {selectedParallels.length > 0 ? t("entry.anotherPerspective") : t("entry.pickPerspective")}
-              </button>
-            </div>
-          </PanelBlock>
+                    <div className="min-w-0 flex-1 leading-tight">
+                      <span className="text-xs text-muted-foreground">{ps.categoryName}</span>
+                      <span className="mx-1 text-xs text-muted-foreground">/</span>
+                      <span className="text-sm font-medium">{ps.name}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveParallel(ps.id)}
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted-foreground/50 transition-colors hover:text-muted-foreground"
+                      aria-label={`${ps.name} paralel perspektifini kaldır`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setParallelPickerOpen(true)}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-violet-500/30 py-2.5 text-sm font-medium text-violet-300/80 transition-colors hover:border-violet-500/50 hover:text-violet-200"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  {selectedParallels.length > 0 ? t("entry.anotherPerspective") : t("entry.pickPerspective")}
+                </button>
+              </div>
+            </PanelBlock>
           </div>
         )}
 
-        {/* ── Not — her zaman altta, doğrudan yazılabilir ── */}
-        <div className="mt-6 flex flex-col">
-          <label
-            htmlFor="entry-note"
-            className="mb-2 block px-1 text-[12px] font-semibold text-muted-foreground"
+        {/* Not ve özellik — ikinci planda, tek satır */}
+        <div className="mt-3 flex shrink-0 gap-2">
+          <button
+            type="button"
+            onClick={() => setNoteOpen(true)}
+            className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-xl bg-[var(--sf-1)] px-3 text-left text-[13px] ring-1 ring-inset ring-[var(--ln-1)] transition-colors hover:bg-[var(--sf-2)]"
           >
-            {t("entry.note")}
-          </label>
-          <NotePreview
-            id="entry-note"
-            value={notes}
-            onOpen={() => setNoteOpen(true)}
-            // Tam ekranda boşluğu doldurmuyor: ekranın yarısını kaplayan
-            // boş bir kutu "doldurman gereken alan" gibi duruyordu
-            className="min-h-[88px] flex-none rounded-2xl border-[var(--ln-1)] bg-[var(--sf-1)]"
-          />
+            <PenLine className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className={cn("truncate", notes ? "text-foreground" : "text-muted-foreground/70")}>
+              {notes ? notes.split("\n")[0] : t("entry.notePlaceholder")}
+            </span>
+          </button>
+          {mods.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setModPickerOpen(true)}
+              className="flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-[var(--sf-1)] px-3 text-[13px] font-semibold text-muted-foreground ring-1 ring-inset ring-[var(--ln-1)] transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+            >
+              <Plus className="h-4 w-4" />
+              {t("entry.featureShort")}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Asli eylem: kalemin renginde, iri ve tek. "Kaydet" bir düzenlemeyi
-          bitiriyormuş gibi duruyordu; burada yapılan şey yeni bir kayıt
-          YARATMAK. */}
+      {/* Asli eylem: kalemin renginde; yanında ekle ve devam et */}
       <div
-        className="shrink-0 border-t border-[var(--ln-2)] px-5 pt-3"
-        style={{ paddingBottom: "max(2rem, calc(env(safe-area-inset-bottom, 0px) + 1rem))" }}
+        className="flex shrink-0 gap-2 border-t border-[var(--ln-1)] px-3 pt-2.5"
+        style={{ paddingBottom: "max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem))" }}
       >
         <button
           type="button"
           onClick={onSave}
           disabled={saving}
-          className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-60"
-          style={{
-            backgroundColor: accent,
-          }}
+          className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-60"
+          style={{ backgroundColor: accent }}
         >
-          {!saving && <Plus className="h-5 w-5" strokeWidth={2.75} />}
+          {!saving && <Check className="h-5 w-5" strokeWidth={2.75} />}
           {saveLabel}
         </button>
+        {canStay && (
+          <button
+            type="button"
+            onClick={onSaveStay}
+            disabled={saving}
+            aria-label={t("entry.addAndNext")}
+            title={t("entry.addAndNext")}
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--sf-2)] text-foreground/85 transition-[background-color,transform] hover:bg-[var(--sf-3)] active:scale-95 disabled:opacity-60"
+          >
+            <ListPlus className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
-      {/* Not yazma görünümü formun üstünü kaplar — klavye açılınca yazılan
-          yer pencerenin tepesinde kalır */}
+      {/* Not yazma görünümü formun üstünü kaplar */}
       {noteOpen && (
         <NoteEditorView
           value={notes}
           onChange={onNotesChange}
           onDone={() => setNoteOpen(false)}
-          subtitle={sub.isCategoryRoot ? (category?.name ?? sub.name) : sub.name}
+          subtitle={itemName}
           accent={accent}
           className="absolute inset-0 z-20 bg-background px-5 pb-6 pt-5"
         />
@@ -1117,191 +1175,6 @@ function FormStep({
         }}
       />
     </>
-  );
-}
-
-// ─── Özellik satırı ──────────────────────────────────────────────────────────
-
-/** Kapalı satırda görünen değer — girilmişse ne girildiği okunuyor */
-function valueSummary(mod: CategoryModifierWithType, value: string): string {
-  if (!value) return "";
-  const vt = mod.entryType.valueType ?? "number";
-  if (vt === "boolean") return value === "true" ? "✓" : "—";
-  if (vt === "datetime-range") return formatDTRDisplay(value);
-  if (vt === "select") {
-    const { label, level } = splitChoiceLevel(value);
-    return level === null ? label : `${label} %${level}`;
-  }
-  return mod.entryType.unit ? `${value} ${mod.entryType.unit}` : value;
-}
-
-/**
- * Katlanır özellik satırı — sembol + ad, dokununca değeri girilecek yer
- * açılıyor.
- *
- * Bütün alanlar birden açıkken üç ölçülü bir kalemde form uzuyor ve
- * kullanıcıya "ne kaydediyorum" yerine "bu alanları doldurmam mı lazım"
- * hissi veriyordu. Kapalı satır iki şeyi birden söylüyor: burada ne
- * ölçülüyor ve şu an ne girilmiş.
- */
-function FeatureRow({
-  mod,
-  icon: Icon,
-  color,
-  value,
-  onChange,
-  isLocked,
-  entryDate,
-  defaultOpen,
-  onRemove,
-  entryOnly,
-}: {
-  mod: CategoryModifierWithType;
-  /** Yalnız bu girdi için kaldır */
-  onRemove: () => void;
-  /** Bu girdiye özel eklendi (yapıda yok) */
-  entryOnly: boolean;
-  icon: LucideIcon;
-  color: string;
-  value: string;
-  onChange: (v: string) => void;
-  isLocked: boolean;
-  entryDate: string;
-  /** Yeni eklenen özellik açık gelsin — kullanıcı onu girmek için ekledi */
-  defaultOpen: boolean;
-}) {
-  const t = useT();
-  const [open, setOpen] = useState(defaultOpen);
-  const onDone = () => setOpen(false);
-  const vt = mod.entryType.valueType ?? "number";
-  const inlineDone = vt === "number" || vt === "text";
-  const label = mod.name ?? mod.entryType.name;
-  const summary = valueSummary(mod, value);
-  const isBool = vt === "boolean";
-
-  return (
-    <div
-      className="overflow-hidden rounded-2xl transition-shadow"
-      style={{
-        background: `${color}0d`,
-        boxShadow: `inset 0 0 0 1px ${color}${open ? "66" : "2e"}`,
-      }}
-    >
-      <div className="flex items-center">
-      <button
-        type="button"
-        onClick={() =>
-          isBool ? onChange(value === "true" ? "false" : "true") : setOpen((o) => !o)
-        }
-        aria-expanded={isBool ? undefined : open}
-        className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-3 pr-1 text-left"
-      >
-        <span
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-          style={{ background: `${color}26`, color }}
-        >
-          <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
-        </span>
-        <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
-          <span className="truncate text-sm font-medium leading-5 text-foreground">
-            {label}
-          </span>
-          {mod.entryType.unit && (
-            <span className="shrink-0 text-xs leading-5 text-muted-foreground">
-              {mod.entryType.unit}
-            </span>
-          )}
-          {entryOnly && (
-            <span
-              className="shrink-0 rounded-full px-1.5 text-[10px] font-medium leading-4"
-              style={{ background: `${color}24`, color }}
-            >
-              {t("entry.onlyThisEntry")}
-            </span>
-          )}
-        </span>
-        {!isBool && summary && !open && (
-          <span
-            className="shrink-0 text-sm font-semibold leading-5"
-            style={{ color }}
-          >
-            {summary}
-          </span>
-        )}
-        {!isBool && (
-          <ChevronDown
-            className={cn(
-              "h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform",
-              open && "rotate-180"
-            )}
-          />
-        )}
-      </button>
-      {/* Evet/hayır: değer satırın kendisinde — çekmece açmaya gerek yok */}
-      {isBool && (
-        <ToggleSwitch
-          checked={value === "true"}
-          onChange={(v) => onChange(v ? "true" : "false")}
-          color={color}
-          label={label}
-        />
-      )}
-      {/* Yalnız bu girdiden çıkarır — kalem bir dahaki kayıtta yine
-          yapıdaki özellikleriyle gelir */}
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label={t("entry.removeFromEntry")}
-        title={t("entry.removeFromEntry")}
-        className="mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground/50 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
-      >
-        <X className="h-4 w-4" />
-      </button>
-      </div>
-
-      {open && !isBool && (
-        // Sayı ve metin tek satıra sığıyor: onay alanın YANINDA duruyor ve
-        // çekmece yarı yüksekliğe iniyor. Skala, zaman aralığı ve evet/hayır
-        // tam genişlik istiyor — orada onay alta düşüyor.
-        <div
-          className={cn(
-            "border-t px-3 py-2.5",
-            inlineDone ? "flex items-center gap-2" : "flex flex-col gap-2.5"
-          )}
-        >
-          <div className={cn(inlineDone && "min-w-0 flex-1")}>
-            <ModInput
-              mod={mod}
-              value={value}
-              onChange={onChange}
-              isLocked={isLocked}
-              entryDate={entryDate}
-              autoFocus={defaultOpen}
-              hideLabel
-              compact
-              color={color}
-            />
-          </div>
-          {/* Kapatan bir onay: değer girildikten sonra çekmeceyi kapatmanın
-              yolu yalnız başlıktaki ok olunca kullanıcı orayı aramak zorunda
-              kalıyordu. Özelliği kalemden koparan düğme buradan kalktı — bu
-              yapısal bir iş ve her kayıt eklemede göz önünde durmamalı
-              (yeri: Yapı > Özellikler). */}
-          <button
-            type="button"
-            onClick={onDone}
-            className={cn(
-              "flex items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold transition-opacity active:opacity-80",
-              inlineDone ? "h-10 shrink-0 px-3.5" : "h-9 w-full"
-            )}
-            style={{ background: `${color}26`, color }}
-          >
-            <Check className="h-4 w-4" strokeWidth={2.5} />
-            {t("action.done")}
-          </button>
-        </div>
-      )}
-    </div>
   );
 }
 

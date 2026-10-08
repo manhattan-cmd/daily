@@ -5,8 +5,13 @@ import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { RAIL_COMPACT_W } from "@/components/calendar/entry-picker";
 
-/** Pencere hâlinde üstte ve altta eşit pay — boydan kısa, dikeyde ortada */
-const WINDOW_INSET = "13%";
+/**
+ * Pencere hâlinde üst kenar = seçicinin üst çubuğunun altı = rayın başladığı
+ * yer (form açıkken arama satırı kapanıyor). Pencere ile ray aynı hizadan
+ * başlayıp ekranın altına iniyor: yan yana iki sütun, ekran bir bütün.
+ * (Üst çubuk: 12 px üst boşluk + 40 px düğme + 4 px alt boşluk.)
+ */
+const WINDOW_TOP = 56;
 const GAP = 8;
 /** Bu kadar üst bölgeden (tutamaç + başlık) dikey çekiş pencereyi büyütür */
 const TOP_ZONE = 100;
@@ -206,11 +211,11 @@ export function SideFormWindow({
       )}
       style={{
         transition: GEOMETRY_TRANSITION,
-        top: full ? 0 : WINDOW_INSET,
-        bottom: full ? 0 : `calc(${WINDOW_INSET} + env(safe-area-inset-bottom, 0px))`,
+        top: full ? 0 : WINDOW_TOP,
+        bottom: full ? 0 : `calc(env(safe-area-inset-bottom, 0px) + ${GAP}px)`,
         left: full ? 0 : GAP,
         right: full ? 0 : RAIL_COMPACT_W + GAP / 2,
-        borderRadius: full ? 0 : 28,
+        borderRadius: full ? 0 : 26,
       }}
     >
       {/* Tutamaç — yukarı çek: tam ekran, aşağı çek: pencere; dokunmak
@@ -223,7 +228,7 @@ export function SideFormWindow({
           if (e.detail === 0) setFull((f) => !f);
         }}
         aria-label={full ? t("entry.windowed") : t("entry.fullscreen")}
-        className="flex h-7 shrink-0 cursor-grab touch-none items-center justify-center"
+        className="flex h-5 shrink-0 cursor-grab touch-none items-center justify-center"
       >
         <span className="h-1 w-10 rounded-full bg-[var(--ln-2)]" />
       </button>
