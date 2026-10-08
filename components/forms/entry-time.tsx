@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Clock } from "lucide-react";
-import { DateTimeInput } from "@/components/forms/datetime-range-input";
+import { ChevronDown, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { cn, toLocalDateTimeValue } from "@/lib/utils";
 import { intlTag, useT } from "@/lib/i18n";
 
@@ -22,6 +21,26 @@ function presetsFor(baseDate: string) {
     { key: "now" as PresetKey, value: at(d) },
     { key: "tmrw" as PresetKey, value: at(d + 1) },
   ];
+}
+
+/** "YYYY-MM-DDTHH:mm" değerinin gününü kaydır, saat aynı kalsın */
+function shiftDay(v: string, days: number): string {
+  const [d = "", time = "12:00"] = v.split("T");
+  const [y, m, dd] = d.split("-").map(Number);
+  const nd = new Date(y, m - 1, dd + days);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${nd.getFullYear()}-${pad(nd.getMonth() + 1)}-${pad(nd.getDate())}T${time}`;
+}
+
+/** Penceredeki gün yazısı — "8 Ekim Çarşamba" */
+function prettyDay(v: string): string {
+  const d = v.split("T")[0];
+  if (!d) return "—";
+  return new Date(d + "T00:00:00").toLocaleDateString(intlTag(), {
+    day: "numeric",
+    month: "long",
+    weekday: "long",
+  });
 }
 
 /** Hapın yazısı — gün temel günse yalnız saat, değilse "5 Eki · 14:20" */
@@ -134,18 +153,57 @@ export function EntryTime({
             role="dialog"
             aria-label={t("entry.timeCustomTitle")}
             onClick={(e) => e.stopPropagation()}
-            className="zoom-in-95 animate-in flex w-full max-w-[340px] flex-col gap-3 rounded-3xl bg-card p-4 shadow-[0_24px_60px_-16px_rgba(0,0,0,0.9)] ring-1 ring-[var(--ln-2)]"
+            className="zoom-in-95 animate-in flex w-full max-w-[320px] flex-col gap-3 rounded-3xl bg-card p-3 shadow-[0_24px_60px_-16px_rgba(0,0,0,0.9)] ring-1 ring-[var(--ln-2)]"
           >
-            <div className="flex items-center gap-2 px-1">
-              <span
-                className="flex h-8 w-8 items-center justify-center rounded-full"
-                style={{ background: `${accent}26`, color: accent }}
+            {/* Gün — ‹ tarih ›; tarihe dokununca telefonun takvimi */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setCustom(shiftDay(custom, -1))}
+                aria-label={t("datetime.prevDay")}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
               >
-                <Clock className="h-4 w-4" />
-              </span>
-              <span className="text-[16px] font-bold tracking-tight">{t("entry.timeCustomTitle")}</span>
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <label className="relative flex min-w-0 flex-1 cursor-pointer justify-center rounded-xl py-1.5 text-[15px] font-semibold transition-colors hover:bg-[var(--sf-2)]">
+                <span className="truncate">{prettyDay(custom)}</span>
+                <input
+                  type="date"
+                  value={custom.split("T")[0]}
+                  onChange={(e) =>
+                    e.target.value && setCustom(`${e.target.value}T${custom.split("T")[1] ?? "12:00"}`)
+                  }
+                  onClick={(e) => e.currentTarget.showPicker?.()}
+                  aria-label={t("entry.timeCustomTitle")}
+                  className="absolute inset-0 cursor-pointer opacity-0"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => setCustom(shiftDay(custom, 1))}
+                aria-label={t("datetime.nextDay")}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
             </div>
-            <DateTimeInput value={custom} onChange={setCustom} />
+            {/* Saat — büyük; dokununca telefonun saat seçicisi */}
+            <label
+              className="relative mx-auto block cursor-pointer rounded-2xl px-5 py-1 text-center font-mono text-[46px] font-bold leading-[56px] tracking-tight transition-colors hover:bg-[var(--sf-2)]"
+              style={{ color: accent }}
+            >
+              {custom.split("T")[1] ?? "--:--"}
+              <input
+                type="time"
+                value={custom.split("T")[1] ?? ""}
+                onChange={(e) =>
+                  e.target.value && setCustom(`${custom.split("T")[0]}T${e.target.value}`)
+                }
+                onClick={(e) => e.currentTarget.showPicker?.()}
+                aria-label={t("entry.timeCustom")}
+                className="absolute inset-0 cursor-pointer opacity-0"
+              />
+            </label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
