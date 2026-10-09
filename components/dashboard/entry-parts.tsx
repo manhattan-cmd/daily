@@ -9,6 +9,8 @@ import { useT } from "@/lib/i18n";
 import { modAtomIcon } from "@/components/structure/mod-atom";
 import { calcDTRDuration, parseDTR } from "@/components/forms/datetime-range-input";
 import { splitChoiceLevel } from "@/lib/choice-level";
+import { isScaleChoices } from "@/types";
+import { ScaleMeter } from "@/components/ui/scale-meter";
 
 /**
  * Girdi kartlarının ortak parçaları — hem tek girdi kartı hem paralel girdi
@@ -109,6 +111,13 @@ export function ValueCapsule({
   color: string;
 }) {
   const { main, unit, label } = readValue(v);
+  // Ölçek değeri: yalnız sayı değil, kaçta kaç olduğu (bkz. ScaleMeter)
+  const scale =
+    v.entryType?.valueType === "select" &&
+    isScaleChoices(v.entryType.choices) &&
+    v.entryType.choices!.includes(v.value)
+      ? v.entryType.choices!
+      : null;
   const icon = createElement(
     modAtomIcon({ name: v.mod?.name, entryType: v.entryType! }),
     {
@@ -131,13 +140,17 @@ export function ValueCapsule({
       >
         {icon}
       </span>
-      <span
-        className="text-[13px] font-semibold leading-none tabular-nums"
-        style={{ color: c }}
-      >
-        {main}
-      </span>
-      {unit && (
+      {scale ? (
+        <ScaleMeter value={v.value} choices={scale} color={c} />
+      ) : (
+        <span
+          className="text-[13px] font-semibold leading-none tabular-nums"
+          style={{ color: c }}
+        >
+          {main}
+        </span>
+      )}
+      {!scale && unit && (
         <span className="text-[10px] leading-none text-muted-foreground/70">
           {unit}
         </span>

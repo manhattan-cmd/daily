@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Minus, Plus } from "lucide-react";
 import type { ScaleLabels } from "@/types";
 import { useT } from "@/lib/i18n";
@@ -30,12 +30,15 @@ export function ScaleSlider({
   value,
   onChange,
   color = "#6366f1",
+  endSlots,
 }: {
   choices: string[];
   labels?: ScaleLabels;
   value: string;
   onChange: (v: string) => void;
   color?: string;
+  /** Uç adlarının yerine konacak öğeler (ölçek düzenlerken yazılabilir alanlar) */
+  endSlots?: { low: ReactNode; high: ReactNode };
 }) {
   const t = useT();
   const trackRef = useRef<HTMLDivElement>(null);
@@ -234,16 +237,25 @@ export function ScaleSlider({
       </div>
 
       {/* 3 — uçların sayısı ve anlamı */}
-      <div className="flex justify-between gap-3 text-[12px] leading-4 text-muted-foreground">
-        <span className="min-w-0">
-          <span className="font-semibold tabular-nums text-foreground/70">{signed(choices[0])}</span>
-          {labels?.low ? <span className="ml-1.5">{labels.low}</span> : null}
-        </span>
-        <span className="min-w-0 text-right">
-          {labels?.high ? <span className="mr-1.5">{labels.high}</span> : null}
-          <span className="font-semibold tabular-nums text-foreground/70">{signed(choices[n - 1])}</span>
-        </span>
-      </div>
+      {endSlots ? (
+        <div className="flex items-center gap-2 text-[12px] leading-4 text-muted-foreground">
+          <span className="shrink-0 font-semibold tabular-nums text-foreground/70">{signed(choices[0])}</span>
+          {endSlots.low}
+          {endSlots.high}
+          <span className="shrink-0 font-semibold tabular-nums text-foreground/70">{signed(choices[n - 1])}</span>
+        </div>
+      ) : (
+        <div className="flex justify-between gap-3 text-[12px] leading-4 text-muted-foreground">
+          <span className="min-w-0">
+            <span className="font-semibold tabular-nums text-foreground/70">{signed(choices[0])}</span>
+            {labels?.low ? <span className="ml-1.5">{labels.low}</span> : null}
+          </span>
+          <span className="min-w-0 text-right">
+            {labels?.high ? <span className="mr-1.5">{labels.high}</span> : null}
+            <span className="font-semibold tabular-nums text-foreground/70">{signed(choices[n - 1])}</span>
+          </span>
+        </div>
+      )}
     </div>
   );
 }

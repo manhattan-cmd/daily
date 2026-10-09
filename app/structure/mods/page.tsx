@@ -528,6 +528,7 @@ export default function ModsHomePage() {
                 value={editMeasure}
                 onChange={setEditMeasure}
                 knownUnits={knownUnits}
+                color={editColor}
               />
               {selectedUsage && selectedUsage.valueCount > 0 && (
                 <p className="text-xs text-amber-300/90">
@@ -598,6 +599,7 @@ export default function ModsHomePage() {
             value={measure}
             onChange={setMeasure}
             knownUnits={knownUnits}
+            color={modColor({ name })}
           />
           {error && (
             <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200/90">

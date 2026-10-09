@@ -11,6 +11,8 @@ import {
   parseDTR,
 } from "@/components/forms/datetime-range-input";
 import { cn } from "@/lib/utils";
+import { ScaleMeter } from "@/components/ui/scale-meter";
+import { isScaleChoices } from "@/types";
 import { useT } from "@/lib/i18n";
 import { confirmDialog } from "@/components/ui/confirm";
 import { useLongPress } from "@/lib/use-long-press";
@@ -20,7 +22,16 @@ import {
   type EntrySelection,
 } from "@/components/calendar/entry-selection";
 
-function TargetChip({ target, completed }: { target: GoalTargetWithContext; completed: boolean }) {
+function TargetChip({
+  target,
+  completed,
+  color,
+}: {
+  target: GoalTargetWithContext;
+  completed: boolean;
+  /** Kategorinin rengi — ölçek göstergesi onunla */
+  color: string;
+}) {
   const vt = target.entryType.valueType ?? "number";
 
   if (vt === "datetime-range") {
@@ -46,9 +57,24 @@ function TargetChip({ target, completed }: { target: GoalTargetWithContext; comp
 
   let display = target.targetValue;
   if (vt === "boolean") display = target.targetValue === "true" ? "Yes" : "No";
+  // Ölçek hedefi kaçta kaç olduğuyla — kartlardaki ölçek değeriyle aynı dil
+  const scale =
+    vt === "select" &&
+    isScaleChoices(target.entryType.choices) &&
+    target.entryType.choices!.includes(target.targetValue)
+      ? target.entryType.choices!
+      : null;
 
   return (
-    <div className="flex items-baseline gap-1">
+    <div className={cn("flex gap-1", scale ? "items-center gap-1.5" : "items-baseline")}>
+      {scale ? (
+        <ScaleMeter
+          value={target.targetValue}
+          choices={scale}
+          color={completed ? "#34d399" : color}
+          valueClassName="text-sm"
+        />
+      ) : (
       <span
         className={cn(
           "text-sm font-semibold tabular-nums",
@@ -57,6 +83,7 @@ function TargetChip({ target, completed }: { target: GoalTargetWithContext; comp
       >
         {display}
       </span>
+      )}
       {vt === "number" && target.entryType.unit && (
         <span className="text-xs text-muted-foreground">{target.entryType.unit}</span>
       )}
@@ -164,6 +191,7 @@ export function GoalCard({
                 key={target.modId ?? target.entryTypeId}
                 target={target}
                 completed={isCompleted}
+                color={goal.category.color || "#818cf8"}
               />
             ))}
           </div>

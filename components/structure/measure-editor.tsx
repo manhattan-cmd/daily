@@ -45,12 +45,15 @@ export function MeasureEditor({
    *  "adet / Adet / tane" gibi ayrışma olmasın */
   knownUnits = [],
   hideLabel = false,
+  color = "#818cf8",
 }: {
   value: ModMeasure;
   onChange: (next: ModMeasure) => void;
   knownUnits?: string[];
   /** Başlık dışarıda (bölmenin kendi başlığı) — içeride tekrar etmesin */
   hideLabel?: boolean;
+  /** Özelliğin rengi — ölçek önizlemesi girdi ekranındaki gibi onunla */
+  color?: string;
 }) {
   const t = useT();
   const kind = uiKindOf(value);
@@ -81,6 +84,10 @@ export function MeasureEditor({
 
   const setLabel = (end: "low" | "high", v: string) =>
     onChange({ ...value, scaleLabels: { ...value.scaleLabels, [end]: v } });
+
+  // Seçili aralık özelliğin renginde — önizleme rayıyla aynı renk
+  const presetStyle = (on: boolean) =>
+    on ? { color, borderColor: color, background: `${color}1a` } : undefined;
 
   const addChoice = () => {
     const v = choiceDraft.trim();
@@ -211,6 +218,7 @@ export function MeasureEditor({
                     pillClass(!customOpen && activePreset?.key === p.key),
                     "tabular-nums"
                   )}
+                  style={presetStyle(!customOpen && activePreset?.key === p.key)}
                 >
                   {p.label}
                 </button>
@@ -219,6 +227,7 @@ export function MeasureEditor({
                 type="button"
                 onClick={() => setCustomOpen((v) => !v)}
                 className={pillClass(customOpen || !activePreset)}
+                style={presetStyle(customOpen || !activePreset)}
               >
                 {t("measure.custom")}
               </button>
@@ -250,23 +259,35 @@ export function MeasureEditor({
               </div>
             )}
 
-            {/* Skalanın kendisi + uç adları doğrudan uçların altında.
-                Ayrı bir "uçların anlamı" formu soyut kalıyordu. */}
-            <div className="flex flex-col gap-1.5">
-              <ScaleSlider choices={choices} value={demo} onChange={setDemo} />
-              <div className="flex items-center gap-2">
-                <EndLabel
-                  value={value.scaleLabels?.low ?? ""}
-                  onChange={(v) => setLabel("low", v)}
-                  placeholder={t("measure.lowPlaceholder")}
-                />
-                <EndLabel
-                  value={value.scaleLabels?.high ?? ""}
-                  onChange={(v) => setLabel("high", v)}
-                  placeholder={t("measure.highPlaceholder")}
-                  align="right"
-                />
-              </div>
+            {/* Girdi ekranında görülecek ray — aynı bileşen, özelliğin
+                renginde. Uç adları rayın uçlarında, YERİNDE yazılır: ayrı bir
+                satır aynı sayıları ikinci kez gösteriyordu. */}
+            <div className="rounded-xl bg-black/25 px-2.5 pb-2.5 pt-1.5 ring-1 ring-inset ring-[var(--ln-1)]">
+              <ScaleSlider
+                choices={choices}
+                value={demo}
+                onChange={setDemo}
+                color={color}
+                endSlots={{
+                  low: (
+                    <EndLabel
+                      value={value.scaleLabels?.low ?? ""}
+                      onChange={(v) => setLabel("low", v)}
+                      placeholder={t("measure.lowPlaceholder")}
+                      color={color}
+                    />
+                  ),
+                  high: (
+                    <EndLabel
+                      value={value.scaleLabels?.high ?? ""}
+                      onChange={(v) => setLabel("high", v)}
+                      placeholder={t("measure.highPlaceholder")}
+                      align="right"
+                      color={color}
+                    />
+                  ),
+                }}
+              />
             </div>
           </div>
         )}
@@ -438,11 +459,13 @@ function EndLabel({
   onChange,
   placeholder,
   align = "left",
+  color,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
   align?: "left" | "right";
+  color: string;
 }) {
   return (
     <input
@@ -457,11 +480,11 @@ function EndLabel({
       // görünmesinin sebebi buydu.
       size={1}
       className={cn(
-        "w-0 min-w-0 flex-1 rounded-md bg-transparent px-1 py-0.5 text-[11px] text-muted-foreground",
-        "border-b border-dashed border-border/60 outline-none transition-colors",
-        "placeholder:text-muted-foreground/35 focus:border-primary/60 focus:text-foreground",
+        "h-8 w-0 min-w-0 flex-1 rounded-lg bg-[var(--sf-1)] px-2 text-[12px] font-medium text-foreground/85",
+        "outline-none ring-1 ring-inset transition-shadow placeholder:font-normal placeholder:text-muted-foreground/45 focus:ring-2",
         align === "right" && "text-right"
       )}
+      style={{ ["--tw-ring-color" as string]: `${color}${value ? "66" : "33"}` }}
     />
   );
 }

@@ -433,6 +433,7 @@ export function ModPickDialog({
                   value={measure}
                   onChange={setMeasure}
                   knownUnits={knownUnits}
+                  color={modColor({ name })}
                   hideLabel
                 />
               </FormSection>
