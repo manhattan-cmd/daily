@@ -63,7 +63,8 @@ import {
   formatDTRDisplay,
 } from "@/components/forms/datetime-range-input";
 import { ParallelPickList } from "@/components/forms/parallel-pick-dialog";
-import { ScaleInput, ToggleSwitch } from "@/components/ui/scale-input";
+import { ToggleSwitch } from "@/components/ui/scale-input";
+import { ScaleSlider } from "@/components/ui/scale-slider";
 import { EmotionPicker } from "@/components/forms/emotion-picker";
 import { FieldWindow } from "@/components/forms/field-window";
 import { MoodScale } from "@/components/forms/mood-scale";
@@ -1614,11 +1615,11 @@ function ModInput({
         !isEmotionRow &&
         tone !== "mood" &&
         (isNumericChoiceSet(entryType.choices) ? (
-          <ScaleInput
+          <ScaleSlider
             choices={entryType.choices ?? []}
             value={value}
             onChange={setOne}
-            color={fieldColor}
+            color={fieldColor ?? undefined}
           />
         ) : (
           <ChoiceButtons

@@ -35,7 +35,7 @@ import {
 } from "@/components/forms/datetime-range-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScaleInput } from "@/components/ui/scale-input";
+import { ScaleSlider } from "@/components/ui/scale-slider";
 import { SymbolIcon } from "@/lib/icons";
 import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
 import { isScaleChoices, type Category, type SubCategory } from "@/types";
@@ -1274,10 +1274,9 @@ export function ModInput({
         </button>
       )}
 
-      {/* Skala sıralıdır: basamaklar eşit genişlikte tek şeritte, uçlarının
-          anlamı altında. Serbest çip bulutu bu sırayı göstermiyordu. */}
+      {/* Skala: girdi formundakiyle aynı kaydırılan ray (bkz. ScaleSlider) */}
       {vt === "select" && isScaleChoices(mod.entryType.choices) && (
-        <ScaleInput
+        <ScaleSlider
           choices={mod.entryType.choices ?? []}
           labels={mod.mod?.scaleLabels}
           value={value}

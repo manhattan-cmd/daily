@@ -5,17 +5,21 @@ import { Minus, Plus } from "lucide-react";
 import type { ScaleLabels } from "@/types";
 import { useT } from "@/lib/i18n";
 
+/** Bundan az basamakta her basamağın raydaki noktası görünür */
+const TICK_EACH_MAX = 11;
 
 /**
  * KAYDIRILAN ÖLÇEK — her ölçekte (1–5, −2…+2, 1–10, 1–100, 1–1000…) AYNI
- * görünüm:
- *  - üstte seçilen değer büyük ("7 / 10", "556 / 1000"), iki yanında − / +
- *    (basılı tutunca hızlanır, adım büyür); değere dokunmak temizler,
- *  - kalın ray: seçilen değere kadar özelliğin renginde, koyulaşan dolgu;
- *    beyaz, renkli halkalı başparmak; dokun ya da sürükle,
- *  - uçlarda en küçük / en büyük sayı ve anlamları.
- * Eskiden küçük ölçekte rayın altında her basamağın numarası vardı, büyükte
- * yoktu — iki ayrı görünüm standart değildi.
+ * görünüm, üç satır:
+ *  1. solda seçilen değer (büyük, özelliğin renginde; "/ en büyük" küçük),
+ *     sağda tek kapsülde − / + (basılı tutunca hızlanır, adım büyür);
+ *     değere dokunmak temizler. Boşken yalnız "kaydır ya da dokun".
+ *  2. ray: boşken de görünür (özelliğin renginde soluk zemin); ≤ 11
+ *     basamakta her basamak rayda bir nokta — 3'ün beşte üç olduğu
+ *     okunur; büyük ölçekte çeyrek noktaları. Dolgu başlangıçtan değere;
+ *     −2…+2 gibi iki yönlü ölçekte SIFIRDAN değere. Başparmak beyaz,
+ *     renkli halkalı.
+ *  3. uçların sayısı ve anlamı.
  *
  * Pencerenin "sola kaydır = kapat" hareketiyle çakışmasın diye
  * `data-no-swipe`: dokunuş bu bileşenin.
@@ -41,6 +45,14 @@ export function ScaleSlider({
   const has = idx >= 0;
   const pct = (i: number) => (n > 1 ? (i / (n - 1)) * 100 : 0);
 
+  // İki yönlü ölçek (−2…+2): dolgu sıfırdan başlar, değer işaretli yazılır
+  const first = Number(choices[0]);
+  const last = Number(choices[n - 1]);
+  const bipolar = first < 0 && last > 0;
+  const zeroIdx = bipolar ? choices.indexOf("0") : -1;
+  const origin = zeroIdx >= 0 ? zeroIdx : 0;
+  const signed = (v: string) => (bipolar && Number(v) > 0 ? `+${v}` : v.replace("-", "−"));
+
   function pick(clientX: number) {
     const el = trackRef.current;
     if (!el) return;
@@ -63,8 +75,9 @@ export function ScaleSlider({
   useEffect(() => stopHold, []);
   function step(dir: 1 | -1, size = 1) {
     const cur = idxRef.current;
+    // Boşken ilk dokunuş başlangıç noktasına (iki yönlüde sıfıra) oturur
     const next =
-      cur < 0 ? (dir > 0 ? 0 : n - 1) : Math.min(n - 1, Math.max(0, cur + dir * size));
+      cur < 0 ? origin : Math.min(n - 1, Math.max(0, cur + dir * size));
     idxRef.current = next;
     onChange(choices[next]);
   }
@@ -83,70 +96,75 @@ export function ScaleSlider({
     hold.current = setTimeout(tick, delay);
   }
 
+  // Raydaki noktalar: küçük ölçekte her basamak, büyükte çeyrekler
+  const ticks =
+    n <= TICK_EACH_MAX
+      ? Array.from({ length: Math.max(0, n - 2) }, (_, i) => pct(i + 1))
+      : [25, 50, 75];
+  const lo = Math.min(pct(origin), has ? pct(idx) : pct(origin));
+  const hi = Math.max(pct(origin), has ? pct(idx) : pct(origin));
   const stepBtn =
-    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sf-2)] text-foreground/80 ring-1 ring-inset ring-[var(--ln-1)] transition-[background-color,transform] active:scale-90";
+    "flex h-full w-10 items-center justify-center text-foreground/80 transition-colors active:bg-white/10";
 
   return (
-    <div className="flex flex-col gap-1.5 px-1" data-no-swipe="">
-      {/* Seçilen değer + ince ayar (− / +) */}
-      {(
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            aria-label="−"
-            className={stepBtn}
-            onPointerDown={() => startHold(-1)}
+    <div className="flex flex-col gap-1 px-0.5" data-no-swipe="">
+      {/* 1 — değer ve ince ayar */}
+      <div className="flex h-10 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-baseline gap-1">
+          {has ? (
+            <>
+              {/* Değere dokunmak temizler */}
+              <button
+                type="button"
+                onClick={() => onChange("")}
+                aria-label={t("entry.clear")}
+                title={t("entry.clear")}
+                className="rounded-md text-[28px] font-bold leading-8 tracking-tight tabular-nums transition-opacity active:opacity-60"
+                style={{ color }}
+              >
+                {signed(value)}
+              </button>
+              {!bipolar && (
+                <span className="text-[13px] font-semibold tabular-nums text-muted-foreground">
+                  / {choices[n - 1]}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-[13px] font-medium text-muted-foreground/75">
+              {t("entry.slideHint")}
+            </span>
+          )}
+        </div>
+        {/* Tek kapsül — iki büyük daire yerine */}
+        <div
+          className="flex h-9 shrink-0 items-stretch overflow-hidden rounded-full bg-black/25 ring-1 ring-inset"
+          style={{ ["--tw-ring-color" as string]: `${color}40` }}
+        >
+          <button type="button" aria-label="−" className={stepBtn} onPointerDown={() => startHold(-1)}
             onPointerUp={stopHold}
             onPointerLeave={stopHold}
             onPointerCancel={stopHold}
-            onContextMenu={(e) => e.preventDefault()}
-          >
+            onContextMenu={(e) => e.preventDefault()}>
             <Minus className="h-4 w-4" />
           </button>
-          <div className="flex min-w-0 flex-1 items-baseline justify-center gap-1.5">
-            {/* Değere dokunmak temizler */}
-            <button
-              type="button"
-              disabled={!has}
-              onClick={() => onChange("")}
-              aria-label={t("entry.clear")}
-              title={t("entry.clear")}
-              className="rounded-lg px-1 font-mono text-[28px] font-bold leading-8 tabular-nums transition-opacity enabled:active:opacity-60"
-              style={{ color: has ? color : "var(--muted-foreground)" }}
-            >
-              {has ? value : "—"}
-            </button>
-            {has ? (
-              <span className="font-mono text-[13px] font-semibold text-muted-foreground">
-                / {choices[n - 1]}
-              </span>
-            ) : (
-              <span className="whitespace-nowrap text-[12px] font-medium text-muted-foreground">
-                {t("entry.slideHint")}
-              </span>
-            )}
-          </div>
-          <button
-            type="button"
-            aria-label="+"
-            className={stepBtn}
-            onPointerDown={() => startHold(1)}
+          <span aria-hidden className="my-2 w-px" style={{ background: `${color}40` }} />
+          <button type="button" aria-label="+" className={stepBtn} onPointerDown={() => startHold(1)}
             onPointerUp={stopHold}
             onPointerLeave={stopHold}
             onPointerCancel={stopHold}
-            onContextMenu={(e) => e.preventDefault()}
-          >
+            onContextMenu={(e) => e.preventDefault()}>
             <Plus className="h-4 w-4" />
           </button>
         </div>
-      )}
+      </div>
 
-      {/* Ray — dokun ya da sürükle */}
+      {/* 2 — ray: dokun ya da sürükle */}
       <div
         ref={trackRef}
         role="slider"
-        aria-valuemin={Number(choices[0])}
-        aria-valuemax={Number(choices[n - 1])}
+        aria-valuemin={first}
+        aria-valuemax={last}
         aria-valuenow={has ? Number(value) : undefined}
         tabIndex={0}
         onKeyDown={(e) => {
@@ -163,44 +181,67 @@ export function ScaleSlider({
         }}
         onPointerUp={() => setDragging(false)}
         onPointerCancel={() => setDragging(false)}
-        className="relative mx-2.5 h-10 cursor-pointer touch-none select-none outline-none"
+        className="relative mx-[11px] h-9 cursor-pointer touch-none select-none outline-none"
       >
-        {/* zemin */}
-        <div className="absolute inset-x-0 top-1/2 h-3 -translate-y-1/2 rounded-full bg-black/35 ring-1 ring-inset ring-[var(--ln-1)]" />
-        {/* dolgu — açıktan koyuya; sürüklerken gecikmesiz */}
-        {has && (
+        {/* zemin — boşken de görünür */}
+        <div
+          className="absolute -inset-x-[11px] top-1/2 h-2.5 -translate-y-1/2 rounded-full"
+          style={{ background: `${color}24`, boxShadow: `inset 0 0 0 1px ${color}2e` }}
+        />
+        {/* dolgu — başlangıçtan (iki yönlüde sıfırdan) değere */}
+        {has && hi > lo && (
           <div
-            className="absolute left-0 top-1/2 h-3 -translate-y-1/2 rounded-full ease-out"
+            className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-full"
             style={{
-              width: `${pct(idx)}%`,
-              minWidth: 12,
-              background: `linear-gradient(90deg, ${color}66, ${color})`,
-              transition: dragging ? "none" : "width 200ms",
+              left: `${lo}%`,
+              width: `${hi - lo}%`,
+              background: bipolar ? color : `linear-gradient(90deg, ${color}80, ${color})`,
+              transition: dragging ? "none" : "left 200ms, width 200ms",
+              // Başlangıç ucu rayın ucuna yaslansın
+              ...(origin === 0 ? { left: -11, width: `calc(${hi}% + 11px)` } : null),
             }}
           />
         )}
-        {/* başparmak — değer büyük ölçekte üstte yazılı, balona gerek yok */}
+        {/* basamak noktaları */}
+        {ticks.map((p) => {
+          const lit = has && p >= lo && p <= hi;
+          const center = bipolar && Math.abs(p - pct(origin)) < 0.01;
+          return (
+            <span
+              key={p}
+              aria-hidden
+              className="pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+              style={{
+                left: `${p}%`,
+                width: center ? 6 : 4,
+                height: center ? 6 : 4,
+                background: lit ? "rgba(255,255,255,0.6)" : `${color}99`,
+              }}
+            />
+          );
+        })}
+        {/* başparmak */}
         {has && (
           <span
-            className="absolute top-1/2 h-[26px] w-[26px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white ease-out"
+            className="pointer-events-none absolute top-1/2 h-[22px] w-[22px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
             style={{
               left: `${pct(idx)}%`,
-              boxShadow: `0 0 0 4px ${color}, 0 4px 14px rgba(0,0,0,0.55)`,
+              boxShadow: `0 0 0 3px ${color}, 0 2px 8px rgba(0,0,0,0.45)`,
               transition: dragging ? "none" : "left 200ms",
             }}
           />
         )}
       </div>
 
-      {/* Uçlarda sayılar ve anlamları */}
-      <div className="mx-1 flex justify-between gap-3 text-[11.5px] font-medium text-muted-foreground">
-        <span>
-          <span className="font-mono font-semibold">{choices[0]}</span>
-          {labels?.low ? ` · ${labels.low}` : ""}
+      {/* 3 — uçların sayısı ve anlamı */}
+      <div className="flex justify-between gap-3 text-[12px] leading-4 text-muted-foreground">
+        <span className="min-w-0">
+          <span className="font-semibold tabular-nums text-foreground/70">{signed(choices[0])}</span>
+          {labels?.low ? <span className="ml-1.5">{labels.low}</span> : null}
         </span>
-        <span className="text-right">
-          {labels?.high ? `${labels.high} · ` : ""}
-          <span className="font-mono font-semibold">{choices[n - 1]}</span>
+        <span className="min-w-0 text-right">
+          {labels?.high ? <span className="mr-1.5">{labels.high}</span> : null}
+          <span className="font-semibold tabular-nums text-foreground/70">{signed(choices[n - 1])}</span>
         </span>
       </div>
     </div>
