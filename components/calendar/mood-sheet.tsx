@@ -2,19 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Smile, X } from "lucide-react";
+import { Smile } from "lucide-react";
 import { createEntry, getBuiltInTarget } from "@/lib/db/queries";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, toLocalDateTimeValue } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { EmotionPicker } from "@/components/forms/emotion-picker";
-import { FieldWindow } from "@/components/forms/field-window";
 import { MoodScale } from "@/components/forms/mood-scale";
-import { FIELD_TONES } from "@/components/forms/field-tone";
-import { NoteEditorView, ToneNoteSection } from "@/components/forms/note-editor";
+import { NoteEditorView } from "@/components/forms/note-editor";
+import { EntryShell } from "@/components/forms/entry-shell";
+import { EntryTime } from "@/components/forms/entry-time";
+import { LedgerField } from "@/components/forms/ledger-field";
+import { modAtomIcon } from "@/components/structure/mod-atom";
 import { useSheetPresence } from "@/lib/use-sheet-presence";
 import { ENTRY_WINDOW_LARGE } from "@/components/ui/entry-window";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface MoodSheetProps {
   date: string;
@@ -23,7 +24,13 @@ interface MoodSheetProps {
 }
 
 const ACCENT = "#f472b6";
-const SKIN = FIELD_TONES.mood;
+
+/** Sayfanın günü, şimdiki saatle — zaman hapının başlangıcı */
+function nowOn(date: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const n = new Date();
+  return toLocalDateTimeValue(new Date(y, m - 1, d, n.getHours(), n.getMinutes(), 0, 0).getTime());
+}
 
 /**
  * Yerleşik Ruh hali akışı: Ekle → Ruh hali.
@@ -65,10 +72,14 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
   const [notes, setNotes] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Gün içinde birden çok kayıt sıralansın diye her kayıt kendi saatini
+  // taşıyor; girdi formundaki hap (Dün · Şimdi · Yarın · Özel)
+  const [occurredAt, setOccurredAt] = useState(() => nowOn(date));
 
   useEffect(() => {
     if (!open) {
       const timer = setTimeout(() => {
+        setOccurredAt(nowOn(date));
         setLevel("");
         setEmotions([]);
         setNotes("");
@@ -76,7 +87,7 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [open]);
+  }, [open, date]);
 
   const target = useLiveQuery(async () => {
     const found = await getBuiltInTarget("mood");
@@ -97,9 +108,9 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
 
   const scaleChoices = target?.scale?.entryType.choices ?? [];
   const emotionChoices = target?.feelings?.entryType.choices ?? [];
-  const pickedCount = emotions.length;
+
   // Yalnız not da bir kayıt — düzenleme penceresinde olduğu gibi
-  const nothingPicked = !level && pickedCount === 0 && !notes.trim();
+  const nothingPicked = !level && emotions.length === 0 && !notes.trim();
   const scaleLabels = target?.scale?.mod?.scaleLabels;
 
   async function handleSave() {
@@ -126,17 +137,10 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
         });
       }
 
-      // Kayıt sayfanın gününe, o anki saatle düşer: gün içinde birden çok
-      // kayıt sıralanabilsin diye
-      const [y, m, d] = date.split("-").map(Number);
-      const when = new Date(y, m - 1, d);
-      const nowTime = new Date();
-      when.setHours(nowTime.getHours(), nowTime.getMinutes(), 0, 0);
-
       await createEntry({
         subcategoryId: target.sub.id,
         typeValues,
-        occurredAt: when.getTime(),
+        occurredAt: new Date(occurredAt).getTime(),
         notes: notes.trim() || undefined,
       });
       onClose();
@@ -146,124 +150,82 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
   }
 
   return (
-    <>
-      {/* Standart kayıt penceresi (bkz. entry-window): eskiden alttan açılan
-          bir yüzeydi; Ekle menüsündeki pencereler kart pencereleriyle aynı.
-          Kendi kapatma düğmesi başlıkta — standart çarpı gizli. */}
-      <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-        <DialogContent
-          hideClose
-          aria-describedby={undefined}
-          className={cn(ENTRY_WINDOW_LARGE, "gap-0 overflow-hidden p-0")}
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      {/* Girdi formunun (açık defter) dili — bkz. EntryShell. Yüzler ve
+          duygu ızgarası kendi girişleri; kutunun başlığı ve rengi ortak. */}
+      <DialogContent
+        hideClose
+        aria-describedby={undefined}
+        className={cn(ENTRY_WINDOW_LARGE, "gap-0 overflow-hidden p-0")}
+      >
+        <EntryShell
+          title={t("mood.add")}
+          overline={target?.sub.name}
+          icon={Smile}
+          accent={ACCENT}
+          onClose={onClose}
+          time={
+            <EntryTime
+              occurredAt={occurredAt}
+              onChange={setOccurredAt}
+              baseDate={date}
+              accent={ACCENT}
+            />
+          }
+          notes={notes}
+          onOpenNote={() => setNoteOpen(true)}
+          onSave={handleSave}
+          saveLabel={saving ? t("entry.saving") : t("action.add")}
+          saveDisabled={saving || !target || nothingPicked}
         >
-
-
-        <div className="flex shrink-0 items-center gap-3 px-5 pb-3 pt-4">
-          <span
-            className="flex h-9 w-9 items-center justify-center rounded-xl"
-            style={{ background: `${ACCENT}26` }}
-          >
-            <Smile className="h-[18px] w-[18px]" style={{ color: ACCENT }} />
-          </span>
-          <DialogTitle className="flex-1 text-base font-semibold tracking-tight">
-            {t("mood.add")}
-          </DialogTitle>
-          <button
-            onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground transition-colors hover:bg-[var(--sf-4)]"
-            aria-label={t("action.close")}
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto [&>*]:shrink-0 overscroll-contain px-5 pb-4">
           {target === null ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               {t("mood.missing")}
             </p>
           ) : target === undefined ? null : (
             <>
-              {scaleChoices.length > 0 && (
-                <FieldWindow
-                  tone="mood"
-                  caption={t("mood.levelPrompt")}
-                  footer={
-                    scaleLabels?.low || scaleLabels?.high ? (
-                      <span className="flex flex-1 justify-between text-[11px] text-muted-foreground/70">
-                        <span>{scaleLabels?.low}</span>
-                        <span>{scaleLabels?.high}</span>
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground/40">
-                        {t("mood.levelHint")}
-                      </span>
-                    )
+              {target.scale && scaleChoices.length > 0 && (
+                <LedgerField
+                  mod={target.scale}
+                  icon={modAtomIcon(target.scale)}
+                  color={ACCENT}
+                  value={level}
+                  onChange={setLevel}
+                  custom={
+                    <>
+                      <MoodScale choices={scaleChoices} value={level} onChange={setLevel} />
+                      {(scaleLabels?.low || scaleLabels?.high) && (
+                        <div className="-mt-1.5 flex justify-between px-4 pb-3 text-[11.5px] font-medium text-muted-foreground">
+                          <span>{scaleLabels?.low}</span>
+                          <span>{scaleLabels?.high}</span>
+                        </div>
+                      )}
+                    </>
                   }
-                >
-                  <MoodScale
-                    choices={scaleChoices}
-                    value={level}
-                    onChange={setLevel}
-                  />
-                </FieldWindow>
+                />
               )}
-
-              {emotionChoices.length > 0 && (
-                <FieldWindow
-                  tone="mood"
-                  caption={t("mood.emotions")}
-                  footer={
-                    pickedCount > 0 ? (
-                      <>
-                        <span
-                          className={cn(
-                            "h-1.5 w-1.5 shrink-0 rounded-full",
-                            SKIN.dot
-                          )}
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          {t("mood.selectedCount", { count: pickedCount })}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-xs text-muted-foreground/40">
-                        {t("mood.emotionsHint")}
-                      </span>
-                    )
+              {target.feelings && emotionChoices.length > 0 && (
+                <LedgerField
+                  mod={target.feelings}
+                  icon={modAtomIcon(target.feelings)}
+                  color={ACCENT}
+                  value={emotions.join(",")}
+                  onChange={() => {}}
+                  filled={emotions.length > 0}
+                  custom={
+                    <EmotionPicker
+                      choices={emotionChoices}
+                      values={emotions}
+                      onChange={setEmotions}
+                      // Büyük pencere: ızgaranın tamamı kaydırmadan görünsün
+                      gridHeight={400}
+                    />
                   }
-                >
-                  <EmotionPicker
-                    choices={emotionChoices}
-                    values={emotions}
-                    onChange={setEmotions}
-                    // Büyük pencere: ızgaranın tamamı kaydırmadan görünsün
-                    gridHeight={400}
-                  />
-                </FieldWindow>
+                />
               )}
-
-              <ToneNoteSection
-                id="mood-note"
-                tone="mood"
-                value={notes}
-                onOpen={() => setNoteOpen(true)}
-              />
             </>
           )}
-        </div>
-
-        <div className="shrink-0 border-t border-[var(--ln-2)] px-5 pb-5 pt-3">
-          <Button
-            className="w-full"
-            size="lg"
-            style={{ backgroundColor: ACCENT, color: "#0b0c10" }}
-            onClick={handleSave}
-            disabled={saving || !target || nothingPicked}
-          >
-            {saving ? t("entry.saving") : t("action.add")}
-          </Button>
-        </div>
+        </EntryShell>
 
         {/* Not yazma görünümü pencerenin tamamını kaplar (bkz. note-editor) */}
         {noteOpen && (
@@ -276,8 +238,7 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
             className="absolute inset-0 z-20 bg-card px-5 pb-6 pt-5"
           />
         )}
-        </DialogContent>
-      </Dialog>
-    </>
+      </DialogContent>
+    </Dialog>
   );
 }

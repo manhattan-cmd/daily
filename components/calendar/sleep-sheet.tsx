@@ -1,22 +1,22 @@
 "use client";
 
-import { createElement, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { MoonStar, X } from "lucide-react";
+import { MoonStar } from "lucide-react";
 import { createEntry, getBuiltInTarget } from "@/lib/db/queries";
-import {
-  DateTimeRangeInput,
-  parseDTR,
-} from "@/components/forms/datetime-range-input";
-import { ScaleInput } from "@/components/ui/scale-input";
-import { Button } from "@/components/ui/button";
+import { parseDTR } from "@/components/forms/datetime-range-input";
+import { EntryShell } from "@/components/forms/entry-shell";
+import { LedgerField } from "@/components/forms/ledger-field";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { NoteEditorView, ToneNoteSection } from "@/components/forms/note-editor";
+import { NoteEditorView } from "@/components/forms/note-editor";
 import { modAtomIcon } from "@/components/structure/mod-atom";
 import { useSheetPresence } from "@/lib/use-sheet-presence";
 import { ENTRY_WINDOW_COMPACT } from "@/components/ui/entry-window";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+
+/** Uykunun rengi — kutular, ip ve Ekle düğmesi */
+const ACCENT = "#8b5cf6";
 
 interface SleepSheetProps {
   date: string;
@@ -118,35 +118,26 @@ function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
   }
 
   return (
-    <>
-      {/* Standart kayıt penceresi (bkz. entry-window): eskiden alttan açılan
-          bir yüzeydi; Ekle menüsündeki pencereler kart pencereleriyle aynı.
-          Kendi kapatma düğmesi başlıkta — standart çarpı gizli. */}
-      <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-        <DialogContent
-          hideClose
-          aria-describedby={undefined}
-          className={cn(ENTRY_WINDOW_COMPACT, "gap-0 overflow-hidden p-0")}
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      {/* Girdi formunun (açık defter) dili — bkz. EntryShell. Zaman ayrıca
+          sorulmuyor: girdinin zamanı uyanma saati. */}
+      <DialogContent
+        hideClose
+        aria-describedby={undefined}
+        className={cn(ENTRY_WINDOW_COMPACT, "h-[min(660px,calc(100dvh-3rem))] gap-0 overflow-hidden p-0")}
+      >
+        <EntryShell
+          title={t("sleep.add")}
+          overline={target?.sub.name}
+          icon={MoonStar}
+          accent={ACCENT}
+          onClose={onClose}
+          notes={notes}
+          onOpenNote={() => setNoteOpen(true)}
+          onSave={handleSave}
+          saveLabel={saving ? t("entry.saving") : t("action.add")}
+          saveDisabled={saving || !target}
         >
-
-
-        <div className="flex items-center gap-3 px-5 pt-5 pb-4 shrink-0">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/15">
-            <MoonStar className="h-4.5 w-4.5 text-violet-300" />
-          </span>
-          <DialogTitle className="flex-1 text-base font-semibold tracking-tight">
-            {t("sleep.add")}
-          </DialogTitle>
-          <button
-            onClick={onClose}
-            className="h-7 w-7 flex items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground hover:bg-[var(--sf-4)] transition-colors"
-            aria-label={t("action.close")}
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-6 flex flex-col gap-5 [&>*]:shrink-0">
           {target === null ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               {t("sleep.notFound")}
@@ -154,64 +145,27 @@ function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
           ) : target === undefined ? null : (
             <>
               {target.rangeMod && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="mb-0 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-300/50">
-                    {/* Düzenleme penceresiyle aynı başlık: özelliğin simgesi + adı */}
-                    {createElement(modAtomIcon(target.rangeMod), {
-                      className: "h-3 w-3 shrink-0",
-                    })}
-                    {target.rangeMod.name ?? t("sleep.duration")}
-                  </label>
-                  <DateTimeRangeInput
-                    value={range}
-                    onChange={setRange}
-                    entryDate={date}
-                    tone="sleep"
-                  />
-                </div>
+                <LedgerField
+                  mod={target.rangeMod}
+                  icon={modAtomIcon(target.rangeMod)}
+                  color={ACCENT}
+                  value={range}
+                  onChange={setRange}
+                  entryDate={date}
+                />
               )}
-
               {target.qualityMod && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="mb-0 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-300/50">
-                    {/* Düzenleme penceresiyle aynı başlık: özelliğin simgesi + adı */}
-                    {createElement(modAtomIcon(target.qualityMod), {
-                      className: "h-3 w-3 shrink-0",
-                    })}
-                    {target.qualityMod.name ?? t("sleep.quality")}
-                  </label>
-                  {/* Tek parça şerit — kart penceresindekiyle aynı (eskiden
-                      üstünde anlamsız bir "ÖLÇEK" başlığı vardı) */}
-                  <ScaleInput
-                    choices={target.qualityMod.entryType.choices ?? []}
-                    labels={target.qualityMod.mod?.scaleLabels}
-                    value={quality}
-                    onChange={setQuality}
-                    color="#8b5cf6"
-                  />
-                </div>
+                <LedgerField
+                  mod={target.qualityMod}
+                  icon={modAtomIcon(target.qualityMod)}
+                  color={ACCENT}
+                  value={quality}
+                  onChange={setQuality}
+                />
               )}
-
-              <ToneNoteSection
-                id="sleep-note"
-                tone="sleep"
-                value={notes}
-                onOpen={() => setNoteOpen(true)}
-              />
             </>
           )}
-        </div>
-
-        <div className="px-5 pb-8 pt-3 shrink-0 border-t border-[var(--ln-2)]">
-          <Button
-            className="w-full bg-violet-600 hover:bg-violet-700"
-            size="lg"
-            onClick={handleSave}
-            disabled={saving || !target}
-          >
-            {saving ? t("entry.saving") : t("action.add")}
-          </Button>
-        </div>
+        </EntryShell>
 
         {/* Not yazma görünümü pencerenin tamamını kaplar (bkz. note-editor) */}
         {noteOpen && (
@@ -220,12 +174,11 @@ function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
             onChange={setNotes}
             onDone={() => setNoteOpen(false)}
             subtitle={target?.sub.name}
-            accent="#7c3aed"
+            accent={ACCENT}
             className="absolute inset-0 z-20 bg-card px-5 pb-6 pt-5"
           />
         )}
-        </DialogContent>
-      </Dialog>
-    </>
+      </DialogContent>
+    </Dialog>
   );
 }

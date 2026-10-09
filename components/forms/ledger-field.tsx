@@ -86,6 +86,9 @@ function optionLayout(choices: string[]) {
  *     uzunsa ad tam genişlik, anahtar altta.
  *  8. METİN uzadıkça yuva da uzar.
  *  9. RENK: boşken özelliğin renginde hafif, doluyken güçlü.
+ * 10. KENDİ GİRİŞİ OLAN özellik (ruh halinin yüzleri, duygu ızgarası):
+ *     `custom` ile aynı kutunun içine konur — başlık, renk ve çerçeve
+ *     yine bu kurallardan.
  */
 export function LedgerField({
   mod,
@@ -100,6 +103,8 @@ export function LedgerField({
   dense = false,
   onRemove,
   autoFocus = false,
+  custom,
+  filled: filledProp,
 }: {
   mod: CategoryModifierWithType;
   icon: LucideIcon;
@@ -120,20 +125,25 @@ export function LedgerField({
   onRemove?: () => void;
   /** Yeni eklenen özellik: görünüme kaydır, yazı alanını odakla */
   autoFocus?: boolean;
+  /** Özelliğin kendi girişi — değer yuvasının yerine çizilir */
+  custom?: React.ReactNode;
+  /** `custom` ile: kutu dolu mu (değer biçimi farklıysa) */
+  filled?: boolean;
 }) {
   const t = useT();
   const vt = mod.entryType.valueType ?? "number";
   const label = mod.name ?? mod.entryType.name;
   const unit = mod.entryType.unit;
   const choices = mod.entryType.choices ?? [];
-  const filled = isFieldFilled(vt, value);
+  const filled = filledProp ?? isFieldFilled(vt, value);
   const isBool = vt === "boolean";
   const isScale = vt === "select" && isScaleChoices(choices);
   const isOptions = vt === "select" && !isScale;
 
   // Kapalı gelebilen alanlar: büyük seçenek kümesi; yoğun formda aralık
   const collapsible =
-    (isOptions && choices.length > LARGE_SET) || (vt === "datetime-range" && dense);
+    !custom &&
+    ((isOptions && choices.length > LARGE_SET) || (vt === "datetime-range" && dense));
   const [open, setOpen] = useState(!collapsible || autoFocus);
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -318,7 +328,10 @@ export function LedgerField({
       </div>
 
       {/* 2 — değer */}
-      {isLocked ? (
+      {custom ? (
+        // Kendi girişi kutunun kenarına kadar uzanır (iç boşluğunu kendisi verir)
+        <div className="-mx-4 -mb-3 -mt-2">{custom}</div>
+      ) : isLocked ? (
         <div className={cn(well, "gap-2 py-2.5 text-[15px] font-semibold text-violet-200/90")} style={wellStyle}>
           <Link2 className="h-4 w-4 shrink-0 text-violet-300" />
           <span className="break-words">{lockedText}</span>

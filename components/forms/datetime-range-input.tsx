@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, Moon, Sun } from "lucide-react";
 import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
 import { intlTag, useT, type MessageKey } from "@/lib/i18n";
-import { SHORT_MONTHS } from "@/lib/analytics";
 import {
   colorSkin,
   FIELD_TONES,
@@ -14,7 +13,8 @@ import {
 
 function shortDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
-  return `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}`;
+  // Etkin dilde ("8 Eki" / "Oct 8") — eskiden ay adı hep İngilizceydi
+  return d.toLocaleDateString(intlTag(), { day: "numeric", month: "short" });
 }
 
 export function parseDTR(raw: string): { start: string; end: string } {

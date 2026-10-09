@@ -127,8 +127,14 @@ export function EditEntryModal({
   // tonu var, orada serbest renk verilmez.
   const fieldColor =
     fieldTone === "default" ? entry.category.color || undefined : undefined;
-  // Özellik ekleme yüzeyinin tonu — kategorisi renksizse uygulamanın moru
-  const accent = fieldColor ?? "#818cf8";
+  // Pencerenin rengi — yerleşiklerde akışın rengi (ekleme penceresiyle aynı),
+  // sıradanda kategorinin; renksizse uygulamanın moru
+  const accent =
+    fieldTone === "sleep"
+      ? "#8b5cf6"
+      : fieldTone === "mood"
+        ? "#f472b6"
+        : (fieldColor ?? "#818cf8");
   const router = useRouter();
   const mods = useLiveQuery(
     () => listModifiersForTarget("subcategory", entry.subcategoryId),
@@ -436,8 +442,11 @@ export function EditEntryModal({
   const entryDate = toLocalDateValue(entry.occurredAt);
   /** Zaman seçeneklerinde Dün / Şimdi / Yarın bugüne göre */
   const todayDate = toLocalDateValue();
-  // Sıradan girdi yeni (açık defter) görünümde; yerleşikler kendi formunda
-  const isLedger = fieldTone === "default" && !pStep && !pickerView;
+  // Her girdi açık defter görünümünde — uyku ve ruh hali de (ekleme
+  // pencereleriyle aynı dil); ruh halinin yüzleri ve duyguları kutuya
+  // kendi girişi olarak konur
+  const isLedger = !pStep && !pickerView;
+  const isBuiltInTone = fieldTone !== "default";
   const recent =
     useLiveQuery(() => listRecentModValues(entry.subcategoryId), [entry.subcategoryId]) ??
     NO_RECENT;
@@ -851,7 +860,8 @@ export function EditEntryModal({
               kalemin karosu, yolu ve adı; altında zaman hapı; gövde açık
               defter (aynı LedgerField kutuları, aynı kurallar); altta not ve
               Kaydet. Başlık ve alt düğmeler sabit, yalnız gövde kayar.
-              Uyku ve ruh hali kendi özel düzenlemelerinde kalır (aşağıda).
+              Uyku ve ruh hali de burada: renkleri akışın rengi, ruh halinin
+              yüzleri ve duygu ızgarası kutunun kendi girişi.
             */
             <div className="relative flex min-h-0 flex-1 flex-col">
               <DialogTitle className="sr-only">{structureName}</DialogTitle>
@@ -958,13 +968,45 @@ export function EditEntryModal({
                   />
                   {rows.map((row) => {
                     const m = rowAsMod(row);
+                    const rowVals = values[row.key] ?? [];
+                    const setRow = (v: string) =>
+                      setValues((prev) => ({ ...prev, [row.key]: v === "" ? [] : [v] }));
+                    // Ruh hali: sayısal seçenek = mutluluk yüzleri, değilse duygular
+                    const moodSelect =
+                      fieldTone === "mood" && (row.entryType.valueType ?? "number") === "select";
+                    const emotionRow = moodSelect && !isNumericChoiceSet(row.entryType.choices);
                     return (
                       <LedgerField
                         key={row.key}
                         mod={m}
                         icon={modAtomIcon({ name: row.label, entryType: row.entryType })}
-                        color={modColor(m.mod ?? { name: row.label })}
-                        value={(values[row.key] ?? [])[0] ?? ""}
+                        color={isBuiltInTone ? accent : modColor(m.mod ?? { name: row.label })}
+                        filled={moodSelect ? rowVals.length > 0 : undefined}
+                        custom={
+                          emotionRow ? (
+                            <EmotionPicker
+                              choices={row.entryType.choices ?? []}
+                              values={rowVals}
+                              onChange={(vs) => setValues((prev) => ({ ...prev, [row.key]: vs }))}
+                              gridHeight={400}
+                            />
+                          ) : moodSelect ? (
+                            <>
+                              <MoodScale
+                                choices={row.entryType.choices ?? []}
+                                value={rowVals[0] ?? ""}
+                                onChange={setRow}
+                              />
+                              {(m.mod?.scaleLabels?.low || m.mod?.scaleLabels?.high) && (
+                                <div className="-mt-1.5 flex justify-between px-4 pb-3 text-[11.5px] font-medium text-muted-foreground">
+                                  <span>{m.mod?.scaleLabels?.low}</span>
+                                  <span>{m.mod?.scaleLabels?.high}</span>
+                                </div>
+                              )}
+                            </>
+                          ) : undefined
+                        }
+                        value={rowVals[0] ?? ""}
                         onChange={(v) =>
                           setValues((prev) => ({ ...prev, [row.key]: v === "" ? [] : [v] }))
                         }
@@ -972,11 +1014,13 @@ export function EditEntryModal({
                         entryDate={entryDate}
                         entryOnly={!!row.modId && !attachedModIds.has(row.modId)}
                         dense={rows.length >= 5}
-                        onRemove={() => handleRemove(row.key)}
+                        onRemove={isBuiltInTone ? undefined : () => handleRemove(row.key)}
                         autoFocus={row.key === focusKey}
                       />
                     );
                   })}
+                  {/* Yerleşik akışların özellikleri sabit — havuzdan ekleme yok */}
+                  {!isBuiltInTone && (
                   <button
                     type="button"
                     onClick={() => setAddModOpen(true)}
@@ -985,6 +1029,7 @@ export function EditEntryModal({
                     <Plus className="h-4 w-4" />
                     {t("entry.addFeature")}
                   </button>
+                  )}
                 </div>
 
                 {panels}
