@@ -15,7 +15,7 @@ import {
 import { SCALE_PRESETS, type EntryValueType } from "@/types";
 import type { ModMeasure } from "@/lib/db/queries";
 import { Label } from "@/components/ui/label";
-import { ScaleInput } from "@/components/ui/scale-input";
+import { ScaleSlider } from "@/components/ui/scale-slider";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -253,7 +253,7 @@ export function MeasureEditor({
             {/* Skalanın kendisi + uç adları doğrudan uçların altında.
                 Ayrı bir "uçların anlamı" formu soyut kalıyordu. */}
             <div className="flex flex-col gap-1.5">
-              <ScaleInput choices={choices} value={demo} onChange={setDemo} />
+              <ScaleSlider choices={choices} value={demo} onChange={setDemo} />
               <div className="flex items-center gap-2">
                 <EndLabel
                   value={value.scaleLabels?.low ?? ""}
@@ -482,6 +482,18 @@ function Stepper({
 }) {
   const btn =
     "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-all active:scale-90 hover:text-foreground disabled:opacity-25 disabled:active:scale-100";
+  // Yazılan değer bırakılınca (ya da Enter) uygulanır; geçersizse eskiye döner
+  const [draft, setDraft] = useState(String(value));
+  const [shown, setShown] = useState(value);
+  if (shown !== value) {
+    setShown(value);
+    setDraft(String(value));
+  }
+  const commit = () => {
+    const n = parseInt(draft, 10);
+    if (Number.isFinite(n) && n !== value) onChange(n);
+    else setDraft(String(value));
+  };
   return (
     <div className="flex flex-col items-center gap-1 rounded-xl border border-border/60 bg-black/25 px-2 py-2">
       <span className="text-[9px] uppercase tracking-wider text-muted-foreground/50">
@@ -497,9 +509,20 @@ function Stepper({
         >
           <Minus className="h-3 w-3" />
         </button>
-        <span className="min-w-0 flex-1 text-center text-base font-semibold tabular-nums">
-          {value}
-        </span>
+        {/* Değer doğrudan yazılabilir — 1'den 100'e 99 kez basılmasın */}
+        <input
+          type="text"
+          inputMode="numeric"
+          value={draft}
+          aria-label={label}
+          onFocus={(e) => e.currentTarget.select()}
+          onChange={(e) => setDraft(e.target.value.replace(/[^0-9-]/g, ""))}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+          }}
+          className="min-w-0 flex-1 bg-transparent text-center text-base font-semibold tabular-nums outline-none"
+        />
         <button
           type="button"
           onClick={() => onChange(value + 1)}

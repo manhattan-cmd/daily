@@ -41,7 +41,12 @@ export function uiKindOf(m: {
  * Alt sınır 2 — tek basamaklı skala seçim değil.
  */
 export const SCALE_MIN_STEPS = 2;
-export const SCALE_MAX_STEPS = 21;
+/**
+ * En çok basamak. Eskiden 21'di — 1–100 gibi puanlama kurulamıyordu. Girdi
+ * ekranındaki ray büyük ölçekte numara yerine değeri yazar ve − / + ile ince
+ * ayar sunar; analiz ölçeğin yalnız en küçük ve en büyük değerine bakar.
+ */
+export const SCALE_MAX_STEPS = 1001;
 
 /** min..max arasını basamaklara aç (sınırlar dahil) */
 export function scaleChoices(min: number, max: number): string[] {

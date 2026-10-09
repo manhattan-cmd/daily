@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { ENTRY_VALUE_TYPE_LABELS } from "@/types";
+import { ENTRY_VALUE_TYPE_LABELS, isScaleChoices } from "@/types";
+import { ScaleSlider } from "@/components/ui/scale-slider";
 import type { Category, EntryType, SubCategory } from "@/types";
 import { useSheetPresence } from "@/lib/use-sheet-presence";
 import { ENTRY_WINDOW } from "@/components/ui/entry-window";
@@ -511,8 +512,24 @@ function AddGoalSheetBody({ date, open, onClose }: AddGoalSheetProps) {
                           </button>
                         )}
 
-                        {vt === "select" && (
+                        {vt === "select" && isScaleChoices(t.choices) && (
+
+                          <ScaleSlider
+
+                            choices={t.choices ?? []}
+
+                            value={val}
+
+                            onChange={(v) => setTargetValues((prev) => ({ ...prev, [typeId]: v }))}
+
+                          />
+
+                        )}
+
+                        {vt === "select" && !isScaleChoices(t.choices) && (
+
                           <div className="flex flex-wrap gap-2">
+
                             {(t.choices ?? []).map((choice) => (
                               <button
                                 key={choice}
@@ -609,7 +626,7 @@ function AddGoalSheetBody({ date, open, onClose }: AddGoalSheetProps) {
                     {m.entryType.unit
                       ? ` · ${m.entryType.unit}`
                       : m.entryType.choices?.length
-                      ? ` · ${m.entryType.choices.join(", ")}`
+                      ? ` · ${isScaleChoices(m.entryType.choices) ? `${m.entryType.choices[0]}–${m.entryType.choices[m.entryType.choices.length - 1]}` : m.entryType.choices.join(", ")}`
                       : null}
                   </div>
                 </div>

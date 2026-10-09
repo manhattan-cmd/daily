@@ -24,6 +24,11 @@ export const SCALE_PRESETS: { key: string; label: string; choices: string[] }[] 
     choices: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
   },
   { key: "-2-2", label: "−2 … +2", choices: ["-2", "-1", "0", "1", "2"] },
+  {
+    key: "1-100",
+    label: "1 – 100",
+    choices: Array.from({ length: 100 }, (_, i) => String(i + 1)),
+  },
 ];
 
 export const SCALE_1_5 = SCALE_PRESETS[0].choices;
