@@ -1,25 +1,42 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Minus, Plus } from "lucide-react";
+import { ScanSearch } from "lucide-react";
 import type { ScaleLabels } from "@/types";
 import { useT } from "@/lib/i18n";
 
 /** Bundan az basamakta her basamağın raydaki noktası görünür */
 const TICK_EACH_MAX = 11;
+/** Basamak başına bundan dar yer kalıyorsa basılı tutunca hassas ayar açılır */
+const FINE_BELOW_PX = 16;
+/** Hassas ayarda bir basamağın genişliği */
+const FINE_STEP_PX = 14;
+/** Parmak bu kadar süre (yaklaşık) yerinde kalırsa odaklanır */
+const HOLD_MS = 380;
+/** "Yerinde" sayılan oynama payı */
+const HOLD_SLOP_PX = 5;
+/** Hassas ayarda kenara bu kadar yaklaşınca cetvel kendiliğinden kayar */
+const EDGE_PX = 22;
+
+type Fine = { anchorX: number; anchorIdx: number };
 
 /**
  * KAYDIRILAN ÖLÇEK — her ölçekte (1–5, −2…+2, 1–10, 1–100, 1–1000…) AYNI
- * görünüm, üç satır:
- *  1. solda seçilen değer (büyük, özelliğin renginde; "/ en büyük" küçük),
- *     sağda tek kapsülde − / + (basılı tutunca hızlanır, adım büyür);
- *     değere dokunmak temizler. Boşken yalnız "kaydır ya da dokun".
- *  2. ray: boşken de görünür (özelliğin renginde soluk zemin); ≤ 11
- *     basamakta her basamak rayda bir nokta — 3'ün beşte üç olduğu
- *     okunur; büyük ölçekte çeyrek noktaları. Dolgu başlangıçtan değere;
- *     −2…+2 gibi iki yönlü ölçekte SIFIRDAN değere. Başparmak beyaz,
- *     renkli halkalı.
+ * görünüm; tek kontrol ray:
+ *  1. solda seçilen değer (büyük, özelliğin renginde; "/ en büyük" küçük);
+ *     değere dokunmak temizler. Boşken "kaydır ya da dokun".
+ *  2. ray: boşken de görünür; ≤ 11 basamakta her basamak bir nokta,
+ *     büyükte çeyrekler. Dolgu başlangıçtan değere; iki yönlü ölçekte
+ *     (−2…+2) SIFIRDAN değere.
  *  3. uçların sayısı ve anlamı.
+ *
+ * HASSAS AYAR — eskiden iki büyük − / + düğmesi vardı, tasarımı bozuyordu.
+ * Şimdi parmak rayda bir yerde kısa süre DURURSA (ilk dokunuşta ya da kaba
+ * sürükleyip durunca) ray o noktada CETVELE açılır: basamaklar parmağa
+ * yetecek genişlikte, ana çizgilerde sayılar; parmak artık tek tek basamak
+ * gezer, kenara gelince cetvel kendiliğinden kayar. Bırakınca ray geri
+ * gelir. Yalnız basamaklar parmağa dar düşen ölçeklerde (1–100, 1–1000…);
+ * 1–5'te ray zaten yeterince iri.
  *
  * Pencerenin "sola kaydır = kapat" hareketiyle çakışmasın diye
  * `data-no-swipe`: dokunuş bu bileşenin.
@@ -43,6 +60,8 @@ export function ScaleSlider({
   const t = useT();
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [fine, setFine] = useState<Fine | null>(null);
+  const [railW, setRailW] = useState(0);
   const n = choices.length;
   const idx = choices.indexOf(value);
   const has = idx >= 0;
@@ -56,47 +75,103 @@ export function ScaleSlider({
   const origin = zeroIdx >= 0 ? zeroIdx : 0;
   const signed = (v: string) => (bipolar && Number(v) > 0 ? `+${v}` : v.replace("-", "−"));
 
-  function pick(clientX: number) {
+  // Rayın genişliği — hassas ayarın gerekip gerekmediği buna bağlı
+  useEffect(() => {
     const el = trackRef.current;
     if (!el) return;
-    const r = el.getBoundingClientRect();
-    const f = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
-    const i = Math.round(f * (n - 1));
-    if (choices[i] !== value) onChange(choices[i]);
-  }
+    const ro = new ResizeObserver(() => setRailW(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const fineAllowed = n > 2 && railW > 0 && railW / (n - 1) < FINE_BELOW_PX;
 
-  // − / + — basılı tutunca hızlanan adım
+  // Son değer — zamanlayıcılar eski kapanışı görmesin
   const idxRef = useRef(idx);
   useEffect(() => {
     idxRef.current = idx;
   });
-  const hold = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const stopHold = () => {
-    if (hold.current) clearTimeout(hold.current);
-    hold.current = null;
+  const set = (i: number) => {
+    const k = Math.min(n - 1, Math.max(0, i));
+    if (k === idxRef.current) return;
+    idxRef.current = k;
+    onChange(choices[k]);
   };
-  useEffect(() => stopHold, []);
-  function step(dir: 1 | -1, size = 1) {
-    const cur = idxRef.current;
-    // Boşken ilk dokunuş başlangıç noktasına (iki yönlüde sıfıra) oturur
-    const next =
-      cur < 0 ? origin : Math.min(n - 1, Math.max(0, cur + dir * size));
-    idxRef.current = next;
-    onChange(choices[next]);
+
+  /** Basılı tutma ve kenar kaydırma durumu (çizime girmez) */
+  const press = useRef<{
+    holdX: number;
+    lastRel: number;
+    hold: ReturnType<typeof setTimeout> | null;
+    pan: ReturnType<typeof setInterval> | null;
+    fine: Fine | null;
+  }>({ holdX: 0, lastRel: 0, hold: null, pan: null, fine: null });
+
+  const stopTimers = () => {
+    const p = press.current;
+    if (p.hold) clearTimeout(p.hold);
+    if (p.pan) clearInterval(p.pan);
+    p.hold = null;
+    p.pan = null;
+  };
+  useEffect(() => stopTimers, []);
+
+  const relX = (clientX: number) => {
+    const r = trackRef.current?.getBoundingClientRect();
+    return r ? clientX - r.left : 0;
+  };
+
+  function pickCoarse(clientX: number) {
+    const w = trackRef.current?.clientWidth ?? 1;
+    const f = Math.min(1, Math.max(0, relX(clientX) / w));
+    set(Math.round(f * (n - 1)));
   }
-  function startHold(dir: 1 | -1) {
-    step(dir);
-    let delay = 380;
-    let count = 0;
-    const tick = () => {
-      // Uzun basışta adım da büyür — 1–1000 ölçekte yüzlerce adım beklenmesin
-      count++;
-      const size = count < 12 ? 1 : count < 30 ? Math.max(1, Math.round(n / 200)) : Math.max(1, Math.round(n / 100));
-      step(dir, size);
-      delay = Math.max(35, delay * 0.8);
-      hold.current = setTimeout(tick, delay);
-    };
-    hold.current = setTimeout(tick, delay);
+
+  function armHold(clientX: number) {
+    const p = press.current;
+    if (p.hold) clearTimeout(p.hold);
+    p.holdX = clientX;
+    if (!fineAllowed) return;
+    p.hold = setTimeout(() => {
+      // Odak: parmağın altındaki basamak cetvelin merkezi olur
+      const f: Fine = { anchorX: p.lastRel, anchorIdx: Math.max(0, idxRef.current) };
+      p.fine = f;
+      setFine(f);
+      navigator.vibrate?.(8);
+    }, HOLD_MS);
+  }
+
+  function moveFine(rel: number) {
+    const p = press.current;
+    const f = p.fine;
+    if (!f) return;
+    set(f.anchorIdx + Math.round((rel - f.anchorX) / FINE_STEP_PX));
+    // Kenarda: cetvel kendiliğinden kayar, parmak yerinde kalsa da değer ilerler
+    const w = trackRef.current?.clientWidth ?? 0;
+    const dir = rel < EDGE_PX ? -1 : rel > w - EDGE_PX ? 1 : 0;
+    if (dir === 0) {
+      if (p.pan) clearInterval(p.pan);
+      p.pan = null;
+    } else if (!p.pan) {
+      let ticks = 0;
+      p.pan = setInterval(() => {
+        const cur = p.fine;
+        if (!cur) return;
+        // Uzun tutunca hızlanır — 1–1000 ölçekte yüzlerce basamak beklenmesin
+        ticks++;
+        const size = ticks < 15 ? 1 : ticks < 40 ? 2 : Math.max(5, Math.round(n / 200));
+        const next: Fine = { ...cur, anchorIdx: Math.min(n - 1, Math.max(0, cur.anchorIdx + dir * size)) };
+        p.fine = next;
+        setFine(next);
+        set(next.anchorIdx + Math.round((p.lastRel - next.anchorX) / FINE_STEP_PX));
+      }, 70);
+    }
+  }
+
+  function endPress() {
+    stopTimers();
+    press.current.fine = null;
+    setFine(null);
+    setDragging(false);
   }
 
   // Raydaki noktalar: küçük ölçekte her basamak, büyükte çeyrekler
@@ -106,13 +181,25 @@ export function ScaleSlider({
       : [25, 50, 75];
   const lo = Math.min(pct(origin), has ? pct(idx) : pct(origin));
   const hi = Math.max(pct(origin), has ? pct(idx) : pct(origin));
-  const stepBtn =
-    "flex h-full w-10 items-center justify-center text-foreground/80 transition-colors active:bg-white/10";
+
+  // Cetvel (hassas ayar): görünen basamaklar ve konumları
+  const ruler: { k: number; x: number; major: boolean }[] = [];
+  if (fine) {
+    const span = Math.ceil(railW / FINE_STEP_PX) + 2;
+    for (let k = fine.anchorIdx - span; k <= fine.anchorIdx + span; k++) {
+      if (k < 0 || k >= n) continue;
+      const x = fine.anchorX + (k - fine.anchorIdx) * FINE_STEP_PX;
+      if (x < -FINE_STEP_PX || x > railW + FINE_STEP_PX) continue;
+      const v = Number(choices[k]);
+      ruler.push({ k, x, major: Number.isFinite(v) ? v % 5 === 0 : k % 5 === 0 });
+    }
+  }
+  const fineX = fine && has ? fine.anchorX + (idx - fine.anchorIdx) * FINE_STEP_PX : 0;
 
   return (
-    <div className="flex flex-col gap-1 px-0.5" data-no-swipe="">
-      {/* 1 — değer ve ince ayar */}
-      <div className="flex h-10 items-center gap-3">
+    <div className="flex select-none flex-col gap-1 px-0.5" data-no-swipe="">
+      {/* 1 — değer; sağda hassas ayarın ipucu */}
+      <div className="flex h-9 items-center gap-3">
         <div className="flex min-w-0 flex-1 items-baseline gap-1">
           {has ? (
             <>
@@ -139,30 +226,23 @@ export function ScaleSlider({
             </span>
           )}
         </div>
-        {/* Tek kapsül — iki büyük daire yerine */}
-        <div
-          className="flex h-9 shrink-0 items-stretch overflow-hidden rounded-full bg-black/25 ring-1 ring-inset"
-          style={{ ["--tw-ring-color" as string]: `${color}40` }}
-        >
-          <button type="button" aria-label="−" className={stepBtn} onPointerDown={() => startHold(-1)}
-            onPointerUp={stopHold}
-            onPointerLeave={stopHold}
-            onPointerCancel={stopHold}
-            onContextMenu={(e) => e.preventDefault()}>
-            <Minus className="h-4 w-4" />
-          </button>
-          <span aria-hidden className="my-2 w-px" style={{ background: `${color}40` }} />
-          <button type="button" aria-label="+" className={stepBtn} onPointerDown={() => startHold(1)}
-            onPointerUp={stopHold}
-            onPointerLeave={stopHold}
-            onPointerCancel={stopHold}
-            onContextMenu={(e) => e.preventDefault()}>
-            <Plus className="h-4 w-4" />
-          </button>
-        </div>
+        {fineAllowed &&
+          (fine ? (
+            <span
+              className="flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold"
+              style={{ color, background: `${color}24` }}
+            >
+              <ScanSearch className="h-3.5 w-3.5" />
+              {t("entry.fineMode")}
+            </span>
+          ) : (
+            <span className="shrink-0 text-[11px] font-medium text-muted-foreground/60">
+              {t("entry.holdFine")}
+            </span>
+          ))}
       </div>
 
-      {/* 2 — ray: dokun ya da sürükle */}
+      {/* 2 — ray: dokun, sürükle; dur → hassas ayar */}
       <div
         ref={trackRef}
         role="slider"
@@ -171,68 +251,135 @@ export function ScaleSlider({
         aria-valuenow={has ? Number(value) : undefined}
         tabIndex={0}
         onKeyDown={(e) => {
-          if (e.key === "ArrowRight" || e.key === "ArrowUp") step(1);
-          if (e.key === "ArrowLeft" || e.key === "ArrowDown") step(-1);
+          const cur = idxRef.current;
+          if (e.key === "ArrowRight" || e.key === "ArrowUp") set(cur < 0 ? origin : cur + 1);
+          if (e.key === "ArrowLeft" || e.key === "ArrowDown") set(cur < 0 ? origin : cur - 1);
         }}
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId);
           setDragging(true);
-          pick(e.clientX);
+          press.current.lastRel = relX(e.clientX);
+          pickCoarse(e.clientX);
+          armHold(e.clientX);
         }}
         onPointerMove={(e) => {
-          if (e.currentTarget.hasPointerCapture(e.pointerId)) pick(e.clientX);
+          if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+          const rel = relX(e.clientX);
+          press.current.lastRel = rel;
+          if (press.current.fine) {
+            moveFine(rel);
+            return;
+          }
+          pickCoarse(e.clientX);
+          // Parmak yeniden durursa yeniden odaklanmaya hazır ol
+          if (Math.abs(e.clientX - press.current.holdX) > HOLD_SLOP_PX) armHold(e.clientX);
         }}
-        onPointerUp={() => setDragging(false)}
-        onPointerCancel={() => setDragging(false)}
-        className="relative mx-[11px] h-9 cursor-pointer touch-none select-none outline-none"
+        onPointerUp={endPress}
+        onPointerCancel={endPress}
+        onContextMenu={(e) => e.preventDefault()}
+        className="relative mx-[11px] h-11 cursor-pointer touch-none select-none outline-none [-webkit-touch-callout:none]"
       >
-        {/* zemin — boşken de görünür */}
+        {/* Normal ray — hassas ayarda söner */}
         <div
-          className="absolute -inset-x-[11px] top-1/2 h-2.5 -translate-y-1/2 rounded-full"
-          style={{ background: `${color}24`, boxShadow: `inset 0 0 0 1px ${color}2e` }}
-        />
-        {/* dolgu — başlangıçtan (iki yönlüde sıfırdan) değere */}
-        {has && hi > lo && (
+          className="absolute inset-0 transition-opacity duration-150"
+          style={{ opacity: fine ? 0 : 1 }}
+        >
+          {/* zemin — boşken de görünür */}
           <div
-            className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-full"
-            style={{
-              left: `${lo}%`,
-              width: `${hi - lo}%`,
-              background: bipolar ? color : `linear-gradient(90deg, ${color}80, ${color})`,
-              transition: dragging ? "none" : "left 200ms, width 200ms",
-              // Başlangıç ucu rayın ucuna yaslansın
-              ...(origin === 0 ? { left: -11, width: `calc(${hi}% + 11px)` } : null),
-            }}
+            className="absolute -inset-x-[11px] top-1/2 h-2.5 -translate-y-1/2 rounded-full"
+            style={{ background: `${color}24`, boxShadow: `inset 0 0 0 1px ${color}2e` }}
           />
-        )}
-        {/* basamak noktaları */}
-        {ticks.map((p) => {
-          const lit = has && p >= lo && p <= hi;
-          const center = bipolar && Math.abs(p - pct(origin)) < 0.01;
-          return (
-            <span
-              key={p}
-              aria-hidden
-              className="pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+          {/* dolgu — başlangıçtan (iki yönlüde sıfırdan) değere */}
+          {has && hi > lo && (
+            <div
+              className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-full"
               style={{
-                left: `${p}%`,
-                width: center ? 6 : 4,
-                height: center ? 6 : 4,
-                background: lit ? "rgba(255,255,255,0.6)" : `${color}99`,
+                left: `${lo}%`,
+                width: `${hi - lo}%`,
+                background: bipolar ? color : `linear-gradient(90deg, ${color}80, ${color})`,
+                transition: dragging ? "none" : "left 200ms, width 200ms",
+                // Başlangıç ucu rayın ucuna yaslansın
+                ...(origin === 0 ? { left: -11, width: `calc(${hi}% + 11px)` } : null),
               }}
             />
-          );
-        })}
-        {/* başparmak */}
-        {has && (
-          <span
-            className="pointer-events-none absolute top-1/2 h-[22px] w-[22px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
+          )}
+          {/* basamak noktaları */}
+          {ticks.map((p) => {
+            const lit = has && p >= lo && p <= hi;
+            const center = bipolar && Math.abs(p - pct(origin)) < 0.01;
+            return (
+              <span
+                key={p}
+                aria-hidden
+                className="pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                style={{
+                  left: `${p}%`,
+                  width: center ? 6 : 4,
+                  height: center ? 6 : 4,
+                  background: lit ? "rgba(255,255,255,0.6)" : `${color}99`,
+                }}
+              />
+            );
+          })}
+          {/* başparmak */}
+          {has && (
+            <span
+              className="pointer-events-none absolute top-1/2 h-[22px] w-[22px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
+              style={{
+                left: `${pct(idx)}%`,
+                boxShadow: `0 0 0 3px ${color}, 0 2px 8px rgba(0,0,0,0.45)`,
+                transition: dragging ? "none" : "left 200ms",
+              }}
+            />
+          )}
+        </div>
+
+        {/* Cetvel — parmağın durduğu yerde açılan yakın görünüm */}
+        {fine && (
+          <div
+            aria-hidden
+            className="animate-in fade-in pointer-events-none absolute -inset-x-[11px] inset-y-0 rounded-xl duration-150"
             style={{
-              left: `${pct(idx)}%`,
-              boxShadow: `0 0 0 3px ${color}, 0 2px 8px rgba(0,0,0,0.45)`,
-              transition: dragging ? "none" : "left 200ms",
+              background: `${color}14`,
+              boxShadow: `inset 0 0 0 1px ${color}40`,
+              maskImage: "linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 18px), transparent)",
+              WebkitMaskImage: "linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 18px), transparent)",
             }}
-          />
+          >
+            <div className="absolute inset-y-0 left-[11px] right-[11px]">
+              {ruler.map(({ k, x, major }) => {
+                const on = has && (bipolar ? k >= Math.min(origin, idx) && k <= Math.max(origin, idx) : k <= idx);
+                return (
+                  <span key={k} className="absolute bottom-1.5" style={{ left: x }}>
+                    <span
+                      className="absolute bottom-0 w-[2px] -translate-x-1/2 rounded-full"
+                      style={{
+                        height: major ? 14 : 7,
+                        background: on ? color : `${color}70`,
+                      }}
+                    />
+                    {major && (
+                      <span
+                        className="absolute bottom-[17px] -translate-x-1/2 text-[10px] font-semibold tabular-nums leading-none"
+                        style={{ color: k === idx ? color : "var(--muted-foreground)" }}
+                      >
+                        {signed(choices[k])}
+                      </span>
+                    )}
+                  </span>
+                );
+              })}
+              {/* İğne — seçilen basamak */}
+              {has && (
+                <span className="absolute inset-y-0" style={{ left: fineX }}>
+                  <span
+                    className="absolute bottom-1 top-1 w-[3px] -translate-x-1/2 rounded-full"
+                    style={{ background: color, boxShadow: `0 0 10px ${color}` }}
+                  />
+                </span>
+              )}
+            </div>
+          </div>
         )}
       </div>
 
