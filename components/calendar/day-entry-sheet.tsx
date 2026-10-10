@@ -21,6 +21,7 @@ import { NoteEditorView } from "@/components/forms/note-editor";
 import { LedgerField } from "@/components/forms/ledger-field";
 import { SmartText } from "@/components/ui/smart-text";
 import { EntryTime } from "@/components/forms/entry-time";
+import { announceAdded } from "@/lib/added-toast";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { modAtomIcon } from "@/components/structure/mod-atom";
 import { modColor } from "@/lib/mod-color";
@@ -318,7 +319,7 @@ function DayEntrySheetBody({
     if (activity) {
       await ensureActivity({ id: activity.id, name: activity.name, occurredAt: ts });
     }
-    await createEntry({
+    return createEntry({
       subcategoryId: subId,
       typeValues,
       occurredAt: ts,
@@ -395,7 +396,7 @@ function DayEntrySheetBody({
     try {
       if (step.type === "form") {
         const groupId = selectedParallels.length > 0 ? nanoid(12) : undefined;
-        await persistEntry(step.sub.id, activeMods, values, groupId);
+        const created = await persistEntry(step.sub.id, activeMods, values, groupId);
         if (stay && !activity && selectedParallels.length === 0) {
           const group = (groups ?? []).find((g) => g.category.id === step.sub.categoryId);
           setToast(
@@ -423,6 +424,13 @@ function DayEntrySheetBody({
             toSharedKeyed(activeMods, values)
           );
         } else {
+          // Sayfada "Eklendi · Geri al" (yalnız Brütal temada çizilir)
+          const group = (groups ?? []).find((g) => g.category.id === step.sub.categoryId);
+          announceAdded(
+            created.id,
+            step.sub.isCategoryRoot ? (group?.category.name ?? step.sub.name) : step.sub.name,
+            Date.now()
+          );
           onClose();
           router.push(routes.day(date));
         }
@@ -568,7 +576,7 @@ function DayEntrySheetBody({
             className="animate-in fade-in slide-in-from-bottom-2 pointer-events-none absolute inset-x-0 bottom-0 z-[60] flex justify-center px-4"
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)" }}
           >
-            <span className="flex items-center gap-2 rounded-full bg-foreground px-4 py-2.5 text-[13px] font-semibold text-background shadow-lg">
+            <span data-stay-toast="" className="flex items-center gap-2 rounded-full bg-foreground px-4 py-2.5 text-[13px] font-semibold text-background shadow-lg">
               <Check className="h-4 w-4" strokeWidth={3} />
               {toast}
             </span>

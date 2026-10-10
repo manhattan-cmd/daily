@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import Link from "next/link";
+import { useSkin } from "@/lib/skin";
 import {
   Check,
   ChevronRight,
@@ -295,6 +296,7 @@ export function EntryPicker({
   // hayatı göstermeli, arşivi değil.
   const entryCounts =
     useCachedLiveQuery(USAGE_COUNTS_KEY, loadUsageCounts) ?? NO_COUNTS;
+  const brutal = useSkin() === "brutal";
 
   /**
    * Hızlı ekle — ağacın HER YERİNDEN, en çok kayıt alan kalemler. Önce
@@ -940,6 +942,39 @@ export function EntryPicker({
                       <FolderPlus className="h-[17px] w-[17px]" />
                     </button>
                   </div>
+                  {/* Brütal: bu kategorinin en sık eklenen üç kalemi, düz renkli
+                      yapışkan notlar — dokununca doğrudan form */}
+                  {brutal && !node && (() => {
+                    const top = visibleSubs
+                      .filter((s) => s.categoryId === selCat.id && !(childrenMap.get(s.id)?.length))
+                      .map((s) => ({ s, n: entryCounts.get(s.id) ?? 0 }))
+                      .filter((x) => x.n > 0)
+                      .sort((a, b) => b.n - a.n)
+                      .slice(0, 3);
+                    if (!top.length) return null;
+                    const bg = ["#ffd23f", "#ff9ecd", "#8ea6ff"];
+                    return (
+                      <div className="mb-3 px-1">
+                        <div className="mb-1.5 text-[10.5px] font-black uppercase tracking-wider text-[#111]">
+                          {t("brut.frequent")}
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {top.map(({ s, n }, i) => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => onPick(s)}
+                              className="min-w-0 rounded-lg border-2 border-[#111] px-2 py-1.5 text-left text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                              style={{ background: bg[i] }}
+                            >
+                              <SmartText text={s.name} lines={2} className="text-[12px] font-black leading-[15px]" />
+                              <span className="font-mono text-[11px] font-bold">{n}×</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <div className="relative ml-[26px] flex flex-col pl-2.5">
                     <span
                       aria-hidden

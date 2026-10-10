@@ -14,6 +14,7 @@ import { useLocale } from "@/lib/i18n";
 import { applySkin, useSkin } from "@/lib/skin";
 import { BottomNav } from "./bottom-nav";
 import { StatusBar } from "./status-bar";
+import { AddedToast } from "./added-toast";
 import { UndoBar } from "./undo-bar";
 import { ConfirmHost } from "@/components/ui/confirm";
 import { isNative, listenBackButton } from "@/lib/native";
@@ -124,6 +125,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Silme sonrası geri alma şeridi — navigasyonun hemen üstünde */}
         <UndoBar />
+        {/* Brütal temada "Eklendi" bildirimi */}
+        <AddedToast />
 
         {/* Onay katmanı — tek örnek; her yerden confirmDialog() ile çağrılır */}
         <ConfirmHost />
