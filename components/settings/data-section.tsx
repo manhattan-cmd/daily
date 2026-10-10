@@ -1,6 +1,6 @@
 "use client";
 
-import { useT } from "@/lib/i18n";
+import { intlTag, useT } from "@/lib/i18n";
 import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -38,7 +38,7 @@ import {
 } from "@/lib/storage-health";
 import { Button } from "@/components/ui/button";
 
-const fmt = (n: number) => n.toLocaleString("en-US");
+const fmt = (n: number) => n.toLocaleString(intlTag());
 
 export function DataSection() {
   const t = useT();
@@ -204,7 +204,7 @@ export function DataSection() {
     <>
       <div className="flex flex-col gap-5">
         <p className="text-sm leading-relaxed text-muted-foreground">
-          All of your data (categories, features, entries, notes, goals) is stored on this device only. If browser data is cleared or you switch phones, there is no way back — take backups regularly.
+          {t("backup.intro")}
         </p>
 
         {/* Depolama sağlığı — verinin cihazda ne kadar güvende durduğu */}
@@ -225,26 +225,24 @@ export function DataSection() {
                         : "bg-amber-500/15 text-amber-400")
                     }
                   >
-                    {health.persisted ? "persistent" : "not persistent"}
+                    {health.persisted ? t("backup.persistent") : t("backup.notPersistent")}
                   </span>
                 )}
               </div>
               <div className="text-xs text-muted-foreground">
                 {health
-                  ? `${formatBytes(health.usage)} used${
-                      health.quota ? ` · quota ${formatBytes(health.quota)}` : ""
-                    }`
-                  : "Measuring..."}
+                  ? t("backup.usage", { used: formatBytes(health.usage) }) +
+                    (health.quota ? ` · ${t("backup.quota", { quota: formatBytes(health.quota) })}` : "")
+                  : t("backup.measuring")}
               </div>
             </div>
           </div>
 
           {health && !health.persisted && (
             <p className="mt-3 text-[11px] leading-relaxed text-amber-400/90">
-              The browser doesn&rsquo;t treat this data as persistent: it can be evicted if space runs low or you don&rsquo;t open the app for a while.{" "}
-              {!health.standalone &&
-                "Add the app to your home screen to make it persistent. "}
-              Take regular backups anyway.
+              {t("backup.evictWarn")}{" "}
+              {!health.standalone && `${t("backup.addToHome")} `}
+              {t("backup.backupAnyway")}
             </p>
           )}
 
@@ -257,7 +255,7 @@ export function DataSection() {
                   : "font-medium"
               }
             >
-              {lastBackupAt === null ? "never" : agoLabel(lastBackupAt)}
+              {lastBackupAt === null ? t("backup.never") : agoLabel(lastBackupAt)}
             </span>
           </div>
         </div>
@@ -272,8 +270,13 @@ export function DataSection() {
               <div className="font-medium">{t("backup.download")}</div>
               <div className="text-xs text-muted-foreground">
                 {counts
-                  ? `${fmt(counts.categories)} categories · ${fmt(counts.entries)} entries · ${fmt(counts.notes)} notes · ${fmt(counts.goals)} goals`
-                  : "Loading..."}
+                  ? t("backup.counts", {
+                      c: fmt(counts.categories),
+                      e: fmt(counts.entries),
+                      n: fmt(counts.notes),
+                      g: fmt(counts.goals),
+                    })
+                  : t("backup.loading")}
               </div>
             </div>
           </div>
@@ -284,7 +287,7 @@ export function DataSection() {
               disabled={exporting}
             >
               <Share2 className="h-4 w-4" />
-              {exporting ? "Preparing..." : "Share / send to cloud"}
+              {exporting ? t("backup.preparing") : t("backup.share")}
             </Button>
             <Button
               variant="outline"
@@ -296,8 +299,7 @@ export function DataSection() {
             </Button>
           </div>
           <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-            Use the share sheet for Drive, iCloud or a message to yourself — the
-            backup lives in your cloud, we keep no copy.
+            {t("backup.shareHint")}
           </p>
         </div>
 
@@ -310,7 +312,7 @@ export function DataSection() {
             <div className="min-w-0 flex-1">
               <div className="font-medium">{t("backup.restore")}</div>
               <div className="text-xs text-muted-foreground">
-                Pick a file, then choose how to load it
+                {t("backup.pickHint")}
               </div>
             </div>
           </div>
@@ -320,7 +322,7 @@ export function DataSection() {
             onClick={() => fileInputRef.current?.click()}
             disabled={importing}
           >
-            Choose file
+            {t("backup.chooseFile")}
           </Button>
           <input
             ref={fileInputRef}

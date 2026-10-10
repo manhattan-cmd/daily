@@ -1017,3 +1017,30 @@ input[type="number"] {
 :root[data-skin="brutal"] .recharts-line-curve { stroke-width: 3px; }
 :root[data-skin="brutal"] .recharts-dot { stroke: #111; stroke-width: 1.5px; }
 :root[data-skin="brutal"] .recharts-tooltip-wrapper > div { border: 2px solid #111 !important; border-radius: 10px !important; box-shadow: 3px 3px 0 #111 !important; background: #fff !important; color: #111 !important; }
+
+/* -- Brutal ayarlar -- */
+/* Kart basliklarindaki simge kutulari: sari, cerceveli, siyah simge */
+:root[data-skin="brutal"] [data-settings] .h-10.w-10.rounded-xl {
+  background: #ffd23f !important; box-shadow: inset 0 0 0 2px #111, 2px 2px 0 #111; border-radius: 11px;
+}
+:root[data-skin="brutal"] [data-settings] .h-10.w-10.rounded-xl svg,
+:root[data-skin="brutal"] [data-settings] .h-10.w-10.rounded-xl svg * { color: #111 !important; }
+/* Kart ici ayraclar kalin siyah */
+:root[data-skin="brutal"] [data-settings] .rounded-2xl .border-t,
+:root[data-skin="brutal"] [data-settings] .rounded-2xl .border-b { border-color: #111 !important; border-width: 2px 0 0 0; }
+/* Basliklar ve aciklamalar */
+:root[data-skin="brutal"] [data-settings] .font-medium { font-weight: 900; color: #111; }
+:root[data-skin="brutal"] [data-settings] .text-muted-foreground:not(h2) { color: #111; opacity: 0.7; }
+:root[data-skin="brutal"] [data-settings] p.text-sm { font-weight: 600; opacity: 0.85; }
+/* Secili tema satiri sari; renk ornegi cerceveli */
+:root[data-skin="brutal"] [data-settings] button[aria-pressed="true"] { background: #ffd23f; }
+:root[data-skin="brutal"] [data-settings] button[aria-pressed] > span.overflow-hidden:first-child {
+  border: 2px solid #111 !important; box-shadow: 2px 2px 0 #111; border-radius: 8px;
+}
+:root[data-skin="brutal"] [data-settings] button[aria-pressed] svg { color: #111 !important; }
+/* Kalici / degil etiketi */
+:root[data-skin="brutal"] [data-settings] .rounded-full.text-\[10px\] { border: 2px solid #111; color: #111 !important; background: #7ae582 !important; }
+:root[data-skin="brutal"] [data-settings] .bg-amber-500\/15 { background: #ffd23f !important; }
+:root[data-skin="brutal"] [data-settings] .text-amber-400\/90,
+:root[data-skin="brutal"] [data-settings] .text-amber-400 { color: #b45309 !important; font-weight: 700; }
+:root[data-skin="brutal"] [data-settings] button[aria-pressed="true"] .text-sm { font-weight: 900; color: #111; }

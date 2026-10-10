@@ -40,7 +40,7 @@ export default function SettingsPage() {
         back="/"
       />
 
-      <div className="flex flex-col gap-6 pb-6">
+      <div data-settings="" className="flex flex-col gap-6 pb-6">
         <section>
           <h2 className={heading}>{t("settings.appSection")}</h2>
           <div className="flex flex-col gap-3">
