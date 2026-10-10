@@ -2560,3 +2560,71 @@ export async function listRecentNotes(limit = 20): Promise<Note[]> {
     .sort((a, b) => noteMoment(b) - noteMoment(a))
     .slice(0, limit);
 }
+
+/**
+ * Brütal yapı sayfalarının sayıları — kategori kartı ve özet kutuları.
+ * `subs`: kategori/alt kategorinin altındaki alt kategori sayısı (kök
+ * gizli alt kategorisi sayılmaz), `entries`: alt ağaçtaki girdi sayısı.
+ * `money`: bu yere (ya da üstlerine) bağlı, birimi olan ilk sayısal özelliğin
+ * alt ağaçtaki toplamı ve ortalaması (Harcamalar → Para, ₺).
+ */
+export type StructureSummary = {
+  subs: number;
+  entries: number;
+  money?: { name: string; unit: string; total: number; avg: number; count: number };
+};
+
+export async function structureSummary(
+  categoryId: string,
+  subId?: string
+): Promise<StructureSummary> {
+  const subs = await db.subcategories.where("categoryId").equals(categoryId).toArray();
+  const byId = new Map(subs.map((s) => [s.id, s]));
+  let ids: Set<string>;
+  if (subId) {
+    ids = new Set([subId]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const s of subs)
+        if (s.parentId && ids.has(s.parentId) && !ids.has(s.id)) {
+          ids.add(s.id);
+          grew = true;
+        }
+    }
+  } else ids = new Set(subs.map((s) => s.id));
+  const childCount = subs.filter((s) => !s.isCategoryRoot && ids.has(s.id) && s.id !== subId).length;
+  const entries = await db.entries.where("subcategoryId").anyOf([...ids]).toArray();
+
+  // Bu yer ve üstleri: kategori, alt kategori zinciri
+  const targets = [categoryId];
+  for (let cur = subId ? byId.get(subId) : undefined; cur; cur = cur.parentId ? byId.get(cur.parentId) : undefined)
+    targets.push(cur.id);
+  const atts = await db.categoryModifiers.where("targetId").anyOf(targets).toArray();
+  const mods = await db.mods.bulkGet(atts.map((a) => a.modId).filter((x): x is string => !!x));
+  const money = mods.find((m) => m && (m.valueType ?? "number") === "number" && m.unit?.trim());
+  let summary: StructureSummary["money"];
+  if (money && entries.length) {
+    const vals = await db.entryValues.where("entryId").anyOf(entries.map((e) => e.id)).toArray();
+    const nums = vals.filter((v) => v.modId === money.id).map((v) => Number(v.value)).filter(Number.isFinite);
+    if (nums.length) {
+      const total = nums.reduce((a, b) => a + b, 0);
+      summary = { name: money.name, unit: money.unit!.trim(), total, avg: total / nums.length, count: nums.length };
+    }
+  }
+  return { subs: childCount, entries: entries.length, money: summary };
+}
+
+/** Her kategori için alt kategori ve girdi sayısı — brütal kategori kartları */
+export async function listCategoryCounts(): Promise<Map<string, { subs: number; entries: number }>> {
+  const [subs, entries] = await Promise.all([db.subcategories.toArray(), db.entries.toArray()]);
+  const catOf = new Map(subs.map((s) => [s.id, s.categoryId]));
+  const out = new Map<string, { subs: number; entries: number }>();
+  const get = (id: string) => out.get(id) ?? (out.set(id, { subs: 0, entries: 0 }), out.get(id)!);
+  for (const s of subs) if (!s.isCategoryRoot) get(s.categoryId).subs++;
+  for (const e of entries) {
+    const c = catOf.get(e.subcategoryId);
+    if (c) get(c).entries++;
+  }
+  return out;
+}

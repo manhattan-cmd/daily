@@ -65,6 +65,8 @@ interface DayEntrySheetProps {
   activityMode?: boolean;
   /** Var olan aktiviteye girdi eklerken: isim adımı atlanır, doğrudan seri giriş */
   presetActivity?: { id: string; name: string } | null;
+  /** Doğrudan bu kalemin formuyla açıl (yapı sayfalarındaki "Girdi ekle") */
+  presetSub?: SubCategory | null;
 }
 
 type Step =
@@ -72,6 +74,13 @@ type Step =
   | { type: "pick" }
   | { type: "form"; sub: SubCategory }
   | { type: "parallel-form"; sub: SubCategory; catName: string; queueIndex: number; queueTotal: number; groupId: string; carryover: Record<string, string> };
+
+/** Günün tarihi + şu anki saat ("YYYY-MM-DDTHH:mm") */
+function nowOnDay(date: string): string {
+  const [y, mo, d] = date.split("-").map(Number);
+  const n = new Date();
+  return toLocalDateTimeValue(new Date(y, mo - 1, d, n.getHours(), n.getMinutes(), 0, 0).getTime());
+}
 
 /**
  * Yalnız açıkken (ve kapanış animasyonu boyunca) DOM'da — kapalıyken
@@ -88,6 +97,7 @@ function DayEntrySheetBody({
   onClose,
   activityMode,
   presetActivity,
+  presetSub,
 }: DayEntrySheetProps) {
   const router = useRouter();
   const t = useT();
@@ -138,6 +148,9 @@ function DayEntrySheetBody({
         setStep({ type: "pick" });
       } else if (activityMode) {
         setStep({ type: "activity-name" });
+      } else if (presetSub) {
+        setOccurredAt(nowOnDay(date));
+        setStep({ type: "form", sub: presetSub });
       }
     }
   }

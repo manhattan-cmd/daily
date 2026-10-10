@@ -6,7 +6,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { BarChart3, Pencil, Trash2 } from "lucide-react";
-import { getSubCategory, getCategory } from "@/lib/db/queries";
+import { getSubCategory, getCategory, structureSummary } from "@/lib/db/queries";
+import { toLocalDateValue } from "@/lib/utils";
+import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
+import { BrutCta, BrutSubHeader, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
@@ -42,6 +45,15 @@ export function SubCategoryDetailPage({
   const [newParentId, setNewParentId] = useState<string>(subcategoryId);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  // Brütal tema: büyük başlık, üç renkli kutu, altta "Girdi ekle"
+  const brutal = useIsBrutal();
+  const summary = useLiveQuery(
+    () => (brutal ? structureSummary(categoryId, subcategoryId) : undefined),
+    [brutal, categoryId, subcategoryId]
+  );
+  const [today] = useState(() => toLocalDateValue());
+  const [entryOpen, setEntryOpen] = useState(false);
+
   const backPath = subcategory?.parentId
     ? routes.structureSub(categoryId, subcategory.parentId)
     : routes.structureCategory(categoryId);
@@ -52,6 +64,26 @@ export function SubCategoryDetailPage({
 
   return (
     <>
+      {brutal ? (
+        <>
+          <BrutTopStrip
+            back={backPath}
+            analyticsHref={routes.analyticsSub(categoryId, subcategoryId)}
+            onEdit={() => {
+              setEditingSelf(true);
+              setSubFormOpen(true);
+            }}
+            onDelete={() => setDeleteOpen(true)}
+          />
+          {subcategory && (
+            <BrutSubHeader
+              parentName={parentSub?.name ?? category?.name}
+              title={subcategory.name}
+              summary={summary}
+            />
+          )}
+        </>
+      ) : (
       <PageHeader
         title={subcategory?.name ?? "..."}
         description={category?.name}
@@ -92,6 +124,7 @@ export function SubCategoryDetailPage({
           )
         }
       />
+      )}
 
       {/* Özellik atomları */}
       {subcategory && (
@@ -131,6 +164,16 @@ export function SubCategoryDetailPage({
         selfName={subcategory?.name}
         color={category?.color}
       />
+
+      {brutal && subcategory && <BrutCta label={t("home.addEntry")} onClick={() => setEntryOpen(true)} />}
+      {brutal && (
+        <DayEntrySheet
+          date={today}
+          open={entryOpen && !!subcategory}
+          onClose={() => setEntryOpen(false)}
+          presetSub={subcategory ?? null}
+        />
+      )}
 
       <SubCategoryForm
         open={subFormOpen}

@@ -7,7 +7,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { BarChart3, Pencil, Trash2 } from "lucide-react";
-import { getCategory, deleteCategory } from "@/lib/db/queries";
+import {
+  getCategory,
+  deleteCategory,
+  getOrCreateCategoryRootSub,
+  structureSummary,
+} from "@/lib/db/queries";
+import type { SubCategory } from "@/types";
+import { toLocalDateValue } from "@/lib/utils";
+import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
+import { BrutCta, BrutHeroCard, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
@@ -33,6 +42,18 @@ export function CategoryDetailPage({
   const [newParentId, setNewParentId] = useState<string | undefined>();
   const [catFormOpen, setCatFormOpen] = useState(false);
 
+  // Brütal tema: renkli başlık kartı, sayılar, altta "Girdi ekle"
+  const brutal = useIsBrutal();
+  const summary = useLiveQuery(
+    () => (brutal ? structureSummary(categoryId) : undefined),
+    [brutal, categoryId]
+  );
+  const [today] = useState(() => toLocalDateValue());
+  const [entrySub, setEntrySub] = useState<SubCategory | null>(null);
+  async function openEntry() {
+    setEntrySub(await getOrCreateCategoryRootSub(categoryId));
+  }
+
   async function onDeleteCategory() {
     if (!category) return;
     const ok = await confirmDialog({
@@ -48,6 +69,25 @@ export function CategoryDetailPage({
 
   return (
     <>
+      {brutal ? (
+        <>
+          <BrutTopStrip
+            back="/structure"
+            analyticsHref={routes.analyticsCategory(categoryId)}
+            onEdit={() => setCatFormOpen(true)}
+            onDelete={onDeleteCategory}
+          />
+          {category && (
+            <BrutHeroCard
+              color={category.color}
+              icon={category.icon}
+              overline={t("brut.category")}
+              title={category.name}
+              summary={summary}
+            />
+          )}
+        </>
+      ) : (
       <PageHeader
         title={category?.name ?? "..."}
         description={t("tree.subcategoriesAndFeatures")}
@@ -85,6 +125,7 @@ export function CategoryDetailPage({
           )
         }
       />
+      )}
 
       {/* Özellik atomları */}
       {category && (
@@ -120,6 +161,16 @@ export function CategoryDetailPage({
         selfName={category?.name}
         color={category?.color}
       />
+
+      {brutal && category && <BrutCta label={t("home.addEntry")} onClick={openEntry} />}
+      {brutal && (
+        <DayEntrySheet
+          date={today}
+          open={!!entrySub}
+          onClose={() => setEntrySub(null)}
+          presetSub={entrySub}
+        />
+      )}
 
       <SubCategoryForm
         open={subFormOpen}

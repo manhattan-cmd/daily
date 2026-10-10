@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useIsBrutal } from "@/components/structure/brutal";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { db } from "@/lib/db";
@@ -59,6 +60,7 @@ type Usage = { count: number; places: Place[]; valueCount: number };
 
 export default function ModsHomePage() {
   const t = useT();
+  const brutal = useIsBrutal();
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
   const [measure, setMeasure] = useState<ModMeasure>({ valueType: "number" });
@@ -289,6 +291,28 @@ export default function ModsHomePage() {
               {/* Kartta YALNIZ ad. Birim, aralık ve seçenekler eskiden adın
                   altındaydı; iki sütunda yan yana gelince liste okunmuyordu —
                   hepsi atoma dokununca açılan detayda. */}
+              {brutal ? (
+                /* Brütal: tek sütun satırlar — tür etiketi ve kayıt sayısı */
+                <div className="flex flex-col gap-2">
+                  {g.items.map((mod) => (
+                    <button
+                      key={mod.id}
+                      type="button"
+                      onClick={() => openDetail(mod)}
+                      className="flex items-center gap-2.5 rounded-xl border-2 border-[#111] bg-white px-2.5 py-2 text-left text-[#111] shadow-[2px_2px_0_#111] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                    >
+                      <ModAtomCore icon={modAtomIcon(mod)} size="sm" color={modColor(mod)} />
+                      <span className="min-w-0 flex-1 truncate text-[13.5px] font-extrabold">{mod.name}</span>
+                      <span className="shrink-0 rounded-full border-2 border-[#111] bg-white px-2 text-[10.5px] font-extrabold">
+                        {g.label}
+                      </span>
+                      <span className="w-9 shrink-0 text-right text-[13px] font-black tabular-nums">
+                        {usage?.get(mod.id)?.valueCount ?? 0}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
               <div className="grid grid-cols-2 gap-1.5">
                 {g.items.map((mod) => (
                   <button
@@ -308,6 +332,7 @@ export default function ModsHomePage() {
                   </button>
                 ))}
               </div>
+              )}
             </div>
           ))}
 

@@ -38,6 +38,8 @@ type SubMods = { name?: string; entryType: EntryType }[];
 type TreeData = {
   childrenMap: Map<string, SubCategory[]>;
   modsBySub: Map<string, SubMods>;
+  /** Alt ağaçtaki girdi sayısı — Brütal temada satırın etiketi */
+  entriesBySub: Map<string, number>;
 };
 
 /** Sürükleme sırasında parmağın altındaki bırakma hedefi */
@@ -113,7 +115,19 @@ export function SubCategoryTree({
     for (const list of childrenMap.values()) {
       list.sort((a, b) => a.order - b.order);
     }
-    return { childrenMap, modsBySub };
+    // Girdi sayısı: kendisi + bütün altı
+    const entries = await db.entries.where("subcategoryId").anyOf([...subIds]).toArray();
+    const own = new Map<string, number>();
+    for (const e of entries) own.set(e.subcategoryId, (own.get(e.subcategoryId) ?? 0) + 1);
+    const entriesBySub = new Map<string, number>();
+    const total = (id: string): number => {
+      if (entriesBySub.has(id)) return entriesBySub.get(id)!;
+      const n = (own.get(id) ?? 0) + (childrenMap.get(id) ?? []).reduce((a, c) => a + total(c.id), 0);
+      entriesBySub.set(id, n);
+      return n;
+    };
+    for (const s of visible) total(s.id);
+    return { childrenMap, modsBySub, entriesBySub };
   }, [categoryId]);
 
   // Başka kategoriye taşıma seçicisi için diğer kategoriler
@@ -255,7 +269,7 @@ export function SubCategoryTree({
       {roots.length > 0 && !drag && (
         <p className="flex items-center gap-1.5 px-1 pb-1.5 text-[11px] leading-snug text-muted-foreground/50">
           <Move className="h-3 w-3 shrink-0" />
-          Hold and drag: move under another row, to the root, or delete
+          {t("tree.dragHint")}
         </p>
       )}
 
@@ -450,6 +464,7 @@ function TreeNode({
   onAddChild: (parentSubId?: string) => void;
   onDragStart: (sub: SubCategory, pos: { x: number; y: number }) => void;
 }) {
+  const t = useT();
   const kids = data.childrenMap.get(sub.id) ?? [];
   const mods = data.modsBySub.get(sub.id) ?? [];
   // Kökler dolu geliyorsa hiyerarşi ilk bakışta görünsün
@@ -468,7 +483,7 @@ function TreeNode({
 
   return (
     <div className="flex flex-col gap-0.5">
-      <div className="flex items-center gap-0.5">
+      <div data-tree-row="" className="flex items-center gap-0.5">
         <Link
           href={routes.structureSub(categoryId, sub.id)}
           prefetch={false}
@@ -505,12 +520,18 @@ function TreeNode({
           {/* Kaç alt kalemi var — hiyerarşi satırdan okunsun */}
           {kids.length > 0 && (
             <span
+              data-brut-hide=""
               className="shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums"
               style={{ backgroundColor: `${color}1f`, color: `${color}dd` }}
             >
               {kids.length}
             </span>
           )}
+
+          {/* Girdi sayısı — yalnız Brütal temada görünür (bkz. globals.css) */}
+          <span data-brut-only="" className="shrink-0 rounded-full border-2 border-[#111] bg-[#ffd23f] px-1.5 text-[11px] font-black tabular-nums text-[#111]">
+            {data.entriesBySub.get(sub.id) ?? 0}
+          </span>
 
           {mods.length > 0 && (
             <span className="flex shrink-0 items-center gap-1 pl-0.5">
@@ -577,7 +598,7 @@ function TreeNode({
           ))}
           <AddRow
             color={color}
-            label={`${sub.name} add inside`}
+            label={t("tree.addInside", { name: sub.name })}
             onClick={() => onAddChild(sub.id)}
           />
         </div>
