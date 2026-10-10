@@ -113,8 +113,10 @@ export function SleepCard({
         {/* Alt bölüm — aralık kapsülü, sağda kalite */}
         <div className="mt-2 flex items-center gap-2 border-t border-[var(--ln-1)] pt-2">
           <span
+            data-capsule=""
             className="inline-flex min-w-0 items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2.5"
             style={{
+              ["--cap-c" as string]: color,
               background: `${color}1f`,
               boxShadow: `inset 0 0 0 1px ${color}47`,
             }}
@@ -142,7 +144,7 @@ export function SleepCard({
           </span>
 
           {qualityNum !== null && !Number.isNaN(qualityNum) && (
-            <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <div data-quality="" className="ml-auto flex shrink-0 items-center gap-1.5">
               <span className="text-[11px] font-semibold tabular-nums" style={{ color }}>
                 {qualityNum}/{qualityMax}
               </span>

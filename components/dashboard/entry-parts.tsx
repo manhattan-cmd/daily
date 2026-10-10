@@ -132,6 +132,7 @@ export function ValueCapsule({
       data-capsule=""
       className="inline-flex items-center gap-1 rounded-full py-0.5 pl-0.5 pr-2"
       style={{
+        ["--cap-c" as string]: c,
         background: `${c}14`,
         boxShadow: `inset 0 0 0 1px ${c}33`,
       }}
