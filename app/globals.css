@@ -916,8 +916,6 @@ input[type="number"] {
   align-self: stretch; height: auto; width: 24px; border-radius: 0;
   background: var(--cap-c) !important; box-shadow: inset -2px 0 0 #111 !important; padding-right: 2px;
 }
-:root[data-skin="brutal"] [data-capsule] > span:first-child svg,
-:root[data-skin="brutal"] [data-capsule] > span:first-child svg * { color: #ffffff !important; }
 :root[data-skin="brutal"] [data-capsule] > span:not(:first-child),
 :root[data-skin="brutal"] [data-capsule] > span:not(:first-child) * { color: #111 !important; }
 :root[data-skin="brutal"] [data-capsule] > span:nth-child(2) { font-family: var(--font-mono), monospace; font-weight: 800; }
@@ -930,3 +928,10 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-note-capsule] *,
 :root[data-skin="brutal"] [data-note-capsule] svg * { color: #111 !important; }
 :root[data-skin="brutal"] [data-note-capsule] p { font-weight: 600; line-height: 18px; }
+
+/* Brutal kapsul simgesi: renkli bolmede siyah (acik renklerde beyaz okunmuyordu) */
+:root[data-skin="brutal"] [data-capsule] > span:first-child svg,
+:root[data-skin="brutal"] [data-capsule] > span:first-child svg * { color: #111 !important; }
+/* Yalniz simgeden olusan kapsul (ruh halindeki duygular): kare, bos bolme yok */
+:root[data-skin="brutal"] [data-capsule]:has(> span:only-child) { padding: 0 !important; width: 30px; min-height: 30px; }
+:root[data-skin="brutal"] [data-capsule] > span:only-child { width: 100%; box-shadow: none !important; padding: 0; justify-content: center; }

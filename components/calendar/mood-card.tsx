@@ -177,7 +177,7 @@ export function MoodCard({
           )}
 
           {hasLevel && (
-            <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <div data-quality="" className="ml-auto flex shrink-0 items-center gap-1.5">
               <span className="text-[11px] font-semibold tabular-nums" style={{ color }}>
                 {level}/{levelMax}
               </span>
