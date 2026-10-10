@@ -123,7 +123,7 @@ export function MoodCard({
         </div>
 
         {/* Alt bölüm — duygu kapsülleri, sağda mutluluk skalası */}
-        <div className="mt-2 flex items-center gap-2 border-t border-[var(--ln-1)] pt-2">
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-[var(--ln-1)] pt-2">
           {emotions.length > 0 ? (
             <span className="flex min-w-0 items-center gap-1 overflow-hidden">
               {emotions.slice(0, MAX_FACES).map((e) => {

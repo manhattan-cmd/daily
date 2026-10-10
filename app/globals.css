@@ -903,13 +903,18 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-brut-add] button.bg-primary svg,
 :root[data-skin="brutal"] [data-brut-add] button.bg-primary svg * { color: #ffd23f !important; }
 
-/* Brutal kart icleri: ozellik kapsulleri ve not */
+/* Brutal kart icleri: ozellik kapsulleri ve not.
+   Kapsul gercek kenarlikli; soldaki simge ayri cerceveli karo degil, kapsulun
+   ic kenarina yaslanan renkli bolme (cift cerceve kaba duruyordu). */
 :root[data-skin="brutal"] [data-capsule] {
-  background: #ffffff !important; box-shadow: inset 0 0 0 2px #111, 2px 2px 0 #111 !important;
-  border-radius: 9px; padding-top: 2px; padding-bottom: 2px; padding-left: 3px;
+  background: #ffffff !important; box-shadow: 2px 2px 0 #111 !important;
+  border: 2px solid #111; border-radius: 9px; overflow: hidden;
+  padding: 0 8px 0 0 !important; gap: 6px; align-items: stretch; min-height: 26px;
 }
+:root[data-skin="brutal"] [data-capsule] > * { align-self: center; }
 :root[data-skin="brutal"] [data-capsule] > span:first-child {
-  background: var(--cap-c) !important; box-shadow: inset 0 0 0 2px #111 !important; border-radius: 6px;
+  align-self: stretch; height: auto; width: 24px; border-radius: 0;
+  background: var(--cap-c) !important; box-shadow: inset -2px 0 0 #111 !important; padding-right: 2px;
 }
 :root[data-skin="brutal"] [data-capsule] > span:first-child svg,
 :root[data-skin="brutal"] [data-capsule] > span:first-child svg * { color: #ffffff !important; }
