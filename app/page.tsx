@@ -98,6 +98,7 @@ export default function HomePage() {
         <Link
           href="/settings"
           aria-label={t("nav.settings")}
+          data-brut-sq=""
           className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
         >
           <Settings className="h-4 w-4" />
@@ -108,7 +109,7 @@ export default function HomePage() {
       <BackupReminder />
 
       {/* Bugün — günün özeti + doğrudan girdi ekleme */}
-      <section className="mb-4 overflow-hidden rounded-2xl border border-border bg-card">
+      <section data-home-today="" className="mb-4 overflow-hidden rounded-2xl border border-border bg-card">
         <Link
           href={routes.day(today)}
           className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-[var(--sf-1)]"
@@ -161,6 +162,7 @@ export default function HomePage() {
       <button
         type="button"
         onClick={() => setSheetOpen(true)}
+        data-home-cta=""
         className="group mb-6 flex w-full items-center gap-3.5 overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent px-4 py-4 text-left transition-all hover:border-primary/60 hover:from-primary/25 active:scale-[0.99]"
       >
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform group-hover:scale-105">

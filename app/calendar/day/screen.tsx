@@ -39,7 +39,7 @@ import {
   EntrySelectionBar,
   type EntrySelection,
 } from "@/components/calendar/entry-selection";
-import { useT } from "@/lib/i18n";
+import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { toLocalDateValue } from "@/lib/utils";
 import { routes } from "@/lib/routes";
 
@@ -87,13 +87,13 @@ function groupEntries(entries: EntryWithContext[]): EntryItem[] {
   return result;
 }
 
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-const WEEKDAYS_LONG = [
-  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
-];
+/** Ay ve gün adları uygulamanın dilinde (eskiden sabit İngilizce diziydi) */
+function monthName(i: number, tag: string): string {
+  return new Date(2026, i, 1).toLocaleDateString(tag, { month: "long" });
+}
+function weekdayLong(d: Date, tag: string): string {
+  return d.toLocaleDateString(tag, { weekday: "long" });
+}
 
 export function CalendarDayPage({
   params,
@@ -102,6 +102,7 @@ export function CalendarDayPage({
 }) {
   const { date } = params;
   const t = useT();
+  const tag = intlTag(useLocale());
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetActivityMode, setSheetActivityMode] = useState(false);
@@ -217,7 +218,7 @@ export function CalendarDayPage({
           </Link>
 
           {/* Komşu günler — tek parça, sönük; gün geçişi göz almasın */}
-          <div className="flex shrink-0 items-center rounded-full border border-border/70 bg-card/40">
+          <div data-brut-nav="" className="flex shrink-0 items-center rounded-full border border-border/70 bg-card/40">
             <Link
               href={routes.day(shift(-1))}
               prefetch={false}
@@ -241,14 +242,14 @@ export function CalendarDayPage({
         <div className="flex items-end justify-between gap-4">
           <div className="flex-1 min-w-0">
             <p className="text-sm text-muted-foreground mb-0.5">
-              {WEEKDAYS_LONG[d.getDay()]}
+              {weekdayLong(d, tag)}
             </p>
             <h1 className="text-3xl font-bold tracking-tight leading-none">
-              {d.getDate()} {MONTHS[d.getMonth()]}
+              {d.getDate()} {monthName(d.getMonth(), tag)}
             </h1>
             <div className="mt-1.5 flex items-center gap-2">
               {isToday ? (
-                <span className="text-xs font-semibold text-primary">Today</span>
+                <span className="text-xs font-semibold text-primary">{t("datetime.today")}</span>
               ) : (
                 <span className="text-xs text-muted-foreground">{d.getFullYear()}</span>
               )}

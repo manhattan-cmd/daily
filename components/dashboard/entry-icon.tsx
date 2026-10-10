@@ -31,6 +31,7 @@ export function EntryIcon({
 
   return (
     <div
+      data-entry-icon=""
       className={cn(
         "flex shrink-0 items-center justify-center",
         boxCls,

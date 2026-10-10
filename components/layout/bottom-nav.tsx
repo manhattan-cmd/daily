@@ -41,6 +41,7 @@ function NavItem({
   return (
     <Link
       href={href}
+      data-active={active ? "" : undefined}
       className={cn(
         "flex flex-1 flex-col items-center gap-1 py-3 text-xs transition-colors",
         active ? "text-foreground" : "text-muted-foreground"

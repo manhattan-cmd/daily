@@ -113,6 +113,8 @@ export function ActivityCard({
   return (
     <>
       <div
+        data-entry-card=""
+        style={{ ["--card-c" as string]: "#06b6d4" }}
         className={cn(
           "group relative select-none touch-manipulation overflow-hidden rounded-2xl border transition-colors",
           "border-cyan-500/45 bg-card bg-gradient-to-br from-cyan-500/14 via-cyan-500/5 to-transparent",

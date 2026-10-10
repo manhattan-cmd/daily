@@ -111,6 +111,7 @@ function PlainEntryCard({
           if (e.key === "Enter") setEditOpen(true);
         }}
         {...(selection && !selection.active ? longPress : {})}
+        data-entry-card=""
         className={cn(
           "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border px-2.5 py-2 text-left transition-transform active:scale-[0.99]",
           selection?.selected && selectedCardClass
@@ -120,13 +121,14 @@ function PlainEntryCard({
           // Asıl sorun zeminde: degrade "transparent"a inince kartın alt-sağı
           // sayfayla aynı renk oluyor, kart bitmiyordu. Degradenin ALTINA
           // kartın kendi zemini kondu — renk tonu duruyor, sınır belli.
+          ["--card-c" as string]: color,
           borderColor: `${color}59`,
           background: `linear-gradient(135deg, ${color}24, ${color}0d 45%, transparent), var(--card)`,
         }}
         aria-label={`${entry.subcategory.name} girdisini düzenle`}
       >
         {/* Künye — sembol düşeyde ortalı, sağda tarih + eylemler tek bölüm */}
-        <div className="flex items-center gap-2">
+        <div data-entry-head="" className="flex items-center gap-2">
           <EntryIcon category={entry.category} subcategory={entry.subcategory} />
 
           <div className="min-w-0 flex-1">

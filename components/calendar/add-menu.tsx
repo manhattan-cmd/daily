@@ -112,7 +112,7 @@ export function AddMenu({ items }: { items: AddMenuItem[] }) {
                   transition: "opacity 200ms ease-out, background-color 150ms",
                 }}
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--sf-2)]">
+                <span data-menu-icon="" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--sf-2)]">
                   <Icon
                     className={cn("h-4 w-4", item.iconClass ?? "text-primary")}
                   />

@@ -29,7 +29,7 @@ export function StructureTabs() {
 
   return (
     <nav aria-label={t("structure.title")}>
-      <div className="relative grid grid-cols-4 rounded-full border border-border/70 bg-card/40 p-[3px]">
+      <div data-brut-tabs="" className="relative grid grid-cols-4 rounded-full border border-border/70 bg-card/40 p-[3px]">
         {activeIndex >= 0 && (
           <span
             aria-hidden
@@ -42,6 +42,7 @@ export function StructureTabs() {
             key={tab.href}
             href={tab.href}
             aria-current={i === activeIndex ? "page" : undefined}
+            data-active={i === activeIndex ? "" : undefined}
             className={cn(
               "relative z-10 truncate rounded-full px-1 py-1.5 text-center text-[11.5px] font-medium transition-colors",
               i === activeIndex

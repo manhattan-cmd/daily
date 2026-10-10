@@ -45,7 +45,7 @@ export function StructureAddButton({
 }) {
   const t = useT();
   return (
-    <Button size="sm" onClick={onClick} className="gap-1.5">
+    <Button size="sm" onClick={onClick} data-brut-label="" className="gap-1.5">
       <Plus className="h-3.5 w-3.5" />
       {t(labelKey)}
     </Button>

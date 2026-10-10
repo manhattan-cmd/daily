@@ -50,6 +50,7 @@ export function StatTile({
 }) {
   return (
     <div
+      data-stat-tile=""
       className={cn(
         "min-w-0 rounded-2xl border px-3.5 py-3",
         !color && "border-border bg-card"

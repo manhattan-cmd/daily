@@ -6,18 +6,25 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getMonthDaySummary } from "@/lib/db/queries";
 import { cn } from "@/lib/utils";
-import { useT } from "@/lib/i18n";
+import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { swallowNextClick } from "@/lib/use-long-press";
 import { routes } from "@/lib/routes";
 import { prefetchDayOnPress } from "@/lib/db/day-cache";
 
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+/** Ay ve gün adları uygulamanın dilinde (eskiden sabit İngilizce diziydi) */
+function monthName(i: number, tag: string): string {
+  return new Date(2026, i, 1).toLocaleDateString(tag, { month: "long" });
+}
+/** Pazartesiden başlayan kısa gün adları — 5 Ocak 2026 bir pazartesi */
+function weekdaysShort(tag: string): string[] {
+  return Array.from({ length: 7 }, (_, i) =>
+    new Date(2026, 0, 5 + i).toLocaleDateString(tag, { weekday: "short" })
+  );
+}
 
 export default function CalendarPage() {
+  // Dil telefonda sonradan okunuyor; kancaya bağlı ki adlar onunla yenilensin
+  const tag = intlTag(useLocale());
   const t = useT();
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
@@ -169,6 +176,7 @@ export default function CalendarPage() {
       <div className="flex items-center justify-between mb-8">
         <button
           onClick={prevMonth}
+          data-brut-sq=""
           className="h-10 w-10 flex items-center justify-center rounded-2xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label={t("selection.previousDay")}
         >
@@ -177,13 +185,14 @@ export default function CalendarPage() {
 
         <div className="text-center" style={glideStyle}>
           <h1 className="text-xl font-semibold tracking-tight">
-            {MONTHS[month]}
+            {monthName(month, tag)}
           </h1>
           <p className="text-sm text-muted-foreground tabular-nums">{year}</p>
         </div>
 
         <button
           onClick={nextMonth}
+          data-brut-sq=""
           className="h-10 w-10 flex items-center justify-center rounded-2xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label={t("selection.nextDay")}
         >
@@ -194,9 +203,10 @@ export default function CalendarPage() {
       <div style={glideStyle}>
       {/* Weekday headers */}
       <div className="grid grid-cols-7 mb-1">
-        {WEEKDAYS.map((d) => (
+        {weekdaysShort(tag).map((d, i) => (
           <div
-            key={d}
+           
+            key={i}
             className="flex items-center justify-center py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60"
           >
             {d}
@@ -205,7 +215,7 @@ export default function CalendarPage() {
       </div>
 
       {/* Day grid */}
-      <div className="grid grid-cols-7 gap-y-1">
+      <div data-cal-grid="" className="grid grid-cols-7 gap-y-1">
         {cells.map((day, i) => {
           if (!day) return <div key={`e-${i}`} className="aspect-square" />;
 
@@ -228,9 +238,13 @@ export default function CalendarPage() {
               onDragStart={(e) => e.preventDefault()}
               aria-label={
                 hasEntries
-                  ? `${day} ${MONTHS[month]} · ${info!.count} girdi`
-                  : `${day} ${MONTHS[month]}`
+                  ? `${day} ${monthName(month, tag)} · ${info!.count} girdi`
+                  : `${day} ${monthName(month, tag)}`
               }
+             
+              data-cal-day=""
+              data-has={hasEntries ? "" : undefined}
+              data-today={isToday ? "" : undefined}
               className={cn(
                 "relative flex aspect-square flex-col items-center justify-center rounded-2xl transition-all active:scale-95",
                 isToday

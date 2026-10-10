@@ -77,6 +77,7 @@ export function MoodCard({
           if (e.key === "Enter") setEditOpen(true);
         }}
         {...(selection && !selection.active ? longPress : {})}
+        data-entry-card=""
         className={cn(
           "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border px-2.5 py-2 text-left transition-transform active:scale-[0.99]",
           selection?.selected && selectedCardClass
@@ -85,13 +86,14 @@ export function MoodCard({
         // globals.css'teki katmansız `*` kuralı yüzünden uygulanmıyor
         // (bkz. sleep-card)
         style={{
+          ["--card-c" as string]: color,
           borderColor: `${color}73`,
           background: `linear-gradient(135deg, ${color}24, ${color}0d 45%, transparent), var(--card)`,
         }}
         aria-label={t("mood.edit")}
       >
         {/* Künye — sembol, başlık, sağda tarih */}
-        <div className="flex items-center gap-2">
+        <div data-entry-head="" className="flex items-center gap-2">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
             style={{ background: `${color}33` }}>
             {hasLevel ? (

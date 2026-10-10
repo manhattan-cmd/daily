@@ -85,17 +85,19 @@ export function LinkedEntryCard({
         }}
         {...(selection && !selection.active ? longPress : {})}
         aria-label={`${shared.subcategory.name} girdisini düzenle`}
+        data-entry-card=""
         className={cn(
           "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border px-2.5 py-2 text-left transition-transform active:scale-[0.99]",
           selection?.selected && selectedCardClass
         )}
         style={{
+          ["--card-c" as string]: VIOLET,
           borderColor: `${VIOLET}66`,
           background: `linear-gradient(135deg, ${VIOLET}24, ${VIOLET}0d 45%, transparent), var(--card)`,
         }}
       >
         {/* Künye */}
-        <div className="flex items-center gap-2">
+        <div data-entry-head="" className="flex items-center gap-2">
           <EntryIcon
             category={shared.category}
             subcategory={shared.subcategory}
