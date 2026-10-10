@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -41,6 +41,7 @@ import {
 } from "@/components/calendar/entry-selection";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { toLocalDateValue } from "@/lib/utils";
+import { useSkin } from "@/lib/skin";
 import { routes } from "@/lib/routes";
 
 type EntryItem =
@@ -49,6 +50,15 @@ type EntryItem =
   | { type: "activity"; activityId: string; entries: EntryWithContext[] };
 
 /** Önce aktiviteye, sonra paralel gruba (linkedGroupId) göre katlar */
+/** Öğenin zamanı — zaman akışındaki saat damgası için */
+function itemTime(item: EntryItem): number {
+  return item.type === "single" ? item.entry.occurredAt : item.entries[0].occurredAt;
+}
+/** "21:00" — saat başı damga */
+function hourLabel(ts: number): string {
+  return `${String(new Date(ts).getHours()).padStart(2, "0")}:00`;
+}
+
 function groupEntries(entries: EntryWithContext[]): EntryItem[] {
   const result: EntryItem[] = [];
   const activityMap = new Map<string, EntryWithContext[]>();
@@ -103,6 +113,8 @@ export function CalendarDayPage({
   const { date } = params;
   const t = useT();
   const tag = intlTag(useLocale());
+  // Brütal tema: tarih kartı, sayı kutuları, dağılım çubuğu, saat damgalı akış
+  const brutal = useSkin() === "brutal";
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetActivityMode, setSheetActivityMode] = useState(false);
@@ -204,9 +216,142 @@ export function CalendarDayPage({
     [prevDay, nextDay]
   );
 
+  const addMenu = (
+    <AddMenu
+      items={[
+        {
+          key: "entry",
+          label: t("add.entry"),
+          icon: PenLine,
+          iconClass: "text-primary",
+          onSelect: () => {
+            setSheetActivityMode(false);
+            setPresetActivity(null);
+            setSheetOpen(true);
+          },
+        },
+        {
+          key: "activity",
+          label: t("add.activity"),
+          icon: Boxes,
+          iconClass: "text-cyan-400",
+          onSelect: () => {
+            setSheetActivityMode(true);
+            setPresetActivity(null);
+            setSheetOpen(true);
+          },
+        },
+        {
+          key: "goal",
+          label: t("add.goal"),
+          icon: Target,
+          iconClass: "text-amber-400",
+          onSelect: () => setGoalSheetOpen(true),
+        },
+        {
+          key: "note",
+          label: t("add.note"),
+          icon: NotebookPen,
+          iconClass: "text-rose-400",
+          // Yeni not da diğer kayıtlar gibi pencerede açılır
+          onSelect: async () => {
+            const note = await createNote(date);
+            setNewNoteId(note.id);
+          },
+        },
+        ...(hasSleepCategory
+          ? ([
+              {
+                key: "sleep",
+                label: t("add.sleep"),
+                icon: MoonStar,
+                iconClass: "text-violet-400",
+                onSelect: () => setSleepSheetOpen(true),
+              },
+            ] satisfies AddMenuItem[])
+          : []),
+        ...(hasMoodCategory
+          ? ([
+              {
+                key: "mood",
+                label: t("add.mood"),
+                icon: Smile,
+                iconClass: "text-pink-400",
+                onSelect: () => setMoodSheetOpen(true),
+              },
+            ] satisfies AddMenuItem[])
+          : []),
+      ]}
+    />
+  );
+
+  // Brütal başlığın sayıları
+  const dayCategories = [...new Map(otherEntries.map((e) => [e.category.id, e.category])).values()];
+  const goalsDone = (goals ?? []).filter((g) => g.completedEntryId).length;
+
   return (
     <>
-      {/* Header */}
+      {brutal ? (
+        <div className="pb-5 pt-safe">
+          {/* Tepe: takvime dön, komşu günler — kare düğmeler */}
+          <div className="flex items-center justify-between pt-4">
+            <Link href="/calendar" data-brut-sq="" aria-label={t("nav.calendar")} className="flex h-10 w-10 items-center justify-center">
+              <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={2.5} />
+            </Link>
+            <div className="flex gap-2">
+              <Link href={routes.day(shift(-1))} prefetch={false} data-brut-sq="" aria-label={t("day.prev")} className="flex h-10 w-10 items-center justify-center">
+                <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
+              </Link>
+              <Link href={routes.day(shift(1))} prefetch={false} data-brut-sq="" aria-label={t("day.next")} className="flex h-10 w-10 items-center justify-center">
+                <ChevronRight className="h-5 w-5" strokeWidth={2.5} />
+              </Link>
+            </div>
+          </div>
+
+          {/* Tarih kartı — gün adı, dev tarih, bugün etiketi, Ekle */}
+          <div className="mt-4 flex items-end gap-3 rounded-2xl border-2 border-[#111] bg-[#ffd23f] p-4 text-[#111] shadow-[5px_5px_0_#111]">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[12px] font-black uppercase tracking-wider">{weekdayLong(d, tag)}</span>
+                {isToday && (
+                  <span className="rounded-md bg-[#111] px-1.5 py-px text-[10.5px] font-black uppercase tracking-wider text-[#ffd23f]">
+                    {t("datetime.today")}
+                  </span>
+                )}
+              </div>
+              <h1 className="mt-1 text-[40px] font-black leading-[0.95] tracking-tight">
+                {d.getDate()} {monthName(d.getMonth(), tag)}
+              </h1>
+              <div className="mt-1 font-mono text-[13px] font-bold">{d.getFullYear()}</div>
+            </div>
+            <div data-brut-add="" className="shrink-0">{addMenu}</div>
+          </div>
+
+          {/* Sayılar — girdi, kategori, hedef */}
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {[
+              { l: t("brut.entries"), v: String(otherEntries.length), bg: "#8ea6ff" },
+              { l: t("brut.categories"), v: String(dayCategories.length), bg: "#7ae582" },
+              { l: t("brut.goals"), v: goals && goals.length ? `${goalsDone}/${goals.length}` : "–", bg: "#ff9ecd" },
+            ].map((b) => (
+              <div key={b.l} className="rounded-xl border-2 border-[#111] px-2.5 py-2 text-[#111] shadow-[3px_3px_0_#111]" style={{ background: b.bg }}>
+                <span className="block text-[10.5px] font-black uppercase tracking-wide">{b.l}</span>
+                <b className="block font-mono text-[22px] font-bold leading-7 tabular-nums">{b.v}</b>
+              </div>
+            ))}
+          </div>
+
+          {/* Gün analizi */}
+          <Link
+            href={routes.period(`d-${date}`)}
+            prefetch={false}
+            className="mt-3 flex h-10 items-center justify-between rounded-xl border-2 border-[#111] bg-white px-3 text-[13px] font-black uppercase tracking-wide text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          >
+            {t("day.insights")}
+            <ArrowRight className="h-4 w-4" strokeWidth={2.75} />
+          </Link>
+        </div>
+      ) : (
       <div className="pt-10 pb-5">
         <div className="mb-5 flex items-center justify-between gap-3">
           <Link
@@ -266,77 +411,13 @@ export function CalendarDayPage({
             </div>
           </div>
 
-          <AddMenu
-            items={[
-              {
-                key: "entry",
-                label: t("add.entry"),
-                icon: PenLine,
-                iconClass: "text-primary",
-                onSelect: () => {
-                  setSheetActivityMode(false);
-                  setPresetActivity(null);
-                  setSheetOpen(true);
-                },
-              },
-              {
-                key: "activity",
-                label: t("add.activity"),
-                icon: Boxes,
-                iconClass: "text-cyan-400",
-                onSelect: () => {
-                  setSheetActivityMode(true);
-                  setPresetActivity(null);
-                  setSheetOpen(true);
-                },
-              },
-              {
-                key: "goal",
-                label: t("add.goal"),
-                icon: Target,
-                iconClass: "text-amber-400",
-                onSelect: () => setGoalSheetOpen(true),
-              },
-              {
-                key: "note",
-                label: t("add.note"),
-                icon: NotebookPen,
-                iconClass: "text-rose-400",
-                // Yeni not da diğer kayıtlar gibi pencerede açılır
-                onSelect: async () => {
-                  const note = await createNote(date);
-                  setNewNoteId(note.id);
-                },
-              },
-              ...(hasSleepCategory
-                ? ([
-                    {
-                      key: "sleep",
-                      label: t("add.sleep"),
-                      icon: MoonStar,
-                      iconClass: "text-violet-400",
-                      onSelect: () => setSleepSheetOpen(true),
-                    },
-                  ] satisfies AddMenuItem[])
-                : []),
-              ...(hasMoodCategory
-                ? ([
-                    {
-                      key: "mood",
-                      label: t("add.mood"),
-                      icon: Smile,
-                      iconClass: "text-pink-400",
-                      onSelect: () => setMoodSheetOpen(true),
-                    },
-                  ] satisfies AddMenuItem[])
-                : []),
-            ]}
-          />
+          {addMenu}
         </div>
       </div>
+      )}
 
       {/* Divider */}
-      <div className="h-px bg-border mb-5" />
+      {!brutal && <div className="h-px bg-border mb-5" />}
 
       {/* Yerleşik akış yuvaları — yalnızca kayıt varsa. Ruh hali günde birden
           çok kez girilebiliyor, o yüzden kartlar sırayla dizilir. */}
@@ -437,6 +518,24 @@ export function CalendarDayPage({
             ];
             return (
               <>
+                {brutal ? (
+                  /* Dağılım çubuğu — günün kategorileri girdi payına göre bloklar */
+                  <div className="mb-2 flex flex-col gap-2">
+                    <span className="self-start rounded-md bg-[#111] px-2 py-0.5 text-[12px] font-black uppercase tracking-wider text-[#fff4dc]">
+                      {t("brut.entryCount", { n: items.length })}
+                    </span>
+                    <div className="flex h-5 overflow-hidden rounded-lg border-2 border-[#111] shadow-[2px_2px_0_#111]">
+                      {dayCats.map((c, i) => (
+                        <span
+                          key={c.id}
+                          title={c.name}
+                          className={i ? "border-l-2 border-[#111]" : undefined}
+                          style={{ background: c.color, flex: otherEntries.filter((e) => e.category.id === c.id).length }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
                 <div className="mb-1 flex items-center gap-2 px-1">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {items.length} girdi
@@ -457,8 +556,12 @@ export function CalendarDayPage({
                     </span>
                   )}
                 </div>
-                {items.map((item) =>
-                  item.type === "single" ? (
+                )}
+                {items.map((item, idx) => {
+                  // Brütal: saat değişince siyah saat damgası
+                  const stamp =
+                    brutal && (idx === 0 || hourLabel(itemTime(items[idx - 1])) !== hourLabel(itemTime(item)));
+                  const card = item.type === "single" ? (
                     <EntryCard
                       key={item.entry.id}
                       entry={item.entry}
@@ -486,8 +589,20 @@ export function CalendarDayPage({
                         item.entries.map((e) => `entry:${e.id}`)
                       )}
                     />
-                  )
-                )}
+                  );
+                  if (!stamp) return card;
+                  return (
+                    <Fragment key={`h-${idx}`}>
+                      <span className="mt-2 flex items-center gap-2">
+                        <span className="rounded-md border-2 border-[#111] bg-white px-2 py-0.5 font-mono text-[12.5px] font-bold text-[#111] shadow-[2px_2px_0_#111]">
+                          {hourLabel(itemTime(item))}
+                        </span>
+                        <span className="h-[2px] flex-1 bg-[#111]" />
+                      </span>
+                      {card}
+                    </Fragment>
+                  );
+                })}
               </>
             );
           })()}

@@ -904,3 +904,8 @@ input[type="number"] {
 }
 :root[data-skin="brutal"] [data-rail-item][aria-pressed="true"] > :last-child,
 :root[data-skin="brutal"] [data-rail-node][aria-pressed="true"] > :last-child { font-weight: 900; }
+
+/* Brutal gun sayfasi: sari tarih kartindaki Ekle siyah */
+:root[data-skin="brutal"] [data-brut-add] button.bg-primary { background: #111 !important; color: #ffd23f !important; }
+:root[data-skin="brutal"] [data-brut-add] button.bg-primary svg,
+:root[data-skin="brutal"] [data-brut-add] button.bg-primary svg * { color: #ffd23f !important; }
