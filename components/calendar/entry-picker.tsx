@@ -958,16 +958,19 @@ export function EntryPicker({
                         <div className="mb-1.5 text-[10.5px] font-black uppercase tracking-wider text-[#111]">
                           {t("brut.frequent")}
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
+                        {/* Not genişliği ada göre: kısa adlar yan yana, uzun ad (tek
+                            kelime de olsa) kendine yer açar — kelime bölünmez,
+                            kutudan taşmaz; en fazla bütün satır, sonra "…" */}
+                        <div className="flex flex-wrap gap-2">
                           {top.map(({ s, n }, i) => (
                             <button
                               key={s.id}
                               type="button"
                               onClick={() => onPick(s)}
-                              className="min-w-0 rounded-lg border-2 border-[#111] px-2 py-1.5 text-left text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                              className="min-w-[30%] max-w-full flex-auto rounded-lg border-2 border-[#111] px-2 py-1.5 text-left text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
                               style={{ background: bg[i] }}
                             >
-                              <SmartText text={s.name} lines={2} className="text-[12px] font-black leading-[15px]" />
+                              <SmartText text={s.name} className="text-[12px] font-black leading-[15px]" />
                               <span className="font-mono text-[11px] font-bold">{n}×</span>
                             </button>
                           ))}
