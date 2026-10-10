@@ -20,6 +20,7 @@ export const SKINS = [
   "retro",
   "neon",
   "mono",
+  "brutal",
 ] as const;
 export type Skin = (typeof SKINS)[number];
 
@@ -59,6 +60,11 @@ export const SKIN_META: Record<Skin, { name: string; hint: string; swatch: strin
     name: "Neon",
     hint: "Mor gece, camgöbeği parıltı",
     swatch: ["#06030F", "#0E0722", "#22E5FF", "#F0E9FF"],
+  },
+  brutal: {
+    name: "Brütal",
+    hint: "Krem kâğıt, kalın siyah çizgi, sert gölge",
+    swatch: ["#FFF4DC", "#FFFFFF", "#3A5BFF", "#111111"],
   },
   mono: {
     name: "Mono",

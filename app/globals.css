@@ -538,3 +538,133 @@ input[type="number"] {
     animation: none;
   }
 }
+
+/* ── Brütal (deneme) ───────────────────────────────────────────────────────
+   Neo-brütalizm: krem kâğıt zemin, simsiyah yazı ve çerçeve, sert ofset
+   gölge, kalın yazı. Diğer temalar yalnız renk değiştiriyor; bu tema
+   biçime de dokunuyor — kuralların hepsi :root[data-skin="brutal"] altında,
+   tema değişince hiçbiri kalmıyor. Satır içi renkli çerçeveler (kartlar,
+   özellik kutuları) !important ile ezilir; deneme beğenilmezse bu blok ve
+   lib/skin.ts'deki kayıt silinir. */
+:root[data-skin="brutal"] {
+  --background: #fff4dc;
+  --foreground: #111111;
+  --card: #ffffff;
+  --card-foreground: #111111;
+  --muted: #fbe9c4;
+  --muted-foreground: #4b4436;
+  --border: #111111;
+  --input: #ffffff;
+  --ring: #111111;
+  --primary: #3a5bff;
+  --primary-foreground: #ffffff;
+  --accent: #ffd23f;
+  --accent-foreground: #111111;
+  --destructive: #e5383b;
+  --destructive-foreground: #ffffff;
+
+  --sf-1: rgba(17,17,17,0.035);
+  --sf-2: rgba(17,17,17,0.07);
+  --sf-3: rgba(17,17,17,0.11);
+  --sf-4: rgba(17,17,17,0.16);
+  --ln-1: rgba(17,17,17,0.22);
+  --ln-2: rgba(17,17,17,0.38);
+  --ln-3: rgba(17,17,17,0.7);
+  --note-ground: #ffffff;
+  --map-label: #111111;
+  --map-label-halo: 0 1px 3px rgba(255,244,220,0.95);
+  --map-specular: rgba(255,255,255,0.4);
+  --map-empty: rgba(17,17,17,0.06);
+  --brut-shadow: 3px 3px 0 #111111;
+  --brut-shadow-lg: 5px 5px 0 #111111;
+}
+
+/* Yazı: bir kademe kalın */
+:root[data-skin="brutal"] .font-medium { font-weight: 600; }
+:root[data-skin="brutal"] .font-semibold { font-weight: 700; }
+:root[data-skin="brutal"] .font-bold { font-weight: 800; }
+:root[data-skin="brutal"] h1,
+:root[data-skin="brutal"] h2 { font-weight: 850; letter-spacing: -0.03em; }
+
+/* Çerçeveler: tam çerçeveli her şey 2 px siyah */
+:root[data-skin="brutal"] .border { border-width: 2px; border-color: #111 !important; }
+:root[data-skin="brutal"] .rounded-2xl.border,
+:root[data-skin="brutal"] .rounded-3xl.border { box-shadow: var(--brut-shadow) !important; }
+
+/* Pencereler */
+:root[data-skin="brutal"] [role="dialog"] {
+  border: 2px solid #111 !important;
+  box-shadow: var(--brut-shadow-lg) !important;
+}
+:root[data-skin="brutal"] [data-dialog-overlay] { background: rgba(17,17,17,0.35); backdrop-filter: none; }
+:root[data-skin="brutal"] [data-side-form] { outline: 2px solid #111; box-shadow: var(--brut-shadow-lg) !important; }
+:root[data-skin="brutal"] [data-glow] { display: none; }
+
+/* Düğmeler: dolu her düğme çerçeveli ve gölgeli, basınca gölgesine oturur */
+:root[data-skin="brutal"] button.bg-primary,
+:root[data-skin="brutal"] a.bg-primary,
+:root[data-skin="brutal"] button.bg-destructive {
+  border: 2px solid #111 !important;
+  box-shadow: var(--brut-shadow);
+  transition: transform 80ms, box-shadow 80ms;
+}
+:root[data-skin="brutal"] button.bg-primary:active,
+:root[data-skin="brutal"] button.bg-destructive:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 #111;
+}
+/* Kalemin renginde dolu ana düğmeler (Ekle, Kaydet) satır içi renkli */
+:root[data-skin="brutal"] button.h-12.rounded-2xl[style*="background"] {
+  border: 2px solid #111 !important;
+  box-shadow: var(--brut-shadow);
+  color: #111 !important;
+}
+
+/* Girdi kartları ve parçaları */
+:root[data-skin="brutal"] [data-capsule] {
+  box-shadow: inset 0 0 0 1.5px #111 !important;
+  background: #ffffff !important;
+}
+:root[data-skin="brutal"] [data-note-capsule] {
+  box-shadow: inset 0 0 0 1.5px #111 !important;
+}
+
+/* Girdi formundaki özellik kutuları */
+:root[data-skin="brutal"] [data-ledger-field] {
+  box-shadow: inset 0 0 0 2px #111, var(--brut-shadow) !important;
+}
+:root[data-skin="brutal"] [data-ledger-field] .bg-black\/25 {
+  background: #ffffff !important;
+  box-shadow: inset 0 0 0 2px #111 !important;
+}
+
+/* Koyu zemine göre yazılmış yarı saydam siyah oyuklar beyaz kâğıda döner */
+:root[data-skin="brutal"] .bg-black\/25,
+:root[data-skin="brutal"] .bg-black\/35 { background-color: #ffffff; }
+
+/* Alt menü: kalın üst çizgi, düz zemin */
+:root[data-skin="brutal"] [data-bottom-nav] {
+  border-top: 2px solid #111;
+  background: #fff4dc;
+  backdrop-filter: none;
+}
+
+/* Yazı alanları */
+:root[data-skin="brutal"] input.bg-input,
+:root[data-skin="brutal"] textarea.bg-input { box-shadow: inset 0 0 0 2px #111; }
+
+/* Brütal: kategori karoları ve özellik atomları düz renk, siyah çerçeve, beyaz simge */
+:root[data-skin="brutal"] [data-cat-tile],
+:root[data-skin="brutal"] [data-atom] {
+  background: var(--tile-c) !important;
+  box-shadow: inset 0 0 0 2px #111, 2px 2px 0 #111 !important;
+}
+:root[data-skin="brutal"] [data-cat-tile] > *,
+:root[data-skin="brutal"] [data-atom] > * { color: #fff !important; }
+/* Girdi seçicinin raydaki karoları */
+:root[data-skin="brutal"] [data-tile] { box-shadow: inset 0 0 0 2px #111, 2px 2px 0 #111 !important; }
+/* Alt menünün ortasındaki Bugün düğmesi */
+:root[data-skin="brutal"] [data-bottom-nav] .bg-primary {
+  border: 2px solid #111 !important;
+  box-shadow: var(--brut-shadow) !important;
+}

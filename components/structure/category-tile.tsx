@@ -37,6 +37,7 @@ export function CategoryTileCore({
   const iconSize = size === "lg" ? 28 : size === "sm" ? 16 : 20;
   return (
     <span
+      data-cat-tile=""
       className={cn(
         "flex shrink-0 items-center justify-center transition-shadow",
         size === "lg"
@@ -46,6 +47,8 @@ export function CategoryTileCore({
           : "h-12 w-12 rounded-xl"
       )}
       style={{
+        // Brütal tema rengi buradan okuyup karoyu düz renkle çiziyor
+        ["--tile-c" as string]: color,
         background: `linear-gradient(145deg, ${color}${alpha(0x42 + 0x2e * g)}, ${color}14)`,
         boxShadow: `inset 0 0 0 1px ${color}${alpha(0x55 + 0xaa * g)}, 0 0 ${
           14 + 18 * g

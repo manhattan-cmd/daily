@@ -40,6 +40,7 @@ const MAX_CAPSULES = 4;
 export function NoteCapsule({ text, color: c }: { text: string; color: string }) {
   return (
     <div
+      data-note-capsule=""
       className="flex w-full items-start gap-1.5 rounded-xl px-2 py-1.5"
       style={{
         background: `linear-gradient(0deg, ${c}1c, ${c}1c), var(--note-ground)`,
@@ -128,6 +129,7 @@ export function ValueCapsule({
   );
   return (
     <span
+      data-capsule=""
       className="inline-flex items-center gap-1 rounded-full py-0.5 pl-0.5 pr-2"
       style={{
         background: `${c}14`,

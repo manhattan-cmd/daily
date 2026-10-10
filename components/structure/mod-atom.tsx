@@ -141,11 +141,13 @@ export function ModAtomCore({
   const rgb = rgbOf(color);
   return (
     <span
+      data-atom=""
       className={cn(
         "flex shrink-0 items-center justify-center rounded-full",
         size === "lg" ? "h-16 w-16" : size === "sm" ? "h-9 w-9" : "h-12 w-12"
       )}
       style={{
+        ["--tile-c" as string]: color,
         background: `radial-gradient(circle at 32% 28%, rgba(${rgb},0.34), rgba(${rgb},0.08) 72%)`,
         boxShadow: `inset 0 0 0 1px rgba(${rgb},0.26), 0 0 14px rgba(${rgb},0.10)`,
       }}

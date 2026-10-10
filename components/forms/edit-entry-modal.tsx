@@ -869,6 +869,7 @@ export function EditEntryModal({
               {/* Tepede kategorinin renginde ışık */}
               <div
                 aria-hidden
+        data-glow=""
                 className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64"
                 style={{
                   background: `radial-gradient(120% 90% at 15% 0%, ${accent}40 0%, ${accent}14 45%, transparent 75%)`,

@@ -85,7 +85,7 @@ function NavBar({ day }: { day: string | null }) {
       : pathname.startsWith(href);
 
   return (
-    <nav className="shrink-0 border-t border-border bg-background/85 backdrop-blur-xl pb-safe">
+    <nav data-bottom-nav="" className="shrink-0 border-t border-border bg-background/85 backdrop-blur-xl pb-safe">
       <div className="flex items-stretch justify-around px-2">
         {leftItems.map((item) => (
           <NavItem
