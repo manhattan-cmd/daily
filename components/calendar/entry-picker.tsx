@@ -1611,6 +1611,7 @@ function RailItem({
       onClick={onClick}
       aria-pressed={active}
       aria-label={compact ? label : undefined}
+      data-rail-item=""
       className={cn(
         "relative flex shrink-0 flex-col items-center gap-1 rounded-2xl px-0.5 transition-[background-color,transform] active:scale-95",
         compact ? "py-1.5" : "pb-1.5 pt-2"

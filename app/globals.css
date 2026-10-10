@@ -892,3 +892,15 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-stay-toast] {
   background: #7ae582; color: #111; border: 3px solid #111; border-radius: 14px; box-shadow: 4px 4px 0 #111; font-weight: 900;
 }
+
+/* Brutal: girdi secicinin sagindaki ray yazilari kalin ve siyah; secili durak beyaz cerceveli kutu */
+:root[data-skin="brutal"] [data-rail-item] .text-muted-foreground,
+:root[data-skin="brutal"] [data-rail-node] .text-muted-foreground { color: #111; }
+:root[data-skin="brutal"] [data-rail-item] > :last-child,
+:root[data-skin="brutal"] [data-rail-node] > :last-child { font-weight: 800; letter-spacing: -0.01em; }
+:root[data-skin="brutal"] [data-rail-item][aria-pressed="true"],
+:root[data-skin="brutal"] [data-rail-node][aria-pressed="true"] {
+  background: #ffffff !important; border: 2px solid #111; box-shadow: 2px 2px 0 #111; border-radius: 14px;
+}
+:root[data-skin="brutal"] [data-rail-item][aria-pressed="true"] > :last-child,
+:root[data-skin="brutal"] [data-rail-node][aria-pressed="true"] > :last-child { font-weight: 900; }
