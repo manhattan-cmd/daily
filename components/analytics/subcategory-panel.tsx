@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useT } from "@/lib/i18n";
+import { useT, translate } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import {
   bucketAncestorId,
@@ -237,7 +237,7 @@ export function SubcategoryPanel({
 
   if (!data || !compute || !computed) return null;
 
-  const metricLabel = metric.type === "count" ? "entries" : compute.unit || undefined;
+  const metricLabel = metric.type === "count" ? translate("an.entriesUnit") : compute.unit || undefined;
   const metricParam = metric.type === "count" ? "count" : metric.mod.id;
   const hasChildren = data.children.length > 0;
 
@@ -328,7 +328,7 @@ export function SubcategoryPanel({
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Subcategory breakdown
+              {translate("an.subBreakdown")}
               {compute.aggregateNote && (
                 <span className="normal-case font-normal text-muted-foreground/60">
                   {" "}
@@ -345,7 +345,7 @@ export function SubcategoryPanel({
             emptyText={
               metric.type === "mod"
                 ? `No ${metric.mod.name} data in this range`
-                : "No entries in this range"
+                : translate("list.noEntriesInRange")
             }
             onSelect={goTo}
           />
@@ -355,7 +355,7 @@ export function SubcategoryPanel({
       <div className="rounded-2xl border border-border bg-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
           {GRANULARITY_TITLES[computed.granularity]}{" "}
-          {metric.type === "count" ? "entries" : metric.mod.name}
+          {metric.type === "count" ? translate("an.entriesUnit") : metric.mod.name}
           {compute.aggregateNote && (
             <span className="normal-case font-normal text-muted-foreground/60">
               {" "}
@@ -386,7 +386,7 @@ export function SubcategoryPanel({
         emptyText={
           metric.type === "mod"
             ? `No ${metric.mod.name} data in this range`
-            : "No entries in this range"
+            : translate("list.noEntriesInRange")
         }
         action={
           hasChildren ? (

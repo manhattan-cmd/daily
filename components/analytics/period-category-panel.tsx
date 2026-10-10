@@ -1,7 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useT } from "@/lib/i18n";
+import { useT, translate } from "@/lib/i18n";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import {
@@ -434,7 +434,7 @@ export function PeriodCategoryPanel({
   const scopePrefix = focus ? (
     <span style={{ color: `${category.color}dd` }}>{focus.name} · </span>
   ) : null;
-  const metricLabel = metric.type === "count" ? "entries" : unit;
+  const metricLabel = metric.type === "count" ? translate("an.entriesUnit") : unit;
 
   return (
     <div
@@ -520,7 +520,7 @@ export function PeriodCategoryPanel({
               color={category.color}
               label={t("stat.dailyAverage")}
               value={fmtNum(computed.dailyAvg)}
-              unit="entries"
+              unit={translate("an.entriesUnit")}
               sub={`${progress.elapsedDays} days`}
             />
           </div>
@@ -597,7 +597,7 @@ export function PeriodCategoryPanel({
           choiceFilter={choiceFilter}
           onChoiceFilter={setChoiceFilter}
           color={lensColor}
-          unit={metric.type === "count" ? "entries" : unit}
+          unit={metric.type === "count" ? translate("an.entriesUnit") : unit}
           caption={computed.seriesFrame?.caption}
           showAllTicks={computed.seriesFrame?.showAllTicks}
           scale={compute.scale}
@@ -611,7 +611,7 @@ export function PeriodCategoryPanel({
               {scopePrefix}
               {/* "Tek tek" kova değil girdi çiziyor; "Haftalık" demek yanlış olurdu */}
               {kind !== "points" && `${GRANULARITY_TITLES[computed.granularity]} `}
-              {metric.type === "count" ? "entries" : metric.mod.name}
+              {metric.type === "count" ? translate("an.entriesUnit") : metric.mod.name}
               <span className="font-normal normal-case text-muted-foreground/60 underline decoration-dotted decoration-muted-foreground/40 underline-offset-[3px]">
                 {" "}
                 ({t(CHART_LABEL[kind])})

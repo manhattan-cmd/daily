@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { intlTag, translate } from "@/lib/i18n";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -48,7 +49,8 @@ export function numberFormatter(locale: string, opts: Intl.NumberFormatOptions =
 }
 
 export function formatTime(timestamp: number): string {
-  return dateFormatter("en-US", { hour: "2-digit", minute: "2-digit" }).format(timestamp);
+  // Uygulamanın dilinde (Türkçede 24 saat: "21:00"; eskiden hep "09:00 PM")
+  return dateFormatter(intlTag(), { hour: "2-digit", minute: "2-digit" }).format(timestamp);
 }
 
 export function formatDate(timestamp: number): string {
@@ -60,11 +62,11 @@ export function formatDate(timestamp: number): string {
   const isToday = date.toDateString() === today.toDateString();
   const isYesterday = date.toDateString() === yesterday.toDateString();
 
-  if (isToday) return "Today";
-  if (isYesterday) return "Yesterday";
+  if (isToday) return translate("datetime.today");
+  if (isYesterday) return translate("datetime.yesterday");
 
   return dateFormatter(
-    "en-US",
+    intlTag(),
     date.getFullYear() === today.getFullYear()
       ? { day: "numeric", month: "short" }
       : { day: "numeric", month: "short", year: "numeric" }

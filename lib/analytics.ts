@@ -87,6 +87,11 @@ export function dayKey(t: number): string {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
+/** Kısa ay adı uygulamanın dilinde ("Eyl" / "Sep") */
+export function shortMonth(i: number): string {
+  return new Date(2026, i, 1).toLocaleDateString(intlTag(), { month: "short" });
+}
+
 export const SHORT_MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -131,10 +136,17 @@ export type DayBucket = {
 /** Seri grafiğinin kova granülerliği — pencere büyüdükçe kovalar kabalaşır */
 export type Granularity = "day" | "week" | "month";
 
+/** Kova başlığı uygulamanın dilinde ("Günlük", "Haftalık", "Aylık") */
 export const GRANULARITY_TITLES: Record<Granularity, string> = {
-  day: "Daily",
-  week: "Weekly",
-  month: "Monthly",
+  get day() {
+    return translate("an.daily");
+  },
+  get week() {
+    return translate("an.weekly");
+  },
+  get month() {
+    return translate("an.monthly");
+  },
 };
 
 export function chooseGranularity(startMs: number, endMs: number): Granularity {
@@ -188,19 +200,19 @@ export function buildSeriesBuckets(
       // Yıl değiştiğinde eksene kısa yıl eklenir: Oca 26
       const axisLabel =
         d.getFullYear() !== lastYear
-          ? `${SHORT_MONTHS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`
-          : SHORT_MONTHS[d.getMonth()];
+          ? `${shortMonth(d.getMonth())} ${String(d.getFullYear()).slice(2)}`
+          : shortMonth(d.getMonth());
       lastYear = d.getFullYear();
       out.push({
         key,
-        label: `${SHORT_MONTHS[d.getMonth()]} ${d.getFullYear()}`,
+        label: `${shortMonth(d.getMonth())} ${d.getFullYear()}`,
         axisLabel,
-        full: d.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+        full: d.toLocaleDateString(intlTag(), { month: "long", year: "numeric" }),
         value: 0,
         periodKey: `m-${key}`,
       });
     } else {
-      const label = `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}`;
+      const label = `${shortMonth(d.getMonth())} ${d.getDate()}`;
       // Ay değiştiğinde eksende ay adı, aynı ay içinde sade gün numarası (kalabalığı azaltır)
       const axisLabel = d.getMonth() !== lastMonth ? label : `${d.getDate()}`;
       lastMonth = d.getMonth();
@@ -211,7 +223,7 @@ export function buildSeriesBuckets(
           key,
           label,
           axisLabel,
-          full: `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()} – ${SHORT_MONTHS[lastDay.getMonth()]} ${lastDay.getDate()}`,
+          full: `${shortMonth(d.getMonth())} ${d.getDate()} – ${shortMonth(lastDay.getMonth())} ${lastDay.getDate()}`,
           value: 0,
           periodKey: `w-${key}`,
         });
@@ -220,7 +232,7 @@ export function buildSeriesBuckets(
           key,
           label,
           axisLabel,
-          full: d.toLocaleDateString("en-US", {
+          full: d.toLocaleDateString(intlTag(), {
             day: "numeric",
             month: "long",
             weekday: "short",
@@ -276,8 +288,8 @@ export function framePeriodSeries(
       b.axisLabel = `${i + 1}. Hafta`;
       b.axisSub =
         s.getMonth() === e.getMonth()
-          ? `${SHORT_MONTHS[e.getMonth()]} ${s.getDate()}–${e.getDate()}`
-          : `${SHORT_MONTHS[s.getMonth()]} ${s.getDate()} – ${SHORT_MONTHS[e.getMonth()]} ${e.getDate()}`;
+          ? `${shortMonth(e.getMonth())} ${s.getDate()}–${e.getDate()}`
+          : `${shortMonth(s.getMonth())} ${s.getDate()} – ${shortMonth(e.getMonth())} ${e.getDate()}`;
     });
     return {
       caption: FULL_MONTHS[new Date(periodStart).getMonth()],
@@ -286,7 +298,7 @@ export function framePeriodSeries(
   }
   for (const b of buckets) {
     const [, m] = b.key.split("-").map(Number);
-    b.axisLabel = SHORT_MONTHS[m - 1];
+    b.axisLabel = shortMonth(m - 1);
   }
   return {
     caption: String(new Date(periodStart).getFullYear()),
@@ -398,8 +410,8 @@ export function fmtEntryDateTime(t: number): string {
   // 6 piksel kaydırıyordu, liste merdiven gibi duruyordu. Ay kısaltması üç,
   // saat iki basamak olduğu için tek değişken buydu; sabitlenince sütun da
   // sabitlendi (rakamlar zaten tabular-nums).
-  const date = `${SHORT_MONTHS[d.getMonth()]} ${String(d.getDate()).padStart(2, "0")}`;
-  const time = dateFormatter("en-US", { hour: "2-digit", minute: "2-digit" }).format(d);
+  const date = `${shortMonth(d.getMonth())} ${String(d.getDate()).padStart(2, "0")}`;
+  const time = dateFormatter(intlTag(), { hour: "2-digit", minute: "2-digit" }).format(d);
   return `${date} · ${time}`;
 }
 

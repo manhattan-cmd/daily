@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useT } from "@/lib/i18n";
+import { useT, translate } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import {
   bucketAncestorId,
@@ -298,7 +298,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
   }
 
   const unit = compute.unit || undefined;
-  const metricLabel = metric.type === "count" ? "entries" : unit;
+  const metricLabel = metric.type === "count" ? translate("an.entriesUnit") : unit;
 
   return (
     <div className="flex flex-col gap-4 pb-6">
@@ -326,13 +326,13 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
             color={category.color}
             label={t("insights.entries")}
             value={fmtNum(computed.withValueCount)}
-            sub="all time"
+            sub={translate("an.allTime")}
           />
           <StatTile
             color={category.color}
             label={t("stat.dailyAverage")}
             value={fmtNum(computed.dailyAvg)}
-            unit="entries"
+            unit={translate("an.entriesUnit")}
             sub={`${computed.elapsedDays} days`}
           />
         </div>
@@ -344,7 +344,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
           keys={compute.stats}
           color={category.color}
           unit={unit}
-          periodSub="all time"
+          periodSub={translate("an.allTime")}
           daysSub={`${computed.elapsedDays} ${t("stat.days")}`}
           values={{
             total: computed.total,
@@ -386,7 +386,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
             label={t("insights.currentStreak")}
             value={fmtNum(computed.streaks.current)}
             unit={t("stat.days")}
-            sub="in a row"
+            sub={translate("an.inARow")}
           />
           <StatTile
             color={category.color}
@@ -477,7 +477,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
       {!compute.isChoice && (
         <div className="rounded-2xl border border-border bg-card p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-            Subcategory breakdown
+            {translate("an.subBreakdown")}
             {compute.aggregateNote && (
               <span className="normal-case font-normal text-muted-foreground/60">
                 {" "}
@@ -517,7 +517,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
         choiceFilter={choiceFilter}
         onChoiceFilter={setChoiceFilter}
         color={category.color}
-        unit={metric.type === "count" ? "entries" : unit}
+        unit={metric.type === "count" ? translate("an.entriesUnit") : unit}
         caption={computed.seriesFrame?.caption}
         scale={compute.scale}
         stack={
@@ -529,7 +529,7 @@ export function CategoryOverviewPanel({ category }: { category: Category }) {
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {/* "Tek tek" kova değil girdi çiziyor; "Haftalık" demek yanlış olurdu */}
             {kind !== "points" && `${GRANULARITY_TITLES[computed.granularity]} `}
-            {metric.type === "count" ? "entries" : metric.mod.name}
+            {metric.type === "count" ? translate("an.entriesUnit") : metric.mod.name}
             <span className="font-normal normal-case text-muted-foreground/60 underline decoration-dotted decoration-muted-foreground/40 underline-offset-[3px]">
               {" "}
               ({t(CHART_LABEL[kind])})

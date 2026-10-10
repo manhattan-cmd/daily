@@ -147,6 +147,7 @@ export function EntryListSection({
       )}
 
       <div
+        data-entry-list=""
         className="overflow-hidden rounded-2xl border-l-2 bg-[var(--sf-1)] px-4 py-1 ring-1 ring-inset ring-white/[0.06]"
         style={{ borderLeftColor: `${accent}80` }}
       >

@@ -76,6 +76,7 @@ export function PeriodTabs({ period }: { period: Period }) {
     <div
       role="tablist"
       aria-label={t("insights.period")}
+      data-period-tabs=""
       className="flex items-center justify-between border-b border-[var(--ln-1)]"
     >
       {KINDS.map(({ kind, label }) => {
@@ -134,7 +135,7 @@ export function PeriodNav({
       >
         <ChevronLeft className="h-[18px] w-[18px]" />
       </button>
-      <h1 className="flex h-8 min-w-0 max-w-[240px] items-center gap-1.5 rounded-full bg-[var(--sf-2)] px-4 ring-1 ring-inset ring-[var(--ln-1)]">
+      <h1 data-period-pill="" className="flex h-8 min-w-0 max-w-[240px] items-center gap-1.5 rounded-full bg-[var(--sf-2)] px-4 ring-1 ring-inset ring-[var(--ln-1)]">
         <span className="truncate text-[14px] font-semibold tracking-tight">
           {label ?? period.label}
         </span>

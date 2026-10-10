@@ -94,6 +94,7 @@ export function ShareBars({
             // Dokunulabilir satır bir KARTÇIK: kendi zemini, sağda ok, basınca
             // hafifçe içe göçer. Çıplak çizgiyken incelemek için basılacağı
             // anlaşılmıyordu. Seçili satır kendi renginde çerçevelenir.
+            data-share-row=""
             className={cn(
               "flex min-w-0 items-center gap-2 text-left transition-[opacity,transform,background-color]",
               onSelect && "rounded-xl px-2.5 py-2",
@@ -135,7 +136,7 @@ export function ShareBars({
                     : `%${pct < 1 ? pct.toFixed(1) : Math.round(pct)}`}
               </span>
             </div>
-            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+            <div data-share-track="" className="h-1.5 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full rounded-full transition-[width] duration-300"
                 style={{

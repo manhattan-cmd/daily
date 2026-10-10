@@ -964,3 +964,56 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-capsule]:has(> span:only-child) { width: 24px; min-height: 24px; }
 :root[data-skin="brutal"] [data-capsule] > span:only-child { width: 100%; }
 :root[data-skin="brutal"] [data-note-capsule] { border-radius: 7px; box-shadow: inset 0 0 0 1.5px #111, 1.5px 1.5px 0 #111 !important; }
+
+/* -- Brutal analiz -- */
+/* Donem bandi: kagit zemin, kalin alt cizgi; sekmelerde secili siyah kapsul */
+:root[data-skin="brutal"] .rounded-b-[24px] {
+  background: #fff4dc !important; border-color: #111 !important; border-bottom-width: 2px !important;
+  box-shadow: 0 3px 0 #111 !important;
+}
+:root[data-skin="brutal"] [data-period-tabs] { border-bottom: 0; gap: 4px; padding-bottom: 6px; }
+:root[data-skin="brutal"] [data-period-tabs] [role="tab"] {
+  height: 30px; padding: 0 10px; border-radius: 9px; color: #111; font-weight: 800;
+}
+:root[data-skin="brutal"] [data-period-tabs] [role="tab"]::after { display: none; }
+:root[data-skin="brutal"] [data-period-tabs] [role="tab"][aria-selected="true"] { background: #111; color: #fff4dc; }
+:root[data-skin="brutal"] [data-period-pill] {
+  background: #ffd23f !important; box-shadow: 2px 2px 0 #111 !important; border: 2px solid #111;
+  border-radius: 10px; color: #111;
+}
+:root[data-skin="brutal"] [data-period-pill] * { color: #111 !important; font-weight: 900; }
+/* Bolum basliklari h3: siyah etiket */
+:root[data-skin="brutal"] h3.uppercase {
+  display: inline-flex; width: fit-content; background: #111; color: #fff4dc !important;
+  padding: 3px 8px; border-radius: 6px; letter-spacing: 0.08em; font-weight: 900;
+}
+:root[data-skin="brutal"] h3.uppercase * { color: #fff4dc !important; }
+/* Dagilim satirlari: beyaz cerceveli kutu, kalin cerceveli cubuk */
+:root[data-skin="brutal"] [data-share-row] {
+  background: #ffffff !important; box-shadow: inset 0 0 0 2px #111, 2px 2px 0 #111 !important; border-radius: 11px;
+}
+:root[data-skin="brutal"] [data-share-row] .text-xs { color: #111; font-weight: 800; }
+:root[data-skin="brutal"] [data-share-row] .text-muted-foreground { color: #111; opacity: 0.6; font-weight: 700; }
+:root[data-skin="brutal"] [data-share-row] > div > div > span:first-child { display: none; }
+:root[data-skin="brutal"] [data-share-track] {
+  height: 12px !important; background: #fff4dc !important; border: 2px solid #111; border-radius: 6px;
+}
+:root[data-skin="brutal"] [data-share-track] > div { border-radius: 0 !important; border-right: 2px solid #111; }
+:root[data-skin="brutal"] [data-share-row] svg { color: #111 !important; }
+/* Girdi listesi: beyaz cerceveli defter */
+:root[data-skin="brutal"] [data-entry-list] {
+  background: #ffffff !important; box-shadow: inset 0 0 0 2px #111, 3px 3px 0 #111 !important;
+  border-left-width: 0 !important;
+}
+:root[data-skin="brutal"] [data-entry-list] .text-muted-foreground { color: #111; opacity: 0.65; }
+:root[data-skin="brutal"] [data-entry-list] .text-xs { color: #111; font-weight: 800; }
+/* Grafikler: siyah eksen ve yazilar, cubuklar siyah kenarli */
+:root[data-skin="brutal"] .recharts-cartesian-axis-tick-value { fill: #111 !important; font-weight: 800; }
+:root[data-skin="brutal"] .recharts-cartesian-axis-line,
+:root[data-skin="brutal"] .recharts-cartesian-axis-tick-line { stroke: #111 !important; stroke-width: 2px; }
+:root[data-skin="brutal"] .recharts-cartesian-grid line { stroke: #111 !important; stroke-opacity: 0.18; stroke-dasharray: 3 4; }
+:root[data-skin="brutal"] .recharts-bar-rectangle path,
+:root[data-skin="brutal"] .recharts-bar-rectangle rect { stroke: #111; stroke-width: 1.5px; }
+:root[data-skin="brutal"] .recharts-line-curve { stroke-width: 3px; }
+:root[data-skin="brutal"] .recharts-dot { stroke: #111; stroke-width: 1.5px; }
+:root[data-skin="brutal"] .recharts-tooltip-wrapper > div { border: 2px solid #111 !important; border-radius: 10px !important; box-shadow: 3px 3px 0 #111 !important; background: #fff !important; color: #111 !important; }

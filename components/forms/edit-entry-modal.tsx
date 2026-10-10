@@ -52,7 +52,7 @@ import {
 } from "@/lib/db/queries";
 import { Switch } from "@/components/ui/switch";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
-import { isNumericChoiceSet, SHORT_MONTHS } from "@/lib/analytics";
+import { isNumericChoiceSet, shortMonth } from "@/lib/analytics";
 import { modAtomIcon } from "@/components/structure/mod-atom";
 import type { LucideIcon } from "lucide-react";
 import { useT } from "@/lib/i18n";
@@ -106,7 +106,7 @@ function occurredAtLabel(
   if (!t) return emptyLabel;
   if (d === entryDate) return t;
   const dt = new Date(d + "T00:00:00");
-  return `${SHORT_MONTHS[dt.getMonth()]} ${dt.getDate()} · ${t}`;
+  return `${shortMonth(dt.getMonth())} ${dt.getDate()} · ${t}`;
 }
 
 export function EditEntryModal({

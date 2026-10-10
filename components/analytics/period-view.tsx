@@ -60,7 +60,7 @@ import { AnalysisTrail } from "@/components/analytics/analysis-trail";
 import { AnalysisGhost } from "@/components/analytics/analysis-ghost";
 import type { SubCategory } from "@/types";
 import { LazyMount } from "@/components/ui/lazy-mount";
-import { useT } from "@/lib/i18n";
+import { useT, translate } from "@/lib/i18n";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -591,7 +591,7 @@ export function PeriodView({
             <DailyBarChart
               data={computed.buckets}
               color="#6366f1"
-              unit="entries"
+              unit={translate("an.entriesUnit")}
               caption={computed.seriesFrame?.caption}
               showAllTicks={computed.seriesFrame?.showAllTicks}
               onSelect={(k) => router.push(routes.period(k))}
@@ -609,7 +609,7 @@ export function PeriodView({
           className="scroll-mt-36 rounded-2xl border border-border bg-card p-4"
         >
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-            Category breakdown
+            {translate("an.catBreakdown")}
           </h3>
           <ShareBars
             rows={computed?.catShare ?? []}
