@@ -2572,6 +2572,8 @@ export type StructureSummary = {
   subs: number;
   entries: number;
   money?: { name: string; unit: string; total: number; avg: number; count: number };
+  /** Bu yere bağlı bütün sayısal özelliklerin toplamı — damgada sırayla */
+  metrics: { name: string; unit: string; total: number }[];
 };
 
 export async function structureSummary(
@@ -2604,15 +2606,28 @@ export async function structureSummary(
   const mods = await db.mods.bulkGet(atts.map((a) => a.modId).filter((x): x is string => !!x));
   const money = mods.find((m) => m && (m.valueType ?? "number") === "number" && m.unit?.trim());
   let summary: StructureSummary["money"];
+  const metrics: StructureSummary["metrics"] = [];
+  const vals = entries.length
+    ? await db.entryValues.where("entryId").anyOf(entries.map((e) => e.id)).toArray()
+    : [];
+  // Bağlı olanlar önce, sonra alt kalemlerde girilmiş diğer sayısal özellikler
+  const extraIds = [...new Set(vals.map((v) => v.modId).filter((x): x is string => !!x))];
+  const extra = await db.mods.bulkGet(extraIds);
+  const seen = new Set<string>();
+  for (const m of [...mods, ...extra]) {
+    if (!m || seen.has(m.id) || (m.valueType ?? "number") !== "number") continue;
+    seen.add(m.id);
+    const nums = vals.filter((v) => v.modId === m.id).map((v) => Number(v.value)).filter(Number.isFinite);
+    if (nums.length) metrics.push({ name: m.name, unit: m.unit?.trim() ?? "", total: nums.reduce((a, b) => a + b, 0) });
+  }
   if (money && entries.length) {
-    const vals = await db.entryValues.where("entryId").anyOf(entries.map((e) => e.id)).toArray();
     const nums = vals.filter((v) => v.modId === money.id).map((v) => Number(v.value)).filter(Number.isFinite);
     if (nums.length) {
       const total = nums.reduce((a, b) => a + b, 0);
       summary = { name: money.name, unit: money.unit!.trim(), total, avg: total / nums.length, count: nums.length };
     }
   }
-  return { subs: childCount, entries: entries.length, money: summary };
+  return { subs: childCount, entries: entries.length, money: summary, metrics };
 }
 
 /** Her kategori için alt kategori ve girdi sayısı — brütal kategori kartları */

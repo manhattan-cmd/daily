@@ -757,7 +757,7 @@ export function EntryPicker({
                   compact={compact}
                   onClick={() => setRail(QUICK)}
                 >
-                  <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[var(--sf-3)]">
+                  <span data-pick-tile="" className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[var(--sf-3)]">
                     <Star className="h-[21px] w-[21px] fill-amber-400 text-amber-400" />
                   </span>
                 </RailItem>
@@ -1196,6 +1196,7 @@ function Tile({
   const glyph = Math.round(size * 0.5);
   return (
     <span
+      data-pick-tile=""
       className="flex shrink-0 items-center justify-center"
       style={{
         width: size,

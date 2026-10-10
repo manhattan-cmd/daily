@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, BarChart3, Pencil, Plus, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -95,6 +96,10 @@ export function BrutHeroCard({
   summary?: StructureSummary;
 }) {
   const t = useT();
+  // Damga: bağlı sayısal özelliklerin toplamı; dokundukça sıradaki özellik
+  const metrics = summary?.metrics ?? [];
+  const [mi, setMi] = useState(0);
+  const metric = metrics.length ? metrics[mi % metrics.length] : undefined;
   return (
     <div
       className="relative mb-6 flex items-center gap-3 rounded-2xl border-2 border-[#111] p-4 shadow-[5px_5px_0_#111]"
@@ -112,11 +117,21 @@ export function BrutHeroCard({
           </div>
         )}
       </div>
-      {/* Damga — ana sayısal özelliğin toplamı (Harcamalar → 45.875 ₺) */}
-      {summary?.money && (
-        <span className="absolute -right-2 -top-3 rotate-[4deg] rounded-lg border-2 border-[#111] bg-[#ff6b6b] px-2 py-0.5 text-[14px] font-black tabular-nums text-[#111] shadow-[2px_2px_0_#111]">
-          {fmt(summary.money.total)} {summary.money.unit}
-        </span>
+      {/* Damga — düz; bağlı sayısal özelliklerin toplamı, dokundukça sıradaki */}
+      {metric && (
+        <button
+          type="button"
+          onClick={() => setMi((i) => i + 1)}
+          aria-label={`${metric.name}: ${fmt(metric.total)} ${metric.unit}`}
+          className="absolute -right-2 -top-3 flex items-center gap-1.5 rounded-lg border-2 border-[#111] bg-[#ff6b6b] px-2 py-0.5 text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+        >
+          <span className="text-[14px] font-black tabular-nums">
+            {fmt(metric.total)}{metric.unit ? ` ${metric.unit}` : ""}
+          </span>
+          {metrics.length > 1 && (
+            <span className="text-[10px] font-extrabold uppercase opacity-80">{metric.name}</span>
+          )}
+        </button>
       )}
     </div>
   );
