@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ScanSearch } from "lucide-react";
 import type { ScaleLabels } from "@/types";
+import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { useSkin } from "@/lib/skin";
 
 /** Bundan az basamakta her basamağın raydaki noktası görünür */
 const TICK_EACH_MAX = 11;
@@ -58,6 +60,7 @@ export function ScaleSlider({
   endSlots?: { low: ReactNode; high: ReactNode };
 }) {
   const t = useT();
+  const brutal = useSkin() === "brutal";
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [fine, setFine] = useState<Fine | null>(null);
@@ -195,6 +198,47 @@ export function ScaleSlider({
     }
   }
   const fineX = fine && has ? fine.anchorX + (idx - fine.anchorIdx) * FINE_STEP_PX : 0;
+
+  // Brütal tema: 11'e kadar basamakta her basamak tok bir düğme; seçilen
+  // özelliğin renginde ve gölgesine oturmuş. Dokunmak seçer, yeniden dokunmak
+  // temizler. Büyük ölçekte ray (hassas ayarıyla) kalır.
+  if (brutal && n <= TICK_EACH_MAX) {
+    return (
+      <div className="flex flex-col gap-1.5" data-no-swipe="">
+        <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
+          {choices.map((c) => {
+            const on = c === value;
+            return (
+              <button
+                key={c}
+                type="button"
+                aria-pressed={on}
+                onClick={() => onChange(on ? "" : c)}
+                className={cn(
+                  "flex h-10 min-w-0 items-center justify-center rounded-[9px] border-2 border-[#111] font-mono font-bold tabular-nums text-[#111] transition-transform",
+                  n > 7 ? "text-[12.5px]" : "text-[15px]"
+                )}
+                style={
+                  on
+                    ? { background: color, color: "#fff", transform: "translate(2px, 2px)" }
+                    : { background: "#ffffff", boxShadow: "2px 2px 0 #111" }
+                }
+              >
+                {signed(c)}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex justify-between gap-3 text-[10.5px] font-black uppercase tracking-wide text-[#111]">
+          <span className="min-w-0">{signed(choices[0])}{labels?.low ? ` · ${labels.low}` : ""}</span>
+          <span className="min-w-0 text-right">{labels?.high ? `${labels.high} · ` : ""}{signed(choices[n - 1])}</span>
+        </div>
+        {endSlots && (
+          <div className="flex items-center gap-2">{endSlots.low}{endSlots.high}</div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex select-none flex-col gap-1 px-0.5" data-no-swipe="">

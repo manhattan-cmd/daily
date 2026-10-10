@@ -29,6 +29,7 @@ export function TimeWheel({
       {/* Seçili satırın bandı — iki sütunun arkasında */}
       <div
         aria-hidden
+        data-wheel-band=""
         className="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-2xl"
         style={{ height: ITEM, background: `${accent}1f`, boxShadow: `inset 0 0 0 1px ${accent}40` }}
       />

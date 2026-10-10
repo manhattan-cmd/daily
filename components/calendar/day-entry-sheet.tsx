@@ -880,6 +880,8 @@ function FormStep({
           background: `radial-gradient(120% 90% at 15% 0%, ${accent}40 0%, ${accent}14 45%, transparent 75%)`,
         }}
       />
+      {/* Başlık bandı — Brütal temada kalemin renginde dolu bant (bkz. globals.css) */}
+      <div data-entry-hero="" className="shrink-0" style={{ ["--hero-c" as string]: accent }}>
       {/*
         Üst şerit — paralel seçeneği solda, kapat sağda, ortada pencerenin
         tutamacı. Eskiden ikisi başlık satırındaydı ve kalemin adını
@@ -954,6 +956,8 @@ function FormStep({
             accent={accent}
           />
         </div>
+      </div>
+
       </div>
 
       {/* Gövde — açık defter */}
@@ -1064,6 +1068,7 @@ function FormStep({
           </div>
           <button
             type="button"
+            data-note-box=""
             onClick={() => setNoteOpen(true)}
             className="flex min-h-[76px] w-full items-start gap-2.5 rounded-2xl bg-[var(--sf-1)] px-3.5 py-3 text-left ring-1 ring-inset ring-[var(--ln-1)] transition-colors hover:bg-[var(--sf-2)]"
           >
@@ -1082,6 +1087,7 @@ function FormStep({
 
       {/* Asli eylem: kalemin renginde; yanında ekle ve devam et */}
       <div
+        data-entry-foot=""
         className="flex shrink-0 gap-2 border-t border-[var(--ln-1)] px-3 pt-2.5"
         style={{ paddingBottom: "max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem))" }}
       >

@@ -14,6 +14,7 @@ import type { CategoryModifierWithType } from "@/lib/db/queries";
 import { isScaleChoices, type EntryValueType } from "@/types";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { useSkin } from "@/lib/skin";
 
 /** Alan dolu mu — evet/hayırda yalnız "evet" dolu sayılır (varsayılan "hayır") */
 export function isFieldFilled(vt: EntryValueType, value: string): boolean {
@@ -131,6 +132,8 @@ export function LedgerField({
   filled?: boolean;
 }) {
   const t = useT();
+  // Brütal tema: ad kutunun üst kenarında sekme, evet/hayır iki büyük yarım
+  const brutal = useSkin() === "brutal";
   const vt = mod.entryType.valueType ?? "number";
   const label = mod.name ?? mod.entryType.name;
   const unit = mod.entryType.unit;
@@ -219,11 +222,13 @@ export function LedgerField({
     <div
       ref={onMount}
       data-ledger-field=""
+      data-vt={vt}
       className={cn(
         "relative flex flex-col gap-2.5 rounded-2xl transition-[background-color,box-shadow] duration-300",
         isBool && !isLocked ? "px-3 py-2.5" : "p-3",
         // Köşe düğmeleri yazının biraz üstünde dursun — ad satırı daralmasın
-        hasCorner && "pt-[26px]"
+        hasCorner && "pt-[26px]",
+        brutal && "mt-3.5 px-3 pb-3 pt-6"
       )}
       style={
         filled
@@ -259,7 +264,21 @@ export function LedgerField({
         </div>
       )}
 
+      {/* Brütal: ad kutunun üst kenarına oturan renkli sekmede */}
+      {brutal && (
+        <div
+          data-ledger-tab=""
+          className="absolute -top-[13px] left-2.5 z-[1] flex max-w-[calc(100%-70px)] items-center gap-1 rounded-lg border-2 border-[#111] px-2 py-px text-[#111]"
+          style={{ background: `color-mix(in srgb, ${color} 45%, #ffffff)` }}
+        >
+          <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.6} />
+          <SmartText text={label} className="min-w-0 text-[11.5px] font-black uppercase tracking-wide" />
+          {entryOnly && <span className="h-2 w-2 shrink-0 rounded-full bg-[#111]" />}
+        </div>
+      )}
+
       {/* 0 — başlık: sembol + ad. Hizasında başka simge yok. */}
+      {!brutal && (
       <div
         className={cn("flex min-h-7 items-start gap-2.5", isBool && !isLocked && "cursor-pointer")}
         onClick={isBool && !isLocked ? flip : undefined}
@@ -326,6 +345,7 @@ export function LedgerField({
           </span>
         )}
       </div>
+      )}
 
       {/* 2 — değer */}
       {custom ? (
@@ -376,11 +396,31 @@ export function LedgerField({
             style={filled ? { color } : undefined}
           />
           {unit && (
-            <span className="max-w-[45%] shrink-0 text-right font-mono text-[14px] font-semibold leading-4 text-muted-foreground">
+            /* data-unit: Brütal temada siyah çerçeveli küçük etiket */
+            <span data-unit="" className="max-w-[45%] shrink-0 text-right font-mono text-[14px] font-semibold leading-4 text-muted-foreground">
               {unit}
             </span>
           )}
         </label>
+      ) : isBool && brutal ? (
+        // Brütal: iki büyük yarım — seçilen dolu
+        <div className="grid grid-cols-2 overflow-hidden rounded-xl border-2 border-[#111] shadow-[3px_3px_0_#111]">
+          {(["true", "false"] as const).map((v) => {
+            const on = (value === "true") === (v === "true");
+            return (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={on}
+                onClick={() => onChange(v)}
+                className="h-14 text-[19px] font-black uppercase tracking-wide text-[#111] [&+&]:border-l-2 [&+&]:border-[#111]"
+                style={{ background: on ? color : "#ffffff", color: on ? "#111" : "#111" }}
+              >
+                {v === "true" ? t("entry.yes") : t("entry.no")}
+              </button>
+            );
+          })}
+        </div>
       ) : isBool ? (
         longBool ? (
           <div className="-mt-0.5 flex cursor-pointer items-center justify-end gap-2.5" onClick={flip}>
@@ -490,6 +530,8 @@ export function LedgerField({
               return (
                 <button
                   key={raw}
+                  data-recent=""
+                  data-on={on ? "" : undefined}
                   type="button"
                   onClick={() => onChange(on ? "" : raw)}
                   className="flex min-h-8 min-w-0 items-center justify-center break-words rounded-lg px-1.5 py-1 font-mono text-[12.5px] font-semibold leading-4 transition-colors"

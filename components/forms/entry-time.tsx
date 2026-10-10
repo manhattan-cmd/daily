@@ -97,6 +97,7 @@ export function EntryTime({
           setOpen((o) => !o);
         }}
         aria-expanded={open}
+        data-time-stamp=""
         className="mt-1 flex h-7 w-fit items-center gap-1.5 rounded-full pl-2 pr-2.5 text-[12.5px] font-semibold transition-[background-color,transform] active:scale-95"
         style={{ background: `${accent}26`, color: accent }}
       >
@@ -106,7 +107,7 @@ export function EntryTime({
       </button>
 
       {open && (
-        <div className="mt-2 grid w-full grid-cols-4 gap-1.5">
+        <div data-time-presets="" className="mt-2 grid w-full grid-cols-4 gap-1.5">
           {presets.map((p) => {
             const on = active === p.key;
             return (
@@ -154,6 +155,7 @@ export function EntryTime({
             role="dialog"
             aria-label={t("entry.timeCustomTitle")}
             onClick={(e) => e.stopPropagation()}
+            data-time-pop=""
             className="zoom-in-95 animate-in flex w-full max-w-[320px] flex-col gap-3 rounded-3xl bg-card p-3 shadow-[0_24px_60px_-16px_rgba(0,0,0,0.9)] ring-1 ring-[var(--ln-2)]"
           >
             {/* Gün — ‹ tarih ›; tarihe dokununca telefonun takvimi */}

@@ -1600,7 +1600,7 @@ function RailItem({
 /** Bölmenin başlığı — durağın adı, sağda bir eylem */
 function PaneHead({ title, action }: { title: string; action?: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 px-1.5 pb-2 pt-1.5">
+    <div data-pane-head="" className="flex items-center gap-2 px-1.5 pb-2 pt-1.5">
       <h3 className="min-w-0 flex-1 truncate text-[19px] font-bold tracking-tight">
         {title}
       </h3>
@@ -1633,6 +1633,7 @@ function PaneRow({
     <button
       type="button"
       onClick={onClick}
+      data-pane-row=""
       className="flex min-h-[52px] w-full items-center gap-3 rounded-xl px-1.5 py-2 text-left transition-colors hover:bg-[var(--sf-2)] active:bg-[var(--sf-3)]"
     >
       <span data-tile className="shrink-0">

@@ -793,3 +793,97 @@ input[type="number"] {
 }
 :root[data-skin="brutal"] .bg-primary\/10 *,
 :root[data-skin="brutal"] .bg-primary\/15 * { color: #fff4dc !important; }
+
+/* -- Brutal girdi ekrani: fis dili -- */
+/* Baslik bandi: kalemin renginde dolu, altta kalin cizgi */
+:root[data-skin="brutal"] [data-entry-hero] {
+  background: var(--hero-c); border-bottom: 3px solid #111; padding-bottom: 6px;
+}
+:root[data-skin="brutal"] [data-entry-hero] h2,
+:root[data-skin="brutal"] [data-entry-hero] h2 *,
+:root[data-skin="brutal"] [data-entry-hero] .text-muted-foreground { color: #111 !important; }
+:root[data-skin="brutal"] [data-entry-hero] .text-\[19px\] { font-size: 26px !important; font-weight: 900; letter-spacing: -0.03em; line-height: 1.05 !important; }
+:root[data-skin="brutal"] [data-entry-hero] .text-\[12px\] { font-weight: 900 !important; text-transform: uppercase; letter-spacing: 0.08em; }
+/* Bandin karosu beyaz, cerceveli; simge siyah */
+:root[data-skin="brutal"] [data-entry-hero] > div > span.h-11,
+:root[data-skin="brutal"] [data-entry-hero] > div > button.h-11 {
+  background: #ffffff !important; box-shadow: inset 0 0 0 2px #111, 3px 3px 0 #111 !important;
+}
+:root[data-skin="brutal"] [data-entry-hero] > div > span.h-11 *,
+:root[data-skin="brutal"] [data-entry-hero] > div > button.h-11 * { color: #111 !important; }
+/* Bandin ust seridindeki yuvarlak dugmeler: kare, beyaz */
+:root[data-skin="brutal"] [data-entry-hero] .rounded-full.h-9 {
+  border-radius: 11px; background: #ffffff; border: 2px solid #111; box-shadow: 2px 2px 0 #111; color: #111;
+}
+
+/* Zaman damgasi: duz, beyaz, cerceveli, mono */
+:root[data-skin="brutal"] [data-time-stamp] {
+  background: #ffffff !important; color: #111 !important; border: 2px solid #111;
+  border-radius: 9px; box-shadow: 3px 3px 0 #111; height: 30px; margin-top: 8px;
+}
+:root[data-skin="brutal"] [data-time-presets] button {
+  border: 2px solid #111; border-radius: 9px; background: #ffffff !important; color: #111 !important;
+  box-shadow: 2px 2px 0 #111; font-weight: 900;
+}
+:root[data-skin="brutal"] [data-time-presets] button[aria-pressed="true"] {
+  background: #111 !important; color: #fff4dc !important; transform: translate(2px, 2px); box-shadow: none;
+}
+:root[data-skin="brutal"] [data-time-pop] {
+  border: 3px solid #111; border-radius: 18px; box-shadow: 6px 6px 0 #111 !important; background: #ffffff;
+}
+:root[data-skin="brutal"] [data-time-pop] .rounded-full { border-radius: 11px; border: 2px solid #111; background: #ffffff; box-shadow: 2px 2px 0 #111; color: #111; }
+:root[data-skin="brutal"] [data-time-pop] .grid > button { border: 2px solid #111; border-radius: 11px; box-shadow: 3px 3px 0 #111; font-weight: 900; }
+:root[data-skin="brutal"] [data-time-pop] .grid > button:last-child { background: #ffd23f !important; color: #111 !important; }
+:root[data-skin="brutal"] [data-wheel-band] { background: #ffd23f !important; box-shadow: inset 0 0 0 3px #111, 3px 3px 0 #111 !important; border-radius: 12px; }
+:root[data-skin="brutal"] [data-wheel-band] ~ * [aria-selected="true"] { color: #111 !important; }
+
+/* Ozellik kutusu: buyuk deger, birim etiketi, son degerler sari cikartma */
+:root[data-skin="brutal"] [data-ledger-field] input[inputmode="decimal"] {
+  font-size: 34px !important; height: 52px; color: #111 !important;
+}
+:root[data-skin="brutal"] [data-ledger-field] [data-unit] {
+  border: 2px solid #111; border-radius: 7px; padding: 1px 6px; background: #fff4dc;
+  color: #111 !important; font-weight: 900;
+}
+:root[data-skin="brutal"] [data-ledger-field] [data-recent] {
+  background: #ffd23f !important; color: #111 !important; box-shadow: 2px 2px 0 #111 !important;
+  border: 2px solid #111; border-radius: 8px;
+}
+:root[data-skin="brutal"] [data-ledger-field] [data-recent][data-on] { transform: translate(2px, 2px); box-shadow: none !important; }
+/* Secenekler: tok dugmeler; secilen ozelligin renginde ve golgesine oturmus */
+:root[data-skin="brutal"] [data-ledger-field][data-vt="select"] button[aria-pressed] {
+  border: 2px solid #111; box-shadow: 2px 2px 0 #111; color: #111 !important; font-weight: 900;
+  background-color: #ffffff;
+}
+:root[data-skin="brutal"] [data-ledger-field][data-vt="select"] button[aria-pressed="true"] {
+  transform: translate(2px, 2px); box-shadow: none;
+}
+/* Metin: kalin alt cizgili satir */
+:root[data-skin="brutal"] [data-ledger-field][data-vt="text"] label {
+  background: transparent !important; box-shadow: none !important; border-radius: 0;
+  border-bottom: 2px solid #111; padding-left: 2px;
+}
+/* Not: cizgili defter kagidi */
+:root[data-skin="brutal"] [data-note-box] {
+  background: repeating-linear-gradient(#ffffff 0 21px, #e9dfc7 21px 22px) !important;
+  border: 2px solid #111; box-shadow: 3px 3px 0 #111 !important;
+}
+/* Alt bolum: sari EKLE, yaninda kare devam */
+:root[data-skin="brutal"] [data-entry-foot] { border-top: 3px solid #111 !important; background: var(--background); }
+:root[data-skin="brutal"] [data-entry-foot] button[style] {
+  background: #ffd23f !important; color: #111 !important; border: 2px solid #111 !important;
+  box-shadow: 4px 4px 0 #111 !important; font-size: 17px; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase;
+}
+:root[data-skin="brutal"] [data-entry-foot] button[style] svg,
+:root[data-skin="brutal"] [data-entry-foot] button[style] svg * { color: #111 !important; }
+:root[data-skin="brutal"] [data-entry-foot] button:not([style]) {
+  background: #ffffff !important; border: 2px solid #111; box-shadow: 4px 4px 0 #111; color: #111 !important;
+}
+:root[data-skin="brutal"] [data-entry-foot] button:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 #111 !important; }
+
+/* Secici: bolme satirlari cerceveli kutular, baslik kalin */
+:root[data-skin="brutal"] [data-pane-row] {
+  background: #ffffff; border: 2px solid #111; box-shadow: 2px 2px 0 #111; margin-bottom: 7px; padding-left: 8px;
+}
+:root[data-skin="brutal"] [data-pane-row]:active { transform: translate(2px, 2px); box-shadow: none; }
+:root[data-skin="brutal"] [data-pane-head] h3 { font-weight: 900; font-size: 22px; letter-spacing: -0.03em; }

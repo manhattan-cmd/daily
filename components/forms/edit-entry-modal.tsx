@@ -875,6 +875,8 @@ export function EditEntryModal({
                   background: `radial-gradient(120% 90% at 15% 0%, ${accent}40 0%, ${accent}14 45%, transparent 75%)`,
                 }}
               />
+              {/* Başlık bandı — Brütal temada kalemin renginde dolu bant (bkz. globals.css) */}
+              <div data-entry-hero="" className="shrink-0" style={{ ["--hero-c" as string]: accent }}>
               {/* Üst şerit — seçenekler solda, kapat sağda */}
               <div className="flex h-12 shrink-0 items-center justify-between px-3 pt-1.5">
                 <OptionsMenu
@@ -960,6 +962,8 @@ export function EditEntryModal({
                 </div>
               </div>
 
+              </div>
+
               {/* Gövde — açık defter */}
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 pb-4">
                 <div className="relative ml-[22px] flex flex-col gap-2 pl-3">
@@ -1043,6 +1047,7 @@ export function EditEntryModal({
                   </div>
                   <button
                     type="button"
+                    data-note-box=""
                     onClick={() => setNoteOpen(true)}
                     className="flex min-h-[76px] w-full items-start gap-2.5 rounded-2xl bg-[var(--sf-1)] px-3.5 py-3 text-left ring-1 ring-inset ring-[var(--ln-1)] transition-colors hover:bg-[var(--sf-2)]"
                   >
@@ -1061,6 +1066,7 @@ export function EditEntryModal({
 
               {/* Alt — vazgeç ve kaydet (kalemin renginde) */}
               <div
+                data-entry-foot=""
                 className="grid shrink-0 grid-cols-[auto_1fr] gap-2 border-t border-[var(--ln-1)] px-4 pt-3"
                 style={{ paddingBottom: "max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem))" }}
               >
