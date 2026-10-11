@@ -67,7 +67,7 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
             aria-current={root.key === placeKey ? "location" : undefined}
             className={cn(
               "flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-1.5 text-[12.5px] font-bold text-[#111] transition-colors",
-              root.key === placeKey ? "border-[1.5px] border-[#111] bg-white" : "hover:bg-black/5"
+              root.key === placeKey ? "bg-[#fff4dc]" : "hover:bg-black/5"
             )}
           >
             <LayoutGrid className="h-3.5 w-3.5 shrink-0" strokeWidth={2.2} />

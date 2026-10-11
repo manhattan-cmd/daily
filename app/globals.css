@@ -1064,3 +1064,8 @@ input[type="number"] {
 /* Brutal analiz: konum cubugu sekmelere yakin, ogeler sik */
 :root[data-skin="brutal"] [data-trail-wrap] { padding-top: 2px; padding-bottom: 8px; }
 :root[data-skin="brutal"] [data-period-tabs] { margin-bottom: 0; }
+/* Brutal analiz: konum cubugu ince cerceveli; ust koseler hafif, alt koseler daha oval */
+:root[data-skin="brutal"] [data-trail-wrap] > div {
+  border: 1.5px solid #111; border-radius: 8px 8px 18px 18px; background: #ffffff;
+  padding: 3px 6px 3px 4px; width: 100%;
+}
