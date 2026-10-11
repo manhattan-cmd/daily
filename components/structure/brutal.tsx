@@ -142,10 +142,16 @@ export function BrutSubHeader({
   parentName,
   title,
   summary,
+  color,
+  icon,
 }: {
   parentName?: string;
   title: string;
   summary?: StructureSummary;
+  /** Kategorinin rengi — alt kategorinin simge karosu bununla */
+  color?: string;
+  /** Alt kategorinin sembolü (yoksa kategorininki) */
+  icon?: string;
 }) {
   const t = useT();
   const boxes: { label: string; value: string; bg: string; wide?: boolean }[] = [];
@@ -156,10 +162,22 @@ export function BrutSubHeader({
   else if (summary) boxes.push({ label: t("structure.subcategories"), value: String(summary.subs), bg: "#7ae582" });
   return (
     <div className="mb-6 text-[#111]">
-      {parentName && (
-        <div className="text-[12px] font-extrabold uppercase tracking-wider">{parentName} /</div>
-      )}
-      <h1 className="break-words text-[34px] font-black leading-none tracking-tight">{title}</h1>
+      <div className="flex items-center gap-3">
+        {icon && (
+          <span
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-[#111] shadow-[3px_3px_0_#111]"
+            style={{ background: color ?? "#ffd23f" }}
+          >
+            <SymbolIcon name={icon} size={28} style={{ color: "#111" }} />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          {parentName && (
+            <div className="truncate text-[12px] font-extrabold uppercase tracking-wider">{parentName} /</div>
+          )}
+          <h1 className="break-words text-[34px] font-black leading-none tracking-tight">{title}</h1>
+        </div>
+      </div>
       {boxes.length > 0 && (
         <div className="mt-3 flex gap-2">
           {boxes.map((b) => (

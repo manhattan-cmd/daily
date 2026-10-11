@@ -80,6 +80,8 @@ export function SubCategoryDetailPage({
               parentName={parentSub?.name ?? category?.name}
               title={subcategory.name}
               summary={summary}
+              color={category?.color}
+              icon={subcategory.icon ?? category?.icon}
             />
           )}
         </>
