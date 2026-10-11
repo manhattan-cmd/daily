@@ -1060,3 +1060,7 @@ input[type="number"] {
   width: 30px; height: 30px; border: 1.5px solid #111; border-radius: 9px; background: transparent;
   box-shadow: none; color: #111 !important;
 }
+
+/* Brutal analiz: konum cubugu sekmelere yakin, ogeler sik */
+:root[data-skin="brutal"] [data-trail-wrap] { padding-top: 2px; padding-bottom: 8px; }
+:root[data-skin="brutal"] [data-period-tabs] { margin-bottom: 0; }

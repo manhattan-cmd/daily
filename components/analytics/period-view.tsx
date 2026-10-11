@@ -518,7 +518,7 @@ export function PeriodView({
           <PeriodTabs period={period} />
           {/* Yol kapsülü sekme çizgisiyle bandın alt kenarı arasında dikeyde
               ortada: üstünde ve altında eşit pay (band alt dolgusu sıfır) */}
-          <div className="py-2">
+          <div data-trail-wrap="" className="py-2">
           <AnalysisTrail
             steps={[
               // Yolun kökü: bütün kategoriler. Dokununca seçim kalkar ve

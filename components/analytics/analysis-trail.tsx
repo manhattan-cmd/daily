@@ -58,7 +58,7 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        className="no-scrollbar flex max-w-full items-center gap-1 overflow-x-auto py-0.5 pr-1"
+        className="no-scrollbar flex max-w-full items-center gap-0.5 overflow-x-auto py-0.5 pr-1"
       >
         {root && (
           <button
@@ -66,7 +66,7 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
             onClick={root.onClick}
             aria-current={root.key === placeKey ? "location" : undefined}
             className={cn(
-              "flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2 text-[12.5px] font-bold text-[#111] transition-colors",
+              "flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-1.5 text-[12.5px] font-bold text-[#111] transition-colors",
               root.key === placeKey ? "border-[1.5px] border-[#111] bg-white" : "hover:bg-black/5"
             )}
           >
@@ -77,14 +77,14 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
         {rest.map((s) => {
           const isPlace = s.key === placeKey;
           return (
-            <span key={s.key} className="flex shrink-0 items-center gap-1">
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[#111]/50" strokeWidth={2.5} />
+            <span key={s.key} className="flex shrink-0 items-center gap-0.5">
+              <ChevronRight className="h-3 w-3 shrink-0 text-[#111]/50" strokeWidth={2.75} />
               <button
                 type="button"
                 onClick={s.onClick}
                 aria-current={isPlace ? "location" : undefined}
                 className={cn(
-                  "flex h-7 max-w-[170px] items-center gap-1.5 rounded-lg px-2 text-[12.5px] text-[#111]",
+                  "flex h-7 max-w-[170px] items-center gap-1.5 rounded-lg px-1.5 text-[12.5px] text-[#111]",
                   isPlace ? "border-[1.5px] border-[#111] font-bold" : "font-semibold opacity-75 hover:opacity-100"
                 )}
                 style={isPlace ? { background: `color-mix(in srgb, ${s.color ?? "#ffd23f"} 22%, #ffffff)` } : undefined}
