@@ -66,8 +66,8 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
             onClick={root.onClick}
             aria-current={root.key === placeKey ? "location" : undefined}
             className={cn(
-              "flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-1.5 text-[12.5px] font-bold text-[#111] transition-colors",
-              root.key === placeKey ? "bg-[#fff4dc]" : "hover:bg-black/5"
+              "flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-1.5 text-[12.5px] font-bold text-[#3a5bff] transition-colors",
+              root.key === placeKey ? "bg-[#3a5bff]/10" : "hover:bg-[#3a5bff]/10"
             )}
           >
             <LayoutGrid className="h-3.5 w-3.5 shrink-0" strokeWidth={2.2} />
