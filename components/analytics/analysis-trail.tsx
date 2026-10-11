@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LayoutGrid } from "lucide-react";
+import { LayoutGrid, ChevronRight } from "lucide-react";
+import { useSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
 
 export interface TrailStep {
@@ -31,6 +32,7 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
   const root = steps.find((s) => s.root);
   const rest = steps.filter((s) => !s.root);
   const placeKey = steps[steps.length - 1]?.key;
+  const brutal = useSkin() === "brutal";
   const sep = <span className="shrink-0 px-1 text-muted-foreground/35">/</span>;
 
   // Yolun kayan kısmı — kendi kaydırması: ok YOK (genel kaydırma bileşeninin
@@ -48,6 +50,47 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
     const el = scrollRef.current;
     if (el) setScrolled(el.scrollLeft > 1);
   };
+  // Brütal tema: yol tok bloklardan — kök siyah, ara duraklar beyaz çerçeveli,
+  // bulunulan yer kendi renginde dolu; aralarında kalın ok
+  if (brutal) {
+    return (
+      <div
+        ref={scrollRef}
+        onScroll={onScroll}
+        className="no-scrollbar flex max-w-full items-center gap-1.5 overflow-x-auto py-1 pr-1"
+      >
+        {root && (
+          <button
+            type="button"
+            onClick={root.onClick}
+            aria-current={root.key === placeKey ? "location" : undefined}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border-2 border-[#111] bg-[#111] px-2.5 text-[12.5px] font-black text-[#fff4dc] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          >
+            <LayoutGrid className="h-3.5 w-3.5 shrink-0" strokeWidth={2.6} />
+            {root.label}
+          </button>
+        )}
+        {rest.map((s) => {
+          const isPlace = s.key === placeKey;
+          return (
+            <span key={s.key} className="flex shrink-0 items-center gap-1.5">
+              <ChevronRight className="h-4 w-4 shrink-0 text-[#111]" strokeWidth={3} />
+              <button
+                type="button"
+                onClick={s.onClick}
+                aria-current={isPlace ? "location" : undefined}
+                className="flex h-8 max-w-[180px] items-center rounded-lg border-2 border-[#111] px-2.5 text-[12.5px] font-black text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                style={{ background: isPlace ? s.color ?? "#ffd23f" : "#ffffff" }}
+              >
+                <span className="truncate">{s.label}</span>
+              </button>
+            </span>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     // Yol bir kapsülün içinde — içeriği kadar geniş, uzayınca bandın
     // genişliğinde durup kendi içinde kayar

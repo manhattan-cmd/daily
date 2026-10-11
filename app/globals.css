@@ -967,7 +967,7 @@ input[type="number"] {
 
 /* -- Brutal analiz -- */
 /* Donem bandi: kagit zemin, kalin alt cizgi; sekmelerde secili siyah kapsul */
-:root[data-skin="brutal"] .rounded-b-[24px] {
+:root[data-skin="brutal"] .rounded-b-\[24px\] {
   background: #fff4dc !important; border-color: #111 !important; border-bottom-width: 2px !important;
   box-shadow: 0 3px 0 #111 !important;
 }
@@ -1044,3 +1044,9 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-settings] .text-amber-400\/90,
 :root[data-skin="brutal"] [data-settings] .text-amber-400 { color: #b45309 !important; font-weight: 700; }
 :root[data-skin="brutal"] [data-settings] button[aria-pressed="true"] .text-sm { font-weight: 900; color: #111; }
+/* Brutal donem bandi: onceki / sonraki ok dugmeleri kare */
+:root[data-skin="brutal"] [data-period-pill] ~ button,
+:root[data-skin="brutal"] button:has(+ [data-period-pill]) {
+  width: 34px; height: 34px; border: 2px solid #111; border-radius: 10px; background: #ffffff;
+  box-shadow: 2px 2px 0 #111; color: #111 !important;
+}
