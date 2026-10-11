@@ -32,6 +32,7 @@ import {
   MEASURE_UI_KINDS,
   measureSummary,
   uiKindOf,
+  type MeasureUiKind,
 } from "@/lib/measure-kinds";
 import { MeasureEditor, isMeasureComplete } from "@/components/structure/measure-editor";
 import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
@@ -61,6 +62,7 @@ type Usage = { count: number; places: Place[]; valueCount: number };
 export default function ModsHomePage() {
   const t = useT();
   const brutal = useIsBrutal();
+  const [kindFilter, setKindFilter] = useState<MeasureUiKind | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
   const [measure, setMeasure] = useState<ModMeasure>({ valueType: "number" });
@@ -206,8 +208,6 @@ export default function ModsHomePage() {
   }
 
   const selectedUsage = selected ? usage?.get(selected.id) : undefined;
-  // Raf halkası: kullanım payı en çok kullanılan özelliğe göre
-  const maxUse = Math.max(0, ...[...(usage?.values() ?? [])].map((u) => u.valueCount));
   /**
    * Detayda gösterilen yer adları. Sıra atama sırasıydı — aynı özelliği iki
    * kez açınca liste başka türlü diziliyordu; alfabetik sıralayıp ilk sekizini
@@ -230,7 +230,7 @@ export default function ModsHomePage() {
   );
 
   /** Havuzda gerçekten bulunan türler, sabit sırada — boş öbek başlığı yok */
-  const groups = MEASURE_UI_KINDS.map((k) => ({
+  const allGroups = MEASURE_UI_KINDS.map((k) => ({
     kind: k,
     label: t(MEASURE_KIND_META[k].labelKey),
     icon: MEASURE_KIND_META[k].icon,
@@ -238,6 +238,13 @@ export default function ModsHomePage() {
       .filter((m) => uiKindOf(m) === k)
       .sort((x, y) => x.name.localeCompare(y.name, "tr")),
   })).filter((g) => g.items.length > 0);
+  // Brütal: arama kutusuyla bütün tür süzgeci — seçili türün öbeği kalır
+  const groups = brutal && kindFilter ? allGroups.filter((g) => g.kind === kindFilter) : allGroups;
+  const kindCounts = MEASURE_UI_KINDS.map((k) => ({
+    kind: k,
+    label: t(MEASURE_KIND_META[k].labelKey),
+    n: (mods ?? []).filter((m) => uiKindOf(m) === k).length,
+  })).filter((x) => x.n > 0);
 
   return (
     <>
@@ -253,7 +260,50 @@ export default function ModsHomePage() {
         }
       />
 
-      {/* Arama — hep açık; süzgeç çipleri kalktı, öbekleme zaten türe göre */}
+      {/* Brütal: arama ve tür süzgeci tek çerçeveli kutuda */}
+      {brutal ? (
+        <div className="mb-5 mt-1 overflow-hidden rounded-2xl border-2 border-[#111] bg-white shadow-[3px_3px_0_#111]">
+          <div className="relative flex h-11 items-center">
+            <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-[#111]" strokeWidth={2.4} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t("features.searchPlaceholder")}
+              aria-label={t("features.searchPlaceholder")}
+              className="h-full w-full bg-transparent pl-10 pr-9 text-[14px] font-semibold text-[#111] outline-none placeholder:font-medium placeholder:text-[#111]/45"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-2.5 flex h-6 w-6 items-center justify-center rounded-md text-[#111]"
+                aria-label={t("features.clearSearch")}
+              >
+                <X className="h-3.5 w-3.5" strokeWidth={2.6} />
+              </button>
+            )}
+          </div>
+          <div className="no-scrollbar flex gap-1.5 overflow-x-auto border-t-2 border-[#111] bg-[#fff4dc] px-2 py-2">
+            {[{ kind: null as MeasureUiKind | null, label: t("features.allKinds"), n: (mods ?? []).length }, ...kindCounts].map((k) => {
+              const on = kindFilter === k.kind;
+              return (
+                <button
+                  key={k.kind ?? "all"}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setKindFilter(k.kind)}
+                  className={cn(
+                    "flex h-7 shrink-0 items-center gap-1.5 rounded-lg border-[1.5px] border-[#111] px-2.5 text-[12px] font-extrabold transition-transform active:translate-x-[1px] active:translate-y-[1px]",
+                    on ? "bg-[#111] text-[#fff4dc]" : "bg-white text-[#111]"
+                  )}
+                >
+                  {k.label}
+                  <span className={cn("font-mono text-[10.5px] font-bold", on ? "opacity-80" : "opacity-50")}>{k.n}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
       <div className="relative mb-5 mt-1">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/45" />
         <Input
@@ -272,6 +322,7 @@ export default function ModsHomePage() {
           </button>
         )}
       </div>
+      )}
 
       {/* Tek havuz: uygulamayla gelen özellikle kullanıcının yarattığı
           arasında ayrım yok — ikisi de aynı şekilde düzenlenir ve silinir */}
@@ -294,13 +345,10 @@ export default function ModsHomePage() {
                   altındaydı; iki sütunda yan yana gelince liste okunmuyordu —
                   hepsi atoma dokununca açılan detayda. */}
               {brutal ? (
-                /* Brütal raf: dört sütun atom ızgarası. Dairenin çevresindeki halka
-                   ne kadar kullanıldığını gösteriyor (en çok kullanılana göre) */
+                /* Brütal raf: dört sütun atom ızgarası; altında ad ve kayıt sayısı */
                 <div className="grid grid-cols-4 gap-x-1.5 gap-y-3">
                   {g.items.map((mod) => {
                     const n = usage?.get(mod.id)?.valueCount ?? 0;
-                    // Karekök ölçek: en çok kullanılan tek özellik ötekileri ince bir dilime ezmesin
-                    const p = maxUse > 0 ? Math.round(Math.sqrt(n / maxUse) * 100) : 0;
                     const c = modColor(mod);
                     const Icon = modAtomIcon(mod);
                     return (
@@ -311,15 +359,10 @@ export default function ModsHomePage() {
                         className="group flex min-w-0 flex-col items-center gap-1 text-[#111]"
                       >
                         <span
-                          className="flex h-[54px] w-[54px] items-center justify-center rounded-full border-2 border-[#111] shadow-[2px_2px_0_#111] transition-transform group-active:translate-x-[2px] group-active:translate-y-[2px] group-active:shadow-none"
-                          style={{ background: `conic-gradient(#111 ${p}%, #ffffff 0)` }}
+                          className="flex h-[50px] w-[50px] items-center justify-center rounded-full border-2 border-[#111] shadow-[2px_2px_0_#111] transition-transform group-active:translate-x-[2px] group-active:translate-y-[2px] group-active:shadow-none"
+                          style={{ background: c }}
                         >
-                          <span
-                            className="flex h-[40px] w-[40px] items-center justify-center rounded-full border-2 border-[#111]"
-                            style={{ background: c }}
-                          >
-                            <Icon className="h-[18px] w-[18px] text-[#111]" strokeWidth={2.4} />
-                          </span>
+                          <Icon className="h-5 w-5 text-[#111]" strokeWidth={2.4} />
                         </span>
                         <span className="w-full truncate text-center text-[11px] font-extrabold leading-tight">{mod.name}</span>
                         <span className="font-mono text-[10px] font-bold leading-none opacity-60">{n}</span>
