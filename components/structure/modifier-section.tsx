@@ -54,6 +54,10 @@ export function ModifierSection({
     [targetType, targetId]
   );
 
+  const selectedColor = selected
+    ? modColor(selected.mod ?? { name: selected.name ?? selected.entryType.name })
+    : "#818cf8";
+
   function closeDetail() {
     setSelected(null);
     setCascadeCount(null);
@@ -112,13 +116,21 @@ export function ModifierSection({
         <DialogContent className="max-w-[340px] gap-4">
           {selected && cascadeCount === null && (
             <>
-              <DialogHeader className="items-center text-center">
-                <ModAtomCore icon={modAtomIcon(selected)} size="lg" />
-                <DialogTitle className="text-base pt-1">
+              <DialogHeader className="items-center gap-1 text-center">
+                {/* Özellikler sayfasındaki pencereyle aynı: kendi renginde atom,
+                    ölçüsü kendi renginde rozet */}
+                <ModAtomCore icon={modAtomIcon(selected)} size="lg" color={selectedColor} />
+                <DialogTitle className="pt-1 text-base">
                   {selected.name ?? selected.entryType.name}
                 </DialogTitle>
-                <DialogDescription>
-                  {measureSummary(selected.entryType)}
+                <DialogDescription className="mt-0.5">
+                  <span
+                    data-kind-badge=""
+                    className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium"
+                    style={{ color: selectedColor, borderColor: `${selectedColor}55`, backgroundColor: `${selectedColor}14` }}
+                  >
+                    {measureSummary(selected.entryType)}
+                  </span>
                 </DialogDescription>
               </DialogHeader>
               <Button

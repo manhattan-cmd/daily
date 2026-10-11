@@ -322,6 +322,14 @@ export function SubCategoryTree({
         </div>
       )}
 
+      {roots.length === 0 && !drag && (
+        <div data-brut-only="" className="w-full">
+          <div className="w-full rounded-2xl border-2 border-dashed border-[#111] bg-white/60 px-4 py-4 text-center text-[#111]">
+            <b className="block text-[14px] font-black">{t("brut.noSubs")}</b>
+            <span className="text-[12px] font-semibold opacity-70">{t("brut.noSubsHint")}</span>
+          </div>
+        </div>
+      )}
       {roots.map((sub) => (
         <TreeNode
           key={sub.id}

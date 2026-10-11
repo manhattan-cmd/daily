@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, BarChart3, FolderPlus, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, BarChart3, Pencil, Plus, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { useSkin } from "@/lib/skin";
@@ -82,10 +82,9 @@ export function BrutTopStrip({
             onClick={onAddSub}
             aria-label={t("entry.addSub")}
             title={t("entry.addSub")}
-            className="flex h-10 shrink-0 items-center gap-1 rounded-xl border-2 border-[#111] bg-[#7ae582] px-2.5 text-[#111] shadow-[2px_2px_0_#111] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[#111] bg-[#7ae582] text-[#111] shadow-[2px_2px_0_#111] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
           >
-            <Plus className="h-4 w-4" strokeWidth={3} />
-            <FolderPlus className="h-[18px] w-[18px]" strokeWidth={2.4} />
+            <Plus className="h-5 w-5" strokeWidth={3} />
           </button>
         )}
         {analyticsHref && <BrutIconButton icon={BarChart3} label={t("nav.insights")} href={analyticsHref} />}
@@ -263,6 +262,36 @@ export function BrutCta({ label, onClick }: { label: string; onClick: () => void
         <Plus className="h-5 w-5" strokeWidth={3} />
         {label}
       </button>
+    </div>
+  );
+}
+
+/** Boş bölüm kartı — kesik çerçeveli, kısa açıklama, isteğe bağlı eylem */
+export function BrutEmpty({
+  title,
+  hint,
+  action,
+  onAction,
+}: {
+  title: string;
+  hint?: string;
+  action?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-[#111] bg-white/60 px-4 py-5 text-center text-[#111]">
+      <b className="text-[14px] font-black">{title}</b>
+      {hint && <span className="text-[12px] font-semibold opacity-70">{hint}</span>}
+      {action && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="mt-1 flex h-9 items-center gap-1.5 rounded-xl border-2 border-[#111] bg-[#ffd23f] px-3 text-[13px] font-black shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+        >
+          <Plus className="h-4 w-4" strokeWidth={3} />
+          {action}
+        </button>
+      )}
     </div>
   );
 }

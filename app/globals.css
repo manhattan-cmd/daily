@@ -1096,3 +1096,7 @@ input[type="number"] {
 /* Brutal girdi listesi satirlari: duz, ince siyah ayrac */
 :root[data-skin="brutal"] [data-entry-list] button { border-radius: 0 !important; margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; }
 :root[data-skin="brutal"] [data-entry-list] button.border-t { border-top: 1.5px solid #111 !important; }
+
+/* Brutal: bolum basliklari ayni sol cizgide (Son girdiler basligi px-1 ile kayiyordu) */
+:root[data-skin="brutal"] [data-entry-list-head] { padding-left: 0; padding-right: 0; }
+:root[data-skin="brutal"] h2.uppercase.px-1 { margin-left: 0; }

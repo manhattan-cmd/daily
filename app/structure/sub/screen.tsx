@@ -7,7 +7,9 @@ import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { BarChart3, Pencil, Trash2 } from "lucide-react";
 import { getSubCategory, getCategory, structureSummary } from "@/lib/db/queries";
-import { BrutSubHeader, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
+import { BrutEmpty, BrutSubHeader, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
+import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
+import { toLocalDateValue } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
@@ -42,6 +44,8 @@ export function SubCategoryDetailPage({
   const [editingSelf, setEditingSelf] = useState(false);
   const [newParentId, setNewParentId] = useState<string>(subcategoryId);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [entryOpen, setEntryOpen] = useState(false);
+  const [today] = useState(() => toLocalDateValue());
 
   // Brütal tema: büyük başlık, üç renkli kutu, altta "Girdi ekle"
   const brutal = useIsBrutal();
@@ -160,6 +164,25 @@ export function SubCategoryDetailPage({
       )}
 
       {/* Son girdiler + analize kısayol */}
+      {brutal && summary && summary.entries === 0 ? (
+        <section className="mb-6">
+          <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {t("home.recentEntries")}
+          </h2>
+          <BrutEmpty
+            title={t("brut.noEntries")}
+            hint={t("brut.noEntriesHint")}
+            action={t("brut.firstEntry")}
+            onAction={() => setEntryOpen(true)}
+          />
+          <DayEntrySheet
+            date={today}
+            open={entryOpen && !!subcategory}
+            onClose={() => setEntryOpen(false)}
+            presetSub={subcategory ?? null}
+          />
+        </section>
+      ) : (
       <RecentEntriesSection
         scope="subcategory"
         categoryId={categoryId}
@@ -167,6 +190,7 @@ export function SubCategoryDetailPage({
         selfName={subcategory?.name}
         color={category?.color}
       />
+      )}
 
 
       <SubCategoryForm

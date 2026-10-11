@@ -89,7 +89,7 @@ export function EntryListSection({
 
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between gap-2 px-1">
+      <div data-entry-list-head="" className="mb-2 flex items-center justify-between gap-2 px-1">
         <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {title}
           {rows.length > 0 && (
