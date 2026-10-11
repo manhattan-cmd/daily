@@ -29,7 +29,7 @@ import {
 import { StatTile } from "./stat-tile";
 import { StatTiles } from "./stat-tiles";
 import type { ShareRow } from "./share-bars";
-import { AnalysisCharts, CHART_LABEL } from "./analysis-chart";
+import { AnalysisCharts } from "./analysis-chart";
 import { EntryListSection, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
@@ -606,18 +606,16 @@ export function PeriodCategoryPanel({
               ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") }
               : undefined
           }
-          title={(kind) => (
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {scopePrefix}
-              {/* "Tek tek" kova değil girdi çiziyor; "Haftalık" demek yanlış olurdu */}
-              {kind !== "points" && `${GRANULARITY_TITLES[computed.granularity]} `}
-              {metric.type === "count" ? translate("an.entriesUnit") : metric.mod.name}
-              <span className="font-normal normal-case text-muted-foreground/60 underline decoration-dotted decoration-muted-foreground/40 underline-offset-[3px]">
-                {" "}
-                ({t(CHART_LABEL[kind])})
-              </span>
-            </h3>
-          )}
+          title={(kind) => ({
+            main: (
+              <>
+                {scopePrefix}
+                {/* "Tek tek" kova değil girdi çiziyor; "Haftalık" demek yanlış olurdu */}
+                {kind !== "points" && `${GRANULARITY_TITLES[computed.granularity]} `}
+                {metric.type === "count" ? translate("an.entriesUnit") : metric.mod.name}
+              </>
+            ),
+          })}
         />
       )}
 

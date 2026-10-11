@@ -1100,3 +1100,6 @@ input[type="number"] {
 /* Brutal: bolum basliklari ayni sol cizgide (Son girdiler basligi px-1 ile kayiyordu) */
 :root[data-skin="brutal"] [data-entry-list-head] { padding-left: 0; padding-right: 0; }
 :root[data-skin="brutal"] h2.uppercase.px-1 { margin-left: 0; }
+
+/* Brutal: siyah etiketteki ek aciklama "(son 4 hafta...)" bitisik durmasin */
+:root[data-skin="brutal"] h3.uppercase span.normal-case { margin-left: 0.4em; }
