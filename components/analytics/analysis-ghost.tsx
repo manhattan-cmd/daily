@@ -64,13 +64,14 @@ export function AnalysisGhost({
         }}
       >
         <span
+          data-ghost-arrow=""
           className="ghost-arrow flex h-9 w-9 items-center justify-center rounded-full"
           style={{ background: `${color}22`, color, boxShadow: `inset 0 0 0 1px ${color}55` }}
         >
           <ArrowUp className="h-4 w-4" />
         </span>
-        <span className="text-sm font-semibold">{t("insights.pickCategory")}</span>
-        <span className="text-[11px] text-muted-foreground">{t("insights.pickCategoryHint")}</span>
+        <span data-ghost-title="" className="text-sm font-semibold">{t("insights.pickCategory")}</span>
+        <span data-ghost-hint="" className="text-[11px] text-muted-foreground">{t("insights.pickCategoryHint")}</span>
       </div>
     </button>
   );
