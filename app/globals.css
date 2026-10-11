@@ -966,22 +966,32 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-note-capsule] { border-radius: 7px; box-shadow: inset 0 0 0 1.5px #111, 1.5px 1.5px 0 #111 !important; }
 
 /* -- Brutal analiz -- */
-/* Donem bandi: kagit zemin, kalin alt cizgi; sekmelerde secili siyah kapsul */
+/* Donem bandi (kibar brutal): kagit zemin, ince alt cizgi, golgesiz.
+   Ince 1.5px cizgiler; golge yalniz secili donem adinda ve kucuk. */
 :root[data-skin="brutal"] .rounded-b-\[24px\] {
-  background: #fff4dc !important; border-color: #111 !important; border-bottom-width: 2px !important;
-  box-shadow: 0 3px 0 #111 !important;
+  background: #fff4dc !important; border-color: #111 !important; border-width: 0 0 1.5px 0 !important;
+  border-radius: 0 0 20px 20px !important; box-shadow: none !important;
 }
-:root[data-skin="brutal"] [data-period-tabs] { border-bottom: 0; gap: 4px; padding-bottom: 6px; }
-:root[data-skin="brutal"] [data-period-tabs] [role="tab"] {
-  height: 30px; padding: 0 10px; border-radius: 9px; color: #111; font-weight: 800;
+/* Sekmeler: tek parca bolumlu kumanda; secili bolum siyah */
+:root[data-skin="brutal"] [data-period-tabs] {
+  border: 1.5px solid #111 !important; border-radius: 11px; background: #ffffff;
+  padding: 3px; gap: 2px; margin-bottom: 4px;
 }
+:root[data-skin="brutal"] [data-period-tabs] > * { flex: 1 1 0; justify-content: center; }
+:root[data-skin="brutal"] [data-period-tabs] [role="tab"],
+:root[data-skin="brutal"] [data-period-tabs] > button:last-child {
+  height: 28px; padding: 0 4px; border-radius: 8px; color: #111; font-weight: 700; font-size: 12.5px;
+}
+:root[data-skin="brutal"] [data-period-tabs] > button:last-child { flex: 0 0 34px; }
 :root[data-skin="brutal"] [data-period-tabs] [role="tab"]::after { display: none; }
-:root[data-skin="brutal"] [data-period-tabs] [role="tab"][aria-selected="true"] { background: #111; color: #fff4dc; }
+:root[data-skin="brutal"] [data-period-tabs] [role="tab"][aria-selected="true"],
+:root[data-skin="brutal"] [data-period-tabs] > button[aria-pressed="true"] { background: #111; color: #fff4dc; }
+/* Donem adi: beyaz, ince cerceve, kucuk golge */
 :root[data-skin="brutal"] [data-period-pill] {
-  background: #ffd23f !important; box-shadow: 2px 2px 0 #111 !important; border: 2px solid #111;
-  border-radius: 10px; color: #111;
+  background: #ffffff !important; box-shadow: 1.5px 1.5px 0 #111 !important; border: 1.5px solid #111;
+  border-radius: 10px; color: #111; height: 32px;
 }
-:root[data-skin="brutal"] [data-period-pill] * { color: #111 !important; font-weight: 900; }
+:root[data-skin="brutal"] [data-period-pill] * { color: #111 !important; font-weight: 800; }
 /* Bolum basliklari h3: siyah etiket */
 :root[data-skin="brutal"] h3.uppercase {
   display: inline-flex; width: fit-content; background: #111; color: #fff4dc !important;
@@ -1047,6 +1057,6 @@ input[type="number"] {
 /* Brutal donem bandi: onceki / sonraki ok dugmeleri kare */
 :root[data-skin="brutal"] [data-period-pill] ~ button,
 :root[data-skin="brutal"] button:has(+ [data-period-pill]) {
-  width: 34px; height: 34px; border: 2px solid #111; border-radius: 10px; background: #ffffff;
-  box-shadow: 2px 2px 0 #111; color: #111 !important;
+  width: 30px; height: 30px; border: 1.5px solid #111; border-radius: 9px; background: transparent;
+  box-shadow: none; color: #111 !important;
 }

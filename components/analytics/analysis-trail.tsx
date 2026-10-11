@@ -50,38 +50,51 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
     const el = scrollRef.current;
     if (el) setScrolled(el.scrollLeft > 1);
   };
-  // Brütal tema: yol tok bloklardan — kök siyah, ara duraklar beyaz çerçeveli,
-  // bulunulan yer kendi renginde dolu; aralarında kalın ok
+  // Brütal tema (kibar): yol ince çerçeveli küçük etiketler. Kök yalnız
+  // simge + ad (çerçevesiz), ara duraklar ince çerçeveli, bulunulan yer kendi
+  // renginde açık zeminli ve renk noktalı; ayraç ince ok
   if (brutal) {
     return (
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        className="no-scrollbar flex max-w-full items-center gap-1.5 overflow-x-auto py-1 pr-1"
+        className="no-scrollbar flex max-w-full items-center gap-1 overflow-x-auto py-0.5 pr-1"
       >
         {root && (
           <button
             type="button"
             onClick={root.onClick}
             aria-current={root.key === placeKey ? "location" : undefined}
-            className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border-2 border-[#111] bg-[#111] px-2.5 text-[12.5px] font-black text-[#fff4dc] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+            className={cn(
+              "flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2 text-[12.5px] font-bold text-[#111] transition-colors",
+              root.key === placeKey ? "border-[1.5px] border-[#111] bg-white" : "hover:bg-black/5"
+            )}
           >
-            <LayoutGrid className="h-3.5 w-3.5 shrink-0" strokeWidth={2.6} />
+            <LayoutGrid className="h-3.5 w-3.5 shrink-0" strokeWidth={2.2} />
             {root.label}
           </button>
         )}
         {rest.map((s) => {
           const isPlace = s.key === placeKey;
           return (
-            <span key={s.key} className="flex shrink-0 items-center gap-1.5">
-              <ChevronRight className="h-4 w-4 shrink-0 text-[#111]" strokeWidth={3} />
+            <span key={s.key} className="flex shrink-0 items-center gap-1">
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[#111]/50" strokeWidth={2.5} />
               <button
                 type="button"
                 onClick={s.onClick}
                 aria-current={isPlace ? "location" : undefined}
-                className="flex h-8 max-w-[180px] items-center rounded-lg border-2 border-[#111] px-2.5 text-[12.5px] font-black text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-                style={{ background: isPlace ? s.color ?? "#ffd23f" : "#ffffff" }}
+                className={cn(
+                  "flex h-7 max-w-[170px] items-center gap-1.5 rounded-lg px-2 text-[12.5px] text-[#111]",
+                  isPlace ? "border-[1.5px] border-[#111] font-bold" : "font-semibold opacity-75 hover:opacity-100"
+                )}
+                style={isPlace ? { background: `color-mix(in srgb, ${s.color ?? "#ffd23f"} 22%, #ffffff)` } : undefined}
               >
+                {isPlace && (
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full ring-1 ring-[#111]"
+                    style={{ background: s.color ?? "#ffd23f" }}
+                  />
+                )}
                 <span className="truncate">{s.label}</span>
               </button>
             </span>
