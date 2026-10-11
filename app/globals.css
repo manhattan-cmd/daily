@@ -1069,3 +1069,11 @@ input[type="number"] {
   border: 1.5px solid #111; border-radius: 8px 8px 18px 18px; background: #ffffff;
   padding: 3px 6px 3px 4px; width: 100%;
 }
+
+/* Brutal ozellikler: grup basligi siyah etiket, cizgi siyah */
+:root[data-skin="brutal"] [data-group-head] > svg { display: none; }
+:root[data-skin="brutal"] [data-group-head] > span:first-of-type {
+  background: #111; color: #fff4dc !important; padding: 3px 8px; border-radius: 6px; font-weight: 900; letter-spacing: 0.08em;
+}
+:root[data-skin="brutal"] [data-group-head] > span.h-px { background: #111; height: 2px; opacity: 1; }
+:root[data-skin="brutal"] [data-group-head] > span:last-child { color: #111 !important; font-weight: 800; font-family: var(--font-mono), monospace; }

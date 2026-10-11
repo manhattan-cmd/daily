@@ -206,6 +206,8 @@ export default function ModsHomePage() {
   }
 
   const selectedUsage = selected ? usage?.get(selected.id) : undefined;
+  // Raf halkası: kullanım payı en çok kullanılan özelliğe göre
+  const maxUse = Math.max(0, ...[...(usage?.values() ?? [])].map((u) => u.valueCount));
   /**
    * Detayda gösterilen yer adları. Sıra atama sırasıydı — aynı özelliği iki
    * kez açınca liste başka türlü diziliyordu; alfabetik sıralayıp ilk sekizini
@@ -277,7 +279,7 @@ export default function ModsHomePage() {
         <section className="mb-6 flex flex-col gap-5">
           {groups.map((g) => (
             <div key={g.kind} className="flex flex-col gap-2">
-              <div className="flex items-center gap-2 px-0.5">
+              <div data-group-head="" className="flex items-center gap-2 px-0.5">
                 <g.icon className="h-3 w-3 text-muted-foreground/45" />
                 <span className="text-[10.5px] font-semibold uppercase tracking-[0.13em] text-muted-foreground/60">
                   {g.label}
@@ -292,25 +294,38 @@ export default function ModsHomePage() {
                   altındaydı; iki sütunda yan yana gelince liste okunmuyordu —
                   hepsi atoma dokununca açılan detayda. */}
               {brutal ? (
-                /* Brütal: tek sütun satırlar — tür etiketi ve kayıt sayısı */
-                <div className="flex flex-col gap-2">
-                  {g.items.map((mod) => (
-                    <button
-                      key={mod.id}
-                      type="button"
-                      onClick={() => openDetail(mod)}
-                      className="flex items-center gap-2.5 rounded-xl border-2 border-[#111] bg-white px-2.5 py-2 text-left text-[#111] shadow-[2px_2px_0_#111] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-                    >
-                      <ModAtomCore icon={modAtomIcon(mod)} size="sm" color={modColor(mod)} />
-                      <span className="min-w-0 flex-1 truncate text-[13.5px] font-extrabold">{mod.name}</span>
-                      <span className="shrink-0 rounded-full border-2 border-[#111] bg-white px-2 text-[10.5px] font-extrabold">
-                        {g.label}
-                      </span>
-                      <span className="w-9 shrink-0 text-right text-[13px] font-black tabular-nums">
-                        {usage?.get(mod.id)?.valueCount ?? 0}
-                      </span>
-                    </button>
-                  ))}
+                /* Brütal raf: dört sütun atom ızgarası. Dairenin çevresindeki halka
+                   ne kadar kullanıldığını gösteriyor (en çok kullanılana göre) */
+                <div className="grid grid-cols-4 gap-x-1.5 gap-y-3">
+                  {g.items.map((mod) => {
+                    const n = usage?.get(mod.id)?.valueCount ?? 0;
+                    // Karekök ölçek: en çok kullanılan tek özellik ötekileri ince bir dilime ezmesin
+                    const p = maxUse > 0 ? Math.round(Math.sqrt(n / maxUse) * 100) : 0;
+                    const c = modColor(mod);
+                    const Icon = modAtomIcon(mod);
+                    return (
+                      <button
+                        key={mod.id}
+                        type="button"
+                        onClick={() => openDetail(mod)}
+                        className="group flex min-w-0 flex-col items-center gap-1 text-[#111]"
+                      >
+                        <span
+                          className="flex h-[54px] w-[54px] items-center justify-center rounded-full border-2 border-[#111] shadow-[2px_2px_0_#111] transition-transform group-active:translate-x-[2px] group-active:translate-y-[2px] group-active:shadow-none"
+                          style={{ background: `conic-gradient(#111 ${p}%, #ffffff 0)` }}
+                        >
+                          <span
+                            className="flex h-[40px] w-[40px] items-center justify-center rounded-full border-2 border-[#111]"
+                            style={{ background: c }}
+                          >
+                            <Icon className="h-[18px] w-[18px] text-[#111]" strokeWidth={2.4} />
+                          </span>
+                        </span>
+                        <span className="w-full truncate text-center text-[11px] font-extrabold leading-tight">{mod.name}</span>
+                        <span className="font-mono text-[10px] font-bold leading-none opacity-60">{n}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               ) : (
               <div className="grid grid-cols-2 gap-1.5">
