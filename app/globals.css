@@ -1089,3 +1089,10 @@ input[type="number"] {
   text-transform: uppercase; letter-spacing: 0.06em; font-size: 13px; margin-top: 4px;
 }
 :root[data-skin="brutal"] [data-ghost-hint] { color: #111; font-weight: 700; opacity: 0.75; font-size: 11.5px; }
+
+/* Brutal agac satiri: brut-only kaplari satir icinde duzgun hizalansin */
+:root[data-skin="brutal"] [data-tree-row] [data-brut-only] { display: inline-flex; align-items: center; justify-content: flex-end; }
+
+/* Brutal girdi listesi satirlari: duz, ince siyah ayrac */
+:root[data-skin="brutal"] [data-entry-list] button { border-radius: 0 !important; margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; }
+:root[data-skin="brutal"] [data-entry-list] button.border-t { border-top: 1.5px solid #111 !important; }

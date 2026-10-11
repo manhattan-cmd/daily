@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { measureSummary } from "@/lib/measure-kinds";
+import { modColor } from "@/lib/mod-color";
 
 interface ModifierSectionProps {
   targetType: "category" | "subcategory";
@@ -95,6 +96,8 @@ export function ModifierSection({
             key={mod.id}
             icon={modAtomIcon(mod)}
             name={mod.name ?? mod.entryType.name}
+            // Özelliğin kendi rengi — girdi formu ve özellikler sayfasıyla aynı
+            color={modColor(mod.mod ?? { name: mod.name ?? mod.entryType.name })}
             onClick={() => setSelected(mod)}
           />
         ))}

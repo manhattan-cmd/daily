@@ -19,6 +19,7 @@ import { useLongPress } from "@/lib/use-long-press";
 import { moveSubCategory, listUserCategories } from "@/lib/db/queries";
 import { CategoryTileCore } from "@/components/structure/category-tile";
 import { modAtomIcon } from "@/components/structure/mod-atom";
+import { modColor } from "@/lib/mod-color";
 import { DeleteSubCategoryDialog } from "@/components/structure/delete-subcategory-dialog";
 import {
   Dialog,
@@ -35,9 +36,12 @@ import type { EntryType, SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
 
 type SubMods = { name?: string; entryType: EntryType }[];
+/** Brütal satırın özellik daireleri: kendi + üstlerinden + kategoriden gelenler */
+type EffMod = { key: string; name: string; color: string; icon: ReturnType<typeof modAtomIcon> };
 type TreeData = {
   childrenMap: Map<string, SubCategory[]>;
   modsBySub: Map<string, SubMods>;
+  effModsBySub: Map<string, EffMod[]>;
   /** Alt ağaçtaki girdi sayısı — Brütal temada satırın etiketi */
   entriesBySub: Map<string, number>;
 };
@@ -127,7 +131,36 @@ export function SubCategoryTree({
       return n;
     };
     for (const s of visible) total(s.id);
-    return { childrenMap, modsBySub, entriesBySub };
+
+    // Etkin özellikler: kategoriye, üst dallara ve kendisine bağlananlar.
+    // Ölçü artık özelliğin kendisinde (v18) — eski entryType eşleşmesi
+    // aranmıyor; eskiden ölçüsü özellikte olanlar satırda hiç görünmüyordu.
+    const byId = new Map(subs.map((x) => [x.id, x]));
+    const attsOf = (targetId: string) => atts.filter((a) => a.targetId === targetId && a.modId);
+    const effModsBySub = new Map<string, EffMod[]>();
+    for (const sub of visible) {
+      const chain: string[] = [categoryId];
+      const ups: string[] = [];
+      for (let cur: SubCategory | undefined = sub; cur; cur = cur.parentId ? byId.get(cur.parentId) : undefined) ups.unshift(cur.id);
+      chain.push(...ups);
+      const seen = new Set<string>();
+      const list: EffMod[] = [];
+      for (const tid of chain) {
+        for (const a of attsOf(tid)) {
+          const mod = modById.get(a.modId!);
+          if (!mod || seen.has(mod.id)) continue;
+          seen.add(mod.id);
+          list.push({
+            key: mod.id,
+            name: mod.name,
+            color: modColor(mod),
+            icon: modAtomIcon({ name: mod.name, entryType: { valueType: mod.valueType } as EntryType }),
+          });
+        }
+      }
+      effModsBySub.set(sub.id, list);
+    }
+    return { childrenMap, modsBySub, entriesBySub, effModsBySub };
   }, [categoryId]);
 
   // Başka kategoriye taşıma seçicisi için diğer kategoriler
@@ -267,7 +300,7 @@ export function SubCategoryTree({
     <div ref={rootRef} className="flex flex-col gap-0.5">
       {/* Jest ipucu — düzenleme modu yok, doğrudan basılı tut */}
       {roots.length > 0 && !drag && (
-        <p className="flex items-center gap-1.5 px-1 pb-1.5 text-[11px] leading-snug text-muted-foreground/50">
+        <p data-brut-hide="" className="flex items-center gap-1.5 px-1 pb-1.5 text-[11px] leading-snug text-muted-foreground/50">
           <Move className="h-3 w-3 shrink-0" />
           {t("tree.dragHint")}
         </p>
@@ -304,6 +337,7 @@ export function SubCategoryTree({
         />
       ))}
       <AddRow
+        brutHide
         color={color}
         emphasis
         label={`${parentName ?? categoryName ?? t("tree.here")} altına alt kategori ekle`}
@@ -528,13 +562,41 @@ function TreeNode({
             </span>
           )}
 
-          {/* Girdi sayısı — yalnız Brütal temada görünür (bkz. globals.css) */}
-          <span data-brut-only="" className="shrink-0 rounded-full border-2 border-[#111] bg-[#ffd23f] px-1.5 text-[11px] font-black tabular-nums text-[#111]">
-            {data.entriesBySub.get(sub.id) ?? 0}
+          {/* Brütal: özellik daireleri iç içe (en fazla 3, fazlası +N), sağda
+              girdi sayısı sabit genişlikte — özelliği olmayan satır da hizalı */}
+          <span data-brut-only="" className="shrink-0">
+            <span className="flex items-center">
+              {(data.effModsBySub.get(sub.id) ?? []).slice(0, 3).map((m, i) => {
+                const MIcon = m.icon;
+                return (
+                  <span
+                    key={m.key}
+                    title={m.name}
+                    className={cn(
+                      "flex h-[22px] w-[22px] items-center justify-center rounded-full border-[1.5px] border-[#111]",
+                      i > 0 && "-ml-[7px]"
+                    )}
+                    style={{ background: m.color, zIndex: 3 - i }}
+                  >
+                    <MIcon className="h-[11px] w-[11px] text-[#111]" strokeWidth={2.6} />
+                  </span>
+                );
+              })}
+              {(data.effModsBySub.get(sub.id) ?? []).length > 3 && (
+                <span className="-ml-[7px] flex h-[22px] min-w-[22px] items-center justify-center rounded-full border-[1.5px] border-[#111] bg-[#111] px-1 font-mono text-[10px] font-bold text-[#fff4dc]">
+                  +{(data.effModsBySub.get(sub.id) ?? []).length - 3}
+                </span>
+              )}
+            </span>
+          </span>
+          <span data-brut-only="" className="w-9 shrink-0 text-right">
+            <span className="inline-block min-w-[26px] rounded-full border-[1.5px] border-[#111] bg-[#ffd23f] px-1.5 text-center font-mono text-[11px] font-bold tabular-nums text-[#111]">
+              {data.entriesBySub.get(sub.id) ?? 0}
+            </span>
           </span>
 
           {mods.length > 0 && (
-            <span className="flex shrink-0 items-center gap-1 pl-0.5">
+            <span data-brut-hide="" className="flex shrink-0 items-center gap-1 pl-0.5">
               {mods.slice(0, 3).map((m, i) => {
                 const Icon = modAtomIcon(m);
                 return (
@@ -612,11 +674,14 @@ function TreeNode({
  * kökündeki ana ekleme, kategori renginde kesikli çerçeveyle öne çıkar.
  */
 function AddRow({
+  brutHide,
   label,
   color,
   emphasis = false,
   onClick,
 }: {
+  /** Brütal temada gizli (üst şeritte + alt kategori düğmesi var) */
+  brutHide?: boolean;
   label: string;
   color: string;
   emphasis?: boolean;
@@ -626,6 +691,7 @@ function AddRow({
     <button
       type="button"
       onClick={onClick}
+      data-brut-hide={brutHide ? "" : undefined}
       className={cn(
         "group flex items-center gap-2.5 rounded-xl px-1.5 py-1.5 text-xs transition-colors",
         emphasis

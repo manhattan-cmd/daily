@@ -76,6 +76,10 @@ export function CategoryDetailPage({
             analyticsHref={routes.analyticsCategory(categoryId)}
             onEdit={() => setCatFormOpen(true)}
             onDelete={onDeleteCategory}
+            onAddSub={() => {
+              setNewParentId(undefined);
+              setSubFormOpen(true);
+            }}
           />
           {category && (
             <BrutHeroCard

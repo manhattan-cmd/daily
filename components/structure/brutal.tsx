@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, BarChart3, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, BarChart3, FolderPlus, Pencil, Plus, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { useSkin } from "@/lib/skin";
@@ -60,11 +60,14 @@ export function BrutTopStrip({
   analyticsHref,
   onEdit,
   onDelete,
+  onAddSub,
 }: {
   back: string;
   analyticsHref?: string;
   onEdit?: () => void;
   onDelete?: () => void;
+  /** Bulunulan yerin altına alt kategori aç */
+  onAddSub?: () => void;
 }) {
   const t = useT();
   return (
@@ -73,6 +76,18 @@ export function BrutTopStrip({
         <BrutIconButton icon={ArrowLeft} label={t("action.back")} href={back} />
       </div>
       <div className="flex gap-2 pt-3">
+        {onAddSub && (
+          <button
+            type="button"
+            onClick={onAddSub}
+            aria-label={t("entry.addSub")}
+            title={t("entry.addSub")}
+            className="flex h-10 shrink-0 items-center gap-1 rounded-xl border-2 border-[#111] bg-[#7ae582] px-2.5 text-[#111] shadow-[2px_2px_0_#111] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          >
+            <Plus className="h-4 w-4" strokeWidth={3} />
+            <FolderPlus className="h-[18px] w-[18px]" strokeWidth={2.4} />
+          </button>
+        )}
         {analyticsHref && <BrutIconButton icon={BarChart3} label={t("nav.insights")} href={analyticsHref} />}
         {onEdit && <BrutIconButton icon={Pencil} label={t("action.edit")} onClick={onEdit} />}
         {onDelete && <BrutIconButton icon={Trash2} label={t("action.delete")} onClick={onDelete} danger />}

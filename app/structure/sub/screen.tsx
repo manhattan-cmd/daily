@@ -7,9 +7,7 @@ import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { BarChart3, Pencil, Trash2 } from "lucide-react";
 import { getSubCategory, getCategory, structureSummary } from "@/lib/db/queries";
-import { toLocalDateValue } from "@/lib/utils";
-import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
-import { BrutCta, BrutSubHeader, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
+import { BrutSubHeader, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
@@ -51,8 +49,6 @@ export function SubCategoryDetailPage({
     () => (brutal ? structureSummary(categoryId, subcategoryId) : undefined),
     [brutal, categoryId, subcategoryId]
   );
-  const [today] = useState(() => toLocalDateValue());
-  const [entryOpen, setEntryOpen] = useState(false);
 
   const backPath = subcategory?.parentId
     ? routes.structureSub(categoryId, subcategory.parentId)
@@ -74,6 +70,11 @@ export function SubCategoryDetailPage({
               setSubFormOpen(true);
             }}
             onDelete={() => setDeleteOpen(true)}
+            onAddSub={() => {
+              setEditingSelf(false);
+              setNewParentId(subcategoryId);
+              setSubFormOpen(true);
+            }}
           />
           {subcategory && (
             <BrutSubHeader
@@ -167,15 +168,6 @@ export function SubCategoryDetailPage({
         color={category?.color}
       />
 
-      {brutal && subcategory && <BrutCta label={t("home.addEntry")} onClick={() => setEntryOpen(true)} />}
-      {brutal && (
-        <DayEntrySheet
-          date={today}
-          open={entryOpen && !!subcategory}
-          onClose={() => setEntryOpen(false)}
-          presetSub={subcategory ?? null}
-        />
-      )}
 
       <SubCategoryForm
         open={subFormOpen}
