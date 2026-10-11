@@ -288,6 +288,7 @@ export function CalendarDayPage({
   // Brütal başlığın sayıları
   const dayCategories = [...new Map(otherEntries.map((e) => [e.category.id, e.category])).values()];
   const goalsDone = (goals ?? []).filter((g) => g.completedEntryId).length;
+  const dayItemCount = groupEntries(otherEntries).length;
 
   return (
     <>
@@ -341,14 +342,34 @@ export function CalendarDayPage({
             ))}
           </div>
 
-          {/* Gün analizi */}
+          {/* Gün analizi — sağda girdi sayısı, alt kenarında günün kategori
+              dağılımı (kategorilerin renginde, girdi payına göre bloklar) */}
           <Link
             href={routes.period(`d-${date}`)}
             prefetch={false}
-            className="mt-3 flex h-10 items-center justify-between rounded-xl border-2 border-[#111] bg-white px-3 text-[13px] font-black uppercase tracking-wide text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+            className="mt-3 flex flex-col overflow-hidden rounded-xl border-2 border-[#111] bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
           >
-            {t("day.insights")}
-            <ArrowRight className="h-4 w-4" strokeWidth={2.75} />
+            <span className="flex h-10 items-center gap-2 px-3">
+              <span className="flex-1 text-[13px] font-black uppercase tracking-wide">{t("day.insights")}</span>
+              {dayItemCount > 0 && (
+                <span className="rounded-md bg-[#111] px-1.5 py-px font-mono text-[11.5px] font-bold text-[#fff4dc]">
+                  {t("brut.entryCount", { n: dayItemCount })}
+                </span>
+              )}
+              <ArrowRight className="h-4 w-4 shrink-0" strokeWidth={2.75} />
+            </span>
+            {dayCategories.length > 0 && (
+              <span className="flex h-3 border-t-2 border-[#111]">
+                {dayCategories.map((c, i) => (
+                  <span
+                    key={c.id}
+                    title={c.name}
+                    className={i ? "border-l-[1.5px] border-[#111]" : undefined}
+                    style={{ background: c.color, flex: otherEntries.filter((e) => e.category.id === c.id).length }}
+                  />
+                ))}
+              </span>
+            )}
           </Link>
         </div>
       ) : (
@@ -518,24 +539,7 @@ export function CalendarDayPage({
             ];
             return (
               <>
-                {brutal ? (
-                  /* Dağılım çubuğu — günün kategorileri girdi payına göre bloklar */
-                  <div className="mb-2 flex flex-col gap-2">
-                    <span className="self-start rounded-md bg-[#111] px-2 py-0.5 text-[12px] font-black uppercase tracking-wider text-[#fff4dc]">
-                      {t("brut.entryCount", { n: items.length })}
-                    </span>
-                    <div className="flex h-5 overflow-hidden rounded-lg border-2 border-[#111] shadow-[2px_2px_0_#111]">
-                      {dayCats.map((c, i) => (
-                        <span
-                          key={c.id}
-                          title={c.name}
-                          className={i ? "border-l-2 border-[#111]" : undefined}
-                          style={{ background: c.color, flex: otherEntries.filter((e) => e.category.id === c.id).length }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ) : (
+                {brutal ? null : (
                 <div className="mb-1 flex items-center gap-2 px-1">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {items.length} girdi
