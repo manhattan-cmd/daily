@@ -46,7 +46,7 @@ export function ModifierSection({
   const [selected, setSelected] = useState<CategoryModifierWithType | null>(
     null
   );
-  // null: detay görünümü; sayı: "altlardan da kaldırılsın mı?" görünümü
+  // null: detay görünümü; 0: "çıkarılsın mı?" onayı; >0: "altlardan da?" sorusu
   const [cascadeCount, setCascadeCount] = useState<number | null>(null);
 
   const mods = useLiveQuery(
@@ -68,12 +68,7 @@ export function ModifierSection({
     const count = selected.modId
       ? await countDescendantModAttachments(targetType, targetId, selected.modId)
       : 0;
-    if (count === 0) {
-      await removeModifier(selected.id);
-      closeDetail();
-      return;
-    }
-    // Altlarda da ekli — aynı dialog içinde soruya geç
+    // Aynı dialog içinde onaya geç (altlarda da ekliyse kapsam sorusuyla)
     setCascadeCount(count);
   }
 
@@ -139,19 +134,42 @@ export function ModifierSection({
                 onClick={handleDetach}
               >
                 <Unlink className="h-3.5 w-3.5" />
-                &bdquo;{targetName}&rdquo; içinden çıkar
+                {t(targetType === "category" ? "mods.detachFromCat" : "mods.detachFromSub")}
               </Button>
-              <p className="text-center text-[11px] text-muted-foreground/60 -mt-2">
-                Özellik havuzda kalır, yalnızca buradan ayrılır
-              </p>
+            </>
+          )}
+
+          {/* Çıkarma onayı — uyarı burada */}
+          {selected && cascadeCount === 0 && (
+            <>
+              <DialogHeader className="items-center gap-1 text-center">
+                <ModAtomCore icon={modAtomIcon(selected)} size="lg" color={selectedColor} />
+                <DialogTitle className="pt-1 text-base">{t("mods.detachConfirm")}</DialogTitle>
+                <DialogDescription>
+                  {t("mods.detachWarn", { name: selected.name ?? selected.entryType.name, target: targetName })}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="outline"
+                  className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={handleDetachOnlyHere}
+                >
+                  <Unlink className="h-3.5 w-3.5" />
+                  {t("mods.detach")}
+                </Button>
+                <Button variant="ghost" className="text-muted-foreground" onClick={() => setCascadeCount(null)}>
+                  {t("action.cancel")}
+                </Button>
+              </div>
             </>
           )}
 
           {/* Altlarda da ekliyse: aynı dialogda kapsam sorusu */}
-          {selected && cascadeCount !== null && (
+          {selected && cascadeCount !== null && cascadeCount > 0 && (
             <>
               <DialogHeader className="items-center text-center">
-                <ModAtomCore icon={modAtomIcon(selected)} size="lg" />
+                <ModAtomCore icon={modAtomIcon(selected)} size="lg" color={selectedColor} />
                 <DialogTitle className="text-base pt-1">
                   Alt kategorilerden de çıkarılsın mı?
                 </DialogTitle>
@@ -170,7 +188,7 @@ export function ModifierSection({
                   Hepsinden çıkar ({cascadeCount + 1})
                 </Button>
                 <Button variant="outline" onClick={handleDetachOnlyHere}>
-                  Yalnızca &bdquo;{targetName}&rdquo; içinden çıkar
+                  {t("mods.detachOnlyHere")}
                 </Button>
                 <Button
                   variant="ghost"
