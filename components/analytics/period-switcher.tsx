@@ -87,6 +87,7 @@ export function PeriodTabs({
       role="tablist"
       aria-label={t("insights.period")}
       data-period-tabs=""
+      data-no-jump={onPick ? "" : undefined}
       className="flex items-center justify-between border-b border-[var(--ln-1)]"
     >
       {KINDS.map(({ kind, label }) => {

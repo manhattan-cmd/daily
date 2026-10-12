@@ -75,7 +75,7 @@ import { routes } from "@/lib/routes";
 const SHOW_PERIOD_SUMMARY = false;
 
 /** Analiz başlık bandının zemini (zaman + yol menülerinin bölümü) */
-const ANALYSIS_HEADER =
+export const ANALYSIS_HEADER =
   "rounded-b-[24px] border-[var(--ln-2)] bg-card pb-0 shadow-[0_12px_28px_-14px_rgba(0,0,0,0.75)]";
 
 /**

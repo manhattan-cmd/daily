@@ -1104,11 +1104,6 @@ input[type="number"] {
 /* Brutal: siyah etiketteki ek aciklama "(son 4 hafta...)" bitisik durmasin */
 :root[data-skin="brutal"] h3.uppercase span.normal-case { margin-left: 0.4em; }
 
-/* Brutal: kategori / alt kategori analizindeki sayfa ici donem cubugu.
-   Ana analizdeki bandin ayni ogeleri; ince cerceveli, alt koseler oval */
-:root[data-skin="brutal"] [data-scope-period] {
-  background: #fff4dc !important; border: 1.5px solid #111 !important; border-radius: 10px 10px 20px 20px;
-  padding: 8px 8px 8px; gap: 8px;
-}
-/* Takvim dugmesi yok: son sekme (Tumu) digerleri gibi genis */
-:root[data-skin="brutal"] [data-scope-period] [data-period-tabs] > button:last-child { flex: 1 1 0; }
+/* Brutal: kategori / alt kategori analizinin bandinda takvim dugmesi yok:
+   son sekme (Tumu) digerleri gibi genis */
+:root[data-skin="brutal"] [data-period-tabs][data-no-jump] > button:last-child { flex: 1 1 0; }

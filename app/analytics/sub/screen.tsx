@@ -4,9 +4,8 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { getCategory, getSubCategory } from "@/lib/db/queries";
-import { PageHeader } from "@/components/layout/page-header";
 import { CategoryOverviewPanel } from "@/components/analytics/category-overview-panel";
-import { ScopePeriodBar, useScopePeriod } from "@/components/analytics/scope-period-bar";
+import { ScopeAnalysisHeader, ScopeTitle, useScopePeriod } from "@/components/analytics/scope-period-bar";
 import { routes } from "@/lib/routes";
 
 /**
@@ -48,14 +47,17 @@ function SubcategoryAnalyticsPageContent({
 
   return (
     <>
-      <PageHeader
-        title={subcategory?.name ?? "..."}
-        description={category?.name}
+      <ScopeAnalysisHeader
+        category={category}
+        subcategory={subcategory}
+        period={period}
+        onPick={setPeriod}
         back={backPath}
       />
-      <ScopePeriodBar period={period} onPick={setPeriod} />
 
       {category && subcategory && (
+        <>
+        <ScopeTitle category={category} subcategory={subcategory} kicker={category.name} />
         <CategoryOverviewPanel
           key={subcategory.id}
           category={category}
@@ -63,6 +65,7 @@ function SubcategoryAnalyticsPageContent({
           period={period}
           initialMetricId={metricParam}
         />
+        </>
       )}
     </>
   );

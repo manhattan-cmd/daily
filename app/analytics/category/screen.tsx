@@ -4,9 +4,8 @@ import { Suspense } from "react";
 import { useT } from "@/lib/i18n";
 import { useLiveQuery } from "dexie-react-hooks";
 import { getCategory } from "@/lib/db/queries";
-import { PageHeader } from "@/components/layout/page-header";
 import { CategoryOverviewPanel } from "@/components/analytics/category-overview-panel";
-import { ScopePeriodBar, useScopePeriod } from "@/components/analytics/scope-period-bar";
+import { ScopeAnalysisHeader, ScopeTitle, useScopePeriod } from "@/components/analytics/scope-period-bar";
 
 /**
  * Kategori analiz sayfası — zaman perspektifinin (dönem sayfaları) yanındaki
@@ -37,13 +36,18 @@ function CategoryAnalyticsContent({
 
   return (
     <>
-      <PageHeader
-        title={category?.name ?? "..."}
-        description={t("insights.categoryInsights")}
+      <ScopeAnalysisHeader
+        category={category}
+        period={period}
+        onPick={setPeriod}
         back={`/analytics?cat=${categoryId}`}
       />
-      <ScopePeriodBar period={period} onPick={setPeriod} />
-      {category && <CategoryOverviewPanel category={category} period={period} />}
+      {category && (
+        <>
+          <ScopeTitle category={category} kicker={t("insights.categoryInsights")} />
+          <CategoryOverviewPanel category={category} period={period} />
+        </>
+      )}
     </>
   );
 }
