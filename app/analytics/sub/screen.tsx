@@ -1,14 +1,18 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { getCategory, getSubCategory } from "@/lib/db/queries";
 import { PageHeader } from "@/components/layout/page-header";
-import { SubcategoryPanel } from "@/components/analytics/subcategory-panel";
-import { isRangeKey, rangeStartMs, type RangeKey } from "@/lib/analytics";
+import { CategoryOverviewPanel } from "@/components/analytics/category-overview-panel";
+import { ScopePeriodBar, useScopePeriod } from "@/components/analytics/scope-period-bar";
 import { routes } from "@/lib/routes";
 
+/**
+ * Alt kategori analiz sayfası — kategori analiziyle aynı panel, bu düğümün
+ * alt ağacına (kendisi + tüm torunları) odaklı; üstte dönem seçici.
+ */
 export function SubcategoryAnalyticsPage({
   params,
 }: {
@@ -28,13 +32,8 @@ function SubcategoryAnalyticsPageContent({
 }) {
   const { categoryId, subcategoryId } = params;
   const searchParams = useSearchParams();
-
-  const rangeParam = searchParams.get("range");
-  const range: RangeKey = isRangeKey(rangeParam) ? rangeParam : "7";
   const metricParam = searchParams.get("metric") ?? undefined;
-
-  // Aralık başlangıcı — dakikalık oynamalar yeniden sorgu tetiklemesin diye memo
-  const rangeStart = useMemo(() => rangeStartMs(range, new Date()), [range]);
+  const [period, setPeriod] = useScopePeriod();
 
   const category = useLiveQuery(() => getCategory(categoryId), [categoryId]);
   const subcategory = useLiveQuery(
@@ -42,9 +41,10 @@ function SubcategoryAnalyticsPageContent({
     [subcategoryId]
   );
 
+  // Geri: üst alt kategoriye (dönem ve metrik taşınır) ya da kategorinin analizine
   const backPath = subcategory?.parentId
-    ? routes.analyticsSub(categoryId, subcategory.parentId, `range=${range}&metric=${metricParam ?? "count"}`)
-    : `/analytics?cat=${categoryId}&range=${range}`;
+    ? routes.analyticsSub(categoryId, subcategory.parentId, `p=${period.key}&metric=${metricParam ?? "count"}`)
+    : `${routes.analyticsCategory(categoryId)}&p=${period.key}`;
 
   return (
     <>
@@ -53,14 +53,14 @@ function SubcategoryAnalyticsPageContent({
         description={category?.name}
         back={backPath}
       />
+      <ScopePeriodBar period={period} onPick={setPeriod} />
 
       {category && subcategory && (
-        <SubcategoryPanel
+        <CategoryOverviewPanel
           key={subcategory.id}
           category={category}
           subcategory={subcategory}
-          range={range}
-          rangeStart={rangeStart}
+          period={period}
           initialMetricId={metricParam}
         />
       )}

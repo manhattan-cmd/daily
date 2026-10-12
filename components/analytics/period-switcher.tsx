@@ -50,7 +50,15 @@ export const tabState = (on: boolean) =>
  * kapsıyorsa bugüne göre. Zaten seçili sekmeye yeniden dokunmak o türün
  * şimdiki dönemine döner (bu hafta, bu ay…).
  */
-export function PeriodTabs({ period }: { period: Period }) {
+export function PeriodTabs({
+  period,
+  onPick,
+}: {
+  period: Period;
+  /** Verilirse dönem URL'ye gitmek yerine buraya bildirilir (sayfa içi
+   *  seçici); özel aralık takvimi o zaman gösterilmez */
+  onPick?: (p: Period) => void;
+}) {
   const t = useT();
   const router = useRouter();
 
@@ -69,7 +77,9 @@ export function PeriodTabs({ period }: { period: Period }) {
             : kind === "year"
               ? yearPeriod(anchor)
               : allPeriod();
-    if (next.key !== period.key) router.push(routes.period(next.key));
+    if (next.key === period.key) return;
+    if (onPick) onPick(next);
+    else router.push(routes.period(next.key));
   }
 
   return (
@@ -95,7 +105,7 @@ export function PeriodTabs({ period }: { period: Period }) {
         );
       })}
       {/* Özel aralık — takvim; özel dönemdeyken seçili */}
-      <PeriodJump activeKey={period.key} segment />
+      {!onPick && <PeriodJump activeKey={period.key} segment />}
     </div>
   );
 }
@@ -110,12 +120,15 @@ export function PeriodNav({
   period,
   label,
   note,
+  onPick,
 }: {
   period: Period;
   /** Kapsüldeki ad — verilmezse dönemin kendi etiketi */
   label?: string;
   /** Adın yanında sönük ek ("3/30. gün") */
   note?: string;
+  /** Verilirse URL'ye gitmek yerine buraya bildirilir (sayfa içi seçici) */
+  onPick?: (p: Period) => void;
 }) {
   const t = useT();
   const router = useRouter();
@@ -129,7 +142,7 @@ export function PeriodNav({
       <button
         type="button"
         disabled={!prev}
-        onClick={() => prev && router.push(routes.period(prev.key))}
+        onClick={() => prev && (onPick ? onPick(prev) : router.push(routes.period(prev.key)))}
         aria-label={t("insights.previousPeriod")}
         className={btn}
       >
@@ -146,7 +159,7 @@ export function PeriodNav({
       <button
         type="button"
         disabled={nextDisabled}
-        onClick={() => nextP && router.push(routes.period(nextP.key))}
+        onClick={() => nextP && (onPick ? onPick(nextP) : router.push(routes.period(nextP.key)))}
         aria-label={t("insights.nextPeriod")}
         className={btn}
       >
