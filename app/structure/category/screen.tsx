@@ -10,13 +10,9 @@ import { BarChart3, Pencil, Trash2 } from "lucide-react";
 import {
   getCategory,
   deleteCategory,
-  getOrCreateCategoryRootSub,
   structureSummary,
 } from "@/lib/db/queries";
-import type { SubCategory } from "@/types";
-import { toLocalDateValue } from "@/lib/utils";
-import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
-import { BrutCta, BrutHeroCard, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
+import { BrutHeroCard, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
@@ -42,17 +38,12 @@ export function CategoryDetailPage({
   const [newParentId, setNewParentId] = useState<string | undefined>();
   const [catFormOpen, setCatFormOpen] = useState(false);
 
-  // Brütal tema: renkli başlık kartı, sayılar, altta "Girdi ekle"
+  // Brütal tema: renkli başlık kartı ve sayılar
   const brutal = useIsBrutal();
   const summary = useLiveQuery(
     () => (brutal ? structureSummary(categoryId) : undefined),
     [brutal, categoryId]
   );
-  const [today] = useState(() => toLocalDateValue());
-  const [entrySub, setEntrySub] = useState<SubCategory | null>(null);
-  async function openEntry() {
-    setEntrySub(await getOrCreateCategoryRootSub(categoryId));
-  }
 
   async function onDeleteCategory() {
     if (!category) return;
@@ -166,15 +157,6 @@ export function CategoryDetailPage({
         color={category?.color}
       />
 
-      {brutal && category && <BrutCta label={t("home.addEntry")} onClick={openEntry} />}
-      {brutal && (
-        <DayEntrySheet
-          date={today}
-          open={!!entrySub}
-          onClose={() => setEntrySub(null)}
-          presetSub={entrySub}
-        />
-      )}
 
       <SubCategoryForm
         open={subFormOpen}
