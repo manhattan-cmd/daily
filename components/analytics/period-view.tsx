@@ -54,9 +54,10 @@ import {
   getAnalysisSelection,
   selectAnalysisCategory,
   setAnalysisPath,
+  setAnalysisMetric,
 } from "@/components/analytics/analysis-selection";
 import { DrillLevel } from "@/components/analytics/drill-level";
-import { AnalysisTrail } from "@/components/analytics/analysis-trail";
+import { ScopePickers } from "@/components/analytics/scope-pickers";
 import { AnalysisGhost } from "@/components/analytics/analysis-ghost";
 import type { SubCategory } from "@/types";
 import { LazyMount } from "@/components/ui/lazy-mount";
@@ -395,6 +396,32 @@ export function PeriodView({
     setScrollTarget(hasKids(last) ? (last ? last.id : "cat") : "focus");
   };
 
+  /** Üst seçiciden yer: kategori ve inilecek yol tek seferde; özelliklere kay */
+  const pickPlace = (catId: string | null, pathIds: string[]) => {
+    if (!catId) {
+      setCatsOnly(true);
+      setScrollTarget("top");
+      return;
+    }
+    const subById = new Map((data?.subs ?? []).map((s) => [s.id, s]));
+    const next = pathIds.map((id) => subById.get(id)).filter((x): x is SubCategory => !!x);
+    pickCat(catId);
+    setDrill({ catId, path: next });
+    setAnalysisPath(catId, next);
+    setScrollTarget("focus");
+  };
+  /** Üst seçiciden özellik: başka kategorideyse önce oraya geçer */
+  const pickMetric = (catId: string, id: string) => {
+    if (catId !== selectedCat?.id) {
+      pickCat(catId);
+      setDrill({ catId, path: [] });
+      setAnalysisPath(catId, []);
+    }
+    setMetricSel({ catId, id });
+    setAnalysisMetric(catId, id);
+    setScrollTarget("focus");
+  };
+
   // Kategori panelinin verisi: dönemde girdisi olan kategoriler boşta, dokunulan
   // kategori parmak değdiği an önden okunur — kategoriler arasında gezerken
   // panel boşalıp yeniden dolmasın (bkz. use-category-metrics önbelleği)
@@ -516,39 +543,18 @@ export function PeriodView({
           // bulunulan kalem). Hepsi başlıkla aynı sol çizgiden başlar.
           <div className="flex flex-col">
           <PeriodTabs period={period} />
-          {/* Yol kapsülü sekme çizgisiyle bandın alt kenarı arasında dikeyde
-              ortada: üstünde ve altında eşit pay (band alt dolgusu sıfır) */}
-          <div data-trail-wrap="" className="py-2">
-          <AnalysisTrail
-            steps={[
-              // Yolun kökü: bütün kategoriler. Dokununca seçim kalkar ve
-              // kategori dağılımına dönülür
-              {
-                key: "cats",
-                label: t("structure.categories"),
-                root: true,
-                onClick: () => {
-                  setCatsOnly(true);
-                  setScrollTarget("top");
-                },
-              },
-              ...(selectedCat
-                ? [
-                    {
-                      key: selectedCat.id,
-                      label: selectedCat.name,
-                      color: selectedCat.color,
-                      onClick: () => goTo([]),
-                    },
-                    ...path.map((node, i) => ({
-                      key: node.id,
-                      label: node.name,
-                      color: selectedCat.color,
-                      onClick: () => goTo(path.slice(0, i + 1)),
-                    })),
-                  ]
-                : []),
-            ]}
+          {/* Konum yolunun yerinde iki seçici: solda özellik, sağda yer
+              (kategori ağacı). Seçim bu görünümün kendi durumunu sürer */}
+          <div className="py-2">
+          <ScopePickers
+            cats={data.cats}
+            subs={data.subs}
+            entries={data.entries}
+            selectedCat={selectedCat}
+            path={path}
+            metricId={metricId}
+            onPlace={pickPlace}
+            onMetric={pickMetric}
           />
           </div>
           </div>
