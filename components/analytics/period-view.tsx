@@ -518,7 +518,7 @@ export function PeriodView({
           <PeriodTabs period={period} />
           {/* Yol kapsülü sekme çizgisiyle bandın alt kenarı arasında dikeyde
               ortada: üstünde ve altında eşit pay (band alt dolgusu sıfır) */}
-          <div data-trail-wrap="" className="py-2">
+          <div data-trail-wrap="" className="flex items-center gap-2 py-2">
           <AnalysisTrail
             steps={[
               // Yolun kökü: bütün kategoriler. Dokununca seçim kalkar ve
@@ -550,6 +550,14 @@ export function PeriodView({
                 : []),
             ]}
           />
+          {/* DENEME — özellik bazlı analizin kapısı */}
+          <Link
+            href={`/analytics/features?p=${period.key}`}
+            data-feature-door=""
+            className="flex h-8 shrink-0 items-center rounded-lg border border-[var(--ln-2)] px-2.5 text-[12px] font-bold text-violet-300 [:root[data-skin=brutal]_&]:border-[1.5px] [:root[data-skin=brutal]_&]:border-[#111] [:root[data-skin=brutal]_&]:bg-[#c9b8ff] [:root[data-skin=brutal]_&]:text-[#111]"
+          >
+            Özellikler
+          </Link>
           </div>
           </div>
         }
