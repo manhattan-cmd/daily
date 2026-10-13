@@ -28,16 +28,16 @@ export const routes = {
   /** Yapı: alt kategori (kalem) ayrıntısı */
   structureSub: (categoryId: string, subcategoryId: string) =>
     `/structure/sub?${q({ cat: categoryId, id: subcategoryId })}`,
-  /** Analiz: kategorinin tüm zamanlar görünümü */
-  analyticsCategory: (categoryId: string) =>
-    `/analytics/category?${q({ id: categoryId })}`,
-  /** Analiz: alt kategori — `extra` ek sorgu ("range=tum&metric=count" gibi) */
-  analyticsSub: (categoryId: string, subcategoryId: string, extra?: string) =>
-    `/analytics/sub?${q({ cat: categoryId, id: subcategoryId }, extra)}`,
+  /** Analiz: "her şey · kategori" cümlesi (p = dönem anahtarı) */
+  analyticsCategory: (categoryId: string, p?: string) =>
+    `/analytics?${q({ yer: `c:${categoryId}`, ...(p ? { p } : {}) })}`,
+  /** Analiz: alt kategori cümlesi — ne verilirse "özellik · alt kategori" */
+  analyticsSub: (_categoryId: string, subcategoryId: string, opts?: { ne?: string; p?: string }) =>
+    `/analytics?${q({ yer: `s:${subcategoryId}`, ...(opts?.ne ? { ne: opts.ne } : {}), ...(opts?.p ? { p: opts.p } : {}) })}`,
   /** Analiz: bir aktivitenin geçmişi */
   activity: (name: string) => `/analytics/activity?${q({ name })}`,
   /** Analiz: dönem görünümü — anahtar lib/period biçiminde ("m-2026-09").
    *  Bütün dönemler Analiz'in kendi sayfasında: dönemden döneme geçmek sayfa
    *  değiştirmesin, görünüm baştan kurulmasın (bkz. app/analytics/page). */
-  period: (key: string) => `/analytics?${q({ key })}`,
+  period: (key: string) => `/analytics?${q({ p: key })}`,
 };

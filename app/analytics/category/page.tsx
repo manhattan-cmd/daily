@@ -1,27 +1,29 @@
 "use client";
 
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import { CategoryAnalyticsPage } from "./screen";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { routes } from "@/lib/routes";
 
 /**
- * Analiz: kategori — /analytics/category?id=…
- *
- * Kimlik yolda değil sorguda: statik çıktı (mobil uygulama) önceden
- * bilinmeyen yol parçalarını kabul etmiyor (bkz. lib/routes). Ekran
- * kimliğe göre anahtarlanıyor — başka bir kayda geçince eskiden olduğu gibi
- * baştan kuruluyor, önceki kaydın açık penceresi ya da seçimi taşınmıyor.
+ * Eski kategori analizi adresi (/analytics/category?id=…) — artık Analiz'in
+ * tek ekranında "her şey · kategori" cümlesi. Kayıtlı bağlantılar çalışsın
+ * diye yönlendirir; geri tuşu buraya düşmesin diye replace.
  */
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <Route />
+      <Redirect />
     </Suspense>
   );
 }
 
-function Route() {
+function Redirect() {
+  const router = useRouter();
   const q = useSearchParams();
-  const categoryId = q.get("id") ?? "";
-  return <CategoryAnalyticsPage key={`${categoryId}`} params={{ categoryId }} />;
+  const id = q.get("id") ?? "";
+  const p = q.get("p") ?? undefined;
+  useEffect(() => {
+    router.replace(id ? routes.analyticsCategory(id, p) : "/analytics");
+  }, [router, id, p]);
+  return null;
 }
