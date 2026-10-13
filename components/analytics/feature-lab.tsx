@@ -66,25 +66,28 @@ type Store = {
 
 type Node = { key: string; name: string; color: string; icon?: string; catId: string; parentKey?: string };
 
-type Row = { entry: Entry; value: number; path: string[]; modId: string };
+type Row = { entry: Entry; value: number; path: string[]; modId: string; origId: string };
 
 type Prefs = {
   things: { name: string; keys: string[] }[];
   dismissed: string[];
   /** birleştirilen özellik → ana özellik */
   merged: Record<string, string>;
+  /** "farklı" denen özellik çiftleri ("idA|idB", sıralı) */
+  distinct: string[];
 };
+const EMPTY_PREFS: Prefs = { things: [], dismissed: [], merged: {}, distinct: [] };
 const PREFS_KEY = "lab:feature-prefs";
 function readPrefs(): Prefs {
   try {
     const raw = localStorage.getItem(PREFS_KEY);
-    if (raw) return { things: [], dismissed: [], merged: {}, ...JSON.parse(raw) };
+    if (raw) return { ...EMPTY_PREFS, ...JSON.parse(raw) };
   } catch {}
-  return { things: [], dismissed: [], merged: {} };
+  return EMPTY_PREFS;
 }
 function usePrefs(): [Prefs, (p: Prefs) => void] {
   const [prefs, setPrefs] = useState<Prefs>(() =>
-    typeof window === "undefined" ? { things: [], dismissed: [], merged: {} } : readPrefs()
+    typeof window === "undefined" ? EMPTY_PREFS : readPrefs()
   );
   const save = (p: Prefs) => {
     setPrefs(p);
@@ -146,7 +149,7 @@ function buildModel(store: Store, merged: Record<string, string>) {
     if (!Number.isFinite(n)) continue;
     const path = pathOf(e.subcategoryId);
     if (!path.length || !nodes.has(path[0])) continue;
-    rows.push({ entry: e, value: n, path, modId: merged[m.id] ?? m.id });
+    rows.push({ entry: e, value: n, path, modId: merged[m.id] ?? m.id, origId: m.id });
   }
   return { nodes, rows, modById, catById };
 }
@@ -305,29 +308,63 @@ function sameNameGroups(model: Model, prefs: Prefs) {
     .sort((x, y) => y.score - x.score);
 }
 
-/** Aynı birimle, aynı adlı yerlerde ölçülen iki farklı birikimli özellik */
+/**
+ * Eş anlam öbekleri — özellik adının içinde geçen kelimeyle öbeğe girer.
+ * Gelir kelimeleri ayrı öbek: "Kazanılan Para" ile "Para" aynı sanılmasın
+ * (gelir öbeği önce bakılır).
+ */
+const SYNONYMS: { key: string; words: string[] }[] = [
+  { key: "income", words: ["gelir", "kazanç", "kazanc", "kazanılan", "maaş", "income", "earned", "salary"] },
+  { key: "money", words: ["para", "tutar", "harcama", "harcanan", "gider", "ücret", "fiyat", "maliyet", "masraf", "ödeme", "money", "amount", "cost", "spent", "expense", "price"] },
+  { key: "duration", words: ["süre", "zaman", "dakika", "duration", "time"] },
+  { key: "distance", words: ["mesafe", "yol", "distance"] },
+];
+function meaningOf(name: string): string | undefined {
+  const words = norm(name).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  return SYNONYMS.find((g) => g.words.some((w) => words.includes(w)))?.key;
+}
+const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+
+/**
+ * Aynı şeyi ölçüyor olabilecek iki özellik. Uygulama asla kendiliğinden
+ * birleştirmez; şu koşullarda SORAR:
+ *  - aynı birim, ikisi de birikimli (toplanan) özellik;
+ *  - hiçbir girdide birlikte kullanılmamışlar (birlikteyse — Para ve
+ *    Bahşiş gibi — ayrı şeylerdir);
+ *  - VE ya aynı adlı bir yerin altında girilmişler ("Yakıt"), ya da adları
+ *    aynı anlam öbeğinde ("Tutar" · "Harcama" · "Para").
+ */
 function duplicateMods(model: Model, prefs: Prefs) {
   const placeNames = new Map<string, Set<string>>();
+  const entriesOf = new Map<string, Set<string>>();
   for (const r of model.rows) {
-    const s = placeNames.get(r.modId) ?? new Set<string>();
+    const s = placeNames.get(r.origId) ?? new Set<string>();
     s.add(norm(model.nodes.get(r.path[r.path.length - 1])?.name ?? ""));
-    placeNames.set(r.modId, s);
+    placeNames.set(r.origId, s);
+    const e = entriesOf.get(r.origId) ?? new Set<string>();
+    e.add(r.entry.id);
+    entriesOf.set(r.origId, e);
   }
-  const ids = [...placeNames.keys()];
-  const out: { a: Mod; b: Mod; place: string }[] = [];
+  const ids = [...placeNames.keys()].filter((id) => !prefs.merged[id]);
+  const out: { a: Mod; b: Mod; reason: string }[] = [];
   for (let i = 0; i < ids.length; i++)
     for (let j = i + 1; j < ids.length; j++) {
       const a = model.modById.get(ids[i])!, b = model.modById.get(ids[j])!;
       if (!a.unit || a.unit !== b.unit || isLevelMod(a) || isLevelMod(b)) continue;
-      if (prefs.merged[b.id] || prefs.merged[a.id]) continue;
-      const common = [...placeNames.get(a.id)!].find((p) => placeNames.get(b.id)!.has(p));
-      if (!common) continue;
+      if (prefs.distinct.includes(pairKey(a.id, b.id))) continue;
+      const ea = entriesOf.get(a.id)!, eb = entriesOf.get(b.id)!;
+      if ([...ea].some((id) => eb.has(id))) continue;
+      const common = [...placeNames.get(a.id)!].find((p) => p && placeNames.get(b.id)!.has(p));
+      const ma = meaningOf(a.name), mb = meaningOf(b.name);
+      const sameMeaning = !!ma && ma === mb;
+      if (!common && !sameMeaning) continue;
       // Daha çok kullanılan ana özellik olur
-      const ca = model.rows.filter((r) => r.modId === a.id).length;
-      const cb = model.rows.filter((r) => r.modId === b.id).length;
-      const [main, other] = ca >= cb ? [a, b] : [b, a];
-      const place = model.nodes.get([...model.nodes.values()].find((n) => norm(n.name) === common)!.key)!.name;
-      out.push({ a: main, b: other, place });
+      const [main, other] = ea.size >= eb.size ? [a, b] : [b, a];
+      const placeName = common ? [...model.nodes.values()].find((n) => norm(n.name) === common)?.name : undefined;
+      const reason = placeName
+        ? `İkisi de ${a.unit}, ikisi de “${placeName}” altında girilmiş ve hiçbir girdide birlikte kullanılmamış.`
+        : `İkisi de ${a.unit}, adları aynı anlama geliyor olabilir ve hiçbir girdide birlikte kullanılmamış.`;
+      out.push({ a: main, b: other, reason });
     }
   return out;
 }
@@ -461,9 +498,9 @@ export function FeatureLab() {
     <>
       <LabHeader period={period} onPick={setPeriod} trail={trail} back={mod || thingDef ? `/analytics/features?p=${period.key}` : undefined} />
       {!model ? null : mod ? (
-        <FeatureDetail model={model} mod={mod} period={period} drill={drill} onDrill={(path) => go({ mod: mod.id, path: path.join(",") })} />
+        <FeatureDetail model={model} mod={mod} period={period} drill={drill} onDrill={(path) => go({ mod: mod.id, path: path.join(",") })} prefs={prefs} savePrefs={savePrefs} />
       ) : thingDef ? (
-        <ThingDetail model={model} thing={thingDef} period={period} go={go} />
+        <ThingDetail model={model} thing={thingDef} period={period} go={go} onUnmerge={() => { savePrefs({ ...prefs, things: prefs.things.filter((t) => t !== thingDef) }); go({}); }} />
       ) : (
         <FeatureList model={model} period={period} prefs={prefs} savePrefs={savePrefs} go={go} />
       )}
@@ -651,18 +688,27 @@ function FeatureList({
                 “{d.b.name}” ile “{d.a.name}” aynı şeyi mi ölçüyor?
               </p>
               <p className="mt-1 text-[12px] text-muted-foreground">
-                İkisi de {d.a.unit}, ikisi de “{d.place}” altında girilmiş. Birlikte sayarsak toplam tek yerde görünür.
+                {d.reason} Birlikte sayarsak toplam tek yerde görünür.
               </p>
-              <button
-                type="button"
-                onClick={() => savePrefs({ ...prefs, merged: { ...prefs.merged, [d.b.id]: d.a.id } })}
-                className={cn(
-                  "mt-2.5 flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-bold",
-                  brutal ? "border-2 border-[#111] bg-[#ffd23f] text-[#111] shadow-[2px_2px_0_#111]" : "bg-amber-500/90 text-black"
-                )}
-              >
-                <Link2 className="h-3.5 w-3.5" /> “{d.a.name}” ile birlikte say
-              </button>
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => savePrefs({ ...prefs, merged: { ...prefs.merged, [d.b.id]: d.a.id } })}
+                  className={cn(
+                    "flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-bold",
+                    brutal ? "border-2 border-[#111] bg-[#ffd23f] text-[#111] shadow-[2px_2px_0_#111]" : "bg-amber-500/90 text-black"
+                  )}
+                >
+                  <Link2 className="h-3.5 w-3.5" /> “{d.a.name}” ile birlikte say
+                </button>
+                <button
+                  type="button"
+                  onClick={() => savePrefs({ ...prefs, distinct: [...prefs.distinct, pairKey(d.a.id, d.b.id)] })}
+                  className={cn("flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold", brutal ? "border-2 border-[#111] bg-white text-[#111]" : "bg-[var(--sf-2)] text-muted-foreground")}
+                >
+                  <X className="h-3.5 w-3.5" /> Farklı
+                </button>
+              </div>
             </div>
           </div>
         </Card>
@@ -743,13 +789,18 @@ function FeatureDetail({
   period,
   drill,
   onDrill,
+  prefs,
+  savePrefs,
 }: {
   model: Model;
   mod: Mod;
   period: Period;
   drill: string[];
   onDrill: (path: string[]) => void;
+  prefs: Prefs;
+  savePrefs: (p: Prefs) => void;
 }) {
+  const mergedIn = Object.entries(prefs.merged).filter(([, to]) => to === mod.id).map(([from]) => model.modById.get(from)).filter((m): m is Mod => !!m);
   const brutal = useBrutal();
   const color = modColor(mod);
   const level = isLevelMod(mod);
@@ -812,6 +863,26 @@ function FeatureDetail({
           <h2 className={cn("leading-tight", brutal ? "text-[30px] font-black tracking-tight" : "text-[22px] font-semibold")}>{mod.name}</h2>
         </div>
       </div>
+      {mergedIn.length > 0 && (
+        <div className="-mt-1 flex flex-wrap items-center gap-2 px-1 text-[12px] text-muted-foreground">
+          {mergedIn.map((m) => (
+            <span key={m.id} className="flex items-center gap-1.5">
+              “{m.name}” de birlikte sayılıyor
+              <button
+                type="button"
+                onClick={() => {
+                  const next = { ...prefs.merged };
+                  delete next[m.id];
+                  savePrefs({ ...prefs, merged: next });
+                }}
+                className="font-semibold underline decoration-dotted underline-offset-4"
+              >
+                Ayır
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       {level ? (
         <>
@@ -965,11 +1036,13 @@ function ThingDetail({
   thing,
   period,
   go,
+  onUnmerge,
 }: {
   model: Model;
   thing: { name: string; keys: string[] };
   period: Period;
   go: (q: Record<string, string | undefined>) => void;
+  onUnmerge: () => void;
 }) {
   const brutal = useBrutal();
   const node = model.nodes.get(thing.keys[thing.keys.length - 1]) ?? model.nodes.get(thing.keys[0])!;
@@ -1005,6 +1078,9 @@ function ThingDetail({
         {thing.keys.map((k) => (
           <span key={k} className="truncate">• {pathLabel(model, pathTo(model, k))}</span>
         ))}
+        <button type="button" onClick={onUnmerge} className="mt-1 self-start font-semibold underline decoration-dotted underline-offset-4">
+          Aynı değil — birleştirmeyi kaldır
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
