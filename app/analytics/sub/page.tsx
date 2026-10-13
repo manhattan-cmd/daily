@@ -1,31 +1,28 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { routes } from "@/lib/routes";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { SubcategoryAnalyticsPage } from "./screen";
 
 /**
- * Eski alt kategori analizi adresi (/analytics/sub?cat=…&id=…) — artık
- * Analiz'in tek ekranında bir cümle (özellik seçiliyse "özellik · alt
- * kategori"). Kayıtlı bağlantılar çalışsın diye yönlendirir.
+ * Analiz: alt kategori — /analytics/sub?cat=…&id=…
+ *
+ * Kimlik yolda değil sorguda: statik çıktı (mobil uygulama) önceden
+ * bilinmeyen yol parçalarını kabul etmiyor (bkz. lib/routes). Ekran
+ * kimliğe göre anahtarlanıyor — başka bir kayda geçince eskiden olduğu gibi
+ * baştan kuruluyor, önceki kaydın açık penceresi ya da seçimi taşınmıyor.
  */
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <Redirect />
+      <Route />
     </Suspense>
   );
 }
 
-function Redirect() {
-  const router = useRouter();
+function Route() {
   const q = useSearchParams();
-  const cat = q.get("cat") ?? "";
-  const id = q.get("id") ?? "";
-  const metric = q.get("metric");
-  const p = q.get("p") ?? undefined;
-  useEffect(() => {
-    router.replace(id ? routes.analyticsSub(cat, id, { ne: metric && metric !== "count" ? metric : undefined, p }) : "/analytics");
-  }, [router, cat, id, metric, p]);
-  return null;
+  const categoryId = q.get("cat") ?? "";
+  const subcategoryId = q.get("id") ?? "";
+  return <SubcategoryAnalyticsPage key={`${categoryId}|${subcategoryId}`} params={{ categoryId, subcategoryId }} />;
 }
