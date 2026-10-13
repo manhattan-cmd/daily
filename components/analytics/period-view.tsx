@@ -408,6 +408,12 @@ export function PeriodView({
     pickCat(catId);
     setDrill({ catId, path: next });
     setAnalysisPath(catId, next);
+    // Seçili özellik yeni yerde de seçili kalsın (ağaç zaten onun geçtiği
+    // yerleri gösteriyor)
+    if (metricId !== "count") {
+      setMetricSel({ catId, id: metricId });
+      setAnalysisMetric(catId, metricId);
+    }
     setScrollTarget("focus");
   };
   /** Üst seçiciden özellik: başka kategorideyse önce oraya geçer */

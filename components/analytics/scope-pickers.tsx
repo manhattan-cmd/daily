@@ -5,21 +5,27 @@
  *
  * Konum yolunun yerini aldı: yol yalnız inilen yeri gösteriyordu, başka bir
  * yere ya da özelliğe geçmek için sayfada aşağı inip kart aramak gerekiyordu.
- * İki çip her an ne'ye ve nereye bakıldığını söylüyor; dokununca seçim
- * listesi açılıyor. Seçim dönem görünümünün kendi durumunu sürüyor (seçili
- * kategori, inilen yol, özellik) — sayfanın geri kalanı aynı.
+ * Tek çerçevede iki alan her an neye ve nereye bakıldığını söylüyor;
+ * dokununca seçim listesi açılıyor. Seçim dönem görünümünün kendi durumunu
+ * sürüyor (seçili kategori, inilen yol, özellik) — sayfanın geri kalanı aynı.
+ *
+ * Bir özellik seçiliyken yer ağacı yalnız o özelliğin bu dönem GEÇTİĞİ
+ * yerleri gösterir (sayılar da o özelliğin kayıtları); istenirse tüm yerlere
+ * açılır.
  */
 
 import { useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { Check, ChevronDown, LayoutGrid, ListOrdered } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
+import { SymbolIcon } from "@/lib/icons";
 import { useSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { modColor } from "@/lib/mod-color";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { Category, Entry, SubCategory } from "@/types";
+import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import type { Category, Entry, Mod, SubCategory } from "@/types";
 
 type Props = {
   cats: Category[];
@@ -36,10 +42,26 @@ type Props = {
   onMetric: (catId: string, metricId: string) => void;
 };
 
+type TreeRow = {
+  key: string;
+  catId: string;
+  pathIds: string[];
+  name: string;
+  icon?: string;
+  color: string;
+  depth: number;
+  n: number;
+  isCat: boolean;
+};
+
+const atomIcon = (m: Mod) => modAtomIcon({ name: m.name, entryType: { valueType: m.valueType } as never });
+
 export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId, onPlace, onMetric }: Props) {
   const t = useT();
   const brutal = useSkin() === "brutal";
   const [open, setOpen] = useState<"ne" | "yer" | null>(null);
+  // Yer listesinde özellik süzgecini kaldır
+  const [allPlaces, setAllPlaces] = useState(false);
 
   const subById = useMemo(() => new Map(subs.map((s) => [s.id, s])), [subs]);
   const catById = useMemo(() => new Map(cats.map((c) => [c.id, c])), [cats]);
@@ -60,53 +82,67 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
     };
   }, [subById, selectedCat, focus]);
 
-  // Kapsamdaki özellikler — seçici açıkken okunur
+  const periodIds = useMemo(() => new Set(entries.map((e) => e.id)), [entries]);
   const scopeIds = useMemo(() => entries.filter(inScope).map((e) => e.id), [entries, inScope]);
+  const scopeKey = scopeIds.join(",");
+
+  // Kapsamdaki özellikler, kayıt sayılarıyla
   const features = useLiveQuery(async () => {
-    if (open !== "ne" && metricId === "count") return null;
     const [values, mods] = await Promise.all([
       db.entryValues.where("entryId").anyOf(scopeIds).toArray(),
       db.mods.toArray(),
     ]);
     const modById = new Map(mods.map((m) => [m.id, m]));
     const entryCat = new Map(entries.map((e) => [e.id, subById.get(e.subcategoryId)?.categoryId]));
-    const agg = new Map<string, { n: number; byCat: Map<string, number> }>();
+    const agg = new Map<string, { ids: Set<string>; byCat: Map<string, number> }>();
     for (const v of values) {
       if (!v.modId || !modById.has(v.modId)) continue;
-      const a = agg.get(v.modId) ?? { n: 0, byCat: new Map() };
-      a.n++;
-      const c = entryCat.get(v.entryId);
-      if (c) a.byCat.set(c, (a.byCat.get(c) ?? 0) + 1);
+      const a = agg.get(v.modId) ?? { ids: new Set<string>(), byCat: new Map<string, number>() };
+      if (!a.ids.has(v.entryId)) {
+        a.ids.add(v.entryId);
+        const c = entryCat.get(v.entryId);
+        if (c) a.byCat.set(c, (a.byCat.get(c) ?? 0) + 1);
+      }
       agg.set(v.modId, a);
     }
     return [...agg.entries()]
       .map(([id, a]) => ({
         mod: modById.get(id)!,
-        n: a.n,
+        n: a.ids.size,
         topCat: [...a.byCat.entries()].sort((x, y) => y[1] - x[1])[0]?.[0],
-        cats: a.byCat.size,
       }))
       .sort((x, y) => y.n - x.n);
-  }, [open, metricId, scopeIds.join(","), entries, subById]);
+  }, [scopeKey, entries, subById]);
 
-  // Ağaç: dönemde girdisi olan kategoriler ve kalemler, kayıt sayısıyla
-  const tree = useMemo(() => {
+  // Seçili özelliğin bu dönem geçtiği girdiler (yer süzgeci)
+  const metricEntryIds = useLiveQuery(async () => {
+    if (metricId === "count") return null;
+    const vals = await db.entryValues.where("modId").equals(metricId).toArray();
+    return new Set(vals.map((v) => v.entryId).filter((id) => periodIds.has(id)));
+  }, [metricId, periodIds]);
+  const currentMod =
+    metricId !== "count" ? features?.find((f) => f.mod.id === metricId)?.mod : undefined;
+  const filtering = !!metricEntryIds && !allPlaces;
+
+  // Ağaç: dönemde (süzgeçte o özelliğin) kaydı olan kategoriler ve kalemler
+  const tree = useMemo<TreeRow[]>(() => {
     const count = new Map<string, number>();
     for (const e of entries) {
+      if (filtering && !metricEntryIds!.has(e.id)) continue;
       for (let cur: SubCategory | undefined = subById.get(e.subcategoryId); cur; cur = cur.parentId ? subById.get(cur.parentId) : undefined) {
         if (!cur.isCategoryRoot) count.set(cur.id, (count.get(cur.id) ?? 0) + 1);
       }
       const c = subById.get(e.subcategoryId)?.categoryId;
       if (c) count.set(`c:${c}`, (count.get(`c:${c}`) ?? 0) + 1);
     }
-    const out: { catId: string; pathIds: string[]; name: string; color: string; depth: number; n: number; isCat: boolean }[] = [];
+    const out: TreeRow[] = [];
     const walk = (cat: Category, parentId: string | undefined, depth: number, trail: string[]) => {
       subs
         .filter((s) => s.categoryId === cat.id && !s.isCategoryRoot && s.parentId === parentId && (count.get(s.id) ?? 0) > 0)
         .sort((a, b) => a.order - b.order)
         .forEach((s) => {
           const p = [...trail, s.id];
-          out.push({ catId: cat.id, pathIds: p, name: s.name, color: cat.color, depth, n: count.get(s.id) ?? 0, isCat: false });
+          out.push({ key: [cat.id, ...p].join("/"), catId: cat.id, pathIds: p, name: s.name, icon: s.icon ?? cat.icon, color: cat.color, depth, n: count.get(s.id) ?? 0, isCat: false });
           walk(cat, s.id, depth + 1, p);
         });
     };
@@ -114,130 +150,251 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
       .filter((c) => (count.get(`c:${c.id}`) ?? 0) > 0)
       .sort((a, b) => (count.get(`c:${b.id}`) ?? 0) - (count.get(`c:${a.id}`) ?? 0))
       .forEach((c) => {
-        out.push({ catId: c.id, pathIds: [], name: c.name, color: c.color, depth: 0, n: count.get(`c:${c.id}`) ?? 0, isCat: true });
+        out.push({ key: c.id, catId: c.id, pathIds: [], name: c.name, icon: c.icon, color: c.color, depth: 0, n: count.get(`c:${c.id}`) ?? 0, isCat: true });
         walk(c, undefined, 1, []);
       });
     return out;
-  }, [cats, subs, entries, subById]);
+  }, [cats, subs, entries, subById, filtering, metricEntryIds]);
 
-  const currentMod = metricId !== "count" ? features?.find((f) => f.mod.id === metricId)?.mod : undefined;
-  const placeText = selectedCat
-    ? [selectedCat.name, ...path.map((s) => s.name)].slice(-2).join(" › ")
-    : t("structure.categories");
+  const placeText = selectedCat ? [selectedCat.name, ...path.map((s) => s.name)].slice(-2).join(" › ") : t("structure.categories");
+  const placeIcon = focus?.icon ?? selectedCat?.icon;
   const curPathKey = selectedCat ? [selectedCat.id, ...path.map((s) => s.id)].join("/") : "";
+  const scopeName = selectedCat ? [selectedCat.name, ...path.map((s) => s.name)].join(" › ") : null;
 
-  const chip = cn(
-    "flex h-8 min-w-0 items-center gap-1.5 px-2.5 text-[12.5px] font-bold",
-    brutal
-      ? "rounded-[9px] border-2 border-[#111] bg-white text-[#111] shadow-[2px_2px_0_#111]"
-      : "rounded-lg bg-[var(--sf-2)] text-foreground ring-1 ring-inset ring-[var(--ln-1)]"
-  );
-  const row = (on: boolean) =>
+  // ── Görünüm parçaları ──
+  const fieldLabel = cn("block text-[9.5px] font-bold uppercase leading-none tracking-[0.12em]", brutal ? "text-[#111]/55" : "text-muted-foreground");
+  const fieldValue = cn("block truncate text-[13.5px] font-bold leading-tight", brutal ? "text-[#111]" : "text-foreground");
+  const pill = (on: boolean) =>
     cn(
-      "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[14px]",
-      on ? (brutal ? "bg-[#111] font-bold text-[#FFF4DC]" : "bg-[var(--sf-3)] font-semibold") : "hover:bg-[var(--sf-2)]"
+      "ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums",
+      on ? (brutal ? "bg-[#FFD23F] text-[#111]" : "bg-white/15") : brutal ? "border-[1.5px] border-[#111]/20 text-[#111]/70" : "bg-[var(--sf-2)] text-muted-foreground"
     );
+  const rowCls = (on: boolean) =>
+    cn(
+      "flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors",
+      on
+        ? brutal
+          ? "bg-[#111] text-[#FFF4DC]"
+          : "bg-[var(--sf-3)] ring-1 ring-inset ring-[var(--ln-2)]"
+        : brutal
+          ? "hover:bg-[#111]/5"
+          : "hover:bg-[var(--sf-2)]"
+    );
+  const tile = (color: string, icon: string | undefined, size: number, round = 9) => (
+    <span
+      className={cn("flex shrink-0 items-center justify-center", brutal && "border-[1.5px] border-[#111]")}
+      style={{ width: size, height: size, borderRadius: round, background: brutal ? color : `${color}26` }}
+    >
+      {icon && <SymbolIcon name={icon} size={Math.round(size * 0.55)} style={{ color: brutal ? "#111" : color }} />}
+    </span>
+  );
+  const atom = (m: Mod) => (
+    <span className={cn("shrink-0 rounded-full", brutal && "border-[1.5px] border-[#111] bg-white")}>
+      <ModAtomCore icon={atomIcon(m)} size="sm" color={modColor(m)} />
+    </span>
+  );
 
   return (
     <>
-      <div data-scope-pickers="" className="flex items-center gap-1.5">
-        <button type="button" onClick={() => setOpen("ne")} className={cn(chip, "max-w-[46%]")} aria-label="Özellik seç">
-          {currentMod && (
-            <span className="h-3.5 w-3.5 shrink-0 rounded-full border-[1.5px] border-[#111]" style={{ background: modColor(currentMod) }} />
+      {/* Tek çerçeve, iki alan: ÖZELLİK | YER */}
+      <div
+        data-scope-pickers=""
+        className={cn(
+          "flex items-stretch overflow-hidden",
+          brutal
+            ? "rounded-[13px] border-2 border-[#111] bg-white shadow-[2.5px_2.5px_0_#111]"
+            : "rounded-2xl bg-[var(--sf-2)] ring-1 ring-inset ring-[var(--ln-1)]"
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => setOpen("ne")}
+          aria-label="Özellik seç"
+          className={cn("flex w-[44%] min-w-0 items-center gap-2 px-2.5 py-1.5 text-left", brutal ? "active:bg-[#111]/5" : "active:bg-[var(--sf-3)]")}
+        >
+          {currentMod ? (
+            <span className="h-6 w-6 shrink-0 rounded-full border-[1.5px] border-[#111]/80" style={{ background: modColor(currentMod) }} />
+          ) : (
+            <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full", brutal ? "border-[1.5px] border-[#111] bg-[#FFF4DC]" : "bg-[var(--sf-3)]")}>
+              <ListOrdered className="h-3.5 w-3.5" />
+            </span>
           )}
-          <span className="truncate">{currentMod ? currentMod.name : t("insights.entries")}</span>
-          <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
+          <span className="min-w-0 flex-1">
+            <span className={fieldLabel}>Özellik</span>
+            <span className={fieldValue}>{currentMod ? currentMod.name : t("insights.entries")}</span>
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
         </button>
-        <span className="text-muted-foreground">·</span>
-        <button type="button" onClick={() => setOpen("yer")} className={cn(chip, "flex-1")} aria-label="Yer seç">
-          {selectedCat && (
-            <span className="h-3.5 w-3.5 shrink-0 rounded-[4px] border-[1.5px] border-[#111]" style={{ background: selectedCat.color }} />
+        <button
+          type="button"
+          onClick={() => {
+            setAllPlaces(false);
+            setOpen("yer");
+          }}
+          aria-label="Yer seç"
+          className={cn(
+            "flex min-w-0 flex-1 items-center gap-2 px-2.5 py-1.5 text-left",
+            brutal ? "border-l-2 border-[#111] active:bg-[#111]/5" : "border-l border-[var(--ln-1)] active:bg-[var(--sf-3)]"
           )}
-          <span className="truncate">{placeText}</span>
-          <ChevronDown className="ml-auto h-3 w-3 shrink-0 opacity-60" />
+        >
+          {selectedCat ? (
+            tile(selectedCat.color, placeIcon, 24, 7)
+          ) : (
+            <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px]", brutal ? "border-[1.5px] border-[#111] bg-[#FFF4DC]" : "bg-[var(--sf-3)]")}>
+              <LayoutGrid className="h-3.5 w-3.5" />
+            </span>
+          )}
+          <span className="min-w-0 flex-1">
+            <span className={fieldLabel}>Yer</span>
+            <span className={fieldValue}>{placeText}</span>
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
         </button>
       </div>
 
       <Dialog open={open !== null} onOpenChange={(o) => !o && setOpen(null)}>
-        <DialogContent className="max-h-[80vh] max-w-[360px] gap-2 overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-base">{open === "ne" ? "Neye bakılsın?" : "Nerede?"}</DialogTitle>
-          </DialogHeader>
+        <DialogContent data-scope-dialog="" className="max-h-[82vh] max-w-[370px] gap-3 overflow-y-auto p-5">
           {open === "ne" ? (
-            <div className="flex flex-col gap-0.5">
-              {selectedCat && (
-                <button
-                  type="button"
-                  className={row(metricId === "count")}
-                  onClick={() => {
-                    setOpen(null);
-                    onMetric(selectedCat.id, "count");
-                  }}
-                >
-                  {t("insights.entries")}
-                  <span className="ml-auto text-[12px] opacity-70">{scopeIds.length}</span>
-                </button>
-              )}
-              {!selectedCat && (
-                <p className="px-2.5 pb-1 text-[12px] text-muted-foreground">Seçtiğin özellik en çok kullanıldığı kategoride açılır.</p>
-              )}
-              {(features ?? []).map((f) => (
-                <button
-                  key={f.mod.id}
-                  type="button"
-                  className={row(metricId === f.mod.id)}
-                  onClick={() => {
-                    setOpen(null);
-                    const catId = selectedCat?.id ?? f.topCat;
-                    if (catId) onMetric(catId, f.mod.id);
-                  }}
-                >
-                  <span className="h-4 w-4 shrink-0 rounded-full border-[1.5px] border-[#111]" style={{ background: modColor(f.mod) }} />
-                  <span className="truncate">{f.mod.name}</span>
-                  <span className="ml-auto shrink-0 text-[11.5px] opacity-60">
-                    {!selectedCat && f.topCat ? catById.get(f.topCat)?.name : f.n}
-                  </span>
-                </button>
-              ))}
-              {features && features.length === 0 && (
-                <p className="px-2.5 py-2 text-[13px] text-muted-foreground">Bu dönemde burada özellik değeri yok.</p>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-0.5">
-              <button
-                type="button"
-                className={row(!selectedCat)}
-                onClick={() => {
-                  setOpen(null);
-                  onPlace(null, []);
-                }}
-              >
-                {t("structure.categories")} <span className="ml-auto text-[12px] opacity-70">hepsi</span>
-              </button>
-              {tree.map((n) => {
-                const key = [n.catId, ...n.pathIds].join("/");
-                return (
+            <>
+              <DialogHeader className="gap-1 text-left">
+                <DialogTitle className="text-[17px]">Özellik</DialogTitle>
+                <DialogDescription className="text-[12.5px]">
+                  {scopeName ? `${scopeName} içinde ölçülenler` : "Bu dönem bütün kategorilerde; seçtiğin özellik en çok kullanıldığı kategoride açılır"}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-1">
+                {selectedCat && (
                   <button
-                    key={key}
                     type="button"
-                    className={row(curPathKey === key)}
-                    style={{ paddingLeft: 10 + n.depth * 18 }}
+                    className={rowCls(metricId === "count")}
                     onClick={() => {
                       setOpen(null);
-                      onPlace(n.catId, n.pathIds);
+                      onMetric(selectedCat.id, "count");
                     }}
                   >
-                    <span
-                      className={cn("h-4 w-4 shrink-0 border-[1.5px] border-[#111]", n.isCat ? "rounded-[4px]" : "rounded-[3px] opacity-80")}
-                      style={{ background: n.color }}
-                    />
-                    <span className={cn("truncate", n.isCat && "font-semibold")}>{n.name}</span>
-                    <span className="ml-auto shrink-0 text-[11.5px] opacity-60">{n.n}</span>
+                    <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full", brutal ? "border-[1.5px] border-[#111] bg-[#FFF4DC] text-[#111]" : "bg-[var(--sf-2)]")}>
+                      <ListOrdered className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[14px] font-semibold">{t("insights.entries")}</span>
+                      <span className="block text-[11.5px] opacity-60">kaç kayıt girildi</span>
+                    </span>
+                    {metricId === "count" ? <Check className="ml-auto h-4 w-4 shrink-0" /> : <span className={pill(false)}>{scopeIds.length}</span>}
                   </button>
-                );
-              })}
-            </div>
+                )}
+                {(features ?? []).map((f) => {
+                  const on = metricId === f.mod.id;
+                  return (
+                    <button
+                      key={f.mod.id}
+                      type="button"
+                      className={rowCls(on)}
+                      onClick={() => {
+                        setOpen(null);
+                        const catId = selectedCat?.id ?? f.topCat;
+                        if (catId) onMetric(catId, f.mod.id);
+                      }}
+                    >
+                      {atom(f.mod)}
+                      <span className="min-w-0">
+                        <span className="block truncate text-[14px] font-semibold">{f.mod.name}</span>
+                        <span className="block truncate text-[11.5px] opacity-60">
+                          {!selectedCat && f.topCat ? `en çok ${catById.get(f.topCat)?.name}` : f.mod.unit ? f.mod.unit : " "}
+                        </span>
+                      </span>
+                      {on ? <Check className="ml-auto h-4 w-4 shrink-0" /> : <span className={pill(false)}>{f.n}</span>}
+                    </button>
+                  );
+                })}
+                {features && features.length === 0 && (
+                  <p className="px-2.5 py-3 text-[13px] text-muted-foreground">Bu dönemde burada özellik değeri yok.</p>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <DialogHeader className="gap-1 text-left">
+                <DialogTitle className="text-[17px]">Yer</DialogTitle>
+                <DialogDescription className="text-[12.5px]">
+                  {currentMod && filtering
+                    ? `“${currentMod.name}” bu dönem bu yerlerde girildi`
+                    : "Bu dönem kaydı olan kategoriler ve alt kategoriler"}
+                </DialogDescription>
+              </DialogHeader>
+              {currentMod && (
+                <div className={cn("flex gap-1 rounded-xl p-[3px]", brutal ? "border-[1.5px] border-[#111] bg-white" : "bg-[var(--sf-2)]")}>
+                  {[
+                    { on: !allPlaces, label: `${currentMod.name} geçen yerler`, set: false },
+                    { on: allPlaces, label: "Tüm yerler", set: true },
+                  ].map((o) => (
+                    <button
+                      key={o.label}
+                      type="button"
+                      onClick={() => setAllPlaces(o.set)}
+                      className={cn(
+                        "flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 truncate rounded-lg px-2 text-[12px] font-bold",
+                        o.on ? (brutal ? "bg-[#111] text-[#FFF4DC]" : "bg-card shadow-sm") : brutal ? "text-[#111]" : "text-muted-foreground"
+                      )}
+                    >
+                      {!o.set && <span className="h-2.5 w-2.5 shrink-0 rounded-full border border-[#111]/60" style={{ background: modColor(currentMod) }} />}
+                      <span className="truncate">{o.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="flex flex-col gap-0.5">
+                <button
+                  type="button"
+                  className={rowCls(!selectedCat)}
+                  onClick={() => {
+                    setOpen(null);
+                    onPlace(null, []);
+                  }}
+                >
+                  <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]", brutal ? "border-[1.5px] border-[#111] bg-[#FFF4DC] text-[#111]" : "bg-[var(--sf-2)]")}>
+                    <LayoutGrid className="h-4 w-4" />
+                  </span>
+                  <span className="text-[14px] font-semibold">{t("structure.categories")}</span>
+                  <span className="ml-auto text-[11.5px] opacity-60">hepsi</span>
+                </button>
+                {tree.map((n) => {
+                  const on = curPathKey === n.key;
+                  return n.isCat ? (
+                    <button
+                      key={n.key}
+                      type="button"
+                      className={cn(rowCls(on), "mt-1.5")}
+                      onClick={() => {
+                        setOpen(null);
+                        onPlace(n.catId, []);
+                      }}
+                    >
+                      {tile(n.color, n.icon, 36, 10)}
+                      <span className="truncate text-[14.5px] font-bold">{n.name}</span>
+                      <span className={pill(on)}>{n.n}</span>
+                    </button>
+                  ) : (
+                    <div key={n.key} className="flex" style={{ paddingLeft: 17 + (n.depth - 1) * 16 }}>
+                      {/* Kılavuz çizgisi — kategorinin renginde */}
+                      <span className="w-[2px] shrink-0 rounded-full" style={{ background: `${n.color}${brutal ? "" : "55"}`, opacity: brutal ? 0.5 : 1 }} />
+                      <button
+                        type="button"
+                        className={cn(rowCls(on), "ml-2 py-1.5")}
+                        onClick={() => {
+                          setOpen(null);
+                          onPlace(n.catId, n.pathIds);
+                        }}
+                      >
+                        {tile(n.color, n.icon, 24, 7)}
+                        <span className="truncate text-[13.5px] font-medium">{n.name}</span>
+                        <span className={pill(on)}>{n.n}</span>
+                      </button>
+                    </div>
+                  );
+                })}
+                {tree.length === 0 && <p className="px-2.5 py-3 text-[13px] text-muted-foreground">Bu dönemde kayıt yok.</p>}
+              </div>
+            </>
           )}
         </DialogContent>
       </Dialog>
