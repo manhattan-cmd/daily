@@ -56,9 +56,7 @@ import {
   setAnalysisPath,
   setAnalysisMetric,
 } from "@/components/analytics/analysis-selection";
-import { DrillLevel } from "@/components/analytics/drill-level";
 import { ScopePickers } from "@/components/analytics/scope-pickers";
-import { AnalysisGhost } from "@/components/analytics/analysis-ghost";
 import type { SubCategory } from "@/types";
 import { LazyMount } from "@/components/ui/lazy-mount";
 import { useT, translate } from "@/lib/i18n";
@@ -128,16 +126,6 @@ export function PeriodView({
     setCatsOnly(false);
     selectAnalysisCategory(id);
   };
-  /** Kategoriyi seç ve sayfayı açılan ilk karta kaydır */
-  const openCat = (id: string) => {
-    pickCat(id);
-    const cat = data?.cats.find((c) => c.id === id);
-    const kids = data?.subs.some(
-      (x) => x.categoryId === id && !x.parentId && !x.isCategoryRoot
-    );
-    if (cat) setScrollTarget(kids ? "cat" : "focus");
-  };
-
   /*
    * KADEME YIĞINI. Sayfa yukarıdan aşağı bir yol: kategoriler → seçilen
    * kategorinin alt kategorileri → seçilen alt kategorinin alt kalemleri → …
@@ -378,29 +366,16 @@ export function PeriodView({
       ? metricSel.id
       : carried?.metricId ?? "count"
     : "count";
-  /** Kalemin altında başka kalem var mı — varsa kendi kartı açılır */
-  const hasKids = (node: SubCategory | null): boolean =>
-    !!data &&
-    !!selectedCat &&
-    data.subs.some((x) =>
-      node
-        ? x.parentId === node.id
-        : x.categoryId === selectedCat.id && !x.parentId && !x.isCategoryRoot
-    );
-  /** Yolu değiştir ve yeni yerin kartına kay (alt kalemi yoksa özelliklere) */
-  const goTo = (next: SubCategory[]) => {
-    if (!selectedCat) return;
-    setDrill({ catId: selectedCat.id, path: next });
-    setAnalysisPath(selectedCat.id, next);
-    const last = next[next.length - 1] ?? null;
-    setScrollTarget(hasKids(last) ? (last ? last.id : "cat") : "focus");
+  /** Seçim değişince içerik baştan değişir — sayfa başına, kaydırma animasyonu yok */
+  const toTop = () => {
+    const main = document.querySelector("main");
+    if (main) main.scrollTop = 0;
   };
-
-  /** Üst seçiciden yer: kategori ve inilecek yol tek seferde; özelliklere kay */
+  /** Üst seçiciden yer: kategori ve inilecek yol tek seferde */
   const pickPlace = (catId: string | null, pathIds: string[]) => {
     if (!catId) {
       setCatsOnly(true);
-      setScrollTarget("top");
+      toTop();
       return;
     }
     const subById = new Map((data?.subs ?? []).map((s) => [s.id, s]));
@@ -414,7 +389,7 @@ export function PeriodView({
       setMetricSel({ catId, id: metricId });
       setAnalysisMetric(catId, metricId);
     }
-    setScrollTarget("focus");
+    toTop();
   };
   /** Üst seçiciden özellik: başka kategorideyse önce oraya geçer */
   const pickMetric = (catId: string, id: string) => {
@@ -425,7 +400,15 @@ export function PeriodView({
     }
     setMetricSel({ catId, id });
     setAnalysisMetric(catId, id);
-    setScrollTarget("focus");
+    toTop();
+  };
+  /** Kırılımdan bir alt kategoriye in — yol kökten o kaleme kurulur */
+  const drillTo = (subId: string) => {
+    if (!selectedCat || !data) return;
+    const subById = new Map(data.subs.map((x) => [x.id, x]));
+    const chain: SubCategory[] = [];
+    for (let cur = subById.get(subId); cur; cur = cur.parentId ? subById.get(cur.parentId) : undefined) chain.unshift(cur);
+    pickPlace(selectedCat.id, chain.map((x) => x.id));
   };
 
   // Kategori panelinin verisi: dönemde girdisi olan kategoriler boşta, dokunulan
@@ -439,11 +422,6 @@ export function PeriodView({
     fetchEnd: win.end,
     excludeRegular,
   });
-  // Dağılımın en büyük satırı — seçim yokken hayalet kartın rengi ve kestirmesi
-  const topShare = (computed?.catShare ?? []).reduce<ShareRow | null>(
-    (best, r) => (r.value > 0 && (!best || r.value > best.value) ? r : best),
-    null
-  );
   const activeCatIds = (computed?.catShare ?? [])
     .filter((r) => r.value > 0)
     .map((r) => r.id)
@@ -616,6 +594,7 @@ export function PeriodView({
         {/* Kategori dağılımı — satıra basınca aynı dönemin kategori detayına
             geçilir. Eskiden kategorinin tüm zamanlar sayfasına gidiyordu:
             tıklanan rakam dönemin, açılan sayfa tüm zamanlarındı. */}
+        {!selectedCat && (
         <div
           data-section="top"
           className="scroll-mt-36 rounded-2xl border border-border bg-card p-4"
@@ -626,81 +605,27 @@ export function PeriodView({
           <ShareBars
             rows={computed?.catShare ?? []}
             emptyText={t("insights.noEntriesInPeriod")}
-            selectedId={selectedCat?.id ?? null}
-            nudge={!selectedCat}
-            onSelect={(id) => {
-              // Seçili kategoriye yeniden dokunmak seçimi kaldırır
-              if (id === selectedCat?.id) {
-                setCatsOnly(true);
-                return;
-              }
-              openCat(id);
-            }}
+            nudge
+            onSelect={(id) => pickPlace(id, [])}
           />
         </div>
-
-        {/* Seçim yokken yığının yerinde açılacak analizin silüeti — en büyük
-            kategorinin renginde; basınca onu açar */}
-        {!selectedCat && topShare && (
-          <AnalysisGhost color={topShare.color} onPick={() => openCat(topShare.id)} />
         )}
 
-        {/* Kademe yığını — seçilen kategorinin alt kategorileri, seçilen alt
-            kategorinin alt kalemleri… ve en sonda seçilen yerin özellikleri */}
-        {data && data.cats.length > 0 && selectedCat && (
-          <div className="flex flex-col gap-3">
-            {hasKids(null) && (
-              <DrillLevel
-                sectionKey="cat"
-                category={selectedCat}
-                fetchStart={win.start}
-                fetchEnd={win.end}
-                excludeRegular={excludeRegular}
-                metricId={metricId}
-                selectedId={path[0]?.id ?? null}
-                onPick={(sub) => goTo([sub])}
-                onClear={() => goTo([])}
-              />
-            )}
-            {path.map(
-              (node, i) =>
-                hasKids(node) && (
-                  <DrillLevel
-                    key={node.id}
-                    sectionKey={node.id}
-                    category={selectedCat}
-                    parent={node}
-                    fetchStart={win.start}
-                    fetchEnd={win.end}
-                    excludeRegular={excludeRegular}
-                    metricId={metricId}
-                    selectedId={path[i + 1]?.id ?? null}
-                    onPick={(sub) => goTo([...path.slice(0, i + 1), sub])}
-                    onClear={() => goTo(path.slice(0, i + 1))}
-                  />
-                )
-            )}
-
-            {/* Seçilen yerin özellikleri. Panel ekranın altında kalıyor ve
-                grafikleriyle ağır: görünür alana yaklaşınca çizilir. */}
-            <section data-section="focus" className="scroll-mt-36">
-              <LazyMount minHeight={640}>
-                <PeriodCategoryPanel
-                  key={`${selectedCat.id}|${period.key}`}
-                  category={selectedCat}
-                  period={period}
-                  path={path}
-                  metricId={metricId}
-                  onMetricChange={(id) =>
-                    setMetricSel({ catId: selectedCat.id, id })
-                  }
-                />
-              </LazyMount>
-            </section>
-          </div>
+        {/* Seçilen yerin analizi — bandın seçicileriyle belirlenen özellik
+            ve yer; kırılımdan inmek de yeri değiştirir */}
+        {data && selectedCat && (
+          <PeriodCategoryPanel
+            key={`${selectedCat.id}|${period.key}`}
+            category={selectedCat}
+            period={period}
+            path={path}
+            metricId={metricId}
+            onDrill={drillTo}
+          />
         )}
 
         {/* Tüm kategorilerin girdileri — sayfanın en altı, yaklaşınca çizilir */}
+        {!selectedCat && (
         <LazyMount minHeight={480}>
           <EntryListSection
             title={t("insights.allEntries")}
@@ -708,6 +633,7 @@ export function PeriodView({
             emptyText={t("insights.noEntriesInPeriod")}
           />
         </LazyMount>
+        )}
       </div>
     </>
   );

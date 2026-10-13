@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { modColor } from "@/lib/mod-color";
 import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Category, Entry, Mod, SubCategory } from "@/types";
 
 type Props = {
@@ -64,7 +64,6 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
   const [allPlaces, setAllPlaces] = useState(false);
 
   const subById = useMemo(() => new Map(subs.map((s) => [s.id, s])), [subs]);
-  const catById = useMemo(() => new Map(cats.map((c) => [c.id, c])), [cats]);
   const focus = path[path.length - 1] ?? null;
 
   /** Girdinin kalemi bulunulan kapsamın içinde mi */
@@ -159,7 +158,6 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
   const placeText = selectedCat ? [selectedCat.name, ...path.map((s) => s.name)].slice(-2).join(" › ") : t("structure.categories");
   const placeIcon = focus?.icon ?? selectedCat?.icon;
   const curPathKey = selectedCat ? [selectedCat.id, ...path.map((s) => s.id)].join("/") : "";
-  const scopeName = selectedCat ? [selectedCat.name, ...path.map((s) => s.name)].join(" › ") : null;
 
   // ── Görünüm parçaları ──
   const fieldLabel = cn("block text-[9.5px] font-bold uppercase leading-none tracking-[0.12em]", brutal ? "text-[#111]/55" : "text-muted-foreground");
@@ -256,11 +254,8 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
         <DialogContent data-scope-dialog="" className="max-h-[82vh] max-w-[370px] gap-3 overflow-y-auto p-5">
           {open === "ne" ? (
             <>
-              <DialogHeader className="gap-1 text-left">
+              <DialogHeader className="text-left">
                 <DialogTitle className="text-[17px]">Özellik</DialogTitle>
-                <DialogDescription className="text-[12.5px]">
-                  {scopeName ? `${scopeName} içinde ölçülenler` : "Bu dönem bütün kategorilerde; seçtiğin özellik en çok kullanıldığı kategoride açılır"}
-                </DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-1">
                 {selectedCat && (
@@ -275,10 +270,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
                     <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full", brutal ? "border-[1.5px] border-[#111] bg-[#FFF4DC] text-[#111]" : "bg-[var(--sf-2)]")}>
                       <ListOrdered className="h-4 w-4" />
                     </span>
-                    <span className="min-w-0">
-                      <span className="block text-[14px] font-semibold">{t("insights.entries")}</span>
-                      <span className="block text-[11.5px] opacity-60">kaç kayıt girildi</span>
-                    </span>
+                    <span className="truncate text-[14px] font-semibold">{t("insights.entries")}</span>
                     {metricId === "count" ? <Check className="ml-auto h-4 w-4 shrink-0" /> : <span className={pill(false)}>{scopeIds.length}</span>}
                   </button>
                 )}
@@ -296,12 +288,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
                       }}
                     >
                       {atom(f.mod)}
-                      <span className="min-w-0">
-                        <span className="block truncate text-[14px] font-semibold">{f.mod.name}</span>
-                        <span className="block truncate text-[11.5px] opacity-60">
-                          {!selectedCat && f.topCat ? `en çok ${catById.get(f.topCat)?.name}` : f.mod.unit ? f.mod.unit : " "}
-                        </span>
-                      </span>
+                      <span className="truncate text-[14px] font-semibold">{f.mod.name}</span>
                       {on ? <Check className="ml-auto h-4 w-4 shrink-0" /> : <span className={pill(false)}>{f.n}</span>}
                     </button>
                   );
@@ -313,13 +300,8 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
             </>
           ) : (
             <>
-              <DialogHeader className="gap-1 text-left">
+              <DialogHeader className="text-left">
                 <DialogTitle className="text-[17px]">Yer</DialogTitle>
-                <DialogDescription className="text-[12.5px]">
-                  {currentMod && filtering
-                    ? `“${currentMod.name}” bu dönem bu yerlerde girildi`
-                    : "Bu dönem kaydı olan kategoriler ve alt kategoriler"}
-                </DialogDescription>
               </DialogHeader>
               {currentMod && (
                 <div className={cn("flex gap-1 rounded-xl p-[3px]", brutal ? "border-[1.5px] border-[#111] bg-white" : "bg-[var(--sf-2)]")}>

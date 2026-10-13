@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { useT, translate } from "@/lib/i18n";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
@@ -28,13 +28,11 @@ import {
 } from "@/lib/period";
 import { StatTile } from "./stat-tile";
 import { StatTiles } from "./stat-tiles";
-import type { ShareRow } from "./share-bars";
+import { ShareBars, type ShareRow } from "./share-bars";
 import { AnalysisCharts } from "./analysis-chart";
 import { EntryListSection, type EntryListRow } from "./entry-list";
-import { MetricChips } from "./metric-chips";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
-import { setAnalysisMetric } from "./analysis-selection";
 import { modColor } from "@/lib/mod-color";
 import type { Category, ChartKind, Entry, StatKey, SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
@@ -63,45 +61,18 @@ export function PeriodCategoryPanel({
   period,
   path,
   metricId,
-  onMetricChange,
+  onDrill,
 }: {
   category: Category;
   period: Period;
-  /** Bakılan yer — sayfanın kademe yığını yönetir (boş = kategorinin tamamı) */
+  /** Bakılan yer — bandın yer seçicisi yönetir (boş = kategorinin tamamı) */
   path: SubCategory[];
   /** Seçili özellik ("count" = girdi sayısı); bu kapsamda yoksa varsayılana düşülür */
   metricId: string;
-  onMetricChange: (id: string) => void;
+  /** Kırılımdaki bir alt kategoriye in */
+  onDrill: (subId: string) => void;
 }) {
   const t = useT();
-  /*
-   * ÖZELLİK GEÇİŞİNDE SAYFA OYNAMASIN. İki ayrı sebep vardı:
-   *  1) yeni görünüm kısaysa (Para seçilince liste yalnız tutarı olan
-   *     kayıtlara iniyor) sayfa kısalıyor, dibe yakın bakan kullanıcıda
-   *     tarayıcı kaydırmayı yeni dibe çekiyordu → panelin o anki boyu alt
-   *     sınır olarak tutulur;
-   *  2) içerik değişirken tarayıcının kaydırma çapası başka bir öğeye
-   *     atlayabiliyordu → kapsül satırının ekrandaki yeri geçişten önce
-   *     ölçülür, yeni görünüm çizilince sayfa tam o kadar düzeltilir:
-   *     parmağın altındaki satır yerinden oynamaz.
-   */
-  const rootRef = useRef<HTMLDivElement>(null);
-  const chipsRef = useRef<HTMLDivElement>(null);
-  const pinTop = useRef<number | null>(null);
-  const [minHeight, setMinHeight] = useState<number | undefined>(undefined);
-  // Bakılan yer değişince sınır kalkar — kısa bir kaleme geçince altta boşluk kalmasın
-  const focusKey = path[path.length - 1]?.id ?? "";
-  const [heldFor, setHeldFor] = useState(focusKey);
-  if (heldFor !== focusKey) {
-    setHeldFor(focusKey);
-    setMinHeight(undefined);
-  }
-  const holdPosition = () => {
-    const h = rootRef.current?.offsetHeight;
-    if (h) setMinHeight(h);
-    const top = chipsRef.current?.getBoundingClientRect().top;
-    pinTop.current = top ?? null;
-  };
   const focus = path[path.length - 1];
   // Gün dönemlerinde hafta bağlamı gerekir — o günü kapsayan haftanın tamamı çekilir,
   // günün kendi rakamları pencere filtresiyle hesaplanır
@@ -139,18 +110,6 @@ export function PeriodCategoryPanel({
   const lensRaw =
     metric.type !== "count" ? data?.rawMods.get(metric.mod.id) : undefined;
   const lensColor = lensRaw ? modColor(lensRaw) : category.color;
-
-  // Yeni görünüm çizildi — kapsül satırı ölçülen yerine geri getirilir
-  const metricKey = metric.type === "count" ? "count" : metric.mod.id;
-  useLayoutEffect(() => {
-    const before = pinTop.current;
-    const el = chipsRef.current;
-    pinTop.current = null;
-    if (before === null || !el) return;
-    const delta = el.getBoundingClientRect().top - before;
-    const scroller = el.closest("main");
-    if (scroller && Math.abs(delta) > 1) scroller.scrollTop += delta;
-  }, [metricKey]);
 
   /**
    * Pano düzenleme: yuvayı değiştir, kaldır (key null) ya da sona ekle
@@ -437,23 +396,17 @@ export function PeriodCategoryPanel({
   const metricLabel = metric.type === "count" ? translate("an.entriesUnit") : unit;
 
   return (
-    <div
-      ref={rootRef}
-      className="flex flex-col gap-4"
-      style={minHeight ? { minHeight } : undefined}
-    >
+    <div className="flex flex-col gap-4">
       {/* Bölüm başlığı — bu kutunun HANGİ kalemin özellikleri olduğu */}
       <div className="flex items-center gap-2 px-1">
         <span
           className="h-2.5 w-2.5 shrink-0 rounded-full"
           style={{ backgroundColor: category.color }}
         />
-        <h3 className="min-w-0 truncate text-[15px] font-semibold">
+        <h3 data-panel-title="" className="min-w-0 truncate text-[15px] font-semibold">
           {focus ? focus.name : category.name}
+          <span className="font-normal text-muted-foreground"> · {periodShortLabel(period)}</span>
         </h3>
-        <span className="shrink-0 text-[12px] text-muted-foreground">
-          · {t("entry.features")}
-        </span>
         {/* Kapsamın tüm zamanlar analizi */}
         <Link
           href={
@@ -467,26 +420,6 @@ export function PeriodCategoryPanel({
           {t("stat.allTime")}
           <ArrowRight className="h-3 w-3" />
         </Link>
-      </div>
-
-      <div ref={chipsRef}>
-      <MetricChips
-        countFirst
-        asRow
-        colorOfMod={(id) => {
-          const m = data.rawMods.get(id);
-          return m ? modColor(m) : category.color;
-        }}
-        mods={data.mods}
-        metric={metric}
-        color={category.color}
-        onChange={(m) => {
-          holdPosition();
-          const id = m.type === "count" ? "count" : m.mod.id;
-          setAnalysisMetric(category.id, id);
-          onMetricChange(id);
-        }}
-      />
       </div>
 
       {data.hasRegular && (
@@ -557,6 +490,25 @@ export function PeriodCategoryPanel({
             elapsedDays: progress.elapsedDays,
           }}
         />
+      )}
+
+      {/* Alt kategori kırılımı — seçili özellikle; satıra dokununca o yere
+          inilir (bandın yer seçicisi de oraya geçer) */}
+      {computed.hasBreakdown && (
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {translate("an.subBreakdown")}
+            {compute.aggregateNote && (
+              <span className="normal-case font-normal text-muted-foreground/60"> ({compute.aggregateNote})</span>
+            )}
+          </h3>
+          <ShareBars
+            rows={computed.shareRows}
+            mode={compute.isRate ? "rate" : compute.scale ? "level" : "share"}
+            range={compute.scale}
+            onSelect={onDrill}
+          />
+        </div>
       )}
 
       {/* Gün dönemlerinde hafta bağlamı — bu gün haftalık ortalamaya göre nerede */}
