@@ -219,7 +219,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
           )}
           <span className="min-w-0 flex-1">
             <span className={fieldLabel}>Özellik</span>
-            <span className={fieldValue}>{currentMod ? currentMod.name : t("insights.entries")}</span>
+            <span className={fieldValue}>{currentMod ? currentMod.name : "Seç"}</span>
           </span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
         </button>
@@ -258,22 +258,6 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
                 <DialogTitle className="text-[17px]">Özellik</DialogTitle>
               </DialogHeader>
               <div className="flex flex-col gap-1">
-                {selectedCat && (
-                  <button
-                    type="button"
-                    className={rowCls(metricId === "count")}
-                    onClick={() => {
-                      setOpen(null);
-                      onMetric(selectedCat.id, "count");
-                    }}
-                  >
-                    <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full", brutal ? "border-[1.5px] border-[#111] bg-[#FFF4DC] text-[#111]" : "bg-[var(--sf-2)]")}>
-                      <ListOrdered className="h-4 w-4" />
-                    </span>
-                    <span className="truncate text-[14px] font-semibold">{t("insights.entries")}</span>
-                    {metricId === "count" ? <Check className="ml-auto h-4 w-4 shrink-0" /> : <span className={pill(false)}>{scopeIds.length}</span>}
-                  </button>
-                )}
                 {(features ?? []).map((f) => {
                   const on = metricId === f.mod.id;
                   return (

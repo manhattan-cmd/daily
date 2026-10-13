@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useT, translate } from "@/lib/i18n";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
@@ -62,6 +62,7 @@ export function PeriodCategoryPanel({
   path,
   metricId,
   onDrill,
+  onResolved,
 }: {
   category: Category;
   period: Period;
@@ -71,6 +72,8 @@ export function PeriodCategoryPanel({
   metricId: string;
   /** Kırılımdaki bir alt kategoriye in */
   onDrill: (subId: string) => void;
+  /** Panelin gerçekten gösterdiği özellik — seçici bunu yazsın */
+  onResolved?: (metricId: string) => void;
 }) {
   const t = useT();
   const focus = path[path.length - 1];
@@ -99,9 +102,10 @@ export function PeriodCategoryPanel({
     // İnilen kalemde o özellik yoksa geçici olarak varsayılan gösterilir,
     // geri çıkınca seçim döner (bkz. useCategoryMetrics metric).
     resetKey: category.id,
-    preferredMetricId: metricId,
-    // Kategori ilk açıldığında "Girdi": önce kalemlere dağılım görülsün
-    initialMetricId: "count",
+    preferredMetricId: metricId === "count" ? undefined : metricId,
+    // "Girdi sayısı" seçici listesinde yok: seçim yoksa yerin en çok
+    // kullanılan özelliği açılır (özelliği olmayan yerde kayıt sayısına düşer)
+    initialMetricId: undefined,
     excludeRegular,
   });
 
@@ -110,6 +114,14 @@ export function PeriodCategoryPanel({
   const lensRaw =
     metric.type !== "count" ? data?.rawMods.get(metric.mod.id) : undefined;
   const lensColor = lensRaw ? modColor(lensRaw) : category.color;
+
+  // Gösterilen özellik seçimden farklıysa (kendiliğinden açılan ilk özellik,
+  // ya da bu yerde olmayan bir seçim) üstteki seçici onu göstersin
+  const shownMetric = metric.type === "count" ? "count" : metric.mod.id;
+  useEffect(() => {
+    if (data && shownMetric !== metricId) onResolved?.(shownMetric);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, shownMetric]);
 
   /**
    * Pano düzenleme: yuvayı değiştir, kaldır (key null) ya da sona ekle

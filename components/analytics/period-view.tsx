@@ -621,6 +621,7 @@ export function PeriodView({
             path={path}
             metricId={metricId}
             onDrill={drillTo}
+            onResolved={(id) => setMetricSel({ catId: selectedCat.id, id })}
           />
         )}
 
