@@ -268,8 +268,13 @@ export function LedgerField({
       {brutal && (
         <div
           data-ledger-tab=""
-          className="absolute -top-[13px] left-2.5 z-[1] flex max-w-[calc(100%-70px)] items-center gap-1 rounded-lg border-2 border-[#111] px-2 py-px text-[#111]"
-          style={{ background: `color-mix(in srgb, ${color} 45%, #ffffff)` }}
+          className="absolute -top-[13px] left-2.5 z-[1] flex items-center gap-1 rounded-lg border-2 border-[#111] px-2 py-px text-[#111]"
+          style={{
+            background: `color-mix(in srgb, ${color} 45%, #ffffff)`,
+            // Ad, sağ üstte gerçekten duran düğmeler kadar yer bıraksın: sabit
+            // 70px dar formda "Yüz nemlendirme"yi "YÜZ…"e indiriyordu
+            maxWidth: `calc(100% - ${cornerToggle && cornerRemove ? 62 : hasCorner ? 38 : 16}px)`,
+          }}
         >
           <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.6} />
           <SmartText text={label} className="min-w-0 text-[11.5px] font-black uppercase tracking-wide" />

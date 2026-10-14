@@ -11,16 +11,31 @@ const nowDate = () => new Date();
 
 type PresetKey = "yday" | "now" | "tmrw";
 
-/** Dün / Şimdi / Yarın — `baseDate` gününe göre, şu anki saatle */
+/**
+ * Sayfanın gününün bir öncesi, kendisi, bir sonrası — şu anki saatle.
+ *
+ * Adları GERÇEK bugüne göre: eskiden sayfanın gününe göre "Dün · Şimdi ·
+ * Yarın" yazıyordu; dünün sayfasında "Şimdi" aslında dünü, "Yarın" bugünü
+ * seçiyordu ve girdi sanılandan başka bir güne düşüyordu. Artık dünün
+ * sayfasında "13 Eki · Dün · Bugün" (bugünün kendisi "Şimdi").
+ */
 function presetsFor(baseDate: string) {
   const [y, m, d] = baseDate.split("-").map(Number);
   const n = nowDate();
-  const at = (day: number) =>
-    toLocalDateTimeValue(new Date(y, m - 1, day, n.getHours(), n.getMinutes(), 0, 0).getTime());
+  const today = new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
+  const at = (day: number) => {
+    const dayStart = new Date(y, m - 1, day).getTime();
+    return {
+      value: toLocalDateTimeValue(new Date(y, m - 1, day, n.getHours(), n.getMinutes(), 0, 0).getTime()),
+      // Gerçek bugüne göre kaç gün ötede (DST'ye karşı yuvarlanır)
+      offset: Math.round((dayStart - today) / 86400000),
+      short: new Date(dayStart).toLocaleDateString(intlTag(), { day: "numeric", month: "short" }),
+    };
+  };
   return [
-    { key: "yday" as PresetKey, value: at(d - 1) },
-    { key: "now" as PresetKey, value: at(d) },
-    { key: "tmrw" as PresetKey, value: at(d + 1) },
+    { key: "yday" as PresetKey, ...at(d - 1) },
+    { key: "now" as PresetKey, ...at(d) },
+    { key: "tmrw" as PresetKey, ...at(d + 1) },
   ];
 }
 
@@ -82,11 +97,18 @@ export function EntryTime({
   const [custom, setCustom] = useState<string | null>(null);
   // Seçenekler açıldığı anda hesaplanır — "şimdi" kaymasın
   const [presets, setPresets] = useState(() => presetsFor(baseDate));
-  const active = presets.find((p) => p.value === occurredAt)?.key ?? null;
-  const label = (k: PresetKey) =>
-    k === "yday" ? t("entry.timeYesterday") : k === "now" ? t("entry.timeNow") : t("entry.timeTomorrow");
+  const activePreset = presets.find((p) => p.value === occurredAt) ?? null;
+  const active = activePreset?.key ?? null;
+  const label = (p: (typeof presets)[number]) =>
+    p.offset === 0
+      ? t("entry.timeNow")
+      : p.offset === -1
+        ? t("entry.timeYesterday")
+        : p.offset === 1
+          ? t("entry.timeTomorrow")
+          : p.short;
   const clock = occurredAt.split("T")[1] ?? "";
-  const summary = active ? `${label(active)} · ${clock}` : momentLabel(occurredAt, baseDate);
+  const summary = activePreset ? `${label(activePreset)} · ${clock}` : momentLabel(occurredAt, baseDate);
 
   return (
     <>
@@ -125,7 +147,7 @@ export function EntryTime({
                 )}
                 style={on ? { background: accent, color: "#fff" } : undefined}
               >
-                {label(p.key)}
+                {label(p)}
               </button>
             );
           })}
