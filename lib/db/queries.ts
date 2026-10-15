@@ -2630,6 +2630,27 @@ export async function structureSummary(
   return { subs: childCount, entries: entries.length, money: summary, metrics };
 }
 
+/**
+ * Kategori ağacı için alt kategoriler ve girdi sayıları — brütal Kategoriler
+ * sayfası. Sayılar yukarı toplanır: bir kalemin girdisi tüm atalarında ve
+ * kategoride (`c:<id>`) de sayılır.
+ */
+export async function listCategoryTree(): Promise<{ subs: SubCategory[]; counts: Map<string, number> }> {
+  const [subs, entries] = await Promise.all([db.subcategories.toArray(), db.entries.toArray()]);
+  const byId = new Map(subs.map((s) => [s.id, s]));
+  const counts = new Map<string, number>();
+  const bump = (k: string) => counts.set(k, (counts.get(k) ?? 0) + 1);
+  for (const e of entries) {
+    const leaf = byId.get(e.subcategoryId);
+    if (!leaf) continue;
+    bump(`c:${leaf.categoryId}`);
+    for (let cur: SubCategory | undefined = leaf; cur; cur = cur.parentId ? byId.get(cur.parentId) : undefined) {
+      if (!cur.isCategoryRoot) bump(cur.id);
+    }
+  }
+  return { subs: subs.filter((s) => !s.isCategoryRoot), counts };
+}
+
 /** Her kategori için alt kategori ve girdi sayısı — brütal kategori kartları */
 export async function listCategoryCounts(): Promise<Map<string, { subs: number; entries: number }>> {
   const [subs, entries] = await Promise.all([db.subcategories.toArray(), db.entries.toArray()]);

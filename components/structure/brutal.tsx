@@ -7,6 +7,9 @@ import type { LucideIcon } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { useSkin } from "@/lib/skin";
 import type { StructureSummary } from "@/lib/db/queries";
+import type { Category, SubCategory } from "@/types";
+import { routes } from "@/lib/routes";
+import { SmartText } from "@/components/ui/smart-text";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 
@@ -292,6 +295,81 @@ export function BrutEmpty({
           {action}
         </button>
       )}
+    </div>
+  );
+}
+
+/**
+ * Kategoriler sayfasının ağacı — analizdeki yer seçicisinin dili: kategori
+ * satırında renkli karo, ad ve girdi sayısı; altında kategorinin renginde
+ * kılavuz çizgisiyle girintili alt kategoriler. Her satır kendi sayfasına
+ * gider. Kartlar ızgarası yerine tüm yapı tek bakışta görünüyor.
+ */
+export function BrutCategoryTree({
+  categories,
+  subs,
+  counts,
+}: {
+  categories: Category[];
+  subs: SubCategory[];
+  counts?: Map<string, number>;
+}) {
+  const tile = (color: string, icon: string | undefined, size: number, round: number) => (
+    <span
+      className="flex shrink-0 items-center justify-center border-[1.5px] border-[#111]"
+      style={{ width: size, height: size, borderRadius: round, background: color }}
+    >
+      {icon && <SymbolIcon name={icon} size={Math.round(size * 0.55)} style={{ color: "#111" }} />}
+    </span>
+  );
+  const pill = (n: number) => (
+    <span
+      className={cn(
+        "ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums",
+        n > 0 ? "border-[1.5px] border-[#111]/20 text-[#111]/70" : "text-[#111]/30"
+      )}
+    >
+      {n}
+    </span>
+  );
+  const row =
+    "flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2.5 text-left text-[#111] transition-colors hover:bg-[#111]/5 active:bg-[#111] active:text-[#FFF4DC]";
+
+  const childrenOf = (catId: string, parentId: string | undefined) =>
+    subs
+      .filter((s) => s.categoryId === catId && s.parentId === parentId)
+      .sort((a, b) => a.order - b.order);
+
+  const branch = (cat: Category, parentId: string | undefined, depth: number): React.ReactNode =>
+    childrenOf(cat.id, parentId).map((s) => (
+      <div key={s.id}>
+        <div className="flex" style={{ paddingLeft: 17 + (depth - 1) * 16 }}>
+          {/* Kılavuz çizgisi — kategorinin renginde */}
+          <span className="w-[2px] shrink-0 rounded-full opacity-50" style={{ background: cat.color }} />
+          <Link href={routes.structureSub(cat.id, s.id)} prefetch={false} className={cn(row, "ml-2 py-1.5")}>
+            {tile(cat.color, s.icon ?? cat.icon, 24, 7)}
+            <SmartText text={s.name} className="min-w-0 text-[13.5px] font-medium" />
+            {pill(counts?.get(s.id) ?? 0)}
+          </Link>
+        </div>
+        {branch(cat, s.id, depth + 1)}
+      </div>
+    ));
+
+  return (
+    <div className="flex flex-col gap-0.5 pb-4">
+      {categories.map((cat, i) => (
+        <div key={cat.id} className={cn(i > 0 && "mt-1.5")}>
+          <div className="flex">
+            <Link href={routes.structureCategory(cat.id)} prefetch={false} className={cn(row, "py-2")}>
+              {tile(cat.color, cat.icon, 36, 10)}
+              <SmartText text={cat.name} className="min-w-0 text-[14.5px] font-bold" />
+              {pill(counts?.get(`c:${cat.id}`) ?? 0)}
+            </Link>
+          </div>
+          {branch(cat, undefined, 1)}
+        </div>
+      ))}
     </div>
   );
 }
