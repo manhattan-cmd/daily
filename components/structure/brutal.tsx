@@ -304,7 +304,7 @@ export function BrutEmpty({
  * seçildi). Her kategori bir kart: solda kategorinin renginde dik sırt şeridi,
  * başlıkta renkli karo, ad ve alt kategori · girdi sayısı. Altında analizdeki
  * yer ağacının dallanması — kategorinin renginde kılavuz çizgisi, 1. kat
- * kalın ve renkli karolu, derinler ince ve beyaz karolu. Her satır kendi
+ * kalın, derinler ince; karolar hep kategori renginin açık tonu. Her satır kendi
  * kategori / alt kategori sayfasına gider.
  */
 type TreeLine = { sub: SubCategory; depth: number };
@@ -407,7 +407,7 @@ export function BrutCategoryTree({
                           "flex shrink-0 items-center justify-center border-[1.5px] border-[#111]",
                           depth === 1 ? "h-6 w-6 rounded-[7px]" : "h-5 w-5 rounded-md"
                         )}
-                        style={{ background: depth === 1 ? tint(cat.color, 55) : "#fff" }}
+                        style={{ background: tint(cat.color, 55) }}
                       >
                         {icon && <SymbolIcon name={icon} size={depth === 1 ? 13 : 11} style={{ color: "#111" }} />}
                       </span>
