@@ -300,17 +300,18 @@ export function BrutEmpty({
 }
 
 /**
- * Kategoriler sayfasının ağacı — her kategori kalın çerçeveli, sert gölgeli
- * bir kart: tepede kategorinin renginde başlık şeridi (beyaz karo, dev ad,
- * alt kategori · girdi sayısı), altında gerçek dallarla (├ └) bağlanmış alt
- * kategoriler. Kartlar katlanabilir; katlananlar cihazda hatırlanıyor.
+ * Kategoriler sayfasının ağacı — her kategori çerçeveli, hafif gölgeli beyaz
+ * bir kart: başlıkta renkli karo, ad ve alt kategori · girdi sayısı; altında
+ * karonun ortasından inen ince, soluk dallarla (├ └) bağlanmış alt
+ * kategoriler. Renk yalnız karolarda (ilk kat açık tonu, derinler yalnız
+ * simge). Kartlar katlanabilir; katlananlar cihazda hatırlanıyor.
  * Her satır kendi kategori / alt kategori sayfasına gider.
  */
 type TreeLine = { sub: SubCategory; depth: number; last: boolean; rails: boolean[] };
 
 const FOLD_KEY = "routine:brut-tree-folded";
 const COL = 18; // bir derinlik basamağının genişliği
-const BASE = 34; // gövde — başlıktaki karonun ortasından iner
+const BASE = 31; // gövde — başlıktaki karonun ortasından iner
 
 function readFolded(): Set<string> {
   try {
@@ -372,15 +373,11 @@ export function BrutCategoryTree({
 
   const count = (n: number) =>
     n > 0 ? (
-      <span className="ml-auto shrink-0 rounded-md border-[1.5px] border-[#111] bg-[#111] px-1.5 py-px text-[11px] font-black tabular-nums text-[#FFF4DC]">
-        {n}
-      </span>
-    ) : (
-      <span className="ml-auto shrink-0 px-1.5 text-[12px] font-black text-[#111]/25">–</span>
-    );
+      <span className="ml-auto shrink-0 pl-2 text-[12px] font-bold tabular-nums text-[#111]/45">{n}</span>
+    ) : null;
 
   return (
-    <div className="flex flex-col gap-5 pb-6 pt-1">
+    <div className="flex flex-col gap-4 pb-6 pt-1">
       {categories.map((cat) => {
         const rows = lines.get(cat.id) ?? [];
         const open = !folded.has(cat.id);
@@ -388,24 +385,24 @@ export function BrutCategoryTree({
         return (
           <section
             key={cat.id}
-            className="overflow-hidden rounded-2xl border-2 border-[#111] bg-white shadow-[5px_5px_0_#111]"
+            className="overflow-hidden rounded-2xl border-2 border-[#111] bg-white shadow-[3px_3px_0_#111]"
           >
-            {/* Başlık şeridi — kategorinin renginde */}
-            <div
-              className={cn("flex items-stretch", open && rows.length > 0 && "border-b-2 border-[#111]")}
-              style={{ background: cat.color }}
-            >
+            {/* Başlık — renk yalnız karoda */}
+            <div className="flex items-center">
               <Link
                 href={routes.structureCategory(cat.id)}
                 prefetch={false}
-                className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3 text-[#111] active:bg-[#111]/10"
+                className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-3 text-[#111] active:bg-[#111]/[0.04]"
               >
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-[#111] bg-white shadow-[2px_2px_0_#111]">
-                  {cat.icon && <SymbolIcon name={cat.icon} size={22} style={{ color: "#111" }} />}
+                <span
+                  className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[11px] border-[1.5px] border-[#111]"
+                  style={{ background: cat.color }}
+                >
+                  {cat.icon && <SymbolIcon name={cat.icon} size={19} style={{ color: "#111" }} />}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <SmartText text={cat.name} className="block text-[19px] font-black leading-tight tracking-tight" />
-                  <span className="block text-[11.5px] font-bold opacity-75">
+                  <SmartText text={cat.name} className="block text-[16.5px] font-extrabold leading-tight tracking-tight" />
+                  <span className="block text-[11px] font-semibold text-[#111]/50">
                     {t("brut.subsAndEntries", { subs: rows.length, entries: total })}
                   </span>
                 </span>
@@ -416,16 +413,16 @@ export function BrutCategoryTree({
                   onClick={() => toggle(cat.id)}
                   aria-expanded={open}
                   aria-label={cat.name}
-                  className="flex w-12 shrink-0 items-center justify-center border-l-2 border-[#111] text-[#111] active:bg-[#111]/10"
+                  className="mr-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#111]/50 active:bg-[#111]/[0.06]"
                 >
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", !open && "-rotate-90")} strokeWidth={3} />
+                  <ChevronDown className={cn("h-[18px] w-[18px] transition-transform", !open && "-rotate-90")} strokeWidth={2.5} />
                 </button>
               )}
             </div>
 
-            {/* Dallar */}
+            {/* Dallar — ince, soluk */}
             {open && rows.length > 0 && (
-              <div className="pb-1.5">
+              <div className="pb-2">
                 {rows.map(({ sub, depth, last, rails }) => {
                   const x = BASE + (depth - 1) * COL;
                   const icon = sub.icon ?? cat.icon;
@@ -434,35 +431,44 @@ export function BrutCategoryTree({
                       key={sub.id}
                       href={routes.structureSub(cat.id, sub.id)}
                       prefetch={false}
-                      className="relative flex min-h-[38px] items-center gap-2.5 pr-3 text-[#111] active:bg-[#111]/[0.06]"
+                      className="relative flex min-h-[36px] items-center gap-2.5 pr-4 text-[#111] active:bg-[#111]/[0.04]"
                       style={{ paddingLeft: x + COL - 2 }}
                     >
                       {/* Atalardan süren çizgiler */}
                       {rails.map((on, k) =>
                         on ? (
-                          <span key={k} className="absolute inset-y-0 w-[2px] bg-[#111]" style={{ left: BASE + k * COL - 1 }} />
+                          <span key={k} className="absolute inset-y-0 w-[1.5px] bg-[#111]/15" style={{ left: BASE + k * COL - 1 }} />
                         ) : null
                       )}
-                      {/* Kendi dalı: ├ ya da └ */}
-                      <span
-                        className={cn("absolute top-0 w-[2px] bg-[#111]", last ? "h-1/2" : "h-full")}
-                        style={{ left: x - 1 }}
-                      />
-                      <span className="absolute top-1/2 h-[2px] -translate-y-px bg-[#111]" style={{ left: x - 1, width: COL - 6 }} />
-                      <span
-                        className={cn(
-                          "flex shrink-0 items-center justify-center border-2 border-[#111]",
-                          depth === 1 ? "h-7 w-7 rounded-lg" : "h-6 w-6 rounded-md"
-                        )}
-                        style={{ background: depth === 1 ? cat.color : "#fff" }}
-                      >
-                        {icon && <SymbolIcon name={icon} size={depth === 1 ? 15 : 13} style={{ color: "#111" }} />}
-                      </span>
+                      {/* Kendi dalı: ├ ya da yumuşak köşeli └ */}
+                      {last ? (
+                        <span
+                          className="absolute top-0 h-1/2 rounded-bl-[7px] border-b-[1.5px] border-l-[1.5px] border-[#111]/15"
+                          style={{ left: x - 1, width: COL - 6 }}
+                        />
+                      ) : (
+                        <>
+                          <span className="absolute inset-y-0 w-[1.5px] bg-[#111]/15" style={{ left: x - 1 }} />
+                          <span className="absolute top-1/2 h-[1.5px] bg-[#111]/15" style={{ left: x - 1, width: COL - 6 }} />
+                        </>
+                      )}
+                      {depth === 1 ? (
+                        <span
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] border-[#111]"
+                          style={{ background: `color-mix(in srgb, ${cat.color} 45%, white)` }}
+                        >
+                          {icon && <SymbolIcon name={icon} size={13} style={{ color: "#111" }} />}
+                        </span>
+                      ) : (
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+                          {icon && <SymbolIcon name={icon} size={13} style={{ color: "#111", opacity: 0.55 }} />}
+                        </span>
+                      )}
                       <SmartText
                         text={sub.name}
                         className={cn(
                           "min-w-0",
-                          depth === 1 ? "text-[14.5px] font-extrabold" : "text-[13.5px] font-semibold text-[#111]/80"
+                          depth === 1 ? "text-[14px] font-bold" : "text-[13px] font-medium text-[#111]/70"
                         )}
                       />
                       {count(counts?.get(sub.id) ?? 0)}
