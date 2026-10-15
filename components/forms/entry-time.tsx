@@ -118,7 +118,7 @@ export function EntryTime({
   // ── Biçim ──
   const quick = (on: boolean) =>
     cn(
-      "flex min-w-0 flex-col items-center justify-center rounded-xl px-1 py-1.5 leading-tight transition-[background-color,transform] active:scale-[0.97]",
+      "relative flex h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-5 leading-none transition-[background-color,transform] active:scale-[0.97]",
       brutal
         ? on
           ? "border-2 border-[#111] bg-[#111] text-[#FFF4DC]"
@@ -188,9 +188,6 @@ export function EntryTime({
               <span className={cn("block text-[22px] leading-tight tracking-tight", brutal ? "font-black" : "font-semibold")}>
                 {longDay(dDay)}
               </span>
-              <span className={cn("text-[12px]", brutal ? "font-semibold text-[#111]/60" : "text-muted-foreground")}>
-                {t("entry.timePickDay")}
-              </span>
               <input
                 type="date"
                 value={dDay}
@@ -200,15 +197,34 @@ export function EntryTime({
                 className="absolute inset-0 cursor-pointer opacity-0"
               />
             </label>
+            {/* İpucu satırı — yüksekliği sabit: gün sayfanın gününden ayrıldıysa
+                aynı yerde geri dönüş düğmesi (pencere büyüyüp küçülmesin) */}
+            <div className="-mt-2.5 flex h-7 items-center">
+              {onPage ? (
+                <span className={cn("text-xs", brutal ? "font-semibold text-[#111]/60" : "text-muted-foreground")}>
+                  {t("entry.timePickDay")}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setDraft(`${baseDate}T${timeOf(draft)}`)}
+                  className={cn(
+                    "flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs font-bold",
+                    brutal ? "border-[1.5px] border-[#111] bg-white text-[#111]" : "bg-[var(--sf-2)] text-foreground"
+                  )}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  {t("entry.timeBackToPage", { day: shortDay(baseDate) })}
+                </button>
+              )}
+            </div>
 
             {/* Hızlı seçimler — kısa sabit adlar, altında gidilecek gün */}
             <div className="grid grid-cols-3 gap-2">
               <button type="button" className={quick(false)} onClick={() => setDraft(prev)}>
-                <span className="flex items-center text-[12.5px] font-bold">
-                  <ChevronLeft className="-ml-0.5 h-3.5 w-3.5 shrink-0" />
-                  {t("entry.timePrev")}
-                </span>
-                <span className="text-[10.5px] opacity-70">{shortDay(dayOf(prev))}</span>
+                <ChevronLeft className="absolute left-1 top-1/2 h-4 w-4 -translate-y-1/2 opacity-70" />
+                <span className="text-xs font-bold">{t("entry.timePrev")}</span>
+                <span className="text-[10.5px] font-medium opacity-65">{shortDay(dayOf(prev))}</span>
               </button>
               <button
                 type="button"
@@ -216,32 +232,15 @@ export function EntryTime({
                 style={!brutal && nowOn ? { background: accent } : undefined}
                 onClick={toNow}
               >
-                <span className="text-[12.5px] font-bold">{t("entry.timeAtNow")}</span>
-                <span className="text-[10.5px] opacity-70">{t("entry.timeToday")}</span>
+                <span className="text-xs font-bold">{t("entry.timeAtNow")}</span>
+                <span className="text-[10.5px] font-medium opacity-65">{t("entry.timeToday")}</span>
               </button>
               <button type="button" className={quick(false)} onClick={() => setDraft(next)}>
-                <span className="flex items-center text-[12.5px] font-bold">
-                  {t("entry.timeNext")}
-                  <ChevronRight className="-mr-0.5 h-3.5 w-3.5 shrink-0" />
-                </span>
-                <span className="text-[10.5px] opacity-70">{shortDay(dayOf(next))}</span>
+                <span className="text-xs font-bold">{t("entry.timeNext")}</span>
+                <span className="text-[10.5px] font-medium opacity-65">{shortDay(dayOf(next))}</span>
+                <ChevronRight className="absolute right-1 top-1/2 h-4 w-4 -translate-y-1/2 opacity-70" />
               </button>
             </div>
-
-            {/* Eski bir günün sayfasından açıldıysa ve gün değiştiyse geri dönüş */}
-            {!onPage && (
-              <button
-                type="button"
-                onClick={() => setDraft(`${baseDate}T${timeOf(draft)}`)}
-                className={cn(
-                  "-mt-1 flex items-center gap-1.5 self-start rounded-lg px-2 py-1 text-[12px] font-bold",
-                  brutal ? "border-[1.5px] border-[#111] bg-white text-[#111]" : "bg-[var(--sf-2)] text-foreground"
-                )}
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                {t("entry.timeBackToPage", { day: shortDay(baseDate) })}
-              </button>
-            )}
 
             {/* Saat — kendi çarkı (telefonun seçicisi pencereyle uyumsuzdu) */}
             <TimeWheel value={timeOf(draft)} onChange={(time) => setDraft(`${dDay}T${time}`)} accent={accent} />

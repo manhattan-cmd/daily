@@ -442,7 +442,6 @@ export function EditEntryModal({
 
   const entryDate = toLocalDateValue(entry.occurredAt);
   /** Zaman seçeneklerinde Dün / Şimdi / Yarın bugüne göre */
-  const todayDate = toLocalDateValue();
   // Her girdi açık defter görünümünde — uyku ve ruh hali de (ekleme
   // pencereleriyle aynı dil); ruh halinin yüzleri ve duyguları kutuya
   // kendi girişi olarak konur
@@ -956,7 +955,7 @@ export function EditEntryModal({
                   <EntryTime
                     occurredAt={occurredAt}
                     onChange={setOccurredAt}
-                    baseDate={todayDate}
+                    baseDate={entryDate}
                     accent={accent}
                   />
                 </div>

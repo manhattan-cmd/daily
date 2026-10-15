@@ -6,12 +6,19 @@ const ITEM = 44;
 const VISIBLE = 5;
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
+/** Döngü için sütun kaç kez art arda dizilir; görünüm hep ortadakinde tutulur */
+const COPIES = 5;
+const MID = Math.floor(COPIES / 2);
 
 /**
  * SAAT ÇARKI — saat ve dakika için iki dikey kaydırmalı sütun. Telefonun
  * kendi saat seçicisi pencerenin diliyle uyuşmuyordu; çark pencerenin
  * içinde, kalemin renginde. Ortadaki satır seçilen değer; kenarlar söner.
  * Kaydırmak ya da bir rakama dokunmak seçer.
+ *
+ * Sütunlar DÖNGÜLÜ: 59'dan sonra 00, 23'ten sonra 00 gelir. Satırlar birkaç
+ * kez art arda dizili; kaydırma durunca görünüm sessizce ortadaki kopyadaki
+ * aynı satıra alınır, uçlara hiç varılmaz.
  */
 export function TimeWheel({
   value,
@@ -56,6 +63,7 @@ function Column({
   label: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const n = items.length;
   const idx = Math.max(0, items.indexOf(value));
   // Değişiklik kaydırmadan geldiyse sütunu yeniden konumlama (parmağın altından kaçmasın)
   const fromScroll = useRef(false);
@@ -68,8 +76,8 @@ function Column({
       fromScroll.current = false;
       return;
     }
-    el.scrollTop = idx * ITEM;
-  }, [idx]);
+    el.scrollTop = (MID * n + idx) * ITEM;
+  }, [idx, n]);
 
   useEffect(() => () => {
     if (settle.current) clearTimeout(settle.current);
@@ -81,15 +89,24 @@ function Column({
     if (settle.current) clearTimeout(settle.current);
     // Kaydırma durunca en yakın satıra oturan değeri bildir
     settle.current = setTimeout(() => {
-      const i = Math.min(items.length - 1, Math.max(0, Math.round(el.scrollTop / ITEM)));
-      // Yarıda kalan kaydırma satıra otursun
-      if (Math.abs(el.scrollTop - i * ITEM) > 1) el.scrollTo({ top: i * ITEM, behavior: "smooth" });
-      if (items[i] !== value) {
+      const row = Math.min(COPIES * n - 1, Math.max(0, Math.round(el.scrollTop / ITEM)));
+      const v = row % n;
+      const mid = MID * n + v;
+      if (row !== mid) {
+        // Başka bir kopyadaysa ortadakine sessizce geç — döngü uçsuz kalsın
+        el.scrollTop = mid * ITEM;
+      } else if (Math.abs(el.scrollTop - row * ITEM) > 1) {
+        // Yarıda kalan kaydırma satıra otursun
+        el.scrollTo({ top: row * ITEM, behavior: "smooth" });
+      }
+      if (items[v] !== value) {
         fromScroll.current = true;
-        onChange(items[i]);
+        onChange(items[v]);
       }
     }, 90);
   }
+
+  const rows = Array.from({ length: COPIES * n }, (_, i) => i);
 
   return (
     <div
@@ -106,14 +123,16 @@ function Column({
         WebkitMaskImage: "linear-gradient(to bottom, transparent, #000 32%, #000 68%, transparent)",
       }}
     >
-      {items.map((it, i) => {
-        const on = i === idx;
+      {rows.map((i) => {
+        const it = items[i % n];
+        const on = i % n === idx;
         return (
           <button
-            key={it}
+            key={i}
             type="button"
             role="option"
-            aria-selected={on}
+            aria-selected={on && Math.floor(i / n) === MID}
+            tabIndex={Math.floor(i / n) === MID ? 0 : -1}
             onClick={() => ref.current?.scrollTo({ top: i * ITEM, behavior: "smooth" })}
             className="flex w-full snap-center items-center justify-center font-mono font-bold tabular-nums transition-[color,font-size]"
             style={{
