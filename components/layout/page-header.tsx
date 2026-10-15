@@ -34,6 +34,8 @@ interface PageHeaderProps {
   collapsed?: boolean;
   /** Başlık satırının YERİNE çizilecek içerik (ör. ortalanmış tarih kumandası) */
   titleSlot?: React.ReactNode;
+  /** Başlığın yanındaki küçük etiket (ör. kayıt sayısı) */
+  badge?: React.ReactNode;
   className?: string;
 }
 
@@ -47,6 +49,7 @@ export function PageHeader({
   compact = false,
   collapsed = false,
   titleSlot,
+  badge,
   className,
 }: PageHeaderProps) {
   const t = useT();
@@ -64,7 +67,9 @@ export function PageHeader({
           className
         )}
       >
-        {(back || action) && (
+        {/* Geri oku varsa tepede kare düğmeler şeridi; yoksa eylem başlığın
+            hizasında durur (eskiden başlığın üstünde boş bir satırda kalıyordu) */}
+        {back && (
           <div className="flex items-center justify-between gap-2 pt-3">
             {back ? (
               <Link
@@ -81,11 +86,21 @@ export function PageHeader({
             {action ? <div data-brut-actions="" className="shrink-0">{action}</div> : null}
           </div>
         )}
-        <div className={cn("min-w-0", back || action ? "pt-3" : "pt-4")}>
-          {description ? (
-            <p className="truncate text-[12px] font-extrabold uppercase tracking-wider">{description}</p>
-          ) : null}
-          <h1 className="break-words text-[32px] font-black leading-none tracking-tight">{title}</h1>
+        <div className={cn("flex items-center gap-3", back ? "pt-3" : "pt-4")}>
+          <div className="min-w-0 flex-1">
+            {description ? (
+              <p className="truncate text-[12px] font-extrabold uppercase tracking-wider">{description}</p>
+            ) : null}
+            <div className="flex min-w-0 items-center gap-2">
+              <h1 className="min-w-0 break-words text-[32px] font-black leading-none tracking-tight">{title}</h1>
+              {badge !== undefined && badge !== null && (
+                <span data-brut-badge="" className="shrink-0 rounded-lg bg-[#111] px-2 py-0.5 text-[13px] font-black tabular-nums text-[#FFF4DC]">
+                  {badge}
+                </span>
+              )}
+            </div>
+          </div>
+          {!back && action ? <div data-brut-actions="" className="shrink-0">{action}</div> : null}
         </div>
         {nav ? <div className="mt-3">{nav}</div> : null}
       </header>
@@ -140,8 +155,13 @@ export function PageHeader({
           </div>
         ) : (
         <div className="flex-1 min-w-0">
-          <h1 className="truncate text-xl font-semibold tracking-tight">
-            {title}
+          <h1 className="flex min-w-0 items-center gap-2 text-xl font-semibold tracking-tight">
+            <span className="truncate">{title}</span>
+            {badge !== undefined && badge !== null && (
+              <span className="shrink-0 rounded-full bg-[var(--sf-2)] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-muted-foreground">
+                {badge}
+              </span>
+            )}
           </h1>
           {description ? (
             <p
