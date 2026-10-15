@@ -252,7 +252,6 @@ export default function ModsHomePage() {
           satıra taşınca başlık uzuyor ve sekme şeridi aşağı kayıyordu.
           Uzun anlatım sekmelerin altına indi. */}
       <StructureHeader
-        count={mods?.length}
         action={
           <StructureAddButton
             labelKey="structure.addFeature"

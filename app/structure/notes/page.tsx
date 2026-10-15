@@ -57,7 +57,6 @@ export default function StructureNotesPage() {
   return (
     <>
       <StructureHeader
-        count={notes?.length}
         action={
           <StructureAddButton
             labelKey="structure.addNote"

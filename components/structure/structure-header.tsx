@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
  * söylüyordu. Başlığın kendisi hangi sayfada olduğunu söylerse cümleye gerek
  * kalmıyor.
  */
-export function StructureHeader({ action, count }: { action?: React.ReactNode; count?: number }) {
+export function StructureHeader({ action }: { action?: React.ReactNode }) {
   const t = useT();
   const pathname = useRoutePath();
   const tab = STRUCTURE_TABS.find((x) => x.href === pathname);
@@ -26,7 +26,8 @@ export function StructureHeader({ action, count }: { action?: React.ReactNode; c
     <PageHeader
       title={t(tab?.key ?? "structure.title")}
       action={action}
-      badge={count}
+      // Brütal: bölümün kendi bandı (sarı zemin, tram benekleri) — bkz. globals.css
+      className="yapi-band"
       nav={<StructureTabs />}
     />
   );

@@ -1095,3 +1095,11 @@ input[type="number"] {
    son sekme (Tumu) digerleri gibi genis */
 :root[data-skin="brutal"] [data-period-tabs][data-no-jump] > button:last-child { flex: 1 1 0; }
 
+
+/* Brutal: Yapi bolumunun bandi — sari zemin, soluk tram benekleri, kalin alt cizgi */
+:root[data-skin="brutal"] header.yapi-band[data-brut-header] {
+  background-color: #ffd23f;
+  background-image: radial-gradient(rgba(17, 17, 17, 0.16) 1.2px, transparent 1.5px);
+  background-size: 11px 11px;
+  border-bottom-width: 3px;
+}

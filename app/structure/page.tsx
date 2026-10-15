@@ -31,7 +31,6 @@ export default function StructurePage() {
   return (
     <>
       <StructureHeader
-        count={categories?.length}
         action={
           <StructureAddButton
             labelKey="structure.addCategory"
