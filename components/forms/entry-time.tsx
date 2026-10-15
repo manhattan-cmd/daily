@@ -1,84 +1,58 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Clock, RotateCcw } from "lucide-react";
 import { cn, toLocalDateTimeValue } from "@/lib/utils";
 import { intlTag, useT } from "@/lib/i18n";
+import { useSkin } from "@/lib/skin";
 import { TimeWheel } from "@/components/ui/time-wheel";
 
-/** Hazır anlar — çizimde değil açılışta bir kez okunur, saf kalsın diye modülde */
+/** Şu an — çizimde değil açılışta/olayda okunur, saf kalsın diye modülde */
 const nowDate = () => new Date();
+const DAY = 86400000;
 
-type PresetKey = "yday" | "now" | "tmrw";
-
-/**
- * Sayfanın gününün bir öncesi, kendisi, bir sonrası — şu anki saatle.
- *
- * Adları GERÇEK bugüne göre: eskiden sayfanın gününe göre "Dün · Şimdi ·
- * Yarın" yazıyordu; dünün sayfasında "Şimdi" aslında dünü, "Yarın" bugünü
- * seçiyordu ve girdi sanılandan başka bir güne düşüyordu. Artık dünün
- * sayfasında "13 Eki · Dün · Bugün" (bugünün kendisi "Şimdi").
- */
-function presetsFor(baseDate: string) {
-  const [y, m, d] = baseDate.split("-").map(Number);
-  const n = nowDate();
-  const today = new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
-  const at = (day: number) => {
-    const dayStart = new Date(y, m - 1, day).getTime();
-    return {
-      value: toLocalDateTimeValue(new Date(y, m - 1, day, n.getHours(), n.getMinutes(), 0, 0).getTime()),
-      // Gerçek bugüne göre kaç gün ötede (DST'ye karşı yuvarlanır)
-      offset: Math.round((dayStart - today) / 86400000),
-      short: new Date(dayStart).toLocaleDateString(intlTag(), { day: "numeric", month: "short" }),
-    };
-  };
-  return [
-    { key: "yday" as PresetKey, ...at(d - 1) },
-    { key: "now" as PresetKey, ...at(d) },
-    { key: "tmrw" as PresetKey, ...at(d + 1) },
-  ];
-}
+const pad = (n: number) => String(n).padStart(2, "0");
+const dayOf = (v: string) => v.split("T")[0] ?? "";
+const timeOf = (v: string) => v.split("T")[1] ?? "12:00";
 
 /** "YYYY-MM-DDTHH:mm" değerinin gününü kaydır, saat aynı kalsın */
 function shiftDay(v: string, days: number): string {
-  const [d = "", time = "12:00"] = v.split("T");
-  const [y, m, dd] = d.split("-").map(Number);
+  const [y, m, dd] = dayOf(v).split("-").map(Number);
   const nd = new Date(y, m - 1, dd + days);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${nd.getFullYear()}-${pad(nd.getMonth() + 1)}-${pad(nd.getDate())}T${time}`;
+  return `${nd.getFullYear()}-${pad(nd.getMonth() + 1)}-${pad(nd.getDate())}T${timeOf(v)}`;
 }
 
-/** Penceredeki gün yazısı — "8 Ekim Çarşamba" */
-function prettyDay(v: string): string {
-  const d = v.split("T")[0];
-  if (!d) return "—";
-  return new Date(d + "T00:00:00").toLocaleDateString(intlTag(), {
-    day: "numeric",
-    month: "long",
-    weekday: "long",
-  });
-}
+/** Günün başlangıcı (yerel) */
+const dayStart = (ymd: string) => {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(y, m - 1, d).getTime();
+};
 
-/** Hapın yazısı — gün temel günse yalnız saat, değilse "5 Eki · 14:20" */
-function momentLabel(occurredAt: string, baseDate: string): string {
-  const [d = "", time = ""] = occurredAt.split("T");
-  if (d === baseDate) return time;
-  const day = new Date(d + "T00:00:00").toLocaleDateString(intlTag(), {
-    day: "numeric",
-    month: "short",
-  });
-  return `${day} · ${time}`;
-}
+/** Gerçek bugüne göre kaç gün ötede (DST'ye karşı yuvarlanır) */
+const offsetFrom = (ymd: string, todayMs: number) => Math.round((dayStart(ymd) - todayMs) / DAY);
+
+const shortDay = (ymd: string) =>
+  new Date(dayStart(ymd)).toLocaleDateString(intlTag(), { day: "numeric", month: "short" });
+
+/** Penceredeki büyük gün yazısı — "12 Ekim Pazartesi" */
+const longDay = (ymd: string) =>
+  new Date(dayStart(ymd)).toLocaleDateString(intlTag(), { day: "numeric", month: "long", weekday: "long" });
+
+const todayStartMs = () => {
+  const n = nowDate();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
+};
 
 /**
- * GİRDİNİN ZAMANI — başlığın altında küçük bir hap ("Şimdi · 14:20").
- * Dokununca altında dört seçenek: Dün · Şimdi · Yarın · Özel. "Özel"
- * pencerenin üstünde ortalanmış küçük bir PENCERE açar: gün ve saat seçilir,
- * "Tamam" uygular, "Vazgeç" ya da boşluğa dokunmak bırakır.
+ * GİRDİNİN ZAMANI — başlığın altında tek bir çubuk ("Dün · 12:03"). Dokununca
+ * zaman penceresi açılır: büyük gün yazısı (dokununca telefonun takvimi),
+ * hızlı seçimler (Önceki gün · Şu an · Sonraki gün), saat çarkı.
  *
- * Ekleme formu ile düzenleme penceresi aynı bileşeni kullanır. Pencere,
- * en yakın konumlu kabın (form penceresi / diyalog) tamamını kaplar —
- * kap kaymıyor olmalı (gövde kendi içinde kayar).
+ * Bütün adlar GERÇEK bugüne göre: eskiden seçenekler sayfanın gününe göre
+ * "Dün · Şimdi · Yarın" diye yazıyordu; dünün sayfasında "Şimdi" aslında
+ * dünü seçiyordu ve girdi sanılandan başka güne düşüyordu. Eski bir günün
+ * sayfasından açılınca varsayılan o gün; gün değiştirildiyse pencerede
+ * "Sayfanın günü"ne tek dokunuşla dönülür.
  */
 export function EntryTime({
   occurredAt,
@@ -86,155 +60,215 @@ export function EntryTime({
   baseDate,
   accent,
 }: {
+  /** "YYYY-MM-DDTHH:mm" */
   occurredAt: string;
   onChange: (v: string) => void;
-  /** Dün / Şimdi / Yarın'ın göre alındığı gün ("YYYY-MM-DD") */
+  /** Girdinin açıldığı sayfanın günü ("YYYY-MM-DD") */
   baseDate: string;
   accent: string;
 }) {
   const t = useT();
-  const [open, setOpen] = useState(false);
-  const [custom, setCustom] = useState<string | null>(null);
-  // Seçenekler açıldığı anda hesaplanır — "şimdi" kaymasın
-  const [presets, setPresets] = useState(() => presetsFor(baseDate));
-  const activePreset = presets.find((p) => p.value === occurredAt) ?? null;
-  const active = activePreset?.key ?? null;
-  const label = (p: (typeof presets)[number]) =>
-    p.offset === 0
-      ? t("entry.timeNow")
-      : p.offset === -1
+  const brutal = useSkin() === "brutal";
+  // Bugün — açılışta okunur; pencere her açılışta tazeler (gece yarısı geçtiyse)
+  const [todayMs, setTodayMs] = useState(todayStartMs);
+  const [draft, setDraft] = useState<string | null>(null);
+  // "Şu an"ın değeri — dokunulduğu anda yazılır, çizimde okunmaz
+  const [nowValue, setNowValue] = useState<string | null>(null);
+
+  /** Gün adı: Bugün / Dün / Yarın, yoksa "12 Eki" */
+  const dayName = (ymd: string) => {
+    const off = offsetFrom(ymd, todayMs);
+    return off === 0
+      ? t("entry.timeToday")
+      : off === -1
         ? t("entry.timeYesterday")
-        : p.offset === 1
+        : off === 1
           ? t("entry.timeTomorrow")
-          : p.short;
-  const clock = occurredAt.split("T")[1] ?? "";
-  const summary = activePreset ? `${label(activePreset)} · ${clock}` : momentLabel(occurredAt, baseDate);
+          : shortDay(ymd);
+  };
+  /** Büyük yazının yanındaki göreli etiket */
+  const relative = (ymd: string) => {
+    const off = offsetFrom(ymd, todayMs);
+    if (Math.abs(off) <= 1) return dayName(ymd);
+    return off < 0 ? t("entry.timeDaysAgo", { n: -off }) : t("entry.timeDaysLater", { n: off });
+  };
+
+  const open = () => {
+    setTodayMs(todayStartMs());
+    setNowValue(null);
+    const n = nowDate();
+    setDraft(occurredAt || `${baseDate}T${pad(n.getHours())}:${pad(n.getMinutes())}`);
+  };
+  const close = () => setDraft(null);
+  const commit = () => {
+    if (draft) onChange(draft);
+    close();
+  };
+  const toNow = () => {
+    const n = nowDate();
+    const v = toLocalDateTimeValue(
+      new Date(n.getFullYear(), n.getMonth(), n.getDate(), n.getHours(), n.getMinutes(), 0, 0).getTime()
+    );
+    setNowValue(v);
+    setDraft(v);
+  };
+
+  const summary = occurredAt ? `${dayName(dayOf(occurredAt))} · ${timeOf(occurredAt)}` : "—";
+
+  // ── Biçim ──
+  const quick = (on: boolean) =>
+    cn(
+      "flex min-w-0 flex-col items-center justify-center rounded-xl px-1 py-1.5 leading-tight transition-[background-color,transform] active:scale-[0.97]",
+      brutal
+        ? on
+          ? "border-2 border-[#111] bg-[#111] text-[#FFF4DC]"
+          : "border-2 border-[#111] bg-white text-[#111] shadow-[2px_2px_0_#111]"
+        : on
+          ? "text-white"
+          : "bg-[var(--sf-2)] text-foreground hover:bg-[var(--sf-3)]"
+    );
+
+  const dDay = draft ? dayOf(draft) : "";
+  const prev = draft ? shiftDay(draft, -1) : "";
+  const next = draft ? shiftDay(draft, 1) : "";
+  const onPage = dDay === baseDate;
+  const nowOn = !!draft && draft === nowValue;
 
   return (
     <>
       <button
         type="button"
-        onClick={() => {
-          if (!open) setPresets(presetsFor(baseDate));
-          setOpen((o) => !o);
-        }}
-        aria-expanded={open}
+        onClick={open}
+        aria-haspopup="dialog"
         data-time-stamp=""
-        className="mt-1 flex h-7 w-fit items-center gap-1.5 rounded-full pl-2 pr-2.5 text-[12.5px] font-semibold transition-[background-color,transform] active:scale-95"
+        className="mt-1 flex h-7 w-fit max-w-full items-center gap-1.5 rounded-full pl-2 pr-2.5 text-[12.5px] font-semibold transition-[background-color,transform] active:scale-95"
         style={{ background: `${accent}26`, color: accent }}
       >
-        <Clock className="h-3.5 w-3.5" />
-        <span className="font-mono">{summary}</span>
-        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+        <Clock className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate font-mono">{summary}</span>
+        <ChevronDown className="h-3.5 w-3.5 shrink-0" />
       </button>
 
-      {open && (
-        <div data-time-presets="" className="mt-2 grid w-full grid-cols-4 gap-1.5">
-          {presets.map((p) => {
-            const on = active === p.key;
-            return (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => {
-                  onChange(p.value);
-                  setOpen(false);
-                }}
-                aria-pressed={on}
-                className={cn(
-                  "flex h-9 min-w-0 items-center justify-center rounded-xl px-1 text-[13px] font-semibold transition-colors",
-                  !on && "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground"
-                )}
-                style={on ? { background: accent, color: "#fff" } : undefined}
-              >
-                {label(p)}
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => setCustom(occurredAt)}
-            className={cn(
-              "flex h-9 min-w-0 items-center justify-center gap-1 rounded-xl px-1 text-[13px] font-semibold transition-colors",
-              active ? "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground" : "text-white"
-            )}
-            style={active ? undefined : { background: accent }}
-          >
-            <Clock className="h-3.5 w-3.5 shrink-0" />
-            {t("entry.timeCustom")}
-          </button>
-        </div>
-      )}
-
-      {/* Özel zaman penceresi — pencerenin üstünde ortada; boşluk = vazgeç */}
-      {custom !== null && (
+      {/* Zaman penceresi — formun üstünde ortada; boşluğa dokunmak = vazgeç */}
+      {draft !== null && (
         <div
           data-no-swipe=""
           className="animate-in fade-in absolute inset-0 z-[60] flex items-center justify-center bg-black/55 p-3 backdrop-blur-[2px]"
-          onClick={() => setCustom(null)}
+          onClick={close}
         >
           <div
             role="dialog"
-            aria-label={t("entry.timeCustomTitle")}
+            aria-label={t("entry.time")}
             onClick={(e) => e.stopPropagation()}
-            data-time-pop=""
-            className="zoom-in-95 animate-in flex w-full max-w-[320px] flex-col gap-3 rounded-3xl bg-card p-3 shadow-[0_24px_60px_-16px_rgba(0,0,0,0.9)] ring-1 ring-[var(--ln-2)]"
+            data-time-window=""
+            className={cn(
+              "zoom-in-95 animate-in flex w-full max-w-[330px] flex-col gap-3 p-4",
+              brutal
+                ? "rounded-[20px] border-[3px] border-[#111] bg-[#FFF4DC] text-[#111] shadow-[6px_6px_0_#111]"
+                : "rounded-3xl bg-card shadow-[0_24px_60px_-16px_rgba(0,0,0,0.9)] ring-1 ring-[var(--ln-2)]"
+            )}
           >
-            {/* Gün — ‹ tarih ›; tarihe dokununca telefonun takvimi */}
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setCustom(shiftDay(custom, -1))}
-                aria-label={t("datetime.prevDay")}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+            {/* Başlık: etiket ve göreli gün */}
+            <div className="flex items-center justify-between gap-2">
+              <span className={cn("text-[11px] font-bold uppercase tracking-[0.12em]", brutal ? "text-[#111]/60" : "text-muted-foreground")}>
+                {t("entry.time")}
+              </span>
+              <span
+                className={cn(
+                  "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold",
+                  brutal ? "border-[1.5px] border-[#111] bg-[#FFD23F] text-[#111]" : "text-white"
+                )}
+                style={brutal ? undefined : { background: accent }}
               >
-                <ChevronLeft className="h-5 w-5" />
+                {relative(dDay)}
+              </span>
+            </div>
+            {/* Büyük gün — dokununca telefonun takvimi */}
+            <label className={cn("relative -mt-1 block cursor-pointer rounded-xl", !brutal && "hover:bg-[var(--sf-2)]")}>
+              <span className={cn("block text-[22px] leading-tight tracking-tight", brutal ? "font-black" : "font-semibold")}>
+                {longDay(dDay)}
+              </span>
+              <span className={cn("text-[12px]", brutal ? "font-semibold text-[#111]/60" : "text-muted-foreground")}>
+                {t("entry.timePickDay")}
+              </span>
+              <input
+                type="date"
+                value={dDay}
+                onChange={(e) => e.target.value && setDraft(`${e.target.value}T${timeOf(draft)}`)}
+                onClick={(e) => e.currentTarget.showPicker?.()}
+                aria-label={t("entry.timePickDay")}
+                className="absolute inset-0 cursor-pointer opacity-0"
+              />
+            </label>
+
+            {/* Hızlı seçimler — kısa sabit adlar, altında gidilecek gün */}
+            <div className="grid grid-cols-3 gap-2">
+              <button type="button" className={quick(false)} onClick={() => setDraft(prev)}>
+                <span className="flex items-center text-[12.5px] font-bold">
+                  <ChevronLeft className="-ml-0.5 h-3.5 w-3.5 shrink-0" />
+                  {t("entry.timePrev")}
+                </span>
+                <span className="text-[10.5px] opacity-70">{shortDay(dayOf(prev))}</span>
               </button>
-              <label className="relative flex min-w-0 flex-1 cursor-pointer justify-center rounded-xl py-1.5 text-[15px] font-semibold transition-colors hover:bg-[var(--sf-2)]">
-                <span className="truncate">{prettyDay(custom)}</span>
-                <input
-                  type="date"
-                  value={custom.split("T")[0]}
-                  onChange={(e) =>
-                    e.target.value && setCustom(`${e.target.value}T${custom.split("T")[1] ?? "12:00"}`)
-                  }
-                  onClick={(e) => e.currentTarget.showPicker?.()}
-                  aria-label={t("entry.timeCustomTitle")}
-                  className="absolute inset-0 cursor-pointer opacity-0"
-                />
-              </label>
               <button
                 type="button"
-                onClick={() => setCustom(shiftDay(custom, 1))}
-                aria-label={t("datetime.nextDay")}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+                className={quick(nowOn)}
+                style={!brutal && nowOn ? { background: accent } : undefined}
+                onClick={toNow}
               >
-                <ChevronRight className="h-5 w-5" />
+                <span className="text-[12.5px] font-bold">{t("entry.timeAtNow")}</span>
+                <span className="text-[10.5px] opacity-70">{t("entry.timeToday")}</span>
+              </button>
+              <button type="button" className={quick(false)} onClick={() => setDraft(next)}>
+                <span className="flex items-center text-[12.5px] font-bold">
+                  {t("entry.timeNext")}
+                  <ChevronRight className="-mr-0.5 h-3.5 w-3.5 shrink-0" />
+                </span>
+                <span className="text-[10.5px] opacity-70">{shortDay(dayOf(next))}</span>
               </button>
             </div>
-            {/* Saat — pencerenin içinde kendi çarkı (telefonun seçicisi uyumsuzdu) */}
-            <TimeWheel
-              value={custom.split("T")[1] ?? "12:00"}
-              onChange={(time) => setCustom(`${custom.split("T")[0]}T${time}`)}
-              accent={accent}
-            />
+
+            {/* Eski bir günün sayfasından açıldıysa ve gün değiştiyse geri dönüş */}
+            {!onPage && (
+              <button
+                type="button"
+                onClick={() => setDraft(`${baseDate}T${timeOf(draft)}`)}
+                className={cn(
+                  "-mt-1 flex items-center gap-1.5 self-start rounded-lg px-2 py-1 text-[12px] font-bold",
+                  brutal ? "border-[1.5px] border-[#111] bg-white text-[#111]" : "bg-[var(--sf-2)] text-foreground"
+                )}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                {t("entry.timeBackToPage", { day: shortDay(baseDate) })}
+              </button>
+            )}
+
+            {/* Saat — kendi çarkı (telefonun seçicisi pencereyle uyumsuzdu) */}
+            <TimeWheel value={timeOf(draft)} onChange={(time) => setDraft(`${dDay}T${time}`)} accent={accent} />
+
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setCustom(null)}
-                className="h-11 rounded-2xl bg-[var(--sf-2)] text-[14px] font-semibold text-foreground/85 transition-colors hover:bg-[var(--sf-3)]"
+                onClick={close}
+                className={cn(
+                  "h-11 rounded-2xl text-[14px]",
+                  brutal
+                    ? "border-2 border-[#111] bg-white font-black text-[#111] shadow-[3px_3px_0_#111]"
+                    : "bg-[var(--sf-2)] font-semibold text-foreground/85 hover:bg-[var(--sf-3)]"
+                )}
               >
                 {t("action.cancel")}
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  onChange(custom);
-                  setCustom(null);
-                  setOpen(false);
-                }}
-                className="h-11 rounded-2xl text-[14px] font-semibold text-white transition-opacity active:opacity-85"
-                style={{ background: accent }}
+                onClick={commit}
+                className={cn(
+                  "h-11 rounded-2xl text-[14px] transition-opacity active:opacity-85",
+                  brutal
+                    ? "border-2 border-[#111] bg-[#FFD23F] font-black text-[#111] shadow-[3px_3px_0_#111]"
+                    : "font-semibold text-white"
+                )}
+                style={brutal ? undefined : { background: accent }}
               >
                 {t("action.ok")}
               </button>
