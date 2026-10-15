@@ -1103,3 +1103,8 @@ input[type="number"] {
   background-size: 11px 11px;
   border-bottom-width: 3px;
 }
+/* Brutal: Yapi basligi ters etiket — siyah kutu, sari harf */
+:root[data-skin="brutal"] header.yapi-band[data-brut-header] h1 {
+  display: inline-block; background: #111; color: #ffd23f; border-radius: 12px;
+  padding: 4px 12px 6px; box-shadow: 4px 4px 0 rgba(17, 17, 17, 0.25);
+}
