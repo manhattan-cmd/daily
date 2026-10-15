@@ -300,18 +300,18 @@ export function BrutEmpty({
 }
 
 /**
- * Kategoriler sayfasının ağacı — her kategori çerçeveli, hafif gölgeli beyaz
- * bir kart: başlıkta renkli karo, ad ve alt kategori · girdi sayısı; altında
- * karonun ortasından inen ince, soluk dallarla (├ └) bağlanmış alt
+ * Kategoriler sayfasının ağacı — kutu yok, doğrudan zeminde: başlıkta gölgeli
+ * renkli karo, büyük ad, sağda girdi sayısı ve altında kalın siyah çizgi;
+ * altında karonun ortasından inen ince, soluk dallarla (├ └) bağlanmış alt
  * kategoriler. Renk yalnız karolarda (ilk kat açık tonu, derinler yalnız
- * simge). Kartlar katlanabilir; katlananlar cihazda hatırlanıyor.
+ * simge). Kategoriler katlanabilir; katlananlar cihazda hatırlanıyor.
  * Her satır kendi kategori / alt kategori sayfasına gider.
  */
 type TreeLine = { sub: SubCategory; depth: number; last: boolean; rails: boolean[] };
 
 const FOLD_KEY = "routine:brut-tree-folded";
 const COL = 18; // bir derinlik basamağının genişliği
-const BASE = 31; // gövde — başlıktaki karonun ortasından iner
+const BASE = 18; // gövde — başlıktaki karonun ortasından iner
 
 function readFolded(): Set<string> {
   try {
@@ -377,52 +377,50 @@ export function BrutCategoryTree({
     ) : null;
 
   return (
-    <div className="flex flex-col gap-4 pb-6 pt-1">
+    <div className="flex flex-col gap-8 pb-8 pt-2">
       {categories.map((cat) => {
         const rows = lines.get(cat.id) ?? [];
         const open = !folded.has(cat.id);
         const total = counts?.get(`c:${cat.id}`) ?? 0;
         return (
-          <section
-            key={cat.id}
-            className="overflow-hidden rounded-2xl border-2 border-[#111] bg-white shadow-[3px_3px_0_#111]"
-          >
-            {/* Başlık — renk yalnız karoda */}
-            <div className="flex items-center">
+          <section key={cat.id}>
+            {/* Başlık — kutu yok; karo, büyük ad ve altında kalın çizgi */}
+            <div className="flex items-end border-b-2 border-[#111] pb-2.5">
               <Link
                 href={routes.structureCategory(cat.id)}
                 prefetch={false}
-                className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-3 text-[#111] active:bg-[#111]/[0.04]"
+                className="flex min-w-0 flex-1 items-center gap-3 text-[#111] active:opacity-60"
               >
                 <span
-                  className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[11px] border-[1.5px] border-[#111]"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border-2 border-[#111] shadow-[2px_2px_0_#111]"
                   style={{ background: cat.color }}
                 >
-                  {cat.icon && <SymbolIcon name={cat.icon} size={19} style={{ color: "#111" }} />}
+                  {cat.icon && <SymbolIcon name={cat.icon} size={18} style={{ color: "#111" }} />}
                 </span>
-                <span className="min-w-0 flex-1">
-                  <SmartText text={cat.name} className="block text-[16.5px] font-extrabold leading-tight tracking-tight" />
-                  <span className="block text-[11px] font-semibold text-[#111]/50">
-                    {t("brut.subsAndEntries", { subs: rows.length, entries: total })}
-                  </span>
-                </span>
+                <SmartText text={cat.name} className="min-w-0 flex-1 text-[21px] font-black leading-tight tracking-tight" />
               </Link>
+              <span className="ml-3 shrink-0 text-right leading-none text-[#111]">
+                <span className="block text-[17px] font-black tabular-nums">{total}</span>
+                <span className="block text-[9.5px] font-bold uppercase tracking-[0.1em] text-[#111]/45">
+                  {t("brut.entries")}
+                </span>
+              </span>
               {rows.length > 0 && (
                 <button
                   type="button"
                   onClick={() => toggle(cat.id)}
                   aria-expanded={open}
                   aria-label={cat.name}
-                  className="mr-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#111]/50 active:bg-[#111]/[0.06]"
+                  className="-mr-1.5 ml-1 flex h-9 w-8 shrink-0 items-center justify-center rounded-full text-[#111]/50 active:bg-[#111]/[0.06]"
                 >
                   <ChevronDown className={cn("h-[18px] w-[18px] transition-transform", !open && "-rotate-90")} strokeWidth={2.5} />
                 </button>
               )}
             </div>
 
-            {/* Dallar — ince, soluk */}
+            {/* Dallar — doğrudan zeminde, ince ve soluk */}
             {open && rows.length > 0 && (
-              <div className="pb-2">
+              <div className="pt-1">
                 {rows.map(({ sub, depth, last, rails }) => {
                   const x = BASE + (depth - 1) * COL;
                   const icon = sub.icon ?? cat.icon;
@@ -431,25 +429,25 @@ export function BrutCategoryTree({
                       key={sub.id}
                       href={routes.structureSub(cat.id, sub.id)}
                       prefetch={false}
-                      className="relative flex min-h-[36px] items-center gap-2.5 pr-4 text-[#111] active:bg-[#111]/[0.04]"
+                      className="relative flex min-h-[36px] items-center gap-2.5 rounded-lg pr-1 text-[#111] active:bg-[#111]/[0.05]"
                       style={{ paddingLeft: x + COL - 2 }}
                     >
                       {/* Atalardan süren çizgiler */}
                       {rails.map((on, k) =>
                         on ? (
-                          <span key={k} className="absolute inset-y-0 w-[1.5px] bg-[#111]/15" style={{ left: BASE + k * COL - 1 }} />
+                          <span key={k} className="absolute inset-y-0 w-[1.5px] bg-[#111]/20" style={{ left: BASE + k * COL - 1 }} />
                         ) : null
                       )}
                       {/* Kendi dalı: ├ ya da yumuşak köşeli └ */}
                       {last ? (
                         <span
-                          className="absolute top-0 h-1/2 rounded-bl-[7px] border-b-[1.5px] border-l-[1.5px] border-[#111]/15"
+                          className="absolute top-0 h-1/2 rounded-bl-[7px] border-b-[1.5px] border-l-[1.5px] border-[#111]/20"
                           style={{ left: x - 1, width: COL - 6 }}
                         />
                       ) : (
                         <>
-                          <span className="absolute inset-y-0 w-[1.5px] bg-[#111]/15" style={{ left: x - 1 }} />
-                          <span className="absolute top-1/2 h-[1.5px] bg-[#111]/15" style={{ left: x - 1, width: COL - 6 }} />
+                          <span className="absolute inset-y-0 w-[1.5px] bg-[#111]/20" style={{ left: x - 1 }} />
+                          <span className="absolute top-1/2 h-[1.5px] bg-[#111]/20" style={{ left: x - 1, width: COL - 6 }} />
                         </>
                       )}
                       {depth === 1 ? (
