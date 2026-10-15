@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, BarChart3, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, BarChart3, ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { useSkin } from "@/lib/skin";
@@ -300,11 +300,27 @@ export function BrutEmpty({
 }
 
 /**
- * Kategoriler sayfasının ağacı — analizdeki yer seçicisinin dili: kategori
- * satırında renkli karo, ad ve girdi sayısı; altında kategorinin renginde
- * kılavuz çizgisiyle girintili alt kategoriler. Her satır kendi sayfasına
- * gider. Kartlar ızgarası yerine tüm yapı tek bakışta görünüyor.
+ * Kategoriler sayfasının ağacı — her kategori kalın çerçeveli, sert gölgeli
+ * bir kart: tepede kategorinin renginde başlık şeridi (beyaz karo, dev ad,
+ * alt kategori · girdi sayısı), altında gerçek dallarla (├ └) bağlanmış alt
+ * kategoriler. Kartlar katlanabilir; katlananlar cihazda hatırlanıyor.
+ * Her satır kendi kategori / alt kategori sayfasına gider.
  */
+type TreeLine = { sub: SubCategory; depth: number; last: boolean; rails: boolean[] };
+
+const FOLD_KEY = "routine:brut-tree-folded";
+const COL = 18; // bir derinlik basamağının genişliği
+const BASE = 34; // gövde — başlıktaki karonun ortasından iner
+
+function readFolded(): Set<string> {
+  try {
+    const raw = window.localStorage.getItem(FOLD_KEY);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
 export function BrutCategoryTree({
   categories,
   subs,
@@ -314,62 +330,150 @@ export function BrutCategoryTree({
   subs: SubCategory[];
   counts?: Map<string, number>;
 }) {
-  const tile = (color: string, icon: string | undefined, size: number, round: number) => (
-    <span
-      className="flex shrink-0 items-center justify-center border-[1.5px] border-[#111]"
-      style={{ width: size, height: size, borderRadius: round, background: color }}
-    >
-      {icon && <SymbolIcon name={icon} size={Math.round(size * 0.55)} style={{ color: "#111" }} />}
-    </span>
+  const t = useT();
+  const [folded, setFolded] = useState<Set<string>>(() =>
+    typeof window === "undefined" ? new Set() : readFolded()
   );
-  const pill = (n: number) => (
-    <span
-      className={cn(
-        "ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums",
-        n > 0 ? "border-[1.5px] border-[#111]/20 text-[#111]/70" : "text-[#111]/30"
-      )}
-    >
-      {n}
-    </span>
-  );
-  const row =
-    "flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2.5 text-left text-[#111] transition-colors hover:bg-[#111]/5 active:bg-[#111] active:text-[#FFF4DC]";
+  const toggle = (id: string) =>
+    setFolded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      try {
+        window.localStorage.setItem(FOLD_KEY, JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
 
-  const childrenOf = (catId: string, parentId: string | undefined) =>
-    subs
-      .filter((s) => s.categoryId === catId && s.parentId === parentId)
-      .sort((a, b) => a.order - b.order);
+  // Kategori başına düzleştirilmiş ağaç: her satır hangi atasının çizgisinin
+  // sürdüğünü (rails) ve kardeşlerinin sonuncusu olup olmadığını bilir
+  const lines = useMemo(() => {
+    const kids = new Map<string, SubCategory[]>();
+    for (const s of subs) {
+      const k = `${s.categoryId}/${s.parentId ?? ""}`;
+      kids.set(k, [...(kids.get(k) ?? []), s]);
+    }
+    const out = new Map<string, TreeLine[]>();
+    for (const cat of categories) {
+      const acc: TreeLine[] = [];
+      const walk = (parentId: string | undefined, depth: number, rails: boolean[]) => {
+        const list = (kids.get(`${cat.id}/${parentId ?? ""}`) ?? []).sort((a, b) => a.order - b.order);
+        list.forEach((s, i) => {
+          const last = i === list.length - 1;
+          acc.push({ sub: s, depth, last, rails });
+          walk(s.id, depth + 1, [...rails, !last]);
+        });
+      };
+      walk(undefined, 1, []);
+      out.set(cat.id, acc);
+    }
+    return out;
+  }, [categories, subs]);
 
-  const branch = (cat: Category, parentId: string | undefined, depth: number): React.ReactNode =>
-    childrenOf(cat.id, parentId).map((s) => (
-      <div key={s.id}>
-        <div className="flex" style={{ paddingLeft: 17 + (depth - 1) * 16 }}>
-          {/* Kılavuz çizgisi — kategorinin renginde */}
-          <span className="w-[2px] shrink-0 rounded-full opacity-50" style={{ background: cat.color }} />
-          <Link href={routes.structureSub(cat.id, s.id)} prefetch={false} className={cn(row, "ml-2 py-1.5")}>
-            {tile(cat.color, s.icon ?? cat.icon, 24, 7)}
-            <SmartText text={s.name} className="min-w-0 text-[13.5px] font-medium" />
-            {pill(counts?.get(s.id) ?? 0)}
-          </Link>
-        </div>
-        {branch(cat, s.id, depth + 1)}
-      </div>
-    ));
+  const count = (n: number) =>
+    n > 0 ? (
+      <span className="ml-auto shrink-0 rounded-md border-[1.5px] border-[#111] bg-[#111] px-1.5 py-px text-[11px] font-black tabular-nums text-[#FFF4DC]">
+        {n}
+      </span>
+    ) : (
+      <span className="ml-auto shrink-0 px-1.5 text-[12px] font-black text-[#111]/25">–</span>
+    );
 
   return (
-    <div className="flex flex-col gap-0.5 pb-4">
-      {categories.map((cat, i) => (
-        <div key={cat.id} className={cn(i > 0 && "mt-1.5")}>
-          <div className="flex">
-            <Link href={routes.structureCategory(cat.id)} prefetch={false} className={cn(row, "py-2")}>
-              {tile(cat.color, cat.icon, 36, 10)}
-              <SmartText text={cat.name} className="min-w-0 text-[14.5px] font-bold" />
-              {pill(counts?.get(`c:${cat.id}`) ?? 0)}
-            </Link>
-          </div>
-          {branch(cat, undefined, 1)}
-        </div>
-      ))}
+    <div className="flex flex-col gap-5 pb-6 pt-1">
+      {categories.map((cat) => {
+        const rows = lines.get(cat.id) ?? [];
+        const open = !folded.has(cat.id);
+        const total = counts?.get(`c:${cat.id}`) ?? 0;
+        return (
+          <section
+            key={cat.id}
+            className="overflow-hidden rounded-2xl border-2 border-[#111] bg-white shadow-[5px_5px_0_#111]"
+          >
+            {/* Başlık şeridi — kategorinin renginde */}
+            <div
+              className={cn("flex items-stretch", open && rows.length > 0 && "border-b-2 border-[#111]")}
+              style={{ background: cat.color }}
+            >
+              <Link
+                href={routes.structureCategory(cat.id)}
+                prefetch={false}
+                className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3 text-[#111] active:bg-[#111]/10"
+              >
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-[#111] bg-white shadow-[2px_2px_0_#111]">
+                  {cat.icon && <SymbolIcon name={cat.icon} size={22} style={{ color: "#111" }} />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <SmartText text={cat.name} className="block text-[19px] font-black leading-tight tracking-tight" />
+                  <span className="block text-[11.5px] font-bold opacity-75">
+                    {t("brut.subsAndEntries", { subs: rows.length, entries: total })}
+                  </span>
+                </span>
+              </Link>
+              {rows.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => toggle(cat.id)}
+                  aria-expanded={open}
+                  aria-label={cat.name}
+                  className="flex w-12 shrink-0 items-center justify-center border-l-2 border-[#111] text-[#111] active:bg-[#111]/10"
+                >
+                  <ChevronDown className={cn("h-5 w-5 transition-transform", !open && "-rotate-90")} strokeWidth={3} />
+                </button>
+              )}
+            </div>
+
+            {/* Dallar */}
+            {open && rows.length > 0 && (
+              <div className="pb-1.5">
+                {rows.map(({ sub, depth, last, rails }) => {
+                  const x = BASE + (depth - 1) * COL;
+                  const icon = sub.icon ?? cat.icon;
+                  return (
+                    <Link
+                      key={sub.id}
+                      href={routes.structureSub(cat.id, sub.id)}
+                      prefetch={false}
+                      className="relative flex min-h-[38px] items-center gap-2.5 pr-3 text-[#111] active:bg-[#111]/[0.06]"
+                      style={{ paddingLeft: x + COL - 2 }}
+                    >
+                      {/* Atalardan süren çizgiler */}
+                      {rails.map((on, k) =>
+                        on ? (
+                          <span key={k} className="absolute inset-y-0 w-[2px] bg-[#111]" style={{ left: BASE + k * COL - 1 }} />
+                        ) : null
+                      )}
+                      {/* Kendi dalı: ├ ya da └ */}
+                      <span
+                        className={cn("absolute top-0 w-[2px] bg-[#111]", last ? "h-1/2" : "h-full")}
+                        style={{ left: x - 1 }}
+                      />
+                      <span className="absolute top-1/2 h-[2px] -translate-y-px bg-[#111]" style={{ left: x - 1, width: COL - 6 }} />
+                      <span
+                        className={cn(
+                          "flex shrink-0 items-center justify-center border-2 border-[#111]",
+                          depth === 1 ? "h-7 w-7 rounded-lg" : "h-6 w-6 rounded-md"
+                        )}
+                        style={{ background: depth === 1 ? cat.color : "#fff" }}
+                      >
+                        {icon && <SymbolIcon name={icon} size={depth === 1 ? 15 : 13} style={{ color: "#111" }} />}
+                      </span>
+                      <SmartText
+                        text={sub.name}
+                        className={cn(
+                          "min-w-0",
+                          depth === 1 ? "text-[14.5px] font-extrabold" : "text-[13.5px] font-semibold text-[#111]/80"
+                        )}
+                      />
+                      {count(counts?.get(sub.id) ?? 0)}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }
