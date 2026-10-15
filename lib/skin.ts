@@ -74,7 +74,9 @@ export const SKIN_META: Record<Skin, { name: string; hint: string; swatch: strin
 };
 
 const STORAGE_KEY = "routine:skin";
-const DEFAULT_SKIN: Skin = "gece";
+const DEFAULT_SKIN: Skin = "brutal";
+/** CSS'in temel (`:root`) tonları Gece'ninki; ona özel `data-skin` yok */
+const BASE_SKIN: Skin = "gece";
 
 const isSkin = (v: unknown): v is Skin =>
   typeof v === "string" && (SKINS as readonly string[]).includes(v);
@@ -93,7 +95,7 @@ export function getSkin(): Skin {
 /** Kök öğeye yazar — CSS değişkenleri buradan devralıyor */
 export function applySkin(skin: Skin): void {
   if (typeof document === "undefined") return;
-  if (skin === DEFAULT_SKIN) delete document.documentElement.dataset.skin;
+  if (skin === BASE_SKIN) delete document.documentElement.dataset.skin;
   else document.documentElement.dataset.skin = skin;
 }
 

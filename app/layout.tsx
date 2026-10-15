@@ -50,6 +50,8 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      // Varsayılan tema Brütal — ilk çizim de onunla gelsin (bkz. lib/skin)
+      data-skin="brutal"
       suppressHydrationWarning
     >
       {/* Mobil uygulamada sunucu yok, başlık gönderilemiyor — güvenlik politikası
