@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, BarChart3, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, BarChart3, ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { useSkin } from "@/lib/skin";
@@ -306,8 +306,18 @@ export function BrutEmpty({
  * yer ağacının dallanması — kategorinin renginde kılavuz çizgisi, 1. kat
  * kalın, derinler ince; karolar hep kategori renginin açık tonu. Her satır kendi
  * kategori / alt kategori sayfasına gider.
+ *
+ * Derin ve kalabalık yapılar (bkz. "Derin Yapı Testi"): girinti MAX_INDENT
+ * katta durur, daha derin satırlarda adın önünde kat numarası çıkar — 15. kattan
+ * sonra adın yeri kalmıyor, sayı kartın dışına taşıyordu. Bir dalda SHOW_FIRST'ten
+ * fazla kardeş varsa ilki görünür, altında "Tümünü göster (n)" satırı.
  */
-type TreeLine = { sub: SubCategory; depth: number };
+type TreeLine =
+  | { kind: "sub"; sub: SubCategory; depth: number }
+  | { kind: "more"; key: string; depth: number; total: number; open: boolean };
+
+const MAX_INDENT = 5;
+const SHOW_FIRST = 8;
 
 export function BrutCategoryTree({
   categories,
@@ -319,28 +329,46 @@ export function BrutCategoryTree({
   counts?: Map<string, number>;
 }) {
   const t = useT();
+  // Tümü açılmış kalabalık dallar — "kategoriId/üstId"
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const toggleBranch = (key: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
-  // Kategori başına düzleştirilmiş ağaç
-  const lines = useMemo(() => {
+  // Kategori başına düzleştirilmiş ağaç; kalabalık dalın gizlenen kardeşleri
+  // alt ağaçlarıyla birlikte düşer
+  const { lines, subTotals } = useMemo(() => {
     const kids = new Map<string, SubCategory[]>();
     for (const s of subs) {
       const k = `${s.categoryId}/${s.parentId ?? ""}`;
       kids.set(k, [...(kids.get(k) ?? []), s]);
     }
-    const out = new Map<string, TreeLine[]>();
+    const lines = new Map<string, TreeLine[]>();
+    const subTotals = new Map<string, number>();
     for (const cat of categories) {
       const acc: TreeLine[] = [];
       const walk = (parentId: string | undefined, depth: number) => {
-        for (const s of (kids.get(`${cat.id}/${parentId ?? ""}`) ?? []).sort((a, b) => a.order - b.order)) {
-          acc.push({ sub: s, depth });
+        const key = `${cat.id}/${parentId ?? ""}`;
+        const list = (kids.get(key) ?? []).sort((a, b) => a.order - b.order);
+        const crowded = list.length > SHOW_FIRST;
+        const open = expanded.has(key);
+        const shown = crowded && !open ? list.slice(0, SHOW_FIRST) : list;
+        for (const s of shown) {
+          acc.push({ kind: "sub", sub: s, depth });
           walk(s.id, depth + 1);
         }
+        if (crowded) acc.push({ kind: "more", key, depth, total: list.length, open });
       };
       walk(undefined, 1);
-      out.set(cat.id, acc);
+      lines.set(cat.id, acc);
+      subTotals.set(cat.id, subs.filter((s) => s.categoryId === cat.id).length);
     }
-    return out;
-  }, [categories, subs]);
+    return { lines, subTotals };
+  }, [categories, subs, expanded]);
 
   const pill = (n: number) => (
     <span
@@ -380,20 +408,44 @@ export function BrutCategoryTree({
                 <span className="min-w-0 flex-1">
                   <SmartText text={cat.name} className="block text-[16px] font-black leading-tight tracking-tight" />
                   <span className="block text-[11px] font-semibold text-[#111]/55">
-                    {t("brut.subsAndEntries", { subs: rows.length, entries: counts?.get(`c:${cat.id}`) ?? 0 })}
+                    {t("brut.subsAndEntries", { subs: subTotals.get(cat.id) ?? 0, entries: counts?.get(`c:${cat.id}`) ?? 0 })}
                   </span>
                 </span>
               </Link>
 
-              {rows.map(({ sub, depth }) => {
+              {rows.map((line) => {
+                const { depth } = line;
+                const indent = 15 + (Math.min(depth, MAX_INDENT) - 1) * 16;
+                // Kılavuz çizgisi — kategorinin renginde
+                const guide = (
+                  <span
+                    className="w-[2px] shrink-0 rounded-full"
+                    style={{ background: depth === 1 ? cat.color : tint(cat.color, 50) }}
+                  />
+                );
+                if (line.kind === "more") {
+                  return (
+                    <div key={`more:${line.key}`} className="flex" style={{ paddingLeft: indent }}>
+                      {guide}
+                      <button
+                        type="button"
+                        onClick={() => toggleBranch(line.key)}
+                        aria-expanded={line.open}
+                        className="ml-2 flex min-h-[32px] min-w-0 flex-1 items-center gap-2 rounded-[10px] px-2 py-1 text-left text-[12.5px] font-extrabold text-[#111]/70 hover:bg-[#111]/5 active:bg-[#111]/10"
+                      >
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-[1.5px] border-dashed border-[#111]/50">
+                          <ChevronDown className={cn("h-3.5 w-3.5", line.open && "rotate-180")} strokeWidth={3} />
+                        </span>
+                        {line.open ? t("brut.showLess") : t("brut.showAll", { n: line.total })}
+                      </button>
+                    </div>
+                  );
+                }
+                const { sub } = line;
                 const icon = sub.icon ?? cat.icon;
                 return (
-                  <div key={sub.id} className="flex" style={{ paddingLeft: 15 + (depth - 1) * 16 }}>
-                    {/* Kılavuz çizgisi — kategorinin renginde */}
-                    <span
-                      className="w-[2px] shrink-0 rounded-full"
-                      style={{ background: depth === 1 ? cat.color : tint(cat.color, 50) }}
-                    />
+                  <div key={sub.id} className="flex" style={{ paddingLeft: indent }}>
+                    {guide}
                     <Link
                       href={routes.structureSub(cat.id, sub.id)}
                       prefetch={false}
@@ -411,6 +463,16 @@ export function BrutCategoryTree({
                       >
                         {icon && <SymbolIcon name={icon} size={depth === 1 ? 13 : 11} style={{ color: "#111" }} />}
                       </span>
+                      {/* Girinti durduktan sonra derinliği kat numarası söylüyor */}
+                      {depth > MAX_INDENT && (
+                        <span
+                          aria-label={t("brut.level", { n: depth })}
+                          title={t("brut.level", { n: depth })}
+                          className="-mr-1 shrink-0 rounded-[5px] bg-[#111] px-1 font-mono text-[10px] font-extrabold leading-[16px] text-[#FFF4DC]"
+                        >
+                          {depth}
+                        </span>
+                      )}
                       <SmartText text={sub.name} className="min-w-0 flex-1" />
                       {pill(counts?.get(sub.id) ?? 0)}
                     </Link>
