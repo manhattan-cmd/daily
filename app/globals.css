@@ -813,7 +813,7 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-time-stamp] {
   background: #ffffff !important; color: #111 !important; border: 2px solid #111;
   border-radius: 9px; box-shadow: 3px 3px 0 #111; height: 30px; margin-top: 8px;
-}
+}
 :root[data-skin="brutal"] [data-wheel-band] { background: #ffd23f !important; box-shadow: inset 0 0 0 3px #111, 3px 3px 0 #111 !important; border-radius: 12px; }
 :root[data-skin="brutal"] [data-wheel-band] ~ * [aria-selected="true"] { color: #111 !important; }
 
@@ -1107,4 +1107,53 @@ input[type="number"] {
 :root[data-skin="brutal"] header.yapi-band[data-brut-header] h1 {
   display: inline-block; background: #111; color: #ffd23f; border-radius: 12px;
   padding: 4px 12px 6px; box-shadow: 4px 4px 0 rgba(17, 17, 17, 0.25);
+}
+
+/* Brutal: kategori / alt kategori penceresi (StructureFormShell) — bant, sekme
+   ve alt dugmeler bilesende; buradakiler formlarin ic parcalari. */
+:root[data-skin="brutal"] [data-struct-form] input {
+  height: 48px; background: #ffffff; border-radius: 12px; font-size: 17px; font-weight: 800; color: #111;
+  box-shadow: inset 0 0 0 2px #111 !important;
+}
+:root[data-skin="brutal"] [data-struct-form] input::placeholder { color: rgba(17,17,17,0.4); font-weight: 600; }
+:root[data-skin="brutal"] [data-struct-form] input:focus { box-shadow: inset 0 0 0 3px #111, 0 0 0 3px #ffd23f !important; }
+/* Oneri cipleri: beyaz, cerceveli, golgeli; basinca golgesine oturur */
+:root[data-skin="brutal"] [data-struct-form] [data-suggest] {
+  background: #ffffff; border: 2px solid #111; box-shadow: 2px 2px 0 #111 !important;
+  border-radius: 10px; font-weight: 800; color: #111;
+}
+:root[data-skin="brutal"] [data-struct-form] [data-suggest] > span:first-child { box-shadow: inset 0 0 0 1.5px #111 !important; }
+:root[data-skin="brutal"] [data-struct-form] [data-suggest]:active { transform: translate(2px, 2px); box-shadow: none !important; }
+/* Renkler: yuvarlak yerine cerceveli kare; secili olan golgesine oturmus */
+:root[data-skin="brutal"] [data-struct-form] [data-swatch] {
+  width: 38px; height: 38px; border-radius: 11px; border: 2px solid #111; box-shadow: 3px 3px 0 #111;
+  --tw-ring-shadow: 0 0 #0000; --tw-ring-offset-shadow: 0 0 #0000;
+}
+:root[data-skin="brutal"] [data-struct-form] [data-swatch][aria-pressed="true"] {
+  transform: translate(3px, 3px); box-shadow: inset 0 0 0 2px #ffffff;
+}
+:root[data-skin="brutal"] [data-struct-form] [data-swatch] svg { width: 18px; height: 18px; }
+/* Semboller: beyaz cerceveli karolar; secili olan kategori renginde, golgeli */
+:root[data-skin="brutal"] [data-struct-form] [data-icon-grid] > div > span {
+  font-size: 10.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #111;
+}
+:root[data-skin="brutal"] [data-struct-form] [data-icon-grid] button {
+  background: #ffffff; border-radius: 9px; box-shadow: inset 0 0 0 1.5px rgba(17,17,17,0.35) !important;
+}
+:root[data-skin="brutal"] [data-struct-form] [data-icon-grid] button svg { color: #111 !important; }
+:root[data-skin="brutal"] [data-struct-form] [data-icon-grid] button[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 2px #111, 2px 2px 0 #111 !important;
+}
+/* Ayni ad uyarisi: sari, cerceveli; yazilar siyah */
+:root[data-skin="brutal"] [data-struct-form] [data-warn] {
+  background: #ffd23f; border: 2px solid #111; box-shadow: 3px 3px 0 #111; color: #111; font-weight: 600;
+}
+:root[data-skin="brutal"] [data-struct-form] [data-warn] * { color: #111 !important; }
+:root[data-skin="brutal"] [data-struct-form] [data-warn] button {
+  background: #ffffff; border: 2px solid #111; border-radius: 8px; padding: 2px 8px; font-weight: 800;
+  box-shadow: 2px 2px 0 #111;
+}
+/* Duzenlemedeki satirlar (duzenli kalem, konum): beyaz, cerceveli */
+:root[data-skin="brutal"] [data-struct-form] [data-struct-box] {
+  background: #ffffff; box-shadow: inset 0 0 0 2px #111, 3px 3px 0 #111 !important;
 }

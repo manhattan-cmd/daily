@@ -47,7 +47,7 @@ export function IconGrid({
 }) {
   const t = useT();
   return (
-    <div className="flex flex-col gap-3">
+    <div data-icon-grid="" className="flex flex-col gap-3">
       {ICON_GROUPS.map((g) => (
         <div key={g.key} className="flex flex-col gap-1.5">
           <span className="px-0.5 text-[10px] font-medium text-muted-foreground/60">

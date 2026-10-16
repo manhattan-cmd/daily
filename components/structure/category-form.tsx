@@ -147,7 +147,7 @@ export function CategoryForm({
             className={NAME_INPUT}
           />
           {duplicateName && (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed text-amber-200/90">
+            <div data-warn="" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed text-amber-200/90">
               <span className="font-semibold">&bdquo;{duplicateName}&rdquo;</span>{" "}
               adında bir kategori zaten var. İkincisi karışıklık yaratabilir.
               <div className="mt-2">
@@ -177,6 +177,7 @@ export function CategoryForm({
                     setIcon(p.icon);
                     setDuplicateName(null);
                   }}
+                  data-suggest=""
                   className={SUGGESTION_CHIP}
                 >
                   <PreviewTile color={p.color} icon={p.icon} size={20} />
@@ -196,6 +197,7 @@ export function CategoryForm({
                 onClick={() => setColor(c)}
                 aria-label={`Renk ${c}`}
                 aria-pressed={color === c}
+                data-swatch=""
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-full transition-transform active:scale-90",
                   color === c && "ring-2 ring-white/70 ring-offset-2 ring-offset-[var(--sf-1)]"

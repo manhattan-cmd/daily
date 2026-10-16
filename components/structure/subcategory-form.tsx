@@ -316,7 +316,7 @@ export function SubCategoryForm({
 
           {/* Aynı ad uyarısı — var olanı kullan ya da bilerek ikinciyi aç */}
           {duplicate && (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed text-amber-200/90">
+            <div data-warn="" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed text-amber-200/90">
               <span className="font-semibold">&bdquo;{duplicate.name}&rdquo;</span>{" "}
               bu kategoride zaten var —{" "}
               <span className="font-medium">{pathOf(duplicate)}</span> altında.
@@ -359,6 +359,7 @@ export function SubCategoryForm({
                     setName(p);
                     setDuplicate(null);
                   }}
+                  data-suggest=""
                   className={cn(SUGGESTION_CHIP, "pl-3")}
                 >
                   {p}
@@ -370,7 +371,7 @@ export function SubCategoryForm({
 
         {/* Düzenli/sabit işareti — analizlerde tek dokunuşla hariç tutulabilir */}
         {isEdit && (
-          <div className="flex items-center justify-between gap-3 rounded-2xl bg-[var(--sf-1)] px-4 py-3 ring-1 ring-inset ring-[var(--ln-1)]">
+          <div data-struct-box="" className="flex items-center justify-between gap-3 rounded-2xl bg-[var(--sf-1)] px-4 py-3 ring-1 ring-inset ring-[var(--ln-1)]">
             <div className="min-w-0">
               <p className="text-sm font-medium">{t("entry.regular")}</p>
               <p className="text-[11px] text-muted-foreground">
@@ -388,6 +389,7 @@ export function SubCategoryForm({
             <button
               type="button"
               onClick={() => setLocationOpen((v) => !v)}
+              data-struct-box=""
               className="flex items-center justify-between gap-2 rounded-2xl bg-[var(--sf-1)] px-4 py-3 text-left text-sm ring-1 ring-inset ring-[var(--ln-1)]"
             >
               <span className="truncate">
