@@ -238,7 +238,7 @@ function DateTimePanel({
    * satırlık bir "‹ 11 Eyl ›" yeterli.
    */
   return (
-    <div className="flex flex-col gap-2 p-3">
+    <div className="flex flex-col gap-2 px-2 py-3">
       <div className="flex items-center gap-1.5 px-0.5 text-muted-foreground/60">
         {icon}
         <span className="text-[10px] font-semibold uppercase tracking-[0.12em]">
@@ -268,20 +268,21 @@ function DateTimePanel({
       <div
         role="group"
         aria-label={t("datetime.pickDate")}
-        className="flex items-center justify-between"
+        className="flex items-center justify-between gap-0.5"
       >
         <button
           type="button"
           disabled={disabled}
           onClick={() => stepDate(-1)}
           aria-label={t("datetime.prevDay")}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+          className="flex h-7 w-5 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
         >
           <ChevronLeft className="h-3.5 w-3.5" />
         </button>
+        {/* Tek satır: dar ekranda ay alta düşüyordu */}
         <span
           className={cn(
-            "text-[12px] font-medium tabular-nums",
+            "min-w-0 whitespace-nowrap text-[12px] font-medium tabular-nums",
             datePart ? "text-muted-foreground" : "text-muted-foreground/40"
           )}
         >
@@ -292,7 +293,7 @@ function DateTimePanel({
           disabled={disabled}
           onClick={() => stepDate(1)}
           aria-label={t("datetime.nextDay")}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+          className="flex h-7 w-5 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
         >
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
@@ -522,8 +523,11 @@ function TimeWheel({
       </div>
 
       <div className="relative flex justify-center gap-2">
-        {/* Seçim bandı — çarkın okuma penceresi */}
+        {/* Seçim bandı — çarkın okuma penceresi. Sütunlar `relative` ile
+            bandın üstünde: band konumlu olduğu için yoksa rakamların üstüne
+            çiziliyordu (Brütal temada bant siyah dolu, saat hiç görünmüyordu) */}
         <div
+          data-wheel-band
           className={cn(
             "pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 rounded-lg ring-1 ring-inset",
             skin.band
@@ -536,7 +540,7 @@ function TimeWheel({
           onChange={(v) => onChange(`${v}:${minute || "00"}`)}
           ariaLabel="Saat"
         />
-        <span className="self-center text-lg font-bold text-muted-foreground/40">
+        <span className="relative self-center text-lg font-bold text-muted-foreground/40">
           :
         </span>
         <WheelColumn
@@ -646,7 +650,7 @@ function WheelColumn({
       role="listbox"
       aria-label={ariaLabel}
       tabIndex={0}
-      className="no-scrollbar w-16 snap-y snap-mandatory overflow-y-auto overscroll-contain"
+      className="no-scrollbar relative w-16 snap-y snap-mandatory overflow-y-auto overscroll-contain"
       style={{
         height: ITEM * VISIBLE,
         maskImage: FADE,
