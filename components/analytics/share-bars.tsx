@@ -160,6 +160,9 @@ export function ShareBars({
                 }}
               />
             )}
+            {/* Oku olmayan satır (kalemin kendi girdileri) okun yerini boş
+                tutar — yoksa değerleri ok kadar sağa kayıp hizadan çıkıyordu */}
+            {onSelect && !canDrill && <span aria-hidden className="w-4 shrink-0" />}
           </button>
         );
       })}
