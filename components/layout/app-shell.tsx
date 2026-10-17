@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   ensureBuiltInDimensions,
@@ -11,7 +11,7 @@ import {
 import { purgeOldDeletions } from "@/lib/db/deletions";
 import { ensurePersistentStorage } from "@/lib/storage-health";
 import { useLocale } from "@/lib/i18n";
-import { applySkin, useSkin } from "@/lib/skin";
+import { applySkin, getSkin, useSkin } from "@/lib/skin";
 import { BottomNav } from "./bottom-nav";
 import { StatusBar } from "./status-bar";
 import { AddedToast } from "./added-toast";
@@ -33,9 +33,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     document.documentElement.lang = locale;
   }, [locale]);
 
-  // Görüntü teması — sunucu çıktısında yok, ilk çizimde kök öğeye yazılıyor
-  useEffect(() => {
+  // Görüntü teması — açılış betiği ilk çizimden önce yazıyor (lib/skin-boot);
+  // burada tema değişince ve geliştirmede: Strict Mode'un yeniden kurulumu
+  // <html>'in niteliklerini JSX'tekilere (brutal) sıfırlıyor. Çizimden önce
+  // olsun diye layout effect.
+  useLayoutEffect(() => {
     applySkin(skin);
+    // İlk (hydration) çizim sunucunun teması (Brütal) ile yapılır; gerçek
+    // temayla yeniden çizilince gizleme kalkar — yanlış düzen hiç görünmez
+    if (skin === getSkin()) delete document.documentElement.dataset.skinPending;
   }, [skin]);
 
   useEffect(() => {

@@ -184,7 +184,7 @@ export default function CalendarPage() {
       <div
         className={cn(
           "flex items-center justify-between",
-          brutal ? "band-cal -mx-4 mb-6 px-4 pb-4 pt-12" : "mb-8"
+          brutal ? "band-cal band-pad -mx-4 mb-6 px-4" : "mb-8"
         )}
       >
         <button

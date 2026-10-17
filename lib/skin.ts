@@ -11,18 +11,15 @@ import { useSyncExternalStore } from "react";
  * CSS değişkenlerinde (bkz. app/globals.css).
  */
 
-export const SKINS = [
-  "gece",
-  "pastel",
-  "kagit",
-  "nordik",
-  "toprak",
-  "retro",
-  "neon",
-  "mono",
-  "brutal",
-] as const;
-export type Skin = (typeof SKINS)[number];
+// Liste, anahtar ve varsayılanlar açılış betiğiyle ortak (bkz. lib/skin-boot)
+import {
+  BASE_SKIN,
+  DEFAULT_SKIN,
+  SKIN_STORAGE_KEY as STORAGE_KEY,
+  SKINS,
+  type Skin,
+} from "./skin-boot";
+export { SKINS, type Skin };
 
 /** Seçicide görünen adlar ve bir satırlık karakterleri */
 export const SKIN_META: Record<Skin, { name: string; hint: string; swatch: string[] }> = {
@@ -72,11 +69,6 @@ export const SKIN_META: Record<Skin, { name: string; hint: string; swatch: strin
     swatch: ["#0A0A0A", "#131313", "#FFFFFF", "#9C9C9C"],
   },
 };
-
-const STORAGE_KEY = "routine:skin";
-const DEFAULT_SKIN: Skin = "brutal";
-/** CSS'in temel (`:root`) tonları Gece'ninki; ona özel `data-skin` yok */
-const BASE_SKIN: Skin = "gece";
 
 const isSkin = (v: unknown): v is Skin =>
   typeof v === "string" && (SKINS as readonly string[]).includes(v);

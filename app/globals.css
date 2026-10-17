@@ -300,6 +300,11 @@ html, body {
   text-rendering: optimizeLegibility;
 }
 
+/* Tema Brütal değilse sayfa, React kendini gerçek temayla çizene kadar gizli:
+   sunucu HTML'i Brütal düzeninde. Zemin (html) zaten doğru temanın renginde
+   görünür. Bkz. lib/skin-boot */
+html[data-skin-pending] body { visibility: hidden; }
+
 body {
   font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -355,6 +360,13 @@ input[type="number"] {
 }
 .pt-safe {
   padding-top: env(safe-area-inset-top, 0);
+}
+/* Bölüm bandının ortak payı (Brütal: Ana Sayfa, Takvim, Yapı ve PageHeader'lı
+   sayfalar) — üstte durum çubuğu + 24px, altta 16px. Eskiden Ana Sayfa ve
+   Takvim sabit 48px (durum çubuğu payı ayrıca yoktu), Yapı 16px'ti. */
+.band-pad {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 24px);
+  padding-bottom: 16px;
 }
 
 @keyframes fadeIn {
@@ -813,7 +825,7 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-time-stamp] {
   background: #ffffff !important; color: #111 !important; border: 2px solid #111;
   border-radius: 9px; box-shadow: 3px 3px 0 #111; height: 30px; margin-top: 8px;
-}
+}
 :root[data-skin="brutal"] [data-wheel-band] { background: #ffd23f !important; box-shadow: inset 0 0 0 3px #111, 3px 3px 0 #111 !important; border-radius: 12px; }
 :root[data-skin="brutal"] [data-wheel-band] ~ * [aria-selected="true"] { color: #111 !important; }
 
@@ -1098,10 +1110,10 @@ input[type="number"] {
 
 
 /* Brutal: bolum bantlari — her ana bolumun ustu kendi renginde, soluk tram
-   benekli, kalin alt cizgili. Yapi sari, Ana Sayfa pembe, Takvim yesil,
+   benekli, kalin alt cizgili. Yapi sari, Ana Sayfa turkuaz, Takvim yesil,
    Analiz mavi. Baslik ters etiket: siyah kutu, bandin renginde harf. */
 :root[data-skin="brutal"] .yapi-band { --band-c: #ffd23f; }
-:root[data-skin="brutal"] .band-home { --band-c: #ff9ecd; }
+:root[data-skin="brutal"] .band-home { --band-c: #5ce1e6; }
 :root[data-skin="brutal"] .band-cal { --band-c: #7ae582; }
 :root[data-skin="brutal"] .band-an { --band-c: #8ea6ff; }
 :root[data-skin="brutal"] header.yapi-band[data-brut-header],

@@ -90,12 +90,12 @@ export default function HomePage() {
 
   return (
     <>
-      {/* Brütal: sayfanın başlığı bölümün bandında (pembe, tram benekli;
+      {/* Brütal: sayfanın başlığı bölümün bandında (turkuaz, tram benekli;
           bkz. globals.css "bolum bantlari") — selam üst yazı, tarih ters etiket */}
       <header
         className={cn(
-          "-mx-4 flex items-end gap-3 px-4 pt-12",
-          brutal ? "band-home mb-6 pb-4" : "mb-5 pb-2"
+          "-mx-4 flex items-end gap-3 px-4",
+          brutal ? "band-home band-pad mb-6" : "mb-5 pb-2 pt-12"
         )}
       >
         <div className="min-w-0 flex-1">

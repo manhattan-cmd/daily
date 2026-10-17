@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
 import { CSP_META } from "@/lib/security-policy";
+import { SKIN_BOOT_SCRIPT } from "@/lib/skin-boot";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -54,13 +55,16 @@ export default function RootLayout({
       data-skin="brutal"
       suppressHydrationWarning
     >
-      {/* Mobil uygulamada sunucu yok, başlık gönderilemiyor — güvenlik politikası
-          sayfaya gömülü (bkz. lib/security-policy). Web'de başlık olarak gidiyor. */}
-      {process.env.BUILD_TARGET === "mobile" && (
-        <head>
+      <head>
+        {/* Mobil uygulamada sunucu yok, başlık gönderilemiyor — güvenlik politikası
+            sayfaya gömülü (bkz. lib/security-policy). Web'de başlık olarak gidiyor. */}
+        {process.env.BUILD_TARGET === "mobile" && (
           <meta httpEquiv="Content-Security-Policy" content={CSP_META} />
-        </head>
-      )}
+        )}
+        {/* Kayıtlı temayı ilk çizimden önce uygula — Gece'yi seçen biri
+            açılışta bir an Brütal görüyordu (bkz. lib/skin-boot) */}
+        <script dangerouslySetInnerHTML={{ __html: SKIN_BOOT_SCRIPT }} />
+      </head>
       <body className="min-h-dvh bg-background text-foreground">
         <AppShell>{children}</AppShell>
       </body>

@@ -63,14 +63,14 @@ export function PageHeader({
       <header
         data-brut-header=""
         className={cn(
-          "sticky top-0 z-30 -mx-4 mb-6 border-b-2 border-[#111] bg-background px-4 pb-4 pt-safe",
+          "sticky top-0 z-30 -mx-4 mb-6 border-b-2 border-[#111] bg-background band-pad px-4",
           className
         )}
       >
         {/* Geri oku varsa tepede kare düğmeler şeridi; yoksa eylem başlığın
             hizasında durur (eskiden başlığın üstünde boş bir satırda kalıyordu) */}
         {back && (
-          <div className="flex items-center justify-between gap-2 pt-3">
+          <div className="flex items-center justify-between gap-2">
             {back ? (
               <Link
                 href={back}
@@ -86,7 +86,7 @@ export function PageHeader({
             {action ? <div data-brut-actions="" className="shrink-0">{action}</div> : null}
           </div>
         )}
-        <div className={cn("flex items-center gap-3", back ? "pt-3" : "pt-4")}>
+        <div className={cn("flex items-center gap-3", back && "pt-3")}>
           <div className="min-w-0 flex-1">
             {description ? (
               <p className="truncate text-[12px] font-extrabold uppercase tracking-wider">{description}</p>
