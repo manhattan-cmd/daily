@@ -416,6 +416,7 @@ export function CanvasViewport({
             commit(1, { x: 0, y: 0 });
           }}
           aria-label="Ortala"
+          data-map-recenter=""
           className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card/85 text-muted-foreground backdrop-blur transition-colors hover:text-foreground"
         >
           <Locate className="h-4 w-4" />

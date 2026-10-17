@@ -1135,6 +1135,20 @@ input[type="number"] {
   padding: 4px 12px 6px; box-shadow: 4px 4px 0 rgba(17, 17, 17, 0.25);
 }
 
+/* Brutal: Yapi > Harita — noktali defter zemini (NeuralMap data-map-paper);
+   ortala dugmesi kare, cerceveli, golgeli. Dugumler, hatlar ve etiketler
+   bilesende (brutal dali). */
+:root[data-skin="brutal"] [data-map-paper] {
+  background-image: radial-gradient(rgba(17, 17, 17, 0.13) 1.1px, transparent 1.4px);
+  background-size: 18px 18px;
+}
+:root[data-skin="brutal"] [data-map-recenter] {
+  bottom: 28px; right: 12px; width: 38px; height: 38px;
+  background: #ffd23f; color: #111; border: 2px solid #111; border-radius: 10px;
+  box-shadow: 2px 2px 0 #111; backdrop-filter: none;
+}
+:root[data-skin="brutal"] [data-map-recenter] svg { stroke-width: 2.5; }
+
 /* Brutal: kategori / alt kategori penceresi (StructureFormShell) — bant, sekme
    ve alt dugmeler bilesende; buradakiler formlarin ic parcalari. */
 :root[data-skin="brutal"] [data-struct-form] input {

@@ -16,6 +16,7 @@ import { SymbolIcon } from "@/lib/icons";
 import { usageIntensity, usageRate, usageSince } from "@/lib/usage";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { useSkin } from "@/lib/skin";
 import type { Category, SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
 
@@ -134,6 +135,10 @@ const hexA = (v: number) =>
  */
 export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
   const t = useT();
+  // Brütal: aynı harita kâğıt üstüne basılmış gibi — düz renkli kare
+  // düğümler (kare = kategori/alt kategori), siyah çerçeve ve sert gölge,
+  // siyah hatlar. Kullanım ışımayla değil dolgunun koyuluğuyla anlatılıyor.
+  const brutal = useSkin() === "brutal";
   const [focus, setFocus] = useState<MapFocus>(null);
 
   // Sürükleme: basılı tut → serbest taşı → bırakınca en yakın yuvaya oturur
@@ -509,7 +514,15 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
         : routes.structureSub(focusObj.sub.categoryId, focusObj.sub.id);
 
   const coreBox = { width: graph.coreR * 2, height: graph.coreR * 2 };
-  const coreSkin: CSSProperties = {
+  const coreSkin: CSSProperties = brutal
+    ? {
+        borderRadius: "28%",
+        // Kökte bulunulan bir kalem yok: siyah gövde, sarı simge
+        background: focusObj == null ? "#111" : centerColor,
+        border: "2.5px solid #111",
+        boxShadow: "3px 3px 0 #111",
+      }
+    : {
     borderRadius: "9999px",
     background: [
       "radial-gradient(circle at 32% 24%, var(--map-specular), transparent 54%)",
@@ -522,7 +535,11 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
   };
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
+    <div
+      className="relative flex min-h-0 flex-1 flex-col"
+      // Brütal: noktalı defter zemini (globals.css)
+      data-map-paper={brutal ? "" : undefined}
+    >
       {/* Yol izi — nerede olduğun ve geri dönüş. Kökte yazılmıyor: tek
           basamaklı bir yol iz değil, sayfa başlığının tekrarı. */}
       {focusObj != null && (
@@ -533,19 +550,37 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
             return (
               <span key={i} className="flex shrink-0 items-center gap-1">
                 {i > 0 && (
-                  <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/30" />
+                  <ChevronRight
+                    className={cn(
+                      "h-3 w-3 shrink-0",
+                      brutal ? "text-[#111]/50" : "text-muted-foreground/30"
+                    )}
+                    strokeWidth={brutal ? 3 : 2}
+                  />
                 )}
                 <button
                   onClick={() => setFocus(tr.focus)}
                   aria-current={last ? "page" : undefined}
                   className={cn(
-                    "flex max-w-[140px] shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition-colors",
-                    last
-                      ? "font-semibold text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
+                    "flex max-w-[140px] shrink-0 items-center gap-1.5 px-2.5 py-1 text-xs transition-colors",
+                    brutal
+                      ? cn(
+                          "rounded-lg border-2 border-[#111] text-[#111]",
+                          last ? "font-black shadow-[2px_2px_0_#111]" : "bg-white font-bold"
+                        )
+                      : cn(
+                          "rounded-full",
+                          last
+                            ? "font-semibold text-foreground"
+                            : "text-muted-foreground hover:text-foreground"
+                        )
                   )}
                   style={
-                    last
+                    brutal
+                      ? last
+                        ? { background: `color-mix(in srgb, ${centerColor} 55%, #fff)` }
+                        : undefined
+                      : last
                       ? {
                           background: `${centerColor}22`,
                           boxShadow: `inset 0 0 0 1px ${centerColor}66`,
@@ -553,7 +588,7 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
                       : { background: "var(--map-empty)" }
                   }
                 >
-                  {last && (
+                  {last && !brutal && (
                     <span
                       className="h-1.5 w-1.5 shrink-0 rounded-full"
                       style={{ backgroundColor: centerColor }}
@@ -589,6 +624,20 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
             {/* Bağlar — kılcal iz. Anlam kalınlıkta değil PARLAKLIKTA:
                 sönük hat yapının kendisi, parlak hat gerçekten kullanılan
                 yol. Işıma katmanı yalnız yaşayan hatlarda. */}
+            {brutal ? (
+              // Brütal: siyah mürekkep hat; kullanılan yol koyu ve kalın,
+              // bırakılmış dal soluk ve ince
+              <g fill="none" strokeLinecap="round">
+                {links.map((l) => (
+                  <path
+                    key={l.id}
+                    d={l.d}
+                    stroke={`#111111${hexA(0.2 + 0.7 * l.glow)}`}
+                    strokeWidth={l.w * (1.1 + 0.9 * l.glow)}
+                  />
+                ))}
+              </g>
+            ) : (
             <g className="link-breathe" fill="none" strokeLinecap="round">
               {links.map((l) =>
                 l.glow > LINK_LIT ? (
@@ -609,6 +658,7 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
                 />
               ))}
             </g>
+            )}
 
             {drag &&
               effPositions.map((p, i) =>
@@ -619,7 +669,7 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
                     y1={positions[i].y}
                     x2={p.x}
                     y2={p.y}
-                    stroke={`${centerColor}40`}
+                    stroke={brutal ? "#11111166" : `${centerColor}40`}
                     strokeWidth={1.5}
                     strokeDasharray="4 4"
                   />
@@ -631,7 +681,7 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
                 cy={positions[targetSlot].y}
                 r={(graph.byId.get(nodeId(nodes[targetSlot]))?.r ?? 12) + 4}
                 fill="none"
-                stroke={centerColor}
+                stroke={brutal ? "#111" : centerColor}
                 strokeWidth={2}
                 strokeDasharray="5 4"
               />
@@ -657,11 +707,11 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
               >
                 <Layers
                   className="h-[18px] w-[18px]"
-                  style={{ color: "var(--primary-foreground)" }}
-                  strokeWidth={1.75}
+                  style={{ color: brutal ? "#ffd23f" : "var(--primary-foreground)" }}
+                  strokeWidth={brutal ? 2.5 : 1.75}
                 />
               </span>
-              <CoreLabel>{t("structure.categories")}</CoreLabel>
+              <CoreLabel brutal={brutal}>{t("structure.categories")}</CoreLabel>
             </span>
           ) : (
             <Link
@@ -682,16 +732,20 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
                 style={coreSkin}
               >
                 {focusIcon ? (
-                  <SymbolIcon name={focusIcon} size={18} style={{ color: "#fff" }} />
+                  <SymbolIcon
+                    name={focusIcon}
+                    size={brutal ? 20 : 18}
+                    style={{ color: brutal ? "#111" : "#fff" }}
+                  />
                 ) : (
                   <Layers
                   className="h-[18px] w-[18px]"
-                  style={{ color: "var(--primary-foreground)" }}
-                  strokeWidth={1.75}
+                  style={{ color: brutal ? "#111" : "var(--primary-foreground)" }}
+                  strokeWidth={brutal ? 2.5 : 1.75}
                 />
                 )}
               </span>
-              <CoreLabel>{focusName}</CoreLabel>
+              <CoreLabel brutal={brutal}>{focusName}</CoreLabel>
             </Link>
           )}
 
@@ -716,6 +770,7 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
                 glow={metaGlow(m)}
                 showLabel={g.labelled}
                 isDragging={dragging}
+                brutal={brutal}
                 // Takımadada iç noktalar adacığın başına götürür — eskiden
                 // bu işi adacığın sınırı görüyordu; sınırlar kalkınca nokta
                 // ölü kalmasın
@@ -743,14 +798,17 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
               <span
                 key={`isll${isl.id}`}
                 aria-hidden
-                className="pointer-events-none absolute whitespace-nowrap text-center font-semibold leading-[1.3]"
+                className={cn(
+                  "pointer-events-none absolute whitespace-nowrap text-center leading-[1.3]",
+                  brutal ? "font-extrabold" : "font-semibold"
+                )}
                 style={{
                   left: isl.labelAt.x,
                   top: isl.labelAt.y,
                   transform: "translate(-50%,-50%)",
                   fontSize: isl.fontSize,
                   color: "var(--map-label)",
-                  opacity: 0.55 + 0.4 * g,
+                  opacity: brutal ? 0.6 + 0.4 * g : 0.55 + 0.4 * g,
                   textShadow: "var(--map-label-halo)",
                 }}
               >
@@ -760,6 +818,54 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
           })}
         </div>
       </CanvasViewport>
+
+      <MapLegend brutal={brutal} />
+    </div>
+  );
+}
+
+/**
+ * Koyuluğun / parlaklığın ne anlattığı. Harita kullanımı dolguyla (Brütal)
+ * ya da ışımayla anlatıyor ama bunu hiçbir yer söylemiyordu — soluk bir dal
+ * "bozuk" ya da "seçilmemiş" sanılabiliyordu.
+ */
+function MapLegend({ brutal }: { brutal: boolean }) {
+  const t = useT();
+  const dot = (used: boolean) =>
+    brutal ? (
+      <span
+        className="h-2.5 w-2.5 shrink-0 rounded-[3px] border-[1.5px] border-[#111]"
+        style={{ background: used ? "#111" : "#fff" }}
+      />
+    ) : (
+      <span
+        className="h-2 w-2 shrink-0 rounded-full"
+        style={{
+          background: used ? "var(--foreground)" : "transparent",
+          boxShadow: "inset 0 0 0 1px var(--muted-foreground)",
+          opacity: used ? 0.9 : 0.6,
+        }}
+      />
+    );
+  return (
+    <div
+      className={cn(
+        // Alt menünün ortadaki "Bugün" düğmesi haritanın üstüne taşıyor —
+        // açıklama onun hizasının üstünde dursun
+        "pointer-events-none absolute bottom-8 left-3 flex items-center gap-2.5 text-[10px]",
+        brutal
+          ? "rounded-lg border-2 border-[#111] bg-white px-2 py-1 font-bold text-[#111] shadow-[2px_2px_0_#111]"
+          : "text-muted-foreground"
+      )}
+    >
+      <span className="flex items-center gap-1">
+        {dot(true)}
+        {t("map.legendUsed")}
+      </span>
+      <span className="flex items-center gap-1">
+        {dot(false)}
+        {t("map.legendIdle")}
+      </span>
     </div>
   );
 }
@@ -832,7 +938,22 @@ function labelPlacement(r: number, side: LabelSide, gap: number): CSSProperties 
 }
 
 /** Merkez gövdenin adı — diskin hemen altında, kırpılmadan */
-function CoreLabel({ children }: { children: React.ReactNode }) {
+function CoreLabel({
+  children,
+  brutal,
+}: {
+  children: React.ReactNode;
+  brutal?: boolean;
+}) {
+  if (brutal)
+    // Brütal: siyah ters etiket — hatların ve noktaların arasında okunuyor
+    return (
+      <span className="pointer-events-none absolute left-1/2 top-full flex w-[120px] -translate-x-1/2 justify-center pt-2">
+        <span className="rounded-md bg-[#111] px-1.5 py-0.5 text-center text-[11px] font-extrabold leading-tight text-white">
+          {children}
+        </span>
+      </span>
+    );
   return (
     <span className="pointer-events-none absolute left-1/2 top-full w-[104px] -translate-x-1/2 pt-1.5 text-center text-[11px] font-semibold leading-tight text-foreground">
       {children}
@@ -857,6 +978,7 @@ function GraphCell({
   glow,
   showLabel,
   isDragging,
+  brutal,
   onTap,
   onDragStart,
 }: {
@@ -874,13 +996,31 @@ function GraphCell({
   glow: number;
   showLabel: boolean;
   isDragging: boolean;
+  brutal?: boolean;
   /** Verilmezse düğüm süs: takımadada içerideki noktalar dokunulmuyor */
   onTap?: () => void;
   onDragStart?: () => void;
 }) {
   const hold = useHold(onTap ?? noop, onDragStart ?? noop);
   const hit = onTap ? Math.max(r * 2, 30) : r * 2;
-  const skin = (
+  // Brütal: kare gövde. Kullanılan kalem kendi renginde dolu, bırakılmış
+  // kalem beyaza yakın; çerçeve ve (iri düğümde) sert gölge hep siyah.
+  const brutalSkin = brutal ? (
+    <span
+      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+      style={{
+        width: r * 2,
+        height: r * 2,
+        borderRadius: Math.max(2, r * 0.45),
+        background: `color-mix(in srgb, ${color} ${Math.round(22 + 78 * glow)}%, #fff)`,
+        border: `${r >= 9 ? 2 : r >= 5 ? 1.5 : 1}px solid #111`,
+        boxShadow: r >= 9 ? "2px 2px 0 #111" : undefined,
+        outline: isDragging ? "2px dashed #111" : undefined,
+        outlineOffset: 3,
+      }}
+    />
+  ) : null;
+  const skin = brutalSkin ?? (
     <span
       className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
       style={{
@@ -904,9 +1044,13 @@ function GraphCell({
         "pointer-events-none absolute line-clamp-2",
         // Ölçüler lib/graph.ts'teki labelBox ile AYNI olmalı
         bigLabel
-          ? "w-[78px] text-[10.5px] leading-[14px] font-semibold"
-          : "w-[68px] text-[9px] leading-[12px] font-medium",
-        glow > 0.5
+          ? cn("w-[78px] text-[10.5px] leading-[14px]", brutal ? "font-extrabold" : "font-semibold")
+          : cn("w-[68px] text-[9px] leading-[12px]", brutal ? "font-bold" : "font-medium"),
+        brutal
+          ? glow > 0.15
+            ? "text-[#111]"
+            : "text-[#111]/60"
+          : glow > 0.5
           ? "text-foreground"
           : glow > 0.15
             ? "text-foreground/80"
@@ -923,7 +1067,11 @@ function GraphCell({
   const glyph =
     r >= 9 && icon ? (
       <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <SymbolIcon name={icon} size={Math.round(r * 1.3)} style={{ color: "#fff" }} />
+        <SymbolIcon
+          name={icon}
+          size={Math.round(r * (brutal ? 1.15 : 1.3))}
+          style={{ color: brutal ? "#111" : "#fff" }}
+        />
       </span>
     ) : null;
   const box: CSSProperties = {

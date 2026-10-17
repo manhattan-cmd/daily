@@ -24,6 +24,9 @@ import { weekPeriod } from "@/lib/period";
 import { whenIdle } from "@/lib/db/day-cache";
 import { applyStatusBarColor, statusBarColor } from "@/lib/skin-boot";
 
+/** Açılış kurulumu — sayfa ömründe bir kez (bkz. AppShell) */
+let initOnce: Promise<void> | null = null;
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const mainRef = useRef<HTMLElement>(null);
   const locale = useLocale();
@@ -70,7 +73,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [barColor, skin]);
 
   useEffect(() => {
-    (async () => {
+    // Tek sefer: geliştirmede Strict Mode etkiyi iki kez çalıştırıyor ve iki
+    // kurulum aynı anda koşunca hazır kategoriler ikişer ekleniyordu
+    initOnce ??= (async () => {
       await ensureBuiltInDimensions();
       // Ölçü havuzu v18'de görünmez oldu (ölçüm özelliğin üzerinde), artık
       // beslenmiyor. Hazır özellikler yalnız bomboş kuruluma ekilir —
