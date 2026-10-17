@@ -118,7 +118,7 @@ export function EntryTime({
   // ── Biçim ──
   const quick = (on: boolean) =>
     cn(
-      "relative flex h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-5 leading-none transition-[background-color,transform] active:scale-[0.97]",
+      "relative flex h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-xl px-1.5 leading-none transition-[background-color,transform] active:scale-[0.97]",
       brutal
         ? on
           ? "border-2 border-[#111] bg-[#111] text-[#FFF4DC]"
@@ -221,7 +221,7 @@ export function EntryTime({
 
             {/* Hızlı seçimler — kısa sabit adlar, altında gidilecek gün */}
             <div className="grid grid-cols-3 gap-2">
-              <button type="button" className={quick(false)} onClick={() => setDraft(prev)}>
+              <button type="button" className={cn(quick(false), "pl-5")} onClick={() => setDraft(prev)}>
                 <ChevronLeft className="absolute left-1 top-1/2 h-4 w-4 -translate-y-1/2 opacity-70" />
                 <span className="text-xs font-bold">{t("entry.timePrev")}</span>
                 <span className="text-[10.5px] font-medium opacity-65">{shortDay(dayOf(prev))}</span>
@@ -235,7 +235,7 @@ export function EntryTime({
                 <span className="text-xs font-bold">{t("entry.timeAtNow")}</span>
                 <span className="text-[10.5px] font-medium opacity-65">{t("entry.timeToday")}</span>
               </button>
-              <button type="button" className={quick(false)} onClick={() => setDraft(next)}>
+              <button type="button" className={cn(quick(false), "pr-5")} onClick={() => setDraft(next)}>
                 <span className="text-xs font-bold">{t("entry.timeNext")}</span>
                 <span className="text-[10.5px] font-medium opacity-65">{shortDay(dayOf(next))}</span>
                 <ChevronRight className="absolute right-1 top-1/2 h-4 w-4 -translate-y-1/2 opacity-70" />

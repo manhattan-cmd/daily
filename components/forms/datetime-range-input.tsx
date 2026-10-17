@@ -167,31 +167,26 @@ export function DateTimeRangeInput({
         />
       )}
 
-      {/* Süre / ipucu satırı */}
-      <div
-        className={cn(
-          "flex items-center gap-2 border-t px-4 py-2.5",
-          !cs && skin.strip
-        )}
-        style={{
-          borderTopColor: cs ? cs.lineBorder : skin.lineBorder,
-          background: cs ? cs.stripBg : undefined,
-        }}
-      >
-        {duration ? (
-          <>
-            <div
-              className={cn("h-1.5 w-1.5 shrink-0 rounded-full", !cs && skin.dot)}
-              style={cs ? { background: cs.dot } : undefined}
-            />
-            <span className="text-xs text-muted-foreground">{duration}</span>
-          </>
-        ) : (
-          <span className="text-xs text-muted-foreground/40">
-            {t("datetime.rangeHint")}
-          </span>
-        )}
-      </div>
+      {/* Süre satırı — yalnız iki uç da girilince. Boşken duran "başlangıç ve
+          bitiş girilince süre hesaplanır" ipucu kullanıcı isteğiyle kalktı. */}
+      {duration && (
+        <div
+          className={cn(
+            "flex items-center gap-2 border-t px-4 py-2.5",
+            !cs && skin.strip
+          )}
+          style={{
+            borderTopColor: cs ? cs.lineBorder : skin.lineBorder,
+            background: cs ? cs.stripBg : undefined,
+          }}
+        >
+          <div
+            className={cn("h-1.5 w-1.5 shrink-0 rounded-full", !cs && skin.dot)}
+            style={cs ? { background: cs.dot } : undefined}
+          />
+          <span className="text-xs text-muted-foreground">{duration}</span>
+        </div>
+      )}
     </div>
   );
 }
