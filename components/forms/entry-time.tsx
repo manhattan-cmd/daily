@@ -221,8 +221,8 @@ export function EntryTime({
 
             {/* Hızlı seçimler — kısa sabit adlar, altında gidilecek gün */}
             <div className="grid grid-cols-3 gap-2">
-              <button type="button" className={cn(quick(false), "pl-5")} onClick={() => setDraft(prev)}>
-                <ChevronLeft className="absolute left-1 top-1/2 h-4 w-4 -translate-y-1/2 opacity-70" />
+              <button type="button" className={cn(quick(false), "px-5")} onClick={() => setDraft(prev)}>
+                <ChevronLeft className="absolute left-0.5 top-1/2 h-4 w-4 -translate-y-1/2 opacity-70" />
                 <span className="text-xs font-bold">{t("entry.timePrev")}</span>
                 <span className="text-[10.5px] font-medium opacity-65">{shortDay(dayOf(prev))}</span>
               </button>
@@ -235,10 +235,10 @@ export function EntryTime({
                 <span className="text-xs font-bold">{t("entry.timeAtNow")}</span>
                 <span className="text-[10.5px] font-medium opacity-65">{t("entry.timeToday")}</span>
               </button>
-              <button type="button" className={cn(quick(false), "pr-5")} onClick={() => setDraft(next)}>
+              <button type="button" className={cn(quick(false), "px-5")} onClick={() => setDraft(next)}>
                 <span className="text-xs font-bold">{t("entry.timeNext")}</span>
                 <span className="text-[10.5px] font-medium opacity-65">{shortDay(dayOf(next))}</span>
-                <ChevronRight className="absolute right-1 top-1/2 h-4 w-4 -translate-y-1/2 opacity-70" />
+                <ChevronRight className="absolute right-0.5 top-1/2 h-4 w-4 -translate-y-1/2 opacity-70" />
               </button>
             </div>
 
