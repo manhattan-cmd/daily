@@ -1111,10 +1111,11 @@ input[type="number"] {
 
 
 /* Brutal: bolum bantlari — her ana bolumun ustu kendi renginde, soluk tram
-   benekli, kalin alt cizgili. Yapi sari, Ana Sayfa turkuaz, Takvim yesil,
-   Analiz mavi. Baslik ters etiket: siyah kutu, bandin renginde harf. */
+   benekli, kalin alt cizgili. Yapi sari, Ana Sayfa uygulamanin kendi moru
+   (ikonun rengi), Takvim yesil, Analiz mavi. Baslik ters etiket: siyah kutu,
+   bandin renginde harf.  */
 :root[data-skin="brutal"] .yapi-band { --band-c: #ffd23f; }
-:root[data-skin="brutal"] .band-home { --band-c: #5ce1e6; }
+:root[data-skin="brutal"] .band-home { --band-c: #6366f1; }
 :root[data-skin="brutal"] .band-cal { --band-c: #7ae582; }
 :root[data-skin="brutal"] .band-an { --band-c: #8ea6ff; }
 :root[data-skin="brutal"] header.yapi-band[data-brut-header],

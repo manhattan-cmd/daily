@@ -38,7 +38,7 @@ export const BASE_SKIN: Skin = "gece";
 export function statusBarColor(path: string, skin: string): string | null {
   if (skin !== "brutal") return null;
   const p = path.replace(/\/+$/, "") || "/";
-  if (p === "/") return "#5ce1e6";
+  if (p === "/") return "#6366f1";
   if (p === "/calendar") return "#7ae582";
   if (p === "/analytics" || p.indexOf("/analytics/") === 0) return "#8ea6ff";
   if (/^\/structure(\/(mods|notes|galaxy))?$/.test(p)) return "#ffd23f";

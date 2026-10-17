@@ -51,11 +51,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const barColor = statusBarColor(pathname, skin);
   useEffect(() => {
-    applyStatusBarColor(
-      barColor ??
-        (getComputedStyle(document.documentElement).getPropertyValue("--background").trim() ||
-          "#09090b")
+    const paper =
+      getComputedStyle(document.documentElement).getPropertyValue("--background").trim() ||
+      "#09090b";
+    applyStatusBarColor(barColor ?? paper);
+    // Sayfayla birlikte kayan bant (Ana Sayfa): bant ekrandan çıkınca durum
+    // çubuğu zemine döner — yoksa renkli şerit krem içeriğin üstünde asılı
+    // kalıyordu. Yapı ve Analiz'in bandı yapışkan, Takvim kaymıyor.
+    const band = barColor ? document.querySelector("[data-band-scrolls]") : null;
+    const root = mainRef.current;
+    if (!band || !root) return;
+    const io = new IntersectionObserver(
+      ([e]) => applyStatusBarColor(e.isIntersecting ? barColor! : paper),
+      { root }
     );
+    io.observe(band);
+    return () => io.disconnect();
   }, [barColor, skin]);
 
   useEffect(() => {

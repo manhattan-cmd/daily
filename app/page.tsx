@@ -90,9 +90,12 @@ export default function HomePage() {
 
   return (
     <>
-      {/* Brütal: sayfanın başlığı bölümün bandında (turkuaz, tram benekli;
+      {/* Brütal: sayfanın başlığı bölümün bandında (uygulamanın moru, tram benekli;
           bkz. globals.css "bolum bantlari") — selam üst yazı, tarih ters etiket */}
       <header
+        // Bant sayfayla kayıyor — durum çubuğu ekrandan çıkınca zemine döner
+        // (bkz. AppShell)
+        data-band-scrolls={brutal ? "" : undefined}
         className={cn(
           "-mx-4 flex items-end gap-3 px-4",
           brutal ? "band-home band-pad mb-6" : "mb-5 pb-2 pt-12"
