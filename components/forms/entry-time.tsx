@@ -219,17 +219,20 @@ export function EntryTime({
               )}
             </div>
 
-            {/* Hızlı seçimler — kısa sabit adlar, altında gidilecek gün */}
+            {/* Hızlı seçimler — üstte ne yapacağı, altında gidilecek gün.
+                Yanlarda üst satır yazı değil ok: "‹ Önceki" büyük yazı
+                ölçeğinde düğmeye sığmıyordu — ok kenara konunca yazının
+                üstüne biniyor, yazının yanına konunca yazıyı ortadan
+                kaydırıyordu. Ok tek başına ortada, gün altında; kelime
+                ekran okuyucuya etiketle gidiyor. */}
             <div className="grid grid-cols-3 gap-2">
-              {/* Ok yazının yanında, aynı satırda ve onunla birlikte ortalı.
-                  Kenara mutlak konumlanınca büyük yazı ölçeğinde yazının
-                  üstüne biniyordu; yer ayırmak için verilen boşluk da yazıyı
-                  ya ortadan kaydırıyor ya da "Şu an"ı ikiye bölüyordu. */}
-              <button type="button" className={quick(false)} onClick={() => setDraft(prev)}>
-                <span className="flex items-center gap-0.5 text-xs font-bold">
-                  <ChevronLeft className="-ml-0.5 h-3.5 w-3.5 shrink-0 opacity-70" strokeWidth={2.75} />
-                  {t("entry.timePrev")}
-                </span>
+              <button
+                type="button"
+                className={quick(false)}
+                onClick={() => setDraft(prev)}
+                aria-label={`${t("entry.timePrev")} · ${shortDay(dayOf(prev))}`}
+              >
+                <ChevronLeft aria-hidden className="h-4 w-4" strokeWidth={2.75} />
                 <span className="text-[10.5px] font-medium opacity-65">{shortDay(dayOf(prev))}</span>
               </button>
               <button
@@ -241,11 +244,13 @@ export function EntryTime({
                 <span className="text-xs font-bold">{t("entry.timeAtNow")}</span>
                 <span className="text-[10.5px] font-medium opacity-65">{t("entry.timeToday")}</span>
               </button>
-              <button type="button" className={quick(false)} onClick={() => setDraft(next)}>
-                <span className="flex items-center gap-0.5 text-xs font-bold">
-                  {t("entry.timeNext")}
-                  <ChevronRight className="-mr-0.5 h-3.5 w-3.5 shrink-0 opacity-70" strokeWidth={2.75} />
-                </span>
+              <button
+                type="button"
+                className={quick(false)}
+                onClick={() => setDraft(next)}
+                aria-label={`${t("entry.timeNext")} · ${shortDay(dayOf(next))}`}
+              >
+                <ChevronRight aria-hidden className="h-4 w-4" strokeWidth={2.75} />
                 <span className="text-[10.5px] font-medium opacity-65">{shortDay(dayOf(next))}</span>
               </button>
             </div>
