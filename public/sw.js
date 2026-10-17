@@ -8,7 +8,11 @@
 //   • Navigasyon HTML'i, RSC/flight verisi ve diğer her şey → network-first.
 //     (Bunları önbellekten "önce" sunmak, yeni sürüm yayınlandıktan sonra eski
 //      build'in parçalarını gösterip "sonra kendiliğinden düzelme" yaşatıyordu.)
-const CACHE_VERSION = "v2";
+//   • Stil dosyaları (/_next/static/*.css) da network-first: telefonda yeni
+//     sürümün kodu çalışırken Ana Sayfa bandı eski renkte kalmıştı. Küçükler,
+//     ağdan almak ucuz; çevrimdışıysa önbellek.
+// v3: o bayat önbellek bir kez tamamen silinsin.
+const CACHE_VERSION = "v3";
 const CACHE_NAME = `routine-${CACHE_VERSION}`;
 const APP_SHELL = "/";
 
@@ -77,6 +81,12 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  // Stil dosyaları → network-first (bkz. üstteki not)
+  if (url.pathname.startsWith("/_next/static/") && url.pathname.endsWith(".css")) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
 
   // Değişmez, hash'li varlıklar → cache-first.
   if (
