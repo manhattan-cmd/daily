@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Battery, Wifi, Signal } from "lucide-react";
 
-export function StatusBar() {
+export function StatusBar({ color }: { color?: string }) {
   const [time, setTime] = useState("");
 
   useEffect(() => {
@@ -21,7 +21,10 @@ export function StatusBar() {
   }, []);
 
   return (
-    <div className="hidden md:flex shrink-0 items-center justify-between px-7 pt-4 pb-1">
+    <div
+      className="hidden md:flex shrink-0 items-center justify-between px-7 pt-4 pb-1"
+      style={color ? { background: color, color: "#111" } : undefined}
+    >
       <span className="text-[13px] font-semibold tabular-nums text-foreground">
         {time}
       </span>

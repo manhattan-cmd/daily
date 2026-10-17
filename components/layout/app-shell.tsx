@@ -22,6 +22,7 @@ import { warmSheetData } from "@/lib/db/live-cache";
 import { prefetchPeriod } from "@/components/analytics/period-data";
 import { weekPeriod } from "@/lib/period";
 import { whenIdle } from "@/lib/db/day-cache";
+import { applyStatusBarColor, statusBarColor } from "@/lib/skin-boot";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const mainRef = useRef<HTMLElement>(null);
@@ -43,6 +44,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     // temayla yeniden çizilince gizleme kalkar — yanlış düzen hiç görünmez
     if (skin === getSkin()) delete document.documentElement.dataset.skinPending;
   }, [skin]);
+
+  // Telefonun durum çubuğu: Brütal'de sayfanın bandının rengi, diğer
+  // temalarda temanın zemini (bkz. statusBarColor). Açılışı betik boyuyor;
+  // burada sayfa ve tema değişince.
+  const pathname = usePathname();
+  const barColor = statusBarColor(pathname, skin);
+  useEffect(() => {
+    applyStatusBarColor(
+      barColor ??
+        (getComputedStyle(document.documentElement).getPropertyValue("--background").trim() ||
+          "#09090b")
+    );
+  }, [barColor, skin]);
 
   useEffect(() => {
     (async () => {
@@ -115,8 +129,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           md:shadow-[0_0_0_10px_#111115,0_40px_80px_rgba(0,0,0,0.9)]
         "
       >
-        {/* Masaüstünde status bar */}
-        <StatusBar />
+        {/* Masaüstünde status bar — telefondakiyle aynı renkte */}
+        <StatusBar color={barColor ?? undefined} />
 
         {/* İçerik — kaydırılabilir */}
         <main

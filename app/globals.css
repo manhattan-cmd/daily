@@ -362,11 +362,12 @@ input[type="number"] {
   padding-top: env(safe-area-inset-top, 0);
 }
 /* Bölüm bandının ortak payı (Brütal: Ana Sayfa, Takvim, Yapı ve PageHeader'lı
-   sayfalar) — üstte durum çubuğu + 24px, altta 16px. Eskiden Ana Sayfa ve
-   Takvim sabit 48px (durum çubuğu payı ayrıca yoktu), Yapı 16px'ti. */
+   sayfalar). Üstte 36px — 48px fazla boş, 24px ekranın üst kenarına
+   yapışık duruyordu. Telefon güvenli alan (durum çubuğu) bildirirse o +
+   24px, hangisi büyükse. Altta 20px. */
 .band-pad {
-  padding-top: calc(env(safe-area-inset-top, 0px) + 24px);
-  padding-bottom: 16px;
+  padding-top: max(36px, calc(env(safe-area-inset-top, 0px) + 24px));
+  padding-bottom: 20px;
 }
 
 @keyframes fadeIn {

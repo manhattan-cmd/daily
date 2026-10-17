@@ -32,7 +32,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#09090b",
+  // themeColor burada YOK: durum çubuğunun rengi sayfaya ve temaya göre
+  // değişiyor, etiketi açılış betiği koyup AppShell güncelliyor (lib/skin-boot)
   // Mobil uygulamada Android içeriği durum çubuğunun altına kadar uzatıyor;
   // "cover" ile telefon kenar boşluklarını bildiriyor ve pt-safe/pb-safe
   // sınıfları başlığı ve alt menüyü saatin, çentiğin ve jest çubuğunun
