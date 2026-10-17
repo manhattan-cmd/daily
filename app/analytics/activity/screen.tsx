@@ -263,7 +263,7 @@ export function ActivityAnalyticsPage({
 
   return (
     <>
-      <PageHeader title={name} description={t("activity.insights")} back="/analytics" />
+      <PageHeader title={name} description={t("activity.insights")} back="/analytics" className="band-an" />
 
       {data && data.activities.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">

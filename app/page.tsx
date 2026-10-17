@@ -32,6 +32,7 @@ import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import { intlTag, translate, useLocale, useT } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
+import { useSkin } from "@/lib/skin";
 
 const WEEKDAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 /** Ana sayfadaki son kayıtlar (girdi + not) */
@@ -42,6 +43,7 @@ export default function HomePage() {
   // Dil kancadan gelmeli: doğrudan getLocale() okumak sunucu çıktısıyla
   // istemci ilk çizimini ayrıştırıp hydration uyuşmazlığı yaratıyor
   const locale = useLocale();
+  const brutal = useSkin() === "brutal";
   const today = toLocalDateValue();
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -88,10 +90,30 @@ export default function HomePage() {
 
   return (
     <>
-      <header className="-mx-4 mb-5 flex items-end gap-3 px-4 pb-2 pt-12">
+      {/* Brütal: sayfanın başlığı bölümün bandında (pembe, tram benekli;
+          bkz. globals.css "bolum bantlari") — selam üst yazı, tarih ters etiket */}
+      <header
+        className={cn(
+          "-mx-4 flex items-end gap-3 px-4 pt-12",
+          brutal ? "band-home mb-6 pb-4" : "mb-5 pb-2"
+        )}
+      >
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-muted-foreground">{getGreeting(t)}</p>
-          <h1 className="mt-0.5 text-2xl font-semibold tracking-tight">
+          <p
+            className={cn(
+              brutal
+                ? "mb-1.5 text-[12px] font-extrabold uppercase tracking-wider text-[#111]"
+                : "text-sm text-muted-foreground"
+            )}
+          >
+            {getGreeting(t)}
+          </p>
+          <h1
+            className={cn(
+              "mt-0.5 tracking-tight",
+              brutal ? "text-[26px] font-black leading-tight" : "text-2xl font-semibold"
+            )}
+          >
             {longDate(locale)}
           </h1>
         </div>

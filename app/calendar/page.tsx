@@ -10,6 +10,7 @@ import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { swallowNextClick } from "@/lib/use-long-press";
 import { routes } from "@/lib/routes";
 import { prefetchDayOnPress } from "@/lib/db/day-cache";
+import { useSkin } from "@/lib/skin";
 
 /** Ay ve gün adları uygulamanın dilinde (eskiden sabit İngilizce diziydi) */
 function monthName(i: number, tag: string): string {
@@ -26,6 +27,7 @@ export default function CalendarPage() {
   // Dil telefonda sonradan okunuyor; kancaya bağlı ki adlar onunla yenilensin
   const tag = intlTag(useLocale());
   const t = useT();
+  const brutal = useSkin() === "brutal";
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -170,10 +172,21 @@ export default function CalendarPage() {
       {...swipeHandlers}
       // min-h-full: jest alanı içerikle sınırlı kalmasın, altındaki boşluktan
       // da kaydırılabilsin
-      className="flex min-h-full touch-pan-y select-none flex-col overflow-hidden pt-10 pb-4"
+      // Brütal: kap kenardan kenara (-mx-4 px-4) — ay gezintisi bölümün
+      // bandı olarak ekranın iki yanına uzansın; overflow-hidden onu kesmesin
+      className={cn(
+        "flex min-h-full touch-pan-y select-none flex-col overflow-hidden pb-4",
+        brutal ? "-mx-4 px-4" : "pt-10"
+      )}
     >
-      {/* Ay gezintisi — oklar sabit kalır, ay adı içerikle birlikte kayar */}
-      <div className="flex items-center justify-between mb-8">
+      {/* Ay gezintisi — oklar sabit kalır, ay adı içerikle birlikte kayar.
+          Brütal: sayfanın başlığı, yeşil bant (bkz. globals.css "bolum bantlari") */}
+      <div
+        className={cn(
+          "flex items-center justify-between",
+          brutal ? "band-cal -mx-4 mb-6 px-4 pb-4 pt-12" : "mb-8"
+        )}
+      >
         <button
           onClick={prevMonth}
           data-brut-sq=""
@@ -184,10 +197,17 @@ export default function CalendarPage() {
         </button>
 
         <div className="text-center" style={glideStyle}>
-          <h1 className="text-xl font-semibold tracking-tight">
+          <h1 className={cn("tracking-tight", brutal ? "text-[26px] font-black leading-tight" : "text-xl font-semibold")}>
             {monthName(month, tag)}
           </h1>
-          <p className="text-sm text-muted-foreground tabular-nums">{year}</p>
+          <p
+            className={cn(
+              "tabular-nums",
+              brutal ? "mt-1.5 text-[13px] font-extrabold tracking-wider text-[#111]" : "text-sm text-muted-foreground"
+            )}
+          >
+            {year}
+          </p>
         </div>
 
         <button

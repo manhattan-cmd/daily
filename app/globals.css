@@ -813,7 +813,7 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-time-stamp] {
   background: #ffffff !important; color: #111 !important; border: 2px solid #111;
   border-radius: 9px; box-shadow: 3px 3px 0 #111; height: 30px; margin-top: 8px;
-}
+}
 :root[data-skin="brutal"] [data-wheel-band] { background: #ffd23f !important; box-shadow: inset 0 0 0 3px #111, 3px 3px 0 #111 !important; border-radius: 12px; }
 :root[data-skin="brutal"] [data-wheel-band] ~ * [aria-selected="true"] { color: #111 !important; }
 
@@ -953,11 +953,12 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-note-capsule] { border-radius: 7px; box-shadow: inset 0 0 0 1.5px #111, 1.5px 1.5px 0 #111 !important; }
 
 /* -- Brutal analiz -- */
-/* Donem bandi (kibar brutal): kagit zemin, ince alt cizgi, golgesiz.
+/* Donem bandi: bolumun mavi bandi (zemin ve alt cizgi "bolum bantlari"nda,
+   dosyanin sonunda); burada yalniz duz kesim ve golgesizlik.
    Ince 1.5px cizgiler; golge yalniz secili donem adinda ve kucuk. */
 :root[data-skin="brutal"] .rounded-b-\[24px\] {
-  background: #fff4dc !important; border-color: #111 !important; border-width: 0 0 1.5px 0 !important;
-  border-radius: 0 0 20px 20px !important; box-shadow: none !important;
+  border-color: #111 !important; border-width: 0 0 3px 0 !important;
+  border-radius: 0 !important; box-shadow: none !important;
 }
 /* Sekmeler: tek parca bolumlu kumanda; secili bolum siyah */
 :root[data-skin="brutal"] [data-period-tabs] {
@@ -1096,16 +1097,27 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-period-tabs][data-no-jump] > button:last-child { flex: 1 1 0; }
 
 
-/* Brutal: Yapi bolumunun bandi — sari zemin, soluk tram benekleri, kalin alt cizgi */
-:root[data-skin="brutal"] header.yapi-band[data-brut-header] {
-  background-color: #ffd23f;
+/* Brutal: bolum bantlari — her ana bolumun ustu kendi renginde, soluk tram
+   benekli, kalin alt cizgili. Yapi sari, Ana Sayfa pembe, Takvim yesil,
+   Analiz mavi. Baslik ters etiket: siyah kutu, bandin renginde harf. */
+:root[data-skin="brutal"] .yapi-band { --band-c: #ffd23f; }
+:root[data-skin="brutal"] .band-home { --band-c: #ff9ecd; }
+:root[data-skin="brutal"] .band-cal { --band-c: #7ae582; }
+:root[data-skin="brutal"] .band-an { --band-c: #8ea6ff; }
+:root[data-skin="brutal"] header.yapi-band[data-brut-header],
+:root[data-skin="brutal"] .band-home,
+:root[data-skin="brutal"] .band-cal,
+:root[data-skin="brutal"] .band-an {
+  background-color: var(--band-c);
   background-image: radial-gradient(rgba(17, 17, 17, 0.16) 1.2px, transparent 1.5px);
   background-size: 11px 11px;
-  border-bottom-width: 3px;
+  border-bottom: 3px solid #111 !important;
 }
-/* Brutal: Yapi basligi ters etiket — siyah kutu, sari harf */
-:root[data-skin="brutal"] header.yapi-band[data-brut-header] h1 {
-  display: inline-block; background: #111; color: #ffd23f; border-radius: 12px;
+:root[data-skin="brutal"] header.yapi-band[data-brut-header] h1,
+:root[data-skin="brutal"] header.band-an[data-brut-header] h1,
+:root[data-skin="brutal"] .band-home h1,
+:root[data-skin="brutal"] .band-cal h1 {
+  display: inline-block; background: #111; color: var(--band-c); border-radius: 12px;
   padding: 4px 12px 6px; box-shadow: 4px 4px 0 rgba(17, 17, 17, 0.25);
 }
 

@@ -75,7 +75,8 @@ const SHOW_PERIOD_SUMMARY = false;
 
 /** Analiz başlık bandının zemini (zaman + yol menülerinin bölümü) */
 export const ANALYSIS_HEADER =
-  "rounded-b-[24px] border-[var(--ln-2)] bg-card pb-0 shadow-[0_12px_28px_-14px_rgba(0,0,0,0.75)]";
+  // band-an: Brütal temada bölümün mavi bandı (bkz. globals.css "bolum bantlari")
+  "band-an rounded-b-[24px] border-[var(--ln-2)] bg-card pb-0 shadow-[0_12px_28px_-14px_rgba(0,0,0,0.75)]";
 
 /**
  * Dönem analiz görünümü — herhangi bir zaman penceresinin (gün/hafta/ay/yıl/özel/tümü)
@@ -452,6 +453,7 @@ export function PeriodView({
           title={title ?? period.label}
           description={t("insights.period")}
           back={back}
+          className="band-an"
         />
         <EmptyState
           icon={BarChart3}
