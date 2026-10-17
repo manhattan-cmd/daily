@@ -6,7 +6,7 @@
 
 import { dateFormatter } from "@/lib/utils";
 import { dayKey, startOfDayMs, weekStartMs } from "./analytics";
-import { intlTag, translate } from "./i18n";
+import { intlTag, translate, type Locale } from "./i18n";
 
 export type PeriodKind = "day" | "week" | "month" | "year" | "custom" | "all";
 
@@ -40,8 +40,47 @@ function addDays(t: number, n: number): number {
 }
 
 // Önbellekli biçimlendirici — bkz. lib/utils dateFormatter
-const fmt = (t: number, opt: Intl.DateTimeFormatOptions) =>
-  dateFormatter(intlTag(), opt).format(t);
+const fmt = (t: number, opt: Intl.DateTimeFormatOptions, locale?: Locale) =>
+  dateFormatter(intlTag(locale), opt).format(t);
+
+/**
+ * Dönemin başlık etiketi, istenen dilde.
+ *
+ * `period.label` dönem kurulurken getLocale() ile yazılıyor: sunucuda dil
+ * bilinmediği için İngilizce ("Oct 12 – Oct 18 2026"), tarayıcıda kayıtlı
+ * dille ("12 Eki – 18 Eki 2026"). Ekrana o basılınca ilk çizim tutmuyor,
+ * React hydration hatası verip bölümü baştan çiziyordu. Ekranda gösterilen
+ * etiket buradan, useLocale()'den gelen dille üretilmeli — kanca ilk çizimde
+ * sunucuyla aynı dili verir, hemen ardından kayıtlı dile geçer.
+ */
+export function periodLabel(p: Period, locale?: Locale): string {
+  const start = p.start;
+  const last = addDays(p.end, -1);
+  switch (p.kind) {
+    case "day":
+      return fmt(start, { day: "numeric", month: "long", year: "numeric", weekday: "long" }, locale);
+    case "week":
+      return `${fmt(start, { day: "numeric", month: "short" }, locale)} – ${fmt(
+        last,
+        { day: "numeric", month: "short" },
+        locale
+      )} ${new Date(last).getFullYear()}`;
+    case "month":
+      return fmt(start, { month: "long", year: "numeric" }, locale);
+    case "year":
+      return String(new Date(start).getFullYear());
+    case "custom": {
+      const sameYear = new Date(start).getFullYear() === new Date(last).getFullYear();
+      return `${fmt(
+        start,
+        { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }) },
+        locale
+      )} – ${fmt(last, { day: "numeric", month: "short", year: "numeric" }, locale)}`;
+    }
+    default:
+      return translate("stat.allTime", undefined, locale);
+  }
+}
 
 export function dayPeriod(t: number): Period {
   const start = startOfDayMs(new Date(t));

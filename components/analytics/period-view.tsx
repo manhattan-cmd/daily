@@ -26,6 +26,7 @@ import {
   allPeriod,
   dayPeriod,
   monthPeriod,
+  periodLabel,
   periodProgress,
   periodShortLabel,
   shiftPeriod,
@@ -59,7 +60,7 @@ import {
 import { ScopePickers } from "@/components/analytics/scope-pickers";
 import type { SubCategory } from "@/types";
 import { LazyMount } from "@/components/ui/lazy-mount";
-import { useT, translate } from "@/lib/i18n";
+import { useLocale, useT, translate } from "@/lib/i18n";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -100,6 +101,8 @@ export function PeriodView({
   initialCatId?: string | null;
 }) {
   const t = useT();
+  // Başlık etiketi bu dille — sunucuyla aynı ilk çizim (bkz. periodLabel)
+  const locale = useLocale();
   const router = useRouter();
   // Ekranda gösterilen dönem VERİNİN dönemi: yeni dönemin verisi gelene kadar
   // önceki dönem kendi başlığı ve rakamlarıyla tutarlı durur, sonra tek karede
@@ -450,7 +453,7 @@ export function PeriodView({
     return (
       <>
         <PageHeader
-          title={title ?? period.label}
+          title={title ?? periodLabel(period, locale)}
           description={t("insights.period")}
           back={back}
           className="band-an"
@@ -479,7 +482,7 @@ export function PeriodView({
         <PageHeader
           compact
           className={ANALYSIS_HEADER}
-          title={title ?? period.label}
+          title={title ?? periodLabel(period, locale)}
           titleSlot={<PeriodNav period={requestedPeriod} />}
           nav={<PeriodTabs period={requestedPeriod} />}
         />
@@ -508,7 +511,7 @@ export function PeriodView({
         // Bandın kendi zemini — sayfanın üstünde ayrı bir bölüm olduğu belli
         // olsun: açık yüzey, yuvarlak alt köşeler, altına düşen yumuşak gölge
         className={ANALYSIS_HEADER}
-        title={title ?? period.label}
+        title={title ?? periodLabel(period, locale)}
         // Ortada tarih kapsülü, iki yanında ‹ ›. Geri oku yok — dönemler
         // arasında sekmeler ve oklarla geziliyor
         titleSlot={

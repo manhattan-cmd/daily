@@ -3,11 +3,12 @@
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useT, type MessageKey } from "@/lib/i18n";
+import { useLocale, useT, type MessageKey } from "@/lib/i18n";
 import {
   allPeriod,
   dayPeriod,
   monthPeriod,
+  periodLabel,
   shiftPeriod,
   weekPeriod,
   yearPeriod,
@@ -132,6 +133,8 @@ export function PeriodNav({
   onPick?: (p: Period) => void;
 }) {
   const t = useT();
+  // Etiket bu dille — period.label sunucuyla tutmuyordu (bkz. periodLabel)
+  const locale = useLocale();
   const router = useRouter();
   const prev = shiftPeriod(period, -1);
   const nextP = shiftPeriod(period, 1);
@@ -151,7 +154,7 @@ export function PeriodNav({
       </button>
       <h1 data-period-pill="" className="flex h-8 min-w-0 max-w-[240px] items-center gap-1.5 rounded-full bg-[var(--sf-2)] px-4 ring-1 ring-inset ring-[var(--ln-1)]">
         <span className="truncate text-[14px] font-semibold tracking-tight">
-          {label ?? period.label}
+          {label ?? periodLabel(period, locale)}
         </span>
         {note && (
           <span className="shrink-0 text-[11.5px] text-muted-foreground">{note}</span>
