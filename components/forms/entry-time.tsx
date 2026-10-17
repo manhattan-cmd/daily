@@ -221,9 +221,15 @@ export function EntryTime({
 
             {/* Hızlı seçimler — kısa sabit adlar, altında gidilecek gün */}
             <div className="grid grid-cols-3 gap-2">
-              <button type="button" className={cn(quick(false), "px-5")} onClick={() => setDraft(prev)}>
-                <ChevronLeft className="absolute left-0.5 top-1/2 h-4 w-4 -translate-y-1/2 opacity-70" />
-                <span className="text-xs font-bold">{t("entry.timePrev")}</span>
+              {/* Ok yazının yanında, aynı satırda ve onunla birlikte ortalı.
+                  Kenara mutlak konumlanınca büyük yazı ölçeğinde yazının
+                  üstüne biniyordu; yer ayırmak için verilen boşluk da yazıyı
+                  ya ortadan kaydırıyor ya da "Şu an"ı ikiye bölüyordu. */}
+              <button type="button" className={quick(false)} onClick={() => setDraft(prev)}>
+                <span className="flex items-center gap-0.5 text-xs font-bold">
+                  <ChevronLeft className="-ml-0.5 h-3.5 w-3.5 shrink-0 opacity-70" strokeWidth={2.75} />
+                  {t("entry.timePrev")}
+                </span>
                 <span className="text-[10.5px] font-medium opacity-65">{shortDay(dayOf(prev))}</span>
               </button>
               <button
@@ -235,10 +241,12 @@ export function EntryTime({
                 <span className="text-xs font-bold">{t("entry.timeAtNow")}</span>
                 <span className="text-[10.5px] font-medium opacity-65">{t("entry.timeToday")}</span>
               </button>
-              <button type="button" className={cn(quick(false), "px-5")} onClick={() => setDraft(next)}>
-                <span className="text-xs font-bold">{t("entry.timeNext")}</span>
+              <button type="button" className={quick(false)} onClick={() => setDraft(next)}>
+                <span className="flex items-center gap-0.5 text-xs font-bold">
+                  {t("entry.timeNext")}
+                  <ChevronRight className="-mr-0.5 h-3.5 w-3.5 shrink-0 opacity-70" strokeWidth={2.75} />
+                </span>
                 <span className="text-[10.5px] font-medium opacity-65">{shortDay(dayOf(next))}</span>
-                <ChevronRight className="absolute right-0.5 top-1/2 h-4 w-4 -translate-y-1/2 opacity-70" />
               </button>
             </div>
 
