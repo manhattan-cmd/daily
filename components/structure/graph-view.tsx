@@ -203,15 +203,11 @@ export function useMapGraph(groups: MapGroup[]) {
         set.add(l.modId);
         own.set(target, set);
       }
-      // Ataların birinde zaten olan özellik miras — yeniden bağlanmıyor
-      const inherited = (id: string, m: string) => {
-        for (let p = parentOf.get(id); p; p = parentOf.get(p)) if (own.get(p)?.has(m)) return true;
-        return false;
-      };
+      // Yapıdaki her atama olduğu gibi: kalemde kayıtlıysa orada görünür
+      // (alt kaleme miras kayıt kopyalanarak geçiyor, kaldırılan inmiyor)
       const used = new Map<string, number>();
       for (const [target, set] of own) {
         for (const m of set) {
-          if (inherited(target, m)) continue;
           links.push({ s: target, t: `mod:${m}`, feat: true });
           used.set(m, Math.max(used.get(m) ?? 0, byId.get(target)!.count));
         }

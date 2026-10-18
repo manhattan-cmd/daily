@@ -165,7 +165,7 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
     const cards = city.cards;
     const traces: Trace[] = city.traces.map((t) => ({ from: t.from, to: t.to, path: toPath(t.pts) }));
 
-    // Kalemin kendi (miras olmayan) özellikleri — kartta küçük daireler
+    // Kalemin yapıdaki özellikleri — kartta küçük daireler
     const feats = new Map<string, string[]>();
     for (const l of data.links)
       if (l.feat && cards.has(l.s)) (feats.get(l.s) ?? feats.set(l.s, []).get(l.s)!).push(data.byId.get(l.t)?.color ?? "#888");
