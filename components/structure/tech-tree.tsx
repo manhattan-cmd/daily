@@ -224,22 +224,80 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
     const along = (b: (typeof blocks)[number], a: Arm) => (a === "E" || a === "W" ? b.U : b.V) + BLOCK_GAP;
     const order: Arm[] = ["E", "W", "N", "S"];
     if (withRoot) {
-      for (const b of [...blocks].sort((x, y) => y.V * y.U - x.V * x.U)) {
-        let best: Arm = "E";
-        let bestLen = Infinity;
-        for (const a of order) {
-          const L = Math.min(...arms[a].len) + along(b, a);
-          // dikey caddeler bandın dışından başlıyor — biraz pahalı say
-          const cost = a === "N" || a === "S" ? L * 1.15 : L;
-          if (cost < bestLen) {
-            bestLen = cost;
-            best = a;
+      // Sekiz yuva (4 cadde × 2 yaka). Şehrin dört yöndeki uzanımı aşağıdaki
+      // yerleşimle aynı hesaplanıyor; en uzun kol en kısa, toplam en küçük olsun.
+      const slotArm = (k: number) => order[k >> 1];
+      const extent = (asg: number[]) => {
+        const len = Array(8).fill(0);
+        const cnt = Array(8).fill(0);
+        const tall = Array(8).fill(0);
+        const wide = Array(8).fill(0);
+        asg.forEach((k, i) => {
+          const b = blocks[i];
+          len[k] += along(b, slotArm(k));
+          cnt[k]++;
+          tall[k] = Math.max(tall[k], b.V);
+          wide[k] = Math.max(wide[k], b.U);
+        });
+        // E=0,1  W=2,3  N=4,5  S=6,7 ; yaka 0 = üst/sol
+        const off = (s: number) => ROOT_H / 2 + 12 + Math.max(cnt[s], cnt[2 + s]) * LANE;
+        const band = [0, 1].map((s) => Math.max(ROOT_H / 2, off(s) + Math.max(tall[s], tall[2 + s])));
+        const reach = (k: number) => 24 + cnt[k] * LANE + wide[k];
+        const startN = Math.max(band[0] + 30, ROOT_H / 2 + 30);
+        const startS = Math.max(band[1] + 30, ROOT_H / 2 + 30);
+        const R = [
+          Math.max(ROOT_W / 2 + 34 + Math.max(len[0], len[1]), reach(5), reach(7)), // doğu
+          Math.max(ROOT_W / 2 + 34 + Math.max(len[2], len[3]), reach(4), reach(6)), // batı
+          Math.max(band[0], cnt[4] + cnt[5] ? startN + Math.max(len[4], len[5]) : 0), // kuzey
+          Math.max(band[1], cnt[6] + cnt[7] ? startS + Math.max(len[6], len[7]) : 0), // güney
+        ];
+        // bir yakada 4'ten çok kategori kökün kenarından taşar
+        const crowd = cnt.reduce((a, c) => a + Math.max(0, c - 3), 0) * 2000;
+        // dört caddenin her biri en az bir kategori alsın (blok yeterse)
+        const empty = [0, 2, 4, 6].filter((k) => cnt[k] + cnt[k + 1] === 0).length;
+        const need = Math.max(0, 4 - blocks.length);
+        return Math.max(...R) * 2 + R.reduce((a, r) => a + r, 0) * 0.5 + crowd + Math.max(0, empty - need) * 2000;
+      };
+      // İlk tahmin: büyükten küçüğe en kısa yuvaya; sonra taşı/değiştir iyileştirmesi
+      const asg = blocks.map(() => 0);
+      const idx = blocks.map((_, i) => i).sort((x, y) => blocks[y].V * blocks[y].U - blocks[x].V * blocks[x].U);
+      const fill = Array(8).fill(0);
+      for (const i of idx) {
+        let best = 0;
+        for (let k = 1; k < 8; k++) if (fill[k] + along(blocks[i], slotArm(k)) < fill[best] + along(blocks[i], slotArm(best))) best = k;
+        asg[i] = best;
+        fill[best] += along(blocks[i], slotArm(best));
+      }
+      let cur = extent(asg);
+      for (let pass = 0, better = true; better && pass < 40; pass++) {
+        better = false;
+        for (let i = 0; i < asg.length; i++) {
+          for (let k = 0; k < 8; k++) {
+            const was = asg[i];
+            if (k === was) continue;
+            asg[i] = k;
+            const c = extent(asg);
+            if (c < cur - 0.5) {
+              cur = c;
+              better = true;
+            } else asg[i] = was;
+          }
+          for (let j = i + 1; j < asg.length; j++) {
+            if (asg[i] === asg[j]) continue;
+            [asg[i], asg[j]] = [asg[j], asg[i]];
+            const c = extent(asg);
+            if (c < cur - 0.5) {
+              cur = c;
+              better = true;
+            } else [asg[i], asg[j]] = [asg[j], asg[i]];
           }
         }
-        const s = arms[best].len[0] <= arms[best].len[1] ? 0 : 1;
-        arms[best].side[s].push(b);
-        arms[best].len[s] += along(b, best);
       }
+      asg.forEach((k, i) => {
+        const a = arms[slotArm(k)];
+        a.side[k & 1].push(blocks[i]);
+        a.len[k & 1] += along(blocks[i], slotArm(k));
+      });
       // Kategori sırası caddede korunsun (merkeze yakından uzağa)
       for (const a of order)
         for (const s of [0, 1])
