@@ -14,6 +14,10 @@
  * Her kalem için ikisinden hangisi daha toplu (küçük ve kareye yakın) ise o
  * seçiliyor; göbekte çocukların üç yana bölünüşü de aynı ölçüyle seçiliyor.
  *
+ * Çipler kademe kademe standart: kategori büyük, alt kategori orta, daha
+ * alttakiler küçük çip (CHIPS). Ölçü bacak sayısıyla değişmiyor; bir kenara
+ * sığmayacak kadar bacak isteyen bölüşüm cezalı, o yüzden nadiren seçiliyor.
+ *
  * Bütün izler yatay, dikey ya da 45°; bir kalemin izleri iç içe şeritlerde,
  * kesişmiyor.
  */
@@ -29,6 +33,8 @@ export type CityCard = {
   h: number;
   /** Renk şeridinin karşı yönü: +1 şerit solda, -1 sağda */
   sx: number;
+  /** Kademe: 0 kategori, 1 alt kategori, 2 ve üstü alt kalemler */
+  level: number;
   kids: string[];
   pins: Pin[];
   pad: Pin | null;
@@ -59,10 +65,16 @@ export type CityOpts = {
 export const CITY_OPTS: CityOpts = { hub: "auto", hubMin: 4, center: true, rowAlign: "center", inner: true };
 
 export const ROOT = "__root";
-export const ROOT_W = 96;
-export const ROOT_H = 56;
-export const CW = 116;
+export const ROOT_W = 150;
+export const ROOT_H = 64;
 export const CHAMF = 6;
+/** Kademe başına çip ölçüsü (genişlik × yükseklik): kategori, alt kategori, alt kalem */
+export const CHIPS: readonly (readonly [number, number])[] = [
+  [140, 52],
+  [128, 38],
+  [112, 30],
+];
+export const chipOf = (level: number) => CHIPS[Math.min(level, CHIPS.length - 1)];
 const PIN = 6;
 const LANE = 5;
 const ROW_GAP = 12;
@@ -70,14 +82,15 @@ const SIDE_GAP = 14;
 const BLOCK_GAP = 26;
 
 type V2 = [number, number];
-type LCard = { id: string; c: V2; hu: number; hv: number; fwd: V2; kids: string[]; pins: Pin[]; pad: Pin | null };
-type Blk = { cards: LCard[]; traces: CityTrace[]; u0: number; u1: number; v0: number; v1: number; e: V2 };
+type LCard = { id: string; level: number; c: V2; hu: number; hv: number; fwd: V2; kids: string[]; pins: Pin[]; pad: Pin | null };
+/** over: çip kenarlarına sığmayan bacak sayısı (bu blokta toplam) */
+type Blk = { cards: LCard[]; traces: CityTrace[]; u0: number; u1: number; v0: number; v1: number; e: V2; over: number };
 /** Eksen dönüşümü: çocuğun (u, v) noktası → o + u·a + v·b */
 type Tf = { o: V2; a: V2; b: V2 };
 
 const tp = (t: Tf, p: V2): V2 => [t.o[0] + p[0] * t.a[0] + p[1] * t.b[0], t.o[1] + p[0] * t.a[1] + p[1] * t.b[1]];
 const tv = (t: Tf, p: V2): V2 => [p[0] * t.a[0] + p[1] * t.b[0], p[0] * t.a[1] + p[1] * t.b[1]];
-const blank = (): Blk => ({ cards: [], traces: [], u0: Infinity, u1: -Infinity, v0: Infinity, v1: -Infinity, e: [0, 0] });
+const blank = (): Blk => ({ cards: [], traces: [], u0: Infinity, u1: -Infinity, v0: Infinity, v1: -Infinity, e: [0, 0], over: 0 });
 const grow = (b: Blk, u0: number, v0: number, u1: number, v1: number) => {
   b.u0 = Math.min(b.u0, u0, u1);
   b.u1 = Math.max(b.u1, u0, u1);
@@ -90,6 +103,7 @@ function emit(out: Blk, b: Blk, t: Tf, dry: boolean): V2 {
   const p0 = tp(t, [b.u0, b.v0]);
   const p1 = tp(t, [b.u1, b.v1]);
   grow(out, p0[0], p0[1], p1[0], p1[1]);
+  out.over += b.over;
   if (!dry) {
     const swap = t.a[0] === 0;
     for (const c of b.cards)
@@ -151,9 +165,12 @@ function fan(pu: number, inner: number, ends: { pv: number; cv: number; cu: numb
   });
 }
 
-/** n bacağın kenar boyunca yerleri (merkez etrafında) */
+/** Bir kenara rahat sığan bacak sayısı */
+const cap = (len: number) => Math.floor((len - 12) / PIN) + 1;
+
+/** n bacağın kenar boyunca yerleri (merkez etrafında); sığmazsa sıklaşıyor */
 const spread = (n: number, len: number, mid: number) => {
-  const s = n > 1 ? Math.min(PIN, (len - 14) / (n - 1)) : 0;
+  const s = n > 1 ? Math.min(PIN, (len - 12) / (n - 1)) : 0;
   return Array.from({ length: n }, (_, i) => mid + (i - (n - 1) / 2) * s);
 };
 
@@ -161,11 +178,23 @@ const spread = (n: number, len: number, mid: number) => {
 const cost = (b: Blk) => {
   const W = b.u1 - b.u0;
   const H = b.v1 - b.v0;
-  return W * H * Math.sqrt(Math.max(W, H) / Math.max(1, Math.min(W, H)));
+  return W * H * Math.sqrt(Math.max(W, H) / Math.max(1, Math.min(W, H))) * (1 + 0.6 * b.over);
 };
 
 export function layoutCity(inp: CityInput, opts: CityOpts = CITY_OPTS): City {
   const memo = new Map<string, Blk>();
+  // Kademe: kökler kategori (0); dal görünümünde de en üst kalem kategori
+  const level = new Map<string, number>();
+  const walk = (id: string, d: number) => {
+    level.set(id, d);
+    for (const k of inp.kids(id)) walk(k, d + 1);
+  };
+  for (const r of inp.roots) walk(r, inp.isCat(r) ? 0 : 1);
+  /** Çipin yerel eksendeki boyu: u boyunca, v boyunca */
+  const dims = (id: string, horiz: boolean): V2 => {
+    const [w, h] = chipOf(level.get(id) ?? 2);
+    return horiz ? [w, h] : [h, w];
+  };
 
   /** Çocukları alt alta (v boyunca) diz; dönen: her birinin v kayması ve girişinin v'si */
   const stack = (K: Blk[], gap: number) => {
@@ -179,12 +208,11 @@ export function layoutCity(inp: CityInput, opts: CityOpts = CITY_OPTS): City {
   };
 
   const comb = (id: string, horiz: boolean, kids: string[], dry: boolean): Blk => {
-    const base = inp.isCat(id) ? 34 : 28;
     const K = kids.map((k) => lay(k, horiz));
     const n = K.length;
-    const Lu = horiz ? CW : base;
-    const Lv = horiz ? Math.max(base, 12 + (n - 1) * PIN) : CW;
+    const [Lu, Lv] = dims(id, horiz);
     const out = blank();
+    out.over = Math.max(0, n - cap(Lv));
     grow(out, 0, -Lv / 2, Lu, Lv / 2);
     const { vo, ev } = stack(K, horiz ? ROW_GAP : SIDE_GAP);
     const mid = n ? (opts.center ? (ev[0] + ev[n - 1]) / 2 : ev[0]) : 0;
@@ -198,6 +226,7 @@ export function layoutCity(inp: CityInput, opts: CityOpts = CITY_OPTS): City {
     if (!dry) {
       out.cards.push({
         id,
+        level: level.get(id) ?? 2,
         c: [Lu / 2, 0],
         hu: Lu / 2,
         hv: Lv / 2,
@@ -218,7 +247,6 @@ export function layoutCity(inp: CityInput, opts: CityOpts = CITY_OPTS): City {
    * koridordan geçiyor.
    */
   const hub = (id: string, horiz: boolean, kids: string[], nT: number, nB: number, mI: number, dry: boolean): Blk => {
-    const base = inp.isCat(id) ? 34 : 28;
     const n = kids.length;
     const IU = kids.slice(0, mI);
     const T = kids.slice(mI, mI + nT);
@@ -232,9 +260,13 @@ export function layoutCity(inp: CityInput, opts: CityOpts = CITY_OPTS): City {
     const KIL = IL.map((k) => lay(k, horiz));
     const nO = KO.length;
     const sib = horiz ? ROW_GAP : SIDE_GAP;
-    const Lu = horiz ? CW : Math.max(base, 12 + (Math.max(nT, nB) - 1) * PIN);
-    const Lv = horiz ? Math.max(base, 12 + (nO - 1) * PIN, 2 * mI * PIN + 14) : Math.max(CW, 2 * mI * PIN + 14);
+    const [Lu, Lv] = dims(id, horiz);
     const out = blank();
+    // iç kenarda girişin iki yanı: pad'den kenara kadar
+    const capI = Math.floor((Lv / 2 - 6) / PIN);
+    out.over =
+      Math.max(0, nT - cap(Lu)) + Math.max(0, nB - cap(Lu)) + Math.max(0, nO - cap(Lv)) + 2 * Math.max(0, mI - capI);
+    const stepI = mI ? Math.min(PIN, (Lv / 2 - 4) / mI) : PIN;
     grow(out, 0, -Lv / 2, Lu, Lv / 2);
     const pins: Pin[] = [];
     const later: (() => void)[] = [];
@@ -259,7 +291,7 @@ export function layoutCity(inp: CityInput, opts: CityOpts = CITY_OPTS): City {
     let iBot = 0;
     const inner = (K: Blk[], ids: string[], side: -1 | 1) => {
       if (!K.length) return 0;
-      const pv = K.map((_, k) => side * PIN * (k + 1));
+      const pv = K.map((_, k) => side * stepI * (k + 1));
       let cur = side * CORR;
       const vo = K.map((b) => {
         const o = side < 0 ? cur - b.v1 : cur - b.v0;
@@ -318,7 +350,7 @@ export function layoutCity(inp: CityInput, opts: CityOpts = CITY_OPTS): City {
     row(KB, B, 1);
     if (!dry) {
       for (const v of pvO) pins.push({ p: [Lu, v], d: [1, 0] });
-      out.cards.push({ id, c: [Lu / 2, 0], hu: Lu / 2, hv: Lv / 2, fwd: [1, 0], kids, pins, pad: { p: [0, 0], d: [-1, 0] } });
+      out.cards.push({ id, level: level.get(id) ?? 2, c: [Lu / 2, 0], hu: Lu / 2, hv: Lv / 2, fwd: [1, 0], kids, pins, pad: { p: [0, 0], d: [-1, 0] } });
       later.forEach((f) => f());
     }
     return out;
@@ -331,11 +363,10 @@ export function layoutCity(inp: CityInput, opts: CityOpts = CITY_OPTS): City {
     const kids = inp.kids(id);
     let best: Blk;
     if (!kids.length) {
-      const base = inp.isCat(id) ? 34 : 28;
-      const [Lu, Lv] = horiz ? [CW, base] : [base, CW];
+      const [Lu, Lv] = dims(id, horiz);
       best = blank();
       grow(best, 0, -Lv / 2, Lu, Lv / 2);
-      best.cards.push({ id, c: [Lu / 2, 0], hu: Lu / 2, hv: Lv / 2, fwd: [1, 0], kids, pins: [], pad: { p: [0, 0], d: [-1, 0] } });
+      best.cards.push({ id, level: level.get(id) ?? 2, c: [Lu / 2, 0], hu: Lu / 2, hv: Lv / 2, fwd: [1, 0], kids, pins: [], pad: { p: [0, 0], d: [-1, 0] } });
     } else {
       const n = kids.length;
       let pick: [number, number, number] | null = null;
@@ -532,11 +563,12 @@ export function layoutCity(inp: CityInput, opts: CityOpts = CITY_OPTS): City {
       w: 2 * c.hu,
       h: 2 * c.hv,
       sx: c.fwd[0] !== 0 ? Math.sign(c.fwd[0]) : 1,
+      level: c.level,
       kids: c.kids,
       pins: c.pins,
       pad: c.pad,
     });
-  if (withRoot) cards.set(ROOT, { id: ROOT, cx: 0, cy: 0, w: ROOT_W, h: ROOT_H, sx: 1, kids: roots, pins: rootPins, pad: null });
+  if (withRoot) cards.set(ROOT, { id: ROOT, cx: 0, cy: 0, w: ROOT_W, h: ROOT_H, sx: 1, level: -1, kids: roots, pins: rootPins, pad: null });
   let x0 = Infinity;
   let y0 = Infinity;
   let x1 = -Infinity;

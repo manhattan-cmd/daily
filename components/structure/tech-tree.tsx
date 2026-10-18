@@ -30,6 +30,17 @@ const MIN_K = 0.2;
 const MAX_K = 3;
 const NO_LOCAL = null as { id: string; depth: number } | null;
 
+/**
+ * Kademe başına çip görünümü (ölçüler city-layout CHIPS'te): kategori büyük ve
+ * kendi renginde dolu, alt kategori orta boy renk şeritli, alt kalemler küçük ve
+ * sade. Dolgu [taban, kullanım payı]: son 30 günde kullanıldıkça koyulaşıyor.
+ */
+const CHIP_STYLE = [
+  { radius: 7, shadow: 3.5, border: 2.2, fill: [0.7, 0.3], fillDark: [0.45, 0.3], strip: 0, dot: 2.2, text: 12, weight: 800, size: 13 },
+  { radius: 5, shadow: 2.5, border: 1.8, fill: [0.2, 0.6], fillDark: [0.14, 0.26], strip: 5, dot: 0, text: 13, weight: 750, size: 11 },
+  { radius: 4, shadow: 1.8, border: 1.4, fill: [0.1, 0.5], fillDark: [0.08, 0.2], strip: 3, dot: 0, text: 11, weight: 650, size: 10 },
+];
+
 type Pt = [number, number];
 type Trace = { from: string; to: string; path: Path2D };
 
@@ -261,7 +272,7 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
           ctx.roundRect(x, top, c.w, c.h, 7);
           ctx.fill();
           ctx.fillStyle = B ? "#ffd23f" : "#fff";
-          ctx.font = `900 13px ${font}`;
+          ctx.font = `900 16px ${font}`;
           ctx.textAlign = "center";
           ctx.fillText("ROUTINE", c.cx, c.cy);
           continue;
@@ -270,31 +281,41 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
         for (const pin of c.pins) lug(ctx, pin, 5, 3);
         if (c.pad) lug(ctx, c.pad, 5, 5);
         const n = T.byId.get(c.id) as GNode;
-        const cat = n.kind === "cat";
+        const S = CHIP_STYLE[Math.min(c.level, CHIP_STYLE.length - 1)];
         const u = n.usage;
         const sel = c.id === L.selected;
+        const r = S.radius;
         if (B) {
           ctx.fillStyle = "#111";
           ctx.beginPath();
-          ctx.roundRect(x + 2.5, top + 2.5, c.w, c.h, 5);
+          ctx.roundRect(x + S.shadow, top + S.shadow, c.w, c.h, r);
           ctx.fill();
         }
-        ctx.fillStyle = B
-          ? mixHex(n.color, "#ffffff", cat ? 0.35 + 0.65 * u : 0.15 + 0.6 * u)
-          : mixHex(n.color, C.bg, cat ? 0.3 + 0.25 * u : 0.12 + 0.22 * u);
+        ctx.fillStyle = mixHex(n.color, B ? "#ffffff" : C.bg, B ? S.fill[0] + S.fill[1] * u : S.fillDark[0] + S.fillDark[1] * u);
         ctx.beginPath();
-        ctx.roundRect(x, top, c.w, c.h, 5);
+        ctx.roundRect(x, top, c.w, c.h, r);
         ctx.fill();
-        ctx.lineWidth = sel ? 2.4 : B ? 1.8 : 1;
+        ctx.lineWidth = sel ? S.border + 0.8 : B ? S.border : S.border * 0.6;
         ctx.strokeStyle = sel ? (B ? "#111" : C.accent) : B ? "#111" : mixHex(n.color, C.bg, 0.35 + 0.5 * u);
         ctx.stroke();
-        // iç kenarda renk şeridi — kullanım kadar dolu
-        ctx.globalAlpha = (dim ? 0.25 : 1) * (0.35 + 0.65 * u);
-        ctx.fillStyle = n.color;
-        ctx.beginPath();
-        ctx.roundRect(c.sx > 0 ? x + 3 : x + c.w - 7, top + 3, 4, c.h - 6, 2);
-        ctx.fill();
-        ctx.globalAlpha = dim ? 0.25 : 1;
+        // iç kenarda renk şeridi — kullanım kadar dolu (kategori zaten renkli)
+        if (S.strip) {
+          ctx.globalAlpha = (dim ? 0.25 : 1) * (0.35 + 0.65 * u);
+          ctx.fillStyle = n.color;
+          ctx.beginPath();
+          ctx.roundRect(c.sx > 0 ? x + 3 : x + c.w - 3 - S.strip, top + 3, S.strip, c.h - 6, 2);
+          ctx.fill();
+          ctx.globalAlpha = dim ? 0.25 : 1;
+        }
+        // birinci bacak işareti — çipin iç üst köşesinde küçük daire
+        if (S.dot) {
+          ctx.fillStyle = C.fg;
+          ctx.globalAlpha = (dim ? 0.25 : 1) * 0.45;
+          ctx.beginPath();
+          ctx.arc(c.sx > 0 ? x + S.text - 1 : x + c.w - S.text + 1, top + 7, S.dot, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = dim ? 0.25 : 1;
+        }
         // özellik daireleri — dış kenara yakın üst köşede
         const fs = (T.feats.get(c.id) ?? []).slice(0, 3);
         fs.forEach((col, i) => {
@@ -308,18 +329,18 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
             ctx.stroke();
           }
         });
-        // ad — şeritten başlayarak
+        // ad — şeritten sonra başlıyor
         ctx.fillStyle = C.fg;
-        ctx.font = `${cat ? 800 : 650} ${cat ? 12 : 10.5}px ${font}`;
+        ctx.font = `${S.weight} ${S.size}px ${font}`;
         ctx.textAlign = c.sx > 0 ? "left" : "right";
-        const maxW = c.w - 16 - fs.length * 9;
+        const maxW = c.w - S.text - 8 - fs.length * 9;
         let s = n.label;
         if (ctx.measureText(s).width > maxW) {
           while (s.length > 1 && ctx.measureText(s + "…").width > maxW) s = s.slice(0, -1);
           s += "…";
         }
-        ctx.globalAlpha = (dim ? 0.25 : 1) * (cat || u > 0.12 ? 1 : 0.6);
-        ctx.fillText(s, c.sx > 0 ? x + 12 : x + c.w - 12, c.cy + (fs.length && c.h < 32 ? 2 : 0));
+        ctx.globalAlpha = (dim ? 0.25 : 1) * (c.level === 0 || u > 0.12 ? 1 : 0.6);
+        ctx.fillText(s, c.sx > 0 ? x + S.text : x + c.w - S.text, c.cy + (fs.length && c.h < 34 ? 2 : 0));
       }
       ctx.globalAlpha = 1;
     };
