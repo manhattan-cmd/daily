@@ -22,9 +22,42 @@ const MONO = "ui-monospace, 'IBM Plex Mono', monospace";
 /** Ağaçtaki alt kalem kutusu, sütun arası (tarak izi bu boşlukta), satır */
 const BW = 96;
 const BH = 30;
-const GAP = 34;
+const GAP = 44;
 const STEP = BW + GAP;
-const ROW = 42;
+const ROW = 46;
+/** Bacak aralığı ve izin 45° köşe payı */
+const PIN = 6;
+const CHAMF = 6;
+
+/** Bir kenardaki n bacağın y'leri — kenarın ortasına toplanmış */
+const pinYs = (mid: number, n: number) =>
+  Array.from({ length: n }, (_, i) => mid + (i - (n - 1) / 2) * PIN);
+/** Bacağın kendi kalemini taşıyacak gövde boyu */
+const bodyH = (n: number, min: number) => Math.max(min, 14 + (n - 1) * PIN);
+
+/**
+ * Bir gövdenin dış kenarındaki bacaklardan çocuklarının pad'ine giden izler.
+ * Her iz kendi bacağından çıkıyor; önce dışarı, 45° kırılıp dikine, yine 45°
+ * ile pad'e. Kesişmesinler diye şeritler iç içe: yukarı gidenlerde en üstteki,
+ * aşağı gidenlerde en alttaki gövdeye en yakın şeritte.
+ */
+function fanOut(pe: number, dir: number, ends: { py: number; cy: number }[]): string[] {
+  const lane = ends.map(() => 0);
+  const idx = ends.map((_, i) => i);
+  const up = idx.filter((i) => ends[i].cy < ends[i].py - 2 * CHAMF);
+  const down = idx.filter((i) => ends[i].cy > ends[i].py + 2 * CHAMF).reverse();
+  for (const g of [up, down]) {
+    const step = g.length > 1 ? Math.min(5, (GAP - 2 * CHAMF - 8) / (g.length - 1)) : 0;
+    g.forEach((i, k) => (lane[i] = CHAMF + 2 + k * step));
+  }
+  const inner = pe + dir * GAP;
+  return ends.map(({ py, cy }, i) => {
+    if (!lane[i]) return `M${pe} ${py}L${pe + dir * 8} ${py}L${inner - dir * 8} ${cy}H${inner}`;
+    const lx = pe + dir * lane[i];
+    const sy = Math.sign(cy - py);
+    return `M${pe} ${py}H${lx - dir * CHAMF}L${lx} ${py + sy * CHAMF}V${cy - sy * CHAMF}L${lx + dir * CHAMF} ${cy}H${inner}`;
+  });
+}
 /** Bu yoğunluğun üstündeki kalem "kullanılıyor": bacağı dolu, izi koyu */
 const LIT = 0.12;
 
@@ -236,7 +269,7 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
         x: L ? 10 : 246,
         y: cy - 24,
         w: 104,
-        h: 48,
+        h: bodyH(subs.length, 48),
         px: L ? 118 + k * pitch : 242 - k * pitch,
         boxes,
       };
@@ -246,41 +279,93 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
     const offX = maxD[0] * STEP;
     const w = W + offX + maxD[1] * STEP;
 
-    /** Bir kutu ve ona üst kalemden gelen tarak izi; sonra çocukları */
-    const drawBox = (b: Box, L: boolean, pe: number, py: number, color: string, catId: string): ReactNode => {
+    // Serigrafi kodları: entegre U<kategori>.<sıra>, eleman R<sıra>
+    let rN = 0;
+    const uN = new Map<string, number>();
+    /**
+     * Bir kalemin gövdesi ve dış kenarındaki bacaklardan çocuklarına giden
+     * izler. Alt kalemi olan kalem bir entegre (çocuk sayısı kadar bacak),
+     * yaprak kalem iki uçlu bir eleman.
+     */
+    const drawBody = (b: Box, L: boolean, color: string, catId: string, ci: number): ReactNode => {
       const dir = L ? -1 : 1;
       const inner = L ? 10 - GAP - (b.d - 1) * STEP : 350 + GAP + (b.d - 1) * STEP;
       const bx = L ? inner - BW : inner;
-      const spine = pe + (dir * GAP) / 2;
+      const outer = L ? bx : bx + BW;
+      const ic = b.kids.length > 0;
+      const bh = ic ? bodyH(b.kids.length, BH) : BH;
+      const top = b.y - bh / 2;
       const u = usage(b.s.id);
       const on = u > LIT;
-      const r = 4;
-      const sy = Math.sign(b.y - py);
-      const d =
-        Math.abs(b.y - py) < 2 * r
-          ? `M${pe} ${py}H${inner}`
-          : `M${pe} ${py}H${spine - dir * r}L${spine} ${py + sy * r}V${b.y - sy * r}L${spine + dir * r} ${b.y}H${inner}`;
+      const fill = mix(color, 18 + 70 * u);
+      let ref: string;
+      if (ic) {
+        const n = (uN.get(catId) ?? 0) + 1;
+        uN.set(catId, n);
+        ref = `U${ci + 1}.${n}`;
+      } else ref = `R${++rN}`;
       const open = () => {
-        if (b.kids.length) setFocus({ type: "sub", id: b.s.id });
+        if (ic) setFocus({ type: "sub", id: b.s.id });
         else router.push(routes.structureSub(catId, b.s.id));
       };
+      const pys = pinYs(b.y, b.kids.length);
+      const paths = fanOut(outer, dir, b.kids.map((k, i) => ({ py: pys[i], cy: k.y })));
       return (
         <g key={b.s.id}>
-          <path d={d} fill="none" stroke={on ? INK : INK_OFF} strokeWidth={1.3 + 2.4 * u} strokeLinejoin="round" />
+          {b.kids.map((k, i) => {
+            const ku = usage(k.s.id);
+            return (
+              <path key={`w${k.s.id}`} d={paths[i]} fill="none" stroke={ku > LIT ? INK : INK_OFF} strokeWidth={1.2 + 1.8 * ku} strokeLinejoin="round" />
+            );
+          })}
           <g role="button" aria-label={b.s.name} style={{ cursor: "pointer" }} onClick={open}>
-            <rect x={bx + 2.5} y={b.y - BH / 2 + 2.5} width={BW} height={BH} rx={5} fill={INK} />
-            <rect x={bx} y={b.y - BH / 2} width={BW} height={BH} rx={5} fill={mix(color, 18 + 70 * u)} stroke={INK} strokeWidth={1.8} />
+            {/* gelen izin oturduğu pad */}
+            <rect x={L ? outer + BW - 1 : inner - 5} y={b.y - 2.5} width={6} height={5} fill={on ? INK : "#fff"} stroke={INK} strokeWidth={1} />
+            {ic &&
+              pys.map((py, i) => (
+                <rect key={i} x={L ? outer - 5 : outer - 1} y={py - 1.5} width={6} height={3} fill={INK} />
+              ))}
+            <rect x={bx + 2.5} y={top + 2.5} width={BW} height={bh} rx={ic ? 4 : 3} fill={INK} />
+            <rect x={bx} y={top} width={BW} height={bh} rx={ic ? 4 : 3} fill={fill} stroke={INK} strokeWidth={1.8} />
+            {ic ? (
+              <circle cx={L ? bx + BW - 7 : bx + 7} cy={top + 7} r={2} fill={INK} />
+            ) : (
+              // elemanın iki metal ucu
+              <>
+                <rect x={bx} y={top} width={8} height={bh} rx={2} fill={INK} />
+                <rect x={bx + BW - 8} y={top} width={8} height={bh} rx={2} fill={INK} />
+              </>
+            )}
             <Txt x={bx + BW / 2} y={b.y + 3.8} size={10.5} anchor="middle" weight={800}>
-              {short(b.s.name, 15)}
+              {short(b.s.name, ic ? 15 : 13)}
+            </Txt>
+            <Txt x={L ? bx + BW : bx} y={top - 4} size={7.5} anchor={L ? "end" : "start"} mono fill={INK_SOFT} weight={600}>
+              {ref}
             </Txt>
           </g>
-          {b.kids.map((k) => drawBox(k, L, L ? bx : bx + BW, b.y, color, catId))}
+          {b.kids.map((k) => drawBody(k, L, color, catId, ci))}
         </g>
       );
     };
-    const trees = chips.map((ch) =>
-      ch.boxes.map((b) => drawBox(b, ch.L, ch.L ? ch.x : ch.x + ch.w, ch.y + ch.h / 2, ch.c.color, ch.c.id))
-    );
+    const trees = chips.map((ch) => {
+      const pe = ch.L ? ch.x : ch.x + ch.w;
+      const pys = pinYs(ch.y + ch.h / 2, ch.boxes.length);
+      const paths = fanOut(pe, ch.L ? -1 : 1, ch.boxes.map((b, i) => ({ py: pys[i], cy: b.y })));
+      return (
+        <g key={`tree${ch.c.id}`}>
+          {ch.boxes.map((b, i) => {
+            const bu = usage(b.s.id);
+            return (
+              <g key={`w${b.s.id}`}>
+                <path d={paths[i]} fill="none" stroke={bu > LIT ? INK : INK_OFF} strokeWidth={1.2 + 1.8 * bu} strokeLinejoin="round" />
+                <rect x={ch.L ? pe - 5 : pe - 1} y={pys[i] - 1.5} width={6} height={3} fill={INK} />
+              </g>
+            );
+          })}
+          {ch.boxes.map((b) => drawBody(b, ch.L, ch.c.color, ch.c.id, ch.i))}
+        </g>
+      );
+    });
 
     const traces = chips.map((ch) => {
       const u = usage(ch.c.id);
@@ -329,9 +414,7 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
 
         {chips.map((ch) => {
           const { c } = ch;
-          const subs = kidsOf.get(c.id) ?? [];
           const u = usage(c.id);
-          const top = Math.ceil(subs.length / 2);
           const feats = featsOf(c.id);
           const tag = short(unitTag(feats), 18);
           const tw = tagW(tag);
@@ -349,8 +432,6 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
               <Txt x={ch.x + 2} y={ch.y - 9} size={8} mono fill={INK_SOFT} weight={600}>
                 {`U${ch.i + 1}`}
               </Txt>
-              <PinRow subs={subs.slice(0, top)} x={ch.x} w={ch.w} y={ch.y - 6} use={usage} />
-              <PinRow subs={subs.slice(top)} x={ch.x} w={ch.w} y={ch.y + ch.h - 1} use={usage} />
               <rect x={ch.x + 3} y={ch.y + 3} width={ch.w} height={ch.h} rx={6} fill={INK} />
               <rect x={ch.x} y={ch.y} width={ch.w} height={ch.h} rx={6} fill={mix(c.color, 25 + 75 * u)} stroke={INK} strokeWidth={2} />
               <circle cx={ch.x + 8} cy={ch.y + 8} r={2.4} fill={INK} />
@@ -620,46 +701,6 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
 
       <MapLegend brutal />
     </div>
-  );
-}
-
-/** Çipin bir kenarındaki bacaklar — her biri bir alt kategori */
-function PinRow({
-  subs,
-  x,
-  w,
-  y,
-  use,
-}: {
-  subs: SubCategory[];
-  x: number;
-  w: number;
-  y: number;
-  use: (id: string) => number;
-}) {
-  const n = subs.length;
-  if (!n) return null;
-  const gap = n > 1 ? (w - 24) / (n - 1) : 0;
-  const pw = n > 1 ? Math.max(2.5, Math.min(6, gap - 1.5)) : 6;
-  return (
-    <>
-      {subs.map((s, j) => {
-        const cx = n === 1 ? x + w / 2 : x + 12 + j * gap;
-        return (
-          <rect
-            key={s.id}
-            x={cx - pw / 2}
-            y={y}
-            width={pw}
-            height={7}
-            rx={1}
-            fill={use(s.id) > LIT ? INK : "#fff"}
-            stroke={INK}
-            strokeWidth={1}
-          />
-        );
-      })}
-    </>
   );
 }
 
