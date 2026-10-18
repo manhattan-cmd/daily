@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -19,6 +19,12 @@ const INK = "#111";
 const INK_OFF = "rgba(17,17,17,.22)";
 const INK_SOFT = "rgba(17,17,17,.55)";
 const MONO = "ui-monospace, 'IBM Plex Mono', monospace";
+/** Ağaçtaki alt kalem kutusu, sütun arası (tarak izi bu boşlukta), satır */
+const BW = 96;
+const BH = 30;
+const GAP = 34;
+const STEP = BW + GAP;
+const ROW = 42;
 /** Bu yoğunluğun üstündeki kalem "kullanılıyor": bacağı dolu, izi koyu */
 const LIT = 0.12;
 
@@ -29,6 +35,9 @@ const mix = (hex: string, pct: number) =>
 const short = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
 /** Etiket genişliği tahmini — tek aralıklı yazıda harf başına ~5.4px */
 const tagW = (s: string, per = 5.4) => 8 + s.length * per;
+
+type Board = { w: number; h: number; cx: number; body: ReactNode };
+type Box = { s: SubCategory; d: number; y: number; kids: Box[] };
 
 type Focus = null | { type: "cat"; id: string } | { type: "sub"; id: string };
 
@@ -162,8 +171,16 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
       ? overview()
       : chipView(fCat, fSub);
 
+  // Açılışta işlemci ortada — iki yana açılan ağacın başı
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollLeft = (board.cx / board.w) * el.scrollWidth - el.clientWidth / 2;
+  }, [focusKey, board.cx, board.w]);
+
   // ─── A · Anakart: işlemci + iki sütun kategori çipi ─────────────────────────
-  function overview(): { h: number; body: ReactNode } {
+  function overview(): Board {
     const n = cats.length;
     const nL = Math.ceil(n / 2);
     const per = Math.max(1, nL);
@@ -171,23 +188,99 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
     const rootBottom = root.y + root.h;
     // İşlemcinin altındaki bacak aralığı — çip çoğaldıkça sıkışıyor, ortayı geçmiyor
     const pitch = per > 1 ? Math.min(13, 56 / (per - 1)) : 0;
-    const rowY = (k: number) => 136 + k * 116;
+    // Teknoloji ağacı: her alt kalem kuşağı bir sütun. Soldaki kategorilerin
+    // ağacı sola, sağdakilerin sağa açılıyor; her yaprak bir satır, üst kalem
+    // çocuklarının ortasında. Kategori bloğu ağacı kadar uzun.
+    const leavesOf = (id: string): number => {
+      const k = kidsOf.get(id) ?? [];
+      return k.length ? k.reduce((a, c) => a + leavesOf(c.id), 0) : 1;
+    };
+    const depthOf = (id: string): number => {
+      const k = kidsOf.get(id) ?? [];
+      return k.length ? 1 + Math.max(...k.map((c) => depthOf(c.id))) : 0;
+    };
+    const place = (sub: SubCategory, d: number, y0: number): Box => {
+      const k = kidsOf.get(sub.id) ?? [];
+      if (!k.length) return { s: sub, d, y: y0 + ROW / 2, kids: [] };
+      let y = y0;
+      const kids = k.map((c) => {
+        const b = place(c, d + 1, y);
+        y += leavesOf(c.id) * ROW;
+        return b;
+      });
+      return { s: sub, d, y: (kids[0].y + kids[kids.length - 1].y) / 2, kids };
+    };
+    const cursor = [104, 104];
+    const maxD = [0, 0];
     const chips = cats.map((c, i) => {
       const L = i < nL;
+      const side = L ? 0 : 1;
       const k = L ? i : i - nL;
+      const subs = kidsOf.get(c.id) ?? [];
+      const leaves = subs.reduce((a, x) => a + leavesOf(x.id), 0);
+      // Çip bloğun başında, ilk yaprak onun hizasında; ağaç aşağı akıyor
+      const cy = cursor[side] + 52;
+      let y = cy - ROW / 2;
+      const end = Math.max(cursor[side] + 104, y + leaves * ROW);
+      const boxes = subs.map((x) => {
+        const b = place(x, 1, y);
+        y += leavesOf(x.id) * ROW;
+        return b;
+      });
+      maxD[side] = Math.max(maxD[side], depthOf(c.id));
+      cursor[side] = end + 22;
       return {
         c,
         i,
         L,
         x: L ? 10 : 246,
-        y: rowY(k) - 24,
+        y: cy - 24,
         w: 104,
         h: 48,
         px: L ? 118 + k * pitch : 242 - k * pitch,
+        boxes,
       };
     });
     // Altta açıklama kutusunun payı
-    const h = rowY(per - 1) + 24 + 96;
+    const h = Math.max(cursor[0], cursor[1]) + 74;
+    const offX = maxD[0] * STEP;
+    const w = W + offX + maxD[1] * STEP;
+
+    /** Bir kutu ve ona üst kalemden gelen tarak izi; sonra çocukları */
+    const drawBox = (b: Box, L: boolean, pe: number, py: number, color: string, catId: string): ReactNode => {
+      const dir = L ? -1 : 1;
+      const inner = L ? 10 - GAP - (b.d - 1) * STEP : 350 + GAP + (b.d - 1) * STEP;
+      const bx = L ? inner - BW : inner;
+      const spine = pe + (dir * GAP) / 2;
+      const u = usage(b.s.id);
+      const on = u > LIT;
+      const r = 4;
+      const sy = Math.sign(b.y - py);
+      const d =
+        Math.abs(b.y - py) < 2 * r
+          ? `M${pe} ${py}H${inner}`
+          : `M${pe} ${py}H${spine - dir * r}L${spine} ${py + sy * r}V${b.y - sy * r}L${spine + dir * r} ${b.y}H${inner}`;
+      const open = () => {
+        if (b.kids.length) setFocus({ type: "sub", id: b.s.id });
+        else router.push(routes.structureSub(catId, b.s.id));
+      };
+      return (
+        <g key={b.s.id}>
+          <path d={d} fill="none" stroke={on ? INK : INK_OFF} strokeWidth={1.3 + 2.4 * u} strokeLinejoin="round" />
+          <g role="button" aria-label={b.s.name} style={{ cursor: "pointer" }} onClick={open}>
+            <rect x={bx + 2.5} y={b.y - BH / 2 + 2.5} width={BW} height={BH} rx={5} fill={INK} />
+            <rect x={bx} y={b.y - BH / 2} width={BW} height={BH} rx={5} fill={mix(color, 18 + 70 * u)} stroke={INK} strokeWidth={1.8} />
+            <Txt x={bx + BW / 2} y={b.y + 3.8} size={10.5} anchor="middle" weight={800}>
+              {short(b.s.name, 15)}
+            </Txt>
+          </g>
+          {b.kids.map((k) => drawBox(k, L, L ? bx : bx + BW, b.y, color, catId))}
+        </g>
+      );
+    };
+    const trees = chips.map((ch) =>
+      ch.boxes.map((b) => drawBox(b, ch.L, ch.L ? ch.x : ch.x + ch.w, ch.y + ch.h / 2, ch.c.color, ch.c.id))
+    );
 
     const traces = chips.map((ch) => {
       const u = usage(ch.c.id);
@@ -218,7 +311,8 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
     });
 
     const body = (
-      <>
+      <g transform={`translate(${offX} 0)`}>
+        {trees}
         {traces}
         {/* İşlemci */}
         <rect x={root.x + 3} y={root.y + 3} width={root.w} height={root.h} rx={7} fill={INK} />
@@ -277,13 +371,13 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
             </g>
           );
         })}
-      </>
+      </g>
     );
-    return { h, body };
+    return { w, h, cx: offX + W / 2, body };
   }
 
   // ─── B · Çip: odaktaki kalem ortada, alt kalemleri iki yanda bileşen ───────
-  function chipView(cat: Category, sub?: SubCategory): { h: number; body: ReactNode } {
+  function chipView(cat: Category, sub?: SubCategory): Board {
     const id = sub?.id ?? cat.id;
     const name = sub?.name ?? cat.name;
     const kids = kidsOf.get(id) ?? [];
@@ -468,7 +562,7 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
         </Txt>
       </>
     );
-    return { h, body };
+    return { w: W, h, cx: W / 2, body };
   }
 
   return (
@@ -507,10 +601,18 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
 
       {/* Teknoloji ağacı gibi: kart ekran genişliğinde, aşağı kaydırarak
           ilerleniyor. Başka bir çipe geçince baştan (key) */}
-      <div key={focusKey} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div
+        key={focusKey}
+        ref={scrollRef}
+        className="min-h-0 flex-1 overflow-auto overscroll-contain"
+        style={{ containerType: "inline-size" }}
+      >
         <svg
-          className="animate-zoom-in mx-auto block h-auto w-full max-w-[440px]"
-          viewBox={`0 0 ${W} ${board.h}`}
+          className="animate-zoom-in mx-auto block h-auto max-w-none"
+          // Ölçek: 360 birimlik orta şerit ekran genişliğinde (en çok 440px);
+          // ağaç ondan geniş, yana kaydırılıyor
+          style={{ width: `calc(min(100cqw, 440px) * ${board.w / W})` }}
+          viewBox={`0 0 ${board.w} ${board.h}`}
         >
           {board.body}
         </svg>
