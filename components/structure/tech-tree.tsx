@@ -61,6 +61,40 @@ function mixHex(hex: string, base: string, t: number): string {
 
 const toPath = (pts: Pt[]) => new Path2D(pts.map(([x, y], i) => `${i ? "L" : "M"}${x} ${y}`).join(""));
 
+/** Özellik kablolarının izden uzaklık adımı */
+const CABLE_GAP = 1.7;
+
+/**
+ * Bir çoklu çizgiye d kadar paralel (sol normal yönünde, köşelerde gönye).
+ * Uçlar kartın altına doğru biraz uzuyor — kablo kartın içinden geçiyormuş gibi.
+ */
+function offsetLine(raw: Pt[], d: number): Pt[] {
+  const pts = raw.filter((q, i) => !i || Math.hypot(q[0] - raw[i - 1][0], q[1] - raw[i - 1][1]) > 0.01);
+  if (pts.length < 2) return pts;
+  const n = pts.slice(1).map((q, i): Pt => {
+    const dx = q[0] - pts[i][0];
+    const dy = q[1] - pts[i][1];
+    const l = Math.hypot(dx, dy);
+    return [-dy / l, dx / l];
+  });
+  const out: Pt[] = pts.map((q, i) => {
+    if (i === 0) return [q[0] + d * n[0][0], q[1] + d * n[0][1]];
+    if (i === pts.length - 1) return [q[0] + d * n[i - 1][0], q[1] + d * n[i - 1][1]];
+    const mx = n[i - 1][0] + n[i][0];
+    const my = n[i - 1][1] + n[i][1];
+    const ml = Math.hypot(mx, my) || 1;
+    const k = d / ((mx / ml) * n[i][0] + (my / ml) * n[i][1]);
+    return [q[0] + (mx / ml) * k, q[1] + (my / ml) * k];
+  });
+  const ext = (a: Pt, b: Pt): Pt => {
+    const l = Math.hypot(a[0] - b[0], a[1] - b[1]) || 1;
+    return [a[0] + ((a[0] - b[0]) / l) * 4, a[1] + ((a[1] - b[1]) / l) * 4];
+  };
+  out[0] = ext(out[0], out[1]);
+  out[out.length - 1] = ext(out[out.length - 1], out[out.length - 2]);
+  return out;
+}
+
 /** Kart kenarındaki bacak ya da pad: kenardan dışa doğru küçük bir dikdörtgen */
 function lug(ctx: CanvasRenderingContext2D, { p: [x, y], d: [dx, dy] }: Pin, long: number, thick: number) {
   if (dx) ctx.fillRect(dx > 0 ? x - 1 : x - long + 1, y - thick / 2, long, thick);
@@ -76,6 +110,7 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
   const [panel, setPanel] = useState(false);
   const [query, setQuery] = useState("");
   const [unused, setUnused] = useState(true);
+  const [cables, setCables] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
   const [local, setLocal] = useState(NO_LOCAL);
   const [reveal, setReveal] = useState<number | null>(null);
@@ -134,9 +169,49 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
     const feats = new Map<string, string[]>();
     for (const l of data.links)
       if (l.feat && cards.has(l.s)) (feats.get(l.s) ?? feats.set(l.s, []).get(l.s)!).push(data.byId.get(l.t)?.color ?? "#888");
+
+    // Özellik hatları: merkezden, kendi özelliği olan her kaleme o özelliğin
+    // renginde ince bir kablo — ağacın izlerinin yanında, onlara paralel. Aynı
+    // özelliği taşıyan kalemlerin hatları ortak yolda ve merkezde buluşuyor.
+    const holders = new Map<string, string[]>();
+    const featIds = new Map<string, string[]>();
+    for (const l of data.links)
+      if (l.feat && cards.has(l.s)) {
+        (holders.get(l.t) ?? holders.set(l.t, []).get(l.t)!).push(l.s);
+        (featIds.get(l.s) ?? featIds.set(l.s, []).get(l.s)!).push(l.t);
+      }
+    // her izde kablolar hep aynı sırada: çok kalemde olan özellik ize en yakın
+    const rank = new Map(
+      [...holders.keys()]
+        .sort((a, b) => holders.get(b)!.length - holders.get(a)!.length || a.localeCompare(b))
+        .map((f, i) => [f, i])
+    );
+    const onEdge = new Map<string, string[]>();
+    for (const [f, hs] of holders)
+      for (const h of hs)
+        for (let c = h; ; ) {
+          const p = parentOf.get(c);
+          const par = p && cards.has(p) ? p : !p && withRoot ? ROOT : null;
+          if (!par) break;
+          const key = par + ">" + c;
+          const list = onEdge.get(key) ?? onEdge.set(key, []).get(key)!;
+          if (list.includes(f)) break; // yolun gerisi zaten işaretli
+          list.push(f);
+          if (par === ROOT) break;
+          c = par;
+        }
+    const cableList: { f: string; color: string; from: string; to: string; path: Path2D }[] = [];
+    for (const tr of city.traces) {
+      const fl = onEdge.get(tr.from + ">" + tr.to);
+      if (!fl) continue;
+      fl.sort((a, b) => rank.get(a)! - rank.get(b)!).forEach((f, k) => {
+        const d = ((k >> 1) + 1) * CABLE_GAP * (k % 2 ? -1 : 1);
+        cableList.push({ f, color: data.byId.get(f)?.color ?? "#888", from: tr.from, to: tr.to, path: toPath(offsetLine(tr.pts, d)) });
+      });
+    }
     const { x0, y0, x1, y1 } = city.bounds;
     const center: Pt = withRoot ? [0, 0] : [(x0 + x1) / 2, (y0 + y1) / 2];
-    return { cards, traces, parentOf, feats, bounds: { x0, y0, x1, y1 }, center, withRoot, byId: data.byId };
+    return { cards, traces, parentOf, feats, featIds, cables: cableList, bounds: { x0, y0, x1, y1 }, center, withRoot, byId: data.byId };
   }, [data, unused, local, reveal]);
 
   // ─── Çizim ────────────────────────────────────────────────────────────────
@@ -146,7 +221,7 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
   const size = useRef({ w: 0, h: 0 });
   const dirty = useRef(true);
   const treeRef = useRef(tree);
-  const live = useRef({ query, selected, hover: null as string | null, brutal });
+  const live = useRef({ query, selected, hover: null as string | null, brutal, cables });
   const touched = useRef(false);
 
   /** Açılış görünümü: merkez ortada, okunur bir ölçekte */
@@ -166,9 +241,9 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
     dirty.current = true;
   }, [tree]);
   useEffect(() => {
-    Object.assign(live.current, { query, selected, brutal });
+    Object.assign(live.current, { query, selected, brutal, cables });
     dirty.current = true;
-  }, [query, selected, brutal]);
+  }, [query, selected, brutal, cables]);
   // Dala geçince / dönünce baştan
   useEffect(() => {
     touched.current = false;
@@ -248,6 +323,22 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
         ctx.strokeStyle = on ? (B ? "#111" : C.accent) : C.fg;
         ctx.lineWidth = (on ? 2.2 : used ? 1.4 : 1) + (used ? 2 * u : 0);
         ctx.stroke(tr.path);
+      }
+
+      // Özellik kabloları — önce yumuşak bir hale, üstüne ince parlak tel. Odaktaki
+      // kalemin özellikleri varsa o özelliklerin hatları bütün haritada parlıyor.
+      if (L.cables && T.cables.length) {
+        const fset = focus ? new Set(T.featIds.get(focus) ?? []) : null;
+        const on = (cb: (typeof T.cables)[number]) =>
+          !focus ? !q : fset!.size ? fset!.has(cb.f) : lit.has(cb.from) && lit.has(cb.to);
+        for (const pass of [0, 1])
+          for (const cb of T.cables) {
+            const o = on(cb);
+            ctx.strokeStyle = pass ? (B ? cb.color : mixHex(cb.color, "#ffffff", 0.75)) : cb.color;
+            ctx.globalAlpha = pass ? (o ? 1 : 0.1) : o ? (B ? 0.22 : 0.35) : 0;
+            ctx.lineWidth = pass ? (fset?.size && o ? 1.5 : 1) : 3.4;
+            if (ctx.globalAlpha > 0) ctx.stroke(cb.path);
+          }
       }
 
       // Kartlar
@@ -588,6 +679,17 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
               )}
             >
               {unused ? "✓" : "—"}
+            </span>
+          </button>
+          <button onClick={() => setCables(!cables)} className="mb-2 flex w-full items-center justify-between py-1 font-semibold">
+            {t("graph.featLines")}
+            <span
+              className={cn(
+                "rounded px-1.5 py-0.5 text-[10px] font-black",
+                cables ? (brutal ? "bg-[#3a5bff] text-white" : "bg-primary text-primary-foreground") : "opacity-50"
+              )}
+            >
+              {cables ? "✓" : "—"}
             </span>
           </button>
           <button
