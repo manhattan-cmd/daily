@@ -6,7 +6,6 @@ import { ChevronRight } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { getEntryCountsBySubcategory } from "@/lib/db/queries";
-import { CanvasViewport } from "@/components/calendar/canvas-viewport";
 import { HScroll } from "@/components/ui/h-scroll";
 import { MapLegend, type MapGroup } from "@/components/structure/neural-map";
 import { usageIntensity, usageRate, usageSince } from "@/lib/usage";
@@ -172,7 +171,7 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
     const rootBottom = root.y + root.h;
     // İşlemcinin altındaki bacak aralığı — çip çoğaldıkça sıkışıyor, ortayı geçmiyor
     const pitch = per > 1 ? Math.min(13, 56 / (per - 1)) : 0;
-    const rowY = (k: number) => 132 + k * 96;
+    const rowY = (k: number) => 136 + k * 116;
     const chips = cats.map((c, i) => {
       const L = i < nL;
       const k = L ? i : i - nL;
@@ -181,14 +180,14 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
         i,
         L,
         x: L ? 10 : 246,
-        y: rowY(k) - 21,
+        y: rowY(k) - 24,
         w: 104,
-        h: 42,
+        h: 48,
         px: L ? 118 + k * pitch : 242 - k * pitch,
       };
     });
     // Altta açıklama kutusunun payı
-    const h = rowY(per - 1) + 21 + 96;
+    const h = rowY(per - 1) + 24 + 96;
 
     const traces = chips.map((ch) => {
       const u = usage(ch.c.id);
@@ -261,10 +260,10 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
               <rect x={ch.x + 3} y={ch.y + 3} width={ch.w} height={ch.h} rx={6} fill={INK} />
               <rect x={ch.x} y={ch.y} width={ch.w} height={ch.h} rx={6} fill={mix(c.color, 25 + 75 * u)} stroke={INK} strokeWidth={2} />
               <circle cx={ch.x + 8} cy={ch.y + 8} r={2.4} fill={INK} />
-              <Txt x={ch.x + ch.w / 2} y={ch.y + 19} size={11.5} anchor="middle" weight={900}>
+              <Txt x={ch.x + ch.w / 2} y={ch.y + 21} size={12.5} anchor="middle" weight={900}>
                 {short(c.name, 14)}
               </Txt>
-              <Txt x={ch.x + ch.w / 2} y={ch.y + 32} size={8.5} anchor="middle" mono weight={600} opacity={0.75}>
+              <Txt x={ch.x + ch.w / 2} y={ch.y + 37} size={9} anchor="middle" mono weight={600} opacity={0.75}>
                 {t("entry.subCount", { n: descOf(c.id) })}
               </Txt>
               {feats.length > 0 && (
@@ -290,7 +289,7 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
     const kids = kidsOf.get(id) ?? [];
     const per = Math.max(1, Math.ceil(kids.length / 2));
     const sides = [kids.slice(0, per), kids.slice(per)];
-    const pitch = per > 1 ? Math.min(96, Math.max(64, 360 / (per - 1))) : 0;
+    const pitch = per > 1 ? Math.min(110, Math.max(84, 360 / (per - 1))) : 0;
     const span = (per - 1) * pitch;
     const chipH = Math.max(170, per * 22 + 40);
     const midY = Math.max(110 + span / 2, 80 + chipH / 2);
@@ -308,7 +307,7 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
     const inherited = new Set(feats.map((m) => m.id));
     const u0 = usage(id);
     const CW = 90;
-    const CH = 30;
+    const CH = 34;
     const href = sub
       ? routes.structureSub(cat.id, sub.id)
       : routes.structureCategory(cat.id);
@@ -390,8 +389,8 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
                 <rect x={cx - 2} y={cy - CH / 2 - 18} width={CW + 4} height={CH + 38} fill="transparent" />
                 <rect x={cx + 2.5} y={cy - CH / 2 + 2.5} width={CW} height={CH} rx={5} fill={INK} />
                 <rect x={cx} y={cy - CH / 2} width={CW} height={CH} rx={5} fill={mix(cat.color, 18 + 70 * u)} stroke={INK} strokeWidth={1.8} />
-                <Txt x={cx + CW / 2} y={cy + 3.5} size={10} anchor="middle" weight={800}>
-                  {short(s.name, 15)}
+                <Txt x={cx + CW / 2} y={cy + 4} size={11} anchor="middle" weight={800}>
+                  {short(s.name, 14)}
                 </Txt>
                 {shown.map((k, j) => {
                   const px = L ? cx + 10 + j * step : cx + CW - 10 - j * step;
@@ -439,7 +438,7 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
           <rect x={chip.x + 4} y={chip.y + 4} width={chip.w} height={chip.h} rx={9} fill={INK} />
           <rect x={chip.x} y={chip.y} width={chip.w} height={chip.h} rx={9} fill={mix(cat.color, 25 + 75 * Math.max(0.6, u0))} stroke={INK} strokeWidth={2.5} />
           <circle cx={chip.x + 12} cy={chip.y + 12} r={3.5} fill={INK} />
-          <Txt x={chip.x + chip.w / 2} y={midY - 4} size={14} anchor="middle" weight={900}>
+          <Txt x={chip.x + chip.w / 2} y={midY - 4} size={15} anchor="middle" weight={900}>
             {short(name, 12)}
           </Txt>
           <Txt x={chip.x + chip.w / 2} y={midY + 12} size={8.5} anchor="middle" mono weight={600}>
@@ -506,17 +505,16 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
         </div>
       )}
 
-      <CanvasViewport width={W} height={board.h} resetKey={focusKey}>
+      {/* Teknoloji ağacı gibi: kart ekran genişliğinde, aşağı kaydırarak
+          ilerleniyor. Başka bir çipe geçince baştan (key) */}
+      <div key={focusKey} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <svg
-          key={focusKey}
-          className="animate-zoom-in block"
+          className="animate-zoom-in mx-auto block h-auto w-full max-w-[440px]"
           viewBox={`0 0 ${W} ${board.h}`}
-          width={W}
-          height={board.h}
         >
           {board.body}
         </svg>
-      </CanvasViewport>
+      </div>
 
       <MapLegend brutal />
     </div>
