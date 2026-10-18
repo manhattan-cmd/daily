@@ -829,7 +829,7 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
  * ya da ışımayla anlatıyor ama bunu hiçbir yer söylemiyordu — soluk bir dal
  * "bozuk" ya da "seçilmemiş" sanılabiliyordu.
  */
-function MapLegend({ brutal }: { brutal: boolean }) {
+export function MapLegend({ brutal }: { brutal: boolean }) {
   const t = useT();
   const dot = (used: boolean) =>
     brutal ? (
