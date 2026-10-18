@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ExternalLink, Locate, Minus, Play, Plus, Settings2, Waypoints, X } from "lucide-react";
 import type { MapGroup } from "@/components/structure/neural-map";
 import { useMapGraph, type GNode } from "@/components/structure/graph-view";
+import { layoutCity, ROOT, type Pin } from "@/components/structure/city-layout";
 import { useT } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
 import { useSkin } from "@/lib/skin";
@@ -13,55 +14,23 @@ import { cn } from "@/lib/utils";
 /**
  * Harita — merkezden dört yana yayılan bir devre şehri.
  *
- * Ortada ROUTINE; ondan dört yöne (kuzey, güney, doğu, batı) birer ana cadde
- * çıkıyor. Kategoriler caddelerin iki yanına blok blok diziliyor; her blok o
- * kategorinin teknoloji ağacı: kategori kartı caddeye en yakın köşede, alt
- * kalemleri merkezden uzağa doğru kuşak kuşak açılıyor. Doğu ve batı
- * caddelerinin blokları ortadaki bantta, kuzey ve güneyinkiler bandın üstünde
- * ve altında — bloklar hiç üst üste binmiyor. Kategoriler dört caddeye
- * büyüklüklerine göre dengeli dağıtılıyor, şehir her yöne aşağı yukarı eşit
- * büyüyor.
+ * Ortada ROUTINE; ondan dört yöne birer ana cadde çıkıyor, kategoriler
+ * caddelerin iki yanına blok blok diziliyor. Kalabalık kalem bir çip gibi
+ * mahallesinin ortasında duruyor, çocukları dört yanında; az çocuklu kalem
+ * çocuklarını tek kenarından tarak gibi açıyor. Hangisinin seçileceği, kategorilerin
+ * caddelere dağılışı ve izlerin şeritleri city-layout.ts'te.
  *
- * Devre kartının mantığı: bütün izler yatay, dikey ya da 45°. Her iz üst
- * kalemin dış kenarındaki kendi bacağından çıkıp çocuğun pad'ine oturuyor;
- * caddedeki izler paralel şeritler halinde akıyor. Şerit sırası kesişmeyecek
- * gibi seçiliyor: uzaktaki bloğa giden iz caddenin içinde, yakındakine giden
- * dışında. Kullanılan kalemin izi kalın ve koyu, kullanılmayanın ince ve soluk.
- *
- * Bir kaleme dokununca merkezden ona gelen yol ve çocukları yanıyor, gerisi
- * soluyor.
+ * Bütün izler yatay, dikey ya da 45° ve hiçbiri kesişmiyor. Kullanılan kalemin
+ * izi kalın ve koyu, kullanılmayanın ince ve soluk. Bir kaleme dokununca
+ * merkezden ona gelen yol ve çocukları yanıyor, gerisi soluyor.
  */
 
-const ROOT_W = 96;
-const ROOT_H = 56;
-const CW = 116;
-const PITCH = CW + 48;
-const ROW = 40;
-const PIN = 6;
-const CHAMF = 6;
-const LANE = 5;
-const BLOCK_GAP = 26;
 const GRID = 40;
 const MIN_K = 0.2;
 const MAX_K = 3;
 const NO_LOCAL = null as { id: string; depth: number } | null;
-const ROOT = "__root";
 
 type Pt = [number, number];
-type Card = {
-  id: string;
-  cx: number;
-  cy: number;
-  w: number;
-  h: number;
-  /** Dış kenarın yönü (+1 sağ, -1 sol) */
-  sx: number;
-  kids: string[];
-  /** Çocuklara giden bacaklar (dış kenarda) */
-  pins: Pt[];
-  /** Gelen izin oturduğu pad (iç kenarda) */
-  pad: Pt | null;
-};
 type Trace = { from: string; to: string; path: Path2D };
 
 /** "#rrggbb" ile zemini karıştır (t = rengin payı) — tuval color-mix bilmiyor */
@@ -81,55 +50,10 @@ function mixHex(hex: string, base: string, t: number): string {
 
 const toPath = (pts: Pt[]) => new Path2D(pts.map(([x, y], i) => `${i ? "L" : "M"}${x} ${y}`).join(""));
 
-/**
- * Bir gövdenin dış kenarındaki bacaklardan çocuklarının pad'ine izler —
- * yerel eksende (u dışarı, v istif yönü): yatay, 45°, dikey, 45°, yatay.
- * Şeritler iç içe; hiçbiri kesişmiyor.
- */
-function fanOut(pu: number, ends: { pv: number; cv: number }[], inner: number): Pt[][] {
-  const gap = inner - pu;
-  const lane = ends.map(() => 0);
-  const idx = ends.map((_, i) => i);
-  const up = idx.filter((i) => ends[i].cv < ends[i].pv - 2 * CHAMF);
-  const down = idx.filter((i) => ends[i].cv > ends[i].pv + 2 * CHAMF).reverse();
-  for (const g of [up, down]) {
-    const step = g.length > 1 ? Math.min(5, (gap - 2 * CHAMF - 12) / (g.length - 1)) : 0;
-    g.forEach((i, k) => (lane[i] = CHAMF + 4 + k * step));
-  }
-  return ends.map(({ pv, cv }, i) => {
-    if (!lane[i]) return [[pu, pv], [pu + 10, pv], [inner - 10, cv], [inner, cv]];
-    const lu = pu + lane[i];
-    const s = Math.sign(cv - pv);
-    return [
-      [pu, pv],
-      [lu - CHAMF, pv],
-      [lu, pv + s * CHAMF],
-      [lu, cv - s * CHAMF],
-      [lu + CHAMF, cv],
-      [inner, cv],
-    ];
-  });
-}
-
-/** Köşeleri 45° kırarak bir dizi dik doğru parçası */
-function chamfered(pts: Pt[]): Pt[] {
-  const out: Pt[] = [pts[0]];
-  for (let i = 1; i < pts.length - 1; i++) {
-    const [ax, ay] = pts[i - 1];
-    const [bx, by] = pts[i];
-    const [cx, cy] = pts[i + 1];
-    const l1 = Math.hypot(bx - ax, by - ay);
-    const l2 = Math.hypot(cx - bx, cy - by);
-    const r = Math.min(CHAMF, l1 / 2, l2 / 2);
-    if (r < 0.5) {
-      out.push(pts[i]);
-      continue;
-    }
-    out.push([bx - ((bx - ax) / l1) * r, by - ((by - ay) / l1) * r]);
-    out.push([bx + ((cx - bx) / l2) * r, by + ((cy - by) / l2) * r]);
-  }
-  out.push(pts[pts.length - 1]);
-  return out;
+/** Kart kenarındaki bacak ya da pad: kenardan dışa doğru küçük bir dikdörtgen */
+function lug(ctx: CanvasRenderingContext2D, { p: [x, y], d: [dx, dy] }: Pin, long: number, thick: number) {
+  if (dx) ctx.fillRect(dx > 0 ? x - 1 : x - long + 1, y - thick / 2, long, thick);
+  else ctx.fillRect(x - thick / 2, dy > 0 ? y - 1 : y - long + 1, thick, long);
 }
 
 export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutSwitch?: ReactNode }) {
@@ -186,213 +110,20 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
       roots = [top];
     } else roots = data.nodes.filter((n) => n.kind === "cat" && ok.has(n.id)).map((n) => n.id);
     const withRoot = !local;
-
-    // Bir kategorinin bloğu, yerel eksende: u dışarı (kuşaklar), v istif.
-    // Üst kalem ilk çocuğunun hizasında — blok caddeye yakın köşeden açılıyor.
-    type LCard = { id: string; u: number; v: number; h: number; kids: string[] };
-    const block = (rid: string) => {
-      const cards: LCard[] = [];
-      let cursor = 10;
-      let maxD = 0;
-      const place = (id: string, d: number): number => {
-        const n = data.byId.get(id)!;
-        const kids = (kidsOf.get(id) ?? []).filter((k) => ok.has(k));
-        maxD = Math.max(maxD, d);
-        let v: number;
-        if (!kids.length) {
-          v = cursor + ROW / 2;
-          cursor += ROW;
-        } else v = kids.map((k) => place(k, d + 1))[0];
-        const h = Math.max(n.kind === "cat" ? 34 : 28, 12 + (kids.length - 1) * PIN);
-        cards.push({ id, u: d * PITCH, v, h, kids });
-        return v;
-      };
-      place(rid, 0);
-      return { rid, cards, U: maxD * PITCH + CW, V: cursor + 6 };
-    };
-    const blocks = roots.map(block);
-
-    // Dört cadde: kategoriler büyüklüklerine göre dengeli dağılıyor
-    type Arm = "E" | "W" | "N" | "S";
-    const arms: Record<Arm, { side: [typeof blocks, typeof blocks]; len: [number, number] }> = {
-      E: { side: [[], []], len: [0, 0] },
-      W: { side: [[], []], len: [0, 0] },
-      N: { side: [[], []], len: [0, 0] },
-      S: { side: [[], []], len: [0, 0] },
-    };
-    // Doğu/batıda blok cadde boyunca U kadar, kuzey/güneyde V kadar yer tutuyor
-    const along = (b: (typeof blocks)[number], a: Arm) => (a === "E" || a === "W" ? b.U : b.V) + BLOCK_GAP;
-    const order: Arm[] = ["E", "W", "N", "S"];
-    if (withRoot) {
-      // Sekiz yuva (4 cadde × 2 yaka). Şehrin dört yöndeki uzanımı aşağıdaki
-      // yerleşimle aynı hesaplanıyor; en uzun kol en kısa, toplam en küçük olsun.
-      const slotArm = (k: number) => order[k >> 1];
-      const extent = (asg: number[]) => {
-        const len = Array(8).fill(0);
-        const cnt = Array(8).fill(0);
-        const tall = Array(8).fill(0);
-        const wide = Array(8).fill(0);
-        asg.forEach((k, i) => {
-          const b = blocks[i];
-          len[k] += along(b, slotArm(k));
-          cnt[k]++;
-          tall[k] = Math.max(tall[k], b.V);
-          wide[k] = Math.max(wide[k], b.U);
-        });
-        // E=0,1  W=2,3  N=4,5  S=6,7 ; yaka 0 = üst/sol
-        const off = (s: number) => ROOT_H / 2 + 12 + Math.max(cnt[s], cnt[2 + s]) * LANE;
-        const band = [0, 1].map((s) => Math.max(ROOT_H / 2, off(s) + Math.max(tall[s], tall[2 + s])));
-        const reach = (k: number) => 24 + cnt[k] * LANE + wide[k];
-        const startN = Math.max(band[0] + 30, ROOT_H / 2 + 30);
-        const startS = Math.max(band[1] + 30, ROOT_H / 2 + 30);
-        const R = [
-          Math.max(ROOT_W / 2 + 34 + Math.max(len[0], len[1]), reach(5), reach(7)), // doğu
-          Math.max(ROOT_W / 2 + 34 + Math.max(len[2], len[3]), reach(4), reach(6)), // batı
-          Math.max(band[0], cnt[4] + cnt[5] ? startN + Math.max(len[4], len[5]) : 0), // kuzey
-          Math.max(band[1], cnt[6] + cnt[7] ? startS + Math.max(len[6], len[7]) : 0), // güney
-        ];
-        // bir yakada 4'ten çok kategori kökün kenarından taşar
-        const crowd = cnt.reduce((a, c) => a + Math.max(0, c - 3), 0) * 2000;
-        // dört caddenin her biri en az bir kategori alsın (blok yeterse)
-        const empty = [0, 2, 4, 6].filter((k) => cnt[k] + cnt[k + 1] === 0).length;
-        const need = Math.max(0, 4 - blocks.length);
-        return Math.max(...R) * 2 + R.reduce((a, r) => a + r, 0) * 0.5 + crowd + Math.max(0, empty - need) * 2000;
-      };
-      // İlk tahmin: büyükten küçüğe en kısa yuvaya; sonra taşı/değiştir iyileştirmesi
-      const asg = blocks.map(() => 0);
-      const idx = blocks.map((_, i) => i).sort((x, y) => blocks[y].V * blocks[y].U - blocks[x].V * blocks[x].U);
-      const fill = Array(8).fill(0);
-      for (const i of idx) {
-        let best = 0;
-        for (let k = 1; k < 8; k++) if (fill[k] + along(blocks[i], slotArm(k)) < fill[best] + along(blocks[i], slotArm(best))) best = k;
-        asg[i] = best;
-        fill[best] += along(blocks[i], slotArm(best));
-      }
-      let cur = extent(asg);
-      for (let pass = 0, better = true; better && pass < 40; pass++) {
-        better = false;
-        for (let i = 0; i < asg.length; i++) {
-          for (let k = 0; k < 8; k++) {
-            const was = asg[i];
-            if (k === was) continue;
-            asg[i] = k;
-            const c = extent(asg);
-            if (c < cur - 0.5) {
-              cur = c;
-              better = true;
-            } else asg[i] = was;
-          }
-          for (let j = i + 1; j < asg.length; j++) {
-            if (asg[i] === asg[j]) continue;
-            [asg[i], asg[j]] = [asg[j], asg[i]];
-            const c = extent(asg);
-            if (c < cur - 0.5) {
-              cur = c;
-              better = true;
-            } else [asg[i], asg[j]] = [asg[j], asg[i]];
-          }
-        }
-      }
-      asg.forEach((k, i) => {
-        const a = arms[slotArm(k)];
-        a.side[k & 1].push(blocks[i]);
-        a.len[k & 1] += along(blocks[i], slotArm(k));
-      });
-      // Kategori sırası caddede korunsun (merkeze yakından uzağa)
-      for (const a of order)
-        for (const s of [0, 1])
-          arms[a].side[s].sort((x, y) => roots.indexOf(x.rid) - roots.indexOf(y.rid));
-    } else if (blocks[0]) arms.E.side[1].push(blocks[0]);
-
-    const cards = new Map<string, Card>();
-    const traces: Trace[] = [];
-    const rootPins: Pt[] = [];
-    /** Bloğu dünyaya yerleştir: (ox, oy) iç köşe, sx/sy eksenlerin yönü */
-    const put = (b: (typeof blocks)[number], ox: number, oy: number, sx: number, sy: number) => {
-      const W = (u: number, v: number): Pt => [ox + sx * u, oy + sy * v];
-      const byId = new Map(b.cards.map((c) => [c.id, c]));
-      for (const c of b.cards) {
-        const [cx, cy] = W(c.u + CW / 2, c.v);
-        const pins: Pt[] = c.kids.map((_, i) => W(c.u + CW, c.v + (i - (c.kids.length - 1) / 2) * PIN));
-        cards.set(c.id, { id: c.id, cx, cy, w: CW, h: c.h, sx, kids: c.kids, pins, pad: W(c.u, c.v) });
-        if (!c.kids.length) continue;
-        const ends = c.kids.map((k, i) => ({ pv: c.v + (i - (c.kids.length - 1) / 2) * PIN, cv: byId.get(k)!.v }));
-        fanOut(c.u + CW, ends, (c.kids.length ? byId.get(c.kids[0])!.u : 0)).forEach((pts, i) =>
-          traces.push({ from: c.id, to: c.kids[i], path: toPath(pts.map(([u, v]) => W(u, v))) })
-        );
-      }
-      return byId.get(b.rid)!;
-    };
-
-    if (!withRoot) {
-      if (blocks[0]) put(blocks[0], 0, 0, 1, 1);
-    } else {
-      // Ortadaki bant: doğu ve batı caddelerinin blokları
-      const lanes = (a: Arm, s: number) => arms[a].side[s].length;
-      const bandOff = (s: number) => ROOT_H / 2 + 12 + Math.max(lanes("E", s), lanes("W", s)) * LANE;
-      const bandH = [0, 0];
-      for (const a of ["E", "W"] as const) {
-        const dx = a === "E" ? 1 : -1;
-        for (const s of [0, 1]) {
-          const sy = s === 0 ? -1 : 1;
-          const list = arms[a].side[s];
-          let cursor = ROOT_W / 2 + 34;
-          list.forEach((b, i) => {
-            const oy = sy * bandOff(s);
-            const cat = put(b, dx * cursor, oy, dx, sy);
-            bandH[s] = Math.max(bandH[s], bandOff(s) + b.V);
-            // Cadde: kökten şeritte dışarı, bloğun önünde dikine, pad'e
-            const rank = list.length - 1 - i;
-            const laneY = sy * (8 + rank * LANE);
-            const start: Pt = [dx * (ROOT_W / 2), laneY];
-            const vx = dx * (cursor - 12);
-            const catY = oy + sy * cat.v;
-            rootPins.push(start);
-            traces.push({
-              from: ROOT,
-              to: b.rid,
-              path: toPath(chamfered([start, [vx, laneY], [vx, catY], [dx * cursor, catY]])),
-            });
-            cursor += b.U + BLOCK_GAP;
-          });
-        }
-      }
-      // Kuzey ve güney: bandın dışından başlayan dikey caddeler
-      for (const a of ["N", "S"] as const) {
-        const dy = a === "N" ? -1 : 1;
-        const band = bandH[a === "N" ? 0 : 1] + 30;
-        for (const s of [0, 1]) {
-          const sx = s === 0 ? -1 : 1;
-          const list = arms[a].side[s];
-          const ox = sx * (14 + list.length * LANE + 10);
-          let cursor = Math.max(band, ROOT_H / 2 + 30);
-          list.forEach((b, i) => {
-            const cat = put(b, ox, dy * cursor, sx, dy);
-            const rank = list.length - 1 - i;
-            const laneX = sx * (8 + rank * LANE);
-            const start: Pt = [laneX, dy * (ROOT_H / 2)];
-            const catY = dy * cursor + dy * cat.v;
-            rootPins.push(start);
-            traces.push({ from: ROOT, to: b.rid, path: toPath(chamfered([start, [laneX, catY], [ox, catY]])) });
-            cursor += b.V + BLOCK_GAP;
-          });
-        }
-      }
-      cards.set(ROOT, { id: ROOT, cx: 0, cy: 0, w: ROOT_W, h: ROOT_H, sx: 1, kids: roots, pins: rootPins, pad: null });
-    }
+    const city = layoutCity({
+      roots,
+      withRoot,
+      kids: (id) => (kidsOf.get(id) ?? []).filter((k) => ok.has(k)),
+      isCat: (id) => data.byId.get(id)?.kind === "cat",
+    });
+    const cards = city.cards;
+    const traces: Trace[] = city.traces.map((t) => ({ from: t.from, to: t.to, path: toPath(t.pts) }));
 
     // Kalemin kendi (miras olmayan) özellikleri — kartta küçük daireler
     const feats = new Map<string, string[]>();
     for (const l of data.links)
       if (l.feat && cards.has(l.s)) (feats.get(l.s) ?? feats.set(l.s, []).get(l.s)!).push(data.byId.get(l.t)?.color ?? "#888");
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (const c of cards.values()) {
-      x0 = Math.min(x0, c.cx - c.w / 2 - 20);
-      x1 = Math.max(x1, c.cx + c.w / 2 + 20);
-      y0 = Math.min(y0, c.cy - c.h / 2 - 20);
-      y1 = Math.max(y1, c.cy + c.h / 2 + 20);
-    }
-    if (!cards.size) x0 = y0 = x1 = y1 = 0;
+    const { x0, y0, x1, y1 } = city.bounds;
     const center: Pt = withRoot ? [0, 0] : [(x0 + x1) / 2, (y0 + y1) / 2];
     return { cards, traces, parentOf, feats, bounds: { x0, y0, x1, y1 }, center, withRoot, byId: data.byId };
   }, [data, unused, local, reveal]);
@@ -518,10 +249,7 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
         ctx.fillStyle = C.fg;
         if (c.id === ROOT) {
           // kökün bacakları: caddelerin çıktığı her nokta
-          for (const [px, py] of c.pins) {
-            if (Math.abs(px) >= c.w / 2 - 0.5) ctx.fillRect(px - (px > 0 ? 1 : 4), py - 1.5, 5, 3);
-            else ctx.fillRect(px - 1.5, py - (py > 0 ? 1 : 4), 3, 5);
-          }
+          for (const pin of c.pins) lug(ctx, pin, 5, 3);
           if (B) {
             ctx.fillStyle = "#111";
             ctx.beginPath();
@@ -539,8 +267,8 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
           continue;
         }
         // bacaklar (dış kenar) ve pad (iç kenar)
-        for (const [px, py] of c.pins) ctx.fillRect(c.sx > 0 ? px - 1 : px - 4, py - 1.5, 5, 3);
-        if (c.pad) ctx.fillRect(c.sx > 0 ? c.pad[0] - 4 : c.pad[0] - 1, c.pad[1] - 2.5, 5, 5);
+        for (const pin of c.pins) lug(ctx, pin, 5, 3);
+        if (c.pad) lug(ctx, c.pad, 5, 5);
         const n = T.byId.get(c.id) as GNode;
         const cat = n.kind === "cat";
         const u = n.usage;
