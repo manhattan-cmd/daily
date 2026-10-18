@@ -4,11 +4,10 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { Waypoints } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { StructureHeader } from "@/components/structure/structure-header";
-import { NeuralMap, type MapGroup } from "@/components/structure/neural-map";
-import { CircuitMap } from "@/components/structure/circuit-map";
+import { type MapGroup } from "@/components/structure/neural-map";
+import { GraphView } from "@/components/structure/graph-view";
 import { EmptyState } from "@/components/ui/empty-state";
 import { db } from "@/lib/db";
-import { useSkin } from "@/lib/skin";
 
 /**
  * Harita — yapının sinir ağı.
@@ -21,8 +20,6 @@ import { useSkin } from "@/lib/skin";
  */
 export default function MapPage() {
   const t = useT();
-  // Brütal: harita bir anakart (components/structure/circuit-map.tsx)
-  const brutal = useSkin() === "brutal";
   const groups = useLiveQuery(async (): Promise<MapGroup[]> => {
     const [cats, subs] = await Promise.all([
       // Yerleşik akışlar haritada düğüm değil: kullanıcıya kategori olarak
@@ -57,7 +54,7 @@ export default function MapPage() {
             />
           </div>
         ) : (
-          brutal ? <CircuitMap groups={groups} /> : <NeuralMap groups={groups} />
+          <GraphView groups={groups} />
         )}
       </div>
     </div>
