@@ -50,8 +50,8 @@ import { cn } from "@/lib/utils";
  * kategoriden miras inen özellik her alt kalemde tekrar bağlanmıyor.
  */
 
-type Kind = "cat" | "sub" | "mod";
-type GNode = {
+export type Kind = "cat" | "sub" | "mod";
+export type GNode = {
   id: string;
   kind: Kind;
   label: string;
@@ -67,7 +67,7 @@ type GNode = {
   /** Ad yolu — seçim kartında */
   path: string[];
 };
-type GLink = { s: string; t: string; feat: boolean };
+export type GLink = { s: string; t: string; feat: boolean };
 type Body = { x: number; y: number; vx: number; vy: number; fx?: number; fy?: number };
 type Settings = {
   feats: boolean;
@@ -113,28 +113,11 @@ function loadSettings(): Settings {
   return DEFAULTS;
 }
 
-export function GraphView({ groups }: { groups: MapGroup[] }) {
-  const t = useT();
-  const router = useRouter();
-  const brutal = useSkin() === "brutal";
-
-  // Harita yalnız veri geldikten sonra (istemcide) çiziliyor — localStorage hazır
-  const [settings, setSettings] = useState<Settings>(loadSettings);
-  const patch = (p: Partial<Settings>) =>
-    setSettings((s) => {
-      const n = { ...s, ...p };
-      try {
-        window.localStorage.setItem(STORE_KEY, JSON.stringify(n));
-      } catch {}
-      return n;
-    });
-  const [panel, setPanel] = useState(false);
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<string | null>(null);
-  const [local, setLocal] = useState<Local>(null);
-  /** Canlandırma: kaç düğüm göründü (null = hepsi) */
-  const [reveal, setReveal] = useState<number | null>(null);
-
+/**
+ * Haritanın verisi — kategoriler, alt kategoriler, özellikler ve aralarındaki
+ * bağlar; kullanım son 30 günden. Grafik ve teknoloji ağacı aynı veriyi okuyor.
+ */
+export function useMapGraph(groups: MapGroup[]) {
   const entryCounts =
     useLiveQuery(() => getEntryCountsBySubcategory(usageSince()), []) ?? NO_COUNTS;
   const featData = useLiveQuery(async () => {
@@ -252,6 +235,32 @@ export function GraphView({ groups }: { groups: MapGroup[] }) {
     const order = [...nodes].sort((a, b) => a.createdAt - b.createdAt).map((n) => n.id);
     return { nodes, links, byId, order };
   }, [groups, entryCounts, featData]);
+  return data;
+}
+
+export function GraphView({ groups, layoutSwitch }: { groups: MapGroup[]; layoutSwitch?: ReactNode }) {
+  const t = useT();
+  const router = useRouter();
+  const brutal = useSkin() === "brutal";
+
+  // Harita yalnız veri geldikten sonra (istemcide) çiziliyor — localStorage hazır
+  const [settings, setSettings] = useState<Settings>(loadSettings);
+  const patch = (p: Partial<Settings>) =>
+    setSettings((s) => {
+      const n = { ...s, ...p };
+      try {
+        window.localStorage.setItem(STORE_KEY, JSON.stringify(n));
+      } catch {}
+      return n;
+    });
+  const [panel, setPanel] = useState(false);
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<string | null>(null);
+  const [local, setLocal] = useState<Local>(null);
+  /** Canlandırma: kaç düğüm göründü (null = hepsi) */
+  const [reveal, setReveal] = useState<number | null>(null);
+
+  const data = useMapGraph(groups);
 
   // ─── Görünen grafik: filtreler, yerel grafik, canlandırma ─────────────────
   const visible = useMemo(() => {
@@ -862,6 +871,7 @@ export function GraphView({ groups }: { groups: MapGroup[] }) {
 
       {panel && (
         <div className={cn(box, "absolute right-3 top-24 z-10 max-h-[calc(100%-8.5rem)] w-[248px] overflow-y-auto p-3 text-xs")}>
+          {layoutSwitch}
           <Section title={t("graph.filters")}>
             <input
               value={query}
