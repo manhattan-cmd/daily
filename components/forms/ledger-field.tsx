@@ -15,7 +15,7 @@ import { isScaleChoices, type EntryValueType } from "@/types";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { useSkin } from "@/lib/skin";
-import { ThingField } from "@/components/forms/thing-field";
+import { ThingField, ThingFieldFeatures } from "@/components/forms/thing-field";
 
 /** Alan dolu mu — evet/hayırda yalnız "evet" dolu sayılır (varsayılan "hayır") */
 export function isFieldFilled(vt: EntryValueType, value: string): boolean {
@@ -219,7 +219,7 @@ export function LedgerField({
     setQuery("");
   };
 
-  return (
+  const box = (
     <div
       ref={onMount}
       data-ledger-field=""
@@ -401,12 +401,17 @@ export function LedgerField({
             className="h-12 min-w-0 flex-1 bg-transparent font-mono text-[22px] font-bold outline-none placeholder:text-muted-foreground/35"
             style={filled ? { color } : undefined}
           />
-          {unit && (
+          {unit && /^[.,]/.test(unit) ? (
+            // ". Sayfa" gibi sıra birimi: "214." ardından ad — çerçevesiz, düz
+            <span className="max-w-[45%] shrink-0 truncate text-right text-[15px] font-bold leading-5 text-muted-foreground">
+              {unit.replace(/^[.,]\s*/, "")}
+            </span>
+          ) : unit ? (
             /* data-unit: Brütal temada siyah çerçeveli küçük etiket */
             <span data-unit="" className="max-w-[45%] shrink-0 text-right font-mono text-[14px] font-semibold leading-4 text-muted-foreground">
               {unit}
             </span>
-          )}
+          ) : null}
         </label>
       ) : isBool && brutal ? (
         // Brütal: iki büyük yarım — seçilen dolu
@@ -566,4 +571,19 @@ export function LedgerField({
       )}
     </div>
   );
+
+  // Nesne türünde seçilen nesnenin özellikleri kutunun İÇİNDE değil altında,
+  // başlıktan inen ipe asılı ve tam genişlikte — kutu içinde kutu içinde
+  // kutu en içteki alanı daraltıyor, adı kesiliyordu
+  if (vt === "object" && !isLocked)
+    return (
+      <div className="flex flex-col">
+        {box}
+        <ThingFieldFeatures
+          collectionId={mod.entryType.collectionId}
+          value={value}
+        />
+      </div>
+    );
+  return box;
 }

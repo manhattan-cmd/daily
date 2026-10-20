@@ -126,40 +126,22 @@ export function ThingField({
 
   return (
     <div className="flex flex-col gap-2.5" data-thing-field="">
-      {/* Seçilenler — başlık ve ipe asılı özellikleri */}
+      {/* Seçilenler — yalnız başlık; özellikleri kutunun altında
+          (ThingFieldFeatures, LedgerField çizer) */}
       {selected.map((sid) => {
         const th = data.things.find((x) => x.id === sid);
-        const mods = [...featureIds, ...(th?.extraModIds ?? [])]
-          .map((id) => data.mods.get(id))
-          .filter((m): m is Mod => !!m && m.valueType !== "object");
-        const cur = states?.get(sid) ?? {};
+        const summary = summaryOf(states?.get(sid), featureIds, data.mods);
         return (
-          <div key={sid} className="flex flex-col" data-thing-chip="">
+          <div key={sid} data-thing-chip="">
             <ThingHeader
               name={th?.name ?? "?"}
-              listName={coll?.name}
+              listName={summary ? `${t("objects.current")}: ${summary}` : coll?.name}
               color={listColor}
               icon={coll?.icon}
               brutal={brutal}
               onRemove={() => unpick(sid)}
               removeLabel={t("entry.removeFromEntry")}
             />
-            {ctx && mods.length > 0 && (
-              <ThingRail color={listColor} brutal={brutal}>
-                {mods.map((m) => (
-                  <LedgerField
-                    key={m.id}
-                    mod={asThingField(m, sid)}
-                    icon={modAtomIcon({ name: m.name, entryType: measureOf(m) })}
-                    color={modColor(m)}
-                    value={ctx.get(sid, m.id) ?? (m.valueType === "boolean" ? "false" : "")}
-                    onChange={(v) => ctx.set(sid, m.id, v)}
-                    recent={cur[m.id] ? [cur[m.id].value] : []}
-                    entryDate={ctx.entryDate}
-                  />
-                ))}
-              </ThingRail>
-            )}
           </div>
         );
       })}
@@ -255,5 +237,74 @@ export function ThingField({
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * Seçilen nesnelerin özellik alanları — Nesne türündeki kutunun hemen
+ * altında, başlıktan inen ipe asılı. Çoklu seçimde her nesnenin adı küçük
+ * bir başlıkla. Değerler formun ThingValuesContext'ine yazılır.
+ */
+export function ThingFieldFeatures({
+  collectionId,
+  value,
+}: {
+  collectionId?: string;
+  value: string;
+}) {
+  const brutal = useSkin() === "brutal";
+  const ctx = useThingValues();
+  const selected = splitThingIds(value);
+  const key = selected.join(",");
+  const data = useLiveQuery(async () => {
+    if (!collectionId || !key) return null;
+    const [collection, things, mods] = await Promise.all([
+      db.collections.get(collectionId),
+      db.things.bulkGet(key.split(",")),
+      db.mods.toArray(),
+    ]);
+    const current = new Map<string, ThingCurrent>();
+    for (const id of key.split(",")) current.set(id, await currentThingValues(id, ctx?.entryId));
+    return { collection, things, mods: new Map(mods.map((m) => [m.id, m])), current };
+  }, [collectionId, key, ctx?.entryId]);
+  if (!ctx || !data) return null;
+  const color = data.collection?.color ?? "#94a3b8";
+  const blocks = data.things
+    .filter((th): th is NonNullable<typeof th> => !!th)
+    .map((th) => ({
+      th,
+      mods: [...(data.collection?.modIds ?? []), ...(th.extraModIds ?? [])]
+        .map((id) => data.mods.get(id))
+        .filter((m): m is Mod => !!m && m.valueType !== "object"),
+    }))
+    .filter((b) => b.mods.length > 0);
+  if (!blocks.length) return null;
+  return (
+    <ThingRail color={color} brutal={brutal}>
+      {blocks.map(({ th, mods }) => (
+        <div key={th.id} className="flex flex-col gap-2" data-thing-features="">
+          {blocks.length > 1 && (
+            <span className={cn("px-1 text-[12px] font-black", brutal ? "text-[#111]/70" : "text-muted-foreground")}>
+              {th.name}
+            </span>
+          )}
+          {mods.map((m) => {
+            const cur = data.current.get(th.id)?.[m.id];
+            return (
+              <LedgerField
+                key={m.id}
+                mod={asThingField(m, th.id)}
+                icon={modAtomIcon({ name: m.name, entryType: measureOf(m) })}
+                color={modColor(m)}
+                value={ctx.get(th.id, m.id) ?? (m.valueType === "boolean" ? "false" : "")}
+                onChange={(v) => ctx.set(th.id, m.id, v)}
+                recent={cur ? [cur.value] : []}
+                entryDate={ctx.entryDate}
+              />
+            );
+          })}
+        </div>
+      ))}
+    </ThingRail>
   );
 }

@@ -20,7 +20,7 @@ import {
   type ModKind,
   type SeriesFrame,
 } from "@/lib/analytics";
-import { formatDate } from "@/lib/utils";
+import { formatDate, withUnit } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatTile } from "@/components/analytics/stat-tile";
@@ -145,7 +145,7 @@ export function ThingAnalyticsPage({ thingId }: { thingId: string }) {
             if (!m || m.valueType === "datetime-range") return null;
             if (m.valueType === "boolean") return v.value === "true" ? m.name : null;
             if (m.valueType === "number")
-              return m.unit ? `${fmtNum(Number(v.value))} ${m.unit}` : `${m.name} ${fmtNum(Number(v.value))}`;
+              return m.unit ? withUnit(fmtNum(Number(v.value)), m.unit) : `${m.name} ${fmtNum(Number(v.value))}`;
             return v.value;
           })
           .filter(Boolean) as string[];

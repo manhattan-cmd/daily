@@ -31,7 +31,7 @@ import {
 import { confirmDialog } from "@/components/ui/confirm";
 import { modColor } from "@/lib/mod-color";
 import { routes } from "@/lib/routes";
-import { toLocalDateValue } from "@/lib/utils";
+import { toLocalDateValue, withUnit } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Mod } from "@/types";
 
@@ -74,7 +74,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
           ? v.value === "true" ? m.name : null
           : m.valueType === "number"
             ? m.unit
-              ? `${Number(v.value).toLocaleString("tr-TR")} ${m.unit}`
+              ? withUnit(Number(v.value).toLocaleString("tr-TR"), m.unit)
               : `${m.name} ${Number(v.value).toLocaleString("tr-TR")}`
             : m.valueType === "datetime-range"
               ? null
@@ -163,7 +163,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
               : m.valueType === "boolean"
                 ? cur.value === "true" ? t("entry.yes") : t("entry.no")
                 : m.valueType === "number" && Number.isFinite(n)
-                  ? `${n.toLocaleString("tr-TR")}${m.unit ? " " + m.unit : ""}`
+                  ? withUnit(n.toLocaleString("tr-TR"), m.unit)
                   : cur.value;
             return (
               <div

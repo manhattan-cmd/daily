@@ -4,7 +4,7 @@ import { createContext, useContext } from "react";
 import { X } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { measureOf, type CategoryModifierWithType } from "@/lib/db/queries";
-import { cn } from "@/lib/utils";
+import { cn, withUnit } from "@/lib/utils";
 import type { Mod } from "@/types";
 
 export type ThingCurrent = Record<string, { value: string; at: number }>;
@@ -110,7 +110,7 @@ export function summaryOf(cur: ThingCurrent | undefined, modIds: string[], mods:
       if (m.valueType === "number") {
         const n = Number(c.value);
         const s = Number.isFinite(n) ? n.toLocaleString("tr-TR") : c.value;
-        return m.unit ? `${s} ${m.unit}` : `${m.name} ${s}`;
+        return m.unit ? withUnit(s, m.unit) : `${m.name} ${s}`;
       }
       return c.value;
     })

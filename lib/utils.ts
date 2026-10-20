@@ -53,6 +53,15 @@ export function formatTime(timestamp: number): string {
   return dateFormatter(intlTag(), { hour: "2-digit", minute: "2-digit" }).format(timestamp);
 }
 
+/**
+ * Sayı + birim. Noktalama ile başlayan birim sayıya bitişir: ". Sayfa" →
+ * "214. Sayfa" (sıra sayısı), "%" → "12%"; diğerleri boşlukla: "40 dk".
+ */
+export function withUnit(value: string, unit?: string): string {
+  if (!unit) return value;
+  return /^[.,%°'’]/.test(unit) ? `${value}${unit}` : `${value} ${unit}`;
+}
+
 export function formatDate(timestamp: number): string {
   const date = new Date(timestamp);
   const today = new Date();
