@@ -87,10 +87,12 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
 
   // Kapsamdaki özellikler, kayıt sayılarıyla
   const features = useLiveQuery(async () => {
-    const [values, mods] = await Promise.all([
+    const [allValues, mods] = await Promise.all([
       db.entryValues.where("entryId").anyOf(scopeIds).toArray(),
       db.mods.toArray(),
     ]);
+    // Nesneye ait değerler nesne analizinde
+    const values = allValues.filter((v) => !v.thingId);
     const modById = new Map(mods.map((m) => [m.id, m]));
     const entryCat = new Map(entries.map((e) => [e.id, subById.get(e.subcategoryId)?.categoryId]));
     const agg = new Map<string, { ids: Set<string>; byCat: Map<string, number> }>();
@@ -116,7 +118,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
   // Seçili özelliğin bu dönem geçtiği girdiler (yer süzgeci)
   const metricEntryIds = useLiveQuery(async () => {
     if (metricId === "count") return null;
-    const vals = await db.entryValues.where("modId").equals(metricId).toArray();
+    const vals = (await db.entryValues.where("modId").equals(metricId).toArray()).filter((v) => !v.thingId);
     return new Set(vals.map((v) => v.entryId).filter((id) => periodIds.has(id)));
   }, [metricId, periodIds]);
   const currentMod =

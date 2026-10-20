@@ -78,7 +78,7 @@ function subLabelOf(e: EntryWithContext): string {
 /** İlk sayısal değeri kısa etiket olarak göster (örn. "420 ₺") */
 function valueLabelOf(e: EntryWithContext): string | undefined {
   for (const v of e.values) {
-    if (!v.entryType) continue;
+    if (!v.entryType || v.thingId) continue;
     const vt = v.entryType.valueType ?? "number";
     if (vt !== "number") continue;
     const n = Number(v.value);

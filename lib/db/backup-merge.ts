@@ -254,6 +254,7 @@ export function reconcileBackup(
       ...(th.extraModIds ? { extraModIds: th.extraModIds.map((m) => at(m)!) } : {}),
     })),
     thingValues: (data.thingValues ?? []).map((v) => ({ ...v, modId: at(v.modId)! })),
+    structureThings: (data.structureThings ?? []).map((l) => ({ ...l, targetId: at(l.targetId)! })),
     goals: ((data.goals ?? []) as Goal[]).map((g) => ({
       ...g,
       subcategoryId: at(g.subcategoryId)!,

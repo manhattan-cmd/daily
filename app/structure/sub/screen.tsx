@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { ModifierSection } from "@/components/structure/modifier-section";
+import { ThingSection } from "@/components/structure/thing-section";
 import { SubCategoryTree } from "@/components/structure/subcategory-tree";
 import { DeleteSubCategoryDialog } from "@/components/structure/delete-subcategory-dialog";
 import { RecentEntriesSection } from "@/components/structure/recent-entries-section";
@@ -141,6 +142,9 @@ export function SubCategoryDetailPage({
           targetName={subcategory.name}
         />
       )}
+
+      {/* Bağlı nesneler — girdi formunda hazır çıkar */}
+      {subcategory && <ThingSection targetType="subcategory" targetId={subcategoryId} />}
 
       {/* Çocuk alt kategori ağacı */}
       {category && (

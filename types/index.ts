@@ -267,6 +267,26 @@ export interface Thing {
   updatedAt: number;
 }
 
+/**
+ * Yapıya bağlı nesne ya da liste — özellik ataması gibi: kaleme (ya da
+ * kategoriye) bağlanan nesne o kalemin girdi formunda hazır çıkar.
+ *  - thingId: belirli bir nesne (Araba sürme › Dacia Duster) — formda bloğu
+ *    alanlarıyla hazır; değer yazılınca ya da işaretlenince iliştirilir
+ *  - collectionId: bütün liste (Okuma › Kitaplarım) — formda "hangisi?"
+ *    seçicisi hazır
+ * Kategoriye bağlanan alt kalemlerde de çıkar; kopyalanmaz, hesaplanır.
+ */
+export interface StructureThing {
+  id: string;
+  targetType: "category" | "subcategory";
+  targetId: string;
+  thingId?: string;
+  collectionId?: string;
+  order: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
 /** Nesnenin bir özelliğinin değeri — girdi değeriyle aynı biçimde metin */
 export interface ThingValue {
   id: string;

@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 import { db } from "./index";
-import type { Collection, Entry, Thing, ThingValue } from "@/types";
+import type { Collection, Entry, StructureThing, Thing, ThingValue } from "@/types";
 
 /**
  * NESNELER — koleksiyonlar, üyeleri ve üyelerin özellik değerleri.
@@ -118,7 +118,10 @@ export async function deleteCollection(
     objectModsOf(collectionId),
   ]);
   if (things || mods.length) return { ok: false, things, mods: mods.length };
-  await db.collections.delete(collectionId);
+  await db.transaction("rw", [db.collections, db.structureThings], async () => {
+    await db.structureThings.where("collectionId").equals(collectionId).delete();
+    await db.collections.delete(collectionId);
+  });
   return { ok: true };
 }
 
@@ -298,9 +301,83 @@ export async function deleteThing(
 ): Promise<{ ok: true } | { ok: false; entries: number }> {
   const used = await db.entries.where("thingIds").equals(thingId).count();
   if (used) return { ok: false, entries: used };
-  await db.transaction("rw", [db.things, db.thingValues], async () => {
+  await db.transaction("rw", [db.things, db.thingValues, db.structureThings], async () => {
     await db.thingValues.where("thingId").equals(thingId).delete();
+    await db.structureThings.where("thingId").equals(thingId).delete();
     await db.things.delete(thingId);
   });
   return { ok: true };
+}
+
+// ============ Yapıya bağlı nesneler ============
+
+export async function listStructureLinks(
+  targetType: "category" | "subcategory",
+  targetId: string
+): Promise<StructureThing[]> {
+  const rows = await db.structureThings
+    .where("[targetType+targetId]")
+    .equals([targetType, targetId])
+    .toArray();
+  return rows.sort((a, b) => a.order - b.order || a.createdAt - b.createdAt);
+}
+
+/** Bir nesneyi ya da bütün bir listeyi kaleme / kategoriye bağla (varsa dokunma) */
+export async function linkToStructure(
+  targetType: "category" | "subcategory",
+  targetId: string,
+  ref: { thingId: string } | { collectionId: string }
+): Promise<void> {
+  const existing = await listStructureLinks(targetType, targetId);
+  const same = existing.find((l) =>
+    "thingId" in ref ? l.thingId === ref.thingId : l.collectionId === ref.collectionId
+  );
+  if (same) return;
+  await db.structureThings.add({
+    id: id(),
+    targetType,
+    targetId,
+    ...ref,
+    order: existing.length + 1,
+    createdAt: now(),
+    updatedAt: now(),
+  });
+}
+
+export async function unlinkStructure(linkId: string): Promise<void> {
+  await db.structureThings.delete(linkId);
+}
+
+/**
+ * Kalemin formunda hazır çıkacak bağlar: kalemin kendisi, üst kalemleri ve
+ * kategorisi (yakından uzağa). Kategori kökünde yalnız kategorinin bağları.
+ * `from`: bağın geldiği yerin adı — yapı sayfasında "üstten" notu için.
+ */
+export async function effectiveLinksForSub(
+  subcategoryId: string
+): Promise<(StructureThing & { inherited: boolean; from: string })[]> {
+  const sub = await db.subcategories.get(subcategoryId);
+  if (!sub) return [];
+  const out: (StructureThing & { inherited: boolean; from: string })[] = [];
+  const seen = new Set<string>();
+  const push = (rows: StructureThing[], inherited: boolean, from: string) => {
+    for (const r of rows) {
+      const key = r.thingId ? `t:${r.thingId}` : `c:${r.collectionId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ ...r, inherited, from });
+    }
+  };
+  if (!sub.isCategoryRoot) {
+    push(await listStructureLinks("subcategory", sub.id), false, sub.name);
+    let cur = sub.parentId ? await db.subcategories.get(sub.parentId) : undefined;
+    let hops = 0;
+    while (cur && hops++ < 20) {
+      push(await listStructureLinks("subcategory", cur.id), true, cur.name);
+      cur = cur.parentId ? await db.subcategories.get(cur.parentId) : undefined;
+    }
+  }
+  const cat = await db.categories.get(sub.categoryId);
+  push(await listStructureLinks("category", sub.categoryId), !sub.isCategoryRoot, cat?.name ?? "");
+  return out;
 }

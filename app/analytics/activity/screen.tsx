@@ -67,10 +67,12 @@ export function ActivityAnalyticsPage({
     const ids = activities.map((a) => a.id);
     const entries = await db.entries.where("activityId").anyOf(ids).toArray();
     const values = entries.length
-      ? await db.entryValues
-          .where("entryId")
-          .anyOf(entries.map((e) => e.id))
-          .toArray()
+      ? (
+          await db.entryValues
+            .where("entryId")
+            .anyOf(entries.map((e) => e.id))
+            .toArray()
+        ).filter((v) => !v.thingId) // nesneye ait değerler nesne analizinde
       : [];
     const [subs, cats, allMods] = await Promise.all([
       db.subcategories.toArray(),

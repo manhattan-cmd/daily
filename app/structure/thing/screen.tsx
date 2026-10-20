@@ -146,7 +146,12 @@ export function ThingScreen({ thingId }: { thingId: string }) {
 
   return (
     <>
-      <BrutTopStrip back={back} onEdit={() => setRenameOpen(true)} onDelete={onDelete} />
+      <BrutTopStrip
+        back={back}
+        analyticsHref={routes.analyticsThing(thingId)}
+        onEdit={() => setRenameOpen(true)}
+        onDelete={onDelete}
+      />
       <BrutHeroCard color={color} icon={c?.icon} overline={c?.name ?? ""} title={th.name} />
 
       {/* Arşiv durumu */}

@@ -2,13 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Boxes, Plus, Search, X } from "lucide-react";
+import { Boxes, Check, Plus, Search, X } from "lucide-react";
 import { db } from "@/lib/db";
 import {
   createCollection,
   createThing,
   currentThingValues,
+  effectiveLinksForSub,
   recentThingsForSub,
+  thingUsage,
 } from "@/lib/db/things";
 import { measureOf, type AttachedThing, type CategoryModifierWithType } from "@/lib/db/queries";
 import { LedgerField } from "@/components/forms/ledger-field";
@@ -68,14 +70,22 @@ export function EntryThings({
   const [open, setOpen] = useState(false);
 
   const data = useLiveQuery(async () => {
-    const [collections, things, mods, recent] = await Promise.all([
+    const [collections, things, mods, recent, links] = await Promise.all([
       db.collections.toArray(),
       db.things.toArray(),
       db.mods.toArray(),
       recentThingsForSub(subcategoryId),
+      effectiveLinksForSub(subcategoryId),
     ]);
     collections.sort((a, b) => a.order - b.order);
+    // Bağlı listelerin seçicisinde son kullanılan önde
+    const usage = new Map<string, number>();
+    for (const l of links)
+      if (l.collectionId)
+        for (const [tid, u] of await thingUsage(l.collectionId)) usage.set(tid, u.last);
     return {
+      links,
+      usage,
       collections,
       things,
       byThing: new Map(things.map((th) => [th.id, th])),
@@ -85,8 +95,15 @@ export function EntryThings({
     };
   }, [subcategoryId]);
 
-  // İliştirilen nesnelerin güncel değerleri — alanların "Son" önerisi
-  const attachedIds = value.map((a) => a.thingId).join(",");
+  // Yapıya bağlı ama bu girdiye henüz iliştirilmemiş nesneler: formda hazır,
+  // sönük blok. Değer yazılınca ya da işaretlenince iliştirilir.
+  const ghostIds = (data?.links ?? [])
+    .filter((l) => l.thingId && !value.some((a) => a.thingId === l.thingId))
+    .map((l) => l.thingId!)
+    .filter((tid) => data?.byThing.get(tid) && !data.byThing.get(tid)!.archivedAt);
+
+  // İliştirilen ve hazır bekleyen nesnelerin güncel değerleri — "Son" önerisi
+  const attachedIds = [...value.map((a) => a.thingId), ...ghostIds].join(",");
   const current = useLiveQuery(async () => {
     const out = new Map<string, Record<string, { value: string; at: number }>>();
     for (const tid of attachedIds ? attachedIds.split(",") : [])
@@ -101,90 +118,162 @@ export function EntryThings({
   const detach = (thingId: string) => onChange(value.filter((a) => a.thingId !== thingId));
   const setVal = (thingId: string, modId: string, v: string) =>
     onChange(
-      value.map((a) => (a.thingId === thingId ? { ...a, values: { ...a.values, [modId]: v } } : a))
+      value.some((a) => a.thingId === thingId)
+        ? value.map((a) =>
+            a.thingId === thingId ? { ...a, values: { ...a.values, [modId]: v } } : a
+          )
+        : [...value, { thingId, values: { [modId]: v } }]
     );
 
   if (!data) return null;
 
+  // Bağlı listeler: o listeden henüz iliştirilen yoksa "hangisi?" satırı
+  const listSlots = data.links
+    .filter((l) => l.collectionId && data.byColl.get(l.collectionId))
+    .filter(
+      (l) => !value.some((a) => data.byThing.get(a.thingId)?.collectionId === l.collectionId)
+    )
+    .map((l) => data.byColl.get(l.collectionId!)!);
+
+  const block = (thingId: string, values: Record<string, string>, ghost: boolean) => {
+    const th = data.byThing.get(thingId);
+    const coll = th ? data.byColl.get(th.collectionId) : undefined;
+    const color = coll?.color ?? "#94a3b8";
+    const modIds = [...(coll?.modIds ?? []), ...(th?.extraModIds ?? [])];
+    const mods = modIds.map((id) => data.mods.get(id)).filter((m): m is Mod => !!m);
+    const cur = current?.get(thingId) ?? {};
+    return (
+      <div
+        key={thingId}
+        data-attached-thing={ghost ? undefined : ""}
+        data-ghost-thing={ghost ? "" : undefined}
+        className={cn(
+          "flex flex-col gap-2 rounded-2xl p-2.5 transition-opacity",
+          brutal
+            ? cn("border-2 border-[#111] bg-white", ghost ? "border-dashed" : "shadow-[3px_3px_0_#111]")
+            : "ring-1 ring-inset"
+        )}
+        style={brutal ? undefined : { background: `${color}12`, ["--tw-ring-color" as string]: `${color}40` }}
+      >
+        <div className="flex items-center gap-2.5">
+          <span
+            className={cn(
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]",
+              brutal && "border-[1.5px] border-[#111]",
+              ghost && "opacity-60"
+            )}
+            style={{ background: color }}
+          >
+            {coll?.icon ? (
+              <SymbolIcon name={coll.icon} size={19} style={{ color: "#111" }} />
+            ) : (
+              <Boxes className="h-[18px] w-[18px] text-[#111]" strokeWidth={2.4} />
+            )}
+          </span>
+          <span className={cn("min-w-0 flex-1 leading-tight", ghost && "opacity-70")}>
+            <span className={cn("block truncate text-[15px] font-black", brutal && "text-[#111]")}>
+              {th?.name ?? "?"}
+            </span>
+            <span className={cn("block truncate text-[11px] font-semibold", brutal ? "text-[#111]/55" : "text-muted-foreground")}>
+              {ghost ? t("objects.readyHere") : coll?.name}
+            </span>
+          </span>
+          {/* İşaret: bu girdiye iliştirildi mi */}
+          <button
+            type="button"
+            onClick={() => (ghost ? attach(thingId) : detach(thingId))}
+            aria-pressed={!ghost}
+            aria-label={ghost ? t("objects.attach") : t("entry.removeFromEntry")}
+            data-thing-check=""
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]",
+              brutal ? "border-2 border-[#111]" : "ring-1 ring-inset ring-[var(--ln-2)]"
+            )}
+            style={{ background: ghost ? (brutal ? "#fff" : "transparent") : color }}
+          >
+            {!ghost && <Check className="h-4 w-4 text-[#111]" strokeWidth={3.2} />}
+          </button>
+        </div>
+        {mods.length > 0 ? (
+          <div className={cn("flex flex-col gap-2", ghost && "opacity-75")}>
+            {mods.map((m) => (
+              <LedgerField
+                key={m.id}
+                mod={asField(m, thingId)}
+                icon={modAtomIcon({ name: m.name, entryType: measureOf(m) })}
+                color={modColor(m)}
+                value={values[m.id] ?? (m.valueType === "boolean" ? "false" : "")}
+                onChange={(v) => setVal(thingId, m.id, v)}
+                recent={cur[m.id] ? [cur[m.id].value] : []}
+                entryDate={entryDate}
+              />
+            ))}
+          </div>
+        ) : (
+          !ghost && (
+            <p className={cn("px-1 text-[11.5px]", brutal ? "text-[#111]/55" : "text-muted-foreground")}>
+              {t("objects.noFeaturesYet")}
+            </p>
+          )
+        )}
+      </div>
+    );
+  };
+
   return (
     <section className="mt-5 flex flex-col gap-2" data-entry-things="">
-      {(value.length > 0 || open) && (
+      {(value.length > 0 || open || ghostIds.length > 0 || listSlots.length > 0) && (
         <h3 className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t("objects.inEntry")}
         </h3>
       )}
 
-      {value.map((a) => {
-        const th = data.byThing.get(a.thingId);
-        const coll = th ? data.byColl.get(th.collectionId) : undefined;
-        const color = coll?.color ?? "#94a3b8";
-        const modIds = [...(coll?.modIds ?? []), ...(th?.extraModIds ?? [])];
-        const mods = modIds.map((id) => data.mods.get(id)).filter((m): m is Mod => !!m);
-        const cur = current?.get(a.thingId) ?? {};
+      {value.map((a) => block(a.thingId, a.values, false))}
+      {ghostIds.map((tid) => block(tid, {}, true))}
+
+      {/* Bağlı listeler — "Kitaplarım: hangisi?" */}
+      {listSlots.map((c) => {
+        const opts = data.things
+          .filter((th) => th.collectionId === c.id && !th.archivedAt && !value.some((a) => a.thingId === th.id))
+          .sort((x, y) => (data.usage.get(y.id) ?? y.createdAt) - (data.usage.get(x.id) ?? x.createdAt))
+          .slice(0, 8);
         return (
           <div
-            key={a.thingId}
-            data-attached-thing=""
+            key={c.id}
+            data-list-slot=""
             className={cn(
               "flex flex-col gap-2 rounded-2xl p-2.5",
-              brutal ? "border-2 border-[#111] bg-white shadow-[3px_3px_0_#111]" : "ring-1 ring-inset"
+              brutal ? "border-2 border-dashed border-[#111] bg-white" : "ring-1 ring-inset ring-[var(--ln-2)]"
             )}
-            style={brutal ? undefined : { background: `${color}12`, ["--tw-ring-color" as string]: `${color}40` }}
           >
-            <div className="flex items-center gap-2.5">
-              <span
-                className={cn(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]",
-                  brutal && "border-[1.5px] border-[#111]"
-                )}
-                style={{ background: color }}
-              >
-                {coll?.icon ? (
-                  <SymbolIcon name={coll.icon} size={19} style={{ color: "#111" }} />
-                ) : (
-                  <Boxes className="h-[18px] w-[18px] text-[#111]" strokeWidth={2.4} />
-                )}
-              </span>
-              <span className="min-w-0 flex-1 leading-tight">
-                <span className={cn("block truncate text-[15px] font-black", brutal && "text-[#111]")}>
-                  {th?.name ?? "?"}
-                </span>
-                <span className={cn("block truncate text-[11px] font-semibold", brutal ? "text-[#111]/55" : "text-muted-foreground")}>
-                  {coll?.name}
-                </span>
-              </span>
+            <span className={cn("px-1 text-[13px] font-black", brutal && "text-[#111]")}>
+              {t("objects.whichOne", { list: c.name })}
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {opts.map((th) => (
+                <button
+                  key={th.id}
+                  type="button"
+                  data-slot-option=""
+                  onClick={() => attach(th.id)}
+                  className={cn(
+                    "flex min-h-9 max-w-full items-center gap-1.5 rounded-xl px-3 py-1.5 text-[13.5px] font-semibold",
+                    brutal ? "border-2 border-[#111] bg-white text-[#111]" : "bg-black/25 text-muted-foreground ring-1 ring-inset ring-[var(--ln-2)]"
+                  )}
+                >
+                  <span className="h-2.5 w-2.5 shrink-0 rotate-45 rounded-[2px]" style={{ background: c.color ?? "#94a3b8" }} />
+                  <span className="truncate">{th.name}</span>
+                </button>
+              ))}
               <button
                 type="button"
-                onClick={() => detach(a.thingId)}
-                aria-label={t("entry.removeFromEntry")}
-                className={cn(
-                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-                  brutal ? "text-[#111]/60 hover:bg-[#111]/5" : "text-muted-foreground hover:bg-[var(--sf-2)]"
-                )}
+                onClick={() => setOpen(true)}
+                className="flex min-h-9 items-center gap-1 rounded-xl px-3 text-[13px] font-semibold text-muted-foreground hover:bg-[var(--sf-2)]"
               >
-                <X className="h-4 w-4" />
+                <Search className="h-3.5 w-3.5" />
+                {opts.length ? t("objects.more") : t("objects.typeToAdd")}
               </button>
             </div>
-            {mods.length > 0 ? (
-              <div className="flex flex-col gap-2">
-                {mods.map((m) => (
-                  <LedgerField
-                    key={m.id}
-                    mod={asField(m, a.thingId)}
-                    icon={modAtomIcon({ name: m.name, entryType: measureOf(m) })}
-                    color={modColor(m)}
-                    value={a.values[m.id] ?? (m.valueType === "boolean" ? "false" : "")}
-                    onChange={(v) => setVal(a.thingId, m.id, v)}
-                    recent={cur[m.id] ? [cur[m.id].value] : []}
-                    entryDate={entryDate}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p className={cn("px-1 text-[11.5px]", brutal ? "text-[#111]/55" : "text-muted-foreground")}>
-                {t("objects.noFeaturesYet")}
-              </p>
-            )}
           </div>
         );
       })}

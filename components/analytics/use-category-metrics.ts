@@ -267,10 +267,12 @@ export async function loadCategoryMetrics({
       : fetched;
     const excludedEntryCount = fetched.length - entries.length;
     const values = entries.length
-      ? await db.entryValues
-          .where("entryId")
-          .anyOf(entries.map((e) => e.id))
-          .toArray()
+      ? (
+          await db.entryValues
+            .where("entryId")
+            .anyOf(entries.map((e) => e.id))
+            .toArray()
+        ).filter((v) => !v.thingId) // nesneye ait değerler nesne analizinde
       : [];
 
     // Metrik adayları: yalnızca kapsamdaki girdilerde GERÇEKTEN kullanılanlar.

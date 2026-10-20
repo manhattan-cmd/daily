@@ -39,6 +39,10 @@ export const routes = {
   /** Analiz: alt kategori — `extra` ek sorgu ("range=tum&metric=count" gibi) */
   analyticsSub: (categoryId: string, subcategoryId: string, extra?: string) =>
     `/analytics/sub?${q({ cat: categoryId, id: subcategoryId }, extra)}`,
+  /** Analiz: nesne listesi — nesneler yan yana */
+  analyticsCollection: (collectionId: string) => `/analytics/collection?${q({ id: collectionId })}`,
+  /** Analiz: tek nesne — iliştirildiği bütün girdiler */
+  analyticsThing: (thingId: string) => `/analytics/thing?${q({ id: thingId })}`,
   /** Analiz: bir aktivitenin geçmişi */
   activity: (name: string) => `/analytics/activity?${q({ name })}`,
   /** Analiz: dönem görünümü — anahtar lib/period biçiminde ("m-2026-09").

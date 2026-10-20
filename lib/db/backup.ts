@@ -18,6 +18,7 @@ import type {
   Collection,
   Thing,
   ThingValue,
+  StructureThing,
 } from "@/types";
 
 /**
@@ -54,6 +55,7 @@ export const BACKUP_TABLES = [
   "collections",
   "things",
   "thingValues",
+  "structureThings",
 ] as const;
 
 export type BackupTable = (typeof BACKUP_TABLES)[number];
@@ -102,6 +104,7 @@ export interface BackupData {
   collections?: Collection[];
   things?: Thing[];
   thingValues?: ThingValue[];
+  structureThings?: StructureThing[];
 }
 
 export interface BackupPayload {

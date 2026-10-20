@@ -17,6 +17,7 @@ import type {
   Collection,
   Thing,
   ThingValue,
+  StructureThing,
 } from "@/types";
 
 export class RoutineDB extends Dexie {
@@ -37,6 +38,7 @@ export class RoutineDB extends Dexie {
   collections!: Table<Collection, string>;
   things!: Table<Thing, string>;
   thingValues!: Table<ThingValue, string>;
+  structureThings!: Table<StructureThing, string>;
 
   constructor() {
     super("RoutineDB");
@@ -435,6 +437,11 @@ export class RoutineDB extends Dexie {
       entries:
         "id, subcategoryId, occurredAt, createdAt, title, linkedGroupId, activityId, updatedAt, *thingIds",
       entryValues: "id, entryId, fieldId, entryTypeId, modId, updatedAt, thingId",
+    });
+
+    // v23 — Yapıya bağlı nesneler / listeler (kalemin formunda hazır çıkar)
+    this.version(23).stores({
+      structureThings: "id, [targetType+targetId], thingId, collectionId, updatedAt",
     });
 
     this.stampTimestamps();

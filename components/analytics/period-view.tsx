@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ObjectsCard } from "@/components/analytics/objects-card";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -615,6 +616,9 @@ export function PeriodView({
           />
         </div>
         )}
+
+        {/* Nesneler — listeler ve dönemdeki girdileri, liste analizine gider */}
+        {!selectedCat && <ObjectsCard start={period.start} end={period.end} />}
 
         {/* Seçilen yerin analizi — bandın seçicileriyle belirlenen özellik
             ve yer; kırılımdan inmek de yeri değiştirir */}

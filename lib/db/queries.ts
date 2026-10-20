@@ -1567,7 +1567,8 @@ export async function listRecentModValues(
   const ids = recent.slice(0, 30).map((e) => e.id);
   if (!ids.length) return {};
   const order = new Map(ids.map((id, i) => [id, i]));
-  const vals = await db.entryValues.where("entryId").anyOf(ids).toArray();
+  // Nesneye ait değerler (km) bu kalemin değer önerilerine karışmasın
+  const vals = (await db.entryValues.where("entryId").anyOf(ids).toArray()).filter((v) => !v.thingId);
   vals.sort((a, b) => (order.get(a.entryId) ?? 0) - (order.get(b.entryId) ?? 0));
   const out: Record<string, string[]> = {};
   for (const v of vals) {
@@ -2687,7 +2688,9 @@ export async function structureSummary(
   let summary: StructureSummary["money"];
   const metrics: StructureSummary["metrics"] = [];
   const vals = entries.length
-    ? await db.entryValues.where("entryId").anyOf(entries.map((e) => e.id)).toArray()
+    ? (await db.entryValues.where("entryId").anyOf(entries.map((e) => e.id)).toArray()).filter(
+        (v) => !v.thingId
+      )
     : [];
   // Bağlı olanlar önce, sonra alt kalemlerde girilmiş diğer sayısal özellikler
   const extraIds = [...new Set(vals.map((v) => v.modId).filter((x): x is string => !!x))];

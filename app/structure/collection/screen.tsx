@@ -106,7 +106,12 @@ export function CollectionScreen({ collectionId }: { collectionId: string }) {
 
   return (
     <>
-      <BrutTopStrip back="/structure/objects" onEdit={() => setEditOpen(true)} onDelete={onDelete} />
+      <BrutTopStrip
+        back="/structure/objects"
+        analyticsHref={routes.analyticsCollection(collectionId)}
+        onEdit={() => setEditOpen(true)}
+        onDelete={onDelete}
+      />
       <BrutHeroCard
         color={color}
         icon={c.icon}
