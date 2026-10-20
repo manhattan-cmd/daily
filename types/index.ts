@@ -370,6 +370,10 @@ export interface Entry {
   /** Takma adlar — otomatik bağ önerisi bunlarla da eşleşir (indekssiz) */
   aliases?: string[];
   occurredAt: number;
+  /** Kaydedildiği cihazın saat dilimi (IANA, ör. "Europe/Istanbul"). Eski
+   *  girdilerde yok. Şimdilik yalnız saklanıyor; yurt dışında girilen saatin
+   *  o yerin saatiyle gösterilmesi sonraya. */
+  tz?: string;
   createdAt: number;
   updatedAt: number;
   linkedGroupId?: string;

@@ -16,10 +16,12 @@ import { type Category, type SubCategory } from "@/types";
 import { db } from "@/lib/db";
 import {
   createSubCategory,
+  listModifiersForTarget,
   moveSubCategory,
   updateSubCategory,
 } from "@/lib/db/queries";
 import { IconGrid } from "@/components/structure/icon-picker";
+import { modColor } from "@/lib/mod-color";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 
@@ -99,6 +101,8 @@ export function SubCategoryForm({
     parentId?: string;
   } | null>(null);
   const [locationOpen, setLocationOpen] = useState(false);
+  // Üstten gelecek özelliklerden işareti kaldırılanlar (atama id'leri)
+  const [skipInherit, setSkipInherit] = useState<Set<string>>(() => new Set());
 
   // Açılışta formu prop'lardan tazele — render sırasında ayarlama kalıbı
   const [wasOpen, setWasOpen] = useState(open);
@@ -115,6 +119,7 @@ export function SubCategoryForm({
           : null
       );
       setLocationOpen(false);
+      setSkipInherit(new Set());
     }
   }
 
@@ -137,6 +142,15 @@ export function SubCategoryForm({
     ]);
     return { cat, subs };
   }, [isEdit, open, categoryId]);
+
+  // Üstün özellikleri — yeni kalem bunları alarak doğar, kullanıcı
+  // istemediklerinin işaretini kaldırabilir
+  const inherited = useLiveQuery(async () => {
+    if (isEdit || !open) return undefined;
+    return parentSubcategoryId
+      ? listModifiersForTarget("subcategory", parentSubcategoryId)
+      : listModifiersForTarget("category", categoryId);
+  }, [isEdit, open, categoryId, parentSubcategoryId]);
 
   // Nereye ekleniyor: kategori › (varsa) üst alt kategori zinciri
   const parentSub = parentSubcategoryId
@@ -250,6 +264,7 @@ export function SubCategoryForm({
           parentId: parentSubcategoryId,
           name: nameToSave.trim(),
           icon,
+          skipInherit: [...skipInherit],
         });
         onSaved?.(sub);
       }
@@ -366,6 +381,52 @@ export function SubCategoryForm({
                 </button>
               ))}
             </div>
+          </FormSection>
+        )}
+
+        {/* Üstten gelecek özellikler — varsayılan hepsi; dokununca çıkar/geri gelir */}
+        {!isEdit && inherited && inherited.length > 0 && (
+          <FormSection label={t("tree.inheritedFeatures")}>
+            <div className="flex flex-wrap gap-1.5">
+              {inherited.map((a) => {
+                const on = !skipInherit.has(a.id);
+                const c = modColor(a.mod ?? { name: a.name ?? a.entryType.name });
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() =>
+                      setSkipInherit((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(a.id)) next.delete(a.id);
+                        else next.add(a.id);
+                        return next;
+                      })
+                    }
+                    data-inherit=""
+                    className={cn(
+                      SUGGESTION_CHIP,
+                      "pl-2",
+                      !on && "text-muted-foreground line-through opacity-60"
+                    )}
+                  >
+                    <span
+                      className="h-3 w-3 shrink-0 rounded-full"
+                      style={
+                        on
+                          ? { backgroundColor: c }
+                          : { boxShadow: `inset 0 0 0 1.5px ${c}` }
+                      }
+                    />
+                    {a.name ?? a.entryType.name}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {t("tree.inheritedHint")}
+            </p>
           </FormSection>
         )}
 

@@ -680,6 +680,9 @@ export async function createSubCategory(input: {
   parentId?: string;
   name: string;
   icon?: string;
+  /** Üstten gelmesi istenmeyen atamalar (atama id'leri) — açılış formunda
+   *  işareti kaldırılan özellikler */
+  skipInherit?: string[];
 }): Promise<SubCategory> {
   const siblings = await db.subcategories
     .where("categoryId")
@@ -700,7 +703,7 @@ export async function createSubCategory(input: {
   // Inherit modifiers from parent (subcategory or category)
   const parentType = input.parentId ? "subcategory" : "category";
   const parentId = input.parentId ?? input.categoryId;
-  await inheritModifiers(parentType, parentId, sub.id);
+  await inheritModifiers(parentType, parentId, sub.id, input.skipInherit);
 
   return sub;
 }
@@ -1354,10 +1357,17 @@ export async function removeModifierCascade(modifierId: string): Promise<void> {
 export async function inheritModifiers(
   sourceType: "category" | "subcategory",
   sourceId: string,
-  newSubcategoryId: string
+  newSubcategoryId: string,
+  skip?: string[]
 ): Promise<void> {
+  const skipSet = new Set(skip ?? []);
   const sourceAttachments = await db.categoryModifiers
-    .filter((a) => a.targetType === sourceType && a.targetId === sourceId)
+    .filter(
+      (a) =>
+        a.targetType === sourceType &&
+        a.targetId === sourceId &&
+        !skipSet.has(a.id)
+    )
     .toArray();
   if (!sourceAttachments.length) return;
   const inherited: CategoryModifier[] = sourceAttachments.map((a, i) => ({
@@ -1553,6 +1563,16 @@ export async function listRecentModValues(
   return out;
 }
 
+/** Cihazın saat dilimi; Intl yoksa ya da boş dönerse kaydedilmez */
+function withTz(): { tz?: string } {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return tz ? { tz } : {};
+  } catch {
+    return {};
+  }
+}
+
 export async function createEntry(input: {
   subcategoryId: string;
   title?: string;
@@ -1568,6 +1588,7 @@ export async function createEntry(input: {
     title: input.title,
     notes: input.notes,
     occurredAt: input.occurredAt ?? now(),
+    ...withTz(),
     createdAt: now(),
     updatedAt: now(),
     ...(input.linkedGroupId ? { linkedGroupId: input.linkedGroupId } : {}),
@@ -1622,6 +1643,10 @@ export async function updateEntry(
       title: input.title,
       notes: input.notes,
       occurredAt: input.occurredAt,
+      // Saat bu cihazda yeniden girildiyse saat dilimi de bu cihazınki
+      ...(input.occurredAt !== undefined && input.occurredAt !== entry?.occurredAt
+        ? withTz()
+        : {}),
       updatedAt: now(),
     });
     // Replace entryType-based values only (keep legacy field-based ones)
