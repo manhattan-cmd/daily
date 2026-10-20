@@ -36,6 +36,8 @@ import { db } from "@/lib/db";
 import { MEASURE_KIND_META, uiKindOf } from "@/lib/measure-kinds";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { useSkin } from "@/lib/skin";
+import { BrutWhereStep, type WhereRow } from "@/components/structure/where-step";
 
 /**
  * Mod ekleme: havuzdaki atomlardan seç ya da yeni atom yarat (isim tekildir).
@@ -74,6 +76,7 @@ export function ModPickDialog({
   onPicked?: (mods: ModWithType[]) => void;
 }) {
   const t = useT();
+  const brutal = useSkin() === "brutal";
   const [mode, setMode] = useState<"pick" | "create" | "where">("pick");
   // "Nereye eklensin?" adımı: hangi görünümden gelindi, hangi özellikler
   // bekliyor (yaratmada boş — özellik onayda yaratılır), hangi alt
@@ -134,16 +137,17 @@ export function ModPickDialog({
       subs
         .filter((x) => (x.parentId ?? undefined) === pid)
         .sort((a, b) => a.order - b.order);
-    const out: {
-      id: string;
-      name: string;
-      depth: number;
-      parentId?: string;
-      has: Set<string>;
-    }[] = [];
+    const out: WhereRow[] = [];
     const walk = (pid: string | undefined, depth: number) => {
       for (const x of kids(pid)) {
-        out.push({ id: x.id, name: x.name, depth, parentId: x.parentId, has: new Set() });
+        out.push({
+          id: x.id,
+          name: x.name,
+          icon: x.icon,
+          depth,
+          parentId: x.parentId,
+          has: new Set(),
+        });
         walk(x.id, depth + 1);
       }
     };
@@ -247,6 +251,11 @@ export function ModPickDialog({
     }
   }
 
+  function toggleAllSubs() {
+    const all = (below ?? []).map((x) => x.id);
+    setChosenSubs(all.every((id) => chosenSubs.has(id)) ? new Set() : new Set(all));
+  }
+
   /** İşareti kaldırmak altındakileri de kaldırır; koymak yalnız onu koyar */
   function toggleSub(id: string) {
     setChosenSubs((prev) => {
@@ -327,10 +336,22 @@ export function ModPickDialog({
   // pay, üstte simge + başlık, bölmeler kendi kibar kutusunda, eylemler altta
   // sabit. Eskiden pencere ekranın iki kenarına dayanıyordu ve havuz, arama,
   // "yeni yarat" tek bir sıkışık başlık satırına doluşmuştu.
+  // Brütal temada "Nereye eklensin?" kendi fiş düzeniyle çizilir
+  const brutalWhere = brutal && mode === "where";
+  const byId = new Map((pool ?? []).map((m) => [m.id, m.name]));
+  const featureNames = pending.length
+    ? pending.map((id) => byId.get(id) ?? "")
+    : [name.trim()];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className={cn(ENTRY_WINDOW_LARGE, "gap-0")}
+        hideClose={brutalWhere}
+        className={cn(
+          ENTRY_WINDOW_LARGE,
+          "gap-0",
+          brutalWhere && "overflow-hidden p-0"
+        )}
         // Açıklama satırı yok — Radix'in uyarısı sussun
         aria-describedby={undefined}
         // Açılışta klavye fırlamasın — arama ya da ad alanına dokununca açılır
@@ -342,6 +363,24 @@ export function ModPickDialog({
           }
         }}
       >
+        {brutalWhere ? (
+          <BrutWhereStep
+            color={accent}
+            icon={target?.icon}
+            targetName={targetName}
+            featureNames={featureNames}
+            rows={below ?? []}
+            chosen={chosenSubs}
+            pending={pending}
+            saving={saving}
+            onToggle={toggleSub}
+            onToggleAll={toggleAllSubs}
+            onBack={() => setMode(whereFrom)}
+            onCancel={() => onOpenChange(false)}
+            onConfirm={confirmWhere}
+          />
+        ) : (
+        <>
         {/* Başlık — yaratmada çekirdek seçilen ölçüm türüyle değişir */}
         <div className="flex items-center gap-3.5 pb-4 pr-6">
           {mode !== "pick" ? (
@@ -506,13 +545,7 @@ export function ModPickDialog({
               action={
                 <button
                   type="button"
-                  onClick={() =>
-                    setChosenSubs(
-                      chosenSubs.size === (below?.length ?? 0)
-                        ? new Set()
-                        : new Set((below ?? []).map((x) => x.id))
-                    )
-                  }
+                  onClick={toggleAllSubs}
                   className="text-[12px] font-semibold"
                   style={{ color: accent }}
                 >
@@ -656,6 +689,8 @@ export function ModPickDialog({
             </Button>
           )}
         </DialogFooter>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );
