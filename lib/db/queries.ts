@@ -939,6 +939,8 @@ export function measureOf(mod: Mod): EntryType {
     unit: mod.unit ?? "",
     valueType: mod.valueType ?? "number",
     ...(mod.choices?.length ? { choices: mod.choices } : {}),
+    ...(mod.collectionId ? { collectionId: mod.collectionId } : {}),
+    ...(mod.multiple ? { multiple: true } : {}),
     isBuiltIn: mod.isBuiltIn ?? false,
     order: 0,
     createdAt: mod.createdAt,
@@ -959,6 +961,9 @@ export interface ModMeasure {
   unit?: string;
   choices?: string[];
   scaleLabels?: ScaleLabels;
+  /** object türünde koleksiyon ve çoklu seçim */
+  collectionId?: string;
+  multiple?: boolean;
 }
 
 /** Türe uymayan alanları düşürerek kaydet — tür değişince eski yapılandırma
@@ -976,6 +981,8 @@ export const measureFieldsOf = (m: ModMeasure) => {
     scaleLabels: labeled
       ? { ...(low ? { low } : {}), ...(high ? { high } : {}) }
       : undefined,
+    collectionId: m.valueType === "object" ? m.collectionId : undefined,
+    multiple: m.valueType === "object" && m.multiple ? true : undefined,
   };
 };
 

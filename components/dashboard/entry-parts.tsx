@@ -11,6 +11,7 @@ import { calcDTRDuration, parseDTR } from "@/components/forms/datetime-range-inp
 import { splitChoiceLevel } from "@/lib/choice-level";
 import { isScaleChoices } from "@/types";
 import { ScaleMeter } from "@/components/ui/scale-meter";
+import { thingLabel, useThingNames } from "@/lib/db/thing-names";
 
 /**
  * Girdi kartlarının ortak parçaları — hem tek girdi kartı hem paralel girdi
@@ -111,6 +112,8 @@ export function ValueCapsule({
   v: EntryValueWithType;
   color: string;
 }) {
+  // Nesne adları yüklenince / değişince kapsül yeniden çizilsin
+  useThingNames();
   const { main, unit, label } = readValue(v);
   // Ölçek değeri: yalnız sayı değil, kaçta kaç olduğu (bkz. ScaleMeter)
   const scale =
@@ -186,6 +189,7 @@ export function readValue(v: EntryValueWithType): {
     return { main: s && e ? `${s}–${e}` : (s ?? e ?? "—"), unit: short, label };
   }
   if (vt === "boolean") return { main: v.value === "true" ? "Yes" : "No", label };
+  if (vt === "object") return { main: thingLabel(v.value), label };
   if (vt === "select") {
     // Seçenek yoğunluk taşıyabilir ("Happy|70"): etiket ana metin, yoğunluk
     // birim yerinde küçük kalır

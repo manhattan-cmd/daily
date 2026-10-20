@@ -143,6 +143,8 @@ export default function ModsHomePage() {
       unit: mod.unit,
       choices: mod.choices,
       scaleLabels: mod.scaleLabels,
+      collectionId: mod.collectionId,
+      multiple: mod.multiple,
     });
     setEditError(false);
     setDetailView("edit");

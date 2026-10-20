@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { thingLabel } from "@/lib/db/thing-names";
 import Link from "next/link";
 import { ArrowRight, Boxes, ChevronDown, Plus, Trash2 } from "lucide-react";
 import type { Activity, EntryWithContext } from "@/types";
@@ -254,7 +255,9 @@ export function ActivityCard({
                           ? v.value === "true"
                             ? "Yes"
                             : "No"
-                          : v.value}
+                          : v.entryType!.valueType === "object"
+                            ? thingLabel(v.value)
+                            : v.value}
                         {v.entryType!.unit && (
                           <span className="ml-0.5 font-normal text-muted-foreground text-[10px]">
                             {v.entryType!.unit}

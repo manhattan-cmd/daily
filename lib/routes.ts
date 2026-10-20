@@ -25,6 +25,11 @@ export const routes = {
   /** Yapı: kategori ayrıntısı */
   structureCategory: (categoryId: string) =>
     `/structure/category?${q({ id: categoryId })}`,
+  /** Yapı: nesne listesi (koleksiyon) */
+  structureCollection: (collectionId: string) =>
+    `/structure/collection?${q({ id: collectionId })}`,
+  /** Yapı: tek nesne */
+  structureThing: (thingId: string) => `/structure/thing?${q({ id: thingId })}`,
   /** Yapı: alt kategori (kalem) ayrıntısı */
   structureSub: (categoryId: string, subcategoryId: string) =>
     `/structure/sub?${q({ cat: categoryId, id: subcategoryId })}`,

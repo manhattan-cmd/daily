@@ -8,7 +8,15 @@ export type FieldType =
   | "select"
   | "boolean";
 
-export type EntryValueType = "number" | "text" | "boolean" | "select" | "datetime-range";
+export type EntryValueType =
+  | "number"
+  | "text"
+  | "boolean"
+  | "select"
+  | "datetime-range"
+  /** Bir koleksiyondan nesne (Kitaplar › Sapiens). Değer nesnenin kimliği;
+   *  çoklu seçimde kimlikler virgülle ayrılır ("a1,b2") */
+  | "object";
 
 /**
  * Skala ön ayarları. Skala ayrı bir depolama türü değil — seçenekleri hep sayı
@@ -53,6 +61,7 @@ export const ENTRY_VALUE_TYPE_LABELS: Record<EntryValueType, string> = {
   boolean: "Evet / Hayır",
   select: "Option",
   "datetime-range": "Date-time range",
+  object: "Object",
 };
 
 export interface EntryType {
@@ -61,6 +70,10 @@ export interface EntryType {
   unit: string;
   valueType?: EntryValueType;
   choices?: string[];
+  /** object türünde: hangi koleksiyondan seçilir */
+  collectionId?: string;
+  /** object türünde: birden çok nesne seçilebilir */
+  multiple?: boolean;
   isBuiltIn: boolean;
   order: number;
   createdAt: number;
@@ -179,6 +192,10 @@ export interface Mod {
   choices?: string[];
   /** Skalanın uçlarının anlamı — girdi ekranında sayıların altında görünür */
   scaleLabels?: ScaleLabels;
+  /** object türünde: nesnelerin geldiği koleksiyon (bkz. Collection) */
+  collectionId?: string;
+  /** object türünde: bir girdide birden çok nesne (sabah üç ilaç) */
+  multiple?: boolean;
   /** Analizde nasıl okunacağı. Boşsa ölçü türünün varsayılanı uygulanır —
    *  eski kayıtlar olduğu gibi davranmaya devam eder. İndekssiz alan. */
   analysis?: ModAnalysis;
@@ -214,6 +231,51 @@ export interface Mod {
  * kadar yürüdüm); sprintte aynı Süre tek tek okunur ve en kısası sorulur.
  * Tercih bu yüzden bakılan kapsamla birlikte saklanıyor.
  */
+/**
+ * KOLEKSİYON — aynı türden nesnelerin listesi (Kitaplar, Müşteriler, İlaçlar).
+ *
+ * Neden ayrı bir yapı: metin özelliğine yazılan "Sapiens" yalnız harfi harfine
+ * aynıysa birleşiyor, seçenekli özellik de büyüyen, biten ve kendi bilgisi
+ * olan şeyleri taşımıyor (veri/nesne simülasyonu: yıl içinde doğan 379 nesne,
+ * çoklu seçim gereken girdilerin %24'ü, her girdide tekrar yazılacak 21 bin
+ * bilgi). Nesne bir kez yaratılır, özellikleri bir kez yazılır; girdiye
+ * "object" türündeki bir özellikle bağlanır.
+ */
+export interface Collection {
+  id: string;
+  name: string;
+  icon?: string;
+  color?: string;
+  /** Her nesnenin taşıdığı özellikler — havuzdan, sıralı (Yazar, Sayfa) */
+  modIds: string[];
+  order: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** NESNE — bir koleksiyonun üyesi (Sapiens, Ahmet Bey, Metformin) */
+export interface Thing {
+  id: string;
+  collectionId: string;
+  name: string;
+  /** Yalnız bu nesneye eklenmiş özellikler (koleksiyonda olmayan) */
+  extraModIds?: string[];
+  /** İşi bitti (kitap okundu, iş tahsil edildi): seçicide gizlenir,
+   *  geçmiş girdiler bağlı kalır */
+  archivedAt?: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Nesnenin bir özelliğinin değeri — girdi değeriyle aynı biçimde metin */
+export interface ThingValue {
+  id: string;
+  thingId: string;
+  modId: string;
+  value: string;
+  updatedAt: number;
+}
+
 export interface AnalysisView {
   id: string;
   /** Kapsam: kategori ya da alt kalem */

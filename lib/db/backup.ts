@@ -15,6 +15,9 @@ import type {
   Goal,
   Note,
   AnalysisView,
+  Collection,
+  Thing,
+  ThingValue,
 } from "@/types";
 
 /**
@@ -48,6 +51,9 @@ export const BACKUP_TABLES = [
   "activities",
   "notes",
   "analysisViews",
+  "collections",
+  "things",
+  "thingValues",
 ] as const;
 
 export type BackupTable = (typeof BACKUP_TABLES)[number];
@@ -92,6 +98,10 @@ export interface BackupData {
   notes?: Note[];
   /** v20+ — kalem × özellik analiz tercihleri */
   analysisViews?: AnalysisView[];
+  /** v21+ — nesneler */
+  collections?: Collection[];
+  things?: Thing[];
+  thingValues?: ThingValue[];
 }
 
 export interface BackupPayload {

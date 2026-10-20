@@ -243,6 +243,17 @@ export function reconcileBackup(
       targetId: at(v.targetId)!,
       modId: at(v.modId)!,
     })),
+    // Nesnelerin kimlikleri korunuyor; yalnız bağlı oldukları özellikler
+    // cihazdakine eşlenmiş olabilir
+    collections: (data.collections ?? []).map((c) => ({
+      ...c,
+      modIds: (c.modIds ?? []).map((m) => at(m)!),
+    })),
+    things: (data.things ?? []).map((th) => ({
+      ...th,
+      ...(th.extraModIds ? { extraModIds: th.extraModIds.map((m) => at(m)!) } : {}),
+    })),
+    thingValues: (data.thingValues ?? []).map((v) => ({ ...v, modId: at(v.modId)! })),
     goals: ((data.goals ?? []) as Goal[]).map((g) => ({
       ...g,
       subcategoryId: at(g.subcategoryId)!,

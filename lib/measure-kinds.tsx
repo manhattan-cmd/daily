@@ -5,6 +5,7 @@ import {
   Type,
   CalendarClock,
   Gauge,
+  Boxes,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { isScaleChoices, type EntryValueType } from "@/types";
@@ -25,6 +26,7 @@ export const MEASURE_UI_KINDS: MeasureUiKind[] = [
   "select",
   "datetime-range",
   "text",
+  "object",
 ];
 
 export function uiKindOf(m: {
@@ -86,6 +88,7 @@ export const MEASURE_KIND_META: Record<
     hintKey: "measure.rangeHint",
   },
   text: { icon: Type, labelKey: "measure.text", hintKey: "measure.textHint" },
+  object: { icon: Boxes, labelKey: "measure.object", hintKey: "measure.objectHint" },
 };
 
 /** Özelliğin ölçümünün tek satırlık özeti — "Sayı · dk", "Skala 1–5" */

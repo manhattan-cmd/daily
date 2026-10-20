@@ -15,6 +15,7 @@ import { isScaleChoices, type EntryValueType } from "@/types";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { useSkin } from "@/lib/skin";
+import { ThingField } from "@/components/forms/thing-field";
 
 /** Alan dolu mu — evet/hayırda yalnız "evet" dolu sayılır (varsayılan "hayır") */
 export function isFieldFilled(vt: EntryValueType, value: string): boolean {
@@ -437,6 +438,16 @@ export function LedgerField({
             </span>
           </div>
         ) : null
+      ) : vt === "object" ? (
+        <ThingField
+          collectionId={mod.entryType.collectionId}
+          multiple={mod.entryType.multiple}
+          value={value}
+          onChange={onChange}
+          color={color}
+          well={well}
+          wellStyle={wellStyle}
+        />
       ) : vt === "text" ? (
         <label className={cn(well, "cursor-text py-3")} style={wellStyle}>
           {/* Yazı uzadıkça yuva da uzar — yazılan hep görünür */}

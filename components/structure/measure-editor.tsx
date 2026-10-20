@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { createCollection, findCollectionByName, listCollections } from "@/lib/db/things";
 import { ArrowRight, Check, Clock, Minus, Plus, X } from "lucide-react";
 import {
   MEASURE_KIND_META,
@@ -61,6 +63,19 @@ export function MeasureEditor({
   /** Yalnızca hissi vermek için — kaydedilmez */
   const [demo, setDemo] = useState("");
   const [customOpen, setCustomOpen] = useState(false);
+  // Nesne türü: listeler ve yeni liste taslağı
+  const collections = useLiveQuery(
+    () => (kind === "object" ? listCollections() : Promise.resolve([])),
+    [kind]
+  );
+  const [collDraft, setCollDraft] = useState("");
+  async function addCollection() {
+    const name = collDraft.trim();
+    if (!name) return;
+    const c = (await findCollectionByName(name)) ?? (await createCollection({ name }));
+    onChange({ ...value, valueType: "object", collectionId: c.id });
+    setCollDraft("");
+  }
 
   const choices = value.choices ?? [];
   const range = scaleRangeOf(choices);
@@ -113,6 +128,8 @@ export function MeasureEditor({
               aria-pressed={active}
               className={cn(
                 "flex flex-col items-center gap-1.5 rounded-xl border px-1 py-2.5 transition-all active:scale-[0.95]",
+                // Yedinci tür tek başına bir satır — boşluk değil, bilinçli
+                k === "object" && "col-span-3 flex-row justify-center gap-2.5 py-2",
                 active
                   ? "border-primary/60 bg-primary/10 text-primary shadow-[0_0_18px_-8px_rgba(99,102,241,0.9)]"
                   : "border-border bg-card text-muted-foreground hover:border-[var(--ln-3)] hover:text-foreground"
@@ -384,6 +401,69 @@ export function MeasureEditor({
           </Readout>
         )}
 
+        {kind === "object" && (
+          <div className="flex flex-col gap-2.5">
+            <span className="text-[11px] font-semibold text-muted-foreground">
+              {t("measure.collection")}
+            </span>
+            {(collections ?? []).length > 0 && (
+              <div className="flex flex-wrap gap-1.5" data-collections="">
+                {(collections ?? []).map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => onChange({ ...value, collectionId: c.id })}
+                    aria-pressed={value.collectionId === c.id}
+                    className={pillClass(value.collectionId === c.id)}
+                    style={presetStyle(value.collectionId === c.id)}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-1.5">
+              <input
+                value={collDraft}
+                onChange={(e) => setCollDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void addCollection();
+                  }
+                }}
+                placeholder={t("measure.collectionPlaceholder")}
+                aria-label={t("measure.newCollection")}
+                size={1}
+                className="h-9 w-0 min-w-0 flex-1 rounded-xl border border-border bg-black/25 px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/45 focus:border-primary/60"
+              />
+              <button
+                type="button"
+                onClick={() => void addCollection()}
+                disabled={!collDraft.trim()}
+                aria-label={t("measure.newCollection")}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/40 bg-primary/10 text-primary transition-all active:scale-95 disabled:border-border disabled:bg-card disabled:text-muted-foreground disabled:opacity-40"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-border bg-card px-3 py-2.5 text-[13px]">
+              <span>{t("measure.multiple")}</span>
+              <input
+                type="checkbox"
+                checked={!!value.multiple}
+                onChange={(e) => onChange({ ...value, multiple: e.target.checked })}
+                className="h-4 w-4 accent-[var(--primary)]"
+              />
+            </label>
+            {!value.collectionId && (
+              <p className="text-[11px] leading-snug text-amber-300/80">
+                {t("measure.pickCollection")}
+              </p>
+            )}
+          </div>
+        )}
+
         {kind === "text" && (
           <input
             value={demo}
@@ -563,5 +643,6 @@ function Stepper({
 /** Ölçüm ayarı kaydedilebilir mi (çoktan seçmeli en az iki seçenek ister) */
 export function isMeasureComplete(m: ModMeasure): boolean {
   if (m.valueType === "select") return (m.choices?.length ?? 0) >= 2;
+  if (m.valueType === "object") return !!m.collectionId;
   return true;
 }

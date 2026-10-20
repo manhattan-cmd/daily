@@ -60,6 +60,7 @@ export function ModPickDialog({
   persist = true,
   excludeModIds,
   onPicked,
+  contextLabel,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -74,6 +75,8 @@ export function ModPickDialog({
   /** persist=false iken listeden düşülecekler — formda zaten duranlar */
   excludeModIds?: string[];
   onPicked?: (mods: ModWithType[]) => void;
+  /** persist=false iken başlıktaki "yalnız bu girdi" yerine (nesne ekranları) */
+  contextLabel?: string;
 }) {
   const t = useT();
   const brutal = useSkin() === "brutal";
@@ -402,7 +405,7 @@ export function ModPickDialog({
           <div className="min-w-0 flex-1">
             <div className="mb-0.5 truncate text-[12px] font-medium text-muted-foreground">
               {targetName}
-              {!persist && ` · ${t("entry.onlyThisEntry")}`}
+              {!persist && ` · ${contextLabel ?? t("entry.onlyThisEntry")}`}
             </div>
             <DialogTitle className="flex items-center gap-2 truncate text-lg font-semibold tracking-tight">
               {mode === "create" && (

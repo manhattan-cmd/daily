@@ -14,6 +14,9 @@ import type {
   Note,
   Deletion,
   AnalysisView,
+  Collection,
+  Thing,
+  ThingValue,
 } from "@/types";
 
 export class RoutineDB extends Dexie {
@@ -31,6 +34,9 @@ export class RoutineDB extends Dexie {
   notes!: Table<Note, string>;
   deletions!: Table<Deletion, string>;
   analysisViews!: Table<AnalysisView, string>;
+  collections!: Table<Collection, string>;
+  things!: Table<Thing, string>;
+  thingValues!: Table<ThingValue, string>;
 
   constructor() {
     super("RoutineDB");
@@ -412,6 +418,15 @@ export class RoutineDB extends Dexie {
     // atama yaratmak özelliği o kaleme gerçekten takmak demek olurdu.
     this.version(20).stores({
       analysisViews: "id, [targetType+targetId], modId, [targetType+targetId+modId]",
+    });
+
+    // v21 — Nesneler: koleksiyonlar, üyeleri ve üyelerin özellik değerleri.
+    // Girdi tarafında yeni tablo yok: "object" türündeki özelliğin değeri
+    // nesnenin kimliği olarak entryValues'a yazılıyor.
+    this.version(21).stores({
+      collections: "id, order, createdAt, updatedAt",
+      things: "id, collectionId, name, archivedAt, createdAt, updatedAt",
+      thingValues: "id, thingId, modId, [thingId+modId], updatedAt",
     });
 
     this.stampTimestamps();
