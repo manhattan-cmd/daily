@@ -429,6 +429,14 @@ export class RoutineDB extends Dexie {
       thingValues: "id, thingId, modId, [thingId+modId], updatedAt",
     });
 
+    // v22 — Nesne iliştirme: girdi nesneleri taşır (çok girdili dizin),
+    // nesneye ait değerler entryValues'ta thingId ile durur
+    this.version(22).stores({
+      entries:
+        "id, subcategoryId, occurredAt, createdAt, title, linkedGroupId, activityId, updatedAt, *thingIds",
+      entryValues: "id, entryId, fieldId, entryTypeId, modId, updatedAt, thingId",
+    });
+
     this.stampTimestamps();
   }
 

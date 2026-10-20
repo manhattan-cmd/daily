@@ -11,7 +11,6 @@ import {
   createThing,
   deleteCollection,
   findThingByName,
-  objectModsOf,
   removeCollectionMod,
   thingUsage,
 } from "@/lib/db/things";
@@ -41,21 +40,20 @@ export function CollectionScreen({ collectionId }: { collectionId: string }) {
   const data = useLiveQuery(async () => {
     const c = await db.collections.get(collectionId);
     if (!c) return null;
-    const [mods, things, usage, users] = await Promise.all([
+    const [mods, things, usage] = await Promise.all([
       db.mods.bulkGet(c.modIds),
       db.things.where("collectionId").equals(collectionId).toArray(),
       thingUsage(collectionId),
-      objectModsOf(collectionId),
     ]);
     things.sort((a, b) => a.name.localeCompare(b.name, "tr"));
-    return { c, mods: mods.filter((m) => !!m), things, usage, users };
+    return { c, mods: mods.filter((m) => !!m), things, usage };
   }, [collectionId]);
 
   if (data === undefined) return null;
   if (data === null) {
     return <BrutTopStrip back="/structure/objects" />;
   }
-  const { c, mods, things, usage, users } = data;
+  const { c, mods, things, usage } = data;
   const color = c.color ?? "#94a3b8";
   const active = things.filter((th) => !th.archivedAt);
   const archived = things.filter((th) => th.archivedAt);
@@ -140,25 +138,6 @@ export function CollectionScreen({ collectionId }: { collectionId: string }) {
           <ModAtomAdd label={t("entry.addFeature")} onClick={() => setPickOpen(true)} />
         </div>
         <p className="mt-1 px-1 text-[11.5px] text-muted-foreground">{t("objects.featuresHint")}</p>
-      </section>
-
-      {/* Bu listeden seçtiren özellikler — girdiye bağ buradan */}
-      <section className="mb-6">
-        <h2 className={H2}>{t("objects.usedBy")}</h2>
-        {users.length ? (
-          <div className="flex flex-wrap gap-1.5">
-            {users.map((m) => (
-              <span
-                key={m.id}
-                className="rounded-full border-2 border-[#111] bg-white px-2.5 py-0.5 text-[12.5px] font-extrabold text-[#111]"
-              >
-                {m.name}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="px-1 text-[12px] leading-relaxed text-muted-foreground">{t("objects.noUsers")}</p>
-        )}
       </section>
 
       {/* Nesneler */}

@@ -9,6 +9,7 @@ import { EntryIcon } from "@/components/dashboard/entry-icon";
 import {
   NoteCapsule,
   ValueCapsuleRow,
+  ThingCapsuleRow,
 } from "@/components/dashboard/entry-parts";
 import {
   SelectionLayer,
@@ -99,7 +100,8 @@ function PlainEntryCard({
 
   // Ölçümü olan her değer çizilir. Eskiden entryTypeId de şarttı; v18'den
   // sonra yeni değerler onu taşımadığı için hepsi görünmez olmuştu.
-  const typedValues = entry.values.filter((v) => !!v.entryType);
+  const typedValues = entry.values.filter((v) => !!v.entryType && !v.thingId);
+  const thingIds = entry.thingIds ?? [];
 
   return (
     <>
@@ -159,10 +161,15 @@ function PlainEntryCard({
             sütununa hizalanmasının anlamı yok, kapsüller de daha çok yer
             buluyor. Kutu değil çizgi: iç pencereler kartı bölük pörçük
             gösteriyordu (git etiketi tasarim-2-pencere). */}
-        {(typedValues.length > 0 || entry.notes) && (
+        {(typedValues.length > 0 || thingIds.length > 0 || entry.notes) && (
           <div className="mt-2 border-t border-[var(--ln-1)] pt-2">
             {typedValues.length > 0 && (
               <ValueCapsuleRow values={typedValues} color={color} />
+            )}
+            {thingIds.length > 0 && (
+              <div className={cn(typedValues.length > 0 && "mt-1.5")}>
+                <ThingCapsuleRow thingIds={thingIds} values={entry.values} color={color} />
+              </div>
             )}
             {entry.notes && (
               <div className={cn(typedValues.length > 0 && "mt-2")}>

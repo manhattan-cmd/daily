@@ -441,11 +441,18 @@ export interface Entry {
   linkedGroupId?: string;
   /** Bağlı olduğu aktivite (varsa) — gün sayfasında aktivite kartında katlanır */
   activityId?: string;
+  /** Girdiye iliştirilen nesneler (Sapiens, Dacia Duster). Eylem kategoride,
+   *  eylemin ilgili olduğu şeyler burada. Çok girdili dizin: nesne sayfası
+   *  bağlı girdileri buradan bulur. */
+  thingIds?: string[];
 }
 
 export interface EntryValue {
   id: string;
   entryId: string;
+  /** Değer iliştirilen bir nesneye ait ("Sapiens · Bulunulan sayfa: 214").
+   *  Boşsa girdinin kendi değeri. Nesnenin güncel durumu bu değerlerden okunur. */
+  thingId?: string;
   fieldId?: string;
   entryTypeId?: string;
   /** Değerin bağlı olduğu isimli mod; girdiye özel eklenen ölçülerde boş olabilir */

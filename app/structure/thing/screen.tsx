@@ -10,7 +10,7 @@ import {
   addThingExtraMod,
   deleteThing,
   findThingByName,
-  listThingValues,
+  currentThingValues,
   removeThingExtraMod,
   renameThing,
   setThingArchived,
@@ -70,7 +70,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
     const modIds = [...(c?.modIds ?? []), ...(th.extraModIds ?? [])];
     const [mods, values, entries, subs, cats, allMods] = await Promise.all([
       db.mods.bulkGet(modIds),
-      listThingValues(thingId),
+      currentThingValues(thingId),
       thingEntries(thingId),
       db.subcategories.toArray(),
       db.categories.toArray(),
@@ -80,10 +80,14 @@ export function ThingScreen({ thingId }: { thingId: string }) {
     const shown = entries.slice(0, 200);
     const modById = new Map(allMods.map((m) => [m.id, m]));
     const evs = await db.entryValues.where("entryId").anyOf(shown.map((e) => e.id)).toArray();
+    // Önce bu nesne için yazılanlar ("214. sayfa"), sonra girdinin kendi
+    // değerleri; başka nesnelere ait olanlar atlanır
+    evs.sort((a, b) => Number(b.thingId === thingId) - Number(a.thingId === thingId));
     const facts = new Map<string, string[]>();
     for (const v of evs) {
       const m = v.modId ? modById.get(v.modId) : undefined;
       if (!m || m.valueType === "object" || v.value === "") continue;
+      if (v.thingId && v.thingId !== thingId) continue;
       const text =
         m.valueType === "boolean"
           ? v.value === "true" ? m.name : null
@@ -100,7 +104,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
       th,
       c,
       mods: mods.filter((m): m is Mod => !!m),
-      values,
+      values: Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v.value])),
       entries: shown,
       total: entries.length,
       facts,

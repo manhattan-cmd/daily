@@ -75,6 +75,8 @@ export function ValueCapsuleRow({
   className?: string;
 }) {
   const t = useT();
+  // Nesneye ait değerler kartta nesnenin kapsülünde (ThingCapsuleRow)
+  values = values.filter((v) => !v.thingId);
   const shown = values.slice(0, MAX_CAPSULES);
   const rest = values.length - shown.length;
   return (
@@ -165,6 +167,49 @@ export function ValueCapsule({
         {label}
       </span>
     </span>
+  );
+}
+
+/**
+ * İliştirilen nesneler — her biri kendi kapsülünde, adı ve bu girdide onun
+ * için yazılan değerlerle: "Dacia Duster · 45.230 km". Kategorinin değer
+ * kapsüllerinden ayrı satır: eylem ile ilgili olduğu şey karışmasın.
+ */
+export function ThingCapsuleRow({
+  thingIds,
+  values,
+  color: c,
+}: {
+  thingIds: string[];
+  values: EntryValueWithType[];
+  color: string;
+}) {
+  const names = useThingNames();
+  return (
+    <div className="flex flex-wrap items-center gap-1" data-thing-capsules="">
+      {thingIds.map((tid) => {
+        const parts = values
+          .filter((v) => v.thingId === tid && v.entryType)
+          .map((v) => {
+            const r = readValue(v);
+            return [r.main, r.unit].filter(Boolean).join(" ");
+          });
+        return (
+          <span
+            key={tid}
+            data-thing-capsule=""
+            className="inline-flex max-w-full items-center gap-1.5 rounded-lg py-0.5 pl-1 pr-2 text-[12.5px] font-bold leading-5"
+            style={{ background: `${c}1f`, boxShadow: `inset 0 0 0 1.5px ${c}66` }}
+          >
+            <span className="h-2.5 w-2.5 shrink-0 rotate-45 rounded-[2px]" style={{ background: c }} />
+            <span className="truncate">{names.names.get(tid) ?? "?"}</span>
+            {parts.length > 0 && (
+              <span className="truncate font-semibold opacity-70">{parts.join(" · ")}</span>
+            )}
+          </span>
+        );
+      })}
+    </div>
   );
 }
 

@@ -5,11 +5,11 @@ import type { Collection, Entry, Thing, ThingValue } from "@/types";
 /**
  * NESNELER — koleksiyonlar, üyeleri ve üyelerin özellik değerleri.
  *
- * Girdiye bağ "object" türündeki bir özellikle kuruluyor: değer nesnenin
- * kimliği, çoklu seçimde kimlikler virgülle ayrılıyor (nanoid virgül
- * üretmez). Ayrı bir bağ tablosu yerine bu biçim seçildi çünkü girdi formu,
- * düzenleme, paralel perspektif ve yedek değeri zaten tek metin olarak
- * taşıyor — hepsi değişmeden çalışıyor.
+ * Nesne girdiye İLİŞTİRİLİR (entry.thingIds): eylem kategoride (Okuma),
+ * eylemin ilgili olduğu şey nesne (Sapiens). Girdide nesne için yazılan
+ * değerler entryValues içinde thingId ile durur ("Bulunulan sayfa: 214")
+ * ve nesnenin güncel durumu bunlardan okunur. Nesne sayfasında elle yazılan
+ * değer (thingValues) başlangıç ya da düzeltme değeridir.
  */
 
 const id = () => nanoid(12);
@@ -213,15 +213,7 @@ export async function setThingValue(thingId: string, modId: string, value: strin
 
 /** Nesneye bağlı girdiler — kategorilerden bağımsız, yeniden eskiye */
 export async function thingEntries(thingId: string): Promise<Entry[]> {
-  const th = await db.things.get(thingId);
-  if (!th) return [];
-  const modIds = (await objectModsOf(th.collectionId)).map((m) => m.id);
-  if (!modIds.length) return [];
-  const vals = await db.entryValues.where("modId").anyOf(modIds).toArray();
-  const entryIds = [
-    ...new Set(vals.filter((v) => splitThingIds(v.value).includes(thingId)).map((v) => v.entryId)),
-  ];
-  const entries = (await db.entries.bulkGet(entryIds)).filter((e): e is Entry => !!e);
+  const entries = await db.entries.where("thingIds").equals(thingId).toArray();
   return entries.sort((a, b) => b.occurredAt - a.occurredAt);
 }
 
@@ -229,19 +221,17 @@ export async function thingEntries(thingId: string): Promise<Entry[]> {
 export async function thingUsage(
   collectionId: string
 ): Promise<Map<string, { count: number; last: number }>> {
-  const modIds = (await objectModsOf(collectionId)).map((m) => m.id);
+  const ids = (await db.things.where("collectionId").equals(collectionId).primaryKeys()) as string[];
   const out = new Map<string, { count: number; last: number }>();
-  if (!modIds.length) return out;
-  const vals = await db.entryValues.where("modId").anyOf(modIds).toArray();
-  const entries = await db.entries.bulkGet([...new Set(vals.map((v) => v.entryId))]);
-  const at = new Map(entries.filter((e): e is Entry => !!e).map((e) => [e.id, e.occurredAt]));
-  for (const v of vals) {
-    const t = at.get(v.entryId);
-    if (t === undefined) continue;
-    for (const tid of splitThingIds(v.value)) {
+  if (!ids.length) return out;
+  const set = new Set(ids);
+  const entries = await db.entries.where("thingIds").anyOf(ids).distinct().toArray();
+  for (const e of entries) {
+    for (const tid of e.thingIds ?? []) {
+      if (!set.has(tid)) continue;
       const u = out.get(tid) ?? { count: 0, last: 0 };
       u.count++;
-      u.last = Math.max(u.last, t);
+      u.last = Math.max(u.last, e.occurredAt);
       out.set(tid, u);
     }
   }
@@ -249,14 +239,65 @@ export async function thingUsage(
 }
 
 /**
- * Nesneyi sil — yalnız hiçbir girdide geçmiyorsa. Geçiyorsa arşivlemek
- * doğru yol: girdiler bağlı kalır, seçicide görünmez.
+ * Nesnenin güncel değerleri — her özellik için en yeni kayıt: girdilerde
+ * o nesne için yazılan değer (zamanı girdinin zamanı) ya da nesne sayfasında
+ * elle yazılan değer (zamanı yazıldığı an). Duster'ın "mevcut km"si son
+ * sürüş girdisindeki km'dir. `exceptEntryId`: düzenlenen girdinin kendi
+ * değeri "son" diye önerilmesin.
+ */
+export async function currentThingValues(
+  thingId: string,
+  exceptEntryId?: string
+): Promise<Record<string, { value: string; at: number }>> {
+  // Girdiler kendi aralarında girdinin saatine göre sıralanır (dünkü
+  // sürüşü bugün girmek bugünkünü ezmesin); elle yazılan değer ancak en
+  // son girdi KAYDEDİLDİKTEN sonra yazıldıysa geçerli — girdi saati dakikaya
+  // yuvarlı olduğundan saatle kıyaslamak aynı dakikadaki düzeltmeyi yanlış
+  // tarafa koyuyordu.
+  const best: Record<string, { value: string; at: number; saved: number }> = {};
+  const vals = (await db.entryValues.where("thingId").equals(thingId).toArray()).filter(
+    (v) => v.modId && v.value !== "" && v.entryId !== exceptEntryId
+  );
+  if (vals.length) {
+    const entries = await db.entries.bulkGet([...new Set(vals.map((v) => v.entryId))]);
+    const byId = new Map(entries.filter((e): e is Entry => !!e).map((e) => [e.id, e]));
+    for (const v of vals) {
+      const e = byId.get(v.entryId);
+      if (!e) continue;
+      const cur = best[v.modId!];
+      if (!cur || cur.at <= e.occurredAt)
+        best[v.modId!] = { value: v.value, at: e.occurredAt, saved: e.createdAt };
+    }
+  }
+  const out: Record<string, { value: string; at: number }> = {};
+  for (const [modId, b] of Object.entries(best)) out[modId] = { value: b.value, at: b.at };
+  for (const v of await db.thingValues.where("thingId").equals(thingId).toArray()) {
+    if (v.value === "") continue;
+    const b = best[v.modId];
+    if (!b || v.updatedAt > b.saved) out[v.modId] = { value: v.value, at: v.updatedAt };
+  }
+  return out;
+}
+
+/** Bu kalemin son girdilerine iliştirilmiş nesneler — formda ilk öneri */
+export async function recentThingsForSub(subcategoryId: string, limit = 6): Promise<string[]> {
+  const entries = await db.entries.where("subcategoryId").equals(subcategoryId).toArray();
+  entries.sort((a, b) => b.occurredAt - a.occurredAt);
+  const out: string[] = [];
+  for (const e of entries.slice(0, 40))
+    for (const tid of e.thingIds ?? []) if (!out.includes(tid)) out.push(tid);
+  return out.slice(0, limit);
+}
+
+/**
+ * Nesneyi sil — yalnız hiçbir girdiye iliştirilmemişse. İliştirildiyse
+ * arşivlemek doğru yol: girdiler bağlı kalır, seçicide görünmez.
  */
 export async function deleteThing(
   thingId: string
 ): Promise<{ ok: true } | { ok: false; entries: number }> {
-  const used = await thingEntries(thingId);
-  if (used.length) return { ok: false, entries: used.length };
+  const used = await db.entries.where("thingIds").equals(thingId).count();
+  if (used) return { ok: false, entries: used };
   await db.transaction("rw", [db.things, db.thingValues], async () => {
     await db.thingValues.where("thingId").equals(thingId).delete();
     await db.things.delete(thingId);

@@ -1,6 +1,8 @@
 "use client";
 
 import { createElement, useState, useMemo, useRef } from "react";
+import { EntryThings } from "@/components/forms/entry-things";
+import type { AttachedThing } from "@/lib/db/queries";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { nanoid } from "nanoid";
@@ -160,10 +162,24 @@ export function EditEntryModal({
     const init: Record<string, string[]> = {};
     for (const v of entry.values) {
       if (!v.modId && !v.entryTypeId) continue;
+      // Nesneye ait değerler nesnenin bloğunda (bkz. things)
+      if (v.thingId) continue;
       (init[v.modId ?? `t:${v.entryTypeId}`] ??= []).push(v.value);
     }
     return init;
   });
+
+  // İliştirilen nesneler ve bu girdide onlar için yazılan değerler
+  const [things, setThings] = useState<AttachedThing[]>(() =>
+    (entry.thingIds ?? []).map((thingId) => ({
+      thingId,
+      values: Object.fromEntries(
+        entry.values
+          .filter((v) => v.thingId === thingId && v.modId)
+          .map((v) => [v.modId!, v.value])
+      ),
+    }))
+  );
 
   // Bu girdiden çıkarılan satırlar (kategoriden değil)
   const [removedKeys, setRemovedKeys] = useState<Set<string>>(new Set());
@@ -399,7 +415,7 @@ export function EditEntryModal({
     }
     // Atanmamış ama bu girdide değeri olan havuz modları
     for (const v of entry.values) {
-      if (!v.modId) continue;
+      if (!v.modId || v.thingId) continue;
       if (removedKeys.has(v.modId) || seen.has(v.modId)) continue;
       const t =
         v.entryType ?? (v.entryTypeId ? entryTypeMap.get(v.entryTypeId) : undefined);
@@ -501,6 +517,7 @@ export function EditEntryModal({
         typeValues,
         occurredAt: new Date(occurredAt).getTime(),
         notes: notes.trim() || undefined,
+        things,
       });
       // Yeni perspektifler — ekleme akışındaki gibi her biri için form açılır;
       // güncellenen değerler ortak atomlara kilitli taşınır. Grup id'si bellekte
@@ -531,6 +548,17 @@ export function EditEntryModal({
   }
 
   // Menüden açılan bölümler (perspektif, düzenli, sil) — iki görünüm de kullanır
+  // Yerleşik akışlar (uyku, ruh hali) nesne almıyor
+  const thingsBlock = isBuiltInTone ? null : (
+    <EntryThings
+      subcategoryId={entry.subcategoryId}
+      entryId={entry.id}
+      entryDate={entryDate}
+      value={things}
+      onChange={setThings}
+    />
+  );
+
   const panels = (
     <>
             {panel === "parallel" && (
@@ -1037,6 +1065,8 @@ export function EditEntryModal({
                   )}
                 </div>
 
+                {thingsBlock}
+
                 {panels}
 
                 {/* Not — tam genişlik, ilk üç satırı okunur */}
@@ -1249,6 +1279,8 @@ export function EditEntryModal({
                   {t("entry.addFeatureHere")}
                 </button>
             )}
+
+            {thingsBlock}
 
             {/* ── Menüden açılan bölümler ── */}
             {panel === "time" && (

@@ -1579,6 +1579,28 @@ export async function listRecentModValues(
   return out;
 }
 
+/** Girdiye iliştirilen nesne ve o girdide onun için yazılan değerler */
+export interface AttachedThing {
+  thingId: string;
+  /** modId → değer */
+  values: Record<string, string>;
+}
+
+function thingValueRows(entryId: string, things?: AttachedThing[]): EntryValue[] {
+  return (things ?? []).flatMap((t) =>
+    Object.entries(t.values)
+      .filter(([, v]) => v !== "")
+      .map(([modId, value]) => ({
+        id: id(),
+        entryId,
+        modId,
+        thingId: t.thingId,
+        value,
+        updatedAt: now(),
+      }))
+  );
+}
+
 /** Cihazın saat dilimi; Intl yoksa ya da boş dönerse kaydedilmez */
 function withTz(): { tz?: string } {
   try {
@@ -1597,6 +1619,8 @@ export async function createEntry(input: {
   notes?: string;
   linkedGroupId?: string;
   activityId?: string;
+  /** İliştirilen nesneler ve onlar için girilen değerler */
+  things?: AttachedThing[];
 }): Promise<Entry> {
   const entry: Entry = {
     id: id(),
@@ -1609,15 +1633,19 @@ export async function createEntry(input: {
     updatedAt: now(),
     ...(input.linkedGroupId ? { linkedGroupId: input.linkedGroupId } : {}),
     ...(input.activityId ? { activityId: input.activityId } : {}),
+    ...(input.things?.length ? { thingIds: input.things.map((t) => t.thingId) } : {}),
   };
-  const values: EntryValue[] = (input.typeValues ?? []).map((v) => ({
-    id: id(),
-    entryId: entry.id,
-    ...(v.entryTypeId ? { entryTypeId: v.entryTypeId } : {}),
-    ...(v.modId ? { modId: v.modId } : {}),
-    value: v.value,
-    updatedAt: now(),
-  }));
+  const values: EntryValue[] = [
+    ...(input.typeValues ?? []).map((v) => ({
+      id: id(),
+      entryId: entry.id,
+      ...(v.entryTypeId ? { entryTypeId: v.entryTypeId } : {}),
+      ...(v.modId ? { modId: v.modId } : {}),
+      value: v.value,
+      updatedAt: now(),
+    })),
+    ...thingValueRows(entry.id, input.things),
+  ];
 
   await db.transaction("rw", [db.entries, db.entryValues], async () => {
     await db.entries.add(entry);
@@ -1651,6 +1679,9 @@ export async function updateEntry(
     typeValues?: { entryTypeId?: string; value: string; modId?: string }[];
     occurredAt?: number;
     notes?: string;
+    /** Verilirse iliştirilen nesneler ve değerleri bununla değişir;
+     *  verilmezse olduğu gibi kalır */
+    things?: AttachedThing[];
   }
 ): Promise<void> {
   await db.transaction("rw", [db.entries, db.entryValues], async () => {
@@ -1659,6 +1690,7 @@ export async function updateEntry(
       title: input.title,
       notes: input.notes,
       occurredAt: input.occurredAt,
+      ...(input.things ? { thingIds: input.things.map((t) => t.thingId) } : {}),
       // Saat bu cihazda yeniden girildiyse saat dilimi de bu cihazınki
       ...(input.occurredAt !== undefined && input.occurredAt !== entry?.occurredAt
         ? withTz()
@@ -1670,7 +1702,10 @@ export async function updateEntry(
     // Alan (Field) değeri olmayan her şey yeniden yazılır. Eskiden burada
     // "entryTypeId taşıyanlar" deniyordu; v18'den sonra yeni değerler o alanı
     // taşımıyor ve süzgeç onları atlayıp kayıt biriktirirdi.
-    const typeValueIds = existing.filter((v) => !v.fieldId).map((v) => v.id);
+    // Nesneye ait değerler yalnız nesneler de verildiyse yeniden yazılır
+    const typeValueIds = existing
+      .filter((v) => !v.fieldId && (input.things !== undefined || !v.thingId))
+      .map((v) => v.id);
     if (typeValueIds.length) await db.entryValues.bulkDelete(typeValueIds);
     const newValues: EntryValue[] = (input.typeValues ?? []).map((v) => ({
       id: id(),
@@ -1681,6 +1716,7 @@ export async function updateEntry(
       updatedAt: now(),
     }));
     if (newValues.length) await db.entryValues.bulkAdd(newValues);
+    if (input.things) await db.entryValues.bulkAdd(thingValueRows(entryId, input.things));
 
     // Paylaşılan atomları aynı linkedGroup'taki kardeş girdilere senkronla
     if (entry?.linkedGroupId && input.typeValues?.length) {
@@ -1692,8 +1728,10 @@ export async function updateEntry(
       for (const sibling of siblings) {
         const sibVals = await db.entryValues.where("entryId").equals(sibling.id).toArray();
         for (const tv of input.typeValues) {
-          const match = sibVals.find((v) =>
-            tv.modId ? v.modId === tv.modId : v.entryTypeId === tv.entryTypeId
+          const match = sibVals.find(
+            (v) =>
+              !v.thingId &&
+              (tv.modId ? v.modId === tv.modId : v.entryTypeId === tv.entryTypeId)
           );
           if (match) await db.entryValues.update(match.id, { value: tv.value });
         }

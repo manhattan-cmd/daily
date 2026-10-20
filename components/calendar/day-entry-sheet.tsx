@@ -48,6 +48,8 @@ import {
   useCachedLiveQuery,
 } from "@/lib/db/live-cache";
 import { ENTRY_SCREEN } from "@/components/ui/entry-window";
+import { EntryThings } from "@/components/forms/entry-things";
+import type { AttachedThing } from "@/lib/db/queries";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 /** Değer state anahtarı: global mod id (legacy atamalarda atama id'si) */
@@ -106,6 +108,8 @@ function DayEntrySheetBody({
   const layout = useEntryLayout();
   const [step, setStep] = useState<Step>({ type: "pick" });
   const [values, setValues] = useState<Record<string, string>>({});
+  // Girdiye iliştirilen nesneler — yalnız ana girdiye (paralel perspektife değil)
+  const [things, setThings] = useState<AttachedThing[]>([]);
   const [notes, setNotes] = useState("");
   // Girdinin zamanı — formdaki "Zaman" seçeneğinden değiştirilebilir
   const [occurredAt, setOccurredAt] = useState("");
@@ -283,6 +287,7 @@ function DayEntrySheetBody({
    */
   function handlePick(sub: SubCategory) {
     setValues({});
+    setThings([]);
     setNotes("");
     setSelectedParallels([]);
     setParallelQueue([]);
@@ -303,7 +308,8 @@ function DayEntrySheetBody({
     mods: CategoryModifierWithType[],
     vals: Record<string, string>,
     groupId?: string,
-    entryNotes?: string
+    entryNotes?: string,
+    withThings?: AttachedThing[]
   ) {
     const typeValues = mods
       .filter((m) => (vals[valueKey(m)] ?? "") !== "")
@@ -326,6 +332,7 @@ function DayEntrySheetBody({
       notes: (entryNotes ?? notes).trim() || undefined,
       linkedGroupId: groupId,
       activityId: activity?.id,
+      things: withThings,
     });
   }
 
@@ -396,7 +403,8 @@ function DayEntrySheetBody({
     try {
       if (step.type === "form") {
         const groupId = selectedParallels.length > 0 ? nanoid(12) : undefined;
-        const created = await persistEntry(step.sub.id, activeMods, values, groupId);
+        const created = await persistEntry(step.sub.id, activeMods, values, groupId, undefined, things);
+        setThings([]);
         if (stay && !activity && selectedParallels.length === 0) {
           const group = (groups ?? []).find((g) => g.category.id === step.sub.categoryId);
           setToast(
@@ -554,6 +562,8 @@ function DayEntrySheetBody({
             onValueChange={(typeId, val) =>
               setValues((prev) => ({ ...prev, [typeId]: val }))
             }
+            things={step.type === "form" ? things : undefined}
+            onThingsChange={setThings}
             notes={notes}
             onNotesChange={setNotes}
             occurredAt={occurredAt}
@@ -812,6 +822,8 @@ function FormStep({
   onSaveStay,
   saving,
   entryDate,
+  things,
+  onThingsChange,
 }: {
   sub: SubCategory;
   category?: Category;
@@ -843,6 +855,9 @@ function FormStep({
   onSaveStay?: () => void;
   saving: boolean;
   entryDate: string;
+  /** İliştirilen nesneler — verilmezse bölüm yok (paralel perspektif) */
+  things?: AttachedThing[];
+  onThingsChange?: (next: AttachedThing[]) => void;
 }) {
   const t = useT();
   const [modPickerOpen, setModPickerOpen] = useState(false);
@@ -1022,6 +1037,15 @@ function FormStep({
               {t("entry.addFeature")}
             </button>
           </div>
+        )}
+
+        {things && onThingsChange && (
+          <EntryThings
+            subcategoryId={sub.id}
+            entryDate={entryDate}
+            value={things}
+            onChange={onThingsChange}
+          />
         )}
 
         {panel === "parallel" && showParallelOption && (
