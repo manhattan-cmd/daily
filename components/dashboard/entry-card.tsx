@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/lib/i18n";
 import type { EntryWithContext } from "@/types";
 import { cn, formatDate, formatDateTime } from "@/lib/utils";
 import { useLongPress } from "@/lib/use-long-press";
@@ -47,6 +48,7 @@ export function EntryCard({
         dateLabel={formatDate(entry.occurredAt)}
       />
     );
+  if (builtInKey === "objects") return <PlainEntryCard entry={entry} selection={selection} />;
   if (builtInKey === "mood")
     return (
       <MoodCard
@@ -96,7 +98,10 @@ function PlainEntryCard({
   const color = entry.category.color;
   const isRoot = !!entry.subcategory.isCategoryRoot;
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
-  const title = isRoot ? entry.category.name : entry.subcategory.name;
+  const t = useT();
+  // Yerleşik Nesneler kategorisinin adı kanonik İngilizce — dile göre
+  const catName = entry.category.builtInKey === "objects" ? t("objects.title") : entry.category.name;
+  const title = isRoot ? catName : entry.subcategory.name;
 
   // Ölçümü olan her değer çizilir. Eskiden entryTypeId de şarttı; v18'den
   // sonra yeni değerler onu taşımadığı için hepsi görünmez olmuştu.
@@ -145,7 +150,7 @@ function PlainEntryCard({
                 className="mt-0.5 truncate text-[9px] font-semibold uppercase leading-none tracking-[0.12em]"
                 style={{ color: `${color}cc` }}
               >
-                {entry.category.name}
+                {catName}
               </div>
             )}
           </div>

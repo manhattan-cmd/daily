@@ -33,6 +33,7 @@ import { AddMenu, type AddMenuItem } from "@/components/calendar/add-menu";
 import { SleepSheet } from "@/components/calendar/sleep-sheet";
 import { SleepCard } from "@/components/calendar/sleep-card";
 import { MoodSheet } from "@/components/calendar/mood-sheet";
+import { ThingEntrySheet } from "@/components/forms/thing-entry-sheet";
 import { MoodCard } from "@/components/calendar/mood-card";
 import { ActivityCard } from "@/components/calendar/activity-card";
 import {
@@ -126,6 +127,8 @@ export function CalendarDayPage({
   const [goalSheetOpen, setGoalSheetOpen] = useState(false);
   const [sleepSheetOpen, setSleepSheetOpen] = useState(false);
   const [moodSheetOpen, setMoodSheetOpen] = useState(false);
+  // Ekle → Nesne: bir nesnenin durumu (Duster · km), eylemden bağımsız
+  const [thingSheetOpen, setThingSheetOpen] = useState(false);
   // Ekle → Not ile açılan yeni notun penceresi
   const [newNoteId, setNewNoteId] = useState<string | null>(null);
   // Toplu seçim — null: mod kapalı. Kart bazlı seçilir, girdi id'si tutulur.
@@ -156,7 +159,10 @@ export function CalendarDayPage({
     e.category.isBuiltIn ? e.category.builtInKey ?? "sleep" : undefined;
   const sleepEntries = (entries ?? []).filter((e) => builtInKeyOf(e) === "sleep");
   const moodEntries = (entries ?? []).filter((e) => builtInKeyOf(e) === "mood");
-  const otherEntries = (entries ?? []).filter((e) => !e.category.isBuiltIn);
+  // Nesne girdileri ("Duster · 54.100 km") zaman çizgisinde sıradan kart gibi
+  const otherEntries = (entries ?? []).filter(
+    (e) => !e.category.isBuiltIn || e.category.builtInKey === "objects"
+  );
 
   // Kart → seçim durumu. Günün her öğesi (girdi, uyku, hedef, not) seçilebilir;
   // tür önekli anahtarla tutulur çünkü ayrı tablolarda yaşıyorlar. Bir kart
@@ -281,14 +287,27 @@ export function CalendarDayPage({
               },
             ] satisfies AddMenuItem[])
           : []),
+        ...(builtInKeys?.has("objects")
+          ? ([
+              {
+                key: "thing",
+                label: t("add.thing"),
+                icon: Boxes,
+                iconClass: "text-teal-400",
+                onSelect: () => setThingSheetOpen(true),
+              },
+            ] satisfies AddMenuItem[])
+          : []),
       ]}
     />
   );
 
   // Brütal başlığın sayıları
-  const dayCategories = [...new Map(otherEntries.map((e) => [e.category.id, e.category])).values()];
+  // Sayılar eylemleri sayar; nesne girdileri (durum) analizde görünmez
+  const actionEntries = otherEntries.filter((e) => e.category.builtInKey !== "objects");
+  const dayCategories = [...new Map(actionEntries.map((e) => [e.category.id, e.category])).values()];
   const goalsDone = (goals ?? []).filter((g) => g.completedEntryId).length;
-  const dayItemCount = groupEntries(otherEntries).length;
+  const dayItemCount = groupEntries(actionEntries).length;
 
   return (
     <>
@@ -331,7 +350,7 @@ export function CalendarDayPage({
           {/* Sayılar — girdi, kategori, hedef */}
           <div className="mt-3 grid grid-cols-3 gap-2">
             {[
-              { l: t("brut.entries"), v: String(otherEntries.length), bg: "#8ea6ff" },
+              { l: t("brut.entries"), v: String(actionEntries.length), bg: "#8ea6ff" },
               { l: t("brut.categories"), v: String(dayCategories.length), bg: "#7ae582" },
               { l: t("brut.goals"), v: goals && goals.length ? `${goalsDone}/${goals.length}` : "–", bg: "#ff9ecd" },
             ].map((b) => (
@@ -668,6 +687,7 @@ export function CalendarDayPage({
         open={moodSheetOpen}
         onClose={() => setMoodSheetOpen(false)}
       />
+      <ThingEntrySheet date={date} open={thingSheetOpen} onClose={() => setThingSheetOpen(false)} />
     </>
   );
 }

@@ -1,8 +1,15 @@
 "use client";
 
-import { createElement, useState, useMemo, useRef } from "react";
-import { EntryThings } from "@/components/forms/entry-things";
-import type { AttachedThing } from "@/lib/db/queries";
+import { createElement, useContext, useState, useMemo, useRef } from "react";
+import { useSkin } from "@/lib/skin";
+import {
+  collectThings,
+  ThingHeader,
+  ThingRail,
+  ThingValuesContext,
+  asThingField,
+  type ThingVals,
+} from "@/components/forms/thing-ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { nanoid } from "nanoid";
@@ -51,6 +58,7 @@ import {
   type CategoryModifierWithType,
   type ModWithType,
   type ParallelSub,
+  measureOf,
 } from "@/lib/db/queries";
 import { Switch } from "@/components/ui/switch";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
@@ -79,7 +87,7 @@ import {
   toLocalDateTimeValue,
   toLocalDateValue,
 } from "@/lib/utils";
-import type { EntryWithContext, EntryType } from "@/types";
+import type { Collection, EntryWithContext, EntryType, Mod, Thing } from "@/types";
 import { routes } from "@/lib/routes";
 import { LedgerField } from "@/components/forms/ledger-field";
 import { EntryTime } from "@/components/forms/entry-time";
@@ -121,7 +129,7 @@ export function EditEntryModal({
   // kart, ekleme penceresi ve düzenleme penceresi aynı dili konuşsun
   // Yerleşik akışın rengi: uyku moru, ruh hali pembesi. Anahtarı olmayan tek
   // yerleşik eski kurulumdaki Uyku.
-  const fieldTone: FieldTone = !entry.category.isBuiltIn
+  const fieldTone: FieldTone = !entry.category.isBuiltIn || entry.category.builtInKey === "objects"
     ? "default"
     : (entry.category.builtInKey ?? "sleep") === "mood"
       ? "mood"
@@ -169,17 +177,16 @@ export function EditEntryModal({
     return init;
   });
 
-  // İliştirilen nesneler ve bu girdide onlar için yazılan değerler
-  const [things, setThings] = useState<AttachedThing[]>(() =>
-    (entry.thingIds ?? []).map((thingId) => ({
-      thingId,
-      values: Object.fromEntries(
-        entry.values
-          .filter((v) => v.thingId === thingId && v.modId)
-          .map((v) => [v.modId!, v.value])
-      ),
-    }))
-  );
+  // Nesnelerin bu girdide yazılan özellikleri — thingId → modId → değer
+  const [thingVals, setThingVals] = useState<ThingVals>(() => {
+    const out: ThingVals = {};
+    for (const v of entry.values)
+      if (v.thingId && v.modId) (out[v.thingId] ??= {})[v.modId] = v.value;
+    return out;
+  });
+  // Nesne girdisi (Nesneler kategorisi): nesneler bir özellikten değil,
+  // girdinin kendisinden — onların blokları ayrıca çizilir
+  const isThingEntry = entry.category.builtInKey === "objects";
 
   // Bu girdiden çıkarılan satırlar (kategoriden değil)
   const [removedKeys, setRemovedKeys] = useState<Set<string>>(new Set());
@@ -517,7 +524,17 @@ export function EditEntryModal({
         typeValues,
         occurredAt: new Date(occurredAt).getTime(),
         notes: notes.trim() || undefined,
-        things,
+        things: isThingEntry
+          ? (entry.thingIds ?? []).map((thingId) => ({
+              thingId,
+              values: Object.fromEntries(
+                Object.entries(thingVals[thingId] ?? {}).filter(([, v]) => v !== "")
+              ),
+            }))
+          : collectThings(
+              rows.map((r) => ({ valueType: r.entryType.valueType, value: values[r.key] })),
+              thingVals
+            ),
       });
       // Yeni perspektifler — ekleme akışındaki gibi her biri için form açılır;
       // güncellenen değerler ortak atomlara kilitli taşınır. Grup id'si bellekte
@@ -548,16 +565,10 @@ export function EditEntryModal({
   }
 
   // Menüden açılan bölümler (perspektif, düzenli, sil) — iki görünüm de kullanır
-  // Yerleşik akışlar (uyku, ruh hali) nesne almıyor
-  const thingsBlock = isBuiltInTone ? null : (
-    <EntryThings
-      subcategoryId={entry.subcategoryId}
-      entryId={entry.id}
-      entryDate={entryDate}
-      value={things}
-      onChange={setThings}
-    />
-  );
+  // Nesne girdisinin blokları — başlık ve ipe asılı özellik alanları
+  const thingsBlock = isThingEntry ? (
+    <ThingEntryBlocks entry={entry} entryDate={entryDate} />
+  ) : null;
 
   const panels = (
     <>
@@ -711,8 +722,16 @@ export function EditEntryModal({
     </>
   );
 
+  const thingCtx = {
+    get: (tid: string, mid: string) => thingVals[tid]?.[mid],
+    set: (tid: string, mid: string, v: string) =>
+      setThingVals((prev) => ({ ...prev, [tid]: { ...prev[tid], [mid]: v } })),
+    entryId: entry.id,
+    entryDate,
+  };
+
   return (
-    <>
+    <ThingValuesContext.Provider value={thingCtx}>
       {/* İçeriği belirleyen listeler gelene kadar pencere görünmez: kart
           pencereyi artık dokununca yüklüyor, sorgular gelmeden açılırsa önce
           boş görünüp sonra dolardı. Bekleme birkaç on ms. */}
@@ -1363,7 +1382,7 @@ export function EditEntryModal({
           .filter((x): x is string => !!x)}
         onPicked={(picked) => handleAddMods(picked.map((m) => m.id))}
       />
-    </>
+    </ThingValuesContext.Provider>
   );
 }
 
@@ -1742,4 +1761,54 @@ function ChoiceButtons({
     </div>
   );
   return cs ? <FieldWindow color={color}>{row}</FieldWindow> : row;
+}
+
+/** Nesne girdisinin nesneleri — başlık ve ipe asılı özellik alanları */
+function ThingEntryBlocks({ entry, entryDate }: { entry: EntryWithContext; entryDate: string }) {
+  const t = useT();
+  const brutal = useSkin() === "brutal";
+  const data = useLiveQuery(async () => {
+    const things = (await db.things.bulkGet(entry.thingIds ?? [])).filter((x): x is Thing => !!x);
+    const colls = await db.collections.bulkGet([...new Set(things.map((x) => x.collectionId))]);
+    const mods = await db.mods.toArray();
+    return {
+      things,
+      colls: new Map(colls.filter((c): c is Collection => !!c).map((c) => [c.id, c])),
+      mods: new Map(mods.map((m) => [m.id, m])),
+    };
+  }, [entry.id]);
+  const ctx = useContext(ThingValuesContext);
+  if (!data || !ctx) return null;
+  return (
+    <div className="mt-4 flex flex-col gap-3">
+      {data.things.map((th) => {
+        const c = data.colls.get(th.collectionId);
+        const color = c?.color ?? "#94a3b8";
+        const mods = [...(c?.modIds ?? []), ...(th.extraModIds ?? [])]
+          .map((id) => data.mods.get(id))
+          .filter((m): m is Mod => !!m && m.valueType !== "object");
+        return (
+          <div key={th.id} className="flex flex-col">
+            <ThingHeader name={th.name} listName={c?.name} color={color} icon={c?.icon} brutal={brutal} />
+            {mods.length > 0 && (
+              <ThingRail color={color} brutal={brutal}>
+                {mods.map((m) => (
+                  <LedgerField
+                    key={m.id}
+                    mod={asThingField(m, th.id)}
+                    icon={modAtomIcon({ name: m.name, entryType: measureOf(m) })}
+                    color={modColor(m)}
+                    value={ctx.get(th.id, m.id) ?? (m.valueType === "boolean" ? "false" : "")}
+                    onChange={(v) => ctx.set(th.id, m.id, v)}
+                    entryDate={entryDate}
+                  />
+                ))}
+              </ThingRail>
+            )}
+          </div>
+        );
+      })}
+      {data.things.length === 0 && <p className="text-[12px] text-muted-foreground">{t("objects.noEntries")}</p>}
+    </div>
+  );
 }

@@ -108,7 +108,9 @@ export interface GlobalDimensionConfig {
  * bedavaya gelsin diye — ama gezinilen yüzeylerde görünmezler; kendi ekleme
  * pencereleri vardır.
  */
-export type BuiltInCategoryKey = "sleep" | "mood";
+/** objects: nesne girdileri ("Duster bugün 54.100 km") — eylem değil durum;
+ *  genel analizlerde görünmez, nesne analizini besler */
+export type BuiltInCategoryKey = "sleep" | "mood" | "objects";
 
 export interface Category {
   id: string;

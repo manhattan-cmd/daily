@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Archive, ArchiveRestore, ChevronRight, Plus } from "lucide-react";
+import { Archive, ArchiveRestore, ChevronRight, Plus, X } from "lucide-react";
 import { db } from "@/lib/db";
 import {
   addThingExtraMod,
@@ -14,14 +14,13 @@ import {
   removeThingExtraMod,
   renameThing,
   setThingArchived,
-  setThingValue,
   thingEntries,
 } from "@/lib/db/things";
-import { measureOf, type CategoryModifierWithType } from "@/lib/db/queries";
+import { measureOf } from "@/lib/db/queries";
 import { BrutHeroCard, BrutTopStrip } from "@/components/structure/brutal";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { modAtomIcon } from "@/components/structure/mod-atom";
-import { LedgerField } from "@/components/forms/ledger-field";
+import { ThingEntrySheet } from "@/components/forms/thing-entry-sheet";
 import { Dialog } from "@/components/ui/dialog";
 import {
   FormActions,
@@ -38,30 +37,12 @@ import type { Mod } from "@/types";
 
 const H2 = "mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
 
-/** LedgerField bir atama bekliyor — nesnenin özelliği için sahte bir atama */
-function asField(m: Mod, extra: boolean): CategoryModifierWithType {
-  return {
-    id: `${extra ? "thing-extra" : "thing"}-${m.id}`,
-    modId: m.id,
-    targetType: "subcategory",
-    targetId: "",
-    order: 0,
-    createdAt: m.createdAt,
-    updatedAt: m.updatedAt,
-    name: m.name,
-    mod: m,
-    entryType: measureOf(m),
-  };
-}
-
 export function ThingScreen({ thingId }: { thingId: string }) {
   const t = useT();
   const router = useRouter();
   const [pickOpen, setPickOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
-  // Yazarken her tuşta veritabanından geri okumak imleci zıplatıyor —
-  // değerler yerelde tutulur, değiştikçe yazılır
-  const [local, setLocal] = useState<Record<string, string> | null>(null);
+  const [logOpen, setLogOpen] = useState(false);
 
   const data = useLiveQuery(async () => {
     const th = await db.things.get(thingId);
@@ -104,7 +85,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
       th,
       c,
       mods: mods.filter((m): m is Mod => !!m),
-      values: Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v.value])),
+      current: values,
       entries: shown,
       total: entries.length,
       facts,
@@ -116,15 +97,11 @@ export function ThingScreen({ thingId }: { thingId: string }) {
   if (data === undefined) return null;
   if (data === null) return <BrutTopStrip back="/structure/objects" />;
   const { th, c, mods, entries, total, facts, subs, cats } = data;
-  const values = local ?? data.values;
+  const { current } = data;
   const color = c?.color ?? "#94a3b8";
   const back = c ? routes.structureCollection(c.id) : "/structure/objects";
   const extra = new Set(th.extraModIds ?? []);
 
-  function change(modId: string, v: string) {
-    setLocal({ ...values, [modId]: v });
-    void setThingValue(thingId, modId, v);
-  }
 
   async function onDelete() {
     const ok = await confirmDialog({
@@ -173,23 +150,69 @@ export function ThingScreen({ thingId }: { thingId: string }) {
         )}
       </div>
 
-      {/* Özellikler — girdi formundaki alanların aynısı */}
+      {/* Özellikler — güncel durum, son girdisinden; yeni değer "Durum gir"le
+          girdi olarak yazılır (geçmişi kalır) */}
       <section className="mb-6">
         <h2 className={H2}>{t("objects.thingFeatures")}</h2>
         <div className="flex flex-col gap-2">
-          {mods.map((m) => (
-            <LedgerField
-              key={m.id}
-              mod={asField(m, extra.has(m.id))}
-              icon={modAtomIcon({ name: m.name, entryType: measureOf(m) })}
-              color={modColor(m)}
-              value={values[m.id] ?? (m.valueType === "boolean" ? "false" : "")}
-              onChange={(v) => change(m.id, v)}
-              entryDate={toLocalDateValue()}
-              entryOnly={extra.has(m.id)}
-              onRemove={extra.has(m.id) ? () => removeThingExtraMod(thingId, m.id) : undefined}
-            />
-          ))}
+          {mods.map((m) => {
+            const cur = current[m.id];
+            const n = cur ? Number(cur.value) : NaN;
+            const shown = !cur
+              ? "—"
+              : m.valueType === "boolean"
+                ? cur.value === "true" ? t("entry.yes") : t("entry.no")
+                : m.valueType === "number" && Number.isFinite(n)
+                  ? `${n.toLocaleString("tr-TR")}${m.unit ? " " + m.unit : ""}`
+                  : cur.value;
+            return (
+              <div
+                key={m.id}
+                data-thing-state=""
+                className="flex items-center gap-3 rounded-xl border-2 border-[#111] bg-white px-3 py-2.5 text-[#111]"
+              >
+                <span
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-[1.5px] border-[#111]"
+                  style={{ background: modColor(m) }}
+                >
+                  {(() => {
+                    const Icon = modAtomIcon({ name: m.name, entryType: measureOf(m) });
+                    return <Icon className="h-4 w-4 text-[#111]" strokeWidth={2.4} />;
+                  })()}
+                </span>
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block truncate text-[12px] font-bold text-[#111]/60">{m.name}</span>
+                  <span className="block truncate text-[17px] font-black">{shown}</span>
+                </span>
+                {cur && (
+                  <span className="shrink-0 text-[11px] font-semibold text-[#111]/50">
+                    {new Date(cur.at).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}
+                  </span>
+                )}
+                {extra.has(m.id) && (
+                  <button
+                    type="button"
+                    onClick={() => removeThingExtraMod(thingId, m.id)}
+                    aria-label={t("entry.removeFromEntry")}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#111]/50 hover:bg-[#111]/5"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {mods.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setLogOpen(true)}
+              data-log-state=""
+              className="flex h-12 items-center justify-center gap-2 rounded-2xl border-2 border-[#111] bg-[#ffd23f] text-[15px] font-black text-[#111] shadow-[3px_3px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+            >
+              <Plus className="h-5 w-5" strokeWidth={3} />
+              {t("objects.logState")}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setPickOpen(true)}
@@ -251,6 +274,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
         )}
       </section>
 
+      <ThingEntrySheet open={logOpen} onClose={() => setLogOpen(false)} thingId={thingId} />
       <ModPickDialog
         open={pickOpen}
         onOpenChange={setPickOpen}

@@ -34,11 +34,16 @@ function put(v: PeriodData) {
 }
 
 export async function loadPeriodData(period: Period): Promise<PeriodData> {
-  const [cats, subs, entries] = await Promise.all([
+  const [allCats, subs, allEntries] = await Promise.all([
     db.categories.orderBy("order").toArray(),
     db.subcategories.toArray(),
     db.entries.where("occurredAt").between(period.start, period.end, true, false).toArray(),
   ]);
+  // Nesne girdileri (durum: km, sayfa) genel analizde yok — nesne analizinde
+  const hidden = new Set(allCats.filter((c) => c.builtInKey === "objects").map((c) => c.id));
+  const hiddenSubs = new Set(subs.filter((s) => hidden.has(s.categoryId)).map((s) => s.id));
+  const cats = allCats.filter((c) => !hidden.has(c.id));
+  const entries = allEntries.filter((e) => !hiddenSubs.has(e.subcategoryId));
   return { periodKey: period.key, period, cats, subs, entries };
 }
 

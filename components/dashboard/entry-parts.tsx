@@ -75,8 +75,9 @@ export function ValueCapsuleRow({
   className?: string;
 }) {
   const t = useT();
-  // Nesneye ait değerler kartta nesnenin kapsülünde (ThingCapsuleRow)
-  values = values.filter((v) => !v.thingId);
+  // Nesneye ait değerler ve nesne seçimi (Hangi araba) kartta nesnenin
+  // kapsülünde (ThingCapsuleRow) — aynı nesne iki kez görünmesin
+  values = values.filter((v) => !v.thingId && v.entryType?.valueType !== "object");
   const shown = values.slice(0, MAX_CAPSULES);
   const rest = values.length - shown.length;
   return (
@@ -194,6 +195,10 @@ export function ThingCapsuleRow({
             const r = readValue(v);
             return [r.main, r.unit].filter(Boolean).join(" ");
           });
+        // Nesnenin girdideki rolü — onu seçtiren özelliğin adı (ARABALARIM)
+        const role = values.find(
+          (v) => v.entryType?.valueType === "object" && v.value.split(",").includes(tid)
+        );
         return (
           <span
             key={tid}
@@ -205,6 +210,11 @@ export function ThingCapsuleRow({
             <span className="truncate">{names.names.get(tid) ?? "?"}</span>
             {parts.length > 0 && (
               <span className="truncate font-semibold opacity-70">{parts.join(" · ")}</span>
+            )}
+            {role && (
+              <span className="shrink-0 text-[10px] font-bold uppercase leading-none opacity-55">
+                {role.mod?.name ?? role.entryType?.name}
+              </span>
             )}
           </span>
         );

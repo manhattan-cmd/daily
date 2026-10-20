@@ -18,7 +18,6 @@ import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { CategoryForm } from "@/components/structure/category-form";
 import { ModifierSection } from "@/components/structure/modifier-section";
-import { ThingSection } from "@/components/structure/thing-section";
 import { SubCategoryTree } from "@/components/structure/subcategory-tree";
 import { RecentEntriesSection } from "@/components/structure/recent-entries-section";
 import { routes } from "@/lib/routes";
@@ -131,9 +130,6 @@ export function CategoryDetailPage({
           targetName={category.name}
         />
       )}
-
-      {/* Bağlı nesneler — girdi formunda hazır çıkar */}
-      {category && <ThingSection targetType="category" targetId={categoryId} />}
 
       {/* Alt kategori ağacı — hiyerarşi iç içe açılır */}
       {category && (

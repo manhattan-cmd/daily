@@ -26,8 +26,9 @@ export const MEASURE_UI_KINDS: MeasureUiKind[] = [
   "select",
   "datetime-range",
   "text",
-  // "object" bilerek yok: nesne bir özelliğin değeri değil, girdiye
-  // iliştirilen ayrı bir şey (bkz. components/forms/entry-things)
+  // Nesne: bir listeden seçilir (Hangi araba › Arabalarım); seçilen nesnenin
+  // kendi özellikleri girdide altında açılır (bkz. thing-field)
+  "object",
 ];
 
 export function uiKindOf(m: {

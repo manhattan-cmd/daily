@@ -1,32 +1,47 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Plus, Search, X } from "lucide-react";
 import { db } from "@/lib/db";
 import {
   createThing,
+  currentThingValues,
   joinThingIds,
   splitThingIds,
   thingUsage,
 } from "@/lib/db/things";
-import { formatDTRDisplay } from "@/components/forms/datetime-range-input";
+import { measureOf } from "@/lib/db/queries";
+import { LedgerField } from "@/components/forms/ledger-field";
+import { modAtomIcon } from "@/components/structure/mod-atom";
+import {
+  asThingField,
+  Diamond,
+  summaryOf,
+  ThingHeader,
+  ThingRail,
+  useThingValues,
+  type ThingCurrent,
+} from "@/components/forms/thing-ui";
+import { modColor } from "@/lib/mod-color";
+import { useSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Mod } from "@/types";
 
-/** Aramasız gösterilen nesne sayısı — gerisi aramayla */
-const SHOWN = 8;
+/** Aramasız gösterilen nesne sayısı */
+const SHOWN = 6;
 
 /**
- * Girdi formunda "Nesne" türündeki özelliğin alanı.
+ * Girdi formunda "Nesne" türündeki özelliğin alanı — "Hangi araba".
  *
- * Seçilenler üstte çip; her çipin altında nesnenin kendi özellikleri okunur
- * halde ("1000 mg · Sabah+Akşam") — bunlar girdide tekrar yazılmaz. Altta
- * arama ve aktif nesneler (en son kullanılan önde). Arşivdekiler yalnız
- * aramada, etiketle çıkar. Listede olmayan ad tek dokunuşla eklenir: nesneler
- * çoğu zaman girdi anında doğar (yeni müşteri, yeni kitap), formu bırakıp
- * Yapı'ya gitmek gerekmesin.
+ * Boşken: arama ve listenin nesneleri satır satır (en son kullanılan önde,
+ * her satırda nesnenin güncel durumu: "53.485 km"); listede olmayan ad tek
+ * dokunuşla eklenir — nesneler çoğu zaman girdi anında doğar.
+ * Seçilince: nesnenin başlığı ve altında, başlıktan inen ipe asılı kendi
+ * özellikleri ("Mevcut km", Son önerisi güncel değer). Yazılan değer bu
+ * girdiye bu nesne için kaydedilir ve nesnenin güncel durumu olur.
+ * Çoklu seçimde başlıklar alt alta, "Bir tane daha" ile yenisi.
  */
 export function ThingField({
   collectionId,
@@ -47,7 +62,10 @@ export function ThingField({
   wellStyle: React.CSSProperties;
 }) {
   const t = useT();
+  const brutal = useSkin() === "brutal";
+  const ctx = useThingValues();
   const [query, setQuery] = useState("");
+  const [adding, setAdding] = useState(false);
   const selected = splitThingIds(value);
 
   const data = useLiveQuery(async () => {
@@ -61,24 +79,6 @@ export function ThingField({
     return { collection, things, usage, mods: new Map(mods.map((m) => [m.id, m])) };
   }, [collectionId]);
 
-  // Seçilen nesnelerin özellikleri — okunur özet
-  const facts = useLiveQuery(async () => {
-    if (!selected.length) return new Map<string, { modId: string; value: string }[]>();
-    const rows = await db.thingValues.where("thingId").anyOf(selected).toArray();
-    const out = new Map<string, { modId: string; value: string }[]>();
-    for (const r of rows) out.set(r.thingId, [...(out.get(r.thingId) ?? []), r]);
-    return out;
-  }, [value]);
-
-  const byId = useMemo(
-    () => new Map((data?.things ?? []).map((th) => [th.id, th])),
-    [data]
-  );
-
-  if (!collectionId) {
-    return <p className="text-[12px] text-muted-foreground">{t("objects.noList")}</p>;
-  }
-
   const q = query.trim().toLocaleLowerCase("tr");
   const pool = (data?.things ?? [])
     .filter((th) => !selected.includes(th.id))
@@ -88,16 +88,34 @@ export function ThingField({
         (data?.usage.get(b.id)?.last ?? b.createdAt) - (data?.usage.get(a.id)?.last ?? a.createdAt)
     );
   const shown = q ? pool : pool.slice(0, SHOWN);
-  const exact = (data?.things ?? []).some((th) => th.name.toLocaleLowerCase("tr") === q);
-  const activeCount = (data?.things ?? []).filter((th) => !th.archivedAt).length;
-  const listOpen = multiple || selected.length === 0;
+
+  // Güncel durumlar — seçilenlerin "Son" önerisi ve satırların özeti
+  const stateKey = [...selected, ...shown.map((th) => th.id)].join(",");
+  const states = useLiveQuery(async () => {
+    const out = new Map<string, ThingCurrent>();
+    for (const id of stateKey ? stateKey.split(",") : []) out.set(id, await currentThingValues(id, ctx?.entryId));
+    return out;
+  }, [stateKey, ctx?.entryId]);
+
+  if (!collectionId) {
+    return <p className="text-[12px] text-muted-foreground">{t("objects.noList")}</p>;
+  }
+  if (!data) return null;
+
+  const coll = data.collection;
+  const listColor = coll?.color ?? color;
+  const featureIds = coll?.modIds ?? [];
+  const exact = (data.things ?? []).some((th) => th.name.toLocaleLowerCase("tr") === q);
+  const pickerOpen = selected.length === 0 || (multiple && adding);
+  const ink = brutal ? "text-[#111]" : "text-foreground";
+  const sub = brutal ? "text-[#111]/55" : "text-muted-foreground";
 
   const pick = (thingId: string) => {
     onChange(multiple ? joinThingIds([...selected, thingId]) : thingId);
     setQuery("");
+    setAdding(false);
   };
-  const unpick = (thingId: string) =>
-    onChange(joinThingIds(selected.filter((x) => x !== thingId)));
+  const unpick = (thingId: string) => onChange(joinThingIds(selected.filter((x) => x !== thingId)));
 
   async function addNew() {
     const name = query.trim();
@@ -106,63 +124,58 @@ export function ThingField({
     pick(th.id);
   }
 
-  const fact = (modId: string, v: string): string | null => {
-    const m: Mod | undefined = data?.mods.get(modId);
-    if (!m) return null;
-    if (m.valueType === "boolean") return v === "true" ? m.name : null;
-    if (m.valueType === "datetime-range") return formatDTRDisplay(v);
-    if (m.valueType === "object") return null;
-    return m.valueType === "number" && m.unit ? `${v} ${m.unit}` : v;
-  };
-
   return (
-    <div className="flex flex-col gap-2" data-thing-field="">
-      {/* Seçilenler */}
-      {selected.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          {selected.map((sid) => {
-            const th = byId.get(sid);
-            const order = data?.collection?.modIds ?? [];
-            const lines = (facts?.get(sid) ?? [])
-              .sort((a, b) => order.indexOf(a.modId) - order.indexOf(b.modId))
-              .map((r) => fact(r.modId, r.value))
-              .filter(Boolean);
-            return (
-              <div
-                key={sid}
-                data-thing-chip=""
-                className={cn(well, "items-center gap-2 py-2")}
-                style={{ ...wellStyle, boxShadow: `inset 0 0 0 1.5px ${color}` }}
-              >
-                <span
-                  className="h-3 w-3 shrink-0 rounded-full"
-                  style={{ background: color }}
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px] font-bold leading-5">
-                    {th?.name ?? "?"}
-                  </span>
-                  {lines.length > 0 && (
-                    <span className="block truncate text-[11.5px] font-medium text-muted-foreground">
-                      {lines.join(" · ")}
-                    </span>
-                  )}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => unpick(sid)}
-                  aria-label={t("entry.removeFromEntry")}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-[var(--sf-2)] hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
+    <div className="flex flex-col gap-2.5" data-thing-field="">
+      {/* Seçilenler — başlık ve ipe asılı özellikleri */}
+      {selected.map((sid) => {
+        const th = data.things.find((x) => x.id === sid);
+        const mods = [...featureIds, ...(th?.extraModIds ?? [])]
+          .map((id) => data.mods.get(id))
+          .filter((m): m is Mod => !!m && m.valueType !== "object");
+        const cur = states?.get(sid) ?? {};
+        return (
+          <div key={sid} className="flex flex-col" data-thing-chip="">
+            <ThingHeader
+              name={th?.name ?? "?"}
+              listName={coll?.name}
+              color={listColor}
+              icon={coll?.icon}
+              brutal={brutal}
+              onRemove={() => unpick(sid)}
+              removeLabel={t("entry.removeFromEntry")}
+            />
+            {ctx && mods.length > 0 && (
+              <ThingRail color={listColor} brutal={brutal}>
+                {mods.map((m) => (
+                  <LedgerField
+                    key={m.id}
+                    mod={asThingField(m, sid)}
+                    icon={modAtomIcon({ name: m.name, entryType: measureOf(m) })}
+                    color={modColor(m)}
+                    value={ctx.get(sid, m.id) ?? (m.valueType === "boolean" ? "false" : "")}
+                    onChange={(v) => ctx.set(sid, m.id, v)}
+                    recent={cur[m.id] ? [cur[m.id].value] : []}
+                    entryDate={ctx.entryDate}
+                  />
+                ))}
+              </ThingRail>
+            )}
+          </div>
+        );
+      })}
+
+      {multiple && selected.length > 0 && !adding && (
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className={cn("flex h-9 items-center gap-1.5 self-start rounded-full px-3 text-[13px] font-bold", sub, "hover:bg-[var(--sf-2)]")}
+        >
+          <Plus className="h-4 w-4" strokeWidth={2.6} />
+          {t("objects.oneMore")}
+        </button>
       )}
 
-      {listOpen && (
+      {pickerOpen && (
         <>
           <label className={cn(well, "min-h-10 gap-2")} style={wellStyle}>
             <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -175,49 +188,70 @@ export function ThingField({
                   void addNew();
                 }
               }}
-              placeholder={
-                activeCount
-                  ? t("objects.search", { n: activeCount })
-                  : t("objects.newIn", { list: data?.collection?.name ?? "" })
-              }
+              placeholder={t("objects.searchIn", { list: coll?.name ?? "" })}
               aria-label={t("action.search")}
               className="h-10 min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-muted-foreground/50"
             />
+            {query && (
+              <button type="button" onClick={() => setQuery("")} aria-label={t("action.close")} className="text-muted-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </label>
 
-          {(shown.length > 0 || (q && !exact)) && (
-            <div className="flex flex-wrap gap-1.5">
-              {shown.map((th) => (
+          <div className="flex flex-col gap-1.5">
+            {q && !exact && (
+              <button
+                type="button"
+                data-thing-create=""
+                onClick={() => void addNew()}
+                className={cn(
+                  "flex min-h-11 items-center gap-2.5 rounded-xl px-2 text-left text-[#111]",
+                  brutal && "border-2 border-[#111] shadow-[2px_2px_0_#111]"
+                )}
+                style={{ background: `color-mix(in srgb, ${listColor} 30%, white)` }}
+              >
+                <Plus className="mx-1.5 h-5 w-5 shrink-0" strokeWidth={3} />
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block truncate text-[14px] font-black">{t("objects.createNamed", { name: query.trim() })}</span>
+                  <span className="block truncate text-[11px] font-semibold opacity-60">{t("objects.newIn", { list: coll?.name ?? "" })}</span>
+                </span>
+              </button>
+            )}
+            {shown.map((th) => {
+              const summary = summaryOf(states?.get(th.id), featureIds, data.mods);
+              return (
                 <button
                   key={th.id}
                   type="button"
                   data-thing-option=""
                   onClick={() => pick(th.id)}
-                  className="flex min-h-9 max-w-full items-center gap-1.5 rounded-xl bg-black/25 px-3 py-1.5 text-[13.5px] font-semibold text-muted-foreground ring-1 ring-inset hover:text-foreground"
-                  style={{ ["--tw-ring-color" as string]: `${color}40` }}
-                >
-                  <span className="truncate">{th.name}</span>
-                  {th.archivedAt && (
-                    <span className="shrink-0 text-[10.5px] font-medium opacity-70">
-                      {t("objects.archivedTag")}
-                    </span>
+                  className={cn(
+                    "flex min-h-11 items-center gap-2.5 rounded-xl px-1.5 py-1 text-left transition-colors",
+                    brutal ? "border-2 border-[#111] bg-white hover:bg-[#111]/5" : "bg-black/20 hover:bg-[var(--sf-2)]"
                   )}
-                </button>
-              ))}
-              {q && !exact && (
-                <button
-                  type="button"
-                  data-thing-create=""
-                  onClick={() => void addNew()}
-                  className="flex min-h-9 max-w-full items-center gap-1.5 rounded-xl px-3 py-1.5 text-[13.5px] font-bold"
-                  style={{ background: `${color}26`, color, boxShadow: `inset 0 0 0 1.5px ${color}` }}
                 >
-                  <Plus className="h-4 w-4 shrink-0" strokeWidth={2.6} />
-                  <span className="truncate">{t("objects.createNamed", { name: query.trim() })}</span>
+                  <Diamond color={listColor} icon={coll?.icon} size={28} muted={!!th.archivedAt} brutal={brutal} />
+                  <span className="min-w-0 flex-1 leading-tight">
+                    <span className={cn("block truncate text-[14px] font-extrabold", ink)}>{th.name}</span>
+                    {(summary || th.archivedAt) && (
+                      <span className={cn("block truncate text-[11px] font-semibold", sub)}>
+                        {[summary, th.archivedAt ? t("objects.archivedTag") : ""].filter(Boolean).join(" · ")}
+                      </span>
+                    )}
+                  </span>
                 </button>
-              )}
-            </div>
-          )}
+              );
+            })}
+            {!q && pool.length > shown.length && (
+              <p className={cn("px-1 text-[11.5px] font-semibold", sub)}>
+                {t("objects.moreToSearch", { n: pool.length - shown.length })}
+              </p>
+            )}
+            {!q && pool.length === 0 && (
+              <p className={cn("px-1 text-[12px]", sub)}>{t("objects.typeToAdd")}</p>
+            )}
+          </div>
         </>
       )}
     </div>

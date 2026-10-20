@@ -294,6 +294,15 @@ const BUILT_IN_CATEGORIES = [
       },
     ],
   },
+  {
+    // Nesne girdileri — kalemsiz, kategori kökünde; özellikleri nesnenin
+    // listesinden gelir (bkz. components/forms/thing-entry-sheet)
+    key: "objects",
+    name: "Objects",
+    color: "#14b8a6",
+    icon: "box",
+    subcategories: [],
+  },
 ] as const satisfies readonly {
   key: BuiltInCategoryKey;
   name: string;

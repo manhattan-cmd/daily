@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useLayoutEffect, useRef } from "react";
+import { migrateThingAttachments } from "@/lib/db/things";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   ensureBuiltInDimensions,
@@ -87,6 +88,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       // devrinden sonra hiçbir şeyi eşleştiremiyordu — temiz kurulumda Uyku
       // penceresi bomboş açılıyordu.
       await ensureBuiltInCategories();
+      // Nesnelerin ilk sürümündeki iliştirmeler → Nesne türünde özellik
+      await migrateThingAttachments();
       // En son: yerleşikler kurulduktan sonra ilk açılış örnekleri
       await ensureStarterData();
       // Süresi dolmuş silme günlüğü satırları (payload'lar yer kaplar)

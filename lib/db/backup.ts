@@ -1,6 +1,7 @@
 import type { Table } from "dexie";
 import { db, type RoutineDB } from "./index";
 import { reconcileBackup, type DeviceStructure } from "./backup-merge";
+import { migrateThingAttachments } from "./things";
 import type {
   Activity,
   Category,
@@ -288,6 +289,8 @@ export async function restoreBackup(
   );
 
   await backfillAfterRestore(data);
+  // Eski yedekteki nesne iliştirmeleri → Nesne türünde özellik
+  await migrateThingAttachments();
 
   return { mode, written, skipped, matched };
 }

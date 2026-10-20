@@ -48,8 +48,8 @@ import {
   useCachedLiveQuery,
 } from "@/lib/db/live-cache";
 import { ENTRY_SCREEN } from "@/components/ui/entry-window";
-import { EntryThings } from "@/components/forms/entry-things";
 import type { AttachedThing } from "@/lib/db/queries";
+import { collectThings, ThingValuesContext, type ThingVals } from "@/components/forms/thing-ui";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 /** Değer state anahtarı: global mod id (legacy atamalarda atama id'si) */
@@ -108,8 +108,8 @@ function DayEntrySheetBody({
   const layout = useEntryLayout();
   const [step, setStep] = useState<Step>({ type: "pick" });
   const [values, setValues] = useState<Record<string, string>>({});
-  // Girdiye iliştirilen nesneler — yalnız ana girdiye (paralel perspektife değil)
-  const [things, setThings] = useState<AttachedThing[]>([]);
+  // "Hangi araba"da seçilen nesnelerin formda yazılan özellikleri (Mevcut km)
+  const [thingVals, setThingVals] = useState<ThingVals>({});
   const [notes, setNotes] = useState("");
   // Girdinin zamanı — formdaki "Zaman" seçeneğinden değiştirilebilir
   const [occurredAt, setOccurredAt] = useState("");
@@ -287,7 +287,7 @@ function DayEntrySheetBody({
    */
   function handlePick(sub: SubCategory) {
     setValues({});
-    setThings([]);
+    setThingVals({});
     setNotes("");
     setSelectedParallels([]);
     setParallelQueue([]);
@@ -403,8 +403,12 @@ function DayEntrySheetBody({
     try {
       if (step.type === "form") {
         const groupId = selectedParallels.length > 0 ? nanoid(12) : undefined;
+        const things = collectThings(
+          activeMods.map((m) => ({ valueType: m.entryType.valueType, value: values[valueKey(m)] })),
+          thingVals
+        );
         const created = await persistEntry(step.sub.id, activeMods, values, groupId, undefined, things);
-        setThings([]);
+        setThingVals({});
         if (stay && !activity && selectedParallels.length === 0) {
           const group = (groups ?? []).find((g) => g.category.id === step.sub.categoryId);
           setToast(
@@ -534,6 +538,14 @@ function DayEntrySheetBody({
                     durur: ray simgelere daralıp sağda kalır, nereden
                     geldiğin görünür; raya dokunmak formu kapatıp oraya
                     gider. Sola kaydır: kapat, yukarı çek: tam ekran. */}
+                <ThingValuesContext.Provider
+                  value={{
+                    get: (tid, mid) => thingVals[tid]?.[mid],
+                    set: (tid, mid, v) =>
+                      setThingVals((prev) => ({ ...prev, [tid]: { ...prev[tid], [mid]: v } })),
+                    entryDate: date,
+                  }}
+                >
                 <FormFrame layout={layout} key={step.sub.id} onDismiss={leaveForm}>
                   <FormStep
             key={step.sub.id}
@@ -562,8 +574,6 @@ function DayEntrySheetBody({
             onValueChange={(typeId, val) =>
               setValues((prev) => ({ ...prev, [typeId]: val }))
             }
-            things={step.type === "form" ? things : undefined}
-            onThingsChange={setThings}
             notes={notes}
             onNotesChange={setNotes}
             occurredAt={occurredAt}
@@ -575,6 +585,7 @@ function DayEntrySheetBody({
             entryDate={date}
                   />
                 </FormFrame>
+                </ThingValuesContext.Provider>
               </>
             )}
           </>
@@ -822,8 +833,6 @@ function FormStep({
   onSaveStay,
   saving,
   entryDate,
-  things,
-  onThingsChange,
 }: {
   sub: SubCategory;
   category?: Category;
@@ -855,9 +864,6 @@ function FormStep({
   onSaveStay?: () => void;
   saving: boolean;
   entryDate: string;
-  /** İliştirilen nesneler — verilmezse bölüm yok (paralel perspektif) */
-  things?: AttachedThing[];
-  onThingsChange?: (next: AttachedThing[]) => void;
 }) {
   const t = useT();
   const [modPickerOpen, setModPickerOpen] = useState(false);
@@ -1037,15 +1043,6 @@ function FormStep({
               {t("entry.addFeature")}
             </button>
           </div>
-        )}
-
-        {things && onThingsChange && (
-          <EntryThings
-            subcategoryId={sub.id}
-            entryDate={entryDate}
-            value={things}
-            onChange={onThingsChange}
-          />
         )}
 
         {panel === "parallel" && showParallelOption && (

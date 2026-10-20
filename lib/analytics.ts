@@ -726,6 +726,9 @@ export function analysisKindOf(
   if (vt === "boolean") return "rate";
   if (vt === "text") return "presence";
   if (vt === "select") return isNumericChoiceSet(choices) ? "scale" : "choice";
+  // Nesne (Hangi araba): hangisi ne sıklıkla — dağılım; değerler analize
+  // girerken kimlikten ada çevrilir (bkz. use-category-metrics)
+  if (vt === "object") return "choice";
   return "number";
 }
 

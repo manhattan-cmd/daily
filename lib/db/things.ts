@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import { db } from "./index";
-import type { Collection, Entry, StructureThing, Thing, ThingValue } from "@/types";
+import type { Collection, Entry, Mod, StructureThing, Thing, ThingValue } from "@/types";
+import { attachMod, createMod, findModByName } from "./queries";
 
 /**
  * NESNELER — koleksiyonlar, üyeleri ve üyelerin özellik değerleri.
@@ -380,4 +381,74 @@ export async function effectiveLinksForSub(
   const cat = await db.categories.get(sub.categoryId);
   push(await listStructureLinks("category", sub.categoryId), !sub.isCategoryRoot, cat?.name ?? "");
   return out;
+}
+
+// ============ Göç: iliştirmeler → Nesne türünde özellik ============
+
+/**
+ * İlk sürümün iki mekanizması (girdiye serbest iliştirme, kaleme nesne/liste
+ * bağlama) "Nesne" türünde özelliğe çevrilir — kullanıcı nesnenin girdideki
+ * rolünü adlandırsın diye (Hangi araba). Her liste için o listenin adıyla
+ * bir özellik (çakışırsa "… (nesne)"); iliştirilen nesneler o özelliğin
+ * değeri olur, kaleme bağlanan liste ya da nesne o kaleme özellik olarak
+ * bağlanır. Nesne girdileri (Nesneler kategorisi) dokunulmaz. Tekrar
+ * çalışması güvenli: çevrilmiş girdide değer zaten var, bağlar silinir.
+ */
+export async function migrateThingAttachments(): Promise<void> {
+  const links = await db.structureThings.toArray();
+  const objCat = (await db.categories.toArray()).find((c) => c.builtInKey === "objects");
+  const objSubs = new Set(
+    objCat ? ((await db.subcategories.where("categoryId").equals(objCat.id).primaryKeys()) as string[]) : []
+  );
+  const entries = (await db.entries.toArray()).filter(
+    (e) => e.thingIds?.length && !objSubs.has(e.subcategoryId)
+  );
+  if (!links.length && !entries.length) return;
+
+  const things = new Map((await db.things.toArray()).map((t) => [t.id, t]));
+  const collections = new Map((await db.collections.toArray()).map((c) => [c.id, c]));
+  const byColl = new Map<string, Mod>();
+  for (const m of await db.mods.toArray())
+    if (m.valueType === "object" && m.collectionId && !byColl.has(m.collectionId)) byColl.set(m.collectionId, m);
+
+  async function modFor(collectionId: string, multiple: boolean): Promise<Mod | undefined> {
+    let m = byColl.get(collectionId);
+    if (!m) {
+      const c = collections.get(collectionId);
+      if (!c) return undefined;
+      const clash = await findModByName(c.name);
+      const name = clash ? `${c.name} (nesne)` : c.name;
+      m = (await createMod(name, { valueType: "object", collectionId, multiple })).mod;
+      byColl.set(collectionId, m);
+    } else if (multiple && !m.multiple) {
+      await db.mods.update(m.id, { multiple: true });
+      m = { ...m, multiple: true };
+      byColl.set(collectionId, m);
+    }
+    return m;
+  }
+
+  // Girdiler: iliştirilen nesneler listelerine göre özellik değerine
+  const vals = entries.length ? await db.entryValues.where("entryId").anyOf(entries.map((e) => e.id)).toArray() : [];
+  for (const e of entries) {
+    const groups = new Map<string, string[]>();
+    for (const tid of e.thingIds ?? []) {
+      const c = things.get(tid)?.collectionId;
+      if (c) groups.set(c, [...(groups.get(c) ?? []), tid]);
+    }
+    for (const [collId, ids] of groups) {
+      const m = await modFor(collId, ids.length > 1);
+      if (!m) continue;
+      if (vals.some((v) => v.entryId === e.id && v.modId === m.id && !v.thingId)) continue;
+      await db.entryValues.add({ id: id(), entryId: e.id, modId: m.id, value: joinThingIds(ids), updatedAt: now() });
+    }
+  }
+
+  // Yapı bağları: liste ya da nesne → o listenin özelliği kaleme bağlanır
+  for (const l of links) {
+    const collId = l.collectionId ?? (l.thingId ? things.get(l.thingId)?.collectionId : undefined);
+    const m = collId ? await modFor(collId, false) : undefined;
+    if (m) await attachMod(l.targetType, l.targetId, m.id);
+  }
+  await db.structureThings.clear();
 }

@@ -266,7 +266,7 @@ export async function loadCategoryMetrics({
       ? fetched.filter((e) => !regularIds.has(e.subcategoryId))
       : fetched;
     const excludedEntryCount = fetched.length - entries.length;
-    const values = entries.length
+    let values = entries.length
       ? (
           await db.entryValues
             .where("entryId")
@@ -274,6 +274,22 @@ export async function loadCategoryMetrics({
             .toArray()
         ).filter((v) => !v.thingId) // nesneye ait değerler nesne analizinde
       : [];
+    // Nesne özelliği (Hangi araba) dağılım olarak okunur: kimlik → ad,
+    // çoklu seçim ayrı değerlere
+    const objMods = new Set(
+      (await db.mods.toArray()).filter((m) => m.valueType === "object").map((m) => m.id)
+    );
+    if (objMods.size) {
+      const names = new Map((await db.things.toArray()).map((t) => [t.id, t.name]));
+      values = values.flatMap((v) =>
+        v.modId && objMods.has(v.modId)
+          ? v.value
+              .split(",")
+              .filter(Boolean)
+              .map((id) => ({ ...v, value: names.get(id) ?? "?" }))
+          : [v]
+      );
+    }
 
     // Metrik adayları: yalnızca kapsamdaki girdilerde GERÇEKTEN kullanılanlar.
     // Atanmış ama hiç veri girilmemiş özellikler metrik çipi olarak
