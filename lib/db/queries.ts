@@ -1213,7 +1213,10 @@ export async function listModifiersForTarget(
 export async function attachMod(
   targetType: "category" | "subcategory",
   targetId: string,
-  modId: string
+  modId: string,
+  /** Verilirse yalnız bu alt kategorilere yayılır (kategori kökü hep dahil);
+   *  verilmezse hepsine — ekleme penceresindeki "Nereye eklensin?" adımı */
+  only?: ReadonlySet<string>
 ): Promise<CategoryModifier> {
   const mod = await db.mods.get(modId);
   if (!mod) throw new Error("Mod bulunamadı");
@@ -1223,7 +1226,7 @@ export async function attachMod(
     .toArray();
   const already = existing.find((a) => a.modId === modId);
   if (already) {
-    await propagateModToDescendants(targetType, targetId, mod);
+    await propagateModToDescendants(targetType, targetId, mod, only);
     return already;
   }
 
@@ -1237,14 +1240,15 @@ export async function attachMod(
     updatedAt: now(),
   };
   await db.categoryModifiers.add(attachment);
-  await propagateModToDescendants(targetType, targetId, mod);
+  await propagateModToDescendants(targetType, targetId, mod, only);
   return attachment;
 }
 
 async function propagateModToDescendants(
   parentType: "category" | "subcategory",
   parentId: string,
-  mod: Mod
+  mod: Mod,
+  only?: ReadonlySet<string>
 ): Promise<void> {
   let children: SubCategory[];
   if (parentType === "category") {
@@ -1261,6 +1265,11 @@ async function propagateModToDescendants(
   }
 
   for (const child of children) {
+    // Seçilmeyen kalem atlanır ama altı yine gezilir — seçilen torun alsın
+    if (only && !child.isCategoryRoot && !only.has(child.id)) {
+      await propagateModToDescendants("subcategory", child.id, mod, only);
+      continue;
+    }
     const already = await db.categoryModifiers
       .filter(
         (a) => a.targetType === "subcategory" && a.targetId === child.id && a.modId === mod.id
@@ -1280,7 +1289,7 @@ async function propagateModToDescendants(
         updatedAt: now(),
       });
     }
-    await propagateModToDescendants("subcategory", child.id, mod);
+    await propagateModToDescendants("subcategory", child.id, mod, only);
   }
 }
 

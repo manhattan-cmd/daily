@@ -74,7 +74,13 @@ export function ModPickDialog({
   onPicked?: (mods: ModWithType[]) => void;
 }) {
   const t = useT();
-  const [mode, setMode] = useState<"pick" | "create">("pick");
+  const [mode, setMode] = useState<"pick" | "create" | "where">("pick");
+  // "Nereye eklensin?" adımı: hangi görünümden gelindi, hangi özellikler
+  // bekliyor (yaratmada boş — özellik onayda yaratılır), hangi alt
+  // kategoriler işaretli
+  const [whereFrom, setWhereFrom] = useState<"pick" | "create">("pick");
+  const [pending, setPending] = useState<string[]>([]);
+  const [chosenSubs, setChosenSubs] = useState<Set<string>>(() => new Set());
   const [name, setName] = useState("");
   const [measure, setMeasure] = useState<ModMeasure>({ valueType: "number" });
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +118,48 @@ export function ModPickDialog({
     () => listModifiersForTarget(targetType, targetId),
     [targetType, targetId]
   );
+  // Hedefin altındaki alt kategoriler (ağaç sırasıyla, kök hariç) ve her
+  // birinde zaten bağlı olan özellikler
+  const below = useLiveQuery(async () => {
+    if (!persist || !open) return [];
+    const catId =
+      targetType === "category"
+        ? targetId
+        : (await db.subcategories.get(targetId))?.categoryId;
+    if (!catId) return [];
+    const subs = (
+      await db.subcategories.where("categoryId").equals(catId).toArray()
+    ).filter((x) => !x.isCategoryRoot);
+    const kids = (pid: string | undefined) =>
+      subs
+        .filter((x) => (x.parentId ?? undefined) === pid)
+        .sort((a, b) => a.order - b.order);
+    const out: {
+      id: string;
+      name: string;
+      depth: number;
+      parentId?: string;
+      has: Set<string>;
+    }[] = [];
+    const walk = (pid: string | undefined, depth: number) => {
+      for (const x of kids(pid)) {
+        out.push({ id: x.id, name: x.name, depth, parentId: x.parentId, has: new Set() });
+        walk(x.id, depth + 1);
+      }
+    };
+    walk(targetType === "category" ? undefined : targetId, 0);
+    if (out.length) {
+      const ids = new Set(out.map((x) => x.id));
+      const atts = await db.categoryModifiers
+        .filter((a) => a.targetType === "subcategory" && ids.has(a.targetId))
+        .toArray();
+      const byId = new Map(out.map((x) => [x.id, x]));
+      for (const a of atts) if (a.modId) byId.get(a.targetId)?.has.add(a.modId);
+    }
+    return out;
+  }, [persist, open, targetType, targetId]);
+  const hasBelow = (below?.length ?? 0) > 0;
+
   const knownUnits = [
     ...new Set((pool ?? []).map((m) => m.unit?.trim()).filter((u): u is string => !!u)),
   ].sort((a, b) => a.localeCompare(b, "en"));
@@ -126,6 +174,8 @@ export function ModPickDialog({
         setExistingId(null);
         setSearch("");
         setSelected([]);
+        setPending([]);
+        setChosenSubs(new Set());
       }, 200);
       return () => clearTimeout(t);
     }
@@ -150,16 +200,67 @@ export function ModPickDialog({
       if (picked) onPicked?.([picked]);
       return;
     }
+    if (hasBelow) {
+      openWhere([modId], "create");
+      return;
+    }
+    await finish([modId]);
+  }
+
+  /** Alt kategori varsa önce "Nereye eklensin?" — hepsi işaretli başlar */
+  function openWhere(ids: string[], from: "pick" | "create") {
+    setPending(ids);
+    setWhereFrom(from);
+    setChosenSubs(new Set((below ?? []).map((x) => x.id)));
+    setMode("where");
+  }
+
+  /** Bağla ve kapat; only verilirse yalnız işaretli alt kategorilere yayılır */
+  async function finish(ids: string[], only?: ReadonlySet<string>) {
     setSaving(true);
     try {
-      await attachMod(targetType, targetId, modId);
+      for (const id of ids) await attachMod(targetType, targetId, id, only);
       attachedRef.current = true;
       onOpenChange(false);
-      const picked = (pool ?? []).find((m) => m.id === modId);
-      if (picked) onAttached?.(picked);
+      const first = (pool ?? []).find((m) => m.id === ids[0]);
+      if (first) onAttached?.(first);
     } finally {
       setSaving(false);
     }
+  }
+
+  async function confirmWhere() {
+    if (pending.length) {
+      await finish(pending, chosenSubs);
+      return;
+    }
+    // Yaratmadan gelindi: özellik şimdi yaratılıyor
+    setSaving(true);
+    try {
+      const { mod } = await createMod(name, measure);
+      await attachMod(targetType, targetId, mod.id, chosenSubs);
+      attachedRef.current = true;
+      onOpenChange(false);
+      onAttached?.({ ...mod, entryType: measureOf(mod) });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /** İşareti kaldırmak altındakileri de kaldırır; koymak yalnız onu koyar */
+  function toggleSub(id: string) {
+    setChosenSubs((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        const stack = [id];
+        while (stack.length) {
+          const cur = stack.pop()!;
+          next.delete(cur);
+          for (const x of below ?? []) if (x.parentId === cur) stack.push(x.id);
+        }
+      } else next.add(id);
+      return next;
+    });
   }
 
   /** Seçilenleri sırayla bağla. Çağırana ilk seçilen bildirilir — girdi
@@ -176,16 +277,11 @@ export function ModPickDialog({
       onPicked?.(picked);
       return;
     }
-    setSaving(true);
-    try {
-      for (const id of selected) await attachMod(targetType, targetId, id);
-      attachedRef.current = true;
-      onOpenChange(false);
-      const first = (pool ?? []).find((m) => m.id === selected[0]);
-      if (first) onAttached?.(first);
-    } finally {
-      setSaving(false);
+    if (hasBelow) {
+      openWhere(selected, "pick");
+      return;
     }
+    await finish(selected);
   }
 
   async function handleCreate() {
@@ -204,6 +300,10 @@ export function ModPickDialog({
           setError(t("features.nameClashOf", { name: clash.name }));
           setExistingId(clash.id);
         }
+        return;
+      }
+      if (hasBelow) {
+        openWhere([], "create");
         return;
       }
       const { mod } = await createMod(name, measure);
@@ -244,11 +344,11 @@ export function ModPickDialog({
       >
         {/* Başlık — yaratmada çekirdek seçilen ölçüm türüyle değişir */}
         <div className="flex items-center gap-3.5 pb-4 pr-6">
-          {mode === "create" ? (
+          {mode !== "pick" ? (
             <button
               type="button"
               onClick={() => {
-                setMode("pick");
+                setMode(mode === "where" ? whereFrom : "pick");
                 setError(null);
                 setExistingId(null);
               }}
@@ -273,9 +373,11 @@ export function ModPickDialog({
                   color={accent}
                 />
               )}
-              {mode === "create"
-                ? name.trim() || t("features.createNew")
-                : t("entry.addFeature")}
+              {mode === "where"
+                ? t("features.whereTitle")
+                : mode === "create"
+                  ? name.trim() || t("features.createNew")
+                  : t("entry.addFeature")}
             </DialogTitle>
           </div>
         </div>
@@ -398,6 +500,75 @@ export function ModPickDialog({
                 )}
               </FormSection>
             </>
+          ) : mode === "where" ? (
+            <FormSection
+              label={t("features.whereLabel")}
+              action={
+                <button
+                  type="button"
+                  onClick={() =>
+                    setChosenSubs(
+                      chosenSubs.size === (below?.length ?? 0)
+                        ? new Set()
+                        : new Set((below ?? []).map((x) => x.id))
+                    )
+                  }
+                  className="text-[12px] font-semibold"
+                  style={{ color: accent }}
+                >
+                  {chosenSubs.size === (below?.length ?? 0)
+                    ? t("features.whereNone")
+                    : t("features.whereAll")}
+                </button>
+              }
+            >
+              <p className="text-[12px] leading-relaxed text-muted-foreground">
+                {t("features.whereHint", { name: targetName })}
+              </p>
+              <div className="flex flex-col">
+                {(below ?? []).map((x) => {
+                  const already =
+                    pending.length > 0 && pending.every((m) => x.has.has(m));
+                  const on = already || chosenSubs.has(x.id);
+                  return (
+                    <button
+                      key={x.id}
+                      type="button"
+                      data-where=""
+                      aria-pressed={on}
+                      disabled={already || saving}
+                      onClick={() => toggleSub(x.id)}
+                      className="flex items-center gap-2.5 rounded-lg py-2 pr-2 text-left text-sm transition-colors hover:bg-muted/40 disabled:opacity-60"
+                      style={{ paddingLeft: 4 + x.depth * 18 }}
+                    >
+                      <span
+                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white"
+                        style={
+                          on
+                            ? { backgroundColor: accent }
+                            : { boxShadow: `inset 0 0 0 1.5px ${accent}` }
+                        }
+                      >
+                        {on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                      </span>
+                      <span
+                        className={cn(
+                          "min-w-0 flex-1 truncate",
+                          !on && "text-muted-foreground"
+                        )}
+                      >
+                        {x.name}
+                      </span>
+                      {already && (
+                        <span className="shrink-0 text-[11px] text-muted-foreground">
+                          {t("features.alreadyHas")}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </FormSection>
           ) : (
             <>
               <FormSection label={t("features.name")}>
@@ -457,9 +628,21 @@ export function ModPickDialog({
               className="text-white"
               style={{ backgroundColor: accent }}
             >
-              {selected.length > 0
-                ? `${t("action.add")} (${selected.length})`
-                : t("action.add")}
+              {hasBelow
+                ? t("action.continue")
+                : selected.length > 0
+                  ? `${t("action.add")} (${selected.length})`
+                  : t("action.add")}
+            </Button>
+          )}
+          {mode === "where" && (
+            <Button
+              onClick={confirmWhere}
+              disabled={saving}
+              className="text-white"
+              style={{ backgroundColor: accent }}
+            >
+              {t("action.add")}
             </Button>
           )}
           {mode === "create" && (
@@ -469,7 +652,7 @@ export function ModPickDialog({
               className="text-white"
               style={{ backgroundColor: accent }}
             >
-              {t("features.createAndAttach")}
+              {hasBelow ? t("action.continue") : t("features.createAndAttach")}
             </Button>
           )}
         </DialogFooter>
