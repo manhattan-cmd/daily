@@ -302,7 +302,7 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
       const m = ends.get(card) ?? ends.set(card, new Map()).get(card)!;
       (m.get(f) ?? m.set(f, []).get(f)!).push({ p, d });
     };
-    const cableList: { f: string; color: string; from: string; to: string; path: Path2D }[] = [];
+    const cableList: { f: string; color: string; from: string; to: string; path: Path2D; pts: Pt[]; k: number }[] = [];
     for (const tr of city.traces) {
       const fl = onEdge.get(tr.from + ">" + tr.to);
       if (!fl) continue;
@@ -312,7 +312,7 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
       fl.sort((x, y) => rank.get(x)! - rank.get(y)!).forEach((f, k) => {
         const d = ((k >> 1) + 1) * CABLE_GAP * (k % 2 ? -1 : 1);
         const pts = offsetLine(tr.pts, d);
-        cableList.push({ f, color: data.byId.get(f)?.color ?? "#888", from: tr.from, to: tr.to, path: toPath(pts) });
+        cableList.push({ f, color: data.byId.get(f)?.color ?? "#888", from: tr.from, to: tr.to, path: toPath(pts), pts, k });
         if (pinA) addEnd(tr.from, f, pts[0], pinA.d);
         if (b.pad) addEnd(tr.to, f, pts[pts.length - 1], b.pad.d);
       });
@@ -349,9 +349,24 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
         stack.push(tr.to);
       }
     }
+    // Kabloların akışı: her kablo kendi izinin kökten uzaklığıyla — ışık
+    // izden kabloya kesintisiz geçsin; noktalar kablonun (özelliğin) renginde
+    const trOf = new Map(traces.map((tr) => [tr.from + ">" + tr.to, tr]));
+    const cableFlow = new Map<string, { pts: Pt[]; cum: number[]; len: number; d0: number; color: string; f: string; k: number }[]>();
+    for (const cb of cableList) {
+      const key = cb.from + ">" + cb.to;
+      const g = flow.get(trOf.get(key)!);
+      if (!g) continue;
+      const cum = [0];
+      for (let i = 1; i < cb.pts.length; i++)
+        cum.push(cum[i - 1] + Math.hypot(cb.pts[i][0] - cb.pts[i - 1][0], cb.pts[i][1] - cb.pts[i - 1][1]));
+      (cableFlow.get(key) ?? cableFlow.set(key, []).get(key)!).push({
+        pts: cb.pts, cum, len: cum[cum.length - 1], d0: g.d0, color: cb.color, f: cb.f, k: cb.k,
+      });
+    }
     const { x0, y0, x1, y1 } = city.bounds;
     const center: Pt = withRoot ? [0, 0] : [(x0 + x1) / 2, (y0 + y1) / 2];
-    return { cards, traces, parentOf, feats, featIds, cables: cableList, rings, flow, bounds: { x0, y0, x1, y1 }, center, withRoot, byId: data.byId };
+    return { cards, traces, parentOf, feats, featIds, cables: cableList, rings, flow, cableFlow, bounds: { x0, y0, x1, y1 }, center, withRoot, byId: data.byId };
   }, [data, unused, local, reveal, featUsed]);
 
   // ─── Çizim ────────────────────────────────────────────────────────────────
@@ -507,33 +522,51 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
       ctx.globalCompositeOperation = "lighter";
       if (L.cables) for (const cb of T.cables) wire(cb.path, cb.color, cableOn(cb.f, cb.from, cb.to), 3.2);
 
-      // Akış: ışık merkezden dışa akıyor; yol ne kadar kullanılıyorsa o kadar sık
+      // Akış: ışık merkezden dışa akıyor; yol ne kadar kullanılıyorsa o kadar
+      // sık. Kablolar açıkken noktalar kabloların üstünde, her biri kendi
+      // özelliğinin renginde; kablosuz yolda izin üstünde kalemin renginde.
       if (L.flow && motion) {
         const now = performance.now() / 1000;
+        const dots = (pts: Pt[], cum: number[], len: number, d0: number, gap: number, r: number, color: string) => {
+          ctx.fillStyle = color;
+          let i = 1;
+          for (let d = (((now * FLOW_SPEED - d0) % gap) + gap) % gap; d < len; d += gap) {
+            while (i < cum.length - 1 && cum[i] < d) i++;
+            const f = (d - cum[i - 1]) / (cum[i] - cum[i - 1] || 1);
+            const [ax, ay] = pts[i - 1];
+            const [bx, by] = pts[i];
+            const px = ax + (bx - ax) * f;
+            const py = ay + (by - ay) * f;
+            ctx.globalAlpha = 0.14;
+            ctx.beginPath();
+            ctx.arc(px, py, r * 2.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 0.85;
+            ctx.beginPath();
+            ctx.arc(px, py, r, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        };
         for (const tr of T.traces) {
           const u = usage(tr.to);
           const g = T.flow.get(tr);
           if (u < 0.05 || !g || dimTrace(tr)) continue;
           const gap = 170 - 110 * u;
-          const r = 1.4 + traceW(u) * 0.35;
-          ctx.fillStyle = mixHex(T.byId.get(tr.to)?.color ?? "#888", "#ffffff", 0.45);
-          let i = 1;
-          for (let d = (((now * FLOW_SPEED - g.d0) % gap) + gap) % gap; d < g.len; d += gap) {
-            while (i < g.cum.length - 1 && g.cum[i] < d) i++;
-            const f = (d - g.cum[i - 1]) / (g.cum[i] - g.cum[i - 1] || 1);
-            const [ax, ay] = tr.pts[i - 1];
-            const [bx, by] = tr.pts[i];
-            const px = ax + (bx - ax) * f;
-            const py = ay + (by - ay) * f;
-            ctx.globalAlpha = 0.12;
-            ctx.beginPath();
-            ctx.arc(px, py, r * 2.2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.globalAlpha = 0.6;
-            ctx.beginPath();
-            ctx.arc(px, py, r, 0, Math.PI * 2);
-            ctx.fill();
+          const cbs = L.cables ? T.cableFlow.get(tr.from + ">" + tr.to) : undefined;
+          if (cbs?.length) {
+            // Kablolar ince — noktalar da ince; yan yana kablolar aynı anda
+            // değil, birbirinin arasından aksın
+            // Parlak tel üstünde "lighter" rengi beyaza yakıyor — nokta
+            // kendi renginde düz boyanır
+            ctx.globalCompositeOperation = "source-over";
+            for (const cb of cbs) {
+              if (!cableOn(cb.f, tr.from, tr.to)) continue;
+              dots(cb.pts, cb.cum, cb.len, cb.d0 + (cb.k * gap) / (cbs.length + 1), gap, 1.7, cb.color);
+            }
+            ctx.globalCompositeOperation = "lighter";
+            continue;
           }
+          dots(tr.pts, g.cum, g.len, g.d0, gap, 1.4 + traceW(u) * 0.35, mixHex(T.byId.get(tr.to)?.color ?? "#888", "#ffffff", 0.45));
         }
       }
       ctx.globalCompositeOperation = "source-over";
