@@ -329,12 +329,10 @@ export function CalendarDayPage({
             </div>
           </div>
 
-          {/* Gün özeti katmanı — bento: solda tarih kartı, sağında sayılar alt
-              alta, altta gün analizi */}
+          {/* Gün özeti katmanı — tarih kartı, sayılar, gün analizi */}
           <Layer label={t("day.summary")} className="mb-0 mt-4">
-          <div className="grid grid-cols-[minmax(0,1fr)_92px] gap-2">
           {/* Tarih kartı — gün adı, dev tarih, bugün etiketi, Ekle */}
-          <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border-2 border-[#111] bg-[#ffd23f] p-4 text-[#111] shadow-[5px_5px_0_#111]">
+          <div className="flex items-end gap-3 rounded-2xl border-2 border-[#111] bg-[#ffd23f] p-4 text-[#111] shadow-[5px_5px_0_#111]">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-[12px] font-black uppercase tracking-wider">{weekdayLong(d, tag)}</span>
@@ -344,7 +342,7 @@ export function CalendarDayPage({
                   </span>
                 )}
               </div>
-              <h1 className="mt-1 text-[34px] font-black leading-[0.95] tracking-tight">
+              <h1 className="mt-1 text-[40px] font-black leading-[0.95] tracking-tight">
                 {d.getDate()} {monthName(d.getMonth(), tag)}
               </h1>
               <div className="mt-1 font-mono text-[13px] font-bold">{d.getFullYear()}</div>
@@ -353,7 +351,7 @@ export function CalendarDayPage({
           </div>
 
           {/* Sayılar — girdi, kategori, hedef */}
-          <div className="flex flex-col gap-2">
+          <div className="mt-3 grid grid-cols-3 gap-2">
             {[
               { l: t("brut.entries"), v: String(actionEntries.length), bg: "#8ea6ff" },
               { l: t("brut.categories"), v: String(dayCategories.length), bg: "#7ae582" },
@@ -364,7 +362,6 @@ export function CalendarDayPage({
                 <b className="block font-mono text-[22px] font-bold leading-7 tabular-nums">{b.v}</b>
               </div>
             ))}
-          </div>
           </div>
 
           {/* Gün analizi — sağda girdi sayısı, alt kenarında günün kategori
