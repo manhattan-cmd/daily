@@ -123,7 +123,7 @@ export function ThingEntrySheet({
     .sort((a, b) => (data?.usage.get(b.id) ?? 0) - (data?.usage.get(a.id) ?? 0));
 
   // Güncel durumlar — seçilenin "Son" önerisi, seçicide satır özetleri
-  const stateKey = thingId ?? options.slice(0, 12).map((x) => x.id).join(",");
+  const stateKey = thingId ?? options.slice(0, 40).map((x) => x.id).join(",");
   const states = useLiveQuery(async () => {
     const out = new Map<string, ThingCurrent>();
     for (const id of stateKey ? stateKey.split(",") : []) out.set(id, await currentThingValues(id));
@@ -236,16 +236,16 @@ export function ThingEntrySheet({
                       </div>
                       <label
                         className={cn(
-                          "flex h-11 items-center gap-2 rounded-xl px-3",
-                          brutal ? "border-2 border-[#111] bg-white" : "bg-black/25 ring-1 ring-inset ring-[var(--ln-2)]"
+                          "flex h-9 items-center gap-2 rounded-lg px-2.5",
+                          brutal ? "border-[1.5px] border-[#111] bg-white" : "bg-[var(--sf-2)] ring-1 ring-inset ring-[var(--ln-1)]"
                         )}
                       >
-                        <Search className={cn("h-4 w-4 shrink-0", sub)} />
+                        <Search className={cn("h-3.5 w-3.5 shrink-0", sub)} strokeWidth={2.4} />
                         <input
                           value={query}
                           onChange={(e) => setQuery(e.target.value)}
                           placeholder={t("action.search")}
-                          className={cn("h-full min-w-0 flex-1 bg-transparent text-[14px] outline-none", ink)}
+                          className={cn("h-full min-w-0 flex-1 bg-transparent text-[13px] font-semibold outline-none", ink)}
                         />
                         {query && (
                           <button type="button" onClick={() => setQuery("")} aria-label={t("action.close")} className={sub}>
@@ -253,7 +253,8 @@ export function ThingEntrySheet({
                           </button>
                         )}
                       </label>
-                      <div className="flex flex-col gap-1.5">
+                      {/* Liste bir yere kadar büyür, sonra kendi içinde kayar */}
+                      <div data-thing-list="" className="-mr-1 flex max-h-[min(300px,42vh)] flex-col gap-1.5 overflow-y-auto overscroll-contain pr-1">
                         {options.map((x) => {
                           const c = data?.collections.find((y) => y.id === x.collectionId);
                           const summary = summaryOf(states?.get(x.id), c?.modIds ?? [], data?.mods ?? new Map());
@@ -264,7 +265,7 @@ export function ThingEntrySheet({
                               data-thing-option=""
                               onClick={() => setThingId(x.id)}
                               className={cn(
-                                "flex min-h-12 items-center gap-2.5 rounded-xl px-1.5 py-1 text-left transition-colors",
+                                "flex min-h-12 shrink-0 items-center gap-2.5 rounded-xl px-1.5 py-1 text-left transition-colors",
                                 brutal ? "border-2 border-[#111] bg-white hover:bg-[#111]/5" : "bg-black/20 hover:bg-[var(--sf-2)]"
                               )}
                             >

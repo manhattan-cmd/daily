@@ -450,8 +450,6 @@ export function LedgerField({
           value={value}
           onChange={onChange}
           color={color}
-          well={well}
-          wellStyle={wellStyle}
         />
       ) : vt === "text" ? (
         <label className={cn(well, "cursor-text py-3")} style={wellStyle}>

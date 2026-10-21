@@ -33,7 +33,12 @@ import { MeasureEditor, isMeasureComplete } from "@/components/structure/measure
 import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
 import { modColor } from "@/lib/mod-color";
 import { db } from "@/lib/db";
-import { MEASURE_KIND_META, uiKindOf } from "@/lib/measure-kinds";
+import {
+  MEASURE_KIND_META,
+  MEASURE_UI_KINDS,
+  uiKindOf,
+  type MeasureUiKind,
+} from "@/lib/measure-kinds";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { useSkin } from "@/lib/skin";
@@ -94,6 +99,8 @@ export function ModPickDialog({
   const [saving, setSaving] = useState(false);
   // Havuzda arama — yazdıkça süzülür
   const [search, setSearch] = useState("");
+  // Tür süzgeci — Yapı › Özellikler'deki gibi; null = hepsi
+  const [kindFilter, setKindFilter] = useState<MeasureUiKind | null>(null);
   // Seçilenler (dokunma sırasıyla) — "Ekle" hepsini birden bağlar. Eskiden
   // dokunmak anında ekleyip pencereyi kapatıyordu; birkaç özellik eklemek
   // için pencere her seferinde yeniden açılıyordu.
@@ -180,6 +187,7 @@ export function ModPickDialog({
         setError(null);
         setExistingId(null);
         setSearch("");
+        setKindFilter(null);
         setSelected([]);
         setPending([]);
         setChosenSubs(new Set());
@@ -195,9 +203,30 @@ export function ModPickDialog({
   );
   const available = (pool ?? []).filter((m) => !attachedModIds.has(m.id));
   const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
-  const filtered = search
+  const searched = search
     ? available.filter((m) => norm(m.name).includes(norm(search)))
     : available;
+  // Süzgeç çipleri — aramaya uyanların türlere göre sayısı
+  const kindCounts = MEASURE_UI_KINDS.map((k) => ({
+    kind: k as MeasureUiKind | null,
+    label: t(MEASURE_KIND_META[k].labelKey),
+    n: searched.filter((m) => uiKindOf(m) === k).length,
+  })).filter((x) => x.n > 0);
+  // Aramadan sonra seçili türde hiç kalmadıysa süzgeç kendiliğinden Hepsi
+  const activeKind =
+    kindFilter && kindCounts.some((k) => k.kind === kindFilter) ? kindFilter : null;
+  const filtered = activeKind
+    ? searched.filter((m) => uiKindOf(m) === activeKind)
+    : searched;
+  // Türe göre öbekler, Yapı › Özellikler'deki sırayla — boş öbek yok
+  const groups = MEASURE_UI_KINDS.map((k) => ({
+    kind: k,
+    label: t(MEASURE_KIND_META[k].labelKey),
+    icon: MEASURE_KIND_META[k].icon,
+    items: filtered
+      .filter((m) => uiKindOf(m) === k)
+      .sort((x, y) => x.name.localeCompare(y.name, "tr")),
+  })).filter((g) => g.items.length > 0);
 
   async function handleAttach(modId: string) {
     if (!persist) {
@@ -473,59 +502,112 @@ export function ModPickDialog({
                   )}
                 </label>
 
-                {/* Özellik atomları — dairesel çekirdekler, 4 sütun */}
-                {filtered.length > 0 && (
-                  // Renkli daireler, üç sütun: dört sütunda adlar kesiliyordu,
-                  // burada iki satıra kadar tam okunuyor. Her özellik kendi
-                  // renginde hafif bir karenin içinde; dokunmak SEÇER — kare
-                  // koyulaşır, çerçevesi belirginleşir, köşede tik belirir.
-                  // Ekleme alttaki düğmeyle.
-                  <div className="grid grid-cols-3 gap-2 pt-1">
-                    {filtered.map((m: ModWithType) => {
-                      const c = modColor(m);
-                      const on = selected.includes(m.id);
+                {/* Tür süzgeci — Hepsi ve havuzdaki türler, sayılarıyla; yana kayar */}
+                {kindCounts.length > 1 && (
+                  <div
+                    data-kind-filter=""
+                    className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none]"
+                  >
+                    {[
+                      { kind: null as MeasureUiKind | null, label: t("features.allKinds"), n: searched.length },
+                      ...kindCounts,
+                    ].map((k) => {
+                      const on = activeKind === k.kind;
                       return (
                         <button
-                          key={m.id}
+                          key={k.kind ?? "all"}
                           type="button"
-                          onClick={() => toggle(m.id)}
                           aria-pressed={on}
-                          disabled={saving}
-                          className="relative flex flex-col items-center gap-2 rounded-2xl px-1.5 pb-2.5 pt-3 transition-all duration-200 active:scale-[0.94] disabled:opacity-50"
-                          style={
-                            on
-                              ? {
-                                  background: `${c}29`,
-                                  boxShadow: `inset 0 0 0 1.5px ${c}`,
-                                }
-                              : {
-                                  background: `${c}0f`,
-                                  boxShadow: `inset 0 0 0 1px ${c}2e`,
-                                }
-                          }
-                        >
-                          {on && (
-                            <span
-                              className="entry-tile-pop absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-white"
-                              style={{ background: c }}
-                            >
-                              <Check className="h-3 w-3" strokeWidth={3} />
-                            </span>
+                          onClick={() => setKindFilter(k.kind)}
+                          className={cn(
+                            "flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-bold transition-colors",
+                            brutal
+                              ? cn(
+                                  "border-[1.5px] border-[#111]",
+                                  on ? "bg-[#111] text-[#fff4dc]" : "bg-white text-[#111]"
+                                )
+                              : on
+                                ? "bg-foreground text-background"
+                                : "bg-[var(--sf-2)] text-foreground/75 hover:bg-[var(--sf-3)]"
                           )}
-                          <ModAtomCore icon={modAtomIcon(m)} color={c} />
-                          <span
-                            className={cn(
-                              "line-clamp-2 w-full break-words text-center text-[12px] font-medium leading-[15px]",
-                              on ? "text-foreground" : "text-foreground/75"
-                            )}
-                          >
-                            {m.name}
+                        >
+                          {k.label}
+                          <span className={cn("font-mono text-[10.5px]", on ? "opacity-75" : "opacity-50")}>
+                            {k.n}
                           </span>
                         </button>
                       );
                     })}
                   </div>
                 )}
+
+                {/* Türe göre öbekler — her birinin başlığı, altında atomlar.
+                    Dokunmak SEÇER (kare koyulaşır, köşede tik); ekleme
+                    alttaki düğmeyle. Seçim süzgeç değişince korunur. */}
+                {groups.map((g) => (
+                  <div key={g.kind} className="flex flex-col gap-1.5 pt-1">
+                    <div data-group-head="" className="flex items-center gap-2 px-0.5">
+                      <g.icon className={cn("h-3 w-3", brutal ? "text-[#111]/60" : "text-muted-foreground/50")} />
+                      <span
+                        className={cn(
+                          "text-[10.5px] font-bold uppercase tracking-[0.13em]",
+                          brutal ? "text-[#111]/70" : "text-muted-foreground/65"
+                        )}
+                      >
+                        {g.label}
+                      </span>
+                      <span className={cn("h-px flex-1", brutal ? "bg-[#111]/20" : "bg-border/50")} />
+                      <span className={cn("text-[10.5px] tabular-nums", brutal ? "text-[#111]/45" : "text-muted-foreground/40")}>
+                        {g.items.length}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {g.items.map((m: ModWithType) => {
+                          const c = modColor(m);
+                          const on = selected.includes(m.id);
+                          return (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => toggle(m.id)}
+                              aria-pressed={on}
+                              disabled={saving}
+                              className="relative flex flex-col items-center gap-2 rounded-2xl px-1.5 pb-2.5 pt-3 transition-all duration-200 active:scale-[0.94] disabled:opacity-50"
+                              style={
+                                on
+                                  ? {
+                                      background: `${c}29`,
+                                      boxShadow: `inset 0 0 0 1.5px ${c}`,
+                                    }
+                                  : {
+                                      background: `${c}0f`,
+                                      boxShadow: `inset 0 0 0 1px ${c}2e`,
+                                    }
+                              }
+                            >
+                              {on && (
+                                <span
+                                  className="entry-tile-pop absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-white"
+                                  style={{ background: c }}
+                                >
+                                  <Check className="h-3 w-3" strokeWidth={3} />
+                                </span>
+                              )}
+                              <ModAtomCore icon={modAtomIcon(m)} color={c} />
+                              <span
+                                className={cn(
+                                  "line-clamp-2 w-full break-words text-center text-[12px] font-medium leading-[15px]",
+                                  on ? "text-foreground" : "text-foreground/75"
+                                )}
+                              >
+                                {m.name}
+                              </span>
+                            </button>
+                          );
+                      })}
+                    </div>
+                  </div>
+                ))}
 
                 {available.length === 0 && !search && (
                   <p className="py-2 text-center text-xs text-muted-foreground/70">

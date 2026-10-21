@@ -29,9 +29,6 @@ import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Mod } from "@/types";
 
-/** Aramasız gösterilen nesne sayısı */
-const SHOWN = 6;
-
 /**
  * Girdi formunda "Nesne" türündeki özelliğin alanı — "Hangi araba".
  *
@@ -49,17 +46,12 @@ export function ThingField({
   value,
   onChange,
   color,
-  well,
-  wellStyle,
 }: {
   collectionId?: string;
   multiple?: boolean;
   value: string;
   onChange: (v: string) => void;
   color: string;
-  /** LedgerField'in giriş yuvası sınıfı ve stili — aynı görünüm */
-  well: string;
-  wellStyle: React.CSSProperties;
 }) {
   const t = useT();
   const brutal = useSkin() === "brutal";
@@ -87,7 +79,7 @@ export function ThingField({
       (a, b) =>
         (data?.usage.get(b.id)?.last ?? b.createdAt) - (data?.usage.get(a.id)?.last ?? a.createdAt)
     );
-  const shown = q ? pool : pool.slice(0, SHOWN);
+  const shown = pool;
 
   // Güncel durumlar — seçilenlerin "Son" önerisi ve satırların özeti
   const stateKey = [...selected, ...shown.map((th) => th.id)].join(",");
@@ -159,8 +151,16 @@ export function ThingField({
 
       {pickerOpen && (
         <>
-          <label className={cn(well, "min-h-10 gap-2")} style={wellStyle}>
-            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+          {/* Arama ince bir çubuk — satırlarla aynı boyda bir kutu listeyi
+              ezip geçiyordu */}
+          <label
+            data-thing-search=""
+            className={cn(
+                "flex h-9 items-center gap-2 rounded-lg px-2.5",
+                brutal ? "border-[1.5px] border-[#111] bg-white" : "bg-[var(--sf-2)] ring-1 ring-inset ring-[var(--ln-1)] focus-within:ring-primary/50"
+              )}
+          >
+            <Search className={cn("h-3.5 w-3.5 shrink-0", sub)} strokeWidth={2.4} />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -172,23 +172,27 @@ export function ThingField({
               }}
               placeholder={t("objects.searchIn", { list: coll?.name ?? "" })}
               aria-label={t("action.search")}
-              className="h-10 min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-muted-foreground/50"
+              className={cn("h-full min-w-0 flex-1 bg-transparent text-[13px] font-semibold outline-none", ink, brutal ? "placeholder:text-[#111]/40" : "placeholder:text-muted-foreground/50")}
             />
             {query && (
-              <button type="button" onClick={() => setQuery("")} aria-label={t("action.close")} className="text-muted-foreground">
-                <X className="h-4 w-4" />
+              <button type="button" onClick={() => setQuery("")} aria-label={t("action.close")} className={sub}>
+                <X className="h-3.5 w-3.5" />
               </button>
             )}
           </label>
 
-          <div className="flex flex-col gap-1.5">
+          {/* Liste bir yere kadar büyür, sonra kendi içinde kayar */}
+          <div
+            data-thing-list=""
+            className="-mr-1 flex max-h-[min(244px,38vh)] flex-col gap-1.5 overflow-y-auto overscroll-contain pr-1"
+          >
             {q && !exact && (
               <button
                 type="button"
                 data-thing-create=""
                 onClick={() => void addNew()}
                 className={cn(
-                  "flex min-h-11 items-center gap-2.5 rounded-xl px-2 text-left text-[#111]",
+                  "flex min-h-11 shrink-0 items-center gap-2.5 rounded-xl px-2 text-left text-[#111]",
                   brutal && "border-2 border-[#111] shadow-[2px_2px_0_#111]"
                 )}
                 style={{ background: `color-mix(in srgb, ${listColor} 30%, white)` }}
@@ -209,7 +213,7 @@ export function ThingField({
                   data-thing-option=""
                   onClick={() => pick(th.id)}
                   className={cn(
-                    "flex min-h-11 items-center gap-2.5 rounded-xl px-1.5 py-1 text-left transition-colors",
+                    "flex min-h-11 shrink-0 items-center gap-2.5 rounded-xl px-1.5 py-1 text-left transition-colors",
                     brutal ? "border-2 border-[#111] bg-white hover:bg-[#111]/5" : "bg-black/20 hover:bg-[var(--sf-2)]"
                   )}
                 >
@@ -225,11 +229,6 @@ export function ThingField({
                 </button>
               );
             })}
-            {!q && pool.length > shown.length && (
-              <p className={cn("px-1 text-[11.5px] font-semibold", sub)}>
-                {t("objects.moreToSearch", { n: pool.length - shown.length })}
-              </p>
-            )}
             {!q && pool.length === 0 && (
               <p className={cn("px-1 text-[12px]", sub)}>{t("objects.typeToAdd")}</p>
             )}
