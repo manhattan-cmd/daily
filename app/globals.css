@@ -772,10 +772,11 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-bottom-nav] a[data-active] { color: #111; font-weight: 900; }
 
 /* Yapı sekmeleri: etkin olan siyah */
-:root[data-skin="brutal"] [data-brut-tabs] { background: #ffffff; gap: 4px; }
+:root[data-skin="brutal"] [data-brut-tabs] { background: #ffffff; gap: 3px; border-radius: 16px; }
 :root[data-skin="brutal"] [data-brut-tabs] > span[aria-hidden] { display: none; }
 :root[data-skin="brutal"] [data-brut-tabs] a { color: #111 !important; font-weight: 800; }
-:root[data-skin="brutal"] [data-brut-tabs] a[data-active] { background: #111; color: #fff4dc !important; }
+:root[data-skin="brutal"] [data-brut-tabs] a[data-active] { background: #111; color: #ffd23f !important; }
+:root[data-skin="brutal"] [data-brut-tabs] a[data-active] > span:last-child { color: #fff4dc; }
 
 /* Analiz sayı kutuları: sırayla renkli bloklar */
 :root[data-skin="brutal"] [data-stat-tile] { border-color: #111 !important; box-shadow: var(--brut-shadow) !important; }
