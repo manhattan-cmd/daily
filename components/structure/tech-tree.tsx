@@ -527,7 +527,7 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
       // özelliğinin renginde; kablosuz yolda izin üstünde kalemin renginde.
       if (L.flow && motion) {
         const now = performance.now() / 1000;
-        const dots = (pts: Pt[], cum: number[], len: number, d0: number, gap: number, r: number, color: string) => {
+        const dots = (pts: Pt[], cum: number[], len: number, d0: number, gap: number, r: number, color: string, glow = false) => {
           ctx.fillStyle = color;
           let i = 1;
           for (let d = (((now * FLOW_SPEED - d0) % gap) + gap) % gap; d < len; d += gap) {
@@ -537,6 +537,30 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
             const [bx, by] = pts[i];
             const px = ax + (bx - ax) * f;
             const py = ay + (by - ay) * f;
+            if (glow) {
+              // Kablonun içinde kaybolmasın: renkli hale ışık gibi eklenir,
+              // çekirdek kendi renginde, ortası beyaza yakın parlar
+              ctx.globalCompositeOperation = "lighter";
+              ctx.globalAlpha = 0.28;
+              ctx.beginPath();
+              ctx.arc(px, py, r * 2.8, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.globalAlpha = 0.45;
+              ctx.beginPath();
+              ctx.arc(px, py, r * 1.7, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.globalCompositeOperation = "source-over";
+              ctx.globalAlpha = 1;
+              ctx.beginPath();
+              ctx.arc(px, py, r, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = mixHex(color, "#ffffff", 0.7);
+              ctx.beginPath();
+              ctx.arc(px, py, r * 0.45, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = color;
+              continue;
+            }
             ctx.globalAlpha = 0.14;
             ctx.beginPath();
             ctx.arc(px, py, r * 2.2, 0, Math.PI * 2);
@@ -556,12 +580,11 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
           if (cbs?.length) {
             // Kablolar ince — noktalar da ince; yan yana kablolar aynı anda
             // değil, birbirinin arasından aksın
-            // Parlak tel üstünde "lighter" rengi beyaza yakıyor — nokta
-            // kendi renginde düz boyanır
-            ctx.globalCompositeOperation = "source-over";
+            // Hale ışık gibi eklenir, çekirdek düz boyanır — "lighter" ile
+            // boyanan çekirdek parlak tel üstünde beyaza yanıp rengini yitiriyordu
             for (const cb of cbs) {
               if (!cableOn(cb.f, tr.from, tr.to)) continue;
-              dots(cb.pts, cb.cum, cb.len, cb.d0 + (cb.k * gap) / (cbs.length + 1), gap, 1.7, cb.color);
+              dots(cb.pts, cb.cum, cb.len, cb.d0 + (cb.k * gap) / (cbs.length + 1), gap, 1.8, cb.color, true);
             }
             ctx.globalCompositeOperation = "lighter";
             continue;
