@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ExternalLink, Locate, Minus, Play, Plus, Settings2, Waypoints, X } from "lucide-react";
 import type { MapGroup } from "@/components/structure/neural-map";
-import { useMapGraph, type GNode } from "@/components/structure/graph-view";
+import { useMapGraph, type GNode } from "@/components/structure/map-graph";
 import { useLiveQuery } from "dexie-react-hooks";
 import { layoutCity, ROOT, type CityCard, type Pin } from "@/components/structure/city-layout";
 import { db } from "@/lib/db";
@@ -46,7 +46,9 @@ const FLOW_SPEED = 38;
 /** Görünürlük tabanı: kullanılan her dal, kavşaktaki toplamın en az bu payı kadar nokta alır */
 const FLOW_FLOOR = 0.07;
 /** Aynı anda en çok bu kadar nokta */
-const FLOW_MAX = 700;
+const FLOW_MAX = 1400;
+/** Baz dolaşım çarpanı — doğum hızları bununla ölçeklenir */
+const FLOW_RATE = 2.5;
 
 type Leg = { pts: Pt[]; cum: number[]; len: number };
 const mkLeg = (pts: Pt[]): Leg => {
@@ -229,7 +231,7 @@ function lug(ctx: CanvasRenderingContext2D, { p: [x, y], d: [dx, dy] }: Pin, lon
   else ctx.fillRect(x - thick / 2, dy > 0 ? y - 1 : y - long + 1, thick, long);
 }
 
-export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutSwitch?: ReactNode }) {
+export function TechTree({ groups }: { groups: MapGroup[] }) {
   const t = useT();
   const router = useRouter();
   const brutal = useSkin() === "brutal";
@@ -614,8 +616,8 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
       const eTot = B.E.get(T.start) ?? 0;
       const fTot = [...B.F.values()].reduce((a, m) => a + (m.get(T.start) ?? 0), 0);
       // Doğum hızı toplamla büyür ama tavanlı: kalabalık harita boğulmasın
-      accE += (eTot ? Math.min(8, 1.5 + eTot / 40) : 0) * sec;
-      accF += (fTot && live.current.cables ? Math.min(12, 2 + fTot / 40) : 0) * sec;
+      accE += (eTot ? Math.min(8 * FLOW_RATE, (1.5 + eTot / 40) * FLOW_RATE) : 0) * sec;
+      accF += (fTot && live.current.cables ? Math.min(12 * FLOW_RATE, (2 + fTot / 40) * FLOW_RATE) : 0) * sec;
       while (accE >= 1) { accE--; if (dots.current.length < FLOW_MAX) spawn("e"); }
       while (accF >= 1) { accF--; if (dots.current.length < FLOW_MAX) spawn("f"); }
       const out: Dot[] = [];
@@ -1161,7 +1163,6 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
 
       {panel && (
         <div className={cn(box, "absolute right-3 top-24 z-10 w-[248px] p-3 text-xs")}>
-          {layoutSwitch}
           <div className="mb-1.5 text-[10px] font-black uppercase tracking-wider opacity-60">{t("graph.filters")}</div>
           <input
             value={query}

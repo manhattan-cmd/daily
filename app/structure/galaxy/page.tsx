@@ -1,15 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Waypoints } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { StructureHeader } from "@/components/structure/structure-header";
 import { type MapGroup } from "@/components/structure/neural-map";
-import { GraphView } from "@/components/structure/graph-view";
 import { TechTree } from "@/components/structure/tech-tree";
-import { useSkin } from "@/lib/skin";
-import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
 import { db } from "@/lib/db";
 
@@ -21,51 +17,12 @@ import { db } from "@/lib/db";
  * ölçüyor) haritaya değil analize aitti; harita ise hayatın kendi şeklini
  * göstermeli. Ağ bir süre girdi ekleme akışında yaşadı ve oraya ağır geldi —
  * kayıt eklemek seri bir iş, harita bakılacak bir şey. Yeri burası.
+ *
+ * Bir süre yanında Obsidian tarzı "Serbest ağ" düzeni de vardı; kaldırıldı,
+ * harita yalnız devre şehri.
  */
-const LAYOUT_KEY = "routine:map-layout";
-type Layout = "tree" | "graph";
-const loadLayout = (): Layout => {
-  try {
-    return window.localStorage.getItem(LAYOUT_KEY) === "graph" ? "graph" : "tree";
-  } catch {
-    return "tree";
-  }
-};
-
 export default function MapPage() {
   const t = useT();
-  const brutal = useSkin() === "brutal";
-  // İki düzen: teknoloji ağacı (varsayılan) ve Obsidian tarzı serbest ağ
-  const [layout, setLayoutState] = useState<Layout>(() =>
-    typeof window === "undefined" ? "tree" : loadLayout()
-  );
-  const setLayout = (l: Layout) => {
-    setLayoutState(l);
-    try {
-      window.localStorage.setItem(LAYOUT_KEY, l);
-    } catch {}
-  };
-  const layoutSwitch = (
-    <div className="mb-3">
-      <div className="mb-1.5 text-[10px] font-black uppercase tracking-wider opacity-60">
-        {t("graph.layout")}
-      </div>
-      <div className={cn("grid grid-cols-2 gap-1 p-0.5", brutal ? "rounded-md border-2 border-[#111]" : "rounded-lg bg-muted")}>
-        {(["tree", "graph"] as const).map((l) => (
-          <button
-            key={l}
-            onClick={() => setLayout(l)}
-            className={cn(
-              "rounded px-1.5 py-1 font-bold",
-              layout === l && (brutal ? "bg-[#111] text-white" : "bg-card text-foreground shadow")
-            )}
-          >
-            {l === "tree" ? t("graph.layoutTree") : t("graph.layoutGraph")}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
   const groups = useLiveQuery(async (): Promise<MapGroup[]> => {
     const [cats, subs] = await Promise.all([
       // Yerleşik akışlar haritada düğüm değil: kullanıcıya kategori olarak
@@ -100,11 +57,7 @@ export default function MapPage() {
             />
           </div>
         ) : (
-          layout === "tree" ? (
-            <TechTree groups={groups} layoutSwitch={layoutSwitch} />
-          ) : (
-            <GraphView groups={groups} layoutSwitch={layoutSwitch} />
-          )
+          <TechTree groups={groups} />
         )}
       </div>
     </div>
