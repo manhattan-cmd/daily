@@ -22,6 +22,7 @@ import {
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Layer } from "@/components/ui/layer";
 import { CardListSkeleton } from "@/components/ui/skeleton";
 import { EntryCard } from "@/components/dashboard/entry-card";
 import { NoteCard } from "@/components/notes/note-card";
@@ -130,6 +131,8 @@ export default function HomePage() {
         </Link>
       </header>
 
+      {/* Brütal: her bölüm kendi katmanında (bkz. Layer) */}
+      <Layer label={t("home.today")}>
       <WelcomeCard />
       <BackupReminder />
 
@@ -188,7 +191,7 @@ export default function HomePage() {
         type="button"
         onClick={() => setSheetOpen(true)}
         data-home-cta=""
-        className="group mb-6 flex w-full items-center gap-3.5 overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent px-4 py-4 text-left transition-all hover:border-primary/60 hover:from-primary/25 active:scale-[0.99]"
+        className={cn("group flex w-full items-center gap-3.5 overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent px-4 py-4 text-left transition-all hover:border-primary/60 hover:from-primary/25 active:scale-[0.99]", brutal ? "mb-0" : "mb-6")}
       >
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform group-hover:scale-105">
           <Plus className="h-6 w-6" strokeWidth={2.5} />
@@ -203,10 +206,12 @@ export default function HomePage() {
         </span>
         <ArrowRight className="h-4 w-4 shrink-0 text-primary/70 transition-transform group-hover:translate-x-0.5" />
       </button>
+      </Layer>
 
       {/* Son 7 gün — ritim şeridi; sütuna dokun, o güne git */}
       {week && week.some((d) => d.count > 0) && (
-        <section className="mb-6">
+        <Layer>
+        <section className={brutal ? undefined : "mb-6"}>
           <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("home.last7Days")}
           </h2>
@@ -221,12 +226,14 @@ export default function HomePage() {
             ))}
           </div>
         </section>
+        </Layer>
       )}
 
       {/* Arama buraya ait: aranan şey girdiler, listenin başında duruyor.
           Tepedeki simge sırasında ne aradığı belirsizdi. Buradaki listede
           yalnız son 20 var, düğme tüm geçmişi tarayan sayfaya götürür —
           bölüm içi büyüteçlerden (yerinde süzme) ayrılsın diye yazılı. */}
+      <Layer>
       <div className="mb-3 flex items-center justify-between gap-2 px-1">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t("home.recentEntries")}
@@ -278,6 +285,7 @@ export default function HomePage() {
           )}
         </div>
       )}
+      </Layer>
 
       <DayEntrySheet
         date={today}

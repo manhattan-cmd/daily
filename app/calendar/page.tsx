@@ -11,6 +11,7 @@ import { swallowNextClick } from "@/lib/use-long-press";
 import { routes } from "@/lib/routes";
 import { prefetchDayOnPress } from "@/lib/db/day-cache";
 import { useSkin } from "@/lib/skin";
+import { Layer } from "@/components/ui/layer";
 
 /** Ay ve gün adları uygulamanın dilinde (eskiden sabit İngilizce diziydi) */
 function monthName(i: number, tag: string): string {
@@ -220,7 +221,8 @@ export default function CalendarPage() {
         </button>
       </div>
 
-      <div style={glideStyle}>
+      {/* Brütal: ay kendi katmanında (bkz. Layer) */}
+      <Layer style={glideStyle}>
       {/* Weekday headers */}
       <div className="grid grid-cols-7 mb-1">
         {weekdaysShort(tag).map((d, i) => (
@@ -307,7 +309,7 @@ export default function CalendarPage() {
           );
         })}
       </div>
-      </div>
+      </Layer>
     </div>
   );
 }
