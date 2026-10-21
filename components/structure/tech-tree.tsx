@@ -43,6 +43,41 @@ const LEG = "#8a90a0";
 const LEG_DIM = "#4b5060";
 /** Akışın hızı (px/sn) */
 const FLOW_SPEED = 38;
+/** Görünürlük tabanı: kullanılan her dal, kavşaktaki toplamın en az bu payı kadar nokta alır */
+const FLOW_FLOOR = 0.07;
+/** Aynı anda en çok bu kadar nokta */
+const FLOW_MAX = 700;
+
+type Leg = { pts: Pt[]; cum: number[]; len: number };
+const mkLeg = (pts: Pt[]): Leg => {
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  return { pts, cum, len: cum[cum.length - 1] };
+};
+const legAt = ({ pts, cum }: Leg, d: number): Pt => {
+  let i = 1;
+  while (i < cum.length - 1 && cum[i] < d) i++;
+  const f = Math.min(1, Math.max(0, (d - cum[i - 1]) / (cum[i] - cum[i - 1] || 1)));
+  return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f];
+};
+
+/**
+ * Akış noktası — merkezde doğar, kavşakta dallardan birine sapar, kalemin
+ * kendi girdisi kadar orada "tüketilir". kind "e": girdi (izde), "f": bir
+ * özelliğin değeri (o özelliğin kablosunda, kartın içinde halkasından geçer).
+ */
+type Dot = {
+  kind: "e" | "f";
+  f: string;
+  color: string;
+  from: string;
+  node: string;
+  leg: Leg;
+  where: "wire" | "ring" | "hidden";
+  d: number;
+  then: string | null;
+  fade: number;
+};
 /** İz kalınlığı: son 30 gündeki kullanım */
 const traceW = (u: number) => 1.2 + 4.8 * u;
 
@@ -99,7 +134,11 @@ const RING0 = 3.4;
  * halkaya bağlayan kısa saplar + bütün uçları kapsayan en kısa yay (uçlar
  * arasındaki en büyük boşluk atlanıyor). Tek uç varsa kablo orada bitiyor.
  */
-function ring(c: CityCard, ends: { p: Pt; d: Pt }[], dep: number): { path: Path2D; end: Pt | null } {
+type End = { p: Pt; d: Pt };
+/** Halkada bir uçtan ötekine giden çizgi (b yoksa: uçtan halkaya inen sap) */
+type Route = (a: End, b: End | null) => Pt[];
+
+function ring(c: CityCard, ends: End[], dep: number): { path: Path2D; end: Pt | null; route: Route } {
   const x0 = c.cx - c.w / 2 + dep;
   const x1 = c.cx + c.w / 2 - dep;
   const y0 = c.cy - c.h / 2 + dep;
@@ -116,18 +155,24 @@ function ring(c: CityCard, ends: { p: Pt; d: Pt }[], dep: number): { path: Path2
     if ((s -= H) <= W) return [x1 - s, y1];
     return [x0, y1 - (s - W)];
   };
-  let d = "";
-  const ss: number[] = [];
-  let last: Pt | null = null;
-  for (const { p, d: [dx, dy] } of ends) {
+  // uç → halkadaki izdüşümü ve çevre üzerindeki konumu
+  const proj = ({ p, d: [dx, dy] }: End): { q: Pt; s: number } => {
     const q: Pt =
       dy < 0 ? [cl(p[0], x0, x1), y0] : dx > 0 ? [x1, cl(p[1], y0, y1)] : dy > 0 ? [cl(p[0], x0, x1), y1] : [x0, cl(p[1], y0, y1)];
     const s = dy < 0 ? q[0] - x0 : dx > 0 ? W + q[1] - y0 : dy > 0 ? W + H + x1 - q[0] : 2 * W + H + y1 - q[1];
-    d += `M${p[0]} ${p[1]}L${q[0]} ${q[1]}`;
+    return { q, s };
+  };
+  let d = "";
+  const ss: number[] = [];
+  let last: Pt | null = null;
+  for (const e of ends) {
+    const { q, s } = proj(e);
+    d += `M${e.p[0]} ${e.p[1]}L${q[0]} ${q[1]}`;
     ss.push(s);
     last = q;
   }
-  if (ss.length < 2) return { path: new Path2D(d), end: last };
+  const stub: Route = (a) => [a.p, proj(a).q];
+  if (ss.length < 2) return { path: new Path2D(d), end: last, route: stub };
   const o = ss.sort((a, b) => a - b);
   let gi = o.length - 1;
   let gmax = o[0] + P - o[o.length - 1];
@@ -146,7 +191,27 @@ function ring(c: CityCard, ends: { p: Pt; d: Pt }[], dep: number): { path: Path2
       if (v > start && v < end) d += `L${at(v).join(" ")}`;
     }
   d += `L${at(end).join(" ")}`;
-  return { path: new Path2D(d), end: null };
+  // İki uç arasında halkanın çizilen yayı boyunca — boşluktan atlamadan
+  const span = end - start;
+  const route: Route = (a, b) => {
+    const A = proj(a);
+    if (!b) return [a.p, A.q];
+    const B = proj(b);
+    const un = (v: number) => (((v - start) % P) + P) % P;
+    const ua = Math.min(un(A.s), span);
+    const ub = Math.min(un(B.s), span);
+    const lo = Math.min(ua, ub);
+    const hi = Math.max(ua, ub);
+    const cs: number[] = [];
+    for (let lap = 0; lap < 2; lap++)
+      for (const k of [W, W + H, 2 * W + H, P]) {
+        const u = k + lap * P - start;
+        if (u > lo && u < hi) cs.push(u);
+      }
+    cs.sort((x, y) => (ua < ub ? x - y : y - x));
+    return [a.p, A.q, ...cs.map((u) => at(start + u)), B.q, b.p];
+  };
+  return { path: new Path2D(d), end: null, route };
 }
 
 /** Via: izin 45° kırıldığı her yerde (pahın ortası) */
@@ -178,6 +243,8 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
   const [selected, setSelected] = useState<string | null>(null);
   const [local, setLocal] = useState(NO_LOCAL);
   const [reveal, setReveal] = useState<number | null>(null);
+  // Akışın sayım penceresi — son 30 gün (şu anki hayat) ya da bütün girdiler
+  const [flowAll, setFlowAll] = useState(false);
 
   // Son 30 günde hangi kalemde hangi özelliğe değer girildi — karttaki
   // özellik dairesi dolu ya da halka
@@ -205,6 +272,28 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
         });
       return out;
     }, [rootOf]) ?? NO_USED;
+
+  // Kütle dengesi için sayımlar: kalemin kendi girdileri ve kendi girdilerinde
+  // her özelliğin değer sayısı (kart kimliği: alt kategori ya da kategori kökü)
+  const counts = useLiveQuery(async () => {
+    const cardOf = new Map<string, string>();
+    const coll = flowAll ? db.entries.toCollection() : db.entries.where("occurredAt").aboveOrEqual(usageSince());
+    await coll.each((e) => cardOf.set(e.id, rootOf.get(e.subcategoryId) ?? e.subcategoryId));
+    const own = new Map<string, number>();
+    for (const c of cardOf.values()) own.set(c, (own.get(c) ?? 0) + 1);
+    const ownF = new Map<string, Map<string, number>>();
+    if (cardOf.size) {
+      const vals = flowAll ? db.entryValues.toCollection() : db.entryValues.where("entryId").anyOf([...cardOf.keys()]);
+      await vals.each((v) => {
+        const c = cardOf.get(v.entryId);
+        if (!c || !v.modId || v.thingId) return;
+        const key = "mod:" + v.modId;
+        const m = ownF.get(c) ?? ownF.set(c, new Map()).get(c)!;
+        m.set(key, (m.get(key) ?? 0) + 1);
+      });
+    }
+    return { own, ownF };
+  }, [rootOf, flowAll]);
 
   // ─── Şehir: görünen kalemler ve yerleşim ──────────────────────────────────
   const tree = useMemo(() => {
@@ -302,7 +391,7 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
       const m = ends.get(card) ?? ends.set(card, new Map()).get(card)!;
       (m.get(f) ?? m.set(f, []).get(f)!).push({ p, d });
     };
-    const cableList: { f: string; color: string; from: string; to: string; path: Path2D; pts: Pt[]; k: number }[] = [];
+    const cableList: { f: string; color: string; from: string; to: string; path: Path2D; leg: Leg; a: End | null; b: End | null }[] = [];
     for (const tr of city.traces) {
       const fl = onEdge.get(tr.from + ">" + tr.to);
       if (!fl) continue;
@@ -312,7 +401,11 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
       fl.sort((x, y) => rank.get(x)! - rank.get(y)!).forEach((f, k) => {
         const d = ((k >> 1) + 1) * CABLE_GAP * (k % 2 ? -1 : 1);
         const pts = offsetLine(tr.pts, d);
-        cableList.push({ f, color: data.byId.get(f)?.color ?? "#888", from: tr.from, to: tr.to, path: toPath(pts), pts, k });
+        cableList.push({
+          f, color: data.byId.get(f)?.color ?? "#888", from: tr.from, to: tr.to, path: toPath(pts), leg: mkLeg(pts),
+          a: pinA ? { p: pts[0], d: pinA.d } : null,
+          b: b.pad ? { p: pts[pts.length - 1], d: b.pad.d } : null,
+        });
         if (pinA) addEnd(tr.from, f, pts[0], pinA.d);
         if (b.pad) addEnd(tr.to, f, pts[pts.length - 1], b.pad.d);
       });
@@ -322,52 +415,63 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
     // akım çipin kenarından geçiyormuş gibi. Her özelliğin kendi halkası var;
     // çok kalemde olan dışta.
     const rings: { f: string; color: string; card: string; path: Path2D; end: Pt | null }[] = [];
+    const routes = new Map<string, Route>();
     for (const [id, m] of ends) {
       const c = cards.get(id)!;
       const fl = [...m.keys()].sort((x, y) => rank.get(x)! - rank.get(y)!);
       const room = Math.min(c.w, c.h) / 2 - (id === ROOT ? 13 : 7) - RING0;
       const gap = fl.length > 1 ? Math.min(CABLE_GAP, room / (fl.length - 1)) : 0;
-      fl.forEach((f, k) => rings.push({ f, color: data.byId.get(f)?.color ?? "#888", card: id, ...ring(c, m.get(f)!, RING0 + k * gap) }));
-    }
-    // Akış: her izin kökten uzaklığı — ışık iz iz kesintisiz aksın
-    const flow = new Map<Trace, { cum: number[]; len: number; d0: number }>();
-    const dist = new Map<string, number>([[ROOT, 0]]);
-    const byFrom = new Map<string, Trace[]>();
-    for (const tr of traces) (byFrom.get(tr.from) ?? byFrom.set(tr.from, []).get(tr.from)!).push(tr);
-    const stack = withRoot ? [ROOT] : [...roots];
-    while (stack.length) {
-      const id = stack.pop()!;
-      const d0 = dist.get(id) ?? 0;
-      for (const tr of byFrom.get(id) ?? []) {
-        const cum = [0];
-        for (let i = 1; i < tr.pts.length; i++)
-          cum.push(cum[i - 1] + Math.hypot(tr.pts[i][0] - tr.pts[i - 1][0], tr.pts[i][1] - tr.pts[i - 1][1]));
-        const len = cum[cum.length - 1];
-        flow.set(tr, { cum, len, d0 });
-        const kc = cards.get(tr.to)!;
-        dist.set(tr.to, d0 + len + Math.min(kc.w, kc.h) / 2);
-        stack.push(tr.to);
-      }
-    }
-    // Kabloların akışı: her kablo kendi izinin kökten uzaklığıyla — ışık
-    // izden kabloya kesintisiz geçsin; noktalar kablonun (özelliğin) renginde
-    const trOf = new Map(traces.map((tr) => [tr.from + ">" + tr.to, tr]));
-    const cableFlow = new Map<string, { pts: Pt[]; cum: number[]; len: number; d0: number; color: string; f: string; k: number }[]>();
-    for (const cb of cableList) {
-      const key = cb.from + ">" + cb.to;
-      const g = flow.get(trOf.get(key)!);
-      if (!g) continue;
-      const cum = [0];
-      for (let i = 1; i < cb.pts.length; i++)
-        cum.push(cum[i - 1] + Math.hypot(cb.pts[i][0] - cb.pts[i - 1][0], cb.pts[i][1] - cb.pts[i - 1][1]));
-      (cableFlow.get(key) ?? cableFlow.set(key, []).get(key)!).push({
-        pts: cb.pts, cum, len: cum[cum.length - 1], d0: g.d0, color: cb.color, f: cb.f, k: cb.k,
+      fl.forEach((f, k) => {
+        const r = ring(c, m.get(f)!, RING0 + k * gap);
+        routes.set(id + "|" + f, r.route);
+        rings.push({ f, color: data.byId.get(f)?.color ?? "#888", card: id, path: r.path, end: r.end });
       });
     }
+    // Akışın yolları: iz ve kablo bacakları "üst>alt" ile
+    const traceLeg = new Map(traces.map((tr) => [tr.from + ">" + tr.to, mkLeg(tr.pts)]));
+    const cableBy = new Map(cableList.map((cb) => [cb.f + "|" + cb.from + ">" + cb.to, cb]));
+    const visKids = (id: string) => cards.get(id)?.kids.filter((k) => cards.has(k)) ?? [];
+    const start = withRoot ? ROOT : roots[0];
     const { x0, y0, x1, y1 } = city.bounds;
     const center: Pt = withRoot ? [0, 0] : [(x0 + x1) / 2, (y0 + y1) / 2];
-    return { cards, traces, parentOf, feats, featIds, cables: cableList, rings, flow, cableFlow, bounds: { x0, y0, x1, y1 }, center, withRoot, byId: data.byId };
+    return {
+      cards, traces, parentOf, feats, featIds, cables: cableList, rings, bounds: { x0, y0, x1, y1 }, center, withRoot, byId: data.byId,
+      traceLeg, cableBy, routes, visKids, start,
+      holders: new Set([...holders].flatMap(([f, hs]) => hs.map((h) => f + "|" + h))),
+      featList: [...rank.keys()],
+    };
   }, [data, unused, local, reveal, featUsed]);
+
+  // ─── Kütle dengesi ────────────────────────────────────────────────────────
+  // Bir dalın ağırlığı = kendi girdileri + alt dallarınınki. Kavşakta nokta
+  // dallara bu ağırlıkla bölünür, kalan kalemin kendi payı orada tüketilir:
+  // giren = tüketilen + dallara çıkan. Özelliklerde aynısı, yalnız o
+  // özelliğin kablosu giden dallar ve o özelliği taşıyan kalemler sayılır.
+  const balance = useMemo(() => {
+    const own = counts?.own ?? new Map<string, number>();
+    const ownF = counts?.ownF ?? new Map<string, Map<string, number>>();
+    const T = tree;
+    const E = new Map<string, number>();
+    const sumE = (id: string): number => {
+      let n = id === ROOT ? 0 : own.get(id) ?? 0;
+      for (const k of T.visKids(id)) n += sumE(k);
+      E.set(id, n);
+      return n;
+    };
+    if (T.start) sumE(T.start);
+    const F = new Map<string, Map<string, number>>();
+    for (const f of T.featList) {
+      const m = new Map<string, number>();
+      const sumF = (id: string): number => {
+        let n = T.holders.has(f + "|" + id) ? ownF.get(id)?.get(f) ?? 0 : 0;
+        for (const k of T.visKids(id)) if (T.cableBy.has(f + "|" + id + ">" + k)) n += sumF(k);
+        m.set(id, n);
+        return n;
+      };
+      if (T.start && sumF(T.start) > 0) F.set(f, m);
+    }
+    return { own, ownF, E, F };
+  }, [tree, counts]);
 
   // ─── Çizim ────────────────────────────────────────────────────────────────
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -376,6 +480,9 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
   const size = useRef({ w: 0, h: 0 });
   const dirty = useRef(true);
   const treeRef = useRef(tree);
+  const balRef = useRef(balance);
+  const dots = useRef<Dot[]>([]);
+  const warm = useRef(true);
   const live = useRef({ query, selected, hover: null as string | null, cables, flow });
   const touched = useRef(false);
 
@@ -395,6 +502,13 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
     if (!touched.current) home();
     dirty.current = true;
   }, [tree]);
+  // Yerleşim ya da sayımlar değişince akış baştan — ısınmış başlasın
+  useEffect(() => {
+    balRef.current = balance;
+    dots.current = [];
+    warm.current = true;
+    dirty.current = true;
+  }, [balance]);
   useEffect(() => {
     Object.assign(live.current, { query, selected, cables, flow });
     dirty.current = true;
@@ -411,6 +525,121 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
     const font = getComputedStyle(document.body).fontFamily;
     const motion = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let raf = 0;
+    let lastT = performance.now();
+    let accE = 0;
+    let accF = 0;
+
+    /** Ağırlıklı seçim; görünürlük tabanıyla. null = burada tüketildi */
+    const pick = (opts: [string | null, number][]): string | null | undefined => {
+      const tot = opts.reduce((a, [, w]) => a + w, 0);
+      if (tot <= 0) return undefined;
+      const ws = opts.map(([id, w]): [string | null, number] => [id, w > 0 ? Math.max(w, tot * FLOW_FLOOR) : 0]);
+      let r = Math.random() * ws.reduce((a, [, w]) => a + w, 0);
+      for (const [id, w] of ws) if ((r -= w) <= 0) return id;
+      return ws[ws.length - 1][0];
+    };
+    /** Kavşakta: hangi dala (ya da tüketilir mi). first: doğduğu yerde tüketilmez */
+    const choose = (dt: Dot, node: string, first = false): string | null | undefined => {
+      const T = treeRef.current;
+      const B = balRef.current;
+      const opts: [string | null, number][] = [];
+      if (dt.kind === "e") {
+        if (!first && node !== ROOT) opts.push([null, B.own.get(node) ?? 0]);
+        for (const k of T.visKids(node)) if (T.traceLeg.has(node + ">" + k)) opts.push([k, B.E.get(k) ?? 0]);
+      } else {
+        const m = B.F.get(dt.f);
+        if (!m) return undefined;
+        if (!first && T.holders.has(dt.f + "|" + node)) opts.push([null, B.ownF.get(node)?.get(dt.f) ?? 0]);
+        for (const k of T.visKids(node)) if (T.cableBy.has(dt.f + "|" + node + ">" + k)) opts.push([k, m.get(k) ?? 0]);
+      }
+      return pick(opts);
+    };
+    /** Telden sonraki dala geç */
+    const toWire = (dt: Dot, node: string, k: string) => {
+      const T = treeRef.current;
+      const leg = dt.kind === "e" ? T.traceLeg.get(node + ">" + k) : T.cableBy.get(dt.f + "|" + node + ">" + k)?.leg;
+      if (!leg) return void (dt.fade = 1);
+      Object.assign(dt, { from: node, node: k, leg, where: "wire", d: 0, then: null });
+    };
+    /** Kalemin kapısına vardı: kartın içinden (halka kablosu) ya da tüketilir */
+    const arrive = (dt: Dot) => {
+      const T = treeRef.current;
+      const node = dt.node;
+      const nx = choose(dt, node);
+      if (nx === undefined) return void (dt.fade = 1);
+      if (dt.kind === "e") {
+        // Girdi kartın altından geçer — görünmez kısa bir yol
+        if (nx === null) return void (dt.fade = 1);
+        const to = T.traceLeg.get(node + ">" + nx);
+        if (!to) return void (dt.fade = 1);
+        Object.assign(dt, { leg: mkLeg([legAt(dt.leg, dt.leg.len), to.pts[0]]), where: "hidden", d: 0, then: nx });
+        return;
+      }
+      // Özellik: kartın içindeki halkasında girdiği uçtan çıkacağı bacağa
+      const route = T.routes.get(node + "|" + dt.f);
+      const inEnd = T.cableBy.get(dt.f + "|" + dt.from + ">" + node)?.b;
+      const outEnd = nx ? T.cableBy.get(dt.f + "|" + node + ">" + nx)?.a ?? null : null;
+      const pts = route && inEnd ? route(inEnd, outEnd) : null;
+      if (!pts || pts.length < 2) {
+        if (nx === null) return void (dt.fade = 1);
+        return toWire(dt, node, nx);
+      }
+      Object.assign(dt, { leg: mkLeg(pts), where: "ring", d: 0, then: nx });
+    };
+    const spawn = (kind: "e" | "f") => {
+      const T = treeRef.current;
+      const B = balRef.current;
+      const S = T.start;
+      if (!S) return;
+      let f = "";
+      let color = "#888";
+      if (kind === "f") {
+        const tot = [...B.F.values()].reduce((a, m) => a + (m.get(S) ?? 0), 0);
+        let r = Math.random() * [...B.F.values()].reduce((a, m) => a + Math.max(m.get(S) ?? 0, tot * FLOW_FLOOR), 0);
+        for (const [id, m] of B.F) if ((r -= Math.max(m.get(S) ?? 0, tot * FLOW_FLOOR)) <= 0) { f = id; break; }
+        if (!f) return;
+        color = T.byId.get(f)?.color ?? "#888";
+      }
+      const dt: Dot = { kind, f, color, from: S, node: S, leg: { pts: [], cum: [0], len: 0 }, where: "wire", d: 0, then: null, fade: 0 };
+      const k = choose(dt, S, true);
+      if (!k) return;
+      toWire(dt, S, k);
+      if (kind === "e") dt.color = mixHex(T.byId.get(k)?.color ?? "#888", "#ffffff", 0.45);
+      if (!dt.fade) dots.current.push(dt);
+    };
+    /** Akışı dt saniye ilerlet */
+    const step = (sec: number) => {
+      const B = balRef.current;
+      const T = treeRef.current;
+      const eTot = B.E.get(T.start) ?? 0;
+      const fTot = [...B.F.values()].reduce((a, m) => a + (m.get(T.start) ?? 0), 0);
+      // Doğum hızı toplamla büyür ama tavanlı: kalabalık harita boğulmasın
+      accE += (eTot ? Math.min(8, 1.5 + eTot / 40) : 0) * sec;
+      accF += (fTot && live.current.cables ? Math.min(12, 2 + fTot / 40) : 0) * sec;
+      while (accE >= 1) { accE--; if (dots.current.length < FLOW_MAX) spawn("e"); }
+      while (accF >= 1) { accF--; if (dots.current.length < FLOW_MAX) spawn("f"); }
+      const out: Dot[] = [];
+      for (const dt of dots.current) {
+        if (dt.fade) {
+          dt.fade -= sec * 2.2;
+          if (dt.fade > 0) out.push(dt);
+          continue;
+        }
+        if (dt.kind === "f" && !live.current.cables) continue;
+        dt.d += FLOW_SPEED * sec;
+        let guard = 0;
+        while (!dt.fade && dt.d >= dt.leg.len && guard++ < 8) {
+          const over = dt.d - dt.leg.len;
+          if (dt.where === "wire") arrive(dt);
+          else if (dt.then) toWire(dt, dt.node, dt.then);
+          else dt.fade = 1;
+          if (!dt.fade) dt.d = over;
+          else dt.d = dt.leg.len;
+        }
+        out.push(dt);
+      }
+      dots.current = out;
+    };
 
     const draw = () => {
       const L = live.current;
@@ -522,75 +751,70 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
       ctx.globalCompositeOperation = "lighter";
       if (L.cables) for (const cb of T.cables) wire(cb.path, cb.color, cableOn(cb.f, cb.from, cb.to), 3.2);
 
-      // Akış: ışık merkezden dışa akıyor; yol ne kadar kullanılıyorsa o kadar
-      // sık. Kablolar açıkken noktalar kabloların üstünde, her biri kendi
-      // özelliğinin renginde; kablosuz yolda izin üstünde kalemin renginde.
+      // Akış — kütle dengesi: noktalar merkezde doğar, kavşakta dalların
+      // ağırlığıyla sapar, kalemin kendi payı kadar orada tüketilir. Girdiler
+      // izde (kategori renginde), özellik değerleri kendi kablosunda ve
+      // kartın içindeki halkasında (özelliğin renginde, parlayarak).
+      const nowT = performance.now();
       if (L.flow && motion) {
-        const now = performance.now() / 1000;
-        const dots = (pts: Pt[], cum: number[], len: number, d0: number, gap: number, r: number, color: string, glow = false) => {
-          ctx.fillStyle = color;
-          let i = 1;
-          for (let d = (((now * FLOW_SPEED - d0) % gap) + gap) % gap; d < len; d += gap) {
-            while (i < cum.length - 1 && cum[i] < d) i++;
-            const f = (d - cum[i - 1]) / (cum[i] - cum[i - 1] || 1);
-            const [ax, ay] = pts[i - 1];
-            const [bx, by] = pts[i];
-            const px = ax + (bx - ax) * f;
-            const py = ay + (by - ay) * f;
-            if (glow) {
-              // Kablonun içinde kaybolmasın: renkli hale ışık gibi eklenir,
-              // çekirdek kendi renginde, ortası beyaza yakın parlar
-              ctx.globalCompositeOperation = "lighter";
-              ctx.globalAlpha = 0.28;
-              ctx.beginPath();
-              ctx.arc(px, py, r * 2.8, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.globalAlpha = 0.45;
-              ctx.beginPath();
-              ctx.arc(px, py, r * 1.7, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.globalCompositeOperation = "source-over";
-              ctx.globalAlpha = 1;
-              ctx.beginPath();
-              ctx.arc(px, py, r, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.fillStyle = mixHex(color, "#ffffff", 0.7);
-              ctx.beginPath();
-              ctx.arc(px, py, r * 0.45, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.fillStyle = color;
-              continue;
-            }
-            ctx.globalAlpha = 0.14;
-            ctx.beginPath();
-            ctx.arc(px, py, r * 2.2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.globalAlpha = 0.85;
-            ctx.beginPath();
-            ctx.arc(px, py, r, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        };
-        for (const tr of T.traces) {
-          const u = usage(tr.to);
-          const g = T.flow.get(tr);
-          if (u < 0.05 || !g || dimTrace(tr)) continue;
-          const gap = 170 - 110 * u;
-          const cbs = L.cables ? T.cableFlow.get(tr.from + ">" + tr.to) : undefined;
-          if (cbs?.length) {
-            // Kablolar ince — noktalar da ince; yan yana kablolar aynı anda
-            // değil, birbirinin arasından aksın
-            // Hale ışık gibi eklenir, çekirdek düz boyanır — "lighter" ile
-            // boyanan çekirdek parlak tel üstünde beyaza yanıp rengini yitiriyordu
-            for (const cb of cbs) {
-              if (!cableOn(cb.f, tr.from, tr.to)) continue;
-              dots(cb.pts, cb.cum, cb.len, cb.d0 + (cb.k * gap) / (cbs.length + 1), gap, 1.8, cb.color, true);
-            }
-            ctx.globalCompositeOperation = "lighter";
-            continue;
-          }
-          dots(tr.pts, g.cum, g.len, g.d0, gap, 1.4 + traceW(u) * 0.35, mixHex(T.byId.get(tr.to)?.color ?? "#888", "#ffffff", 0.45));
+        if (warm.current) {
+          // Açılışta boş harita yerine dolmuş akış
+          for (let i = 0; i < 300; i++) step(0.1);
+          warm.current = false;
+        } else step(Math.min(0.1, (nowT - lastT) / 1000));
+      }
+      lastT = nowT;
+      const dotOn = (dt: Dot) => {
+        if (dt.where === "hidden") return false;
+        if (dt.kind === "e") return focus ? lit.has(dt.from) && lit.has(dt.node) : match(dt.node);
+        if (!L.cables) return false;
+        if (dt.where === "ring") return !focus ? !q : fset!.size ? fset!.has(dt.f) : lit.has(dt.node);
+        return cableOn(dt.f, dt.from, dt.node);
+      };
+      const paint = (dt: Dot) => {
+        const [px, py] = legAt(dt.leg, dt.d);
+        const sc = dt.fade ? Math.max(0, dt.fade) : 1;
+        if (dt.kind === "e") {
+          // Kablolar açıkken girdiler geri planda: küçük ve soluk
+          const r = (L.cables ? 1.3 : 2.1) * sc;
+          ctx.fillStyle = dt.color;
+          ctx.globalAlpha = (L.cables ? 0.1 : 0.16) * sc;
+          ctx.beginPath();
+          ctx.arc(px, py, r * 2.3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = (L.cables ? 0.5 : 0.85) * sc;
+          ctx.beginPath();
+          ctx.arc(px, py, r, 0, Math.PI * 2);
+          ctx.fill();
+          return;
         }
+        // Özellik: renkli hale ışık gibi eklenir, çekirdek kendi renginde düz
+        // boyanır (parlak tel üstünde "lighter" rengi beyaza yakıyordu), ortası
+        // beyaza yakın parlar — kablonun içinde kaybolmasın
+        const r = 1.8 * sc;
+        ctx.fillStyle = dt.color;
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = 0.28;
+        ctx.beginPath();
+        ctx.arc(px, py, r * 2.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 0.45;
+        ctx.beginPath();
+        ctx.arc(px, py, r * 1.7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = "source-over";
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = mixHex(dt.color, "#ffffff", 0.7);
+        ctx.beginPath();
+        ctx.arc(px, py, r * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+      };
+      if (L.flow && motion) {
+        for (const dt of dots.current) if (dt.where === "wire" && dotOn(dt)) paint(dt);
+        ctx.globalCompositeOperation = "lighter";
       }
       ctx.globalCompositeOperation = "source-over";
 
@@ -706,6 +930,11 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
         }
         ctx.globalCompositeOperation = "source-over";
       }
+      // Kartın içinden geçen ya da orada tüketilen özellik noktaları — kartın
+      // ve halkasının üstünde
+      if (L.flow && motion && L.cables)
+        for (const dt of dots.current) if (dt.kind === "f" && dt.where === "ring" && dotOn(dt)) paint(dt);
+      ctx.globalCompositeOperation = "source-over";
       ctx.globalAlpha = 1;
     };
 
@@ -976,6 +1205,25 @@ export function TechTree({ groups, layoutSwitch }: { groups: MapGroup[]; layoutS
               {flow ? "✓" : "—"}
             </span>
           </button>
+          {/* Akışın sayım penceresi — noktalar hangi girdilere göre bölünsün */}
+          {flow && (
+            <div className={cn("mb-2 grid grid-cols-2 gap-1 p-0.5", brutal ? "rounded-md border-2 border-[#111]" : "rounded-lg bg-[var(--sf-2)]")}>
+              {[false, true].map((all) => (
+                <button
+                  key={String(all)}
+                  type="button"
+                  aria-pressed={flowAll === all}
+                  onClick={() => setFlowAll(all)}
+                  className={cn(
+                    "rounded py-1 text-[11px] font-bold",
+                    flowAll === all ? (brutal ? "bg-[#111] text-[#fff4dc]" : "bg-primary text-primary-foreground") : "opacity-60"
+                  )}
+                >
+                  {t(all ? "graph.flowAll" : "graph.flow30")}
+                </button>
+              ))}
+            </div>
+          )}
           <button
             onClick={animate}
             className={cn(
