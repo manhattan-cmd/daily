@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil, Plus } from "lucide-react";
-import { daysIn, fmtEntryDateTime, MAX_CHARTS, type DayBucket, type ScaleRange } from "@/lib/analytics";
+import { dayKey, daysIn, fmtEntryDateTime, MAX_CHARTS, type DayBucket, type ScaleRange } from "@/lib/analytics";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { DailyBarChart } from "./daily-bar-chart";
 import { ChoiceDistribution } from "./choice-distribution";
@@ -67,25 +67,39 @@ function seriesOf(kind: ChartKind, buckets: DayBucket[], emptyAsZero = false): D
   return buckets.map((b) => ({ ...b, value: b.sum ?? b.value }));
 }
 
-/** Girdi girdi seri — her kayıt kendi noktası */
+/** Girdi girdi seri — her kayıt kendi noktası. "Boş günler 0" açıksa
+ *  kovaların kapsadığı aralıkta kaydı olmayan her gün de 0 noktası olur. */
 function pointsOf(
   entries: Entry[],
-  valueByEntry: Map<string, number>
+  valueByEntry: Map<string, number>,
+  buckets: DayBucket[],
+  emptyAsZero = false
 ): DayBucket[] {
-  return entries
+  const pts: { key: string; at: number; value: number; full: string }[] = entries
     .filter((e) => valueByEntry.has(e.id))
-    .sort((a, b) => a.occurredAt - b.occurredAt)
+    .map((e) => ({
+      key: e.id,
+      at: e.occurredAt,
+      value: valueByEntry.get(e.id) ?? 0,
+      full: fmtEntryDateTime(e.occurredAt),
+    }));
+  const first = buckets[0]?.start;
+  const last = buckets[buckets.length - 1]?.end;
+  if (emptyAsZero && first !== undefined && last !== undefined) {
+    const used = new Set(pts.map((p) => dayKey(p.at)));
+    for (const day of daysIn(first, last)) {
+      if (used.has(day)) continue;
+      const [y, m, d] = day.split("-").map(Number);
+      const at = new Date(y, m - 1, d, 12).getTime();
+      pts.push({ key: `zero-${day}`, at, value: 0, full: fmtEntryDateTime(at).split(" · ")[0] });
+    }
+  }
+  return pts
+    .sort((a, b) => a.at - b.at)
     .slice(-MAX_POINTS)
-    .map((e) => {
-      const label = fmtEntryDateTime(e.occurredAt).split(" · ")[0];
-      return {
-        key: e.id,
-        label,
-        axisLabel: label,
-        full: fmtEntryDateTime(e.occurredAt),
-        value: valueByEntry.get(e.id) ?? 0,
-        hasData: true,
-      };
+    .map((p) => {
+      const label = fmtEntryDateTime(p.at).split(" · ")[0];
+      return { key: p.key, label, axisLabel: label, full: p.full, value: p.value, hasData: true };
     });
 }
 
@@ -213,7 +227,7 @@ export function AnalysisCharts({
             <DailyBarChart
               data={
                 kind === "points"
-                  ? pointsOf(entries, valueByEntry)
+                  ? pointsOf(entries, valueByEntry, buckets, emptyAsZero)
                   : seriesOf(kind, buckets, emptyAsZero)
               }
               color={color}

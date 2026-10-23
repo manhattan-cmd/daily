@@ -911,7 +911,7 @@ export const en = {
   "stat.perDay": "per day",
   "an.settings": "Settings",
   "an.emptyAsZero": "Count empty days as 0",
-  "an.emptyAsZeroHint": "Days without a record count as 0: average, median and lowest are per day, and the line drops to 0 on empty days. Right for steps or money; wrong for body weight.",
+  "an.emptyAsZeroHint": "Days without a record count as 0: the line and point charts drop to 0 on empty days, median and lowest are per day. Average stays per entry; the per-day figure is Daily average. Right for steps or money; wrong for body weight.",
   "an.emptyAsZeroBadge": "empty day = 0",
 } as const;
 
@@ -1794,7 +1794,7 @@ export const tr: Record<MessageKey, string> = {
   "stat.perDay": "gün başına",
   "an.settings": "Ayarlar",
   "an.emptyAsZero": "Boş günler 0 sayılsın",
-  "an.emptyAsZeroHint": "Kayıt girilmeyen günler 0 kabul edilir: ortalama, ortanca ve en düşük gün başına hesaplanır, çizgi boş günlerde 0'a iner. Adım ya da para için doğru; kilo için yanlış.",
+  "an.emptyAsZeroHint": "Kayıt girilmeyen günler 0 kabul edilir: çizgi ve tek tek grafiği boş günlerde 0'a iner, ortanca ve en düşük gün başına hesaplanır. Ortalama girdi başına kalır; gün başınası Günlük ortalama'da. Adım ya da para için doğru; kilo için yanlış.",
   "an.emptyAsZeroBadge": "boş gün = 0",
 };
 

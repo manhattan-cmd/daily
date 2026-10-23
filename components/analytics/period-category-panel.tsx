@@ -186,7 +186,7 @@ export function PeriodCategoryPanel({
 
     // Kutulardaki rakam seri okumasından bağımsız: "Toplam" her zaman toplam
     const total = sumOf(entries);
-    let avg = averageOf(entries);
+    const avg = averageOf(entries);
     const withValueCount =
       metric.type === "mod"
         ? entries.filter((e) => valueByEntry.has(e.id)).length
@@ -207,12 +207,12 @@ export function PeriodCategoryPanel({
     const dailyAvg =
       progress.elapsedDays > 0 ? total / progress.elapsedDays : 0;
 
-    // "Boş günler 0" ayarında ortalama, ortanca ve en düşük gün başına:
-    // kaydı olmayan gün 0 sayılır (adımı girilmemiş gün 0 adımdır)
+    // "Boş günler 0" ayarında ortanca ve en düşük gün başına: kaydı olmayan
+    // gün 0 sayılır (adımı girilmemiş gün 0 adımdır). Ortalama girdi başına
+    // kalır — gün başınası zaten "Günlük ortalama" kutusu
     const zeroDays = compute.emptyAsZero && metric.type === "mod"
       ? zeroFilledDaily(entries, valueByEntry, period.kind === "all" ? startOfDayMs(new Date(minOcc ?? now.getTime())) : period.start, period.end)
       : null;
-    if (zeroDays?.length) avg = zeroDays.reduce((a, b) => a + b, 0) / zeroDays.length;
 
     // Hafta bağlamı (yalnız gün dönemleri) — haftanın şu ana kadarki günlük
     // ortalamasına göre bu gün nerede; scale metrikte gün ort. vs hafta ort.
@@ -496,7 +496,7 @@ export function PeriodCategoryPanel({
             total: computed.total,
             dailyAvg: computed.dailyAvg,
             avg: computed.avg,
-            avgPerDay: compute.emptyAsZero,
+            medianPerDay: compute.emptyAsZero,
             withValueCount: computed.withValueCount,
             entriesCount: compute.isChoice
               ? computed.choiceTotal

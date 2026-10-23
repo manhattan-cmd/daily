@@ -73,10 +73,10 @@ export type StatValues = {
   total: number;
   /** Dönemdeki gün başına düşen */
   dailyAvg: number;
-  /** Girdi başına ortalama ("boş günler 0" ayarında gün başına) */
+  /** Girdi başına ortalama */
   avg: number;
-  /** Ortalama ve ortanca gün başına mı — kutunun alt yazısı buna göre */
-  avgPerDay?: boolean;
+  /** Ortanca gün başına mı ("boş günler 0") — kutunun alt yazısı buna göre */
+  medianPerDay?: boolean;
   /** Bu metriğin değeri olan girdi sayısı — oranın paydası */
   withValueCount: number;
   /**
@@ -162,7 +162,7 @@ export function StatTiles({
           label: t("stat.average"),
           value: fmtNum(v.avg),
           unit,
-          sub: t(v.avgPerDay ? "stat.perDay" : "stat.perEntry"),
+          sub: t("stat.perEntry"),
         };
       case "last":
         return {
@@ -193,7 +193,7 @@ export function StatTiles({
           sub: `${v.activeDays} ${t("stat.days")}`,
         };
       case "median":
-        return { label: t("stat.median"), value: fmtNum(v.median), unit, sub: t(v.avgPerDay ? "stat.perDay" : "stat.perEntry") };
+        return { label: t("stat.median"), value: fmtNum(v.median), unit, sub: t(v.medianPerDay ? "stat.perDay" : "stat.perEntry") };
       case "first":
         return { label: t("stat.first"), value: fmtNum(v.first), unit, sub: periodSub };
       case "maxDay":

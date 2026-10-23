@@ -161,19 +161,19 @@ export function CategoryOverviewPanel({
 
     // Kutulardaki rakam seri okumasından bağımsız: "Toplam" her zaman toplam
     const total = sumOf(entries);
-    let avg = averageOf(entries);
+    const avg = averageOf(entries);
     const withValueCount =
       metric.type === "mod"
         ? entries.filter((e) => valueByEntry.has(e.id)).length
         : entries.length;
     const dailyAvg = total / elapsedDays;
 
-    // "Boş günler 0" ayarında ortalama, ortanca ve en düşük gün başına:
-    // kaydı olmayan gün 0 sayılır (adımı girilmemiş gün 0 adımdır)
+    // "Boş günler 0" ayarında ortanca ve en düşük gün başına: kaydı olmayan
+    // gün 0 sayılır (adımı girilmemiş gün 0 adımdır). Ortalama girdi başına
+    // kalır — gün başınası zaten "Günlük ortalama" kutusu
     const zeroDays = compute.emptyAsZero && metric.type === "mod"
       ? zeroFilledDaily(entries, valueByEntry, winStart, winEnd)
       : null;
-    if (zeroDays?.length) avg = zeroDays.reduce((a, b) => a + b, 0) / zeroDays.length;
 
     // İstikrar — metrikten bağımsız, girdi girilen günler üzerinden. Geçmiş
     // dönemde "güncel seri" dönemin son gününe göre okunur
@@ -460,7 +460,7 @@ export function CategoryOverviewPanel({
             total: computed.total,
             dailyAvg: computed.dailyAvg,
             avg: computed.avg,
-            avgPerDay: compute.emptyAsZero,
+            medianPerDay: compute.emptyAsZero,
             withValueCount: computed.withValueCount,
             entriesCount: compute.isChoice
               ? computed.choiceTotal
