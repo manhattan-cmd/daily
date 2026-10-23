@@ -45,10 +45,16 @@ const LEG_DIM = "#4b5060";
 const FLOW_SPEED = 38;
 /** Görünürlük tabanı: kullanılan her dal, kavşaktaki toplamın en az bu payı kadar nokta alır */
 const FLOW_FLOOR = 0.07;
+/**
+ * Kapsama payı: kavşaktaki bölüşümün bu kadarı girdi sayısına değil, dalın
+ * altındaki kullanılmış kalem sayısına göre — az kullanılan uç dallar da
+ * sürekli nokta alsın, akış merkezde yığılmasın
+ */
+const FLOW_SPREAD = 0.6;
 /** Aynı anda en çok bu kadar nokta */
 const FLOW_MAX = 800;
 /** Baz dolaşım çarpanı — doğum hızları bununla ölçeklenir */
-const FLOW_RATE = 1.2;
+const FLOW_RATE = 1;
 
 type Leg = { pts: Pt[]; cum: number[]; len: number };
 const mkLeg = (pts: Pt[]): Leg => {
@@ -454,25 +460,43 @@ export function TechTree({ groups }: { groups: MapGroup[] }) {
     const ownF = counts?.ownF ?? new Map<string, Map<string, number>>();
     const T = tree;
     const E = new Map<string, number>();
+    // Dalın altında kullanılmış kaç kalem var — kapsama payı için (bkz. FLOW_SPREAD)
+    const N = new Map<string, number>();
     const sumE = (id: string): number => {
       let n = id === ROOT ? 0 : own.get(id) ?? 0;
-      for (const k of T.visKids(id)) n += sumE(k);
+      let c = n > 0 ? 1 : 0;
+      for (const k of T.visKids(id)) {
+        n += sumE(k);
+        c += N.get(k) ?? 0;
+      }
       E.set(id, n);
+      N.set(id, c);
       return n;
     };
     if (T.start) sumE(T.start);
     const F = new Map<string, Map<string, number>>();
+    const NF = new Map<string, Map<string, number>>();
     for (const f of T.featList) {
       const m = new Map<string, number>();
+      const c = new Map<string, number>();
       const sumF = (id: string): number => {
         let n = T.holders.has(f + "|" + id) ? ownF.get(id)?.get(f) ?? 0 : 0;
-        for (const k of T.visKids(id)) if (T.cableBy.has(f + "|" + id + ">" + k)) n += sumF(k);
+        let cn = n > 0 ? 1 : 0;
+        for (const k of T.visKids(id))
+          if (T.cableBy.has(f + "|" + id + ">" + k)) {
+            n += sumF(k);
+            cn += c.get(k) ?? 0;
+          }
         m.set(id, n);
+        c.set(id, cn);
         return n;
       };
-      if (T.start && sumF(T.start) > 0) F.set(f, m);
+      if (T.start && sumF(T.start) > 0) {
+        F.set(f, m);
+        NF.set(f, c);
+      }
     }
-    return { own, ownF, E, F };
+    return { own, ownF, E, N, F, NF };
   }, [tree, counts]);
 
   // ─── Çizim ────────────────────────────────────────────────────────────────
@@ -531,11 +555,20 @@ export function TechTree({ groups }: { groups: MapGroup[] }) {
     let accE = 0;
     let accF = 0;
 
-    /** Ağırlıklı seçim; görünürlük tabanıyla. null = burada tüketildi */
-    const pick = (opts: [string | null, number][]): string | null | undefined => {
+    /**
+     * Ağırlıklı seçim; görünürlük tabanıyla. null = burada tüketildi.
+     * opts: [dal, girdi ağırlığı, altındaki kullanılmış kalem sayısı] — pay
+     * ikisinin karışımı (FLOW_SPREAD), ki az kullanılan uç dallar da akış alsın
+     */
+    const pick = (opts: [string | null, number, number][]): string | null | undefined => {
       const tot = opts.reduce((a, [, w]) => a + w, 0);
-      if (tot <= 0) return undefined;
-      const ws = opts.map(([id, w]): [string | null, number] => [id, w > 0 ? Math.max(w, tot * FLOW_FLOOR) : 0]);
+      const totN = opts.reduce((a, [, , n]) => a + n, 0);
+      if (tot <= 0 || totN <= 0) return undefined;
+      const ws = opts.map(([id, w, n]): [string | null, number] => {
+        if (w <= 0) return [id, 0];
+        const p = (1 - FLOW_SPREAD) * (w / tot) + FLOW_SPREAD * (n / totN);
+        return [id, Math.max(p, FLOW_FLOOR)];
+      });
       let r = Math.random() * ws.reduce((a, [, w]) => a + w, 0);
       for (const [id, w] of ws) if ((r -= w) <= 0) return id;
       return ws[ws.length - 1][0];
@@ -544,15 +577,17 @@ export function TechTree({ groups }: { groups: MapGroup[] }) {
     const choose = (dt: Dot, node: string, first = false): string | null | undefined => {
       const T = treeRef.current;
       const B = balRef.current;
-      const opts: [string | null, number][] = [];
+      const opts: [string | null, number, number][] = [];
+      const one = (w: number) => (w > 0 ? 1 : 0);
       if (dt.kind === "e") {
-        if (!first && node !== ROOT) opts.push([null, B.own.get(node) ?? 0]);
-        for (const k of T.visKids(node)) if (T.traceLeg.has(node + ">" + k)) opts.push([k, B.E.get(k) ?? 0]);
+        if (!first && node !== ROOT) { const w = B.own.get(node) ?? 0; opts.push([null, w, one(w)]); }
+        for (const k of T.visKids(node)) if (T.traceLeg.has(node + ">" + k)) opts.push([k, B.E.get(k) ?? 0, B.N.get(k) ?? 0]);
       } else {
         const m = B.F.get(dt.f);
-        if (!m) return undefined;
-        if (!first && T.holders.has(dt.f + "|" + node)) opts.push([null, B.ownF.get(node)?.get(dt.f) ?? 0]);
-        for (const k of T.visKids(node)) if (T.cableBy.has(dt.f + "|" + node + ">" + k)) opts.push([k, m.get(k) ?? 0]);
+        const c = B.NF.get(dt.f);
+        if (!m || !c) return undefined;
+        if (!first && T.holders.has(dt.f + "|" + node)) { const w = B.ownF.get(node)?.get(dt.f) ?? 0; opts.push([null, w, one(w)]); }
+        for (const k of T.visKids(node)) if (T.cableBy.has(dt.f + "|" + node + ">" + k)) opts.push([k, m.get(k) ?? 0, c.get(k) ?? 0]);
       }
       return pick(opts);
     };
@@ -615,9 +650,12 @@ export function TechTree({ groups }: { groups: MapGroup[] }) {
       const T = treeRef.current;
       const eTot = B.E.get(T.start) ?? 0;
       const fTot = [...B.F.values()].reduce((a, m) => a + (m.get(T.start) ?? 0), 0);
-      // Doğum hızı toplamla büyür ama tavanlı: kalabalık harita boğulmasın
-      accE += (eTot ? Math.min(8 * FLOW_RATE, (1.5 + eTot / 40) * FLOW_RATE) : 0) * sec;
-      accF += (fTot && live.current.cables ? Math.min(12 * FLOW_RATE, (2 + fTot / 40) * FLOW_RATE) : 0) * sec;
+      // Girdi noktaları kullanılmış kalem sayısıyla doğar (her uca düzenli
+      // nokta düşsün), özellikler toplamla; ikisi de tavanlı ki kalabalık
+      // harita boğulmasın
+      const nUsed = B.N.get(T.start) ?? 0;
+      accE += (eTot ? Math.min(20, Math.max(3, nUsed * 0.22)) * FLOW_RATE : 0) * sec;
+      accF += (fTot && live.current.cables ? Math.min(8, 2 + fTot / 40) * FLOW_RATE : 0) * sec;
       while (accE >= 1) { accE--; if (dots.current.length < FLOW_MAX) spawn("e"); }
       while (accF >= 1) { accF--; if (dots.current.length < FLOW_MAX) spawn("f"); }
       const out: Dot[] = [];
@@ -760,14 +798,18 @@ export function TechTree({ groups }: { groups: MapGroup[] }) {
       const nowT = performance.now();
       if (L.flow && motion) {
         if (warm.current) {
-          // Açılışta boş harita yerine oturmuş akış: en uzak kaleme
-          // varıp tükenecek kadar ileri sar (merkezden en uzak köşeye
-          // dolambaçlı yol payıyla), en az 30 sn
-          const { x0, y0, x1, y1 } = T.bounds;
-          const [cx, cy] = T.center;
-          const far = Math.max(Math.abs(x0 - cx), Math.abs(x1 - cx)) + Math.max(Math.abs(y0 - cy), Math.abs(y1 - cy));
-          const secs = Math.min(240, Math.max(30, (far * 1.6) / FLOW_SPEED + 10));
-          for (let s = 0; s < secs; s += 0.2) step(0.2);
+          // Açılışta boş harita yerine oturmuş akış: doğan ile tükenen
+          // dengelenene dek ileri sar — nokta sayısı artmayı bırakınca akış
+          // en uzak alt dallara da ulaşmış demektir
+          let t = 0;
+          let prev = -1;
+          while (t < 600) {
+            for (let i = 0; i < 25; i++) step(0.2);
+            t += 5;
+            const n = dots.current.length;
+            if (t >= 30 && n <= prev * 1.01) break;
+            prev = n;
+          }
           warm.current = false;
         } else step(Math.min(0.1, (nowT - lastT) / 1000));
       }
