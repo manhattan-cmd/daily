@@ -46,9 +46,9 @@ const FLOW_SPEED = 38;
 /** Görünürlük tabanı: kullanılan her dal, kavşaktaki toplamın en az bu payı kadar nokta alır */
 const FLOW_FLOOR = 0.07;
 /** Aynı anda en çok bu kadar nokta */
-const FLOW_MAX = 1400;
+const FLOW_MAX = 800;
 /** Baz dolaşım çarpanı — doğum hızları bununla ölçeklenir */
-const FLOW_RATE = 2.5;
+const FLOW_RATE = 1.2;
 
 type Leg = { pts: Pt[]; cum: number[]; len: number };
 const mkLeg = (pts: Pt[]): Leg => {
@@ -760,8 +760,14 @@ export function TechTree({ groups }: { groups: MapGroup[] }) {
       const nowT = performance.now();
       if (L.flow && motion) {
         if (warm.current) {
-          // Açılışta boş harita yerine dolmuş akış
-          for (let i = 0; i < 300; i++) step(0.1);
+          // Açılışta boş harita yerine oturmuş akış: en uzak kaleme
+          // varıp tükenecek kadar ileri sar (merkezden en uzak köşeye
+          // dolambaçlı yol payıyla), en az 30 sn
+          const { x0, y0, x1, y1 } = T.bounds;
+          const [cx, cy] = T.center;
+          const far = Math.max(Math.abs(x0 - cx), Math.abs(x1 - cx)) + Math.max(Math.abs(y0 - cy), Math.abs(y1 - cy));
+          const secs = Math.min(240, Math.max(30, (far * 1.6) / FLOW_SPEED + 10));
+          for (let s = 0; s < secs; s += 0.2) step(0.2);
           warm.current = false;
         } else step(Math.min(0.1, (nowT - lastT) / 1000));
       }
