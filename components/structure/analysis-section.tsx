@@ -18,6 +18,7 @@ import {
   MAX_CHARTS,
   MAX_STATS,
   STATS_FOR,
+  ZERO_FILL_KINDS,
   analysisGroupOf,
   kindOfGroup,
   optionOfView,
@@ -221,8 +222,16 @@ function ModAnalysisCard({
   const color = modColor(mod);
   const own = !!view && !view.inherited;
 
-  const save = (patch: { option?: string; stats: StatKey[]; charts: ChartKind[] }) =>
-    setAnalysisView(scopeType, scopeId, mod.id, { option: patch.option ?? currentOpt.key, ...patch });
+  // Her yazımda görünen bütün tercih taşınır: seçim üstten miras geliyorsa
+  // bu kalemde yeni satır açılır, eksik alan varsayılana düşmesin
+  const save = (patch: { option?: string; stats: StatKey[]; charts: ChartKind[]; emptyAsZero?: boolean }) =>
+    setAnalysisView(scopeType, scopeId, mod.id, {
+      option: patch.option ?? currentOpt.key,
+      emptyAsZero: patch.emptyAsZero ?? resolved.emptyAsZero,
+      stats: patch.stats,
+      charts: patch.charts,
+    });
+  const zeroFill = ZERO_FILL_KINDS.includes(kind);
 
   const pick = (o: AnalysisOption) => void save({ option: o.key, stats: o.stats, charts: o.charts });
 
@@ -266,6 +275,7 @@ function ModAnalysisCard({
           <span className="block truncate text-[15px] font-bold leading-tight">{mod.name}</span>
           <span className={cn("block text-[12px] leading-tight", brutal ? "text-[#111]/60" : "text-muted-foreground")}>
             {count ? t("an.values", { n: count }) : t("an.noValues")}
+            {resolved.emptyAsZero && ` · ${t("an.emptyAsZeroBadge")}`}
             {sourceName && ` · ${t("an.inherited", { name: sourceName })}`}
           </span>
         </span>
@@ -368,6 +378,46 @@ function ModAnalysisCard({
 
           {tune && (
             <div className="mt-2 flex flex-col gap-3 px-1">
+              {/* Ayarlar — özelliğin bu kalemde nasıl hesaplanacağı (türe göre) */}
+              {zeroFill && (
+                <div>
+                  <div className={cn("mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em]", brutal ? "text-[#111]/70" : "text-muted-foreground")}>
+                    {t("an.settings")}
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={resolved.emptyAsZero}
+                    onClick={() => void save({ stats: resolved.stats, charts: resolved.charts, emptyAsZero: !resolved.emptyAsZero })}
+                    className={cn(
+                      "flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left",
+                      brutal ? "border-2 border-[#111] bg-[#f5f1e8]" : "bg-muted/50"
+                    )}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-bold leading-tight">{t("an.emptyAsZero")}</span>
+                      <span className={cn("mt-0.5 block text-[12px] leading-snug", brutal ? "text-[#111]/70" : "text-muted-foreground")}>
+                        {t("an.emptyAsZeroHint")}
+                      </span>
+                    </span>
+                    <span
+                      className={cn(
+                        "relative mt-0.5 h-6 w-10 shrink-0 rounded-full transition-colors",
+                        brutal ? "border-2 border-[#111]" : "",
+                        resolved.emptyAsZero ? (brutal ? "bg-[#7be08a]" : "bg-foreground") : brutal ? "bg-white" : "bg-muted-foreground/30"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full transition-all",
+                          brutal ? "border-2 border-[#111] bg-white" : "bg-background",
+                          resolved.emptyAsZero ? "right-0.5" : "left-0.5"
+                        )}
+                      />
+                    </span>
+                  </button>
+                </div>
+              )}
               <div>
                 <div className={cn("mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em]", brutal ? "text-[#111]/70" : "text-muted-foreground")}>
                   {t("an.tiles")} <span className="font-mono">{resolved.stats.length}/{MAX_STATS}</span>

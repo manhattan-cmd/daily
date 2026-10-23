@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { ArrowRight } from "lucide-react";
-import { fmtNum, type DayBucket, type ScaleRange } from "@/lib/analytics";
+import { fmtNum, niceAxis, type DayBucket, type ScaleRange } from "@/lib/analytics";
 import { translate } from "@/lib/i18n";
 
 const MARGIN_RIGHT = 4;
@@ -106,13 +106,20 @@ export function DailyBarChart({
     ...d,
     value: d.hasData === false ? null : d.value,
   }));
-  // Eksen değerlerin kendi aralığına oturur, tabanı 0 değil; iki uçta da
-  // %8 pay bırakılıyor ki çizgi kenara yapışmasın
+  // Eksen değerlerin kendi aralığına oturur, tabanı 0 değil; çizgileri
+  // yuvarlak adımlarda (bkz. niceAxis) — tam sayılarda ara değer yazılmaz
   const lineVals = data.filter((d) => d.hasData !== false).map((d) => d.value);
-  const lineLo = lineVals.length ? Math.min(...lineVals) : 0;
-  const lineHi = lineVals.length ? Math.max(...lineVals) : 0;
-  const linePad = (lineHi - lineLo || Math.abs(lineHi) || 1) * 0.08;
-  const lineDomain: [number, number] = [lineLo - linePad, lineHi + linePad];
+  const lineAxis = niceAxis(
+    lineVals.length ? Math.min(...lineVals) : 0,
+    lineVals.length ? Math.max(...lineVals) : 0,
+    { integer: lineVals.every(Number.isInteger) }
+  );
+  // Çubuk sıfırdan yükselir; oranda yığının toplamı
+  const barVals = data.map((d) => d.value + (d.rest ?? 0));
+  const barAxis = niceAxis(Math.min(0, ...barVals), Math.max(0, ...barVals), {
+    integer: barVals.every(Number.isInteger),
+    zero: true,
+  });
 
   // Yığılmışta "hepsi hayır" bir kova doludur — boş sayılmamalı
   const allZero = scale
@@ -297,9 +304,8 @@ export function DailyBarChart({
             tickLine={false}
             axisLine={false}
             tick={{ fill: "#a1a1aa", fontSize: 10 }}
-            tickCount={3}
-            domain={lineDomain}
-            allowDecimals
+            domain={lineAxis.domain}
+            ticks={lineAxis.ticks}
             tickFormatter={(v: number) => fmtNum(v)}
             width={Y_AXIS_WIDTH}
             className="tabular-nums"
@@ -350,13 +356,11 @@ export function DailyBarChart({
             tickLine={false}
             axisLine={false}
             tick={{ fill: "#a1a1aa", fontSize: 10 }}
-            tickCount={3}
             // Skalada eksen kendi aralığına sabitlenir: 1–5 skalası 0'dan
             // çizilince çubuklar ezilip aralığın nerede başladığı kayboluyordu.
             // −2…+2'de 0 aralığın ortasında kalır, çubuk aşağı da inebilir.
-            domain={scale ? [scale.min, scale.max] : undefined}
-            ticks={scale ? [scale.min, scale.max] : undefined}
-            allowDecimals={!!scale}
+            domain={scale ? [scale.min, scale.max] : barAxis.domain}
+            ticks={scale ? [scale.min, scale.max] : barAxis.ticks}
             tickFormatter={(v: number) => fmtNum(v)}
             width={Y_AXIS_WIDTH}
             className="tabular-nums"

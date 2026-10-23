@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  niceAxis,
+  zeroFilledDaily,
+  medianOf,
   ANALYSIS_OPTIONS,
   defaultOptionKey,
   kindOfGroup,
@@ -356,5 +359,41 @@ describe("analiz yolları", () => {
     // Analiz sayfasında kurulmuş ama bir yola birebir uyan pano o yol sayılır
     const peak = ANALYSIS_OPTIONS.number.find((o) => o.key === "peak")!;
     expect(optionOfView("number", { stats: peak.stats, charts: peak.charts })).toEqual({ key: "peak", custom: false });
+  });
+});
+
+describe("eksen", () => {
+  it("tam sayılarda ara değer yazmaz (1–2 → 1, 2; 0,9/2,1 değil)", () => {
+    const a = niceAxis(1, 2, { integer: true });
+    expect(a.ticks).toEqual([1, 2]);
+    expect(a.ticks.every(Number.isInteger)).toBe(true);
+  });
+  it("adımlar yuvarlak, aralığı kapsar", () => {
+    const a = niceAxis(78.8, 79.4);
+    expect(a.domain[0]).toBeLessThanOrEqual(78.8);
+    expect(a.domain[1]).toBeGreaterThanOrEqual(79.4);
+    expect(a.ticks).toEqual([78.5, 79, 79.5]);
+  });
+  it("çubukta sıfırdan başlar", () => {
+    expect(niceAxis(0, 950, { integer: true, zero: true }).ticks).toEqual([0, 500, 1000]);
+    expect(niceAxis(0, 0, { integer: true, zero: true }).ticks).toEqual([0, 1]);
+  });
+  it("tek değerde de iki çizgi var", () => {
+    expect(niceAxis(3, 3, { integer: true }).ticks).toEqual([2, 3, 4]);
+  });
+});
+
+describe("boş günler 0", () => {
+  it("kaydı olmayan gün 0 olarak gelir, bugünden sonrası sayılmaz", () => {
+    const d = (day: number, h = 12) => new Date(2026, 9, day, h).getTime();
+    const entries = [
+      { id: "a", occurredAt: d(1) },
+      { id: "b", occurredAt: d(1, 18) },
+      { id: "c", occurredAt: d(3) },
+    ];
+    const vals = new Map([["a", 2], ["b", 3], ["c", 4]]);
+    const daily = zeroFilledDaily(entries, vals, d(1, 0), d(8, 0), d(4));
+    expect(daily).toEqual([5, 0, 4, 0]);
+    expect(medianOf(daily)).toBe(2);
   });
 });

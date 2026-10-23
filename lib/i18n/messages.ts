@@ -908,6 +908,11 @@ export const en = {
   "an.opt.which": "Which one",
   "an.opt.whichHint": "Which object comes up how often",
   "an.opt.objectFrequencyHint": "How often an object is picked at all",
+  "stat.perDay": "per day",
+  "an.settings": "Settings",
+  "an.emptyAsZero": "Count empty days as 0",
+  "an.emptyAsZeroHint": "Days without a record count as 0: average, median and lowest are per day, and the line drops to 0 on empty days. Right for steps or money; wrong for body weight.",
+  "an.emptyAsZeroBadge": "empty day = 0",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -1786,6 +1791,11 @@ export const tr: Record<MessageKey, string> = {
   "an.opt.which": "Hangisi",
   "an.opt.whichHint": "Hangi nesne ne sıklıkla geçiyor",
   "an.opt.objectFrequencyHint": "Ne sık bir nesne seçiliyor",
+  "stat.perDay": "gün başına",
+  "an.settings": "Ayarlar",
+  "an.emptyAsZero": "Boş günler 0 sayılsın",
+  "an.emptyAsZeroHint": "Kayıt girilmeyen günler 0 kabul edilir: ortalama, ortanca ve en düşük gün başına hesaplanır, çizgi boş günlerde 0'a iner. Adım ya da para için doğru; kilo için yanlış.",
+  "an.emptyAsZeroBadge": "boş gün = 0",
 };
 
 export const messages = { en, tr };

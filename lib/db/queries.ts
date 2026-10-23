@@ -1111,7 +1111,7 @@ export async function setAnalysisView(
   targetType: "category" | "subcategory",
   targetId: string,
   modId: string,
-  patch: Partial<Pick<AnalysisView, "stats" | "charts" | "series" | "option">>
+  patch: Partial<Pick<AnalysisView, "stats" | "charts" | "series" | "option" | "emptyAsZero">>
 ): Promise<void> {
   const existing = await db.analysisViews
     .where("[targetType+targetId+modId]")

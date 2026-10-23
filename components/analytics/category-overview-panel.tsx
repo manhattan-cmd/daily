@@ -18,6 +18,8 @@ import {
   startOfDayMs,
   type Granularity,
   type SeriesFrame,
+  medianOf,
+  zeroFilledDaily,
 } from "@/lib/analytics";
 import { periodShortLabel, shiftPeriod, type Period } from "@/lib/period";
 import { StatTile } from "./stat-tile";
@@ -159,12 +161,19 @@ export function CategoryOverviewPanel({
 
     // Kutulardaki rakam seri okumasından bağımsız: "Toplam" her zaman toplam
     const total = sumOf(entries);
-    const avg = averageOf(entries);
+    let avg = averageOf(entries);
     const withValueCount =
       metric.type === "mod"
         ? entries.filter((e) => valueByEntry.has(e.id)).length
         : entries.length;
     const dailyAvg = total / elapsedDays;
+
+    // "Boş günler 0" ayarında ortalama, ortanca ve en düşük gün başına:
+    // kaydı olmayan gün 0 sayılır (adımı girilmemiş gün 0 adımdır)
+    const zeroDays = compute.emptyAsZero && metric.type === "mod"
+      ? zeroFilledDaily(entries, valueByEntry, winStart, winEnd)
+      : null;
+    if (zeroDays?.length) avg = zeroDays.reduce((a, b) => a + b, 0) / zeroDays.length;
 
     // İstikrar — metrikten bağımsız, girdi girilen günler üzerinden. Geçmiş
     // dönemde "güncel seri" dönemin son gününe göre okunur
@@ -341,12 +350,14 @@ export function CategoryOverviewPanel({
       streaks,
       yesStreaks,
       entries,
-      level: compute.levelOf(entries),
+      level: zeroDays?.length
+        ? { ...compute.levelOf(entries), min: Math.min(...zeroDays) }
+        : compute.levelOf(entries),
       bag: (() => {
         const g = compute.statsFor(entries);
         return {
           first: g.first,
-          median: g.median,
+          median: zeroDays?.length ? medianOf(zeroDays) : g.median,
           maxDay: g.maxDay,
           perActiveDay: g.perActiveDay,
           activeDays: g.activeDays,
@@ -449,6 +460,7 @@ export function CategoryOverviewPanel({
             total: computed.total,
             dailyAvg: computed.dailyAvg,
             avg: computed.avg,
+            avgPerDay: compute.emptyAsZero,
             withValueCount: computed.withValueCount,
             entriesCount: compute.isChoice
               ? computed.choiceTotal
@@ -612,6 +624,7 @@ export function CategoryOverviewPanel({
           caption={computed.seriesFrame?.caption}
           showAllTicks={computed.seriesFrame?.showAllTicks}
           scale={compute.scale}
+          emptyAsZero={compute.emptyAsZero}
           stack={
             compute.isRate
               ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") }

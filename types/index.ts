@@ -316,6 +316,9 @@ export interface AnalysisView {
    * sayfasında sonradan elle değiştirilirse seçim "özel"e döner. İndekssiz alan.
    */
   option?: string;
+  /** Kayıt girilmeyen günler 0 sayılsın (sayı ve sürede) — ortalama gün
+   *  başına alınır, çizgi boş günlerde 0'a iner. İndekssiz alan. */
+  emptyAsZero?: boolean;
   createdAt: number;
   updatedAt: number;
 }

@@ -131,6 +131,9 @@ export type DayBucket = {
   sum?: number;
   avg?: number;
   count?: number;
+  /** Kovanın pencere içindeki sınırları [start, end) */
+  start?: number;
+  end?: number;
 };
 
 /** Seri grafiğinin kova granülerliği — pencere büyüdükçe kovalar kabalaşır */
@@ -242,6 +245,9 @@ export function buildSeriesBuckets(
         });
       }
     }
+    // Kovanın pencereye düşen kısmı — boş günleri 0 sayan okumada gün sayısı
+    out[out.length - 1].start = Math.max(cur, startMs);
+    out[out.length - 1].end = Math.min(next, endMs);
     cur = next;
   }
   return out;
@@ -559,7 +565,7 @@ export function statSub(
 export function classifyMod(
   mod: Mod,
   /** Bakılan kapsamın bu özellik için tercihi (varsa) */
-  view?: { stats?: StatKey[]; series?: SeriesMode }
+  view?: { stats?: StatKey[]; charts?: ChartKind[]; series?: SeriesMode; emptyAsZero?: boolean }
 ): MetricMod | null {
   const vt = mod.valueType ?? "number";
   const spec = resolveView(analysisKindOf(vt, mod.choices), mod.analysis, view);
@@ -752,6 +758,9 @@ export type ResolvedView = {
   /** @deprecated tek grafik dönemi; ilk grafiğin karşılığı */
   series: SeriesMode;
   chart: ChartKind;
+  /** Kayıt girilmeyen günler 0 sayılır: ortalama/ortanca/en düşük gün
+   *  başına, çizgi boş günlerde 0'a iner (bkz. ZERO_FILL_KINDS) */
+  emptyAsZero: boolean;
 };
 
 /** Ölçüye göre sunulan seri okumaları; ilki varsayılan */
@@ -833,7 +842,7 @@ export const MAX_CHARTS = 4;
 export function resolveView(
   kind: ModKindForAnalysis,
   modAnalysis?: ModAnalysis,
-  view?: { stats?: StatKey[]; charts?: ChartKind[]; series?: SeriesMode }
+  view?: { stats?: StatKey[]; charts?: ChartKind[]; series?: SeriesMode; emptyAsZero?: boolean }
 ): ResolvedView {
   const allowedStats = STATS_FOR[kind] ?? STATS_FOR.number;
   const allowedCharts = CHARTS_FOR[kind] ?? CHARTS_FOR.number;
@@ -865,7 +874,105 @@ export function resolveView(
     asChoice: charts.includes("distribution") || !!base.asChoice,
     series: first === "line" || first === "points" ? "average" : first === "distribution" ? "distribution" : "sum",
     chart: first,
+    emptyAsZero: ZERO_FILL_KINDS.includes(kind) && !!view?.emptyAsZero,
   };
+}
+
+/**
+ * "Boş günler 0 sayılsın" ayarının anlamlı olduğu türler: miktar biriken
+ * şeyler (adım, para, süre). Skalada 0 bir puan değil, evet/hayırda oran
+ * zaten yalnız cevaplanan günlere bakıyor.
+ */
+export const ZERO_FILL_KINDS: ModKindForAnalysis[] = ["number", "duration"];
+
+/** [start, end) içindeki günlerin anahtarları — bugünden sonrası sayılmaz */
+export function daysIn(start: number, end: number, now = Date.now()): string[] {
+  const stop = Math.min(end, startOfDayMs(new Date(now)) + 86400000);
+  const out: string[] = [];
+  const d = new Date(startOfDayMs(new Date(start)));
+  while (d.getTime() < stop && out.length < 20000) {
+    out.push(dayKey(d.getTime()));
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
+
+/**
+ * Gün gün toplamlar, kayıt girilmeyen günler 0 — "boş günler 0 sayılsın"
+ * ayarının okuması. Adım gibi bir şeyde kaydı olmayan gün gerçekten 0'dır;
+ * ortalaması girdi başına değil gün başına alınır.
+ */
+export function zeroFilledDaily(
+  entries: { id: string; occurredAt: number }[],
+  valueByEntry: Map<string, number>,
+  start: number,
+  end: number,
+  now = Date.now()
+): number[] {
+  const perDay = new Map<string, number>();
+  for (const e of entries) {
+    const v = valueByEntry.get(e.id);
+    if (v === undefined) continue;
+    const k = dayKey(e.occurredAt);
+    perDay.set(k, (perDay.get(k) ?? 0) + v);
+  }
+  return daysIn(start, end, now).map((k) => perDay.get(k) ?? 0);
+}
+
+/** Sayı listesinin ortancası */
+export function medianOf(nums: number[]): number {
+  if (!nums.length) return 0;
+  const s = [...nums].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+/**
+ * Grafik ekseninin aralığı ve çizgileri — yuvarlak adımlarla.
+ *
+ * Eskiden çizgide aralık değerlerin uçlarına %8 pay eklenerek bulunuyordu ve
+ * eksen o uçları yazıyordu: günden güne 1 ile 2 arasında gidip gelen bir
+ * değerde eksende 0,9 ve 2,1 görünüyordu. Şimdi adım 1·2·2,5·5 × 10ⁿ'den
+ * seçiliyor; değerler tam sayıysa adım da tam sayı.
+ */
+export function niceAxis(
+  lo: number,
+  hi: number,
+  { integer = false, count = 3, zero = false }: { integer?: boolean; count?: number; zero?: boolean } = {}
+): { domain: [number, number]; ticks: number[] } {
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return { domain: [0, 1], ticks: [0, 1] };
+  if (zero) {
+    lo = Math.min(0, lo);
+    hi = Math.max(0, hi);
+  }
+  if (hi === lo) {
+    const d = integer ? 1 : Math.abs(lo) * 0.1 || 1;
+    if (zero && lo === 0) hi += d;
+    else {
+      lo -= d;
+      hi += d;
+    }
+  }
+  const raw = (hi - lo) / Math.max(1, count - 1);
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  let step = 10 * mag;
+  for (const m of [1, 2, 2.5, 5, 10]) {
+    if (m * mag >= raw) {
+      step = m * mag;
+      break;
+    }
+  }
+  if (integer && step < 1) step = 1;
+  else if (integer && !Number.isInteger(step)) step = Math.ceil(step);
+  // Kayan nokta artıklarını temizle (0.30000000000000004)
+  const clean = (v: number) => Number(v.toPrecision(12));
+  let t0 = clean(Math.floor(lo / step) * step);
+  const tN = clean(Math.ceil(hi / step) * step);
+  // Negatif değer yoksa eksen sıfırın altına inmesin
+  if (lo >= 0 && t0 < 0) t0 = 0;
+  const ticks: number[] = [];
+  for (let v = t0, i = 0; v <= tN + step / 2 && i < 50; v = clean(v + step), i++) ticks.push(v);
+  return { domain: [t0, tN], ticks };
 }
 
 // ─── Analiz yolları (yapı sayfasının Analiz bölümü) ─────────────────────────

@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil, Plus } from "lucide-react";
-import { fmtEntryDateTime, MAX_CHARTS, type DayBucket, type ScaleRange } from "@/lib/analytics";
+import { daysIn, fmtEntryDateTime, MAX_CHARTS, type DayBucket, type ScaleRange } from "@/lib/analytics";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { DailyBarChart } from "./daily-bar-chart";
 import { ChoiceDistribution } from "./choice-distribution";
@@ -43,8 +43,16 @@ export const CHART_HINT: Record<ChartKind, MessageKey> = {
 const MAX_POINTS = 60;
 
 /** Grafiğin kovadan okuduğu rakam */
-function seriesOf(kind: ChartKind, buckets: DayBucket[]): DayBucket[] {
+function seriesOf(kind: ChartKind, buckets: DayBucket[], emptyAsZero = false): DayBucket[] {
   if (kind === "line") {
+    // "Boş günler 0": kovanın değeri gün başına — kaydı olmayan gün 0, çizgi
+    // boş günde 0'a iner; henüz gelmemiş günler hiç çizilmez
+    if (emptyAsZero) {
+      return buckets.map((b) => {
+        const days = b.start !== undefined && b.end !== undefined ? daysIn(b.start, b.end).length : 0;
+        return { ...b, value: days ? (b.sum ?? 0) / days : 0, hasData: days > 0 };
+      });
+    }
     return buckets.map((b) => ({ ...b, value: b.avg ?? 0 }));
   }
   if (kind === "cumulative") {
@@ -99,6 +107,7 @@ export function AnalysisCharts({
   scale,
   onSelect,
   title,
+  emptyAsZero,
 }: {
   charts: ChartKind[];
   options: ChartKind[];
@@ -116,6 +125,8 @@ export function AnalysisCharts({
   showAllTicks?: boolean;
   stack?: { valueLabel: string; restLabel: string };
   scale?: ScaleRange;
+  /** Kayıt girilmeyen günler 0 sayılır (bkz. ResolvedView.emptyAsZero) */
+  emptyAsZero?: boolean;
   onSelect?: (periodKey: string) => void;
   /** Grafiğin üstündeki bağlam: ana ad ("YÜRÜYÜŞ · HAFTALIK SÜRE") ve
    *  türün yanına eklenen kapsam ("· Tüm Zamanlar") */
@@ -203,7 +214,7 @@ export function AnalysisCharts({
               data={
                 kind === "points"
                   ? pointsOf(entries, valueByEntry)
-                  : seriesOf(kind, buckets)
+                  : seriesOf(kind, buckets, emptyAsZero)
               }
               color={color}
               unit={unit}

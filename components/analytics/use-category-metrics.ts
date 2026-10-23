@@ -127,6 +127,8 @@ export interface MetricCompute {
   /** Panodaki grafikler ve bu ölçüde sunulanlar */
   charts: ChartKind[];
   chartOptions: ChartKind[];
+  /** Kayıt girilmeyen günler 0 sayılıyor mu (bkz. ResolvedView.emptyAsZero) */
+  emptyAsZero: boolean;
   /** Bu ölçüde kutuya konabilecekler */
   statOptions: StatKey[];
   /**
@@ -499,6 +501,7 @@ export function useCategoryMetrics({
             chart: "bar" as const,
             charts: [] as ChartKind[],
             series: "sum" as SeriesMode,
+            emptyAsZero: false,
           }
         : metric.mod.spec;
     // Seçenek listeleri ÖLÇÜDEN çıkıyor; havuzdaki ham kaydı buradan okuyoruz
@@ -647,6 +650,7 @@ export function useCategoryMetrics({
           ? (["entries", "dailyAverage"] as StatKey[])
           : spec.stats,
       chart: spec.chart,
+      emptyAsZero: spec.emptyAsZero,
       charts: spec.charts ?? [],
       chartOptions:
         metric.type === "count" ? [] : CHARTS_FOR[optionKind] ?? [],
@@ -672,6 +676,7 @@ export function useCategoryMetrics({
     await setAnalysisView(scopeType, scopeId, metric.mod.id, {
       stats: patch.stats ?? spec?.stats,
       charts: patch.charts ?? spec?.charts,
+      emptyAsZero: spec?.emptyAsZero,
       ...(patch.series ? { series: patch.series } : {}),
     });
   };
