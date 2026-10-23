@@ -1111,7 +1111,7 @@ export async function setAnalysisView(
   targetType: "category" | "subcategory",
   targetId: string,
   modId: string,
-  patch: Pick<AnalysisView, "stats" | "charts" | "series">
+  patch: Partial<Pick<AnalysisView, "stats" | "charts" | "series" | "option">>
 ): Promise<void> {
   const existing = await db.analysisViews
     .where("[targetType+targetId+modId]")
@@ -1130,6 +1130,96 @@ export async function setAnalysisView(
     createdAt: now(),
     updatedAt: now(),
   });
+}
+
+/** Kapsamın kendi tercihini sil — üstten gelene (ya da varsayılana) döner */
+export async function clearAnalysisView(
+  targetType: "category" | "subcategory",
+  targetId: string,
+  modId: string
+): Promise<void> {
+  await db.analysisViews
+    .where("[targetType+targetId+modId]")
+    .equals([targetType, targetId, modId])
+    .delete();
+}
+
+/** Çözülmüş tercih: hangi kapsamdan geldiğiyle birlikte */
+export type ResolvedAnalysisView = AnalysisView & { inherited: boolean };
+
+/**
+ * Kapsamın tercihleri, üstlerinden miras alarak: kategori → üst kalemler →
+ * kalemin kendisi; alttaki üsttekini ezer. Kategoride "Süre toplansın"
+ * denince alt kalemler de öyle açılır, yalnız farklı isteyen kalem kendi
+ * seçimini yapar.
+ */
+export async function resolveAnalysisViews(
+  categoryId: string,
+  subcategoryId?: string
+): Promise<Map<string, ResolvedAnalysisView>> {
+  const chain: ["category" | "subcategory", string][] = [["category", categoryId]];
+  if (subcategoryId) {
+    const subs: string[] = [];
+    let cur = await db.subcategories.get(subcategoryId);
+    let hops = 0;
+    while (cur && hops++ < 20) {
+      subs.unshift(cur.id);
+      cur = cur.parentId ? await db.subcategories.get(cur.parentId) : undefined;
+    }
+    for (const s of subs) chain.push(["subcategory", s]);
+  }
+  const self = chain[chain.length - 1][1];
+  const out = new Map<string, ResolvedAnalysisView>();
+  for (const [type, tid] of chain) {
+    const rows = await listAnalysisViews(type, tid);
+    for (const [modId, v] of rows) out.set(modId, { ...v, inherited: tid !== self });
+  }
+  return out;
+}
+
+/**
+ * Bir kapsamda analiz edilecek özellikler: kapsama ya da altındaki bir
+ * kaleme bağlı olanlar + kapsamın girdilerinde değeri olanlar (bağı sonradan
+ * kopmuş olsa da verisi duruyor). Nesneye ait değerler nesne analizinde.
+ */
+export async function listScopeMods(
+  categoryId: string,
+  subcategoryId?: string
+): Promise<{ mod: Mod; count: number }[]> {
+  const subs = await db.subcategories.where("categoryId").equals(categoryId).toArray();
+  let scope: string[];
+  if (subcategoryId) {
+    const ids = new Set([subcategoryId]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const s of subs)
+        if (s.parentId && ids.has(s.parentId) && !ids.has(s.id)) {
+          ids.add(s.id);
+          grew = true;
+        }
+    }
+    scope = [...ids];
+  } else scope = subs.map((s) => s.id);
+
+  const targets = new Set(scope);
+  if (!subcategoryId) targets.add(categoryId);
+  const attached = (await db.categoryModifiers.toArray()).filter((m) => m.modId && targets.has(m.targetId));
+
+  const entryIds = scope.length
+    ? await db.entries.where("subcategoryId").anyOf(scope).primaryKeys()
+    : [];
+  const values = entryIds.length
+    ? (await db.entryValues.where("entryId").anyOf(entryIds).toArray()).filter((v) => !v.thingId)
+    : [];
+  const counts = new Map<string, number>();
+  for (const v of values) if (v.modId) counts.set(v.modId, (counts.get(v.modId) ?? 0) + 1);
+
+  const ids = new Set([...attached.map((a) => a.modId!), ...counts.keys()]);
+  const mods = (await db.mods.toArray()).filter((m) => ids.has(m.id));
+  return mods
+    .map((mod) => ({ mod, count: counts.get(mod.id) ?? 0 }))
+    .sort((a, b) => b.count - a.count || a.mod.name.localeCompare(b.mod.name));
 }
 
 /** Analiz biçimi — ölçüden ayrı tutuluyor: ölçü değişmeden de değiştirilebilmeli */

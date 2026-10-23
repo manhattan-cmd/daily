@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import { listAnalysisViews, setAnalysisView } from "@/lib/db/queries";
+import { resolveAnalysisViews, setAnalysisView } from "@/lib/db/queries";
 import { choiceLabel } from "@/lib/choice-level";
 import {
   average,
@@ -180,8 +180,6 @@ export async function loadCategoryMetrics({
   fetchEnd,
   excludeRegular,
 }: CategoryMetricsParams): Promise<CategoryMetricsData | null> {
-  const scopeType: "category" | "subcategory" = rootSubId ? "subcategory" : "category";
-  const scopeId = rootSubId ?? categoryId;
     const allSubs = await db.subcategories
       .where("categoryId")
       .equals(categoryId)
@@ -300,8 +298,9 @@ export async function loadCategoryMetrics({
     // bulkGet yerine tam tablo taraması — küçük tablolar (havuzdaki mod/ölçü sayısı sınırlı),
     // bulkGet'in ardışık yazımlardan hemen sonra bazı anahtarlar için null dönebildiği gözlendi
     const allMods = await db.mods.toArray();
-    // Bakılan kapsamın tercihleri: aynı özellik başka kalemde başka okunuyor
-    const views = await listAnalysisViews(scopeType, scopeId);
+    // Bakılan kapsamın tercihleri: aynı özellik başka kalemde başka okunuyor.
+    // Kalem kendi seçimini yapmadıysa üstünden (kategoriden) miras alır.
+    const views = await resolveAnalysisViews(categoryId, rootSubId);
     const mods: MetricMod[] = allMods
       .filter((m) => modIds.has(m.id))
       .map((m) => classifyMod(m, views.get(m.id)))
@@ -667,7 +666,14 @@ export function useCategoryMetrics({
     series?: SeriesMode;
   }) => {
     if (metric.type === "count") return;
-    await setAnalysisView(scopeType, scopeId, metric.mod.id, patch);
+    // Tercih üstten miras geliyorsa bu kapsamda yeni satır açılır; öteki
+    // alan boş kalırsa varsayılana düşerdi — görüneni olduğu gibi taşı
+    const spec = metric.mod.spec;
+    await setAnalysisView(scopeType, scopeId, metric.mod.id, {
+      stats: patch.stats ?? spec?.stats,
+      charts: patch.charts ?? spec?.charts,
+      ...(patch.series ? { series: patch.series } : {}),
+    });
   };
 
   return {

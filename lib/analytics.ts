@@ -17,7 +17,7 @@ import type {
   ModReading,
   StatKey,
 } from "@/types";
-import { intlTag, translate } from "@/lib/i18n";
+import { intlTag, translate, type MessageKey } from "@/lib/i18n";
 
 export type RangeKey = "bugun" | "hafta" | "7" | "30" | "ay" | "yil" | "tum";
 
@@ -866,6 +866,116 @@ export function resolveView(
     series: first === "line" || first === "points" ? "average" : first === "distribution" ? "distribution" : "sum",
     chart: first,
   };
+}
+
+// ─── Analiz yolları (yapı sayfasının Analiz bölümü) ─────────────────────────
+
+/**
+ * Analiz bölümünde özelliklerin gruplandığı tür. Analiz türüyle (kind) aynı,
+ * yalnız nesne ayrı bir grup: hesap olarak seçenek gibi okunur (hangisi, ne
+ * sıklıkla) ama kullanıcı için başka bir şey — "Hangi araba".
+ */
+export type AnalysisGroup = ModKindForAnalysis | "object";
+
+export function analysisGroupOf(
+  valueType: EntryValueType | undefined,
+  choices?: string[]
+): AnalysisGroup {
+  return valueType === "object" ? "object" : analysisKindOf(valueType, choices);
+}
+
+export const kindOfGroup = (g: AnalysisGroup): ModKindForAnalysis =>
+  g === "object" ? "choice" : g;
+
+/**
+ * Bir özelliğin nasıl inceleneceği — kutular ve grafikler birlikte.
+ *
+ * Seçenekler ölçü türüne göre: özellik doğrudan kategoriye, alt kaleme ya da
+ * bir nesneye bağlı olsun, veriyi hep özellik tutuyor ve ne sorulabileceğini
+ * ölçü türü belirliyor (sayıya "toplam", evet/hayıra "oran"). Hangisinin
+ * sorulacağını ise yalnız kullanıcı biliyor — "X"in ne demek olduğunu o
+ * biliyor. İlk liste temel tutuldu; seçenekler kullanımla revize edilecek.
+ */
+export type AnalysisOption = {
+  key: string;
+  label: MessageKey;
+  hint: MessageKey;
+  stats: StatKey[];
+  charts: ChartKind[];
+};
+
+const opt = (
+  key: string,
+  stats: StatKey[],
+  charts: ChartKind[],
+  label: MessageKey = `an.opt.${key}` as MessageKey,
+  hint: MessageKey = `an.opt.${key}Hint` as MessageKey
+): AnalysisOption => ({ key, label, hint, stats, charts });
+
+export const ANALYSIS_OPTIONS: Record<AnalysisGroup, AnalysisOption[]> = {
+  number: [
+    opt("sum", ["total", "dailyAverage", "entries"], ["bar"]),
+    opt("average", ["average", "median", "entries"], ["line"]),
+    opt("level", ["last", "range", "average"], ["line"]),
+    opt("peak", ["max", "average", "entries"], ["points"]),
+  ],
+  duration: [
+    opt("sum", ["total", "dailyAverage", "entries"], ["bar"], "an.opt.sum", "an.opt.durSumHint"),
+    opt("average", ["average", "median", "entries"], ["line"], "an.opt.average", "an.opt.durAverageHint"),
+    opt("peak", ["max", "average", "entries"], ["points"], "an.opt.longest", "an.opt.longestHint"),
+  ],
+  scale: [
+    opt("average", ["average", "median", "entries"], ["line"], "an.opt.average", "an.opt.scaleAverageHint"),
+    opt("level", ["last", "range", "average"], ["line"], "an.opt.level", "an.opt.scaleLevelHint"),
+    opt("distribution", ["entries", "activeDays"], ["distribution"], "an.opt.distribution", "an.opt.scaleDistributionHint"),
+  ],
+  rate: [
+    opt("rate", ["rate", "yesCount", "entries"], ["bar"]),
+    opt("streak", ["yesStreak", "yesCount", "rate"], ["cumulative"]),
+  ],
+  choice: [
+    opt("distribution", ["topChoice", "distinct", "entries"], ["distribution"]),
+    opt("frequency", ["entries", "activeDays", "streak"], ["bar"]),
+  ],
+  presence: [
+    opt("texts", ["topChoice", "distinct", "entries"], ["distribution"]),
+    opt("frequency", ["written", "activeDays", "streak"], ["bar"], "an.opt.frequency", "an.opt.textFrequencyHint"),
+  ],
+  object: [
+    opt("distribution", ["topChoice", "distinct", "entries"], ["distribution"], "an.opt.which", "an.opt.whichHint"),
+    opt("frequency", ["entries", "activeDays", "streak"], ["bar"], "an.opt.frequency", "an.opt.objectFrequencyHint"),
+  ],
+};
+
+/**
+ * Dokunulmamış özelliğin yolu: tohumun koyduğu biçim (kilo → son durum) ya
+ * da türün ilk seçeneği. Biçim adları yol anahtarlarıyla aynı tutuldu.
+ */
+export function defaultOptionKey(group: AnalysisGroup, modAnalysis?: ModAnalysis): string {
+  const opts = ANALYSIS_OPTIONS[group];
+  const preset = presetOf(kindOfGroup(group), modAnalysis);
+  return opts.some((o) => o.key === preset) ? preset : opts[0].key;
+}
+
+const sameList = <T,>(a: T[] | undefined, b: T[]) =>
+  !!a && a.length === b.length && a.every((x, i) => x === b[i]);
+
+/**
+ * Kayıtlı görünüm hangi yola karşılık geliyor. Seçilmiş yolun kutuları ya
+ * da grafikleri analiz sayfasında değiştirildiyse "custom".
+ */
+export function optionOfView(
+  group: AnalysisGroup,
+  view: { option?: string; stats?: StatKey[]; charts?: ChartKind[] } | undefined,
+  modAnalysis?: ModAnalysis
+): { key: string; custom: boolean } {
+  const opts = ANALYSIS_OPTIONS[group];
+  if (!view) return { key: defaultOptionKey(group, modAnalysis), custom: false };
+  const match = (o: AnalysisOption) => sameList(view.stats, o.stats) && sameList(view.charts, o.charts);
+  const picked = opts.find((o) => o.key === view.option);
+  if (picked) return { key: picked.key, custom: !match(picked) };
+  const found = opts.find(match);
+  return found ? { key: found.key, custom: false } : { key: defaultOptionKey(group, modAnalysis), custom: true };
 }
 
 /** Bir sayı kümesinin uçları ve sonuncusu — seviye kutularının kaynağı */

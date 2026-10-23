@@ -310,6 +310,12 @@ export interface AnalysisView {
   charts?: ChartKind[];
   /** @deprecated v20'de tek grafik vardı; okunurken charts'ın ilk elemanına çevrilir */
   series?: SeriesMode;
+  /**
+   * Yapı sayfasının Analiz bölümünde seçilen analiz yolu (lib/analytics
+   * ANALYSIS_OPTIONS anahtarı). Kutular ve grafikler bundan doldurulur; analiz
+   * sayfasında sonradan elle değiştirilirse seçim "özel"e döner. İndekssiz alan.
+   */
+  option?: string;
   createdAt: number;
   updatedAt: number;
 }

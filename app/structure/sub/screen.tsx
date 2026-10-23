@@ -17,6 +17,7 @@ import { ModifierSection } from "@/components/structure/modifier-section";
 import { SubCategoryTree } from "@/components/structure/subcategory-tree";
 import { DeleteSubCategoryDialog } from "@/components/structure/delete-subcategory-dialog";
 import { RecentEntriesSection } from "@/components/structure/recent-entries-section";
+import { AnalysisSection } from "@/components/structure/analysis-section";
 import { routes } from "@/lib/routes";
 
 export function SubCategoryDetailPage({
@@ -161,6 +162,11 @@ export function SubCategoryDetailPage({
             }}
           />
         </section>
+      )}
+
+      {/* Analiz — özelliklerin nasıl inceleneceği, kullanıcının seçimi */}
+      {category && (
+        <AnalysisSection categoryId={categoryId} subcategoryId={subcategoryId} />
       )}
 
       {/* Son girdiler + analize kısayol */}

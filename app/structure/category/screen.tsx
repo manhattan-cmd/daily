@@ -20,6 +20,7 @@ import { CategoryForm } from "@/components/structure/category-form";
 import { ModifierSection } from "@/components/structure/modifier-section";
 import { SubCategoryTree } from "@/components/structure/subcategory-tree";
 import { RecentEntriesSection } from "@/components/structure/recent-entries-section";
+import { AnalysisSection } from "@/components/structure/analysis-section";
 import { routes } from "@/lib/routes";
 
 export function CategoryDetailPage({
@@ -147,6 +148,11 @@ export function CategoryDetailPage({
             }}
           />
         </section>
+      )}
+
+      {/* Analiz — özelliklerin nasıl inceleneceği, kullanıcının seçimi */}
+      {category && (
+        <AnalysisSection categoryId={categoryId} />
       )}
 
       {/* Son girdiler + analize kısayol */}

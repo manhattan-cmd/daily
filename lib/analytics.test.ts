@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  ANALYSIS_OPTIONS,
+  defaultOptionKey,
+  kindOfGroup,
+  optionOfView,
+  type AnalysisGroup,
   bucketAncestorId,
   bucketKeyOf,
   buildSeriesBuckets,
@@ -316,5 +321,40 @@ describe("kapsam görünümü — aynı özellik, başka kalemde başka okuma", 
     expect(SERIES_FOR.rate).toHaveLength(1);
     expect(SERIES_FOR.choice).toHaveLength(1);
     expect(STATS_FOR.number.length).toBeGreaterThan(3);
+  });
+});
+
+describe("analiz yolları", () => {
+  const groups = Object.keys(ANALYSIS_OPTIONS) as AnalysisGroup[];
+
+  it("her yol türün izin verdiği kutu ve grafiklerden kurulu", () => {
+    for (const g of groups) {
+      const kind = kindOfGroup(g);
+      for (const o of ANALYSIS_OPTIONS[g]) {
+        for (const k of o.stats) expect(STATS_FOR[kind], `${g}/${o.key}/${k}`).toContain(k);
+        for (const c of o.charts) expect(CHARTS_FOR[kind], `${g}/${o.key}/${c}`).toContain(c);
+        // Analiz sayfası yolu süzmeden açsın: süzülürse seçilen yol "özel" görünürdü
+        const v = resolveView(kind, undefined, { stats: o.stats, charts: o.charts });
+        expect(v.stats).toEqual(o.stats);
+        expect(v.charts).toEqual(o.charts);
+      }
+    }
+  });
+
+  it("dokunulmamış özellik tohumun biçimine düşer, yoksa ilk yola", () => {
+    expect(defaultOptionKey("number")).toBe("sum");
+    expect(defaultOptionKey("number", { preset: "level" })).toBe("level");
+    expect(defaultOptionKey("rate")).toBe("rate");
+    expect(defaultOptionKey("object")).toBe("distribution");
+  });
+
+  it("elle değiştirilmiş yol özel sayılır", () => {
+    const sum = ANALYSIS_OPTIONS.number[0];
+    expect(optionOfView("number", undefined)).toEqual({ key: "sum", custom: false });
+    expect(optionOfView("number", { option: "sum", stats: sum.stats, charts: sum.charts })).toEqual({ key: "sum", custom: false });
+    expect(optionOfView("number", { option: "sum", stats: ["total"], charts: sum.charts }).custom).toBe(true);
+    // Analiz sayfasında kurulmuş ama bir yola birebir uyan pano o yol sayılır
+    const peak = ANALYSIS_OPTIONS.number.find((o) => o.key === "peak")!;
+    expect(optionOfView("number", { stats: peak.stats, charts: peak.charts })).toEqual({ key: "peak", custom: false });
   });
 });
