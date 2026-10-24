@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useIsBrutal } from "@/components/structure/brutal";
+import { Layer } from "@/components/ui/layer";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { db } from "@/lib/db";
@@ -329,9 +330,11 @@ export default function ModsHomePage() {
       {/* Tek havuz: uygulamayla gelen özellikle kullanıcının yarattığı
           arasında ayrım yok — ikisi de aynı şekilde düzenlenir ve silinir */}
       {mods === undefined ? null : (
-        <section className="mb-6 flex flex-col gap-5">
+        <section className={cn("mb-6 flex flex-col", brutal ? "gap-6" : "gap-5")}>
+          {/* Her ölçü türü kendi katmanında (bkz. Layer) — adı ve sayısı katmanın başında */}
           {groups.map((g) => (
-            <div key={g.kind} className="flex flex-col gap-2">
+            <Layer key={g.kind} label={g.label} count={g.items.length} className="mb-0 flex flex-col gap-2">
+              {!brutal && (
               <div data-group-head="" className="flex items-center gap-2 px-0.5">
                 <g.icon className="h-3 w-3 text-muted-foreground/45" />
                 <span className="text-[10.5px] font-semibold uppercase tracking-[0.13em] text-muted-foreground/60">
@@ -342,6 +345,7 @@ export default function ModsHomePage() {
                   {g.items.length}
                 </span>
               </div>
+              )}
 
               {/* Kartta YALNIZ ad. Birim, aralık ve seçenekler eskiden adın
                   altındaydı; iki sütunda yan yana gelince liste okunmuyordu —
@@ -393,7 +397,7 @@ export default function ModsHomePage() {
                 ))}
               </div>
               )}
-            </div>
+            </Layer>
           ))}
 
           {!search && (
