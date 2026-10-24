@@ -656,9 +656,9 @@ input[type="number"] {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 30;
   /* Buzlu cam: yarı saydam beyaz, arkası bulanık — beyaz kartların üstünde
      de kendini belli etsin diye çerçeve 2px, gölge belirgin */
-  background: rgba(255, 255, 255, 0.62);
-  backdrop-filter: blur(14px) saturate(1.4);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
   border: 2px solid #111;
   border-radius: 999px;
   box-shadow: 3px 4px 0 #111;
