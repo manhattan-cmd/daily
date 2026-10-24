@@ -37,7 +37,7 @@ export function Layer({
       data-layer=""
       style={style}
       className={cn(
-        "mb-4 rounded-[22px] border-2 border-[#111] bg-white p-3.5 shadow-[4px_4px_0_#111]",
+        "mb-4 rounded-[22px] border-2 border-[#111] bg-[#f5f1e8] p-3.5 shadow-[4px_4px_0_#111]",
         // Pencereler arası brütalde hep aynı, sıkı aralık (diğer temalardaki mb-6 burada geçmez)
         className?.replace(/mb-6/, "mb-4")
       )}

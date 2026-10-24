@@ -560,7 +560,7 @@ input[type="number"] {
    özellik kutuları) !important ile ezilir; deneme beğenilmezse bu blok ve
    lib/skin.ts'deki kayıt silinir. */
 :root[data-skin="brutal"] {
-  --background: #faf7f0;
+  --background: #fff4dc; /* asıl brütal krem; kâğıt beyazı hali: git tag tasarim-kagit-beyazi */
   --foreground: #111111;
   --card: #ffffff;
   --card-foreground: #111111;
