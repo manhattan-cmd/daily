@@ -675,8 +675,9 @@ export function CategoryOverviewPanel({
       )}
 
       {/* Girdi listesi — son 50 */}
-      <Layer className="mb-0">
+      <Layer bare className="mb-0">
       <EntryListSection
+        framed
         title={t("home.recentEntries")}
         accent={category.color}
         rows={computed.entryRows}

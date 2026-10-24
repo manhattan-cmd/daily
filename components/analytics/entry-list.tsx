@@ -58,6 +58,7 @@ export function EntryListSection({
   accent = DEFAULT_ACCENT,
   action,
   searchable = true,
+  framed = false,
 }: {
   title: string;
   rows: EntryListRow[];
@@ -68,6 +69,8 @@ export function EntryListSection({
   action?: React.ReactNode;
   /** Zaten arama sonucu olan listelerde kapatılır (/search sayfası) */
   searchable?: boolean;
+  /** Brütal: liste kendi penceresi — başlık ve arama kartın içinde, dış katman yok */
+  framed?: boolean;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -88,7 +91,7 @@ export function EntryListSection({
   };
 
   return (
-    <div>
+    <div data-entry-window={framed ? "" : undefined}>
       <div data-entry-list-head="" className="mb-2 flex items-center justify-between gap-2 px-1">
         <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {title}

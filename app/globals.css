@@ -1031,6 +1031,27 @@ input[type="number"] {
   background: #fff !important; color: #111 !important; border: 1.5px solid #111; border-radius: 999px; padding: 2px 7px;
   font-family: var(--font-mono, ui-monospace, monospace); letter-spacing: 0; line-height: 1;
 }
+/* Girdi listesi kendi penceresi (EntryListSection framed): başlık ve arama
+   beyaz kartın içinde, iç defterin ikinci çerçevesi yok — iç içe pencere olmasın */
+:root[data-skin="brutal"] [data-entry-window] {
+  background: #ffffff; border: 2px solid #111; border-radius: 22px; box-shadow: 4px 4px 0 #111;
+  padding: 14px 14px 6px;
+}
+:root[data-skin="brutal"] [data-entry-window] [data-entry-list] {
+  box-shadow: none !important; background: transparent !important; padding-left: 2px; padding-right: 2px; border-radius: 0;
+}
+:root[data-skin="brutal"] [data-entry-window] [data-entry-list-head] h3.uppercase {
+  background: none; color: #111 !important; padding: 0 0 0 2px; font-size: 12px; letter-spacing: 0.09em; gap: 8px;
+}
+:root[data-skin="brutal"] [data-entry-window] [data-entry-list-head] h3.uppercase > span {
+  background: #fff !important; color: #111 !important; border: 1.5px solid #111; border-radius: 999px; padding: 2px 7px;
+  font-family: var(--font-mono, ui-monospace, monospace); letter-spacing: 0; line-height: 1;
+}
+/* Grafikler katmanındaki grafik kartı ikinci pencere değil: çerçevesiz,
+   gölgesiz beyaz çizim alanı */
+:root[data-skin="brutal"] [data-layer] [data-chart-card] {
+  border-width: 0 !important; box-shadow: none !important; border-radius: 14px;
+}
 /* Dagilim satirlari: beyaz cerceveli kutu, kalin cerceveli cubuk */
 :root[data-skin="brutal"] [data-share-row] {
   background: #ffffff !important; box-shadow: inset 0 0 0 2px #111, 2px 2px 0 #111 !important; border-radius: 11px;

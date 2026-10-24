@@ -644,8 +644,9 @@ export function PeriodView({
         {/* Tüm kategorilerin girdileri — sayfanın en altı, yaklaşınca çizilir */}
         {!selectedCat && (
         <LazyMount minHeight={480}>
-          <Layer className="mb-0">
+          <Layer bare className="mb-0">
           <EntryListSection
+            framed
             title={t("insights.allEntries")}
             rows={computed?.entryRows ?? []}
             emptyText={t("insights.noEntriesInPeriod")}

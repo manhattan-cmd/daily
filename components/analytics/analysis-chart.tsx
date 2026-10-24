@@ -196,7 +196,7 @@ export function AnalysisCharts({
               {editMenu(kind, slot)}
             </div>
           )}
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div data-chart-card="" className="rounded-2xl border border-border bg-card p-4">
           {/* Başlık + sağ üstte "Düzenle". Eskiden başlığın kendisi menüyü
               açıyordu; grafiğin üstüne dokunan kullanıcı istemeden pencere
               açıyordu. Grafik türü artık yalnız bu düğmeyle değişir. */}

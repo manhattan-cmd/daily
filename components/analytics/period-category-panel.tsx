@@ -621,8 +621,9 @@ export function PeriodCategoryPanel({
       )}
 
       {/* Girdi listesi */}
-      <Layer className="mb-0">
+      <Layer bare className="mb-0">
       <EntryListSection
+        framed
         title={focus ? `${focus.name} · ${t("objects.entries")}` : t("objects.entries")}
         accent={lensColor}
         rows={computed.entryRows}
