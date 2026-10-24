@@ -102,6 +102,8 @@ function NavBar({ day }: { day: string | null }) {
         <Link
           href={todayHref}
           {...prefetchDayOnPress(today)}
+          data-active={todayActive ? "" : undefined}
+          data-today=""
           className="relative flex flex-1 flex-col items-center justify-end gap-1 py-3 text-xs"
           aria-label={t("nav.todayPage")}
         >

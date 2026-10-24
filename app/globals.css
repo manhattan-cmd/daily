@@ -788,6 +788,17 @@ input[type="number"] {
   animation: nav-pick .32s cubic-bezier(.3, 1.6, .5, 1);
 }
 @keyframes nav-pick { 0% { transform: translateY(0) scale(.7); } 100% { transform: translateY(-2px) scale(1); } }
+/* Bugün sayfası açıkken ortadaki Bugün dairesi de seçili: sarı halka, biraz
+   kalkık, aynı yerine oturma efekti */
+:root[data-skin="brutal"] [data-bottom-nav] a[data-today] .bg-primary { transition: transform .2s, box-shadow .2s; }
+:root[data-skin="brutal"] [data-bottom-nav] a[data-today][data-active] .bg-primary {
+  box-shadow: 0 0 0 3px #ffd23f, 0 0 0 4.5px #111, 3px 4px 0 4.5px #111 !important;
+  transform: translateY(-3px);
+  animation: today-pick .34s cubic-bezier(.3, 1.6, .5, 1);
+}
+@keyframes today-pick { 0% { transform: translateY(0) scale(.8); } 100% { transform: translateY(-3px) scale(1); } }
+:root[data-skin="brutal"] [data-bottom-nav] a[data-today]:not([data-active]) > span:last-child { color: rgba(17, 17, 17, 0.5) !important; }
+:root[data-skin="brutal"] [data-bottom-nav] a[data-today][data-active] > span:last-child { color: #111 !important; }
 :root[data-skin="brutal"] [data-bottom-nav] a { gap: 3px; }
 :root[data-skin="brutal"] [data-bottom-nav] a > span:last-child { font-weight: 700 !important; }
 :root[data-skin="brutal"] [data-bottom-nav] a[data-active] { color: #111; }
