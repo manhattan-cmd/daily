@@ -33,7 +33,7 @@ import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
 import type { Category, Entry, SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
-import { Layer } from "@/components/ui/layer";
+import { Layer, LayerAccent } from "@/components/ui/layer";
 import { useIsBrutal } from "@/components/structure/brutal";
 import { cn } from "@/lib/utils";
 
@@ -434,6 +434,7 @@ export function CategoryOverviewPanel({
     !compute.isChoice && (!subcategory || data.children.length > 0);
 
   return (
+    <LayerAccent color={category.color}>
     // Bölümler katmanlarda (bkz. Layer) — gün ve yapı sayfalarıyla aynı iskelet
     <div className={cn("flex flex-col pb-6", brutal ? "gap-6" : "gap-4")}>
       <Layer label={t("an.summaryLayer")} className="mb-0 flex flex-col gap-4">
@@ -684,5 +685,6 @@ export function CategoryOverviewPanel({
       />
       </Layer>
     </div>
+    </LayerAccent>
   );
 }

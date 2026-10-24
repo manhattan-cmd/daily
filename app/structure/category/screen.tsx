@@ -22,7 +22,7 @@ import { SubCategoryTree } from "@/components/structure/subcategory-tree";
 import { RecentEntriesSection } from "@/components/structure/recent-entries-section";
 import { AnalysisSection } from "@/components/structure/analysis-section";
 import { routes } from "@/lib/routes";
-import { Layer } from "@/components/ui/layer";
+import { Layer, LayerAccent } from "@/components/ui/layer";
 
 export function CategoryDetailPage({
   params,
@@ -61,7 +61,7 @@ export function CategoryDetailPage({
 
 
   return (
-    <>
+    <LayerAccent color={category?.color}>
       {brutal ? (
         <>
           <BrutTopStrip
@@ -189,6 +189,6 @@ export function CategoryDetailPage({
         onOpenChange={setCatFormOpen}
         category={category ?? undefined}
       />
-    </>
+    </LayerAccent>
   );
 }
