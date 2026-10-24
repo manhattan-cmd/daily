@@ -307,6 +307,66 @@ export function BrutCategoryTree({
   counts?: Map<string, number>;
 }) {
   const t = useT();
+  const subTotals = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const s of subs) m.set(s.categoryId, (m.get(s.categoryId) ?? 0) + 1);
+    return m;
+  }, [subs]);
+
+  return (
+    <div className="flex flex-col gap-4 pb-6 pt-1">
+      {categories.map((cat) => (
+        <section
+          key={cat.id}
+          className="flex overflow-hidden rounded-2xl border-2 border-[#111] bg-white shadow-[4px_4px_0_#111]"
+        >
+          {/* Sırt şeridi */}
+          <span className="w-3.5 shrink-0 border-r-2 border-[#111]" style={{ background: cat.color }} />
+          <div className="min-w-0 flex-1 px-1.5 pb-2 pt-1.5">
+            <Link
+              href={routes.structureCategory(cat.id)}
+              prefetch={false}
+              className="flex items-center gap-3 rounded-xl p-2 text-[#111] hover:bg-[#111]/5 active:bg-[#111]/10"
+            >
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border-[1.5px] border-[#111]"
+                style={{ background: cat.color }}
+              >
+                {cat.icon && <SymbolIcon name={cat.icon} size={20} style={{ color: "#111" }} />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <SmartText text={cat.name} className="block text-[16px] font-black leading-tight tracking-tight" />
+                <span className="block text-[11px] font-semibold text-[#111]/55">
+                  {t("brut.subsAndEntries", { subs: subTotals.get(cat.id) ?? 0, entries: counts?.get(`c:${cat.id}`) ?? 0 })}
+                </span>
+              </span>
+            </Link>
+            <BrutSubRows category={cat} subs={subs} counts={counts} />
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Bir kategorinin (ya da bir alt kategorinin altındaki) hiyerarşisi — kılavuz
+ * çizgili, küçük simgeli ince satırlar. Yapı → Kategoriler kartlarında ve alt
+ * kategori sayfasının Alt kategoriler bölümünde aynı biçim.
+ */
+export function BrutSubRows({
+  category: cat,
+  subs,
+  counts,
+  rootId,
+}: {
+  category: Category;
+  subs: SubCategory[];
+  counts?: Map<string, number>;
+  /** Verilirse yalnız bu alt kategorinin altı çizilir */
+  rootId?: string;
+}) {
+  const t = useT();
   // Tümü açılmış kalabalık dallar — "kategoriId/üstId"
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const toggleBranch = (key: string) =>
@@ -317,36 +377,30 @@ export function BrutCategoryTree({
       return next;
     });
 
-  // Kategori başına düzleştirilmiş ağaç; kalabalık dalın gizlenen kardeşleri
-  // alt ağaçlarıyla birlikte düşer
-  const { lines, subTotals } = useMemo(() => {
+  // Düzleştirilmiş ağaç; kalabalık dalın gizlenen kardeşleri alt ağaçlarıyla birlikte düşer
+  const rows = useMemo(() => {
     const kids = new Map<string, SubCategory[]>();
     for (const s of subs) {
-      const k = `${s.categoryId}/${s.parentId ?? ""}`;
+      if (s.categoryId !== cat.id) continue;
+      const k = s.parentId ?? "";
       kids.set(k, [...(kids.get(k) ?? []), s]);
     }
-    const lines = new Map<string, TreeLine[]>();
-    const subTotals = new Map<string, number>();
-    for (const cat of categories) {
-      const acc: TreeLine[] = [];
-      const walk = (parentId: string | undefined, depth: number) => {
-        const key = `${cat.id}/${parentId ?? ""}`;
-        const list = (kids.get(key) ?? []).sort((a, b) => a.order - b.order);
-        const crowded = list.length > SHOW_FIRST;
-        const open = expanded.has(key);
-        const shown = crowded && !open ? list.slice(0, SHOW_FIRST) : list;
-        for (const s of shown) {
-          acc.push({ kind: "sub", sub: s, depth });
-          walk(s.id, depth + 1);
-        }
-        if (crowded) acc.push({ kind: "more", key, depth, total: list.length, open });
-      };
-      walk(undefined, 1);
-      lines.set(cat.id, acc);
-      subTotals.set(cat.id, subs.filter((s) => s.categoryId === cat.id).length);
-    }
-    return { lines, subTotals };
-  }, [categories, subs, expanded]);
+    const acc: TreeLine[] = [];
+    const walk = (parentId: string | undefined, depth: number) => {
+      const key = `${cat.id}/${parentId ?? ""}`;
+      const list = (kids.get(parentId ?? "") ?? []).sort((a, b) => a.order - b.order);
+      const crowded = list.length > SHOW_FIRST;
+      const open = expanded.has(key);
+      const shown = crowded && !open ? list.slice(0, SHOW_FIRST) : list;
+      for (const s of shown) {
+        acc.push({ kind: "sub", sub: s, depth });
+        walk(s.id, depth + 1);
+      }
+      if (crowded) acc.push({ kind: "more", key, depth, total: list.length, open });
+    };
+    walk(rootId, 1);
+    return acc;
+  }, [cat.id, subs, expanded, rootId]);
 
   const pill = (n: number) => (
     <span
@@ -361,106 +415,73 @@ export function BrutCategoryTree({
   const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, white)`;
 
   return (
-    <div className="flex flex-col gap-4 pb-6 pt-1">
-      {categories.map((cat) => {
-        const rows = lines.get(cat.id) ?? [];
-        return (
-          <section
-            key={cat.id}
-            className="flex overflow-hidden rounded-2xl border-2 border-[#111] bg-white shadow-[4px_4px_0_#111]"
-          >
-            {/* Sırt şeridi */}
-            <span className="w-3.5 shrink-0 border-r-2 border-[#111]" style={{ background: cat.color }} />
-            <div className="min-w-0 flex-1 px-1.5 pb-2 pt-1.5">
-              <Link
-                href={routes.structureCategory(cat.id)}
-                prefetch={false}
-                className="flex items-center gap-3 rounded-xl p-2 text-[#111] hover:bg-[#111]/5 active:bg-[#111]/10"
+    <>
+      {rows.map((line) => {
+        const { depth } = line;
+        const indent = 15 + (Math.min(depth, MAX_INDENT) - 1) * 16;
+        // Kılavuz çizgisi — kategorinin renginde
+        const guide = (
+          <span
+            className="w-[2px] shrink-0 rounded-full"
+            style={{ background: depth === 1 ? cat.color : tint(cat.color, 50) }}
+          />
+        );
+        if (line.kind === "more") {
+          return (
+            <div key={`more:${line.key}`} className="flex" style={{ paddingLeft: indent }}>
+              {guide}
+              <button
+                type="button"
+                onClick={() => toggleBranch(line.key)}
+                aria-expanded={line.open}
+                className="ml-2 flex min-h-[32px] min-w-0 flex-1 items-center gap-2 rounded-[10px] px-2 py-1 text-left text-[12.5px] font-extrabold text-[#111]/70 hover:bg-[#111]/5 active:bg-[#111]/10"
               >
-                <span
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border-[1.5px] border-[#111]"
-                  style={{ background: cat.color }}
-                >
-                  {cat.icon && <SymbolIcon name={cat.icon} size={20} style={{ color: "#111" }} />}
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-[1.5px] border-dashed border-[#111]/50">
+                  <ChevronDown className={cn("h-3.5 w-3.5", line.open && "rotate-180")} strokeWidth={3} />
                 </span>
-                <span className="min-w-0 flex-1">
-                  <SmartText text={cat.name} className="block text-[16px] font-black leading-tight tracking-tight" />
-                  <span className="block text-[11px] font-semibold text-[#111]/55">
-                    {t("brut.subsAndEntries", { subs: subTotals.get(cat.id) ?? 0, entries: counts?.get(`c:${cat.id}`) ?? 0 })}
-                  </span>
-                </span>
-              </Link>
-
-              {rows.map((line) => {
-                const { depth } = line;
-                const indent = 15 + (Math.min(depth, MAX_INDENT) - 1) * 16;
-                // Kılavuz çizgisi — kategorinin renginde
-                const guide = (
-                  <span
-                    className="w-[2px] shrink-0 rounded-full"
-                    style={{ background: depth === 1 ? cat.color : tint(cat.color, 50) }}
-                  />
-                );
-                if (line.kind === "more") {
-                  return (
-                    <div key={`more:${line.key}`} className="flex" style={{ paddingLeft: indent }}>
-                      {guide}
-                      <button
-                        type="button"
-                        onClick={() => toggleBranch(line.key)}
-                        aria-expanded={line.open}
-                        className="ml-2 flex min-h-[32px] min-w-0 flex-1 items-center gap-2 rounded-[10px] px-2 py-1 text-left text-[12.5px] font-extrabold text-[#111]/70 hover:bg-[#111]/5 active:bg-[#111]/10"
-                      >
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-[1.5px] border-dashed border-[#111]/50">
-                          <ChevronDown className={cn("h-3.5 w-3.5", line.open && "rotate-180")} strokeWidth={3} />
-                        </span>
-                        {line.open ? t("brut.showLess") : t("brut.showAll", { n: line.total })}
-                      </button>
-                    </div>
-                  );
-                }
-                const { sub } = line;
-                const icon = sub.icon ?? cat.icon;
-                return (
-                  <div key={sub.id} className="flex" style={{ paddingLeft: indent }}>
-                    {guide}
-                    <Link
-                      href={routes.structureSub(cat.id, sub.id)}
-                      prefetch={false}
-                      className={cn(
-                        "ml-2 flex min-h-[32px] min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2 py-1 text-[13.5px] text-[#111] hover:bg-[#111]/5 active:bg-[#111]/10",
-                        depth === 1 ? "font-bold" : "font-medium"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "flex shrink-0 items-center justify-center border-[1.5px] border-[#111]",
-                          depth === 1 ? "h-6 w-6 rounded-[7px]" : "h-5 w-5 rounded-md"
-                        )}
-                        style={{ background: tint(cat.color, 55) }}
-                      >
-                        {icon && <SymbolIcon name={icon} size={depth === 1 ? 13 : 11} style={{ color: "#111" }} />}
-                      </span>
-                      {/* Girinti durduktan sonra derinliği kat numarası söylüyor */}
-                      {depth > MAX_INDENT && (
-                        <span
-                          aria-label={t("brut.level", { n: depth })}
-                          title={t("brut.level", { n: depth })}
-                          className="-mr-1 shrink-0 rounded-[5px] bg-[#111] px-1 font-mono text-[10px] font-extrabold leading-[16px] text-[#FFF4DC]"
-                        >
-                          {depth}
-                        </span>
-                      )}
-                      <SmartText text={sub.name} className="min-w-0 flex-1" />
-                      {pill(counts?.get(sub.id) ?? 0)}
-                    </Link>
-                  </div>
-                );
-              })}
+                {line.open ? t("brut.showLess") : t("brut.showAll", { n: line.total })}
+              </button>
             </div>
-          </section>
+          );
+        }
+        const { sub } = line;
+        const icon = sub.icon ?? cat.icon;
+        return (
+          <div key={sub.id} className="flex" style={{ paddingLeft: indent }}>
+            {guide}
+            <Link
+              href={routes.structureSub(cat.id, sub.id)}
+              prefetch={false}
+              className={cn(
+                "ml-2 flex min-h-[32px] min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2 py-1 text-[13.5px] text-[#111] hover:bg-[#111]/5 active:bg-[#111]/10",
+                depth === 1 ? "font-bold" : "font-medium"
+              )}
+            >
+              <span
+                className={cn(
+                  "flex shrink-0 items-center justify-center border-[1.5px] border-[#111]",
+                  depth === 1 ? "h-6 w-6 rounded-[7px]" : "h-5 w-5 rounded-md"
+                )}
+                style={{ background: tint(cat.color, 55) }}
+              >
+                {icon && <SymbolIcon name={icon} size={depth === 1 ? 13 : 11} style={{ color: "#111" }} />}
+              </span>
+              {/* Girinti durduktan sonra derinliği kat numarası söylüyor */}
+              {depth > MAX_INDENT && (
+                <span
+                  aria-label={t("brut.level", { n: depth })}
+                  title={t("brut.level", { n: depth })}
+                  className="-mr-1 shrink-0 rounded-[5px] bg-[#111] px-1 font-mono text-[10px] font-extrabold leading-[16px] text-[#FFF4DC]"
+                >
+                  {depth}
+                </span>
+              )}
+              <SmartText text={sub.name} className="min-w-0 flex-1" />
+              {pill(counts?.get(sub.id) ?? 0)}
+            </Link>
+          </div>
         );
       })}
-    </div>
+    </>
   );
 }

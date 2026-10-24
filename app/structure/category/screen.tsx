@@ -6,13 +6,14 @@ import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { BarChart3, Pencil, Trash2 } from "lucide-react";
+import { BarChart3, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   getCategory,
   deleteCategory,
   structureSummary,
+  listCategoryTree,
 } from "@/lib/db/queries";
-import { BrutHeroCard, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
+import { BrutHeroCard, BrutSubRows, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
@@ -42,6 +43,8 @@ export function CategoryDetailPage({
 
   // Brütal tema: renkli başlık kartı ve sayılar
   const brutal = useIsBrutal();
+  // Brütal: alt kategoriler Yapı → Kategoriler kartlarındaki ağaç biçiminde
+  const tree = useLiveQuery(() => (brutal ? listCategoryTree() : undefined), [brutal]);
   const summary = useLiveQuery(
     () => (brutal ? structureSummary(categoryId) : undefined),
     [brutal, categoryId]
@@ -146,15 +149,35 @@ export function CategoryDetailPage({
             {t("structure.subcategories")}
           </h2>
           )}
-          <SubCategoryTree
-            categoryId={categoryId}
-            categoryName={category.name}
-            color={category.color}
-            onAddChild={(parentSubId) => {
-              setNewParentId(parentSubId);
-              setSubFormOpen(true);
-            }}
-          />
+          {/* Brütal: Yapı → Kategoriler kartlarındaki ağaç biçimi (bkz. BrutSubRows) */}
+          {brutal ? (
+            <div className="rounded-2xl border-2 border-[#111] bg-white px-1.5 py-2 shadow-[3px_3px_0_#111]">
+              {tree && <BrutSubRows category={category} subs={tree.subs} counts={tree.counts} />}
+              <button
+                type="button"
+                onClick={() => {
+                  setNewParentId(undefined);
+                  setSubFormOpen(true);
+                }}
+                className="ml-[15px] flex min-h-[32px] items-center gap-2.5 rounded-[10px] px-2 py-1 text-[13px] font-bold text-[#111]/55 hover:bg-[#111]/5 active:bg-[#111]/10"
+              >
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] border-dashed border-[#111]/45">
+                  <Plus className="h-3.5 w-3.5" strokeWidth={2.75} />
+                </span>
+                {t("entry.addSub")}
+              </button>
+            </div>
+          ) : (
+            <SubCategoryTree
+              categoryId={categoryId}
+              categoryName={category.name}
+              color={category.color}
+              onAddChild={(parentSubId) => {
+                setNewParentId(parentSubId);
+                setSubFormOpen(true);
+              }}
+            />
+          )}
         </section>
         </Layer>
       )}

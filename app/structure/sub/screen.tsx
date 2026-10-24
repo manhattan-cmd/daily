@@ -5,9 +5,9 @@ import { useT } from "@/lib/i18n";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { BarChart3, Pencil, Trash2 } from "lucide-react";
-import { getSubCategory, getCategory, structureSummary } from "@/lib/db/queries";
-import { BrutEmpty, BrutSubHeader, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
+import { BarChart3, Pencil, Plus, Trash2 } from "lucide-react";
+import { getSubCategory, getCategory, listCategoryTree, structureSummary } from "@/lib/db/queries";
+import { BrutEmpty, BrutSubHeader, BrutSubRows, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { toLocalDateValue } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,8 @@ export function SubCategoryDetailPage({
 
   // Brütal tema: büyük başlık, üç renkli kutu, altta "Girdi ekle"
   const brutal = useIsBrutal();
+  // Brütal: alt kategoriler Yapı → Kategoriler kartlarındaki ağaç biçiminde
+  const tree = useLiveQuery(() => (brutal ? listCategoryTree() : undefined), [brutal]);
   const summary = useLiveQuery(
     () => (brutal ? structureSummary(categoryId, subcategoryId) : undefined),
     [brutal, categoryId, subcategoryId]
@@ -157,18 +159,40 @@ export function SubCategoryDetailPage({
             {t("structure.subcategories")}
           </h2>
           )}
-          <SubCategoryTree
-            categoryId={categoryId}
-            categoryName={category.name}
-            color={category.color}
-            parentId={subcategoryId}
-            parentName={subcategory?.name}
-            onAddChild={(parentSubId) => {
-              setEditingSelf(false);
-              setNewParentId(parentSubId ?? subcategoryId);
-              setSubFormOpen(true);
-            }}
-          />
+          {brutal ? (
+            <div className="rounded-2xl border-2 border-[#111] bg-white px-1.5 py-2 shadow-[3px_3px_0_#111]">
+              {tree && (
+                <BrutSubRows category={category} subs={tree.subs} counts={tree.counts} rootId={subcategoryId} />
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingSelf(false);
+                  setNewParentId(subcategoryId);
+                  setSubFormOpen(true);
+                }}
+                className="ml-[15px] flex min-h-[32px] items-center gap-2.5 rounded-[10px] px-2 py-1 text-[13px] font-bold text-[#111]/55 hover:bg-[#111]/5 active:bg-[#111]/10"
+              >
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] border-dashed border-[#111]/45">
+                  <Plus className="h-3.5 w-3.5" strokeWidth={2.75} />
+                </span>
+                {t("entry.addSub")}
+              </button>
+            </div>
+          ) : (
+            <SubCategoryTree
+              categoryId={categoryId}
+              categoryName={category.name}
+              color={category.color}
+              parentId={subcategoryId}
+              parentName={subcategory?.name}
+              onAddChild={(parentSubId) => {
+                setEditingSelf(false);
+                setNewParentId(parentSubId ?? subcategoryId);
+                setSubFormOpen(true);
+              }}
+            />
+          )}
         </section>
         </Layer>
       )}
