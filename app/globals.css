@@ -648,17 +648,23 @@ input[type="number"] {
 :root[data-skin="brutal"] .bg-black\/25,
 :root[data-skin="brutal"] .bg-black\/35 { background-color: #ffffff; }
 
-/* Alt menü: yüzen dok — kenarlardan ayrık, çerçeveli ve gölgeli beyaz kapsül;
-   altından kâğıt zemin görünür. Güvenli alan kapsülün içine değil altına. */
+/* Alt menü: yüzen dok — sayfanın ÜSTÜNDE yüzen, kenarlardan ayrık, çerçeveli
+   beyaz kapsül. Eskiden akışta kendi şeridindeydi ve kapsülün iki yanında
+   krem bir dikdörtgen kalıyordu; artık içerik altından akıyor. Kısa ve ince:
+   ekranda az yer kaplasın. Güvenli alan kapsülün altında. */
 :root[data-skin="brutal"] [data-bottom-nav] {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 30;
   background: #ffffff;
   border: 1.5px solid #111;
-  border-radius: 20px;
+  border-radius: 999px;
   box-shadow: 2px 3px 0 #111;
-  margin: 0 14px max(10px, env(safe-area-inset-bottom));
-  padding-bottom: 0;
+  margin: 0 22px max(12px, env(safe-area-inset-bottom));
+  padding: 0 6px;
   backdrop-filter: none;
 }
+:root[data-skin="brutal"] [data-bottom-nav] a { padding-top: 6px; padding-bottom: 5px; font-size: 10.5px; }
+/* İçerik dokun altında kalmasın (son öğe dokun üstünde bitsin) */
+:root[data-skin="brutal"] [data-app-main] { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 
 /* Yazı alanları */
 :root[data-skin="brutal"] input.bg-input,
@@ -678,6 +684,7 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-bottom-nav] .bg-primary {
   border: 1.5px solid #111 !important;
   box-shadow: 2px 2px 0 #111 !important;
+  width: 42px; height: 42px; top: -14px; font-size: 15px;
 }
 
 /* Yalnız Brütal temada görünen öğeler (ağaçtaki girdi sayısı gibi) */
@@ -778,7 +785,7 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-bottom-nav] a[href="/calendar"] { --nav-c: #7ae582; }
 :root[data-skin="brutal"] [data-bottom-nav] a[href="/analytics"] { --nav-c: #8ea6ff; }
 :root[data-skin="brutal"] [data-bottom-nav] a svg {
-  box-sizing: content-box; width: 20px; height: 20px; padding: 3px 11px; border-radius: 999px;
+  box-sizing: content-box; width: 18px; height: 18px; padding: 2px 10px; border-radius: 999px;
   border: 1.5px solid transparent; transform: none;
   transition: background-color .2s, border-color .2s, box-shadow .2s, transform .2s;
 }

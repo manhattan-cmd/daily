@@ -41,7 +41,7 @@ export function statusBarColor(path: string, skin: string): string | null {
   if (p === "/") return "#6366f1";
   if (p === "/calendar") return "#7ae582";
   if (p === "/analytics" || p.indexOf("/analytics/") === 0) return "#8ea6ff";
-  if (/^\/structure(\/(mods|notes|galaxy))?$/.test(p)) return "#ffd23f";
+  if (/^\/structure(\/(mods|objects|notes|galaxy))?$/.test(p)) return "#ffd23f";
   return "#fff4dc";
 }
 

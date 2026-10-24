@@ -154,6 +154,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* İçerik — kaydırılabilir */}
         <main
           ref={mainRef}
+          data-app-main=""
           className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4"
         >
           {children}
