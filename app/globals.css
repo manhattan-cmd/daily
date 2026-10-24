@@ -654,9 +654,9 @@ input[type="number"] {
    ekranda az yer kaplasın. Güvenli alan kapsülün altında. */
 :root[data-skin="brutal"] [data-bottom-nav] {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 30;
-  /* Buzlu cam: yarı saydam beyaz, arkası bulanık — beyaz kartların üstünde
-     de kendini belli etsin diye çerçeve 2px, gölge belirgin */
-  background: rgba(255, 255, 255, 0.8);
+  /* Koyu buzlu cam: yarı saydam koyu, arkası bulanık — beyaz kartların ve
+     krem zeminin üstünde kendini belli ediyor; yazı ve simgeler krem */
+  background: rgba(22, 22, 28, 0.84);
   backdrop-filter: blur(24px) saturate(1.4);
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
   border: 2px solid #111;
@@ -811,12 +811,15 @@ input[type="number"] {
   0% { transform: translateY(0) rotateY(0deg); }
   100% { transform: translateY(-2px) rotateY(360deg); }
 }
-:root[data-skin="brutal"] [data-bottom-nav] a[data-today]:not([data-active]) > span:last-child { color: rgba(17, 17, 17, 0.5) !important; }
-:root[data-skin="brutal"] [data-bottom-nav] a[data-today][data-active] > span:last-child { color: #111 !important; }
+:root[data-skin="brutal"] [data-bottom-nav] a[data-today]:not([data-active]) > span:last-child { color: rgba(255, 244, 220, 0.55) !important; }
+:root[data-skin="brutal"] [data-bottom-nav] a[data-today][data-active] > span:last-child { color: #fff4dc !important; }
+/* Koyu dokta seçili kapsül ve Bugün dairesi krem çerçeveyle ayrışsın. */
+:root[data-skin="brutal"] [data-bottom-nav] a[data-active] svg { border-color: #fff4dc; box-shadow: 2px 2px 0 rgba(255, 244, 220, 0.3); }
+:root[data-skin="brutal"] [data-bottom-nav] a[data-today][data-active] .bg-primary { border-color: #fff4dc !important; }
 :root[data-skin="brutal"] [data-bottom-nav] a { gap: 3px; }
 :root[data-skin="brutal"] [data-bottom-nav] a > span:last-child { font-weight: 700 !important; }
-:root[data-skin="brutal"] [data-bottom-nav] a[data-active] { color: #111; }
-:root[data-skin="brutal"] [data-bottom-nav] a:not([data-active]) { color: rgba(17, 17, 17, 0.5); }
+:root[data-skin="brutal"] [data-bottom-nav] a[data-active] { color: #fff4dc; }
+:root[data-skin="brutal"] [data-bottom-nav] a:not([data-active]) { color: rgba(255, 244, 220, 0.55); }
 
 /* Yapı sekmeleri: etkin olan siyah */
 :root[data-skin="brutal"] [data-brut-tabs] { background: #ffffff; gap: 3px; border-radius: 16px; }
