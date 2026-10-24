@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 export function Layer({
   label,
   count,
+  extra,
   className,
   style,
   children,
@@ -20,6 +21,8 @@ export function Layer({
   /** Katmanın başında küçük ad (Gün özeti, Günün girdileri…) */
   label?: string;
   count?: number;
+  /** Adın yanında küçük, normal harfli ek ("(Toplam)" gibi) */
+  extra?: ReactNode;
   className?: string;
   style?: CSSProperties;
   children: ReactNode;
@@ -38,6 +41,7 @@ export function Layer({
       {label && (
         <div className="mb-3 ml-0.5 flex items-center gap-2 text-[12px] font-black uppercase leading-none tracking-[0.09em] text-[#111]">
           {label}
+          {extra && <span className="-ml-1 font-bold normal-case tracking-normal text-[#111]/60">{extra}</span>}
           {count != null && count > 0 && (
             <b className="rounded-md bg-[#111] px-1.5 py-[3px] font-mono font-bold tracking-normal text-[#f5f1e8]">
               {count}

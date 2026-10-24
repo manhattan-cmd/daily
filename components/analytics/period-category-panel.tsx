@@ -40,6 +40,7 @@ import type { Category, ChartKind, Entry, StatKey, SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
 import { useIsBrutal } from "@/components/structure/brutal";
 import { cn } from "@/lib/utils";
+import { Layer } from "@/components/ui/layer";
 
 /**
  * Dönem sayfasındaki kategori detayı — kategori metriklerinin donmuş bir zaman
@@ -421,8 +422,10 @@ export function PeriodCategoryPanel({
   ) : null;
   const metricLabel = metric.type === "count" ? translate("an.entriesUnit") : unit;
 
+  // Bölümler katmanlarda (bkz. Layer) — gün ve yapı sayfalarıyla aynı iskelet
   return (
-    <div className="flex flex-col gap-4">
+    <div className={cn("flex flex-col", brutal ? "gap-6" : "gap-4")}>
+      <Layer className="mb-0 flex flex-col gap-4">
       {/* Bölüm başlığı — bu kutunun HANGİ kalemin özellikleri olduğu */}
       <div className="flex items-center gap-2 px-1">
         <span
@@ -525,25 +528,6 @@ export function PeriodCategoryPanel({
         />
       )}
 
-      {/* Alt kategori kırılımı — seçili özellikle; satıra dokununca o yere
-          inilir (bandın yer seçicisi de oraya geçer) */}
-      {computed.hasBreakdown && (
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {translate("an.subBreakdown")}
-            {compute.aggregateNote && (
-              <span className="normal-case font-normal text-muted-foreground/60"> ({compute.aggregateNote})</span>
-            )}
-          </h3>
-          <ShareBars
-            rows={computed.shareRows}
-            mode={compute.isRate ? "rate" : compute.scale ? "level" : "share"}
-            range={compute.scale}
-            onSelect={onDrill}
-          />
-        </div>
-      )}
-
       {/* Gün dönemlerinde hafta bağlamı — bu gün haftalık ortalamaya göre nerede */}
       {isDay && weekContext && (
         <div className="rounded-2xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
@@ -567,10 +551,40 @@ export function PeriodCategoryPanel({
           </span>
         </div>
       )}
+      </Layer>
+
+      {/* Alt kategori kırılımı — seçili özellikle; satıra dokununca o yere
+          inilir (bandın yer seçicisi de oraya geçer) */}
+      {computed.hasBreakdown && (
+        <Layer
+          label={translate("an.subBreakdown")}
+          extra={compute.aggregateNote ? `(${compute.aggregateNote})` : undefined}
+          className="mb-0"
+        >
+        {/* Brütalde katmanın kendisi kutu — içte ikinci çerçeve yok */}
+        <div className={brutal ? undefined : "rounded-2xl border border-border bg-card p-4"}>
+          {!brutal && (
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {translate("an.subBreakdown")}
+            {compute.aggregateNote && (
+              <span className="normal-case font-normal text-muted-foreground/60"> ({compute.aggregateNote})</span>
+            )}
+          </h3>
+          )}
+          <ShareBars
+            rows={computed.shareRows}
+            mode={compute.isRate ? "rate" : compute.scale ? "level" : "share"}
+            range={compute.scale}
+            onSelect={onDrill}
+          />
+        </div>
+        </Layer>
+      )}
 
       {/* Pano — kutular yukarıda, grafikler burada. İkisi de kullanıcının
           kurduğu listeler; kapsam başına ayrı saklanıyor. */}
       {computed.hasSeries && (
+        <Layer label={t("an.charts")} className="mb-0">
         <AnalysisCharts
           charts={compute.charts}
           options={compute.chartOptions}
@@ -603,11 +617,13 @@ export function PeriodCategoryPanel({
             ),
           })}
         />
+        </Layer>
       )}
 
       {/* Girdi listesi */}
+      <Layer className="mb-0">
       <EntryListSection
-        title={focus ? `${focus.name} · Entry list` : "Entry list"}
+        title={focus ? `${focus.name} · ${t("objects.entries")}` : t("objects.entries")}
         accent={lensColor}
         rows={computed.entryRows}
         emptyText={
@@ -616,6 +632,7 @@ export function PeriodCategoryPanel({
             : "No entries in this period"
         }
       />
+      </Layer>
     </div>
   );
 }

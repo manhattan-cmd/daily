@@ -10,7 +10,9 @@ import {
   PenLine,
 } from "lucide-react";
 import { db } from "@/lib/db";
-import { toLocalDateValue } from "@/lib/utils";
+import { cn, toLocalDateValue } from "@/lib/utils";
+import { Layer } from "@/components/ui/layer";
+import { useIsBrutal } from "@/components/structure/brutal";
 import {
   bucketKeyOf,
   buildSeriesBuckets,
@@ -102,6 +104,7 @@ export function PeriodView({
   initialCatId?: string | null;
 }) {
   const t = useT();
+  const brutal = useIsBrutal();
   // Başlık etiketi bu dille — sunucuyla aynı ilk çizim (bkz. periodLabel)
   const locale = useLocale();
   const router = useRouter();
@@ -551,7 +554,7 @@ export function PeriodView({
         }
       />
 
-      <div className="flex flex-col gap-4 pb-6">
+      <div className={cn("flex flex-col pb-6", brutal ? "gap-6" : "gap-4")}>
         {/* Özet (KPI kutuları + dönem serisi) RAFTA — bkz. SHOW_PERIOD_SUMMARY */}
         {SHOW_PERIOD_SUMMARY && (
           <>
@@ -601,13 +604,16 @@ export function PeriodView({
             geçilir. Eskiden kategorinin tüm zamanlar sayfasına gidiyordu:
             tıklanan rakam dönemin, açılan sayfa tüm zamanlarındı. */}
         {!selectedCat && (
+        <Layer label={translate("an.catBreakdown")} className="mb-0">
         <div
           data-section="top"
-          className="scroll-mt-36 rounded-2xl border border-border bg-card p-4"
+          className={cn("scroll-mt-36", !brutal && "rounded-2xl border border-border bg-card p-4")}
         >
+          {!brutal && (
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
             {translate("an.catBreakdown")}
           </h3>
+          )}
           <ShareBars
             rows={computed?.catShare ?? []}
             emptyText={t("insights.noEntriesInPeriod")}
@@ -615,6 +621,7 @@ export function PeriodView({
             onSelect={(id) => pickPlace(id, [])}
           />
         </div>
+        </Layer>
         )}
 
         {/* Nesneler — listeler ve dönemdeki girdileri, liste analizine gider */}
@@ -637,11 +644,13 @@ export function PeriodView({
         {/* Tüm kategorilerin girdileri — sayfanın en altı, yaklaşınca çizilir */}
         {!selectedCat && (
         <LazyMount minHeight={480}>
+          <Layer className="mb-0">
           <EntryListSection
             title={t("insights.allEntries")}
             rows={computed?.entryRows ?? []}
             emptyText={t("insights.noEntriesInPeriod")}
           />
+          </Layer>
         </LazyMount>
         )}
       </div>

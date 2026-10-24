@@ -44,8 +44,8 @@ function CategoryAnalyticsContent({
       />
       {category && (
         <>
-          <ScopeTitle category={category} kicker={t("insights.categoryInsights")} />
-          <CategoryOverviewPanel category={category} period={period} />
+          <CategoryOverviewPanel
+            header={<ScopeTitle category={category} kicker={t("insights.categoryInsights")} />} category={category} period={period} />
         </>
       )}
     </>

@@ -4,6 +4,7 @@ import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Layer } from "@/components/ui/layer";
+import { TopBar, TopBarButton } from "@/components/ui/top-bar";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, ArrowRight, Boxes, CalendarDays, ChevronLeft, ChevronRight, MoonStar, NotebookPen, Smile, Target, PenLine } from "lucide-react";
 import { db } from "@/lib/db";
@@ -313,24 +314,15 @@ export function CalendarDayPage({
   return (
     <>
       {brutal ? (
-        <div className="pb-5 pt-safe">
-          {/* Tepe: takvime dön, komşu günler — kare düğmeler */}
-          <div className="flex items-center justify-between pt-4">
-            <Link href="/calendar" data-brut-sq="" aria-label={t("nav.calendar")} className="flex h-10 w-10 items-center justify-center">
-              <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={2.5} />
-            </Link>
-            <div className="flex gap-2">
-              <Link href={routes.day(shift(-1))} prefetch={false} data-brut-sq="" aria-label={t("day.prev")} className="flex h-10 w-10 items-center justify-center">
-                <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
-              </Link>
-              <Link href={routes.day(shift(1))} prefetch={false} data-brut-sq="" aria-label={t("day.next")} className="flex h-10 w-10 items-center justify-center">
-                <ChevronRight className="h-5 w-5" strokeWidth={2.5} />
-              </Link>
-            </div>
-          </div>
+        <div className="pb-5">
+          {/* Üst menü: takvime dön, komşu günler (bkz. TopBar) */}
+          <TopBar back="/calendar" backLabel={t("nav.calendar")}>
+            <TopBarButton icon={ChevronLeft} label={t("day.prev")} href={routes.day(shift(-1))} prefetch={false} />
+            <TopBarButton icon={ChevronRight} label={t("day.next")} href={routes.day(shift(1))} prefetch={false} />
+          </TopBar>
 
           {/* Gün özeti katmanı — tarih kartı, sayılar, gün analizi */}
-          <Layer label={t("day.summary")} className="mb-0 mt-4">
+          <Layer label={t("day.summary")} className="mb-0">
           {/* Tarih kartı — gün adı, dev tarih, bugün etiketi, Ekle */}
           <div className="flex items-end gap-3 rounded-2xl border-2 border-[#111] bg-[#ffd23f] p-4 text-[#111] shadow-[5px_5px_0_#111]">
             <div className="min-w-0 flex-1">

@@ -33,6 +33,9 @@ import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
 import type { Category, Entry, SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
+import { Layer } from "@/components/ui/layer";
+import { useIsBrutal } from "@/components/structure/brutal";
+import { cn } from "@/lib/utils";
 
 const DAY_MS = 86400000;
 /** "Tümü"nde gelişim karşılaştırma penceresi: son 4 hafta vs önceki 4 hafta */
@@ -55,7 +58,10 @@ export function CategoryOverviewPanel({
   subcategory,
   period,
   initialMetricId,
+  header,
 }: {
+  /** Sayfanın başlığı (sembol + ad) — özet katmanının başında durur */
+  header?: React.ReactNode;
   category: Category;
   /** Verilirse bu alt kategorinin alt ağacına odaklanır */
   subcategory?: SubCategory;
@@ -65,6 +71,7 @@ export function CategoryOverviewPanel({
 }) {
   const t = useT();
   const router = useRouter();
+  const brutal = useIsBrutal();
   const [excludeRegular, setExcludeRegular] = useExcludeRegular();
   const {
     data,
@@ -409,6 +416,7 @@ export function CategoryOverviewPanel({
   if (computed.empty) {
     return (
       <div className="flex flex-col gap-4 pb-6">
+        {header}
         {computed.empty === "period" && chips}
         <div className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-xs text-muted-foreground">
           {computed.empty === "period"
@@ -426,7 +434,10 @@ export function CategoryOverviewPanel({
     !compute.isChoice && (!subcategory || data.children.length > 0);
 
   return (
-    <div className="flex flex-col gap-4 pb-6">
+    // Bölümler katmanlarda (bkz. Layer) — gün ve yapı sayfalarıyla aynı iskelet
+    <div className={cn("flex flex-col pb-6", brutal ? "gap-6" : "gap-4")}>
+      <Layer label={t("an.summaryLayer")} className="mb-0 flex flex-col gap-4">
+      {header}
       {chips}
 
       {/* Dönemin KPI'ları */}
@@ -479,13 +490,16 @@ export function CategoryOverviewPanel({
           }}
         />
       )}
+      </Layer>
 
       {/* İstikrar — aktif gün oranı ve seriler; tek günde anlamsız */}
       {period.kind !== "day" && (
-        <div className="flex flex-col gap-2">
+        <Layer label={t("an.consistency")} className="mb-0 flex flex-col gap-2">
+          {!brutal && (
           <h3 className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("an.consistency")}
           </h3>
+          )}
           <div className="grid grid-cols-3 gap-2">
             <StatTile
               color={category.color}
@@ -508,12 +522,17 @@ export function CategoryOverviewPanel({
               sub={t("an.longest")}
             />
           </div>
-        </div>
+        </Layer>
       )}
 
       {/* Gelişim — dağılımda yalnız bir seçenek süzgeci varken anlamlı */}
       {!(compute.isChoice && !choiceFilter) && (
-        <div className="flex flex-col gap-2">
+        <Layer
+          label={t("an.growth")}
+          extra={`(${period.kind === "all" ? t("an.growthAll") : t("an.growthPeriod")})`}
+          className="mb-0 flex flex-col gap-2"
+        >
+          {!brutal && (
           <h3 className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("an.growth")}
             <span className="normal-case font-normal text-muted-foreground/60">
@@ -521,6 +540,7 @@ export function CategoryOverviewPanel({
               ({period.kind === "all" ? t("an.growthAll") : t("an.growthPeriod")})
             </span>
           </h3>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <StatTile
               color={category.color}
@@ -577,13 +597,20 @@ export function CategoryOverviewPanel({
               }
             />
           </div>
-        </div>
+        </Layer>
       )}
 
       {/* Alt kategori kırılımı — grafikten ÖNCE: önce "ne nereye gitmiş",
           istenirse alt kategoriye inilir (dönem ve metrik taşınır) */}
       {showBreakdown && (
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <Layer
+          label={translate("an.subBreakdown")}
+          extra={compute.aggregateNote ? `(${compute.aggregateNote})` : undefined}
+          className="mb-0"
+        >
+        {/* Brütalde katmanın kendisi kutu — içte ikinci çerçeve yok */}
+        <div className={brutal ? undefined : "rounded-2xl border border-border bg-card p-4"}>
+          {!brutal && (
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
             {translate("an.subBreakdown")}
             {compute.aggregateNote && (
@@ -593,6 +620,7 @@ export function CategoryOverviewPanel({
               </span>
             )}
           </h3>
+          )}
           <ShareBars
             rows={computed.shareRows}
             mode={compute.isRate ? "rate" : compute.scale ? "level" : "share"}
@@ -605,10 +633,12 @@ export function CategoryOverviewPanel({
             }
           />
         </div>
+        </Layer>
       )}
 
       {/* Pano — grafikler kullanıcının kurduğu liste */}
       {computed.hasSeries && (
+        <Layer label={t("an.charts")} className="mb-0">
         <AnalysisCharts
           charts={compute.charts}
           options={compute.chartOptions}
@@ -641,15 +671,18 @@ export function CategoryOverviewPanel({
             extra: ` · ${periodLabel}`,
           })}
         />
+        </Layer>
       )}
 
       {/* Girdi listesi — son 50 */}
+      <Layer className="mb-0">
       <EntryListSection
         title={t("home.recentEntries")}
         accent={category.color}
         rows={computed.entryRows}
         emptyText={translate("list.noEntriesInRange")}
       />
+      </Layer>
     </div>
   );
 }

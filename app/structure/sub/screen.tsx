@@ -82,14 +82,18 @@ export function SubCategoryDetailPage({
               setSubFormOpen(true);
             }}
           />
+          {/* Özet katmanı — gün sayfasındaki "Gün özeti"nin karşılığı */}
           {subcategory && (
+            <Layer label={t("structure.subSummary")}>
             <BrutSubHeader
               parentName={parentSub?.name ?? category?.name}
               title={subcategory.name}
               summary={summary}
               color={category?.color}
               icon={subcategory.icon ?? category?.icon}
+              className="mb-0"
             />
+            </Layer>
           )}
         </>
       ) : (

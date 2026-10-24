@@ -74,14 +74,18 @@ export function CategoryDetailPage({
               setSubFormOpen(true);
             }}
           />
+          {/* Özet katmanı — gün sayfasındaki "Gün özeti"nin karşılığı */}
           {category && (
+            <Layer label={t("structure.catSummary")}>
             <BrutHeroCard
               color={category.color}
               icon={category.icon}
               overline={t("brut.category")}
               title={category.name}
               summary={summary}
+              className="mb-0"
             />
+            </Layer>
           )}
         </>
       ) : (

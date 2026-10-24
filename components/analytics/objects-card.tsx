@@ -7,6 +7,8 @@ import { db } from "@/lib/db";
 import { SymbolIcon } from "@/lib/icons";
 import { routes } from "@/lib/routes";
 import { useT } from "@/lib/i18n";
+import { Layer } from "@/components/ui/layer";
+import { useIsBrutal } from "@/components/structure/brutal";
 
 /**
  * Analiz sayfasında "Nesneler" kartı — listeler ve dönem içinde nesne
@@ -15,6 +17,7 @@ import { useT } from "@/lib/i18n";
  */
 export function ObjectsCard({ start, end }: { start: number; end: number }) {
   const t = useT();
+  const brutal = useIsBrutal();
   const rows = useLiveQuery(async () => {
     const cols = (await db.collections.toArray()).sort((a, b) => a.order - b.order);
     if (!cols.length) return [];
@@ -34,10 +37,14 @@ export function ObjectsCard({ start, end }: { start: number; end: number }) {
 
   if (!rows?.length) return null;
   return (
-    <div className="rounded-2xl border border-border bg-card p-4" data-objects-card="">
+    // Brütalde katman (bkz. Layer), ad katmanın başında; ötekilerde kart
+    <Layer label={t("objects.title")} className="mb-0">
+    <div className={brutal ? undefined : "rounded-2xl border border-border bg-card p-4"} data-objects-card="">
+      {!brutal && (
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         {t("objects.title")}
       </h3>
+      )}
       <div className="flex flex-col divide-y divide-border/50">
         {rows.map(({ c, things, entries }) => (
           <Link
@@ -67,5 +74,6 @@ export function ObjectsCard({ start, end }: { start: number; end: number }) {
         ))}
       </div>
     </div>
+    </Layer>
   );
 }

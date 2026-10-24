@@ -57,8 +57,8 @@ function SubcategoryAnalyticsPageContent({
 
       {category && subcategory && (
         <>
-        <ScopeTitle category={category} subcategory={subcategory} kicker={category.name} />
         <CategoryOverviewPanel
+          header={<ScopeTitle category={category} subcategory={subcategory} kicker={category.name} />}
           key={subcategory.id}
           category={category}
           subcategory={subcategory}

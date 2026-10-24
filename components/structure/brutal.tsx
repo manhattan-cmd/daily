@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, BarChart3, ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
+import { BarChart3, ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { useSkin } from "@/lib/skin";
@@ -12,6 +12,7 @@ import { routes } from "@/lib/routes";
 import { SmartText } from "@/components/ui/smart-text";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { TopBar, TopBarButton } from "@/components/ui/top-bar";
 
 /**
  * BRÜTAL YAPI SAYFALARI — yalnız Brütal tema seçiliyken (deneme).
@@ -28,9 +29,9 @@ export function useIsBrutal(): boolean {
 
 const fmt = (n: number) => n.toLocaleString("tr-TR", { maximumFractionDigits: 0 });
 
-/** Kare, çerçeveli, gölgeli küçük düğme (geri, analiz, düzenle, sil) */
+/** Kare düğme — ortak üst menünün düğmesi (bkz. components/ui/top-bar) */
 export function BrutIconButton({
-  icon: Icon,
+  icon,
   label,
   href,
   onClick,
@@ -42,22 +43,10 @@ export function BrutIconButton({
   onClick?: () => void;
   danger?: boolean;
 }) {
-  const cls = cn(
-    "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[#111] bg-white text-[#111] shadow-[2px_2px_0_#111] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none",
-    danger && "bg-[#ff6b6b]"
-  );
-  return href ? (
-    <Link href={href} aria-label={label} title={label} className={cls}>
-      <Icon className="h-[18px] w-[18px]" strokeWidth={2.5} />
-    </Link>
-  ) : (
-    <button type="button" onClick={onClick} aria-label={label} title={label} className={cls}>
-      <Icon className="h-[18px] w-[18px]" strokeWidth={2.5} />
-    </button>
-  );
+  return <TopBarButton icon={icon} label={label} href={href} onClick={onClick} tone={danger ? "danger" : undefined} />;
 }
 
-/** Üst şerit: solda geri, sağda analiz · düzenle · sil */
+/** Yapı sayfalarının üst menüsü: solda geri, sağda alt kategori ekle · analiz · düzenle · sil */
 export function BrutTopStrip({
   back,
   analyticsHref,
@@ -74,27 +63,12 @@ export function BrutTopStrip({
 }) {
   const t = useT();
   return (
-    <div className="sticky top-0 z-30 -mx-4 mb-4 flex items-center justify-between bg-background px-4 pb-3 pt-safe">
-      <div className="pt-3">
-        <BrutIconButton icon={ArrowLeft} label={t("action.back")} href={back} />
-      </div>
-      <div className="flex gap-2 pt-3">
-        {onAddSub && (
-          <button
-            type="button"
-            onClick={onAddSub}
-            aria-label={t("entry.addSub")}
-            title={t("entry.addSub")}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[#111] bg-[#7ae582] text-[#111] shadow-[2px_2px_0_#111] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-          >
-            <Plus className="h-5 w-5" strokeWidth={3} />
-          </button>
-        )}
-        {analyticsHref && <BrutIconButton icon={BarChart3} label={t("nav.insights")} href={analyticsHref} />}
-        {onEdit && <BrutIconButton icon={Pencil} label={t("action.edit")} onClick={onEdit} />}
-        {onDelete && <BrutIconButton icon={Trash2} label={t("action.delete")} onClick={onDelete} danger />}
-      </div>
-    </div>
+    <TopBar back={back}>
+      {onAddSub && <TopBarButton icon={Plus} label={t("entry.addSub")} onClick={onAddSub} tone="add" />}
+      {analyticsHref && <TopBarButton icon={BarChart3} label={t("nav.insights")} href={analyticsHref} />}
+      {onEdit && <TopBarButton icon={Pencil} label={t("action.edit")} onClick={onEdit} />}
+      {onDelete && <TopBarButton icon={Trash2} label={t("action.delete")} onClick={onDelete} tone="danger" />}
+    </TopBar>
   );
 }
 
@@ -105,12 +79,14 @@ export function BrutHeroCard({
   overline,
   title,
   summary,
+  className,
 }: {
   color: string;
   icon?: string;
   overline: string;
   title: string;
   summary?: StructureSummary;
+  className?: string;
 }) {
   const t = useT();
   // Damga: bağlı sayısal özelliklerin toplamı; dokundukça sıradaki özellik
@@ -119,7 +95,7 @@ export function BrutHeroCard({
   const metric = metrics.length ? metrics[mi % metrics.length] : undefined;
   return (
     <div
-      className="relative mb-6 flex items-center gap-3 rounded-2xl border-2 border-[#111] p-4 shadow-[5px_5px_0_#111]"
+      className={cn("relative mb-6 flex items-center gap-3 rounded-2xl border-2 border-[#111] p-4 shadow-[5px_5px_0_#111]", className)}
       style={{ background: color }}
     >
       <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-[#111] bg-white">
@@ -161,7 +137,9 @@ export function BrutSubHeader({
   summary,
   color,
   icon,
+  className,
 }: {
+  className?: string;
   parentName?: string;
   title: string;
   summary?: StructureSummary;
@@ -178,7 +156,7 @@ export function BrutSubHeader({
   if (summary?.money) boxes.push({ label: t("brut.average"), value: fmt(summary.money.avg), bg: "#7ae582" });
   else if (summary) boxes.push({ label: t("structure.subcategories"), value: String(summary.subs), bg: "#7ae582" });
   return (
-    <div className="mb-6 text-[#111]">
+    <div className={cn("mb-6 text-[#111]", className)}>
       <div className="flex items-center gap-3">
         {icon && (
           <span
