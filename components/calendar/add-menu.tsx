@@ -31,7 +31,14 @@ export type AddMenuItem = {
  * (yani "yakın"), satırlar akışta olduğu için hiçbir koşulda çakışmıyor ve
  * seçenek sayısı artarsa panel uzuyor, dağılmıyor.
  */
-export function AddMenu({ items }: { items: AddMenuItem[] }) {
+export function AddMenu({
+  items,
+  hero = false,
+}: {
+  items: AddMenuItem[];
+  /** Brütal gün özetinde: tam genişlik, iri, vurgulu düğme */
+  hero?: boolean;
+}) {
   const t = useT();
   const [open, setOpen] = useState(false);
 
@@ -60,7 +67,24 @@ export function AddMenu({ items }: { items: AddMenuItem[] }) {
         onClick={() => setOpen(false)}
       />
 
-      <div className={cn("relative shrink-0", open && "z-50")}>
+      <div className={cn("relative", "shrink-0", open && "z-50")}>
+        {hero ? (
+          <button
+            onClick={() => setOpen((o) => !o)}
+            data-add-hero=""
+            className="flex h-12 items-center gap-2.5 rounded-xl border-2 border-[#111] bg-[#7ae582] pl-1.5 pr-4 text-left text-[#111] shadow-[4px_4px_0_#111] transition-[transform,box-shadow] active:translate-x-[3px] active:translate-y-[3px] active:shadow-[1px_1px_0_#111]"
+            aria-expanded={open}
+            aria-label={open ? t("action.close") : t("day.add")}
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] bg-[#111] text-[#7ae582]">
+              <Plus
+                className={cn("h-6 w-6 transition-transform duration-200", open && "rotate-45")}
+                strokeWidth={3}
+              />
+            </span>
+            <span className="text-[16px] font-black">{t("day.add")}</span>
+          </button>
+        ) : (
         <button
           onClick={() => setOpen((o) => !o)}
           className={cn(
@@ -80,6 +104,7 @@ export function AddMenu({ items }: { items: AddMenuItem[] }) {
           />
           {t("day.add")}
         </button>
+        )}
 
         {/* Panel — düğmeye yaslı, sağdan hizalı. Uzun listede kendi içinde
             kayar ki alt kenardan taşmasın. */}
@@ -87,7 +112,9 @@ export function AddMenu({ items }: { items: AddMenuItem[] }) {
           role="menu"
           aria-hidden={!open}
           className={cn(
-            "absolute right-0 top-full z-50 mt-2 w-[190px] origin-top-right rounded-2xl border border-border bg-card p-1.5 shadow-2xl",
+            "absolute right-0 top-full z-50 mt-2 origin-top-right",
+            "w-[190px]",
+            "rounded-2xl border border-border bg-card p-1.5 shadow-2xl",
             "max-h-[60vh] overflow-y-auto overscroll-contain",
             "transition-all duration-200 ease-out",
             open
@@ -107,9 +134,9 @@ export function AddMenu({ items }: { items: AddMenuItem[] }) {
                 style={{
                   // Satırlar sırayla belirir — yay menüsündeki açılma hissi
                   // panelde de korunuyor
-                  transitionDelay: open ? `${i * 35}ms` : "0ms",
+                  // (gecikme geçişin içinde: ayrı transitionDelay React'te çakışma uyarısı veriyordu)
                   opacity: open ? 1 : 0,
-                  transition: "opacity 200ms ease-out, background-color 150ms",
+                  transition: `opacity 200ms ease-out ${open ? i * 35 : 0}ms, background-color 150ms`,
                 }}
               >
                 <span data-menu-icon="" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--sf-2)]">

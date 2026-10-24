@@ -142,7 +142,21 @@ export default function HomePage() {
         </Link>
       </header>
 
-      {/* Brütal: her bölüm kendi katmanında (bkz. Layer) */}
+      {/* Brütal: bugün ve son 7 gün tek katmanda, tek kartta (bkz. BrutToday) */}
+      {brutal ? (
+        <Layer label={t("home.today")}>
+          <WelcomeCard />
+          <BackupReminder />
+          <BrutToday
+            today={today}
+            week={week}
+            goals={goals?.length ?? 0}
+            goalsDone={doneGoals}
+            onAdd={() => setSheetOpen(true)}
+          />
+        </Layer>
+      ) : (
+      <>
       <Layer label={t("home.today")}>
       <WelcomeCard />
       <BackupReminder />
@@ -242,6 +256,9 @@ export default function HomePage() {
         </Layer>
       )}
 
+      </>
+      )}
+
       {/* Arama buraya ait: aranan şey girdiler, listenin başında duruyor.
           Tepedeki simge sırasında ne aradığı belirsizdi. Buradaki listede
           yalnız son 20 var, düğme tüm geçmişi tarayan sayfaya götürür —
@@ -302,6 +319,119 @@ export default function HomePage() {
         onClose={() => setSheetOpen(false)}
       />
     </>
+  );
+}
+
+/**
+ * Brütal ana sayfanın Bugün kartı — bugünün sayısı, son 7 günün şeridi ve
+ * girdi ekleme tek kartta. Eskiden üç ayrı kutu (bugün, ekle, son 7 gün)
+ * iki katmana dağılmıştı; bugün haftanın son sütunu olarak şeritte vurgulu.
+ */
+function BrutToday({
+  today,
+  week,
+  goals,
+  goalsDone,
+  onAdd,
+}: {
+  today: string;
+  week: DayBar[] | undefined;
+  goals: number;
+  goalsDone: number;
+  onAdd: () => void;
+}) {
+  const t = useT();
+  const locale = useLocale();
+  const days = week ?? [];
+  const max = Math.max(...days.map((x) => x.count), 1);
+  const todayCount = days[days.length - 1]?.count ?? 0;
+
+  return (
+    <div className="overflow-hidden rounded-2xl border-2 border-[#111] bg-white text-[#111] shadow-[4px_4px_0_#111]">
+      {/* Bugünün sayısı — dokununca gün sayfası */}
+      <Link
+        href={routes.day(today)}
+        {...prefetchDayOnPress(today)}
+        className="flex items-center gap-3 px-4 pb-1 pt-3.5"
+      >
+        <span className="flex min-w-0 flex-1 items-baseline gap-2">
+          <b className="font-mono text-[34px] font-bold leading-none tabular-nums">{todayCount}</b>
+          <span className="text-[14px] font-bold">{t("home.entries")}</span>
+        </span>
+        {goals > 0 && (
+          <span className="flex shrink-0 items-center gap-1 rounded-full border-[1.5px] border-[#111] bg-[#ff9ecd] px-2.5 py-1 text-[12px] font-extrabold">
+            <Target className="h-3.5 w-3.5" strokeWidth={2.5} />
+            <span className="font-mono tabular-nums">
+              {goalsDone}/{goals}
+            </span>
+          </span>
+        )}
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-[1.5px] border-[#111] bg-white shadow-[2px_2px_0_#111]">
+          <ArrowRight className="h-4 w-4" strokeWidth={2.75} />
+        </span>
+      </Link>
+
+      {/* Son 7 gün — sütunlar günün kategori kırılımıyla yığılı; bugün en sağda */}
+      <div className="flex items-end gap-1.5 px-3 pb-3 pt-2">
+        {days.map((d) => {
+          const [y, m, dd] = d.date.split("-").map(Number);
+          const dt = new Date(y, m - 1, dd);
+          const isToday = d.date === today;
+          return (
+            <Link
+              key={d.date}
+              href={routes.day(d.date)}
+              {...prefetchDayOnPress(d.date)}
+              prefetch={false}
+              aria-label={`${dt.getDate()} · ${d.count}`}
+              className="flex flex-1 flex-col items-center gap-1"
+            >
+              <span className="flex h-[52px] w-full items-end">
+                {d.count > 0 ? (
+                  <span
+                    className="flex w-full flex-col-reverse overflow-hidden rounded-[6px] border-[1.5px] border-[#111]"
+                    style={{ height: 12 + Math.round((d.count / max) * 40) }}
+                  >
+                    {d.segments.map((s, i) => (
+                      <span key={i} style={{ flex: s.count, backgroundColor: s.color }} />
+                    ))}
+                  </span>
+                ) : (
+                  <span className="h-[6px] w-full rounded-full border-[1.5px] border-dashed border-[#111]/30" />
+                )}
+              </span>
+              <span className="text-[9.5px] font-bold uppercase leading-none text-[#111]/45">
+                {dt.toLocaleDateString(intlTag(locale), { weekday: "short" })}
+              </span>
+              <span
+                className={cn(
+                  "flex h-5 min-w-5 items-center justify-center rounded-md px-1 font-mono text-[11px] font-bold leading-none tabular-nums",
+                  isToday ? "bg-[#111] text-white" : "text-[#111]/70"
+                )}
+              >
+                {dt.getDate()}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Girdi ekle — kartın tabanı, uygulamanın asıl işi */}
+      <button
+        type="button"
+        onClick={onAdd}
+        className="flex w-full items-center gap-3 border-t-2 border-[#111] bg-[#ffd23f] px-4 py-3 text-left active:bg-[#f5c400]"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#111] text-[#ffd23f]">
+          <Plus className="h-6 w-6" strokeWidth={3} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[16px] font-black leading-tight">{t("home.addEntry")}</span>
+          <span className="block text-[12.5px] font-semibold text-[#111]/70">{t("home.prompt")}</span>
+        </span>
+        <ArrowRight className="h-5 w-5 shrink-0" strokeWidth={2.75} />
+      </button>
+    </div>
   );
 }
 

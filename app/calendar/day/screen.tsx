@@ -32,6 +32,7 @@ import { CardListSkeleton } from "@/components/ui/skeleton";
 import type { EntryWithContext } from "@/types";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { AddMenu, type AddMenuItem } from "@/components/calendar/add-menu";
+import { cn } from "@/lib/utils";
 import { SleepSheet } from "@/components/calendar/sleep-sheet";
 import { SleepCard } from "@/components/calendar/sleep-card";
 import { MoodSheet } from "@/components/calendar/mood-sheet";
@@ -224,9 +225,7 @@ export function CalendarDayPage({
     [prevDay, nextDay]
   );
 
-  const addMenu = (
-    <AddMenu
-      items={[
+  const addMenuItems: AddMenuItem[] = [
         {
           key: "entry",
           label: t("add.entry"),
@@ -300,9 +299,8 @@ export function CalendarDayPage({
               },
             ] satisfies AddMenuItem[])
           : []),
-      ]}
-    />
-  );
+  ];
+  const addMenu = <AddMenu items={addMenuItems} />;
 
   // Brütal başlığın sayıları
   // Sayılar eylemleri sayar; nesne girdileri (durum) analizde görünmez
@@ -323,8 +321,8 @@ export function CalendarDayPage({
 
           {/* Gün özeti katmanı — tarih kartı, sayılar, gün analizi */}
           <Layer label={t("day.summary")} className="mb-0">
-          {/* Tarih kartı — gün adı, dev tarih, bugün etiketi, Ekle */}
-          <div className="flex items-end gap-3 rounded-2xl border-2 border-[#111] bg-[#ffd23f] p-4 text-[#111] shadow-[5px_5px_0_#111]">
+          {/* Tarih kartı — gün adı, tarih, yıl; sağda dikeyde ortalı, vurgulu Ekle */}
+          <div className="flex items-center gap-3 rounded-2xl border-2 border-[#111] bg-[#ffd23f] p-4 text-[#111] shadow-[4px_4px_0_#111]">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-[12px] font-black uppercase tracking-wider">{weekdayLong(d, tag)}</span>
@@ -334,24 +332,27 @@ export function CalendarDayPage({
                   </span>
                 )}
               </div>
-              <h1 className="mt-1 text-[40px] font-black leading-[0.95] tracking-tight">
+              <h1 className="mt-1 text-[32px] font-black leading-[0.95] tracking-tight">
                 {d.getDate()} {monthName(d.getMonth(), tag)}
               </h1>
               <div className="mt-1 font-mono text-[13px] font-bold">{d.getFullYear()}</div>
             </div>
-            <div data-brut-add="" className="shrink-0">{addMenu}</div>
+            <AddMenu hero items={addMenuItems} />
           </div>
 
-          {/* Sayılar — girdi, kategori, hedef */}
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          {/* Sayılar — girdi, kategori, hedef: tek şeritte, her biri kendi renginde */}
+          <div className="mt-3 grid grid-cols-3 overflow-hidden rounded-xl border-2 border-[#111] bg-white text-[#111] shadow-[3px_3px_0_#111]">
             {[
-              { l: t("brut.entries"), v: String(actionEntries.length), bg: "#8ea6ff" },
-              { l: t("brut.categories"), v: String(dayCategories.length), bg: "#7ae582" },
-              { l: t("brut.goals"), v: goals && goals.length ? `${goalsDone}/${goals.length}` : "–", bg: "#ff9ecd" },
-            ].map((b) => (
-              <div key={b.l} className="rounded-xl border-2 border-[#111] px-2.5 py-2 text-[#111] shadow-[3px_3px_0_#111]" style={{ background: b.bg }}>
-                <span className="block text-[10.5px] font-black uppercase tracking-wide">{b.l}</span>
-                <b className="block font-mono text-[22px] font-bold leading-7 tabular-nums">{b.v}</b>
+              { l: t("brut.entries"), v: String(actionEntries.length), c: "#8ea6ff" },
+              { l: t("brut.categories"), v: String(dayCategories.length), c: "#7ae582" },
+              { l: t("brut.goals"), v: goals && goals.length ? `${goalsDone}/${goals.length}` : "–", c: "#ff9ecd" },
+            ].map((b, i) => (
+              <div key={b.l} className={cn("flex flex-col", i > 0 && "border-l-2 border-[#111]")}>
+                <span className="h-2 border-b-2 border-[#111]" style={{ background: b.c }} />
+                <span className="px-2.5 pb-2 pt-1.5">
+                  <span className="block text-[10.5px] font-black uppercase tracking-wide text-[#111]/60">{b.l}</span>
+                  <b className="block font-mono text-[22px] font-bold leading-7 tabular-nums">{b.v}</b>
+                </span>
               </div>
             ))}
           </div>
