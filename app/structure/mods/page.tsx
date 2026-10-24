@@ -285,7 +285,7 @@ export default function ModsHomePage() {
               </button>
             )}
           </div>
-          <div className="no-scrollbar flex gap-1.5 overflow-x-auto border-t-2 border-[#111] bg-[#fff4dc] px-2 py-2">
+          <div className="no-scrollbar flex gap-1.5 overflow-x-auto border-t-2 border-[#111] bg-background px-2 py-2">
             {[{ kind: null as MeasureUiKind | null, label: t("features.allKinds"), n: (mods ?? []).length }, ...kindCounts].map((k) => {
               const on = kindFilter === k.kind;
               return (
