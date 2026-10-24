@@ -263,29 +263,30 @@ export default function ModsHomePage() {
         }
       />
 
-      {/* Brütal: arama ve tür süzgeci tek çerçeveli kutuda */}
+      {/* Brütal: ince çerçeveli arama kapsülü, altında sade tür süzgeci —
+          katmanların ağır çerçevesiyle yarışmasın diye gölgesiz ve hafif */}
       {brutal ? (
-        <div className="mb-5 mt-1 overflow-hidden rounded-2xl border-2 border-[#111] bg-white shadow-[3px_3px_0_#111]">
-          <div className="relative flex h-11 items-center">
-            <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-[#111]" strokeWidth={2.4} />
+        <div className="mb-5 mt-1 flex flex-col gap-2.5">
+          <div className="relative flex h-10 items-center rounded-full border-[1.5px] border-[#111] bg-white transition-shadow focus-within:shadow-[2px_2px_0_#111]">
+            <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-[#111]/45" strokeWidth={2} />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("features.searchPlaceholder")}
               aria-label={t("features.searchPlaceholder")}
-              className="h-full w-full bg-transparent pl-10 pr-9 text-[14px] font-semibold text-[#111] outline-none placeholder:font-medium placeholder:text-[#111]/45"
+              className="h-full w-full rounded-full bg-transparent pl-10 pr-10 text-[14px] font-medium text-[#111] outline-none placeholder:font-normal placeholder:text-[#111]/40"
             />
             {search && (
               <button
                 onClick={() => setSearch("")}
-                className="absolute right-2.5 flex h-6 w-6 items-center justify-center rounded-md text-[#111]"
+                className="absolute right-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#111]/[0.07] text-[#111]/70"
                 aria-label={t("features.clearSearch")}
               >
-                <X className="h-3.5 w-3.5" strokeWidth={2.6} />
+                <X className="h-3 w-3" strokeWidth={2.4} />
               </button>
             )}
           </div>
-          <div className="no-scrollbar flex gap-1.5 overflow-x-auto border-t-2 border-[#111] bg-background px-2 py-2">
+          <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4">
             {[{ kind: null as MeasureUiKind | null, label: t("features.allKinds"), n: (mods ?? []).length }, ...kindCounts].map((k) => {
               const on = kindFilter === k.kind;
               return (
@@ -295,12 +296,12 @@ export default function ModsHomePage() {
                   aria-pressed={on}
                   onClick={() => setKindFilter(k.kind)}
                   className={cn(
-                    "flex h-7 shrink-0 items-center gap-1.5 rounded-lg border-[1.5px] border-[#111] px-2.5 text-[12px] font-extrabold transition-transform active:translate-x-[1px] active:translate-y-[1px]",
-                    on ? "bg-[#111] text-[#fff4dc]" : "bg-white text-[#111]"
+                    "flex h-7 shrink-0 items-center gap-1.5 rounded-full border-[1px] px-3 text-[12px] font-semibold transition-colors",
+                    on ? "border-[#111] bg-[#111] text-white" : "border-[#111]/15 bg-white/60 text-[#111]/70"
                   )}
                 >
                   {k.label}
-                  <span className={cn("font-mono text-[10.5px] font-bold", on ? "opacity-80" : "opacity-50")}>{k.n}</span>
+                  <span className={cn("font-mono text-[10.5px]", on ? "opacity-70" : "opacity-45")}>{k.n}</span>
                 </button>
               );
             })}
