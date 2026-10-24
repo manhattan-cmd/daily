@@ -40,7 +40,7 @@ import type { Category, ChartKind, Entry, StatKey, SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
 import { useIsBrutal } from "@/components/structure/brutal";
 import { cn } from "@/lib/utils";
-import { Layer, LayerAccent } from "@/components/ui/layer";
+import { Layer } from "@/components/ui/layer";
 
 /**
  * Dönem sayfasındaki kategori detayı — kategori metriklerinin donmuş bir zaman
@@ -424,7 +424,6 @@ export function PeriodCategoryPanel({
 
   // Bölümler katmanlarda (bkz. Layer) — gün ve yapı sayfalarıyla aynı iskelet
   return (
-    <LayerAccent color={category.color}>
     <div className={cn("flex flex-col", "gap-4")}>
       <Layer className="mb-0 flex flex-col gap-4">
       {/* Bölüm başlığı — bu kutunun HANGİ kalemin özellikleri olduğu */}
@@ -635,6 +634,5 @@ export function PeriodCategoryPanel({
       />
       </Layer>
     </div>
-    </LayerAccent>
   );
 }

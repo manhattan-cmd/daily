@@ -4,17 +4,9 @@ import { createContext, useContext, type CSSProperties, type ReactNode } from "r
 import { useSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
 
-/** Katmanın şerit rengi — adına göre sabit, sayfadan sayfaya aynı */
-const ACCENTS = ["#8ea6ff", "#7ae582", "#ffd23f", "#ff8fab", "#c49bff", "#ffa552"];
-function accentOf(label: string): string {
-  let h = 0;
-  for (let i = 0; i < label.length; i++) h = (h * 31 + label.charCodeAt(i)) >>> 0;
-  return ACCENTS[h % ACCENTS.length];
-}
-
 /**
- * Bir kategoriye ait sayfada (yapı, analiz) katman işaretleri o kategorinin
- * rengini alır — sayfanın tamamı aynı renge bağlanır.
+ * Yapının kategori ve alt kategori sayfalarında katmanlar solda o kategorinin
+ * renginde şerit taşır — sayfanın tamamı aynı renge bağlanır.
  */
 const LayerAccentContext = createContext<string | undefined>(undefined);
 export function LayerAccent({ color, children }: { color?: string; children: ReactNode }) {
@@ -26,7 +18,6 @@ export function LayerAccent({ color, children }: { color?: string; children: Rea
  * üstünde her bölümün kendi katmanı, en üstte kartlar. Özetle kayıtlar aynı
  * zeminde arka arkaya dizilince birbirine karışıyordu; katman bir bölümü tek
  * parça okutur. Yalnız Brütal temada çizilir, ötekilerde düz bir kutu.
- * Soldaki renkli şerit katmanlara renk katar (bkz. LayerAccent).
  */
 export function Layer({
   label,
@@ -51,18 +42,20 @@ export function Layer({
   const brutal = useSkin() === "brutal";
   const pageAccent = useContext(LayerAccentContext);
   if (!brutal) return <div className={className} style={style}>{children}</div>;
-  const accent = pageAccent ?? accentOf(label ?? "");
   return (
     <div
       data-layer=""
-      // Yapı → Kategoriler kartlarının dili: beyaz pencere, solda renkli
-      // şerit ve siyah ayırıcı çizgi (şerit zeminin parçası, düzen bozulmaz)
-      style={{
-        backgroundImage: `linear-gradient(90deg, ${accent} 0 12px, #111 12px 14px, #fff 14px)`,
-        ...style,
-      }}
+      // Yapının kategori sayfalarında Yapı → Kategoriler kartlarının dili:
+      // solda kategorinin renginde şerit ve siyah ayırıcı çizgi (şerit zeminin
+      // parçası, düzen bozulmaz). Öteki sayfalarda düz beyaz pencere.
+      style={
+        pageAccent
+          ? { backgroundImage: `linear-gradient(90deg, ${pageAccent} 0 12px, #111 12px 14px, #fff 14px)`, ...style }
+          : style
+      }
       className={cn(
-        "mb-4 rounded-[22px] border-2 border-[#111] bg-white py-3.5 pl-[26px] pr-3.5 shadow-[4px_4px_0_#111]",
+        "mb-4 rounded-[22px] border-2 border-[#111] bg-white py-3.5 pr-3.5 shadow-[4px_4px_0_#111]",
+        pageAccent ? "pl-[26px]" : "pl-3.5",
         // Pencereler arası brütalde hep aynı, sıkı aralık (diğer temalardaki mb-6 burada geçmez)
         className?.replace(/mb-6/, "mb-4")
       )}
