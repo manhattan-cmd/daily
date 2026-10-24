@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useT, translate } from "@/lib/i18n";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { Layers } from "lucide-react";
 import {
   bucketAncestorId,
   bucketKeyOf,
@@ -38,6 +38,8 @@ import { useCategoryMetrics } from "./use-category-metrics";
 import { modColor } from "@/lib/mod-color";
 import type { Category, ChartKind, Entry, StatKey, SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
+import { useIsBrutal } from "@/components/structure/brutal";
+import { cn } from "@/lib/utils";
 
 /**
  * Dönem sayfasındaki kategori detayı — kategori metriklerinin donmuş bir zaman
@@ -78,6 +80,7 @@ export function PeriodCategoryPanel({
   onResolved?: (metricId: string) => void;
 }) {
   const t = useT();
+  const brutal = useIsBrutal();
   const focus = path[path.length - 1];
   // Gün dönemlerinde hafta bağlamı gerekir — o günü kapsayan haftanın tamamı çekilir,
   // günün kendi rakamları pencere filtresiyle hesaplanır
@@ -411,7 +414,7 @@ export function PeriodCategoryPanel({
   /** Girdi kutusunun alt yazısı — sayının kaç günü kapsadığı */
   const dayCountLabel = isDay
     ? periodShortLabel(period)
-    : `${progress.elapsedDays} days`;
+    : `${progress.elapsedDays} ${t("stat.days")}`;
   /** Derine inildiyse bölüm başlıkları hangi kaleme ait olduğunu yazar */
   const scopePrefix = focus ? (
     <span style={{ color: `${category.color}dd` }}>{focus.name} · </span>
@@ -430,18 +433,24 @@ export function PeriodCategoryPanel({
           {focus ? focus.name : category.name}
           <span className="font-normal text-muted-foreground"> · {periodShortLabel(period)}</span>
         </h3>
-        {/* Kapsamın tüm zamanlar analizi */}
+        {/* Kalemin yapı sayfası — yapı sayfasındaki analiz düğmesinin karşılığı.
+            "Tüm zamanlar" bağlantısı kalktı: dönem bandında Tümü seçiliyor */}
         <Link
           href={
             focus
-              ? routes.analyticsSub(category.id, focus.id)
-              : routes.analyticsCategory(category.id)
+              ? routes.structureSub(category.id, focus.id)
+              : routes.structureCategory(category.id)
           }
-          prefetch={false}
-          className="ml-auto flex shrink-0 items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+          aria-label={t("nav.structure")}
+          title={t("nav.structure")}
+          className={cn(
+            "ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors",
+            brutal
+              ? "border-[1.5px] border-[#111] bg-white text-[#111] shadow-[2px_2px_0_#111]"
+              : "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground"
+          )}
         >
-          {t("stat.allTime")}
-          <ArrowRight className="h-3 w-3" />
+          <Layers className="h-4 w-4" strokeWidth={brutal ? 2.5 : 2} />
         </Link>
       </div>
 
@@ -477,7 +486,7 @@ export function PeriodCategoryPanel({
               label={t("stat.dailyAverage")}
               value={fmtNum(computed.dailyAvg)}
               unit={translate("an.entriesUnit")}
-              sub={`${progress.elapsedDays} days`}
+              sub={`${progress.elapsedDays} ${t("stat.days")}`}
             />
           </div>
         )
