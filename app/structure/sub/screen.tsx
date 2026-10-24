@@ -19,7 +19,7 @@ import { DeleteSubCategoryDialog } from "@/components/structure/delete-subcatego
 import { RecentEntriesSection } from "@/components/structure/recent-entries-section";
 import { AnalysisSection } from "@/components/structure/analysis-section";
 import { routes } from "@/lib/routes";
-import { Layer, LayerAccent } from "@/components/ui/layer";
+import { Layer } from "@/components/ui/layer";
 
 export function SubCategoryDetailPage({
   params,
@@ -65,7 +65,7 @@ export function SubCategoryDetailPage({
     : category?.name ?? "kategori";
 
   return (
-    <LayerAccent color={category?.color}>
+    <>
       {brutal ? (
         <>
           <BrutTopStrip
@@ -228,6 +228,6 @@ export function SubCategoryDetailPage({
         onOpenChange={setDeleteOpen}
         onDeleted={() => router.push(backPath)}
       />
-    </LayerAccent>
+    </>
   );
 }

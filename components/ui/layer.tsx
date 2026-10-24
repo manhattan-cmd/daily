@@ -1,17 +1,8 @@
 "use client";
 
-import { createContext, useContext, type CSSProperties, type ReactNode } from "react";
+import { type CSSProperties, type ReactNode } from "react";
 import { useSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
-
-/**
- * Yapının kategori ve alt kategori sayfalarında katmanlar solda o kategorinin
- * renginde şerit taşır — sayfanın tamamı aynı renge bağlanır.
- */
-const LayerAccentContext = createContext<string | undefined>(undefined);
-export function LayerAccent({ color, children }: { color?: string; children: ReactNode }) {
-  return <LayerAccentContext.Provider value={color}>{children}</LayerAccentContext.Provider>;
-}
 
 /**
  * Katman — bölümün yüzeyi. Üç kat var: en arkada sayfanın döşemesi (krem),
@@ -40,22 +31,13 @@ export function Layer({
   children: ReactNode;
 }) {
   const brutal = useSkin() === "brutal";
-  const pageAccent = useContext(LayerAccentContext);
   if (!brutal) return <div className={className} style={style}>{children}</div>;
   return (
     <div
       data-layer=""
-      // Yapının kategori sayfalarında Yapı → Kategoriler kartlarının dili:
-      // solda kategorinin renginde şerit ve siyah ayırıcı çizgi (şerit zeminin
-      // parçası, düzen bozulmaz). Öteki sayfalarda düz beyaz pencere.
-      style={
-        pageAccent
-          ? { backgroundImage: `linear-gradient(90deg, ${pageAccent} 0 12px, #111 12px 14px, #fff 14px)`, ...style }
-          : style
-      }
+      style={style}
       className={cn(
-        "mb-4 rounded-[22px] border-2 border-[#111] bg-white py-3.5 pr-3.5 shadow-[4px_4px_0_#111]",
-        pageAccent ? "pl-[26px]" : "pl-3.5",
+        "mb-4 rounded-[22px] border-2 border-[#111] bg-white p-3.5 shadow-[4px_4px_0_#111]",
         // Pencereler arası brütalde hep aynı, sıkı aralık (diğer temalardaki mb-6 burada geçmez)
         className?.replace(/mb-6/, "mb-4")
       )}
