@@ -89,6 +89,17 @@ export default function HomePage() {
   const todayInfo = week?.[week.length - 1];
   const doneGoals = (goals ?? []).filter((g) => g.completedEntryId).length;
 
+  // Son girdilerin başındaki arama düğmesi — brütalde katman adının sağında
+  const searchLink = (
+    <Link
+      href="/search"
+      className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <Search className="h-3.5 w-3.5" />
+      {t("search.title")}
+    </Link>
+  );
+
   return (
     <>
       {/* Brütal: sayfanın başlığı bölümün bandında (uygulamanın moru, tram benekli;
@@ -210,11 +221,13 @@ export default function HomePage() {
 
       {/* Son 7 gün — ritim şeridi; sütuna dokun, o güne git */}
       {week && week.some((d) => d.count > 0) && (
-        <Layer>
+        <Layer label={t("home.last7Days")}>
         <section className={brutal ? undefined : "mb-6"}>
+          {!brutal && (
           <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("home.last7Days")}
           </h2>
+          )}
           <div className="flex items-end justify-between gap-1.5 rounded-2xl border border-border bg-card px-3 py-3">
             {week.map((d) => (
               <WeekBar
@@ -233,19 +246,15 @@ export default function HomePage() {
           Tepedeki simge sırasında ne aradığı belirsizdi. Buradaki listede
           yalnız son 20 var, düğme tüm geçmişi tarayan sayfaya götürür —
           bölüm içi büyüteçlerden (yerinde süzme) ayrılsın diye yazılı. */}
-      <Layer>
+      <Layer label={t("home.recentEntries")} action={searchLink}>
+      {!brutal && (
       <div className="mb-3 flex items-center justify-between gap-2 px-1">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t("home.recentEntries")}
         </h2>
-        <Link
-          href="/search"
-          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <Search className="h-3.5 w-3.5" />
-          {t("search.title")}
-        </Link>
+        {searchLink}
       </div>
+      )}
 
       {recent === undefined ? (
         <CardListSkeleton rows={3} />

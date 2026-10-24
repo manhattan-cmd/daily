@@ -32,6 +32,7 @@ export function Layer({
   label,
   count,
   extra,
+  action,
   className,
   style,
   children,
@@ -41,6 +42,8 @@ export function Layer({
   count?: number;
   /** Adın yanında küçük, normal harfli ek ("(Toplam)" gibi) */
   extra?: ReactNode;
+  /** Başlık satırının sağında düğme (Ara gibi) */
+  action?: ReactNode;
   className?: string;
   style?: CSSProperties;
   children: ReactNode;
@@ -75,6 +78,7 @@ export function Layer({
               {count}
             </b>
           )}
+          {action && <span className="ml-auto normal-case tracking-normal">{action}</span>}
         </div>
       )}
       {children}
