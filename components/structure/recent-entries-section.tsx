@@ -60,9 +60,10 @@ export function RecentEntriesSection({
   });
 
   return (
-    <Layer className="mb-6">
+    <Layer bare className="mb-6">
     <section>
       <EntryListSection
+        framed
         title={t("home.recentEntries")}
         accent={color}
         rows={rows}
