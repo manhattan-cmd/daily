@@ -312,37 +312,23 @@ export function CalendarDayPage({
     <>
       {brutal ? (
         <div className="pb-4">
-          {/* Üst menü yok: takvime alt menüden dönülüyor. Komşu günler gün
-              özetinin başında, tarihin hemen üstünde ince bir çift düğme */}
+          {/* Üst menü yok: takvime alt menüden dönülüyor. Komşu günler
+              pencerenin üstünde iki uçta — önceki solda, sonraki sağda; hangi
+              güne gidileceği yazılı */}
           <div className="pt-safe" />
-          <div className="h-5" />
+          <div className="mb-3 mt-3 flex items-center justify-between">
+            <Link href={routes.day(shift(-1))} prefetch={false} aria-label={t("day.prev")} className="flex h-8 items-center gap-1 rounded-full border-[1.5px] border-[#111] bg-white text-[12.5px] font-bold text-[#111] active:bg-[#111]/10 pl-1.5 pr-3">
+              <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
+              {(() => { const x = new Date(d); x.setDate(d.getDate() - 1); return x.toLocaleDateString(tag, { day: "numeric", month: "short" }); })()}
+            </Link>
+            <Link href={routes.day(shift(1))} prefetch={false} aria-label={t("day.next")} className="flex h-8 items-center gap-1 rounded-full border-[1.5px] border-[#111] bg-white text-[12.5px] font-bold text-[#111] active:bg-[#111]/10 pl-3 pr-1.5">
+              {(() => { const x = new Date(d); x.setDate(d.getDate() + 1); return x.toLocaleDateString(tag, { day: "numeric", month: "short" }); })()}
+              <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+            </Link>
+          </div>
 
           {/* Gün özeti katmanı — tarih kartı, sayılar, gün analizi */}
-          <Layer
-            label={t("day.summary")}
-            className="mb-0"
-            action={
-              <span className="flex overflow-hidden rounded-full border-[1.5px] border-[#111] bg-white">
-                <Link
-                  href={routes.day(shift(-1))}
-                  prefetch={false}
-                  aria-label={t("day.prev")}
-                  className="flex h-7 w-9 items-center justify-center text-[#111] active:bg-[#111]/10"
-                >
-                  <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
-                </Link>
-                <span className="w-[1.5px] bg-[#111]" />
-                <Link
-                  href={routes.day(shift(1))}
-                  prefetch={false}
-                  aria-label={t("day.next")}
-                  className="flex h-7 w-9 items-center justify-center text-[#111] active:bg-[#111]/10"
-                >
-                  <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
-                </Link>
-              </span>
-            }
-          >
+          <Layer label={t("day.summary")} className="mb-0">
           {/* Tarih kartı — gün adı, tarih, yıl; sağda dikeyde ortalı, vurgulu Ekle */}
           <div className="flex items-center gap-3 rounded-2xl border-2 border-[#111] bg-[#ffd23f] p-4 text-[#111] shadow-[4px_4px_0_#111]">
             <div className="min-w-0 flex-1">
