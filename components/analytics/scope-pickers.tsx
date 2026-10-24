@@ -221,7 +221,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
           {selectedCat ? (
             tile(selectedCat.color, placeIcon, 24, 7)
           ) : (
-            <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px]", brutal ? "border-[1.5px] border-[#111] bg-[#FFF4DC]" : "bg-[var(--sf-3)]")}>
+            <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px]", brutal ? "border-[1.5px] border-[#111] bg-[#6366f1] text-white" : "bg-[var(--sf-3)]")}>
               <LayoutGrid className="h-3.5 w-3.5" />
             </span>
           )}
@@ -243,7 +243,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
           {currentMod ? (
             <span className="h-6 w-6 shrink-0 rounded-full border-[1.5px] border-[#111]/80" style={{ background: modColor(currentMod) }} />
           ) : (
-            <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full", brutal ? "border-[1.5px] border-[#111] bg-[#FFF4DC]" : "bg-[var(--sf-3)]")}>
+            <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full", brutal ? "border-[1.5px] border-[#111] bg-[#6366f1] text-white" : "bg-[var(--sf-3)]")}>
               <ListOrdered className="h-3.5 w-3.5" />
             </span>
           )}

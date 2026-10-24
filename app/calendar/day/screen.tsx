@@ -327,8 +327,8 @@ export function CalendarDayPage({
             </Link>
           </div>
 
-          {/* Gün özeti katmanı — tarih kartı, sayılar, gün analizi */}
-          <Layer label={t("day.summary")} className="mb-0">
+          {/* Gün özeti — tarih kartı, sayılar, gün analizi; pencere yok, sayfayı doğrudan bunlar karşılıyor */}
+          <Layer bare label={t("day.summary")} className="mb-0">
           {/* Tarih kartı — gün adı, tarih, yıl; sağda dikeyde ortalı, vurgulu Ekle */}
           <div className="flex items-center gap-3 rounded-2xl border-2 border-[#111] bg-[#ffd23f] p-4 text-[#111] shadow-[4px_4px_0_#111]">
             <div className="min-w-0 flex-1">
