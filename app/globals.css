@@ -1022,13 +1022,13 @@ input[type="number"] {
   padding: 3px 8px; border-radius: 6px; letter-spacing: 0.08em; font-weight: 900;
 }
 :root[data-skin="brutal"] h3.uppercase * { color: #fff4dc !important; }
-/* Katmanın içindeki liste başı katman adı gibi: düz siyah yazı, sayı siyah
-   rozette (bkz. components/ui/layer) — yapı sayfasındaki Son girdiler */
+/* Katmanın içindeki liste başı katman adı gibi: düz siyah yazı, sayı çerçeveli
+   yuvarlak rozette (bkz. components/ui/layer) — yapı sayfasındaki Son girdiler */
 :root[data-skin="brutal"] [data-layer] [data-entry-list-head] h3.uppercase {
   background: none; color: #111 !important; padding: 0 0 0 2px; font-size: 12px; letter-spacing: 0.09em; gap: 8px;
 }
 :root[data-skin="brutal"] [data-layer] [data-entry-list-head] h3.uppercase > span {
-  background: #111 !important; color: #f5f1e8 !important; border-radius: 6px; padding: 3px 6px;
+  background: #fff !important; color: #111 !important; border: 1.5px solid #111; border-radius: 999px; padding: 2px 7px;
   font-family: var(--font-mono, ui-monospace, monospace); letter-spacing: 0; line-height: 1;
 }
 /* Dagilim satirlari: beyaz cerceveli kutu, kalin cerceveli cubuk */

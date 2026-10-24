@@ -314,7 +314,7 @@ export function CalendarDayPage({
   return (
     <>
       {brutal ? (
-        <div className="pb-5">
+        <div className="pb-4">
           {/* Üst menü: takvime dön, komşu günler (bkz. TopBar) */}
           <TopBar back="/calendar" backLabel={t("nav.calendar")}>
             <TopBarButton icon={ChevronLeft} label={t("day.prev")} href={routes.day(shift(-1))} prefetch={false} />

@@ -554,7 +554,7 @@ export function PeriodView({
         }
       />
 
-      <div className={cn("flex flex-col pb-6", brutal ? "gap-6" : "gap-4")}>
+      <div className={cn("flex flex-col pb-6", "gap-4")}>
         {/* Özet (KPI kutuları + dönem serisi) RAFTA — bkz. SHOW_PERIOD_SUMMARY */}
         {SHOW_PERIOD_SUMMARY && (
           <>

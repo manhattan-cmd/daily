@@ -331,7 +331,7 @@ export default function ModsHomePage() {
       {/* Tek havuz: uygulamayla gelen özellikle kullanıcının yarattığı
           arasında ayrım yok — ikisi de aynı şekilde düzenlenir ve silinir */}
       {mods === undefined ? null : (
-        <section className={cn("mb-6 flex flex-col", brutal ? "gap-6" : "gap-5")}>
+        <section className={cn("mb-6 flex flex-col", brutal ? "gap-4" : "gap-5")}>
           {/* Her ölçü türü kendi katmanında (bkz. Layer) — adı ve sayısı katmanın başında */}
           {groups.map((g) => (
             <Layer key={g.kind} label={g.label} count={g.items.length} className="mb-0 flex flex-col gap-2">

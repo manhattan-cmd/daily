@@ -436,7 +436,7 @@ export function CategoryOverviewPanel({
   return (
     <LayerAccent color={category.color}>
     // Bölümler katmanlarda (bkz. Layer) — gün ve yapı sayfalarıyla aynı iskelet
-    <div className={cn("flex flex-col pb-6", brutal ? "gap-6" : "gap-4")}>
+    <div className={cn("flex flex-col pb-6", "gap-4")}>
       <Layer label={t("an.summaryLayer")} className="mb-0 flex flex-col gap-4">
       {header}
       {chips}
