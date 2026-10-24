@@ -19,6 +19,7 @@ import { DeleteSubCategoryDialog } from "@/components/structure/delete-subcatego
 import { RecentEntriesSection } from "@/components/structure/recent-entries-section";
 import { AnalysisSection } from "@/components/structure/analysis-section";
 import { routes } from "@/lib/routes";
+import { Layer } from "@/components/ui/layer";
 
 export function SubCategoryDetailPage({
   params,
@@ -145,10 +146,13 @@ export function SubCategoryDetailPage({
 
       {/* Çocuk alt kategori ağacı */}
       {category && (
-        <section className="mb-6">
+        <Layer label={t("structure.subcategories")} className="mb-6">
+        <section>
+          {!brutal && (
           <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("structure.subcategories")}
           </h2>
+          )}
           <SubCategoryTree
             categoryId={categoryId}
             categoryName={category.name}
@@ -162,6 +166,7 @@ export function SubCategoryDetailPage({
             }}
           />
         </section>
+        </Layer>
       )}
 
       {/* Analiz — özelliklerin nasıl inceleneceği, kullanıcının seçimi */}
@@ -171,10 +176,8 @@ export function SubCategoryDetailPage({
 
       {/* Son girdiler + analize kısayol */}
       {brutal && summary && summary.entries === 0 ? (
-        <section className="mb-6">
-          <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {t("home.recentEntries")}
-          </h2>
+        <Layer label={t("home.recentEntries")} className="mb-6">
+        <section>
           <BrutEmpty
             title={t("brut.noEntries")}
             hint={t("brut.noEntriesHint")}
@@ -188,6 +191,7 @@ export function SubCategoryDetailPage({
             presetSub={subcategory ?? null}
           />
         </section>
+        </Layer>
       ) : (
       <RecentEntriesSection
         scope="subcategory"

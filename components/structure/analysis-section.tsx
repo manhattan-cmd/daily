@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { STAT_LABEL } from "@/components/analytics/stat-tiles";
 import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
 import { useIsBrutal } from "@/components/structure/brutal";
+import { Layer } from "@/components/ui/layer";
 import type { ChartKind, Mod, StatKey } from "@/types";
 
 /** Grupların sırası — sayısal olanlar önce, etiketliler sonra */
@@ -126,10 +127,13 @@ export function AnalysisSection({
     : "rounded-2xl bg-[var(--sf-2)]";
 
   return (
-    <section className="mb-6" data-analysis-section="">
+    <Layer label={t("an.section")} className="mb-6">
+    <section data-analysis-section="">
+      {!brutal && (
       <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         {t("an.section")}
       </h2>
+      )}
       <p className={cn("mb-3 px-1 text-[13px] leading-snug", brutal ? "text-[#111]/70" : "text-muted-foreground")}>
         {t(subcategoryId ? "an.sectionHintSub" : "an.sectionHint")}
       </p>
@@ -182,6 +186,7 @@ export function AnalysisSection({
         })}
       </div>
     </section>
+    </Layer>
   );
 }
 

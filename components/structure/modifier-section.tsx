@@ -26,6 +26,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Layer } from "@/components/ui/layer";
+import { useIsBrutal } from "@/components/structure/brutal";
 import { measureSummary } from "@/lib/measure-kinds";
 import { modColor } from "@/lib/mod-color";
 
@@ -41,6 +43,7 @@ export function ModifierSection({
   targetName,
 }: ModifierSectionProps) {
   const t = useT();
+  const brutal = useIsBrutal();
   const [pickerOpen, setPickerOpen] = useState(false);
   // Atoma dokununca açılan detay — çıkarma da buradan
   const [selected, setSelected] = useState<CategoryModifierWithType | null>(
@@ -84,11 +87,15 @@ export function ModifierSection({
     closeDetail();
   }
 
+  // Bölüm kendi katmanında (gün sayfasındaki gibi) — brütalde başlık katmanın adı
   return (
-    <section className="mb-6">
+    <Layer label={t("structure.features")} className="mb-6">
+    <section>
+      {!brutal && (
       <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         {t("structure.features")}
       </h2>
+      )}
       <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
         {(mods ?? []).map((mod) => (
           <ModAtom
@@ -214,5 +221,6 @@ export function ModifierSection({
         targetName={targetName}
       />
     </section>
+    </Layer>
   );
 }

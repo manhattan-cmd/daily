@@ -11,6 +11,7 @@ import {
   type EntryListRow,
 } from "@/components/analytics/entry-list";
 import { fmtNum } from "@/lib/analytics";
+import { Layer } from "@/components/ui/layer";
 import type { EntryWithContext } from "@/types";
 
 /**
@@ -59,7 +60,8 @@ export function RecentEntriesSection({
   });
 
   return (
-    <section className="mb-6">
+    <Layer className="mb-6">
+    <section>
       <EntryListSection
         title={t("home.recentEntries")}
         accent={color}
@@ -67,6 +69,7 @@ export function RecentEntriesSection({
         emptyText="Henüz girdi yok"
       />
     </section>
+    </Layer>
   );
 }
 

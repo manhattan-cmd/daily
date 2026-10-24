@@ -22,6 +22,7 @@ import { SubCategoryTree } from "@/components/structure/subcategory-tree";
 import { RecentEntriesSection } from "@/components/structure/recent-entries-section";
 import { AnalysisSection } from "@/components/structure/analysis-section";
 import { routes } from "@/lib/routes";
+import { Layer } from "@/components/ui/layer";
 
 export function CategoryDetailPage({
   params,
@@ -134,10 +135,13 @@ export function CategoryDetailPage({
 
       {/* Alt kategori ağacı — hiyerarşi iç içe açılır */}
       {category && (
-        <section className="mb-6">
+        <Layer label={t("structure.subcategories")} className="mb-6">
+        <section>
+          {!brutal && (
           <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("structure.subcategories")}
           </h2>
+          )}
           <SubCategoryTree
             categoryId={categoryId}
             categoryName={category.name}
@@ -148,6 +152,7 @@ export function CategoryDetailPage({
             }}
           />
         </section>
+        </Layer>
       )}
 
       {/* Analiz — özelliklerin nasıl inceleneceği, kullanıcının seçimi */}
