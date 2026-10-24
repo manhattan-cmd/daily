@@ -34,7 +34,7 @@ export function Layer({
       data-layer=""
       style={style}
       className={cn(
-        "mb-6 rounded-[22px] border-2 border-[#111] bg-[#f5f1e8] p-3.5 shadow-[5px_5px_0_#111]",
+        "mb-6 rounded-[22px] border-2 border-[#111] bg-[#f1e7d3] p-3.5 shadow-[5px_5px_0_#111]",
         className
       )}
     >
@@ -43,7 +43,7 @@ export function Layer({
           {label}
           {extra && <span className="-ml-1 font-bold normal-case tracking-normal text-[#111]/60">{extra}</span>}
           {count != null && count > 0 && (
-            <b className="rounded-md bg-[#111] px-1.5 py-[3px] font-mono font-bold tracking-normal text-[#f5f1e8]">
+            <b className="rounded-md bg-[#111] px-1.5 py-[3px] font-mono font-bold tracking-normal text-[#f1e7d3]">
               {count}
             </b>
           )}

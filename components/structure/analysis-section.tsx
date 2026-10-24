@@ -312,7 +312,7 @@ function ModAnalysisCard({
                     brutal
                       ? on
                         ? "border-2 border-[#111] bg-[#ffd23f] shadow-[2px_2px_0_#111]"
-                        : "border-2 border-[#111]/15 bg-[#f5f1e8]"
+                        : "border-2 border-[#111]/15 bg-[#f1e7d3]"
                       : on
                         ? "bg-foreground/10 ring-1 ring-foreground/30"
                         : "bg-muted/50"
@@ -396,7 +396,7 @@ function ModAnalysisCard({
                     onClick={() => void save({ stats: resolved.stats, charts: resolved.charts, emptyAsZero: !resolved.emptyAsZero })}
                     className={cn(
                       "flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left",
-                      brutal ? "border-2 border-[#111] bg-[#f5f1e8]" : "bg-muted/50"
+                      brutal ? "border-2 border-[#111] bg-[#f1e7d3]" : "bg-muted/50"
                     )}
                   >
                     <span className="min-w-0 flex-1">
