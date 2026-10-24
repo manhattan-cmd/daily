@@ -77,18 +77,16 @@ export function CategoryDetailPage({
               setSubFormOpen(true);
             }}
           />
-          {/* Özet katmanı — gün sayfasındaki "Gün özeti"nin karşılığı */}
+          {/* Başlık kartı tek başına — dış katman iç içe pencere yapıyordu */}
           {category && (
-            <Layer label={t("structure.catSummary")}>
             <BrutHeroCard
               color={category.color}
               icon={category.icon}
               overline={t("brut.category")}
               title={category.name}
               summary={summary}
-              className="mb-0"
+              className="mb-4"
             />
-            </Layer>
           )}
         </>
       ) : (
@@ -142,7 +140,7 @@ export function CategoryDetailPage({
 
       {/* Alt kategori ağacı — hiyerarşi iç içe açılır */}
       {category && (
-        <Layer label={t("structure.subcategories")} className="mb-6">
+        <Layer bare label={t("structure.subcategories")} className="mb-6">
         <section>
           {!brutal && (
           <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -151,7 +149,10 @@ export function CategoryDetailPage({
           )}
           {/* Brütal: Yapı → Kategoriler kartlarındaki ağaç biçimi (bkz. BrutSubRows) */}
           {brutal ? (
-            <div className="rounded-2xl border-2 border-[#111] bg-white px-1.5 py-2 shadow-[3px_3px_0_#111]">
+            <div className="rounded-2xl border-2 border-[#111] bg-white px-1.5 py-2.5 shadow-[4px_4px_0_#111]">
+              <div className="mb-1.5 ml-[15px] px-2 pt-1 text-[12px] font-black uppercase leading-none tracking-[0.09em] text-[#111]">
+                {t("structure.subcategories")}
+              </div>
               {tree && <BrutSubRows category={category} subs={tree.subs} counts={tree.counts} />}
               <button
                 type="button"

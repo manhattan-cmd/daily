@@ -15,6 +15,7 @@ export function Layer({
   count,
   extra,
   action,
+  bare = false,
   className,
   style,
   children,
@@ -26,12 +27,15 @@ export function Layer({
   extra?: ReactNode;
   /** Başlık satırının sağında düğme (Ara gibi) */
   action?: ReactNode;
+  /** İçerik zaten kendi penceresiyse dış katman çizilmez (iç içe iki pencere olmasın) */
+  bare?: boolean;
   className?: string;
   style?: CSSProperties;
   children: ReactNode;
 }) {
   const brutal = useSkin() === "brutal";
   if (!brutal) return <div className={className} style={style}>{children}</div>;
+  if (bare) return <div className={cn("mb-4", className?.replace(/mb-6/, "mb-4"))} style={style}>{children}</div>;
   return (
     <div
       data-layer=""

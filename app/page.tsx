@@ -142,9 +142,9 @@ export default function HomePage() {
         </Link>
       </header>
 
-      {/* Brütal: bugün ve son 7 gün tek katmanda, tek kartta (bkz. BrutToday) */}
+      {/* Brütal: bugün ve son 7 gün tek kartta (bkz. BrutToday); kart zaten pencere, dış katman yok */}
       {brutal ? (
-        <Layer label={t("home.today")}>
+        <Layer bare label={t("home.today")}>
           <WelcomeCard />
           <BackupReminder />
           <BrutToday
