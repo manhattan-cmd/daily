@@ -1193,6 +1193,13 @@ input[type="number"] {
   display: inline-block; background: #111; color: var(--band-c); border-radius: 12px;
   padding: 4px 12px 6px; box-shadow: 4px 4px 0 rgba(17, 17, 17, 0.25);
 }
+/* Ana Sayfa bandı: yazılar beyaz — selam beyaz, tarih siyah kutu yerine sert
+   siyah gölgeli beyaz harf */
+:root[data-skin="brutal"] .band-home p { color: #ffffff !important; }
+:root[data-skin="brutal"] .band-home h1 {
+  background: none; color: #ffffff; padding: 0; border-radius: 0; box-shadow: none;
+  font-size: 30px; text-shadow: 3px 3px 0 #111;
+}
 
 /* Brutal: Yapi > Harita — noktali defter zemini (NeuralMap data-map-paper);
    ortala dugmesi kare, cerceveli, golgeli. Dugumler, hatlar ve etiketler
