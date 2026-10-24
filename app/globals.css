@@ -654,13 +654,16 @@ input[type="number"] {
    ekranda az yer kaplasın. Güvenli alan kapsülün altında. */
 :root[data-skin="brutal"] [data-bottom-nav] {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 30;
-  background: #ffffff;
-  border: 1.5px solid #111;
+  /* Buzlu cam: yarı saydam beyaz, arkası bulanık — beyaz kartların üstünde
+     de kendini belli etsin diye çerçeve 2px, gölge belirgin */
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border: 2px solid #111;
   border-radius: 999px;
-  box-shadow: 2px 3px 0 #111;
+  box-shadow: 3px 4px 0 #111;
   margin: 0 22px max(12px, env(safe-area-inset-bottom));
   padding: 0 6px;
-  backdrop-filter: none;
 }
 :root[data-skin="brutal"] [data-bottom-nav] a { padding-top: 6px; padding-bottom: 5px; font-size: 10.5px; }
 /* İçerik dokun altında kalmasın (son öğe dokun üstünde bitsin) */
