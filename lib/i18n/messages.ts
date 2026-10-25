@@ -98,6 +98,8 @@ export const en = {
   "features.closeSearch": "Close search",
   "features.clearSearch": "Clear search",
   "features.filterByKind": "Filter by kind",
+  "features.noMatchTitle": "No feature named \"{q}\"",
+  "features.createNamed": "Create \"{q}\"",
   "features.new": "New feature",
   "features.createNew": "Create a new feature",
   "features.first": "Your first feature",
@@ -107,7 +109,6 @@ export const en = {
   "features.renameHint": "The name changes everywhere — a feature is unique",
   "features.nameClash": "Another feature already has this name — feature names are unique.",
   "features.nameClashOf": "A feature named \"{name}\" already exists — feature names are unique.",
-  "features.noMatch": "No feature named \"{q}\" — create one with that name.",
   "features.pickFromPool": "Pick from the pool",
   "features.pickHint":
     "Pick or create the features you want to track under \"{name}\".",
@@ -1008,6 +1009,8 @@ export const tr: Record<MessageKey, string> = {
   "features.closeSearch": "Aramayı kapat",
   "features.clearSearch": "Aramayı temizle",
   "features.filterByKind": "Türe göre süz",
+  "features.noMatchTitle": "\"{q}\" adında bir özellik yok",
+  "features.createNamed": "\"{q}\" adıyla yarat",
   "features.new": "Yeni Özellik",
   "features.createNew": "Yeni özellik yarat",
   "features.first": "İlk özelliğin",
@@ -1017,7 +1020,6 @@ export const tr: Record<MessageKey, string> = {
   "features.renameHint": "Ad her yerde değişir — özellik tekildir",
   "features.nameClash": "Bu adda başka bir özellik var — özellik adları tekildir.",
   "features.nameClashOf": "\"{name}\" adında bir özellik zaten var — özellik adları tekildir.",
-  "features.noMatch": "\"{q}\" adında bir özellik yok — bu adla yaratabilirsin.",
   "features.pickFromPool": "Havuzdan seç",
   "features.pickHint":
     "\"{name}\" ile ilgili kaydetmek ve takip etmek istediğin özellikleri seç ya da yarat.",

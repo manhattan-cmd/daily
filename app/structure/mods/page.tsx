@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useIsBrutal } from "@/components/structure/brutal";
+import { BrutEmpty, useIsBrutal } from "@/components/structure/brutal";
 import { Layer } from "@/components/ui/layer";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, Pencil, Plus, Search, Trash2, X } from "lucide-react";
@@ -228,6 +228,14 @@ export default function ModsHomePage() {
     ? MEASURE_KIND_META[uiKindOf(selected)].icon
     : MEASURE_KIND_META.number.icon;
 
+  /** Yazıda gösterilen arama — çok uzunsa kısaltılmış (pencereye tamamı gider) */
+  const searchShown = search.trim().length > 24 ? `${search.trim().slice(0, 23)}…` : search.trim();
+  function createFromSearch() {
+    setName(search.trim());
+    setError(null);
+    setCreateOpen(true);
+  }
+
   const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
   const visibleMods = (mods ?? []).filter(
     (m) => !search || norm(m.name).includes(norm(search))
@@ -372,7 +380,21 @@ export default function ModsHomePage() {
             </Layer>
           ))}
 
-          {!search && (
+          {!search && (brutal ? (
+            /* Brütal: pencere dizisinin sonunda boş bir yuva — kesik siyah
+               çerçeve, pencerelerle aynı köşe; artı kesik bir dairede
+               (daire = özellik), Alt kategori ekle satırının karosu gibi */
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="flex h-14 items-center justify-center gap-2.5 rounded-[22px] border-2 border-dashed border-[#111] bg-white/60 text-[14px] font-black text-[#111] transition-colors hover:bg-white active:bg-white"
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-[1.5px] border-dashed border-[#111]/50">
+                <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+              </span>
+              {mods.length ? t("features.createNew") : t("features.first")}
+            </button>
+          ) : (
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
@@ -381,13 +403,32 @@ export default function ModsHomePage() {
               <Plus className="h-3.5 w-3.5" />
               {mods.length ? t("features.createNew") : t("features.first")}
             </button>
-          )}
+          ))}
 
-          {visibleMods.length === 0 && search && (
-            <p className="px-1 text-xs text-muted-foreground/70">
-              {t("features.noMatch", { q: search })}
-            </p>
-          )}
+          {/* Aranan özellik yoksa o adla yaratma — yazı "bu adla
+              yaratabilirsin" diyordu ama aramada yaratma düğmesi gizliydi.
+              Pencere adı dolu açılır; ad çakışması yine handleCreate'te. */}
+          {visibleMods.length === 0 && search.trim() && (brutal ? (
+            <BrutEmpty
+              title={t("features.noMatchTitle", { q: searchShown })}
+              action={t("features.createNamed", { q: searchShown })}
+              onAction={createFromSearch}
+            />
+          ) : (
+            <div className="flex flex-col items-start gap-2 px-1">
+              <p className="text-xs text-muted-foreground/70">
+                {t("features.noMatchTitle", { q: searchShown })}
+              </p>
+              <button
+                type="button"
+                onClick={createFromSearch}
+                className="flex items-center gap-1.5 rounded-xl border border-dashed border-primary/30 px-3 py-2 text-[12px] font-medium text-primary/70 transition-colors hover:border-primary/60 hover:text-primary"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {t("features.createNamed", { q: searchShown })}
+              </button>
+            </div>
+          ))}
         </section>
       )}
 
