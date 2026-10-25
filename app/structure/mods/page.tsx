@@ -37,6 +37,7 @@ import {
 } from "@/lib/measure-kinds";
 import { MeasureEditor, isMeasureComplete } from "@/components/structure/measure-editor";
 import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
+import { FeatureFilter, type KindCount } from "@/components/structure/feature-filter";
 import {
   StructureAddButton,
   StructureHeader,
@@ -241,13 +242,17 @@ export default function ModsHomePage() {
       .filter((m) => uiKindOf(m) === k)
       .sort((x, y) => x.name.localeCompare(y.name, "tr")),
   })).filter((g) => g.items.length > 0);
-  // Brütal: arama kutusuyla bütün tür süzgeci — seçili türün öbeği kalır
-  const groups = brutal && kindFilter ? allGroups.filter((g) => g.kind === kindFilter) : allGroups;
-  const kindCounts = MEASURE_UI_KINDS.map((k) => ({
-    kind: k,
-    label: t(MEASURE_KIND_META[k].labelKey),
-    n: (mods ?? []).filter((m) => uiKindOf(m) === k).length,
-  })).filter((x) => x.n > 0);
+  // Süzgecin sayıları aramaya uyanlardan: "Skala 5" yazıp dört özellik
+  // göstermesin. Aramada hiç kalmayan tür süzgeçten de düşüyor.
+  const kindCounts: KindCount[] = [
+    { kind: null, label: t("features.allKinds"), n: visibleMods.length },
+    ...allGroups.map((g) => ({ kind: g.kind, label: g.label, n: g.items.length })),
+  ];
+  // Seçili türde aramaya uyan kalmadıysa süzgeç kendiliğinden Tümü (seçim
+  // saklı kalır, arama silinince geri gelir) — sayfa sessizce boşalmasın
+  const activeKind =
+    kindFilter && allGroups.some((g) => g.kind === kindFilter) ? kindFilter : null;
+  const groups = brutal && activeKind ? allGroups.filter((g) => g.kind === activeKind) : allGroups;
 
   return (
     <>
@@ -263,50 +268,16 @@ export default function ModsHomePage() {
         }
       />
 
-      {/* Brütal: ince çerçeveli arama kapsülü, altında sade tür süzgeci —
+      {/* Brütal: ince çerçeveli arama kapsülü, tür süzgeci kapsülün ucunda —
           katmanların ağır çerçevesiyle yarışmasın diye gölgesiz ve hafif */}
       {brutal ? (
-        <div className="mb-5 mt-1 flex flex-col gap-2.5">
-          <div className="relative flex h-10 items-center rounded-full border-[1.5px] border-[#111] bg-white transition-shadow focus-within:shadow-[2px_2px_0_#111]">
-            <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-[#111]/45" strokeWidth={2} />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t("features.searchPlaceholder")}
-              aria-label={t("features.searchPlaceholder")}
-              className="h-full w-full rounded-full bg-transparent pl-10 pr-10 text-[14px] font-medium text-[#111] outline-none placeholder:font-normal placeholder:text-[#111]/40"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch("")}
-                className="absolute right-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#111]/[0.07] text-[#111]/70"
-                aria-label={t("features.clearSearch")}
-              >
-                <X className="h-3 w-3" strokeWidth={2.4} />
-              </button>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {[{ kind: null as MeasureUiKind | null, label: t("features.allKinds"), n: (mods ?? []).length }, ...kindCounts].map((k) => {
-              const on = kindFilter === k.kind;
-              return (
-                <button
-                  key={k.kind ?? "all"}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => setKindFilter(k.kind)}
-                  className={cn(
-                    "flex h-7 shrink-0 items-center gap-1.5 rounded-full border-[1px] px-3 text-[12px] font-semibold transition-colors",
-                    on ? "border-[#111] bg-[#111] text-white" : "border-[#111]/15 bg-white/60 text-[#111]/70"
-                  )}
-                >
-                  {k.label}
-                  <span className={cn("font-mono text-[10.5px]", on ? "opacity-70" : "opacity-45")}>{k.n}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <FeatureFilter
+          search={search}
+          onSearch={setSearch}
+          kinds={kindCounts}
+          active={activeKind}
+          onActive={setKindFilter}
+        />
       ) : (
       <div className="relative mb-5 mt-1">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/45" />
