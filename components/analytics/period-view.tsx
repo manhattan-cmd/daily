@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { db } from "@/lib/db";
 import { cn, toLocalDateValue } from "@/lib/utils";
-import { Layer } from "@/components/ui/layer";
+import { Layer, PageSheet } from "@/components/ui/layer";
 import { useIsBrutal } from "@/components/structure/brutal";
 import {
   bucketKeyOf,
@@ -455,13 +455,16 @@ export function PeriodView({
   // "burada bir şey bozuk" hissi veriyordu — davet daha dürüst
   if (totalEntries === 0) {
     return (
-      <>
-        <PageHeader
-          title={title ?? periodLabel(period, locale)}
-          description={t("insights.period")}
-          back={back}
-          className="band-an"
-        />
+      <PageSheet
+        top={
+          <PageHeader
+            title={title ?? periodLabel(period, locale)}
+            description={t("insights.period")}
+            back={back}
+            className="band-an"
+          />
+        }
+      >
         <EmptyState
           icon={BarChart3}
           title={t("insights.empty.title")}
@@ -475,21 +478,24 @@ export function PeriodView({
             </Button>
           }
         />
-      </>
+      </PageSheet>
     );
   }
 
   // İlk yüklemede iskelet — boş görünüp sonra dolmaktansa şeklini göster
   if (!data) {
     return (
-      <>
-        <PageHeader
-          compact
-          className={ANALYSIS_HEADER}
-          title={title ?? periodLabel(period, locale)}
-          titleSlot={<PeriodNav period={requestedPeriod} />}
-          nav={<PeriodTabs period={requestedPeriod} />}
-        />
+      <PageSheet
+        top={
+          <PageHeader
+            compact
+            className={ANALYSIS_HEADER}
+            title={title ?? periodLabel(period, locale)}
+            titleSlot={<PeriodNav period={requestedPeriod} />}
+            nav={<PeriodTabs period={requestedPeriod} />}
+          />
+        }
+      >
         <div className="flex flex-col gap-4 pb-6">
           <div className="grid grid-cols-3 gap-2">
             <Skeleton className="h-[76px] rounded-2xl" />
@@ -499,7 +505,7 @@ export function PeriodView({
           <Skeleton className="h-[220px] rounded-2xl" />
           <Skeleton className="h-[140px] rounded-2xl" />
         </div>
-      </>
+      </PageSheet>
     );
   }
   const showProgress =
@@ -509,7 +515,8 @@ export function PeriodView({
     period.kind !== "all";
 
   return (
-    <>
+    <PageSheet
+      top={
       <PageHeader
         compact
         // Bandın kendi zemini — sayfanın üstünde ayrı bir bölüm olduğu belli
@@ -553,6 +560,8 @@ export function PeriodView({
           </div>
         }
       />
+      }
+    >
 
       <div className={cn("flex flex-col pb-6", "gap-4")}>
         {/* Özet (KPI kutuları + dönem serisi) RAFTA — bkz. SHOW_PERIOD_SUMMARY */}
@@ -655,6 +664,6 @@ export function PeriodView({
         </LazyMount>
         )}
       </div>
-    </>
+    </PageSheet>
   );
 }

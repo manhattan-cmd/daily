@@ -270,7 +270,7 @@ export function StatTiles({
   // sıra kaydırılıyor. Genişlik üç kutu tam sığmayacak kadar — dördüncünün
   // ucu görünüp "devamı var" diyor.
   return (
-    <HScroll wrapperClassName="-mx-4" className="gap-2 px-4 pb-1">
+    <HScroll wrapperClassName="-mx-[var(--bleed,1rem)]" className="gap-2 px-[var(--bleed,1rem)] pb-1">
       {shown.map((key, slot) => {
         const it = tile(key);
         if (!it) return null;

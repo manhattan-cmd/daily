@@ -33,6 +33,7 @@ import { lastOf, loadThingScope, perEntry } from "@/components/analytics/thing-s
 import { currentThingValues } from "@/lib/db/things";
 import { routes } from "@/lib/routes";
 import type { Entry } from "@/types";
+import { PageSheet } from "@/components/ui/layer";
 
 const CARD = "rounded-2xl border border-border bg-card p-4";
 const H3 = "mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
@@ -182,7 +183,7 @@ export function ThingAnalyticsPage({ thingId }: { thingId: string }) {
 
   if (data === undefined) return null;
   if (data === null)
-    return <PageHeader title="—" back="/analytics" className="band-an" />;
+    return <PageSheet top={<PageHeader title="—" back="/analytics" className="band-an" />} />;
 
   const { th, coll, scope, current } = data;
   const unit = metric.type === "mod" ? metric.mod.unit : "";
@@ -192,13 +193,16 @@ export function ThingAnalyticsPage({ thingId }: { thingId: string }) {
     .filter((m) => m && current[m.id]);
 
   return (
-    <>
-      <PageHeader
-        title={th.name}
-        description={coll?.name}
-        back={coll ? routes.analyticsCollection(coll.id) : "/analytics"}
-        className="band-an"
-      />
+    <PageSheet
+      top={
+        <PageHeader
+          title={th.name}
+          description={coll?.name}
+          back={coll ? routes.analyticsCollection(coll.id) : "/analytics"}
+          className="band-an"
+        />
+      }
+    >
       <div className="flex flex-col gap-4 pb-6">
         {/* Şu an — nesnenin durumu, son girdisinden */}
         {stateMods.length > 0 && (
@@ -334,6 +338,6 @@ export function ThingAnalyticsPage({ thingId }: { thingId: string }) {
           )
         )}
       </div>
-    </>
+    </PageSheet>
   );
 }

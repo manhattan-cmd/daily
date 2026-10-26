@@ -25,6 +25,7 @@ import { ShareBars, type ShareRow } from "@/components/analytics/share-bars";
 import { lastOf, loadThingScope, perEntry } from "@/components/analytics/thing-scope";
 import { routes } from "@/lib/routes";
 import type { Entry } from "@/types";
+import { PageSheet } from "@/components/ui/layer";
 
 const CARD = "rounded-2xl border border-border bg-card p-4";
 const H3 = "mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
@@ -117,15 +118,18 @@ export function CollectionAnalyticsPage({ collectionId }: { collectionId: string
   }, [data, metric, color, t]);
 
   if (data === undefined) return null;
-  if (data === null) return <PageHeader title="—" back="/analytics" className="band-an" />;
+  if (data === null) return <PageSheet top={<PageHeader title="—" back="/analytics" className="band-an" />} />;
   const { coll, scope } = data;
   const unit = metric.type === "mod" ? metric.mod.unit : "";
   // Dağılım (seçenek) metrikleri liste karşılaştırmasında yalnız sayı verir
   const mods = scope.mods;
 
   return (
-    <>
-      <PageHeader title={coll.name} description={t("objects.an.listInsights")} back="/analytics" className="band-an" />
+    <PageSheet
+      top={
+        <PageHeader title={coll.name} description={t("objects.an.listInsights")} back="/analytics" className="band-an" />
+      }
+    >
       {computed && (
         <div className="flex flex-col gap-4 pb-6">
           <MetricChips
@@ -175,6 +179,6 @@ export function CollectionAnalyticsPage({ collectionId }: { collectionId: string
           </div>
         </div>
       )}
-    </>
+    </PageSheet>
   );
 }

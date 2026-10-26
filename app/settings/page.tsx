@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { DataSection } from "@/components/settings/data-section";
 import { LanguageSection } from "@/components/settings/language-section";
 import { SkinSection } from "@/components/settings/skin-section";
+import { PageSheet } from "@/components/ui/layer";
 
 const APP_VERSION = "0.1.0";
 
@@ -33,12 +34,15 @@ export default function SettingsPage() {
   const heading = "mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
 
   return (
-    <>
-      <PageHeader
-        title={t("settings.title")}
-        description={t("settings.lead")}
-        back="/"
-      />
+    <PageSheet
+      top={
+        <PageHeader
+          title={t("settings.title")}
+          description={t("settings.lead")}
+          back="/"
+        />
+      }
+    >
 
       <div data-settings="" className="flex flex-col gap-6 pb-6">
         <section>
@@ -102,6 +106,6 @@ export default function SettingsPage() {
           </div>
         </section>
       </div>
-    </>
+    </PageSheet>
   );
 }

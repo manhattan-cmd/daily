@@ -22,7 +22,7 @@ import {
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Layer } from "@/components/ui/layer";
+import { Layer, PageSheet } from "@/components/ui/layer";
 import { CardListSkeleton } from "@/components/ui/skeleton";
 import { EntryCard } from "@/components/dashboard/entry-card";
 import { NoteCard } from "@/components/notes/note-card";
@@ -102,8 +102,11 @@ export default function HomePage() {
 
   return (
     <>
-      {/* Brütal: sayfanın başlığı bölümün bandında (uygulamanın moru, tram benekli;
-          bkz. globals.css "bolum bantlari") — selam üst yazı, tarih ters etiket */}
+    {/* Brütal: bant krem döşemede, sayfanın geri kalanı önündeki zeminde (bkz. PageSheet) */}
+    <PageSheet
+      top={
+      /* Brütal: sayfanın başlığı bölümün bandında (uygulamanın moru, tram benekli;
+          bkz. globals.css "bolum bantlari") — selam üst yazı, tarih ters etiket */
       <header
         // Bant sayfayla kayıyor — durum çubuğu ekrandan çıkınca zemine döner
         // (bkz. AppShell)
@@ -141,6 +144,8 @@ export default function HomePage() {
           <Settings className="h-4 w-4" />
         </Link>
       </header>
+      }
+    >
 
       {/* Brütal: bugün ve son 7 gün tek kartta (bkz. BrutToday); kart zaten pencere, dış katman yok */}
       {brutal ? (
@@ -312,6 +317,7 @@ export default function HomePage() {
         </div>
       )}
       </Layer>
+    </PageSheet>
 
       <DayEntrySheet
         date={today}

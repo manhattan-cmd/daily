@@ -6,6 +6,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { getCategory } from "@/lib/db/queries";
 import { CategoryOverviewPanel } from "@/components/analytics/category-overview-panel";
 import { ScopeAnalysisHeader, ScopeTitle, useScopePeriod } from "@/components/analytics/scope-period-bar";
+import { PageSheet } from "@/components/ui/layer";
 
 /**
  * Kategori analiz sayfası — zaman perspektifinin (dönem sayfaları) yanındaki
@@ -35,19 +36,22 @@ function CategoryAnalyticsContent({
   const [period, setPeriod] = useScopePeriod();
 
   return (
-    <>
-      <ScopeAnalysisHeader
-        category={category}
-        period={period}
-        onPick={setPeriod}
-        back={`/analytics?cat=${categoryId}`}
-      />
+    <PageSheet
+      top={
+        <ScopeAnalysisHeader
+          category={category}
+          period={period}
+          onPick={setPeriod}
+          back={`/analytics?cat=${categoryId}`}
+        />
+      }
+    >
       {category && (
         <>
           <CategoryOverviewPanel
             header={<ScopeTitle category={category} kicker={t("insights.categoryInsights")} />} category={category} period={period} />
         </>
       )}
-    </>
+    </PageSheet>
   );
 }

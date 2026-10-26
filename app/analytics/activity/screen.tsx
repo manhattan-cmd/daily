@@ -37,6 +37,7 @@ import { ChoiceDistribution } from "@/components/analytics/choice-distribution";
 import { metricOf } from "@/components/analytics/use-category-metrics";
 import type { Entry } from "@/types";
 import { routes } from "@/lib/routes";
+import { PageSheet } from "@/components/ui/layer";
 
 const ACTIVITY_COLOR = "#06b6d4";
 const norm = (s: string) => s.trim().toLocaleLowerCase("en-US");
@@ -264,8 +265,11 @@ export function ActivityAnalyticsPage({
   const metricLabel = metric.type === "count" ? "entries" : unit || undefined;
 
   return (
-    <>
-      <PageHeader title={name} description={t("activity.insights")} back="/analytics" className="band-an" />
+    <PageSheet
+      top={
+        <PageHeader title={name} description={t("activity.insights")} back="/analytics" className="band-an" />
+      }
+    >
 
       {data && data.activities.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">
@@ -444,6 +448,6 @@ export function ActivityAnalyticsPage({
           </div>
         )
       )}
-    </>
+    </PageSheet>
   );
 }

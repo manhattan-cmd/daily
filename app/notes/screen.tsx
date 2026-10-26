@@ -7,6 +7,7 @@ import { ArrowLeft, Trash2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
 import { useNoteDraft } from "@/components/notes/use-note-draft";
+import { PageSheet } from "@/components/ui/layer";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -91,8 +92,9 @@ export function NoteEditorPage({
   }
 
   return (
-    <>
-      {/* Başlık çubuğu */}
+    <PageSheet
+      top={
+      /* Başlık çubuğu */
       <div className="flex items-center justify-between pb-4 pt-10">
         <button
           onClick={handleBack}
@@ -110,6 +112,8 @@ export function NoteEditorPage({
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
+      }
+    >
 
       <input
         value={title}
@@ -133,6 +137,6 @@ export function NoteEditorPage({
         rows={6}
         className="mb-28 w-full resize-none overflow-hidden bg-transparent text-[15px] leading-relaxed text-foreground/90 outline-none placeholder:text-muted-foreground/40"
       />
-    </>
+    </PageSheet>
   );
 }

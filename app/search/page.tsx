@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SectionNav, chipClass } from "@/components/ui/section-nav";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { PageSheet } from "@/components/ui/layer";
 
 const LIMIT = 100;
 
@@ -80,12 +81,15 @@ export default function SearchPage() {
   const searching = !!(trimmed || categoryId);
 
   return (
-    <>
-      <PageHeader
-        title={t("search.title")}
-        description={t("search.lead")}
-        back="/"
-      />
+    <PageSheet
+      top={
+        <PageHeader
+          title={t("search.title")}
+          description={t("search.lead")}
+          back="/"
+        />
+      }
+    >
 
       <div className="relative mb-3">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
@@ -179,6 +183,6 @@ export default function SearchPage() {
           )}
         </div>
       )}
-    </>
+    </PageSheet>
   );
 }

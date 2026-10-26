@@ -13,6 +13,7 @@ import { NoteCard } from "@/components/notes/note-card";
 import { NoteWindow } from "@/components/notes/note-window";
 import { Input } from "@/components/ui/input";
 import type { Note } from "@/types";
+import { PageSheet } from "@/components/ui/layer";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -55,15 +56,18 @@ export default function StructureNotesPage() {
   }
 
   return (
-    <>
-      <StructureHeader
-        action={
-          <StructureAddButton
-            labelKey="structure.addNote"
-            onClick={handleNewNote}
-          />
-        }
-      />
+    <PageSheet
+      top={
+        <StructureHeader
+          action={
+            <StructureAddButton
+              labelKey="structure.addNote"
+              onClick={handleNewNote}
+            />
+          }
+        />
+      }
+    >
 
       {/* Notlar — arama + güne göre liste */}
       <section className="mb-6">
@@ -123,6 +127,6 @@ export default function StructureNotesPage() {
       {newNoteId && (
         <NoteWindow noteId={newNoteId} open onClose={() => setNewNoteId(null)} />
       )}
-    </>
+    </PageSheet>
   );
 }

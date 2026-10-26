@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 /**
  * Sayfa başlığının hemen altındaki yatay gezinme şeridi — Yapı sekmeleri ve
  * Analiz dönem çipleri aynı yerde, aynı biçimde dursun diye tek yerde.
- * Kenarlara taşar (-mx-4) ki kaydırılan sıra ekranın kenarında bitsin.
+ * Kenarlara taşar (-mx-4) ki kaydırılan sıra ekranın kenarında bitsin; sayfa
+ * zemininde (bkz. PageSheet) zeminin iç kenarında — pay --bleed değişkeninde.
  */
 export function SectionNav({
   children,
@@ -17,7 +18,7 @@ export function SectionNav({
   label?: string;
 }) {
   const row = (
-    <HScroll wrapperClassName="-mx-4 -mt-2 mb-5" className="gap-2 px-4 pb-1">
+    <HScroll wrapperClassName="-mx-[var(--bleed,1rem)] -mt-2 mb-5" className="gap-2 px-[var(--bleed,1rem)] pb-1">
       {children}
     </HScroll>
   );

@@ -11,7 +11,7 @@ import { swallowNextClick } from "@/lib/use-long-press";
 import { routes } from "@/lib/routes";
 import { prefetchDayOnPress } from "@/lib/db/day-cache";
 import { useSkin } from "@/lib/skin";
-import { Layer } from "@/components/ui/layer";
+import { Layer, PageSheet } from "@/components/ui/layer";
 
 /** Ay ve gün adları uygulamanın dilinde (eskiden sabit İngilizce diziydi) */
 function monthName(i: number, tag: string): string {
@@ -176,12 +176,18 @@ export default function CalendarPage() {
       // Brütal: kap kenardan kenara (-mx-4 px-4) — ay gezintisi bölümün
       // bandı olarak ekranın iki yanına uzansın; overflow-hidden onu kesmesin
       className={cn(
-        "flex min-h-full touch-pan-y select-none flex-col overflow-hidden pb-4",
-        brutal ? "-mx-4 px-4" : "pt-10"
+        "flex min-h-full touch-pan-y select-none flex-col overflow-hidden",
+        // Brütal: kap main'in alt payına da uzanır (-mb-4 + 1rem fazla boy) ki
+        // sayfa zemini alt menüye kadar insin — yoksa overflow-hidden zeminin
+        // alt 16 px'ini kesiyordu (bkz. PageSheet)
+        brutal ? "-mx-4 -mb-4 min-h-[calc(100%+1rem)] px-4" : "pb-4 pt-10"
       )}
     >
-      {/* Ay gezintisi — oklar sabit kalır, ay adı içerikle birlikte kayar.
-          Brütal: sayfanın başlığı, yeşil bant (bkz. globals.css "bolum bantlari") */}
+      {/* Brütal: bant krem döşemede, ay önündeki sayfa zemininde (bkz. PageSheet) */}
+      <PageSheet
+        top={
+      /* Ay gezintisi — oklar sabit kalır, ay adı içerikle birlikte kayar.
+          Brütal: sayfanın başlığı, yeşil bant (bkz. globals.css "bolum bantlari") */
       <div
         className={cn(
           "flex items-center justify-between",
@@ -220,6 +226,8 @@ export default function CalendarPage() {
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
+        }
+      >
 
       {/* Brütal: ay kendi katmanında (bkz. Layer) */}
       <Layer style={glideStyle}>
@@ -310,6 +318,7 @@ export default function CalendarPage() {
         })}
       </div>
       </Layer>
+      </PageSheet>
     </div>
   );
 }

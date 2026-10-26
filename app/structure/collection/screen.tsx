@@ -26,6 +26,7 @@ import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Thing } from "@/types";
+import { PageSheet } from "@/components/ui/layer";
 
 const H2 = "mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
 
@@ -51,7 +52,7 @@ export function CollectionScreen({ collectionId }: { collectionId: string }) {
 
   if (data === undefined) return null;
   if (data === null) {
-    return <BrutTopStrip back="/structure/objects" />;
+    return <PageSheet top={<BrutTopStrip back="/structure/objects" />} />;
   }
   const { c, mods, things, usage } = data;
   const color = c.color ?? "#94a3b8";
@@ -105,13 +106,16 @@ export function CollectionScreen({ collectionId }: { collectionId: string }) {
   };
 
   return (
-    <>
-      <BrutTopStrip
-        back="/structure/objects"
-        analyticsHref={routes.analyticsCollection(collectionId)}
-        onEdit={() => setEditOpen(true)}
-        onDelete={onDelete}
-      />
+    <PageSheet
+      top={
+        <BrutTopStrip
+          back="/structure/objects"
+          analyticsHref={routes.analyticsCollection(collectionId)}
+          onEdit={() => setEditOpen(true)}
+          onDelete={onDelete}
+        />
+      }
+    >
       <BrutHeroCard
         color={color}
         icon={c.icon}
@@ -208,6 +212,6 @@ export function CollectionScreen({ collectionId }: { collectionId: string }) {
           for (const m of picked) await addCollectionMod(collectionId, m.id);
         }}
       />
-    </>
+    </PageSheet>
   );
 }

@@ -7,6 +7,7 @@ import { getCategory, getSubCategory } from "@/lib/db/queries";
 import { CategoryOverviewPanel } from "@/components/analytics/category-overview-panel";
 import { ScopeAnalysisHeader, ScopeTitle, useScopePeriod } from "@/components/analytics/scope-period-bar";
 import { routes } from "@/lib/routes";
+import { PageSheet } from "@/components/ui/layer";
 
 /**
  * Alt kategori analiz sayfası — kategori analiziyle aynı panel, bu düğümün
@@ -46,14 +47,17 @@ function SubcategoryAnalyticsPageContent({
     : `${routes.analyticsCategory(categoryId)}&p=${period.key}`;
 
   return (
-    <>
-      <ScopeAnalysisHeader
-        category={category}
-        subcategory={subcategory}
-        period={period}
-        onPick={setPeriod}
-        back={backPath}
-      />
+    <PageSheet
+      top={
+        <ScopeAnalysisHeader
+          category={category}
+          subcategory={subcategory}
+          period={period}
+          onPick={setPeriod}
+          back={backPath}
+        />
+      }
+    >
 
       {category && subcategory && (
         <>
@@ -67,6 +71,6 @@ function SubcategoryAnalyticsPageContent({
         />
         </>
       )}
-    </>
+    </PageSheet>
   );
 }

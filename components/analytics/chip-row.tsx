@@ -54,7 +54,8 @@ export function ChipRow({ items }: { items: ChipItem[] }) {
   const tint = active?.color;
 
   return (
-    <div className="relative -mx-4">
+    // Kenardan kenara: pay sayfa zemininde zeminin iç kenarına kadar (bkz. PageSheet)
+    <div className="relative -mx-[var(--bleed,1rem)]">
       {/* Satırın tonu — seçim değişince yeni renk sönerek gelir */}
       {tint && (
         <div
@@ -66,7 +67,7 @@ export function ChipRow({ items }: { items: ChipItem[] }) {
           style={{ backgroundColor: `${tint}1c` }}
         />
       )}
-      <HScroll scrollRef={scrollRef} className="relative gap-2 px-4 py-2">
+      <HScroll scrollRef={scrollRef} className="relative gap-2 px-[var(--bleed,1rem)] py-2">
         {items.map((c) => (
           <button
             key={c.key}

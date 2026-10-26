@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { BrutEmpty, useIsBrutal } from "@/components/structure/brutal";
-import { Layer } from "@/components/ui/layer";
+import { Layer, PageSheet } from "@/components/ui/layer";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { db } from "@/lib/db";
@@ -269,18 +269,21 @@ export default function ModsHomePage() {
   const groups = brutal && activeKind ? allGroups.filter((g) => g.kind === activeKind) : allGroups;
 
   return (
-    <>
-      {/* Açıklama diğer Yapı sayfalarıyla aynı tek satırlık kalıpta: iki
-          satıra taşınca başlık uzuyor ve sekme şeridi aşağı kayıyordu.
-          Uzun anlatım sekmelerin altına indi. */}
-      <StructureHeader
-        action={
-          <StructureAddButton
-            labelKey="structure.addFeature"
-            onClick={() => setCreateOpen(true)}
-          />
-        }
-      />
+    <PageSheet
+      top={
+        /* Açıklama diğer Yapı sayfalarıyla aynı tek satırlık kalıpta: iki
+           satıra taşınca başlık uzuyor ve sekme şeridi aşağı kayıyordu.
+           Uzun anlatım sekmelerin altına indi. */
+        <StructureHeader
+          action={
+            <StructureAddButton
+              labelKey="structure.addFeature"
+              onClick={() => setCreateOpen(true)}
+            />
+          }
+        />
+      }
+    >
 
       {/* Brütal: ince çerçeveli arama kapsülü, tür süzgeci kapsülün ucunda —
           katmanların ağır çerçevesiyle yarışmasın diye gölgesiz ve hafif */}
@@ -779,6 +782,6 @@ export default function ModsHomePage() {
         </DialogContent>
         )}
       </Dialog>
-    </>
+    </PageSheet>
   );
 }

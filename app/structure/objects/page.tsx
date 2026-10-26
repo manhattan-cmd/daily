@@ -17,6 +17,7 @@ import { SmartText } from "@/components/ui/smart-text";
 import { useT } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
 import { useRouter } from "next/navigation";
+import { PageSheet } from "@/components/ui/layer";
 
 /**
  * Yapı › Nesneler — listeler (koleksiyonlar). Kart dili Kategoriler
@@ -36,12 +37,15 @@ export default function ObjectsPage() {
   }, []);
 
   return (
-    <>
-      <StructureHeader
-        action={
-          <StructureAddButton labelKey="objects.addCollection" onClick={() => setAddOpen(true)} />
-        }
-      />
+    <PageSheet
+      top={
+        <StructureHeader
+          action={
+            <StructureAddButton labelKey="objects.addCollection" onClick={() => setAddOpen(true)} />
+          }
+        />
+      }
+    >
 
       {data === undefined ? null : data.length === 0 ? (
         <EmptyState icon={Boxes} title={t("objects.emptyTitle")} description={t("objects.emptyBody")} />
@@ -89,6 +93,6 @@ export default function ObjectsPage() {
         nextOrder={data?.length ?? 0}
         onSaved={(c) => c && router.push(routes.structureCollection(c.id))}
       />
-    </>
+    </PageSheet>
   );
 }

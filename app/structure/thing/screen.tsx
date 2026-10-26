@@ -34,6 +34,7 @@ import { routes } from "@/lib/routes";
 import { toLocalDateValue, withUnit } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Mod } from "@/types";
+import { PageSheet } from "@/components/ui/layer";
 
 const H2 = "mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
 
@@ -95,7 +96,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
   }, [thingId]);
 
   if (data === undefined) return null;
-  if (data === null) return <BrutTopStrip back="/structure/objects" />;
+  if (data === null) return <PageSheet top={<BrutTopStrip back="/structure/objects" />} />;
   const { th, c, mods, entries, total, facts, subs, cats } = data;
   const { current } = data;
   const color = c?.color ?? "#94a3b8";
@@ -122,13 +123,16 @@ export function ThingScreen({ thingId }: { thingId: string }) {
   }
 
   return (
-    <>
-      <BrutTopStrip
-        back={back}
-        analyticsHref={routes.analyticsThing(thingId)}
-        onEdit={() => setRenameOpen(true)}
-        onDelete={onDelete}
-      />
+    <PageSheet
+      top={
+        <BrutTopStrip
+          back={back}
+          analyticsHref={routes.analyticsThing(thingId)}
+          onEdit={() => setRenameOpen(true)}
+          onDelete={onDelete}
+        />
+      }
+    >
       <BrutHeroCard color={color} icon={c?.icon} overline={c?.name ?? ""} title={th.name} />
 
       {/* Arşiv durumu */}
@@ -301,7 +305,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
           return true;
         }}
       />
-    </>
+    </PageSheet>
   );
 }
 

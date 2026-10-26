@@ -15,6 +15,7 @@ import {
 import { ExampleHint } from "@/components/structure/example-hint";
 import { useT } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
+import { PageSheet } from "@/components/ui/layer";
 
 export default function StructurePage() {
   const t = useT();
@@ -29,15 +30,18 @@ export default function StructurePage() {
   const [addOpen, setAddOpen] = useState(false);
 
   return (
-    <>
-      <StructureHeader
-        action={
-          <StructureAddButton
-            labelKey="structure.addCategory"
-            onClick={() => setAddOpen(true)}
-          />
-        }
-      />
+    <PageSheet
+      top={
+        <StructureHeader
+          action={
+            <StructureAddButton
+              labelKey="structure.addCategory"
+              onClick={() => setAddOpen(true)}
+            />
+          }
+        />
+      }
+    >
 
       <ExampleHint />
 
@@ -64,6 +68,6 @@ export default function StructurePage() {
         </div>
       )}
       <CategoryForm open={addOpen} onOpenChange={setAddOpen} />
-    </>
+    </PageSheet>
   );
 }
