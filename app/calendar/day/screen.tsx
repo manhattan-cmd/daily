@@ -6,9 +6,8 @@ import { useRouter } from "next/navigation";
 import { Layer, PageSheet } from "@/components/ui/layer";
 import { SummaryBlock } from "@/components/ui/summary-block";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, ArrowRight, Boxes, CalendarDays, ChevronLeft, ChevronRight, MoonStar, NotebookPen, Smile, Target, PenLine } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, ChevronLeft, ChevronRight, NotebookPen, Target } from "lucide-react";
 import { db } from "@/lib/db";
-import { createNote } from "@/lib/db/queries";
 import {
   prefetchDay,
   whenIdle,
@@ -22,20 +21,15 @@ import {
   moveDayItems,
 } from "@/lib/db/day-items";
 import { NoteCard } from "@/components/notes/note-card";
-import { NoteWindow } from "@/components/notes/note-window";
 import { EntryCard } from "@/components/dashboard/entry-card";
 import { LinkedEntryCard } from "@/components/dashboard/linked-entry-card";
 import { GoalCard } from "@/components/goals/goal-card";
-import { AddGoalSheet } from "@/components/goals/add-goal-sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CardListSkeleton } from "@/components/ui/skeleton";
 import type { EntryWithContext } from "@/types";
-import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
-import { AddMenu, type AddMenuItem } from "@/components/calendar/add-menu";
-import { SleepSheet } from "@/components/calendar/sleep-sheet";
+import { AddMenu } from "@/components/calendar/add-menu";
+import { useDayAdd } from "@/components/calendar/day-add";
 import { SleepCard } from "@/components/calendar/sleep-card";
-import { MoodSheet } from "@/components/calendar/mood-sheet";
-import { ThingEntrySheet } from "@/components/forms/thing-entry-sheet";
 import { MoodCard } from "@/components/calendar/mood-card";
 import { ActivityCard } from "@/components/calendar/activity-card";
 import {
@@ -119,20 +113,8 @@ export function CalendarDayPage({
   // Brütal tema: özet bloğu (tarih, Ekle, sayılar, dağılım), saat damgalı akış
   const brutal = useSkin() === "brutal";
   const router = useRouter();
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [sheetActivityMode, setSheetActivityMode] = useState(false);
-  // Var olan aktiviteye girdi eklerken sheet isim adımını atlayıp bu aktiviteyle açılır
-  const [presetActivity, setPresetActivity] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
-  const [goalSheetOpen, setGoalSheetOpen] = useState(false);
-  const [sleepSheetOpen, setSleepSheetOpen] = useState(false);
-  const [moodSheetOpen, setMoodSheetOpen] = useState(false);
-  // Ekle → Nesne: bir nesnenin durumu (Duster · km), eylemden bağımsız
-  const [thingSheetOpen, setThingSheetOpen] = useState(false);
-  // Ekle → Not ile açılan yeni notun penceresi
-  const [newNoteId, setNewNoteId] = useState<string | null>(null);
+  // Ekle menüsü ve açtığı pencereler — ana sayfayla ortak (bkz. useDayAdd)
+  const add = useDayAdd(date);
   // Toplu seçim — null: mod kapalı. Kart bazlı seçilir, girdi id'si tutulur.
   const [selected, setSelected] = useState<Set<string> | null>(null);
 
@@ -147,14 +129,6 @@ export function CalendarDayPage({
   // Aktivite adları — tablo küçük, id → kayıt haritası kart başlıkları için
   const activities = useLiveQuery(() => db.activities.toArray(), []);
   const activityById = new Map((activities ?? []).map((a) => [a.id, a]));
-  // Yerleşik akışların varlığı — Ekle menüsünde çıkıp çıkmayacaklarını belirler
-  const builtInKeys = useLiveQuery(async () => {
-    const cats = await db.categories.filter((c) => !!c.isBuiltIn).toArray();
-    // Anahtarı henüz doldurulmamış tek yerleşik = eski kurulumdaki Uyku
-    return new Set(cats.map((c) => c.builtInKey ?? "sleep"));
-  }, []);
-  const hasSleepCategory = builtInKeys?.has("sleep");
-  const hasMoodCategory = builtInKeys?.has("mood");
 
   // Yerleşik akışların girdileri kendi zarif yuvalarında gösterilir
   const builtInKeyOf = (e: { category: { isBuiltIn?: boolean; builtInKey?: string } }) =>
@@ -224,81 +198,7 @@ export function CalendarDayPage({
     [prevDay, nextDay]
   );
 
-  const addMenuItems: AddMenuItem[] = [
-        {
-          key: "entry",
-          label: t("add.entry"),
-          icon: PenLine,
-          iconClass: "text-primary",
-          onSelect: () => {
-            setSheetActivityMode(false);
-            setPresetActivity(null);
-            setSheetOpen(true);
-          },
-        },
-        {
-          key: "activity",
-          label: t("add.activity"),
-          icon: Boxes,
-          iconClass: "text-cyan-400",
-          onSelect: () => {
-            setSheetActivityMode(true);
-            setPresetActivity(null);
-            setSheetOpen(true);
-          },
-        },
-        {
-          key: "goal",
-          label: t("add.goal"),
-          icon: Target,
-          iconClass: "text-amber-400",
-          onSelect: () => setGoalSheetOpen(true),
-        },
-        {
-          key: "note",
-          label: t("add.note"),
-          icon: NotebookPen,
-          iconClass: "text-rose-400",
-          // Yeni not da diğer kayıtlar gibi pencerede açılır
-          onSelect: async () => {
-            const note = await createNote(date);
-            setNewNoteId(note.id);
-          },
-        },
-        ...(hasSleepCategory
-          ? ([
-              {
-                key: "sleep",
-                label: t("add.sleep"),
-                icon: MoonStar,
-                iconClass: "text-violet-400",
-                onSelect: () => setSleepSheetOpen(true),
-              },
-            ] satisfies AddMenuItem[])
-          : []),
-        ...(hasMoodCategory
-          ? ([
-              {
-                key: "mood",
-                label: t("add.mood"),
-                icon: Smile,
-                iconClass: "text-pink-400",
-                onSelect: () => setMoodSheetOpen(true),
-              },
-            ] satisfies AddMenuItem[])
-          : []),
-        ...(builtInKeys?.has("objects")
-          ? ([
-              {
-                key: "thing",
-                label: t("add.thing"),
-                icon: Boxes,
-                iconClass: "text-teal-400",
-                onSelect: () => setThingSheetOpen(true),
-              },
-            ] satisfies AddMenuItem[])
-          : []),
-  ];
+  const addMenuItems = add.items;
   const addMenu = <AddMenu items={addMenuItems} />;
 
   // Brütal başlığın sayıları
@@ -569,11 +469,7 @@ export function CalendarDayPage({
                       key={item.activityId}
                       activity={activityById.get(item.activityId)}
                       entries={item.entries}
-                      onAddEntries={(a) => {
-                        setPresetActivity({ id: a.id, name: a.name });
-                        setSheetActivityMode(false);
-                        setSheetOpen(true);
-                      }}
+                      onAddEntries={(a) => add.openEntry({ presetActivity: { id: a.id, name: a.name } })}
                       selection={selectionFor(
                         item.entries.map((e) => `entry:${e.id}`)
                       )}
@@ -635,36 +531,7 @@ export function CalendarDayPage({
         />
       )}
 
-      <DayEntrySheet
-        date={date}
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        activityMode={sheetActivityMode}
-        presetActivity={presetActivity}
-      />
-
-      <AddGoalSheet
-        date={date}
-        open={goalSheetOpen}
-        onClose={() => setGoalSheetOpen(false)}
-      />
-
-      <SleepSheet
-        date={date}
-        open={sleepSheetOpen}
-        onClose={() => setSleepSheetOpen(false)}
-      />
-
-      {newNoteId && (
-        <NoteWindow noteId={newNoteId} open onClose={() => setNewNoteId(null)} />
-      )}
-
-      <MoodSheet
-        date={date}
-        open={moodSheetOpen}
-        onClose={() => setMoodSheetOpen(false)}
-      />
-      <ThingEntrySheet date={date} open={thingSheetOpen} onClose={() => setThingSheetOpen(false)} />
+{add.sheets}
     </>
   );
 }

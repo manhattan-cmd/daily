@@ -7,7 +7,8 @@ import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 /**
- * Sayfa özeti (Brütal) — gün, kategori ve alt kategori sayfalarının tepesi.
+ * Sayfa özeti (Brütal) — gün, kategori, alt kategori sayfalarının ve ana
+ * sayfanın Bugün bloğunun tepesi.
  *
  * Eskiden üç ayrı kart üst üste duruyordu (tarih/başlık kartı, sayı şeridi,
  * gün analizi), her biri kendi çerçevesi ve gölgesiyle; kategori sayfasında
@@ -31,7 +32,9 @@ export type SummaryStat = {
 
 export type SummaryLead =
   | { kind: "date"; weekday: string; today?: string; day: number; month: string; year: number }
-  | { kind: "thing"; color: string; icon?: string; overline: string; title: string };
+  | { kind: "thing"; color: string; icon?: string; overline: string; title: string }
+  /** Ana sayfa: "BUGÜN · 8 girdi" — sayının neyin sayısı olduğu üstünde yazılı */
+  | { kind: "count"; overline: string; value: string; unit: string; hint?: string };
 
 export type SummaryLink = {
   href: string;
@@ -42,6 +45,20 @@ export type SummaryLink = {
 };
 
 function Lead({ lead }: { lead: SummaryLead }) {
+  if (lead.kind === "count") {
+    return (
+      <div className="flex h-full min-w-0 flex-col justify-center bg-[#ffd23f] px-3.5 py-2.5 text-[#111]">
+        <span className="self-start rounded-md bg-[#111] px-1.5 py-px text-[10px] font-black uppercase tracking-wider text-[#ffd23f]">
+          {lead.overline}
+        </span>
+        <div className="mt-1.5 flex items-baseline gap-1.5">
+          <b className="font-mono text-[30px] font-bold leading-none tabular-nums">{lead.value}</b>
+          <span className="text-[16px] font-black leading-none">{lead.unit}</span>
+        </div>
+        {lead.hint && <span className="mt-1 truncate text-[11.5px] font-bold opacity-70">{lead.hint}</span>}
+      </div>
+    );
+  }
   if (lead.kind === "date") {
     return (
       <div className="flex h-full min-w-0 flex-col justify-center bg-[#ffd23f] px-3.5 py-2.5 text-[#111]">
@@ -127,7 +144,8 @@ export function SummaryBlock({
         <div className="min-w-0 flex-1">
           <Lead lead={lead} />
         </div>
-        {action && <div className="h-[76px] w-[76px] shrink-0">{action}</div>}
+        {/* Satır boyunca uzar: ad iki satıra taşınca altında siyah boşluk kalmasın */}
+        {action && <div className="min-h-[76px] w-[76px] shrink-0">{action}</div>}
       </div>
       {/* Sayı kadar sütun: bağlı sayısal özelliği olmayan kategoride iki;
           sayılar yüklenirken satır hiç yok */}

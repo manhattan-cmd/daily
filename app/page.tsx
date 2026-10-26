@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   ArrowRight,
+  Layers,
   Plus,
   Search,
   Settings,
@@ -19,34 +21,57 @@ import {
   noteMoment,
   type DayBar,
 } from "@/lib/db/queries";
-import { db } from "@/lib/db";
+import { loadHomeSnapshot, type FrequentItem, type HomeSnapshot } from "@/lib/db/home";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Layer, PageSheet } from "@/components/ui/layer";
+import { SummaryBlock } from "@/components/ui/summary-block";
 import { CardListSkeleton } from "@/components/ui/skeleton";
 import { EntryCard } from "@/components/dashboard/entry-card";
 import { NoteCard } from "@/components/notes/note-card";
 import { prefetchDay, prefetchDayOnPress, whenIdle } from "@/lib/db/day-cache";
 import { BackupReminder } from "@/components/dashboard/backup-reminder";
-import { WelcomeCard } from "@/components/dashboard/welcome-card";
-import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
+import { GettingStarted, WELCOME_DISMISSED, type StartStep } from "@/components/dashboard/getting-started";
+import { AddMenu, type AddMenuItem } from "@/components/calendar/add-menu";
+import { useDayAdd } from "@/components/calendar/day-add";
+import { CategoryForm } from "@/components/structure/category-form";
+import { SymbolIcon } from "@/lib/icons";
+import { useLocalFlag } from "@/lib/local-flag";
+import { useLastBackupAt } from "@/lib/storage-health";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import { intlTag, translate, useLocale, useT } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
 import { useSkin } from "@/lib/skin";
+import type { SubCategory } from "@/types";
 
 const WEEKDAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 /** Ana sayfadaki son kayıtlar (girdi + not) */
 const RECENT_LIMIT = 20;
 
+/**
+ * Ana sayfa — yeni kullanıcının ilk, eski kullanıcının her gün açtığı yer.
+ *
+ * Yukarıdan aşağı: Başlarken (yeni kullanıcıyı yapıya, ilk girdiye, hedefe
+ * ve yedeğe götüren liste; bitince kalkar), Bugün (sayının neyin sayısı
+ * olduğu yazılı, yanında gün sayfasındakiyle aynı genel Ekle — girdi,
+ * aktivite, hedef, not, uyku, ruh hali, nesne), Yine ekle (son 30 günün en
+ * sık kalemleri, tek dokunuşla formu açar), son 7 gün, Yapın (yapıya giden
+ * kapı) ve son girdiler.
+ *
+ * Eskiden "8 girdi" yazıyordu ama bugünün mü belli değildi; ekleme düğmesi
+ * yalnız girdi açıyordu, uyku ya da hedef için güne gitmek gerekiyordu.
+ */
 export default function HomePage() {
   const t = useT();
   // Dil kancadan gelmeli: doğrudan getLocale() okumak sunucu çıktısıyla
   // istemci ilk çizimini ayrıştırıp hydration uyuşmazlığı yaratıyor
   const locale = useLocale();
   const brutal = useSkin() === "brutal";
+  const router = useRouter();
   const today = toLocalDateValue();
-  const [sheetOpen, setSheetOpen] = useState(false);
+  // Gün sayfasıyla aynı Ekle menüsü ve pencereleri, bugün için
+  const add = useDayAdd(today);
+  const [catFormOpen, setCatFormOpen] = useState(false);
 
   // Son girdiler notlarla karışık, zaman sırasıyla — not da günün bir
   // kaydı; ayrı bir bölüm açmak yerine aynı akışa giriyor
@@ -63,6 +88,7 @@ export default function HomePage() {
       .slice(0, RECENT_LIMIT);
   }, []);
   const week = useLiveQuery(() => getRecentDaySummaries(7), []);
+  const home = useLiveQuery(() => loadHomeSnapshot(), []);
 
   // Ana sayfadan gidilen günler: bugün ve hafta şeridinde GİRDİSİ OLAN
   // günler önceden okunsun, dokununca kartlar beklenmeden çizilsin (bkz.
@@ -81,13 +107,30 @@ export default function HomePage() {
     [today, weekDates]
   );
   const goals = useLiveQuery(() => listGoalsByDate(today), [today]);
-  const hasCategories = useLiveQuery(
-    async () => (await db.categories.count()) > 0,
-    []
-  );
+  const hasCategories = (home?.counts.categories ?? 0) > 0;
 
   const todayInfo = week?.[week.length - 1];
   const doneGoals = (goals ?? []).filter((g) => g.completedEntryId).length;
+
+  // Başlarken — adımların durumu verinin kendisinden
+  const lastBackupAt = useLastBackupAt();
+  const [startDismissed, dismissStart] = useLocalFlag(WELCOME_DISMISSED);
+  const steps: StartStep[] | undefined = home && [
+    { key: "category", done: home.ownCategory },
+    { key: "entry", done: home.totalEntries > 0 },
+    { key: "goal", done: home.goalsEver > 0 },
+    { key: "backup", done: lastBackupAt !== null },
+  ];
+  const showStart = !startDismissed && !!steps && steps.some((s) => !s.done);
+  const start = showStart && steps && (
+    <GettingStarted
+      steps={steps}
+      onDismiss={dismissStart}
+      onCreateCategory={() => setCatFormOpen(true)}
+      onAddEntry={() => add.openEntry()}
+      onAddGoal={add.openGoal}
+    />
+  );
 
   // Son girdilerin başındaki arama düğmesi — brütalde katman adının sağında
   const searchLink = (
@@ -135,6 +178,8 @@ export default function HomePage() {
             {longDate(locale)}
           </h1>
         </div>
+        {/* Brütalde Ekle Bugün bloğunun karosu; ötekilerde başlıkta */}
+        {!brutal && <div className="mb-1"><AddMenu items={add.items} /></div>}
         <Link
           href="/settings"
           aria-label={t("nav.settings")}
@@ -147,24 +192,30 @@ export default function HomePage() {
       }
     >
 
-      {/* Brütal: bugün ve son 7 gün tek kartta (bkz. BrutToday); kart zaten pencere, dış katman yok */}
       {brutal ? (
-        <Layer bare label={t("home.today")}>
-          <WelcomeCard />
-          <BackupReminder />
-          <BrutToday
+        <>
+          {start}
+          {/* Başlarken açıkken yedek orada bir adım — iki kez söylenmesin */}
+          {!showStart && <BackupReminder />}
+          <BrutTodayBlock
             today={today}
-            week={week}
+            snapshot={home}
             goals={goals?.length ?? 0}
             goalsDone={doneGoals}
-            onAdd={() => setSheetOpen(true)}
+            items={add.items}
           />
-        </Layer>
+          {home && home.frequent.length > 0 && (
+            <FrequentLayer items={home.frequent} onPick={(sub) => add.openEntry({ presetSub: sub })} />
+          )}
+          {/* Hiç girdisi olmayana boş çubuklar bir şey söylemiyor */}
+          {home && home.totalEntries > 0 && week && <BrutWeek week={week} today={today} />}
+          {home && !showStart && <StructureLink counts={home.counts} />}
+        </>
       ) : (
       <>
       <Layer label={t("home.today")}>
-      <WelcomeCard />
-      <BackupReminder />
+      {start}
+      {!showStart && <BackupReminder />}
 
       {/* Bugün — günün özeti + doğrudan girdi ekleme */}
       <section data-home-today="" className="mb-4 overflow-hidden rounded-2xl border border-border bg-card">
@@ -178,7 +229,7 @@ export default function HomePage() {
             </p>
             <p className="mt-0.5 flex items-baseline gap-1.5">
               <span className="text-2xl font-semibold tabular-nums leading-none">
-                {todayInfo?.count ?? 0}
+                {home?.today.entries ?? 0}
               </span>
               <span className="text-sm text-muted-foreground">{t("home.entries")}</span>
             </p>
@@ -219,9 +270,9 @@ export default function HomePage() {
           olan tek soru, kullanıcıyı düşünmeden forma sokuyor. */}
       <button
         type="button"
-        onClick={() => setSheetOpen(true)}
+        onClick={() => add.openEntry()}
         data-home-cta=""
-        className={cn("group flex w-full items-center gap-3.5 overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent px-4 py-4 text-left transition-all hover:border-primary/60 hover:from-primary/25 active:scale-[0.99]", brutal ? "mb-0" : "mb-6")}
+        className="group mb-6 flex w-full items-center gap-3.5 overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent px-4 py-4 text-left transition-all hover:border-primary/60 hover:from-primary/25 active:scale-[0.99]"
       >
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform group-hover:scale-105">
           <Plus className="h-6 w-6" strokeWidth={2.5} />
@@ -241,12 +292,10 @@ export default function HomePage() {
       {/* Son 7 gün — ritim şeridi; sütuna dokun, o güne git */}
       {week && week.some((d) => d.count > 0) && (
         <Layer label={t("home.last7Days")}>
-        <section className={brutal ? undefined : "mb-6"}>
-          {!brutal && (
+        <section className="mb-6">
           <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("home.last7Days")}
           </h2>
-          )}
           <div className="flex items-end justify-between gap-1.5 rounded-2xl border border-border bg-card px-3 py-3">
             {week.map((d) => (
               <WeekBar
@@ -267,7 +316,9 @@ export default function HomePage() {
       {/* Arama buraya ait: aranan şey girdiler, listenin başında duruyor.
           Tepedeki simge sırasında ne aradığı belirsizdi. Buradaki listede
           yalnız son 20 var, düğme tüm geçmişi tarayan sayfaya götürür —
-          bölüm içi büyüteçlerden (yerinde süzme) ayrılsın diye yazılı. */}
+          bölüm içi büyüteçlerden (yerinde süzme) ayrılsın diye yazılı.
+          Hiç girdi yokken Başlarken'in ikinci adımı aynı şeyi söylüyor. */}
+      {!(showStart && recent?.length === 0) && (
       <Layer label={t("home.recentEntries")} action={searchLink}>
       {!brutal && (
       <div className="mb-3 flex items-center justify-between gap-2 px-1">
@@ -291,7 +342,7 @@ export default function HomePage() {
           }
           action={
             hasCategories ? (
-              <Button onClick={() => setSheetOpen(true)}>
+              <Button onClick={() => add.openEntry()}>
                 <Plus className="h-4 w-4" />
                 {t("home.addEntry")}
               </Button>
@@ -317,69 +368,135 @@ export default function HomePage() {
         </div>
       )}
       </Layer>
+      )}
     </PageSheet>
 
-      <DayEntrySheet
-        date={today}
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
+      {add.sheets}
+      {/* Başlarken → Kategori oluştur: kaydedince kategorinin sayfası, alt
+          kategorileri orada eklenir */}
+      <CategoryForm
+        open={catFormOpen}
+        onOpenChange={setCatFormOpen}
+        onSaved={(c) => {
+          if (c) router.push(routes.structureCategory(c.id));
+        }}
       />
     </>
   );
 }
 
 /**
- * Brütal ana sayfanın Bugün kartı — bugünün sayısı, son 7 günün şeridi ve
- * girdi ekleme tek kartta. Eskiden üç ayrı kutu (bugün, ekle, son 7 gün)
- * iki katmana dağılmıştı; bugün haftanın son sütunu olarak şeritte vurgulu.
+ * Brütal Bugün bloğu — gün sayfasının özetiyle aynı blok (bkz. SummaryBlock):
+ * solda "BUGÜN · 8 girdi" ve son girdinin saati, yanında kare Ekle (gün
+ * sayfasındaki menünün aynısı), altında kategori · hedef · seri, en altta
+ * güne giden satır ve bugünün kategori dağılımı.
  */
-function BrutToday({
+function BrutTodayBlock({
   today,
-  week,
+  snapshot,
   goals,
   goalsDone,
-  onAdd,
+  items,
 }: {
   today: string;
-  week: DayBar[] | undefined;
+  snapshot: HomeSnapshot | undefined;
   goals: number;
   goalsDone: number;
-  onAdd: () => void;
+  items: AddMenuItem[];
 }) {
   const t = useT();
-  const locale = useLocale();
-  const days = week ?? [];
-  const max = Math.max(...days.map((x) => x.count), 1);
-  const todayCount = days[days.length - 1]?.count ?? 0;
-
+  const tag = intlTag(useLocale());
+  const lastAt = snapshot?.today.lastAt;
   return (
-    <div className="overflow-hidden rounded-2xl border-2 border-[#111] bg-white text-[#111] shadow-[4px_4px_0_#111]">
-      {/* Bugünün sayısı — dokununca gün sayfası */}
-      <Link
-        href={routes.day(today)}
-        {...prefetchDayOnPress(today)}
-        className="flex items-center gap-3 px-4 pb-1 pt-3.5"
-      >
-        <span className="flex min-w-0 flex-1 items-baseline gap-2">
-          <b className="font-mono text-[34px] font-bold leading-none tabular-nums">{todayCount}</b>
-          <span className="text-[14px] font-bold">{t("home.entries")}</span>
-        </span>
-        {goals > 0 && (
-          <span className="flex shrink-0 items-center gap-1 rounded-full border-[1.5px] border-[#111] bg-[#ff9ecd] px-2.5 py-1 text-[12px] font-extrabold">
-            <Target className="h-3.5 w-3.5" strokeWidth={2.5} />
-            <span className="font-mono tabular-nums">
-              {goalsDone}/{goals}
-            </span>
-          </span>
-        )}
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-[1.5px] border-[#111] bg-white shadow-[2px_2px_0_#111]">
-          <ArrowRight className="h-4 w-4" strokeWidth={2.75} />
-        </span>
-      </Link>
+    <SummaryBlock
+      className="mb-4"
+      lead={{
+        kind: "count",
+        overline: t("home.today"),
+        value: String(snapshot?.today.entries ?? 0),
+        unit: t("home.entries"),
+        hint: lastAt
+          ? t("home.lastAt", {
+              time: new Date(lastAt).toLocaleTimeString(tag, { hour: "2-digit", minute: "2-digit" }),
+            })
+          : t("home.prompt"),
+      }}
+      action={<AddMenu tile items={items} />}
+      stats={
+        snapshot
+          ? [
+              { label: t("brut.categories"), value: String(snapshot.today.categories), color: "#7ae582" },
+              { label: t("brut.goals"), value: goals ? `${goalsDone}/${goals}` : "–", color: "#ff9ecd" },
+              {
+                label: t("home.streak"),
+                value: String(snapshot.streak.current),
+                unit: t("home.streakUnit"),
+                color: "#8ea6ff",
+              },
+            ]
+          : []
+      }
+      link={{ href: routes.day(today), label: t("home.openDay"), bars: snapshot?.today.bars }}
+    />
+  );
+}
 
-      {/* Son 7 gün — sütunlar günün kategori kırılımıyla yığılı; bugün en sağda */}
-      <div className="flex items-end gap-1.5 px-3 pb-3 pt-2">
-        {days.map((d) => {
+/**
+ * Yine ekle — son 30 günün en sık kalemleri. Dokununca girdi penceresi o
+ * kalemin formuyla açılır; kategori › alt kategori aramaya gerek kalmıyor.
+ * Kare karo = kategori/alt kategori (şekil dili).
+ */
+function FrequentLayer({ items, onPick }: { items: FrequentItem[]; onPick: (sub: SubCategory) => void }) {
+  const t = useT();
+  return (
+    <Layer label={t("home.frequent")}>
+      <div className="grid grid-cols-2 gap-2">
+        {items.map((it) => {
+          const name = it.isRoot ? it.category.name : it.sub.name;
+          const icon = it.sub.icon ?? it.category.icon;
+          return (
+            <button
+              key={it.sub.id}
+              type="button"
+              onClick={() => onPick(it.sub)}
+              aria-label={t("home.frequentAdd", { name })}
+              className="flex min-w-0 items-center gap-2 rounded-xl border-2 border-[#111] bg-white p-1.5 pr-2.5 text-left text-[#111] shadow-[2px_2px_0_#111] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+            >
+              <span
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111]"
+                style={{ background: it.category.color }}
+              >
+                {icon && <SymbolIcon name={icon} size={17} style={{ color: "#111" }} />}
+              </span>
+              {/* Ad iki satıra sarar — iki sütunda "Kahve / ç…" diye kesiliyordu;
+                  altında kategorisi (Beslenme › Su ile Faturalar › Su ayrılsın) */}
+              <span className="min-w-0 flex-1">
+                <span className="line-clamp-2 break-words text-[13px] font-black leading-tight">{name}</span>
+                <span className="block truncate text-[10.5px] font-bold text-[#111]/50">
+                  {it.isRoot ? t("brut.category") : it.category.name}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </Layer>
+  );
+}
+
+/**
+ * Son 7 gün — sütunlar günün kategori kırılımıyla yığılı, tepesinde sayısı;
+ * bugün en sağda. Sütuna dokun, o güne git.
+ */
+function BrutWeek({ week, today }: { week: DayBar[]; today: string }) {
+  const t = useT();
+  const locale = useLocale();
+  const max = Math.max(...week.map((x) => x.count), 1);
+  const total = week.reduce((n, d) => n + d.count, 0);
+  return (
+    <Layer label={t("home.last7Days")} count={total}>
+      <div className="flex items-end gap-1.5 rounded-2xl border-2 border-[#111] bg-white px-3 pb-3 pt-2.5 text-[#111] shadow-[3px_3px_0_#111]">
+        {week.map((d) => {
           const [y, m, dd] = d.date.split("-").map(Number);
           const dt = new Date(y, m - 1, dd);
           const isToday = d.date === today;
@@ -392,11 +509,14 @@ function BrutToday({
               aria-label={`${dt.getDate()} · ${d.count}`}
               className="flex flex-1 flex-col items-center gap-1"
             >
-              <span className="flex h-[52px] w-full items-end">
+              <span className="flex h-[66px] w-full flex-col items-center justify-end gap-0.5">
+                {d.count > 0 && (
+                  <span className="font-mono text-[10px] font-bold leading-none tabular-nums text-[#111]/70">{d.count}</span>
+                )}
                 {d.count > 0 ? (
                   <span
                     className="flex w-full flex-col-reverse overflow-hidden rounded-[6px] border-[1.5px] border-[#111]"
-                    style={{ height: 12 + Math.round((d.count / max) * 40) }}
+                    style={{ height: 10 + Math.round((d.count / max) * 42) }}
                   >
                     {d.segments.map((s, i) => (
                       <span key={i} style={{ flex: s.count, backgroundColor: s.color }} />
@@ -421,23 +541,37 @@ function BrutToday({
           );
         })}
       </div>
+    </Layer>
+  );
+}
 
-      {/* Girdi ekle — kartın tabanı, uygulamanın asıl işi */}
-      <button
-        type="button"
-        onClick={onAdd}
-        className="flex w-full items-center gap-3 border-t-2 border-[#111] bg-[#ffd23f] px-4 py-3 text-left active:bg-[#f5c400]"
-      >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#111] text-[#ffd23f]">
-          <Plus className="h-6 w-6" strokeWidth={3} />
+/**
+ * Yapın — kategori, alt kategori ve özelliklerin kapısı. Ana sayfadan yapıya
+ * giden yol alt menüdeki "Yapı"ydı; ne olduğunu bilmeyen oraya gitmiyordu.
+ * Sayılar zincirin üç halkasını adıyla söylüyor.
+ */
+function StructureLink({ counts }: { counts: HomeSnapshot["counts"] }) {
+  const t = useT();
+  return (
+    <Link
+      href="/structure"
+      className="mb-4 flex items-center gap-3 rounded-[18px] border-2 border-[#111] bg-white p-2.5 pr-3.5 text-[#111] shadow-[4px_4px_0_#111] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_#111]"
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-[#ffd23f]">
+        <Layers className="h-5 w-5" strokeWidth={2.5} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-black leading-tight">{t("home.structure")}</span>
+        <span className="block text-[11.5px] font-bold leading-snug text-[#111]/55">
+          {t("settings.structureCounts", {
+            categories: counts.categories,
+            subcategories: counts.subcategories,
+            features: counts.features,
+          })}
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[16px] font-black leading-tight">{t("home.addEntry")}</span>
-          <span className="block text-[12.5px] font-semibold text-[#111]/70">{t("home.prompt")}</span>
-        </span>
-        <ArrowRight className="h-5 w-5 shrink-0" strokeWidth={2.75} />
-      </button>
-    </div>
+      </span>
+      <ArrowRight className="h-5 w-5 shrink-0" strokeWidth={2.75} />
+    </Link>
   );
 }
 

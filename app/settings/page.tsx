@@ -6,7 +6,7 @@ import { ArrowRight, Layers, Sparkles } from "lucide-react";
 import { db } from "@/lib/db";
 import { setLocalFlag } from "@/lib/local-flag";
 import { useT } from "@/lib/i18n";
-import { WELCOME_DISMISSED } from "@/components/dashboard/welcome-card";
+import { WELCOME_DISMISSED } from "@/components/dashboard/getting-started";
 import { PageHeader } from "@/components/layout/page-header";
 import { DataSection } from "@/components/settings/data-section";
 import { LanguageSection } from "@/components/settings/language-section";

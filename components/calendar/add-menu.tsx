@@ -43,13 +43,23 @@ export function AddMenu({
   const t = useT();
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const [anchor, setAnchor] = useState<{ top: number; left: number } | null>(null);
+  const [anchor, setAnchor] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
   const toggle = () => {
     if (tile && !open && btnRef.current) {
       // Karonun sağ kenarına yaslı; ekranın solundan taşacaksa karonun sol
       // kenarına (panel 190 px)
       const r = btnRef.current.getBoundingClientRect();
-      setAnchor({ top: r.bottom + 8, left: Math.max(8, r.right - 190 < 8 ? r.left : r.right - 190) });
+      const left = Math.max(8, r.right - 190 < 8 ? r.left : r.right - 190);
+      // Altında yer yoksa karonun üstünde açılır: ana sayfada Başlarken kartı
+      // karoyu ekranın altına itiyor, panel alt menünün arkasına düşüyordu
+      const floor = document.querySelector("[data-bottom-nav]")?.getBoundingClientRect().top ?? window.innerHeight;
+      const need = Math.min(items.length * 48 + 14, window.innerHeight * 0.6);
+      const below = floor - r.bottom - 8;
+      setAnchor(
+        below < need && r.top - 8 > below
+          ? { bottom: window.innerHeight - r.top + 8, left }
+          : { top: r.bottom + 8, left }
+      );
     }
     setOpen((o) => !o);
   };
@@ -123,7 +133,19 @@ export function AddMenu({
         <div
           role="menu"
           aria-hidden={!open}
-          style={tile && anchor ? { position: "fixed", top: anchor.top, left: anchor.left, right: "auto", marginTop: 0 } : undefined}
+          style={
+            tile && anchor
+              ? {
+                  position: "fixed",
+                  top: anchor.top ?? "auto",
+                  bottom: anchor.bottom ?? "auto",
+                  left: anchor.left,
+                  right: "auto",
+                  marginTop: 0,
+                  transformOrigin: anchor.bottom !== undefined ? "bottom right" : undefined,
+                }
+              : undefined
+          }
           className={cn(
             "absolute right-0 top-full z-50 mt-2 origin-top-right",
             "w-[190px]",

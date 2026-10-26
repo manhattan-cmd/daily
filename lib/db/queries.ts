@@ -2168,9 +2168,11 @@ export async function getRecentDaySummaries(days = 7): Promise<DayBar[]> {
   const counts = new Map<string, number>();
   for (const e of entries) {
     const key = toLocalDateValue(e.occurredAt);
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+    // Gün sayfasının "Girdi" sayısıyla aynı: uyku, ruh hali ve nesne
+    // durumları eylem değil, sayılmaz (ana sayfanın Bugün sayısı da böyle)
     const catId = catIdBySub.get(e.subcategoryId);
-    if (!catId) continue;
+    if (!catId || catById.get(catId)?.isBuiltIn) continue;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
     const m = byDay.get(key) ?? new Map<string, number>();
     m.set(catId, (m.get(catId) ?? 0) + 1);
     byDay.set(key, m);

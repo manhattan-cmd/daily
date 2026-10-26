@@ -48,7 +48,8 @@ interface CategoryFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   category?: Category;
-  onSaved?: () => void;
+  /** Yeni kategoride oluşturulan kayıt da gelir (ana sayfa onun sayfasına gider) */
+  onSaved?: (saved?: Category) => void;
 }
 
 /** Kategori oluşturma ve düzenleme — Yapı'dan da girdi eklerken de bu pencere */
@@ -104,12 +105,13 @@ export function CategoryForm({
     }
     setSaving(true);
     try {
+      let created: Category | undefined;
       if (isEdit && category) {
         await updateCategory(category.id, { name: name.trim(), color, icon });
       } else {
-        await createCategory({ name: name.trim(), color, icon });
+        created = await createCategory({ name: name.trim(), color, icon });
       }
-      onSaved?.();
+      onSaved?.(created);
       onOpenChange(false);
     } finally {
       setSaving(false);
