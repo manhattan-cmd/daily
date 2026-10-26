@@ -56,7 +56,10 @@ export function FeatureFilter({
 
   return (
     <div className="relative mb-5 mt-1">
-      <div className="flex h-11 items-stretch overflow-hidden rounded-full border-[1.5px] border-[#111] bg-white transition-shadow focus-within:shadow-[2px_2px_0_#111]">
+      {/* Gölge yalnız aramaya yazarken: focus-within tür düğmesine
+          dokununca da yakıyordu, menü her açılışta bar büyüyüp seçince
+          küçülüyor gibi görünüyordu */}
+      <div className="flex h-11 items-stretch overflow-hidden rounded-full border-[1.5px] border-[#111] bg-white transition-shadow has-[input:focus]:shadow-[2px_2px_0_#111]">
         <label className="relative flex min-w-0 flex-1 items-center">
           <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-[#111]/45" strokeWidth={2} />
           <input
