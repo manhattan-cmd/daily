@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import { Check, Folder, X } from "lucide-react";
+import { Check, Folder, X, type LucideIcon } from "lucide-react";
 import {
   DialogClose,
   DialogContent,
@@ -39,6 +39,7 @@ const BrutalCtx = createContext(false);
 export function StructureFormShell({
   color,
   icon,
+  atom,
   title,
   eyebrow,
   onSubmit,
@@ -48,6 +49,9 @@ export function StructureFormShell({
   /** Önizleme karosunun rengi — kategorinin rengi */
   color: string;
   icon?: string;
+  /** Özellik penceresi: karo yerine daire, içinde ölçü türünün simgesi
+   *  (şekil dili: kare = kategori, daire = özellik) */
+  atom?: LucideIcon;
   /** Başlık: yazılan ad, boşsa pencerenin adı ("Yeni kategori") */
   title: string;
   /** Başlığın üstündeki küçük satır — nereye eklendiği ya da ne olduğu */
@@ -63,6 +67,7 @@ export function StructureFormShell({
         <BrutalFormShell
           color={color}
           icon={icon}
+          atom={atom}
           title={title}
           eyebrow={eyebrow}
           onSubmit={onSubmit}
@@ -84,7 +89,7 @@ export function StructureFormShell({
     >
       <form onSubmit={onSubmit} className="flex flex-1 flex-col">
         <div className="flex items-center gap-3.5 pb-5 pr-6">
-          <PreviewTile color={color} icon={icon} size={48} />
+          <PreviewTile color={color} icon={icon} atom={atom} size={48} />
           <div className="min-w-0 flex-1">
             {eyebrow && (
               <div className="mb-0.5 truncate text-[12px] font-medium text-muted-foreground">
@@ -116,6 +121,7 @@ export function StructureFormShell({
 function BrutalFormShell({
   color,
   icon,
+  atom: Atom,
   title,
   eyebrow,
   onSubmit,
@@ -124,6 +130,7 @@ function BrutalFormShell({
 }: {
   color: string;
   icon?: string;
+  atom?: LucideIcon;
   title: string;
   eyebrow?: React.ReactNode;
   onSubmit: (e: React.FormEvent) => void;
@@ -155,8 +162,15 @@ function BrutalFormShell({
             </DialogClose>
           </div>
           <div className="flex items-center gap-3 px-4 pb-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] transition-colors duration-300">
-              {icon ? (
+            <span
+              className={cn(
+                "flex h-11 w-11 shrink-0 items-center justify-center transition-colors duration-300",
+                Atom ? "rounded-full" : "rounded-[13px]"
+              )}
+            >
+              {Atom ? (
+                <Atom className="h-[22px] w-[22px]" strokeWidth={2.4} />
+              ) : icon ? (
                 <SymbolIcon name={icon} size={22} />
               ) : (
                 <Folder className="h-[22px] w-[22px]" strokeWidth={2.4} />
@@ -267,10 +281,13 @@ export const SUGGESTION_CHIP =
 export function PreviewTile({
   color,
   icon,
+  atom: Atom,
   size,
 }: {
   color: string;
   icon?: string;
+  /** Verilirse daire (özellik) ve içinde bu simge */
+  atom?: LucideIcon;
   size: number;
 }) {
   const glyph = Math.round(size * 0.5);
@@ -280,13 +297,15 @@ export function PreviewTile({
       style={{
         width: size,
         height: size,
-        borderRadius: Math.round(size * 0.28),
+        borderRadius: Atom ? "9999px" : Math.round(size * 0.28),
         backgroundColor: color,
         boxShadow:
           "inset 0 1px 0 rgba(255,255,255,0.25), inset 0 0 0 1px rgba(0,0,0,0.14)",
       }}
     >
-      {icon ? (
+      {Atom ? (
+        <Atom style={{ color: "#fff", width: glyph, height: glyph }} strokeWidth={2} />
+      ) : icon ? (
         <SymbolIcon name={icon} size={glyph} style={{ color: "#fff" }} />
       ) : (
         <Folder style={{ color: "#fff", width: glyph, height: glyph }} strokeWidth={2} />

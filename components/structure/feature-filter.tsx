@@ -24,7 +24,8 @@ function KindIcon({ kind, className }: { kind: MeasureUiKind | null; className?:
  * kalıyordu. Yana kayan tek satır da denendi, kenara taşıyordu. Burada sayfa
  * özelliklere kalıyor (88 px, ilk ekranda 16); türler dokununca alt alta
  * açılıyor, uzun adlar ("Çoktan seçmeli") sıkışmıyor. Seçili tür kapsülün
- * ucunda siyah — hangi süzgecin açık olduğu bakar bakmaz belli.
+ * ucunda siyah zeminde sarı simgesiyle — hangi süzgecin açık olduğu bakar
+ * bakmaz belli, düğmenin genişliği değişmiyor.
  */
 export function FeatureFilter({
   search,
@@ -82,14 +83,21 @@ export function FeatureFilter({
           aria-expanded={open}
           aria-label={`${t("features.filterByKind")}: ${cur?.label ?? ""}`}
           onClick={() => setOpen((v) => !v)}
+          // Sabit genişlik: düğmede türün adı yazarken "Çoktan seçmeli"de
+          // 168, "Sayı"da 95 px oluyordu, arama kutusu her seçimde daralıp
+          // genişliyordu. Tümü yazıyla, seçili tür yalnız simgesiyle (adı
+          // menüde ve altındaki katmanın başında zaten yazıyor).
           className={cn(
-            "flex shrink-0 items-center gap-1.5 border-l-[1.5px] border-[#111] pl-3 pr-3.5 text-[13px] font-extrabold",
+            "flex w-[84px] shrink-0 items-center justify-center gap-1 border-l-[1.5px] border-[#111] text-[13px] font-extrabold",
             active ? "bg-[#111] text-[#fff4dc]" : "bg-[#fff4dc] text-[#111]"
           )}
         >
-          <KindIcon kind={cur?.kind ?? null} className={cn("h-3.5 w-3.5", active && "text-[#ffd23f]")} />
-          {cur?.label}
-          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} strokeWidth={2.6} />
+          {active ? (
+            <KindIcon kind={active} className="h-[18px] w-[18px] text-[#ffd23f]" />
+          ) : (
+            <span className="truncate">{cur?.label}</span>
+          )}
+          <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 transition-transform", open && "rotate-180")} strokeWidth={2.6} />
         </button>
       </div>
       {open && (

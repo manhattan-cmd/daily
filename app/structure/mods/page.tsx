@@ -42,6 +42,12 @@ import {
   StructureAddButton,
   StructureHeader,
 } from "@/components/structure/structure-header";
+import {
+  FormActions,
+  FormSection,
+  NAME_INPUT,
+  StructureFormShell,
+} from "@/components/structure/structure-form-shell";
 import { useT } from "@/lib/i18n";
 import { confirmDialog } from "@/components/ui/confirm";
 import { cn } from "@/lib/utils";
@@ -665,6 +671,53 @@ export default function ModsHomePage() {
       {/* Yeni mod — başlıktaki çekirdek seçilen ölçüm türüyle birlikte
           değişir; yaratılan şeyin havuzdaki hâli daha ilk adımda görünür */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        {brutal ? (
+          /* Brütal: kategori penceresiyle aynı fiş — bant özelliğin
+             renginde (addan türüyor, yazdıkça değişir), daire karoda
+             seçilen ölçü türünün simgesi, başlık yazılan ad */
+          <StructureFormShell
+            color={modColor({ name })}
+            atom={MEASURE_KIND_META[uiKindOf(measure)].icon}
+            title={name.trim() || t("features.createNew")}
+            eyebrow={t("structure.features")}
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleCreate();
+            }}
+            footer={
+              <FormActions
+                submitLabel={t("action.create")}
+                cancelLabel={t("action.cancel")}
+                disabled={saving || !name.trim() || !isMeasureComplete(measure)}
+                onCancel={() => setCreateOpen(false)}
+              />
+            }
+          >
+            <FormSection label={t("tree.name")}>
+              <input
+                value={name}
+                onChange={(e) => { setName(e.target.value); setError(null); }}
+                placeholder={t("form.namePlaceholder")}
+                aria-label={t("features.name")}
+                className={NAME_INPUT}
+              />
+              {error && (
+                <div data-warn="" className="rounded-xl px-3 py-2.5 text-xs leading-relaxed">
+                  {error}
+                </div>
+              )}
+            </FormSection>
+            <FormSection label={t("measure.howMeasured")}>
+              <MeasureEditor
+                value={measure}
+                onChange={setMeasure}
+                knownUnits={knownUnits}
+                color={modColor({ name })}
+                hideLabel
+              />
+            </FormSection>
+          </StructureFormShell>
+        ) : (
         <DialogContent
           className="gap-3.5 max-h-[85dvh] overflow-y-auto p-5"
           // Açıklama satırı kaldırıldı; Radix'in aria-describedby uyarısı
@@ -724,6 +777,7 @@ export default function ModsHomePage() {
             </Button>
           </DialogFooter>
         </DialogContent>
+        )}
       </Dialog>
     </>
   );

@@ -112,7 +112,7 @@ export function MeasureEditor({
   };
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div data-measure-editor="" className="flex flex-col gap-2.5">
       {!hideLabel && <Label>{t("measure.howMeasured")}</Label>}
 
       <div className="grid grid-cols-3 gap-1.5">
