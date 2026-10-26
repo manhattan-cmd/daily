@@ -151,11 +151,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Masaüstünde status bar — telefondakiyle aynı renkte */}
         <StatusBar color={barColor ?? undefined} />
 
-        {/* İçerik — kaydırılabilir */}
+        {/* İçerik — kaydırılabilir. Çubuğun yeri hep ayrılı: Android'de
+            özel çubuk (globals.css, 6 px) yer kaplıyor; sayfa kısalıp
+            çubuk kaybolunca (Özellikler'de tür süzünce) bütün ekran 6 px
+            yana kayıp genişliyordu. */}
         <main
           ref={mainRef}
           data-app-main=""
-          className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4"
+          className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4 [scrollbar-gutter:stable]"
         >
           {children}
         </main>

@@ -189,7 +189,9 @@ function BrutalFormShell({
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 pb-6 pt-6">
+        {/* Çubuğun yeri hep ayrılı — ölçü türü değişip gövde kısalınca
+            kutular 6 px yana oynamasın (bkz. AppShell'in main'i) */}
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 pb-6 pt-6 [scrollbar-gutter:stable]">
           {children}
         </div>
 
