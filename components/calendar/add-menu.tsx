@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -33,14 +33,26 @@ export type AddMenuItem = {
  */
 export function AddMenu({
   items,
-  hero = false,
+  tile = false,
 }: {
   items: AddMenuItem[];
-  /** Brütal gün özetinde: tam genişlik, iri, vurgulu düğme */
-  hero?: boolean;
+  /** Brütal gün özetinin kare hücresi (bkz. SummaryBlock): hücreyi doldurur.
+   *  Panel ekrana sabitlenir — bloğun yuvarlak köşeleri taşanı kırpıyor */
+  tile?: boolean;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [anchor, setAnchor] = useState<{ top: number; left: number } | null>(null);
+  const toggle = () => {
+    if (tile && !open && btnRef.current) {
+      // Karonun sağ kenarına yaslı; ekranın solundan taşacaksa karonun sol
+      // kenarına (panel 190 px)
+      const r = btnRef.current.getBoundingClientRect();
+      setAnchor({ top: r.bottom + 8, left: Math.max(8, r.right - 190 < 8 ? r.left : r.right - 190) });
+    }
+    setOpen((o) => !o);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -67,22 +79,22 @@ export function AddMenu({
         onClick={() => setOpen(false)}
       />
 
-      <div className={cn("relative", "shrink-0", open && "z-50")}>
-        {hero ? (
+      <div className={cn("relative", "shrink-0", tile && "h-full w-full", open && "z-50")}>
+        {tile ? (
           <button
-            onClick={() => setOpen((o) => !o)}
-            data-add-hero=""
-            className="flex h-12 items-center gap-2.5 rounded-xl border-2 border-[#111] bg-[#7ae582] pl-1.5 pr-4 text-left text-[#111] shadow-[4px_4px_0_#111] transition-[transform,box-shadow] active:translate-x-[3px] active:translate-y-[3px] active:shadow-[1px_1px_0_#111]"
+            ref={btnRef}
+            onClick={toggle}
+            className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-[#7ae582] text-[#111] active:bg-[#5fd36a]"
             aria-expanded={open}
             aria-label={open ? t("action.close") : t("day.add")}
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] bg-[#111] text-[#7ae582]">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#111] text-[#7ae582]">
               <Plus
                 className={cn("h-6 w-6 transition-transform duration-200", open && "rotate-45")}
                 strokeWidth={3}
               />
             </span>
-            <span className="text-[16px] font-black">{t("day.add")}</span>
+            <span className="text-[13px] font-black leading-none">{t("day.add")}</span>
           </button>
         ) : (
         <button
@@ -111,6 +123,7 @@ export function AddMenu({
         <div
           role="menu"
           aria-hidden={!open}
+          style={tile && anchor ? { position: "fixed", top: anchor.top, left: anchor.left, right: "auto", marginTop: 0 } : undefined}
           className={cn(
             "absolute right-0 top-full z-50 mt-2 origin-top-right",
             "w-[190px]",

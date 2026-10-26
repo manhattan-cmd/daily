@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { BarChart3, Pencil, Plus, Trash2 } from "lucide-react";
 import { getSubCategory, getCategory, listCategoryTree, structureSummary } from "@/lib/db/queries";
-import { BrutEmpty, BrutSubHeader, BrutSubRows, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
+import { BrutEmpty, BrutSubRows, BrutThingSummary, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { toLocalDateValue } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import { DeleteSubCategoryDialog } from "@/components/structure/delete-subcatego
 import { RecentEntriesSection } from "@/components/structure/recent-entries-section";
 import { AnalysisSection } from "@/components/structure/analysis-section";
 import { routes } from "@/lib/routes";
-import { Layer } from "@/components/ui/layer";
+import { Layer, PageSheet } from "@/components/ui/layer";
 
 export function SubCategoryDetailPage({
   params,
@@ -68,8 +68,10 @@ export function SubCategoryDetailPage({
 
   return (
     <>
-      {brutal ? (
-        <>
+      {/* Brütal: üst menü krem döşemede; özet bloğu ve bölümler ekranı
+          kaplayan sayfa zemininde (bkz. PageSheet) */}
+      <PageSheet
+        top={brutal ? (
           <BrutTopStrip
             back={backPath}
             analyticsHref={routes.analyticsSub(categoryId, subcategoryId)}
@@ -84,19 +86,7 @@ export function SubCategoryDetailPage({
               setSubFormOpen(true);
             }}
           />
-          {/* Başlık kartı tek başına — dış katman iç içe pencere yapıyordu */}
-          {subcategory && (
-            <BrutSubHeader
-              parentName={parentSub?.name ?? category?.name}
-              title={subcategory.name}
-              summary={summary}
-              color={category?.color}
-              icon={subcategory.icon ?? category?.icon}
-              className="mb-4"
-            />
-          )}
-        </>
-      ) : (
+        ) : (
       <PageHeader
         title={subcategory?.name ?? "..."}
         description={category?.name}
@@ -137,6 +127,18 @@ export function SubCategoryDetailPage({
           )
         }
       />
+        )}
+      >
+      {/* Brütal: başlık ve sayılar tek blokta (bkz. BrutThingSummary) */}
+      {brutal && subcategory && (
+        <BrutThingSummary
+          color={category?.color ?? "#ffd23f"}
+          icon={subcategory.icon ?? category?.icon}
+          overline={parentSub?.name ?? category?.name ?? ""}
+          title={subcategory.name}
+          summary={summary}
+          className="mb-4"
+        />
       )}
 
       {/* Özellik atomları */}
@@ -230,7 +232,7 @@ export function SubCategoryDetailPage({
         color={category?.color}
       />
       )}
-
+      </PageSheet>
 
       <SubCategoryForm
         open={subFormOpen}

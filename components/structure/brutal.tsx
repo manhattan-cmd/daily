@@ -13,6 +13,7 @@ import { SmartText } from "@/components/ui/smart-text";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { TopBar, TopBarButton } from "@/components/ui/top-bar";
+import { SummaryBlock, type SummaryStat } from "@/components/ui/summary-block";
 
 /**
  * BRÜTAL YAPI SAYFALARI — yalnız Brütal tema seçiliyken (deneme).
@@ -130,68 +131,62 @@ export function BrutHeroCard({
   );
 }
 
-/** Alt kategori sayfasının başlığı ve üç renkli kutusu */
-export function BrutSubHeader({
-  parentName,
-  title,
-  summary,
+/**
+ * Kategori / alt kategori sayfasının tepesi — tek blokta (bkz. SummaryBlock):
+ * üstte renkli şeritte karo, üst kategori ve ad; altında sayılar. Eskiden
+ * kategoride damgalı tek kart, alt kategoride çıplak başlık ve üç ayrı kutu
+ * vardı. Sayılar aynı: para varsa para · girdi · ortalama; yoksa girdi · alt
+ * kategori · bağlı sayısal özelliğin toplamı (birden çoksa dokundukça
+ * sıradaki — eski damga gibi). Analiz üst menüde.
+ */
+export function BrutThingSummary({
   color,
   icon,
+  overline,
+  title,
+  summary,
   className,
 }: {
-  className?: string;
-  parentName?: string;
+  color: string;
+  icon?: string;
+  overline: string;
   title: string;
   summary?: StructureSummary;
-  /** Kategorinin rengi — alt kategorinin simge karosu bununla */
-  color?: string;
-  /** Alt kategorinin sembolü (yoksa kategorininki) */
-  icon?: string;
+  className?: string;
 }) {
   const t = useT();
-  const boxes: { label: string; value: string; bg: string; wide?: boolean }[] = [];
-  if (summary?.money)
-    boxes.push({ label: summary.money.name, value: `${fmt(summary.money.total)} ${summary.money.unit}`, bg: "#ff6b6b", wide: true });
-  if (summary) boxes.push({ label: t("brut.entries"), value: String(summary.entries), bg: "#8ea6ff" });
-  if (summary?.money) boxes.push({ label: t("brut.average"), value: fmt(summary.money.avg), bg: "#7ae582" });
-  else if (summary) boxes.push({ label: t("structure.subcategories"), value: String(summary.subs), bg: "#7ae582" });
+  const [mi, setMi] = useState(0);
+  const stats: SummaryStat[] = [];
+  if (summary?.money) {
+    stats.push({ label: summary.money.name, value: fmt(summary.money.total), unit: unitUnlessName(summary.money.unit, summary.money.name), color: "#ff6b6b" });
+    stats.push({ label: t("brut.entries"), value: String(summary.entries), color: "#8ea6ff" });
+    stats.push({ label: t("brut.average"), value: fmt(summary.money.avg), color: "#7ae582" });
+  } else if (summary) {
+    const metrics = summary.metrics;
+    const m = metrics.length ? metrics[mi % metrics.length] : undefined;
+    stats.push({ label: t("brut.entries"), value: String(summary.entries), color: "#8ea6ff" });
+    stats.push({ label: t("graph.kindSub"), value: String(summary.subs), color: "#7ae582" });
+    if (m)
+      stats.push({
+        label: m.name,
+        value: fmt(m.total),
+        unit: unitUnlessName(m.unit, m.name),
+        color: "#ff6b6b",
+        onClick: metrics.length > 1 ? () => setMi((i) => i + 1) : undefined,
+      });
+  }
   return (
-    <div className={cn("mb-6 text-[#111]", className)}>
-      <div className="flex items-center gap-3">
-        {icon && (
-          <span
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-[#111] shadow-[3px_3px_0_#111]"
-            style={{ background: color ?? "#ffd23f" }}
-          >
-            <SymbolIcon name={icon} size={28} style={{ color: "#111" }} />
-          </span>
-        )}
-        <div className="min-w-0 flex-1">
-          {parentName && (
-            <div className="truncate text-[12px] font-extrabold uppercase tracking-wider">{parentName} /</div>
-          )}
-          <h1 className="break-words text-[34px] font-black leading-none tracking-tight">{title}</h1>
-        </div>
-      </div>
-      {boxes.length > 0 && (
-        <div className="mt-3 flex gap-2">
-          {boxes.map((b) => (
-            <div
-              key={b.label}
-              className={cn(
-                "min-w-0 rounded-xl border-2 border-[#111] px-2.5 py-2 shadow-[3px_3px_0_#111]",
-                b.wide ? "flex-[1.4]" : "flex-1"
-              )}
-              style={{ background: b.bg }}
-            >
-              <span className="block truncate text-[10.5px] font-extrabold">{b.label}</span>
-              <b className="block truncate text-[18px] font-black tabular-nums">{b.value}</b>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <SummaryBlock
+      className={className}
+      lead={{ kind: "thing", color, icon, overline, title }}
+      stats={stats}
+    />
   );
+}
+
+/** Birim adın aynısıysa ("Bardak · 201 bardak") yazılmaz */
+function unitUnlessName(unit: string | undefined, name: string) {
+  return unit && unit.toLocaleLowerCase("tr") !== name.toLocaleLowerCase("tr") ? unit : undefined;
 }
 
 /** Kategoriler: düz renkli, kalın çerçeveli kartlar */

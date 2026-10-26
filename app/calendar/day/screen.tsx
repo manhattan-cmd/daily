@@ -3,7 +3,8 @@
 import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Layer } from "@/components/ui/layer";
+import { Layer, PageSheet } from "@/components/ui/layer";
+import { SummaryBlock } from "@/components/ui/summary-block";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, ArrowRight, Boxes, CalendarDays, ChevronLeft, ChevronRight, MoonStar, NotebookPen, Smile, Target, PenLine } from "lucide-react";
 import { db } from "@/lib/db";
@@ -31,7 +32,6 @@ import { CardListSkeleton } from "@/components/ui/skeleton";
 import type { EntryWithContext } from "@/types";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { AddMenu, type AddMenuItem } from "@/components/calendar/add-menu";
-import { cn } from "@/lib/utils";
 import { SleepSheet } from "@/components/calendar/sleep-sheet";
 import { SleepCard } from "@/components/calendar/sleep-card";
 import { MoodSheet } from "@/components/calendar/mood-sheet";
@@ -116,7 +116,7 @@ export function CalendarDayPage({
   const { date } = params;
   const t = useT();
   const tag = intlTag(useLocale());
-  // Brütal tema: tarih kartı, sayı kutuları, dağılım çubuğu, saat damgalı akış
+  // Brütal tema: özet bloğu (tarih, Ekle, sayılar, dağılım), saat damgalı akış
   const brutal = useSkin() === "brutal";
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -310,8 +310,11 @@ export function CalendarDayPage({
 
   return (
     <>
-      {brutal ? (
-        <div className="pb-4">
+      {/* Brütal: üst satır (komşu günler) krem döşemede; özet bloğu ve
+          girdiler ekranı kaplayan sayfa zemininde (bkz. PageSheet) */}
+      <PageSheet
+        top={brutal ? (
+        <div>
           {/* Üst menü yok: takvime alt menüden dönülüyor. Komşu günler
               pencerenin üstünde iki uçta — önceki solda, sonraki sağda; hangi
               güne gidileceği yazılı */}
@@ -326,77 +329,8 @@ export function CalendarDayPage({
               <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
             </Link>
           </div>
-
-          {/* Gün özeti — tarih kartı, sayılar, gün analizi; pencere yok, sayfayı doğrudan bunlar karşılıyor */}
-          <Layer bare label={t("day.summary")} className="mb-0">
-          {/* Tarih kartı — gün adı, tarih, yıl; sağda dikeyde ortalı, vurgulu Ekle */}
-          <div className="flex items-center gap-3 rounded-2xl border-2 border-[#111] bg-[#ffd23f] p-4 text-[#111] shadow-[4px_4px_0_#111]">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[12px] font-black uppercase tracking-wider">{weekdayLong(d, tag)}</span>
-                {isToday && (
-                  <span className="rounded-md bg-[#111] px-1.5 py-px text-[10.5px] font-black uppercase tracking-wider text-[#ffd23f]">
-                    {t("datetime.today")}
-                  </span>
-                )}
-              </div>
-              <h1 className="mt-1 text-[32px] font-black leading-[0.95] tracking-tight">
-                {d.getDate()} {monthName(d.getMonth(), tag)}
-              </h1>
-              <div className="mt-1 font-mono text-[13px] font-bold">{d.getFullYear()}</div>
-            </div>
-            <AddMenu hero items={addMenuItems} />
-          </div>
-
-          {/* Sayılar — girdi, kategori, hedef: tek şeritte, her biri kendi renginde */}
-          <div className="mt-3 grid grid-cols-3 overflow-hidden rounded-xl border-2 border-[#111] bg-white text-[#111] shadow-[3px_3px_0_#111]">
-            {[
-              { l: t("brut.entries"), v: String(actionEntries.length), c: "#8ea6ff" },
-              { l: t("brut.categories"), v: String(dayCategories.length), c: "#7ae582" },
-              { l: t("brut.goals"), v: goals && goals.length ? `${goalsDone}/${goals.length}` : "–", c: "#ff9ecd" },
-            ].map((b, i) => (
-              <div key={b.l} className={cn("flex flex-col", i > 0 && "border-l-2 border-[#111]")}>
-                <span className="h-2 border-b-2 border-[#111]" style={{ background: b.c }} />
-                <span className="px-2.5 pb-2 pt-1.5">
-                  <span className="block text-[10.5px] font-black uppercase tracking-wide text-[#111]/60">{b.l}</span>
-                  <b className="block font-mono text-[22px] font-bold leading-7 tabular-nums">{b.v}</b>
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Gün analizi — sağda girdi sayısı, alt kenarında günün kategori
-              dağılımı (kategorilerin renginde, girdi payına göre bloklar) */}
-          <Link
-            href={routes.period(`d-${date}`)}
-            prefetch={false}
-            className="mt-3 flex flex-col overflow-hidden rounded-xl border-2 border-[#111] bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-          >
-            <span className="flex h-10 items-center gap-2 px-3">
-              <span className="flex-1 text-[13px] font-black uppercase tracking-wide">{t("day.insights")}</span>
-              {dayItemCount > 0 && (
-                <span className="rounded-md bg-[#111] px-1.5 py-px font-mono text-[11.5px] font-bold text-[#fff4dc]">
-                  {t("brut.entryCount", { n: dayItemCount })}
-                </span>
-              )}
-              <ArrowRight className="h-4 w-4 shrink-0" strokeWidth={2.75} />
-            </span>
-            {dayCategories.length > 0 && (
-              <span className="flex h-3 border-t-2 border-[#111]">
-                {dayCategories.map((c, i) => (
-                  <span
-                    key={c.id}
-                    title={c.name}
-                    className={i ? "border-l-[1.5px] border-[#111]" : undefined}
-                    style={{ background: c.color, flex: otherEntries.filter((e) => e.category.id === c.id).length }}
-                  />
-                ))}
-              </span>
-            )}
-          </Link>
-          </Layer>
         </div>
-      ) : (
+        ) : (
       <div className="pt-10 pb-5">
         <div className="mb-5 flex items-center justify-between gap-3">
           <Link
@@ -459,6 +393,39 @@ export function CalendarDayPage({
           {addMenu}
         </div>
       </div>
+        )}
+      >
+      {brutal && (
+        /* Gün özeti — tarih, Ekle, sayılar ve gün analizi tek blokta (bkz. SummaryBlock) */
+        <SummaryBlock
+          className="mb-4"
+          lead={{
+            kind: "date",
+            weekday: weekdayLong(d, tag),
+            today: isToday ? t("datetime.today") : undefined,
+            day: d.getDate(),
+            month: monthName(d.getMonth(), tag),
+            year: d.getFullYear(),
+          }}
+          stats={[
+            { label: t("brut.entries"), value: String(actionEntries.length), color: "#8ea6ff" },
+            { label: t("brut.categories"), value: String(dayCategories.length), color: "#7ae582" },
+            { label: t("brut.goals"), value: goals && goals.length ? `${goalsDone}/${goals.length}` : "–", color: "#ff9ecd" },
+          ]}
+          action={<AddMenu tile items={addMenuItems} />}
+          link={{
+            href: routes.period(`d-${date}`),
+            label: t("day.insights"),
+            badge: dayItemCount > 0 ? t("brut.entryCount", { n: dayItemCount }) : undefined,
+            // Günün kategori dağılımı — kategorilerin renginde, girdi payına göre
+            bars: dayCategories.map((c) => ({
+              key: c.id,
+              color: c.color,
+              title: c.name,
+              weight: otherEntries.filter((e) => e.category.id === c.id).length,
+            })),
+          }}
+        />
       )}
 
       {/* Divider */}
@@ -643,6 +610,7 @@ export function CalendarDayPage({
 
       {/* Seçim çubuğu altta duruyor — son kart altında kalmasın */}
       {selectionActive && <div className="h-28" />}
+      </PageSheet>
 
       {selected && selected.size > 0 && (
         <EntrySelectionBar

@@ -13,7 +13,7 @@ import {
   structureSummary,
   listCategoryTree,
 } from "@/lib/db/queries";
-import { BrutHeroCard, BrutSubRows, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
+import { BrutSubRows, BrutThingSummary, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
@@ -23,7 +23,7 @@ import { SubCategoryTree } from "@/components/structure/subcategory-tree";
 import { RecentEntriesSection } from "@/components/structure/recent-entries-section";
 import { AnalysisSection } from "@/components/structure/analysis-section";
 import { routes } from "@/lib/routes";
-import { Layer } from "@/components/ui/layer";
+import { Layer, PageSheet } from "@/components/ui/layer";
 
 export function CategoryDetailPage({
   params,
@@ -65,8 +65,10 @@ export function CategoryDetailPage({
 
   return (
     <>
-      {brutal ? (
-        <>
+      {/* Brütal: üst menü krem döşemede; özet bloğu ve bölümler ekranı
+          kaplayan sayfa zemininde (bkz. PageSheet) */}
+      <PageSheet
+        top={brutal ? (
           <BrutTopStrip
             back="/structure"
             analyticsHref={routes.analyticsCategory(categoryId)}
@@ -77,19 +79,7 @@ export function CategoryDetailPage({
               setSubFormOpen(true);
             }}
           />
-          {/* Başlık kartı tek başına — dış katman iç içe pencere yapıyordu */}
-          {category && (
-            <BrutHeroCard
-              color={category.color}
-              icon={category.icon}
-              overline={t("brut.category")}
-              title={category.name}
-              summary={summary}
-              className="mb-4"
-            />
-          )}
-        </>
-      ) : (
+        ) : (
       <PageHeader
         title={category?.name ?? "..."}
         description={t("tree.subcategoriesAndFeatures")}
@@ -127,6 +117,18 @@ export function CategoryDetailPage({
           )
         }
       />
+        )}
+      >
+      {/* Brütal: başlık ve sayılar tek blokta (bkz. BrutThingSummary) */}
+      {brutal && category && (
+        <BrutThingSummary
+          color={category.color}
+          icon={category.icon}
+          overline={t("brut.category")}
+          title={category.name}
+          summary={summary}
+          className="mb-4"
+        />
       )}
 
       {/* Özellik atomları */}
@@ -195,7 +197,7 @@ export function CategoryDetailPage({
         selfName={category?.name}
         color={category?.color}
       />
-
+      </PageSheet>
 
       <SubCategoryForm
         open={subFormOpen}

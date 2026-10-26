@@ -5,8 +5,43 @@ import { useSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
 
 /**
- * Katman — bölümün yüzeyi. Üç kat var: en arkada sayfanın döşemesi (krem),
- * üstünde her bölümün kendi katmanı, en üstte kartlar. Özetle kayıtlar aynı
+ * Sayfa zemini — en arkadaki krem döşemenin önünde, ekranı kaplayan ikinci
+ * yüzey (beyaz, kalın çerçeve, üst köşeleri yuvarlak). Üst menü döşemede
+ * kalır; sayfanın bütün malzemesi (özet bloğu, katmanlar) bunun üstünde.
+ * Kısa sayfada da alt menüye kadar iner (sarmalayıcı min-h-full, zemin
+ * flex-1; -mb-4 AppShell main'inin alt payını yer). Yalnız Brütal temada;
+ * ötekilerde üst kısım ve içerik olduğu gibi dizilir.
+ *
+ * Kenar payları kaydırma çubuğunun ayrılmış yerine göre: solda -10, sağda
+ * -16 px ile iki yanda 6'şar px döşeme kalıyor (bkz. AppShell'in main'i).
+ */
+export function PageSheet({ top, children }: { top?: ReactNode; children: ReactNode }) {
+  const brutal = useSkin() === "brutal";
+  if (!brutal) {
+    return (
+      <>
+        {top}
+        {children}
+      </>
+    );
+  }
+  return (
+    <div className="flex min-h-full flex-col">
+      {top}
+      <div
+        data-page-sheet=""
+        className="-mb-4 -ml-[10px] -mr-[16px] flex-1 rounded-t-[26px] border-2 border-b-0 border-[#111] bg-white px-2 pb-8 pt-4"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Katman — bölümün yüzeyi. Dört kat var: en arkada sayfanın döşemesi (krem),
+ * önünde ekranı kaplayan sayfa zemini (PageSheet), üstünde her bölümün kendi
+ * katmanı, en üstte kartlar. Özetle kayıtlar aynı
  * zeminde arka arkaya dizilince birbirine karışıyordu; katman bir bölümü tek
  * parça okutur. Yalnız Brütal temada çizilir, ötekilerde düz bir kutu.
  */
