@@ -72,6 +72,44 @@ const bandDots = (color: string) => ({
 });
 const SQ = "flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white shadow-[2px_2px_0_#111]";
 
+/**
+ * Başlığın yanındaki kare karo — gün sayfasının Ekle karosunun dili: kendi
+ * renginde zemin, siyah karede simge, altında kısa ad. Bloğun asıl işi
+ * (Hedef koy, Not yaz…). Ekleme işleri yeşil.
+ */
+export function SummaryTile({
+  color,
+  icon: Icon,
+  label,
+  onClick,
+  href,
+}: {
+  color: string;
+  icon: LucideIcon;
+  label: string;
+  onClick?: () => void;
+  href?: string;
+}) {
+  const cls = "flex h-full w-full flex-col items-center justify-center gap-1.5 px-1 text-[#111] active:brightness-95";
+  const body = (
+    <>
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#111]" style={{ color }}>
+        <Icon className="h-5 w-5" strokeWidth={3} />
+      </span>
+      <span className="text-center text-[12px] font-black leading-[1.05]">{label}</span>
+    </>
+  );
+  return href ? (
+    <Link href={href} className={cls} style={{ background: color }}>
+      {body}
+    </Link>
+  ) : (
+    <button type="button" onClick={onClick} className={cls} style={{ background: color }}>
+      {body}
+    </button>
+  );
+}
+
 function Lead({ lead }: { lead: SummaryLead }) {
   if (lead.kind === "title") {
     return (

@@ -101,6 +101,91 @@ export function ValueCapsuleRow({
 }
 
 /**
+ * Değer hücreleri (Brütal) — ana sayfanın blok dili girdi kartında: kapsül
+ * dizisi yerine ortak ince çizgilerle ayrılmış hücreler, Bugün bloğunun
+ * sayıları gibi. Her hücrede özelliğin simgesi ve adı küçük, altında değer
+ * (sayıysa eş aralıklı) ve birimi; ölçek değeri kaçta kaç olduğunu
+ * noktalarla gösterir. En çok üç sütun; dört değer 2 × 2; son satırda
+ * boş kalan yer son hücreye katılır (siyah boşluk görünmesin). Fazlası
+ * "+n" hücresiyle özetlenir (bkz. MAX_CAPSULES).
+ *
+ * Satırın kendi zemini yok: hücreler beyaz, aralarındaki 1.5 px kartın siyah
+ * zemininden (bkz. BrutEntryCard).
+ */
+export function ValueCells({ values, color }: { values: EntryValueWithType[]; color: string }) {
+  values = values.filter((v) => !v.thingId && v.entryType?.valueType !== "object");
+  const shown = values.slice(0, MAX_CAPSULES);
+  const rest = values.length - shown.length;
+  const n = shown.length + (rest > 0 ? 1 : 0);
+  if (!n) return null;
+  const cols = n <= 3 ? n : n === 4 ? 2 : 3;
+  const left = n % cols;
+  // Son hücre satırın kalanını kaplar
+  const lastSpan = left ? cols - left + 1 : 1;
+  return (
+    <div data-value-cells="" className="grid gap-[1.5px]" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+      {shown.map((v, i) => (
+        <ValueCell
+          key={v.id}
+          v={v}
+          color={color}
+          span={rest === 0 && i === shown.length - 1 ? lastSpan : 1}
+        />
+      ))}
+      {rest > 0 && (
+        <span
+          className="flex items-center justify-center bg-white px-2 py-1 font-mono text-[12px] font-bold text-[#111]/60"
+          style={lastSpan > 1 ? { gridColumn: `span ${lastSpan}` } : undefined}
+        >
+          +{rest}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function ValueCell({ v, color: c, span }: { v: EntryValueWithType; color: string; span: number }) {
+  useThingNames();
+  const { main, unit, label } = readValue(v);
+  const scale =
+    v.entryType?.valueType === "select" &&
+    isScaleChoices(v.entryType.choices) &&
+    v.entryType.choices!.includes(v.value)
+      ? v.entryType.choices!
+      : null;
+  const icon = createElement(modAtomIcon({ name: v.mod?.name, entryType: v.entryType! }), {
+    className: "h-2.5 w-2.5 shrink-0",
+    strokeWidth: 2.5,
+  });
+  // Sayılar eş aralıklı (Bugün'ün sayıları gibi), seçenek adları düz yazı
+  const numeric = /^[\d.,:–\-\s]+$/.test(main);
+  return (
+    <span
+      data-value-cell=""
+      className="flex min-w-0 flex-col justify-center bg-white px-2 pb-1 pt-[5px] text-[#111]"
+      style={span > 1 ? { gridColumn: `span ${span}` } : undefined}
+    >
+      <span className="flex min-w-0 items-center gap-1 text-[8.5px] font-black uppercase leading-none tracking-wide text-[#111]/55">
+        <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[4px] text-[#111]" style={{ background: c }}>
+          {icon}
+        </span>
+        <span className="truncate">{label}</span>
+      </span>
+      <span className="mt-[3px] flex min-w-0 items-baseline gap-1 leading-none">
+        {scale ? (
+          <ScaleMeter value={v.value} choices={scale} color={c} />
+        ) : (
+          <b className={cn("truncate font-bold tabular-nums", numeric ? "font-mono text-[14.5px]" : "text-[13px] font-black")}>
+            {main}
+          </b>
+        )}
+        {!scale && unit && <span className="shrink-0 text-[10px] font-bold opacity-60">{unit}</span>}
+      </span>
+    </span>
+  );
+}
+
+/**
  * Özellik kapsülü — girdideki her özellik kendi nesnesi.
  *
  * Renk kategoriden geliyor: kart tek renkte kalsın, kapsüller kartın parçası

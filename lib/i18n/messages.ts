@@ -266,6 +266,12 @@ export const en = {
 
   // ── Gün sayfası ──────────────────────────────────────────────────────
   "day.empty.title": "Nothing logged today",
+  "day.empty.hint": "No entries yet — use Add to create one.",
+  "day.goals.title": "Goals",
+  "day.goals.unit": "done",
+  "day.goals.add": "Set goal",
+  "day.notes.unit": "notes",
+  "day.notes.add": "Write note",
   "day.empty.body": "No entries yet — tap Add in the top right to start.",
   "day.prev": "Previous day",
   "day.next": "Next day",
@@ -1213,6 +1219,12 @@ export const tr: Record<MessageKey, string> = {
   "features.backToDetail": "Detaya dön",
 
   "day.empty.title": "Bu gün boş",
+  "day.empty.hint": "Henüz girdi yok — Ekle'den başla.",
+  "day.goals.title": "Hedefler",
+  "day.goals.unit": "tamam",
+  "day.goals.add": "Hedef koy",
+  "day.notes.unit": "not",
+  "day.notes.add": "Not yaz",
   "day.empty.body": "Henüz girdi yok — sağ üstteki Ekle ile başla.",
   "day.prev": "Önceki gün",
   "day.next": "Sonraki gün",

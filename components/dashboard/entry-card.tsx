@@ -10,8 +10,12 @@ import { EntryIcon } from "@/components/dashboard/entry-icon";
 import {
   NoteCapsule,
   ValueCapsuleRow,
+  ValueCells,
   ThingCapsuleRow,
 } from "@/components/dashboard/entry-parts";
+import { NotebookPen } from "lucide-react";
+import { SymbolIcon } from "@/lib/icons";
+import { useSkin } from "@/lib/skin";
 import {
   SelectionLayer,
   selectedCardClass,
@@ -95,6 +99,7 @@ function PlainEntryCard({
   selection?: EntrySelection;
 }) {
   const [editOpen, setEditOpen] = useState(false);
+  const brutal = useSkin() === "brutal";
   const color = entry.category.color;
   const isRoot = !!entry.subcategory.isCategoryRoot;
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
@@ -107,6 +112,24 @@ function PlainEntryCard({
   // sonra yeni değerler onu taşımadığı için hepsi görünmez olmuştu.
   const typedValues = entry.values.filter((v) => !!v.entryType && !v.thingId);
   const thingIds = entry.thingIds ?? [];
+
+  // Brütal: ana sayfanın blok dili (bkz. BrutEntryCard)
+  if (brutal) {
+    return (
+      <>
+        <BrutEntryCard
+          entry={entry}
+          selection={selection}
+          title={title}
+          catName={catName}
+          isRoot={isRoot}
+          onOpen={() => setEditOpen(true)}
+          longPress={selection && !selection.active ? longPress : undefined}
+        />
+        {editOpen && <EditEntryModal entry={entry} open={editOpen} onOpenChange={setEditOpen} />}
+      </>
+    );
+  }
 
   return (
     <>
@@ -204,5 +227,89 @@ function PlainEntryCard({
         />
       )}
     </>
+  );
+}
+
+/**
+ * Brütal girdi kartı — ana sayfanın bloklarıyla aynı dil, küçük ölçekte:
+ * kart siyah zeminli tek blok, hücreler arasında ortak ince çizgiler
+ * (1.5 px; kartlar küçük ve kibar kalsın diye blokların 2 px'i değil).
+ * Üstte künye kategorinin renginde (kare karo, ad, kategori, saat); altında
+ * değerler hücre hücre (bkz. ValueCells), nesneler ve not kendi
+ * hücrelerinde. Eskiden değerler künyenin altında kapsül dizisiydi.
+ */
+function BrutEntryCard({
+  entry,
+  selection,
+  title,
+  catName,
+  isRoot,
+  onOpen,
+  longPress,
+}: {
+  entry: EntryWithContext;
+  selection?: EntrySelection;
+  title: string;
+  catName: string;
+  isRoot: boolean;
+  onOpen: () => void;
+  longPress?: ReturnType<typeof useLongPress>;
+}) {
+  const color = entry.category.color;
+  const icon = entry.subcategory.icon || entry.category.icon;
+  const typedValues = entry.values.filter((v) => !!v.entryType && !v.thingId);
+  const thingIds = entry.thingIds ?? [];
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") onOpen();
+      }}
+      {...(longPress ?? {})}
+      data-entry-block=""
+      className={cn(
+        "relative grid w-full cursor-pointer select-none touch-manipulation gap-[1.5px] overflow-hidden rounded-[12px] border-[1.5px] border-[#111] bg-[#111] text-left text-[#111] shadow-[2px_2px_0_#111] transition-transform active:scale-[0.99]",
+        selection?.selected && selectedCardClass
+      )}
+      aria-label={`${entry.subcategory.name} girdisini düzenle`}
+    >
+      <div className="flex items-center gap-[7px] px-2 py-[5px]" style={{ background: color }}>
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] bg-white shadow-[inset_0_0_0_1.5px_#111]">
+          {icon && <SymbolIcon name={icon} size={14} style={{ color: "#111" }} />}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="break-words text-[12.5px] font-bold leading-snug">{title}</div>
+          {!isRoot && (
+            <div className="mt-0.5 truncate text-[8.5px] font-bold uppercase leading-none tracking-[0.12em] opacity-75">
+              {catName}
+            </div>
+          )}
+        </div>
+        <span className="shrink-0 whitespace-nowrap text-[9.5px] font-semibold leading-none tabular-nums">
+          {formatDateTime(entry.occurredAt)}
+        </span>
+      </div>
+      {typedValues.length > 0 && <ValueCells values={typedValues} color={color} />}
+      {thingIds.length > 0 && (
+        <div className="bg-white px-2 py-1.5">
+          <ThingCapsuleRow thingIds={thingIds} values={entry.values} color={color} />
+        </div>
+      )}
+      {entry.notes && (
+        <div className="flex items-start gap-1.5 bg-white px-2 py-1.5">
+          <NotebookPen className="mt-[1px] h-3 w-3 shrink-0" strokeWidth={2.25} />
+          <p className="line-clamp-3 min-w-0 text-[11px] font-medium leading-snug text-[#111]/75">{entry.notes}</p>
+        </div>
+      )}
+      {selection?.active && (
+        <SelectionLayer
+          selected={selection.selected}
+          onToggle={selection.onToggle}
+          label={`${entry.subcategory.name} girdisini seç`}
+        />
+      )}
+    </div>
   );
 }

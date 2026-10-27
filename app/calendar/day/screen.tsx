@@ -4,9 +4,9 @@ import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Layer, PageSheet } from "@/components/ui/layer";
-import { SummaryBlock } from "@/components/ui/summary-block";
+import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, ArrowRight, CalendarDays, ChevronLeft, ChevronRight, NotebookPen, Target } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, CalendarDays, ChevronLeft, ChevronRight, NotebookPen, Target } from "lucide-react";
 import { db } from "@/lib/db";
 import {
   prefetchDay,
@@ -208,6 +208,185 @@ export function CalendarDayPage({
   const goalsDone = (goals ?? []).filter((g) => g.completedEntryId).length;
   const dayItemCount = groupEntries(actionEntries).length;
 
+  // Günün girdileri bölümünün parçaları — brütalde bloklara, ötekilerde
+  // tek katmana dizilir
+  const sleepMoodSlot = (
+    <>
+      {/* Yerleşik akış yuvaları — yalnızca kayıt varsa. Ruh hali günde birden
+          çok kez girilebiliyor, o yüzden kartlar sırayla dizilir. */}
+      {(sleepEntries.length > 0 || moodEntries.length > 0) && (
+        <div className="mb-5 flex flex-col gap-2">
+          {sleepEntries.map((e) => (
+            <SleepCard
+              key={e.id}
+              entry={e}
+              selection={selectionFor([`entry:${e.id}`])}
+            />
+          ))}
+          {moodEntries.map((e) => (
+            <MoodCard
+              key={e.id}
+              entry={e}
+              selection={selectionFor([`entry:${e.id}`])}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+  const goalsSlot = (
+    <>
+      {/* Hedef yuvası — yalnızca hedef varsa */}
+      {goals && goals.length > 0 && (
+        <div className="mb-5">
+          <div className="flex items-center gap-1.5 mb-2.5 px-1">
+            <Target className="h-3.5 w-3.5 text-amber-400/80" />
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Hedefler
+            </h2>
+            <span className="text-xs text-muted-foreground/60">
+              · {goals.filter((g) => g.completedEntryId).length}/{goals.length}
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {goals.map((goal) => (
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                selection={selectionFor([`goal:${goal.id}`])}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+  const notesSlot = (
+    <>
+      {/* Not yuvası — nota özgü kartlar (başlık + ilk satırlar), dokununca editör */}
+      {notes && notes.length > 0 && (
+        <div className="mb-5">
+          <div className="flex items-center gap-1.5 mb-2.5 px-1">
+            <NotebookPen className="h-3.5 w-3.5 text-rose-400/80" />
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Notlar
+            </h2>
+            <span className="text-xs text-muted-foreground/60">
+              · {notes.length}
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {notes.map((note) => (
+              <NoteCard
+                key={note.id}
+                note={note}
+                selection={selectionFor([`note:${note.id}`])}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+  const entriesSlot = (
+    <>
+      {/* Girdiler */}
+      {entries === undefined ? (
+        <CardListSkeleton rows={3} />
+      ) : otherEntries.length === 0 ? (
+        sleepEntries.length === 0 &&
+        moodEntries.length === 0 &&
+        (brutal || ((!goals || goals.length === 0) && (!notes || notes.length === 0))) ? (
+          <EmptyState
+            icon={CalendarDays}
+            title={t("day.empty.title")}
+            description={t("day.empty.hint")}
+          />
+        ) : null
+      ) : (
+        <div className="flex flex-col gap-2">
+          {(() => {
+            const items = groupEntries(otherEntries);
+            // Renk özeti: günün girdilerinin benzersiz kategorileri (görülme sırasıyla)
+            const dayCats = [
+              ...new Map(
+                otherEntries.map((e) => [e.category.id, e.category])
+              ).values(),
+            ];
+            return (
+              <>
+                {brutal ? null : (
+                <div className="mb-1 flex items-center gap-2 px-1">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {items.length} girdi
+                  </p>
+                  <span className="flex items-center gap-1">
+                    {dayCats.map((c) => (
+                      <span
+                        key={c.id}
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ backgroundColor: c.color }}
+                        title={c.name}
+                      />
+                    ))}
+                  </span>
+                  {!selectionActive && (
+                    <span className="ml-auto text-[10px] text-muted-foreground/50">
+                      {t("day.holdToSelect")}
+                    </span>
+                  )}
+                </div>
+                )}
+                {items.map((item, idx) => {
+                  // Brütal: saat değişince siyah saat damgası
+                  const stamp =
+                    brutal && (idx === 0 || hourLabel(itemTime(items[idx - 1])) !== hourLabel(itemTime(item)));
+                  const card = item.type === "single" ? (
+                    <EntryCard
+                      key={item.entry.id}
+                      entry={item.entry}
+                      selection={selectionFor([`entry:${item.entry.id}`])}
+                    />
+                  ) : item.type === "activity" ? (
+                    <ActivityCard
+                      key={item.activityId}
+                      activity={activityById.get(item.activityId)}
+                      entries={item.entries}
+                      onAddEntries={(a) => add.openEntry({ presetActivity: { id: a.id, name: a.name } })}
+                      selection={selectionFor(
+                        item.entries.map((e) => `entry:${e.id}`)
+                      )}
+                    />
+                  ) : (
+                    <LinkedEntryCard
+                      key={item.entries[0].linkedGroupId}
+                      entries={item.entries}
+                      selection={selectionFor(
+                        item.entries.map((e) => `entry:${e.id}`)
+                      )}
+                    />
+                  );
+                  if (!stamp) return card;
+                  return (
+                    <Fragment key={`h-${idx}`}>
+                      <span className="mt-2 flex items-center gap-2">
+                        <span className="rounded-md border-2 border-[#111] bg-white px-2 py-0.5 font-mono text-[12.5px] font-bold text-[#111] shadow-[2px_2px_0_#111]">
+                          {hourLabel(itemTime(item))}
+                        </span>
+                        <span className="h-[2px] flex-1 bg-[#111]" />
+                      </span>
+                      {card}
+                    </Fragment>
+                  );
+                })}
+              </>
+            );
+          })()}
+        </div>
+      )}
+    </>
+  );
+
   return (
     <>
       {/* Brütal: üst satır (komşu günler) krem döşemede; özet bloğu ve
@@ -317,6 +496,9 @@ export function CalendarDayPage({
             href: routes.period(`d-${date}`),
             label: t("day.insights"),
             badge: dayItemCount > 0 ? t("brut.entryCount", { n: dayItemCount }) : undefined,
+            // Analiz'in mavisi — gittiği bölümün bandı gibi (bkz. ana sayfa)
+            color: "#8ea6ff",
+            icon: BarChart3,
             // Günün kategori dağılımı — kategorilerin renginde, girdi payına göre
             bars: dayCategories.map((c) => ({
               key: c.id,
@@ -331,178 +513,84 @@ export function CalendarDayPage({
       {/* Divider */}
       {!brutal && <div className="h-px bg-border mb-5" />}
 
-      {/* Günün girdileri katmanı — uyku, ruh hali, hedefler, notlar ve girdiler */}
-      <Layer label={t("day.entriesLayer")} count={dayItemCount}>
-      {/* Yerleşik akış yuvaları — yalnızca kayıt varsa. Ruh hali günde birden
-          çok kez girilebiliyor, o yüzden kartlar sırayla dizilir. */}
-      {(sleepEntries.length > 0 || moodEntries.length > 0) && (
-        <div className="mb-5 flex flex-col gap-2">
-          {sleepEntries.map((e) => (
-            <SleepCard
-              key={e.id}
-              entry={e}
-              selection={selectionFor([`entry:${e.id}`])}
-            />
-          ))}
-          {moodEntries.map((e) => (
-            <MoodCard
-              key={e.id}
-              entry={e}
-              selection={selectionFor([`entry:${e.id}`])}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Hedef yuvası — yalnızca hedef varsa */}
-      {goals && goals.length > 0 && (
-        <div className="mb-5">
-          <div className="flex items-center gap-1.5 mb-2.5 px-1">
-            <Target className="h-3.5 w-3.5 text-amber-400/80" />
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Hedefler
-            </h2>
-            <span className="text-xs text-muted-foreground/60">
-              · {goals.filter((g) => g.completedEntryId).length}/{goals.length}
-            </span>
-          </div>
-          <div className="flex flex-col gap-2">
-            {goals.map((goal) => (
-              <GoalCard
-                key={goal.id}
-                goal={goal}
-                selection={selectionFor([`goal:${goal.id}`])}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Not yuvası — nota özgü kartlar (başlık + ilk satırlar), dokununca editör */}
-      {notes && notes.length > 0 && (
-        <div className="mb-5">
-          <div className="flex items-center gap-1.5 mb-2.5 px-1">
-            <NotebookPen className="h-3.5 w-3.5 text-rose-400/80" />
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Notlar
-            </h2>
-            <span className="text-xs text-muted-foreground/60">
-              · {notes.length}
-            </span>
-          </div>
-          <div className="flex flex-col gap-2">
-            {notes.map((note) => (
-              <NoteCard
-                key={note.id}
-                note={note}
-                selection={selectionFor([`note:${note.id}`])}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Girdiler */}
-      {entries === undefined ? (
-        <CardListSkeleton rows={3} />
-      ) : otherEntries.length === 0 ? (
-        sleepEntries.length === 0 &&
-        moodEntries.length === 0 &&
-        (!goals || goals.length === 0) &&
-        (!notes || notes.length === 0) ? (
-          <EmptyState
-            icon={CalendarDays}
-            title={t("day.empty.title")}
-            description={
-              isToday
-                ? "No entries yet — tap Add in the top right to start."
-                : "No entries for this day — use Add to create one."
-            }
-          />
-        ) : null
+      {/* Brütal: ana sayfanın blok dili — Günün girdileri (uyku, ruh hali ve
+          saat damgalı akış), varsa Hedefler ve Notlar kendi bloklarında,
+          yanlarında ekleme karoları. Ötekilerde tek katman. */}
+      {brutal ? (
+        <>
+          <SummaryBlock
+            className="mb-4"
+            lead={{
+              kind: "count",
+              color: "#ffb38a",
+              overline: t("day.entriesLayer"),
+              value: String(dayItemCount),
+              unit: t("home.entries"),
+              hint: dayItemCount > 1 ? t("day.holdToSelect") : undefined,
+            }}
+            stats={[]}
+          >
+            <div className="bg-white p-3">
+              {sleepMoodSlot}
+              {entriesSlot}
+            </div>
+          </SummaryBlock>
+          {goals && goals.length > 0 && (
+            <SummaryBlock
+              className="mb-4"
+              lead={{
+                kind: "count",
+                color: "#ff9ecd",
+                overline: t("day.goals.title"),
+                value: `${goalsDone}/${goals.length}`,
+                unit: t("day.goals.unit"),
+              }}
+              action={<SummaryTile color="#7ae582" icon={Target} label={t("day.goals.add")} onClick={add.openGoal} />}
+              stats={[]}
+            >
+              <div className="flex flex-col gap-2 bg-white p-3">
+                {goals.map((goal) => (
+                  <GoalCard key={goal.id} goal={goal} selection={selectionFor([`goal:${goal.id}`])} />
+                ))}
+              </div>
+            </SummaryBlock>
+          )}
+          {notes && notes.length > 0 && (
+            <SummaryBlock
+              className="mb-4"
+              lead={{
+                kind: "count",
+                color: "#c9b8ff",
+                overline: t("structure.notes"),
+                value: String(notes.length),
+                unit: t("day.notes.unit"),
+              }}
+              action={
+                <SummaryTile
+                  color="#7ae582"
+                  icon={NotebookPen}
+                  label={t("day.notes.add")}
+                  onClick={() => add.items.find((i) => i.key === "note")?.onSelect()}
+                />
+              }
+              stats={[]}
+            >
+              <div className="flex flex-col gap-2 bg-white p-3">
+                {notes.map((note) => (
+                  <NoteCard key={note.id} note={note} selection={selectionFor([`note:${note.id}`])} />
+                ))}
+              </div>
+            </SummaryBlock>
+          )}
+        </>
       ) : (
-        <div className="flex flex-col gap-2">
-          {(() => {
-            const items = groupEntries(otherEntries);
-            // Renk özeti: günün girdilerinin benzersiz kategorileri (görülme sırasıyla)
-            const dayCats = [
-              ...new Map(
-                otherEntries.map((e) => [e.category.id, e.category])
-              ).values(),
-            ];
-            return (
-              <>
-                {brutal ? null : (
-                <div className="mb-1 flex items-center gap-2 px-1">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {items.length} girdi
-                  </p>
-                  <span className="flex items-center gap-1">
-                    {dayCats.map((c) => (
-                      <span
-                        key={c.id}
-                        className="h-1.5 w-1.5 rounded-full"
-                        style={{ backgroundColor: c.color }}
-                        title={c.name}
-                      />
-                    ))}
-                  </span>
-                  {!selectionActive && (
-                    <span className="ml-auto text-[10px] text-muted-foreground/50">
-                      {t("day.holdToSelect")}
-                    </span>
-                  )}
-                </div>
-                )}
-                {items.map((item, idx) => {
-                  // Brütal: saat değişince siyah saat damgası
-                  const stamp =
-                    brutal && (idx === 0 || hourLabel(itemTime(items[idx - 1])) !== hourLabel(itemTime(item)));
-                  const card = item.type === "single" ? (
-                    <EntryCard
-                      key={item.entry.id}
-                      entry={item.entry}
-                      selection={selectionFor([`entry:${item.entry.id}`])}
-                    />
-                  ) : item.type === "activity" ? (
-                    <ActivityCard
-                      key={item.activityId}
-                      activity={activityById.get(item.activityId)}
-                      entries={item.entries}
-                      onAddEntries={(a) => add.openEntry({ presetActivity: { id: a.id, name: a.name } })}
-                      selection={selectionFor(
-                        item.entries.map((e) => `entry:${e.id}`)
-                      )}
-                    />
-                  ) : (
-                    <LinkedEntryCard
-                      key={item.entries[0].linkedGroupId}
-                      entries={item.entries}
-                      selection={selectionFor(
-                        item.entries.map((e) => `entry:${e.id}`)
-                      )}
-                    />
-                  );
-                  if (!stamp) return card;
-                  return (
-                    <Fragment key={`h-${idx}`}>
-                      <span className="mt-2 flex items-center gap-2">
-                        <span className="rounded-md border-2 border-[#111] bg-white px-2 py-0.5 font-mono text-[12.5px] font-bold text-[#111] shadow-[2px_2px_0_#111]">
-                          {hourLabel(itemTime(item))}
-                        </span>
-                        <span className="h-[2px] flex-1 bg-[#111]" />
-                      </span>
-                      {card}
-                    </Fragment>
-                  );
-                })}
-              </>
-            );
-          })()}
-        </div>
-      )}
-
+      <Layer label={t("day.entriesLayer")} count={dayItemCount}>
+      {sleepMoodSlot}
+      {goalsSlot}
+      {notesSlot}
+      {entriesSlot}
       </Layer>
+      )}
 
       {/* Seçim çubuğu altta duruyor — son kart altında kalmasın */}
       {selectionActive && <div className="h-28" />}
