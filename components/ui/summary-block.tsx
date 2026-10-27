@@ -33,8 +33,9 @@ export type SummaryStat = {
 export type SummaryLead =
   | { kind: "date"; weekday: string; today?: string; day: number; month: string; year: number }
   | { kind: "thing"; color: string; icon?: string; overline: string; title: string }
-  /** Ana sayfa: "BUGÜN · 8 girdi" — sayının neyin sayısı olduğu üstünde yazılı */
-  | { kind: "count"; overline: string; value: string; unit: string; hint?: string };
+  /** Ana sayfa: "BUGÜN · 8 girdi" — sayının neyin sayısı olduğu üstünde yazılı;
+   *  renk verilmezse sarı (Kategorilerin pembe) */
+  | { kind: "count"; overline: string; value: string; unit: string; hint?: string; color?: string };
 
 export type SummaryLink = {
   href: string;
@@ -47,15 +48,21 @@ export type SummaryLink = {
 function Lead({ lead }: { lead: SummaryLead }) {
   if (lead.kind === "count") {
     return (
-      <div className="flex h-full min-w-0 flex-col justify-center bg-[#ffd23f] px-3.5 py-2.5 text-[#111]">
-        <span className="self-start rounded-md bg-[#111] px-1.5 py-px text-[10px] font-black uppercase tracking-wider text-[#ffd23f]">
+      <div
+        className="flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-[#111]"
+        style={{ background: lead.color ?? "#ffd23f" }}
+      >
+        <span
+          className="self-start rounded-md bg-[#111] px-1.5 py-px text-[10px] font-black uppercase tracking-wider"
+          style={{ color: lead.color ?? "#ffd23f" }}
+        >
           {lead.overline}
         </span>
         <div className="mt-1.5 flex items-baseline gap-1.5">
           <b className="font-mono text-[30px] font-bold leading-none tabular-nums">{lead.value}</b>
           <span className="text-[16px] font-black leading-none">{lead.unit}</span>
         </div>
-        {lead.hint && <span className="mt-1 truncate text-[11.5px] font-bold opacity-70">{lead.hint}</span>}
+        {lead.hint && <span className="mt-1 line-clamp-2 text-[11.5px] font-bold leading-snug opacity-70">{lead.hint}</span>}
       </div>
     );
   }
@@ -121,11 +128,14 @@ export function SummaryBlock({
   stats,
   action,
   link,
+  children,
   className,
 }: {
   lead: SummaryLead;
-  /** Sayılar — genelde üç */
+  /** Sayılar — genelde üç; boşsa satır yok */
   stats: SummaryStat[];
+  /** Sayılarla alt satır arasında beyaz hücre (ana sayfada kategori kareleri) */
+  children?: ReactNode;
   /** Ekle düğmesi (gün) — adın yanındaki kare hücreyi doldurur */
   action?: ReactNode;
   link?: SummaryLink;
@@ -156,6 +166,7 @@ export function SummaryBlock({
           ))}
         </div>
       )}
+      {children && <div className="bg-white">{children}</div>}
       {link && (
         <Link
           href={link.href}

@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   ArrowRight,
-  Layers,
   Plus,
   Search,
   Settings,
@@ -54,9 +53,10 @@ const RECENT_LIMIT = 20;
  * Yukarıdan aşağı: Başlarken (yeni kullanıcıyı yapıya, ilk girdiye, hedefe
  * ve yedeğe götüren liste; bitince kalkar), Bugün (sayının neyin sayısı
  * olduğu yazılı, yanında gün sayfasındakiyle aynı genel Ekle — girdi,
- * aktivite, hedef, not, uyku, ruh hali, nesne), Yine ekle (son 30 günün en
- * sık kalemleri, tek dokunuşla formu açar), Kategorilerin (girdilerle dolan
- * kareler, yapıya giden kapı), son 7 gün ve son girdiler.
+ * aktivite, hedef, not, uyku, ruh hali, nesne), Kategorilerin (Bugün'ün eşi:
+ * girdilerle dolan kareler, Kategori yarat, yapıya giden kapı), Yine ekle
+ * (son 30 günün en sık kalemleri, tek dokunuşla formu açar), son 7 gün ve
+ * son girdiler.
  *
  * Eskiden "8 girdi" yazıyordu ama bugünün mü belli değildi; ekleme düğmesi
  * yalnız girdi açıyordu, uyku ya da hedef için güne gitmek gerekiyordu.
@@ -204,12 +204,11 @@ export default function HomePage() {
             goalsDone={doneGoals}
             items={add.items}
           />
+          {/* Girdilerin gittiği yer, yapıya giden kapı — Bugün'ün eşi */}
+          {home && <CategoriesBlock snapshot={home} onNew={() => setCatFormOpen(true)} />}
           {home && home.frequent.length > 0 && (
             <FrequentLayer items={home.frequent} onPick={(sub) => add.openEntry({ presetSub: sub })} />
           )}
-          {/* Girdilerin gittiği yer — yapıya giden kapı (yeni kullanıcıda
-              Yine ekle yok, Bugün'ün hemen altında) */}
-          {home && <CategoriesLayer snapshot={home} onNew={() => setCatFormOpen(true)} />}
           {/* Hiç girdisi olmayana boş çubuklar bir şey söylemiyor */}
           {home && home.totalEntries > 0 && week && <BrutWeek week={week} today={today} />}
         </>
@@ -547,25 +546,27 @@ function BrutWeek({ week, today }: { week: DayBar[]; today: string }) {
   );
 }
 
-/** Görünen en çok kare (Yeni karosu hariç); fazlası "+N" karosuyla Yapı'ya */
-const CATS_SHOWN = 11;
+/** Görünen en çok kare; fazlası "+N" karosuyla Yapı'ya */
+const CATS_SHOWN = 12;
 
 /**
- * Kategorilerin — girdilerin gittiği yer, yapıya giden kapı.
+ * Kategorilerin — girdilerin gittiği yer, yapıya giden kapı. Bugün bloğunun
+ * eşi, aynı birleşik blok (bkz. SummaryBlock): üstte "KATEGORİLERİN · 10
+ * kategori", yanında Ekle karosu gibi renkli Kategori yarat karosu (sarı:
+ * Yapı'nın rengi); ortada kareler; altta Günü aç gibi Yapıya git satırı.
  *
- * Kullanıcıya "girdi eklemek için önce yapıda kategori kurulur" diye
- * anlatmak yerine gösteriyor: her kategori kendi renginde bir kare, kare son
- * 30 günün girdileriyle aşağıdan dolar (en çok girdisi olan dolu, hiç
- * olmayan boş — yalnız rengini gösteren ince bir taban). Renkler Bugün
- * bloğunun şeridi, haftanın sütunları ve girdi kartlarıyla aynı: kullanıcı
- * "bu renk şu kategori, girdim oraya düştü" bağını kendisi kuruyor.
- * Kareye dokununca Yapı'da o kategorinin sayfası (alt kategoriler,
- * özellikler), sondaki kesik kare yeni kategori; altta yapının derinliği.
+ * "Girdi eklemek için önce yapıda kategori kurulur" anlatılmıyor,
+ * gösteriliyor: her kategori kendi renginde bir kare, son 30 günün
+ * girdileriyle aşağıdan dolar (en çok girdisi olan dolu, hiç olmayan boş —
+ * yalnız rengini gösteren ince taban). Renkler Bugün şeridi, haftanın
+ * sütunları ve girdi kartlarıyla aynı; kullanıcı "girdim şu kategoriye
+ * düştü" bağını kendisi kuruyor. Kareye dokununca Yapı'da kategorinin sayfası.
  *
- * Eskiden yerinde sayıları yazan tek satır (Yapın) vardı; neyin sayısı
- * olduğu ve neden gidileceği belli değildi.
+ * İlk denemede bölüm sıradan bir katmandı ve yeni kategori ızgaranın
+ * sonunda kesik çerçeveli küçük bir kareydi; kullanıcı Ekle kadar çekici,
+ * renkli bir düğme istedi.
  */
-function CategoriesLayer({ snapshot, onNew }: { snapshot: HomeSnapshot; onNew: () => void }) {
+function CategoriesBlock({ snapshot, onNew }: { snapshot: HomeSnapshot; onNew: () => void }) {
   const t = useT();
   const cats = snapshot.categories;
   const overflow = cats.length > CATS_SHOWN;
@@ -574,9 +575,41 @@ function CategoriesLayer({ snapshot, onNew }: { snapshot: HomeSnapshot; onNew: (
   const tileCls = "relative aspect-square w-full overflow-hidden rounded-[14px] border-2 border-[#111] shadow-[2px_2px_0_#111]";
   const nameCls = "w-full truncate text-center text-[11px] font-extrabold leading-tight";
   return (
-    <Layer label={t("home.cats.title")} count={cats.length}>
-      <p className="-mt-1 mb-3 ml-0.5 text-[12px] font-semibold leading-snug text-[#111]/60">{t("home.cats.hint")}</p>
-      <div className="grid grid-cols-4 gap-x-2 gap-y-2.5">
+    <SummaryBlock
+      className="mb-4"
+      lead={{
+        kind: "count",
+        color: "#ff9ecd",
+        overline: t("home.cats.title"),
+        value: String(cats.length),
+        unit: t("home.cats.unit"),
+        hint: t("home.cats.hint"),
+      }}
+      // Ekle karosunun eşi — kategori yarat
+      action={
+        <button
+          type="button"
+          onClick={onNew}
+          aria-label={t("home.cats.newAria")}
+          className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-[#ffd23f] px-1 text-[#111] active:bg-[#f5c400]"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#111] text-[#ffd23f]">
+            <Plus className="h-6 w-6" strokeWidth={3} />
+          </span>
+          <span className="text-center text-[12px] font-black leading-[1.05]">{t("home.cats.create")}</span>
+        </button>
+      }
+      stats={[]}
+      link={{
+        href: "/structure",
+        label: t("home.cats.open"),
+        badge: t("home.cats.depth", {
+          subcategories: snapshot.counts.subcategories,
+          features: snapshot.counts.features,
+        }),
+      }}
+    >
+      <div className="grid grid-cols-4 gap-x-2 gap-y-2.5 p-3">
         {shown.map(({ category: c, count }) => {
           // Boş kategoride yalnız rengini gösteren taban; doluluk en çok
           // girdisi olana göre
@@ -619,36 +652,8 @@ function CategoriesLayer({ snapshot, onNew }: { snapshot: HomeSnapshot; onNew: (
             <span className={nameCls}>{t("nav.structure")}</span>
           </Link>
         )}
-        {/* Yeni kategori — kesik çerçeveli boş kare, ızgaranın sonunda */}
-        <button
-          type="button"
-          onClick={onNew}
-          aria-label={t("home.cats.newAria")}
-          className="flex min-w-0 flex-col items-center gap-1 text-[#111] active:opacity-70"
-        >
-          <span className="flex aspect-square w-full items-center justify-center rounded-[14px] border-2 border-dashed border-[#111]/55 bg-white/60">
-            <Plus className="h-6 w-6" strokeWidth={3} />
-          </span>
-          <span className={nameCls}>{t("home.cats.new")}</span>
-        </button>
       </div>
-      {/* Yapının derinliği — kategorilerin içinde ne var */}
-      <Link
-        href="/structure"
-        className="mt-3.5 flex items-center gap-2.5 rounded-xl border-2 border-[#111] bg-white px-2.5 py-2 text-[#111] shadow-[2px_2px_0_#111] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-      >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] border-[#111] bg-[#ffd23f]">
-          <Layers className="h-4 w-4" strokeWidth={2.5} />
-        </span>
-        <span className="min-w-0 flex-1 text-[12.5px] font-extrabold leading-snug">
-          {t("home.cats.inside", {
-            subcategories: snapshot.counts.subcategories,
-            features: snapshot.counts.features,
-          })}
-        </span>
-        <ArrowRight className="h-4 w-4 shrink-0" strokeWidth={2.75} />
-      </Link>
-    </Layer>
+    </SummaryBlock>
   );
 }
 
