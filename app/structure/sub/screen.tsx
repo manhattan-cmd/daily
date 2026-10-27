@@ -75,6 +75,7 @@ export function SubCategoryDetailPage({
         top={brutal ? (
           <BrutTopStrip
             back={backPath}
+            trail={subcategory?.parentId ? parentSub?.name : category?.name}
             analyticsHref={routes.analyticsSub(categoryId, subcategoryId)}
             onEdit={() => {
               setEditingSelf(true);

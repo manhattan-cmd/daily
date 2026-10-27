@@ -127,6 +127,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
       top={
         <BrutTopStrip
           back={back}
+          trail={c?.name}
           analyticsHref={routes.analyticsThing(thingId)}
           onEdit={() => setRenameOpen(true)}
           onDelete={onDelete}

@@ -110,6 +110,7 @@ export function CollectionScreen({ collectionId }: { collectionId: string }) {
       top={
         <BrutTopStrip
           back="/structure/objects"
+          trail={t("structure.objects")}
           analyticsHref={routes.analyticsCollection(collectionId)}
           onEdit={() => setEditOpen(true)}
           onDelete={onDelete}

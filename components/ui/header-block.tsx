@@ -77,7 +77,7 @@ export function HeaderBlock({
           {leading}
           <div
             className={cn(
-              "flex min-w-0 flex-1 flex-col justify-center px-3.5 py-2.5",
+              "flex min-w-0 flex-1 flex-col justify-center px-3 py-2.5",
               center && "items-center text-center"
             )}
             style={bandDots(color)}
@@ -94,34 +94,129 @@ export function HeaderBlock({
   );
 }
 
-/** Başlık — siyah kutuda bandın renginde harf (eski bantların başlığı gibi) */
+/**
+ * Etiketin yazı rengi — bandın kendi rengi; koyu bantta (ana sayfanın
+ * moru) siyah kutuda okunmuyor, açık tonu; beyaz bantta krem.
+ */
+const chipInk = (color: string) =>
+  color === "#ffffff" ? "#fff4dc" : color === "#6366f1" ? "#c7cbff" : color;
+
+/**
+ * Başlık — bandın üstünde düz, kalın siyah yazı.
+ *
+ * İlk hali siyah kutuda bandın renginde ters yazıydı (eski bantların
+ * başlığı); blokta kaba, ağır duruyordu — kutu bütün hücreyi kaplıyor,
+ * yanındaki her şeyi eziyordu. Bloklarda olduğu gibi siyah kutu yalnız
+ * küçük etikette (bkz. HeaderOverline).
+ */
 export function HeaderTitle({
   children,
-  color,
-  size = 26,
+  size = 24,
   center = false,
 }: {
   children: ReactNode;
-  color: string;
   size?: number;
   center?: boolean;
 }) {
   return (
     <h1
       className={cn(
-        "inline-block max-w-full break-words rounded-[11px] bg-[#111] px-3 pb-1.5 pt-1 font-black leading-none tracking-tight shadow-[3px_3px_0_rgba(17,17,17,0.25)]",
-        center ? "self-center" : "self-start"
+        "max-w-full break-words font-black leading-[1.02] tracking-[-0.02em] text-[#111]",
+        center ? "self-center text-center" : "self-start"
       )}
-      style={{ color: color === "#ffffff" ? "#fff4dc" : color, fontSize: size }}
+      style={{ fontSize: size }}
     >
       {children}
     </h1>
   );
 }
 
-/** Başlığın üstündeki küçük kalın yazı (selam, açıklama) */
-export function HeaderOverline({ children }: { children: ReactNode }) {
-  return <p className="mb-1.5 truncate text-[11.5px] font-extrabold uppercase tracking-wider">{children}</p>;
+/**
+ * Başlığın üstündeki etiket — bloklardaki "BUGÜN", "SON GİRDİLER"
+ * etiketinin aynısı: siyah kutuda bandın renginde küçük kalın harf,
+ * isteğe bağlı simgeyle (selamın güneşi/ayı).
+ */
+export function HeaderOverline({
+  children,
+  color = "#ffffff",
+  icon: Icon,
+  center = false,
+}: {
+  children: ReactNode;
+  color?: string;
+  icon?: LucideIcon;
+  center?: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        "mb-1.5 inline-flex max-w-full items-center gap-1 rounded-md bg-[#111] px-1.5 py-[2px] text-[10px] font-black uppercase leading-tight tracking-wider",
+        center ? "self-center" : "self-start"
+      )}
+      style={{ color: chipInk(color) }}
+    >
+      {Icon && <Icon className="h-3 w-3 shrink-0" strokeWidth={3} />}
+      <span className="truncate">{children}</span>
+    </span>
+  );
+}
+
+/** Başlığın yanındaki beyaz kare simge — blokların kalem karosu gibi (bkz. SummaryLead "thing") */
+export function HeaderIcon({ icon: Icon, fill }: { icon: LucideIcon; /** Şekli bandın renginde doldur (Yapı: seçili sekmenin şekli gibi) */ fill?: string }) {
+  return (
+    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white text-[#111] shadow-[2px_2px_0_#111]">
+      <Icon className="h-[22px] w-[22px]" strokeWidth={2.5} fill={fill ?? "none"} />
+    </span>
+  );
+}
+
+/**
+ * Başlık hücresinin olağan içi: solda simge karosu (ya da ana sayfanın
+ * tarih yaprağı gibi özel bir karo), yanında etiket, başlık ve altında
+ * küçük bir satır.
+ */
+export function HeaderLead({
+  color,
+  icon,
+  iconFill = false,
+  tile,
+  overline,
+  overlineIcon,
+  title,
+  sub,
+  size = 24,
+  badge,
+}: {
+  color: string;
+  icon?: LucideIcon;
+  iconFill?: boolean;
+  /** Simge yerine özel karo */
+  tile?: ReactNode;
+  overline?: string;
+  overlineIcon?: LucideIcon;
+  title: ReactNode;
+  sub?: ReactNode;
+  size?: number;
+  /** Başlığın yanındaki küçük sayı */
+  badge?: ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      {tile ?? (icon && <HeaderIcon icon={icon} fill={iconFill ? color : undefined} />)}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {overline && (
+          <HeaderOverline color={color} icon={overlineIcon}>
+            {overline}
+          </HeaderOverline>
+        )}
+        <div className="flex min-w-0 items-center gap-2">
+          <HeaderTitle size={size}>{title}</HeaderTitle>
+          {badge}
+        </div>
+        {sub && <p className="mt-1 truncate text-[12px] font-bold leading-tight text-[#111]/80">{sub}</p>}
+      </div>
+    </div>
+  );
 }
 
 /**

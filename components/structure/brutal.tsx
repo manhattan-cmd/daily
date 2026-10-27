@@ -54,8 +54,11 @@ export function BrutTopStrip({
   onEdit,
   onDelete,
   onAddSub,
+  trail,
 }: {
   back: string;
+  /** Başlıkta etiketin altında: geri karosunun döndüğü yer */
+  trail?: string;
   analyticsHref?: string;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -64,7 +67,7 @@ export function BrutTopStrip({
 }) {
   const t = useT();
   return (
-    <TopBar back={back} label={t("nav.structure")}>
+    <TopBar back={back} label={t("nav.structure")} trail={trail}>
       {onAddSub && <TopBarButton icon={Plus} label={t("entry.addSub")} onClick={onAddSub} tone="add" />}
       {analyticsHref && <TopBarButton icon={BarChart3} label={t("nav.insights")} href={analyticsHref} />}
       {onEdit && <TopBarButton icon={Pencil} label={t("action.edit")} onClick={onEdit} />}

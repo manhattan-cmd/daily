@@ -2215,11 +2215,26 @@ export async function getMonthDaySummary(
 ): Promise<Map<number, DaySummary>> {
   const start = new Date(year, month, 1, 0, 0, 0, 0).getTime();
   const end = new Date(year, month + 1, 0, 23, 59, 59, 999).getTime();
+  const byDate = await getRangeDaySummary(start, end, maxColors);
+  const out = new Map<number, DaySummary>();
+  for (const [key, v] of byDate) out.set(Number(key.slice(8, 10)), v);
+  return out;
+}
+
+/**
+ * Aralıktaki günlerin özeti, yerel tarih anahtarıyla ("YYYY-MM-DD") — ay
+ * görünümü ve gün sayfasının hafta şeridi (hafta iki aya taşabiliyor).
+ */
+export async function getRangeDaySummary(
+  start: number,
+  end: number,
+  maxColors = 4
+): Promise<Map<string, DaySummary>> {
   const entries = await db.entries
     .where("occurredAt")
     .between(start, end, true, true)
     .toArray();
-  const out = new Map<number, DaySummary>();
+  const out = new Map<string, DaySummary>();
   if (!entries.length) return out;
 
   const subIds = [...new Set(entries.map((e) => e.subcategoryId))];
@@ -2230,10 +2245,10 @@ export async function getMonthDaySummary(
   const catById = new Map(cats.map((c) => [c.id, c]));
 
   // gün → (kategori → o gün kaç girdi)
-  const perDay = new Map<number, Map<string, number>>();
-  const counts = new Map<number, number>();
+  const perDay = new Map<string, Map<string, number>>();
+  const counts = new Map<string, number>();
   for (const e of entries) {
-    const day = new Date(e.occurredAt).getDate();
+    const day = toLocalDateValue(e.occurredAt);
     counts.set(day, (counts.get(day) ?? 0) + 1);
     const catId = catIdBySub.get(e.subcategoryId);
     if (!catId) continue;

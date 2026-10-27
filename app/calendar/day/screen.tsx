@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Layer, PageSheet } from "@/components/ui/layer";
 import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
-import { HeaderBlock, HeaderTile, HeaderTitle } from "@/components/ui/header-block";
+import { HeaderBlock, HeaderOverline, HeaderTile, HeaderTitle } from "@/components/ui/header-block";
+import { WeekStrip } from "@/components/calendar/week-strip";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, ArrowRight, BarChart3, CalendarDays, ChevronLeft, ChevronRight, NotebookPen, Target } from "lucide-react";
 import { db } from "@/lib/db";
@@ -396,11 +397,13 @@ export function CalendarDayPage({
         top={brutal ? (
           /* Brütal: başlık bloğu (bkz. HeaderBlock) — Takvim'in yeşili; ortada
              ay ve yıl, dokununca takvim; iki yanda komşu günler (gün sayfasında
-             en sık yapılan şey bir gün geri gitmek) */
+             en sık yapılan şey bir gün geri gitmek); altında haftanın günleri
+             (bkz. WeekStrip) */
           <HeaderBlock
             color="#7ae582"
             sticky={false}
             center
+            rows={<WeekStrip date={date} />}
             leading={
               <HeaderTile
                 icon={ChevronLeft}
@@ -419,8 +422,10 @@ export function CalendarDayPage({
             }
           >
             <Link href="/calendar" prefetch={false} className="flex flex-col items-center active:opacity-70">
-              <span className="mb-1.5 text-[11.5px] font-extrabold uppercase tracking-wider">{t("nav.calendar")}</span>
-              <HeaderTitle color="#7ae582" size={20} center>
+              <HeaderOverline color="#7ae582" icon={CalendarDays} center>
+                {t("nav.calendar")}
+              </HeaderOverline>
+              <HeaderTitle size={21} center>
                 {monthName(d.getMonth(), tag)} {d.getFullYear()}
               </HeaderTitle>
             </Link>
@@ -511,7 +516,6 @@ export function CalendarDayPage({
           link={{
             href: routes.period(`d-${date}`),
             label: t("day.insights"),
-            badge: dayItemCount > 0 ? t("brut.entryCount", { n: dayItemCount }) : undefined,
             // Analiz'in mavisi — gittiği bölümün bandı gibi (bkz. ana sayfa)
             color: "#8ea6ff",
             icon: BarChart3,

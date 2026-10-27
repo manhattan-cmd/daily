@@ -188,18 +188,34 @@ export default function CalendarPage() {
       <PageSheet
         top={
       brutal ? (
-        /* Brütal: başlık bloğu (bkz. HeaderBlock) — Takvim'in yeşili, ortada
-           ay ters etiket ve yıl (içerikle birlikte kayar), iki yanda ‹ › */
+        /* Brütal: başlık bloğu (bkz. HeaderBlock) — Takvim'in yeşili; ortada
+           ay düz kalın yazı, yanında yıl siyah etikette, altında ayın özeti
+           (kaç girdi, kaç günde) — içerikle birlikte kayar; iki yanda ‹ ›.
+           İlk hali ay siyah kutuda ters yazıydı: kalın, kaba duruyordu */
         <HeaderBlock
           color="#7ae582"
           sticky={false}
           center
           style={glideStyle}
-          leading={<HeaderTile icon={ChevronLeft} onClick={prevMonth} ariaLabel={t("selection.previousDay")} />}
-          trailing={<HeaderTile icon={ChevronRight} onClick={nextMonth} ariaLabel={t("selection.nextDay")} />}
+          leading={<HeaderTile icon={ChevronLeft} onClick={prevMonth} ariaLabel={t("selection.previousDay")} width={46} />}
+          trailing={<HeaderTile icon={ChevronRight} onClick={nextMonth} ariaLabel={t("selection.nextDay")} width={46} />}
         >
-          <HeaderTitle color="#7ae582" size={26} center>{monthName(month, tag)}</HeaderTitle>
-          <p className="mt-1.5 text-[13px] font-extrabold tabular-nums tracking-wider">{year}</p>
+          <div className="flex items-center justify-center gap-2">
+            <HeaderTitle size={26} center>{monthName(month, tag)}</HeaderTitle>
+            <span className="rounded-md bg-[#111] px-1.5 py-[2px] font-mono text-[11px] font-bold leading-tight text-[#7ae582] tabular-nums">
+              {year}
+            </span>
+          </div>
+          <p className="mt-1 text-[12px] font-bold leading-tight text-[#111]/70">
+            {summary === undefined
+              ? "\u00a0"
+              : summary.size
+                ? t("cal.monthStats", {
+                    entries: [...summary.values()].reduce((n, x) => n + x.count, 0),
+                    days: summary.size,
+                  })
+                : t("cal.monthEmpty")}
+          </p>
         </HeaderBlock>
       ) : (
       /* Ay gezintisi — oklar sabit kalır, ay adı içerikle birlikte kayar */

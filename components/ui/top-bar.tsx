@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { HeaderBlock } from "@/components/ui/header-block";
+import { HeaderBlock, HeaderOverline } from "@/components/ui/header-block";
 
 /**
  * Üst menü — sayfanın tepesindeki kare düğmeler şeridi (Brütal). Solda geri,
@@ -17,14 +17,17 @@ export function TopBar({
   back,
   backLabel,
   label,
+  trail,
   color = "#ffd23f",
   children,
   className,
 }: {
   back?: string;
   backLabel?: string;
-  /** Ortadaki hücrede küçük bölüm adı (Yapı) */
+  /** Ortadaki hücrede bölümün etiketi (Yapı) */
   label?: string;
+  /** Etiketin altında bulunulan yer — geri karosunun döndüğü üst (Kategoriler, Harcamalar) */
+  trail?: string;
   /** Bölümün rengi — varsayılan Yapı'nın sarısı */
   color?: string;
   /** Sağdaki düğmeler (TopBarButton) */
@@ -41,7 +44,8 @@ export function TopBar({
       leading={back ? <TopBarButton icon={ArrowLeft} label={backLabel ?? t("action.back")} href={back} /> : undefined}
       trailing={children ? <div data-top-bar="" className="flex shrink-0 gap-[2px]">{children}</div> : undefined}
     >
-      {label && <span className="truncate text-[11.5px] font-extrabold uppercase tracking-wider">{label}</span>}
+      {label && <HeaderOverline color={color}>{label}</HeaderOverline>}
+      {trail && <p className="truncate text-[15px] font-black leading-tight tracking-[-0.01em]">{trail}</p>}
     </HeaderBlock>
   );
 }

@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { useSkin } from "@/lib/skin";
-import { HeaderBlock, HeaderOverline, HeaderTile, HeaderTitle, bandColor } from "@/components/ui/header-block";
+import { HeaderBlock, HeaderLead, HeaderTile, HeaderTitle, bandColor } from "@/components/ui/header-block";
 
 interface PageHeaderProps {
   title: string;
@@ -37,6 +37,12 @@ interface PageHeaderProps {
   titleSlot?: React.ReactNode;
   /** Başlığın yanındaki küçük etiket (ör. kayıt sayısı) */
   badge?: React.ReactNode;
+  /** Brütal: başlığın yanındaki beyaz simge karosu */
+  icon?: LucideIcon;
+  /** Brütal: simgenin şekli bandın renginde dolu */
+  iconFill?: boolean;
+  /** Brütal: başlığın üstündeki siyah etiket — verilmezse açıklama */
+  overline?: string;
   className?: string;
 }
 
@@ -51,14 +57,17 @@ export function PageHeader({
   collapsed = false,
   titleSlot,
   badge,
+  icon,
+  iconFill,
+  overline,
   className,
 }: PageHeaderProps) {
   const t = useT();
   const brutal = useSkin() === "brutal";
 
   // Brütal tema: ana sayfanın blok dili başlıkta (bkz. HeaderBlock) — ortada
-  // bölümün rengindeki benekli hücrede açıklama üst yazı ve ters etiketli dev
-  // başlık, solda geri karosu, sağda eylem karosu; gezinme şeridi (Yapı
+  // bölümün rengindeki benekli hücrede simge karosu, siyah etiket ve düz
+  // kalın başlık (bkz. HeaderLead), solda geri karosu, sağda eylem karosu; gezinme şeridi (Yapı
   // sekmeleri) altında kendi hücreleriyle. Sade (compact) ve özel başlıklı
   // (titleSlot) bantlarda — Analiz — ortadaki hücre o içerik, şerit altta
   // beyaz bir hücrede.
@@ -72,15 +81,20 @@ export function PageHeader({
           trailing={action ? <div data-header-actions="" className="flex shrink-0 gap-[2px]">{action}</div> : undefined}
           rows={nav}
         >
-          {description ? <HeaderOverline>{description}</HeaderOverline> : null}
-          <div className="flex min-w-0 items-center gap-2">
-            <HeaderTitle color={color} size={28}>{title}</HeaderTitle>
-            {badge !== undefined && badge !== null && (
-              <span data-brut-badge="" className="shrink-0 rounded-lg bg-[#111] px-2 py-0.5 text-[13px] font-black tabular-nums text-[#FFF4DC]">
-                {badge}
-              </span>
-            )}
-          </div>
+          <HeaderLead
+            color={color}
+            icon={icon}
+            iconFill={iconFill}
+            overline={overline ?? description}
+            title={title}
+            badge={
+              badge !== undefined && badge !== null ? (
+                <span data-brut-badge="" className="shrink-0 rounded-lg bg-[#111] px-2 py-0.5 text-[13px] font-black tabular-nums text-[#FFF4DC]">
+                  {badge}
+                </span>
+              ) : undefined
+            }
+          />
         </HeaderBlock>
       );
     }
@@ -89,7 +103,7 @@ export function PageHeader({
         color={color}
         rows={nav ? <div data-header-row="" className="bg-white px-2 pt-2">{nav}</div> : undefined}
       >
-        {titleSlot ?? <HeaderTitle color={color} size={20}>{title}</HeaderTitle>}
+        {titleSlot ?? <HeaderTitle size={20}>{title}</HeaderTitle>}
       </HeaderBlock>
     );
   }

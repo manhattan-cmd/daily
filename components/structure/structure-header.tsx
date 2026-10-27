@@ -24,6 +24,10 @@ export function StructureHeader({ action }: { action?: React.ReactNode }) {
   return (
     <PageHeader
       title={t(tab?.key ?? "structure.title")}
+      // Brütal: sekmenin şekli (kare = kategori, daire = özellik…) ve bölüm
+      icon={tab?.icon}
+      iconFill
+      overline={t("nav.structure")}
       action={action}
       // Brütal: bölümün kendi bandı (sarı zemin, tram benekleri) — bkz. globals.css
       className="yapi-band"

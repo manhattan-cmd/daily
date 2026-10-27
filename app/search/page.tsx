@@ -86,6 +86,7 @@ export default function SearchPage() {
         <PageHeader
           title={t("search.title")}
           description={t("search.lead")}
+          icon={Search}
           back="/"
         />
       }

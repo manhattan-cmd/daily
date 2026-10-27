@@ -71,6 +71,7 @@ export function CategoryDetailPage({
         top={brutal ? (
           <BrutTopStrip
             back="/structure"
+            trail={t("structure.categories")}
             analyticsHref={routes.analyticsCategory(categoryId)}
             onEdit={() => setCatFormOpen(true)}
             onDelete={onDeleteCategory}

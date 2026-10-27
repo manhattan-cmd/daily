@@ -9,11 +9,16 @@ import {
   CalendarDays,
   CalendarRange,
   Layers,
+  Moon,
+  MoonStar,
   Plus,
   Search,
   Settings,
   Sparkles,
+  Sun,
+  Sunrise,
   Target,
+  type LucideIcon,
 } from "lucide-react";
 import {
   getRecentDaySummaries,
@@ -28,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Layer, PageSheet } from "@/components/ui/layer";
 import { SummaryBlock } from "@/components/ui/summary-block";
-import { HeaderBlock, HeaderOverline, HeaderTile, HeaderTitle } from "@/components/ui/header-block";
+import { HeaderBlock, HeaderLead, HeaderTile } from "@/components/ui/header-block";
 import { CardListSkeleton } from "@/components/ui/skeleton";
 import { EntryCard } from "@/components/dashboard/entry-card";
 import { NoteCard } from "@/components/notes/note-card";
@@ -190,15 +195,24 @@ export default function HomePage() {
     <PageSheet
       top={
       brutal ? (
-        /* Brütal: başlık bloğu (bkz. HeaderBlock) — uygulamanın moru, tram
-           benekli hücrede selam üst yazı, tarih ters etiket; yanında Ayarlar */
+        /* Brütal: başlık bloğu (bkz. HeaderBlock) — uygulamanın moru; solda
+           takvim yaprağı gibi bugünün karosu (dokununca günün sayfası), yanında
+           günün saatine göre simgeli selam etiketi, haftanın günü ve ay · yılın
+           kaçıncı haftası; sağda Ayarlar. İlk hali selam düz yazı, tarih siyah
+           kutuda ters yazıydı — kullanıcıya göre anlamsız, düz duruyordu */
         <HeaderBlock
           color="#6366f1"
           sticky={false}
           trailing={<HeaderTile icon={Settings} href="/settings" ariaLabel={t("nav.settings")} />}
         >
-          <HeaderOverline>{getGreeting(t)}</HeaderOverline>
-          <HeaderTitle color="#6366f1" size={24}>{longDate(locale)}</HeaderTitle>
+          <HeaderLead
+            color="#6366f1"
+            tile={<DateLeaf date={today} />}
+            overline={getGreeting(t)}
+            overlineIcon={greetingIcon()}
+            title={new Date().toLocaleDateString(intlTag(locale), { weekday: "long" })}
+            sub={`${new Date().toLocaleDateString(intlTag(locale), { month: "long", year: "numeric" })} · ${t("home.weekOfYear", { n: isoWeek(new Date()) })}`}
+          />
         </HeaderBlock>
       ) : (
       <header
@@ -819,6 +833,49 @@ function WeekBar({
       </span>
     </Link>
   );
+}
+
+/**
+ * Takvim yaprağı — bugünün karosu: üstte siyah şeritte ay, altında büyük gün
+ * numarası. Dokununca bugünün sayfası.
+ */
+function DateLeaf({ date }: { date: string }) {
+  const tag = intlTag(useLocale());
+  const now = new Date();
+  return (
+    <Link
+      href={routes.day(date)}
+      prefetch={false}
+      {...prefetchDayOnPress(date)}
+      aria-label={now.toLocaleDateString(tag, { day: "numeric", month: "long" })}
+      className="flex h-[54px] w-[50px] shrink-0 flex-col overflow-hidden rounded-[11px] border-2 border-[#111] bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+    >
+      <span className="bg-[#111] py-[3px] text-center text-[9.5px] font-black uppercase leading-none tracking-wider text-[#c7cbff]">
+        {now.toLocaleDateString(tag, { month: "short" }).replace(".", "")}
+      </span>
+      <span className="flex flex-1 items-center justify-center font-mono text-[23px] font-bold leading-none tabular-nums">
+        {now.getDate()}
+      </span>
+    </Link>
+  );
+}
+
+/** Selamın simgesi — günün saatine göre */
+function greetingIcon(): LucideIcon {
+  const h = new Date().getHours();
+  if (h < 5) return MoonStar;
+  if (h < 12) return Sunrise;
+  if (h < 18) return Sun;
+  return Moon;
+}
+
+/** Yılın kaçıncı haftası (ISO: hafta pazartesi başlar) */
+function isoWeek(d: Date): number {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - day);
+  const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil(((t.getTime() - y0.getTime()) / 86400000 + 1) / 7);
 }
 
 function getGreeting(t: (k: Parameters<typeof translate>[0]) => string): string {

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowRight, Layers, Sparkles } from "lucide-react";
+import { ArrowRight, Layers, Settings, Sparkles } from "lucide-react";
 import { db } from "@/lib/db";
 import { setLocalFlag } from "@/lib/local-flag";
 import { useT } from "@/lib/i18n";
@@ -39,6 +39,7 @@ export default function SettingsPage() {
         <PageHeader
           title={t("settings.title")}
           description={t("settings.lead")}
+          icon={Settings}
           back="/"
         />
       }
