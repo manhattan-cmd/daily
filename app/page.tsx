@@ -55,8 +55,8 @@ const RECENT_LIMIT = 20;
  * ve yedeğe götüren liste; bitince kalkar), Bugün (sayının neyin sayısı
  * olduğu yazılı, yanında gün sayfasındakiyle aynı genel Ekle — girdi,
  * aktivite, hedef, not, uyku, ruh hali, nesne), Yine ekle (son 30 günün en
- * sık kalemleri, tek dokunuşla formu açar), son 7 gün, Yapın (yapıya giden
- * kapı) ve son girdiler.
+ * sık kalemleri, tek dokunuşla formu açar), Kategorilerin (girdilerle dolan
+ * kareler, yapıya giden kapı), son 7 gün ve son girdiler.
  *
  * Eskiden "8 girdi" yazıyordu ama bugünün mü belli değildi; ekleme düğmesi
  * yalnız girdi açıyordu, uyku ya da hedef için güne gitmek gerekiyordu.
@@ -207,9 +207,11 @@ export default function HomePage() {
           {home && home.frequent.length > 0 && (
             <FrequentLayer items={home.frequent} onPick={(sub) => add.openEntry({ presetSub: sub })} />
           )}
+          {/* Girdilerin gittiği yer — yapıya giden kapı (yeni kullanıcıda
+              Yine ekle yok, Bugün'ün hemen altında) */}
+          {home && <CategoriesLayer snapshot={home} onNew={() => setCatFormOpen(true)} />}
           {/* Hiç girdisi olmayana boş çubuklar bir şey söylemiyor */}
           {home && home.totalEntries > 0 && week && <BrutWeek week={week} today={today} />}
-          {home && !showStart && <StructureLink counts={home.counts} />}
         </>
       ) : (
       <>
@@ -545,33 +547,108 @@ function BrutWeek({ week, today }: { week: DayBar[]; today: string }) {
   );
 }
 
+/** Görünen en çok kare (Yeni karosu hariç); fazlası "+N" karosuyla Yapı'ya */
+const CATS_SHOWN = 11;
+
 /**
- * Yapın — kategori, alt kategori ve özelliklerin kapısı. Ana sayfadan yapıya
- * giden yol alt menüdeki "Yapı"ydı; ne olduğunu bilmeyen oraya gitmiyordu.
- * Sayılar zincirin üç halkasını adıyla söylüyor.
+ * Kategorilerin — girdilerin gittiği yer, yapıya giden kapı.
+ *
+ * Kullanıcıya "girdi eklemek için önce yapıda kategori kurulur" diye
+ * anlatmak yerine gösteriyor: her kategori kendi renginde bir kare, kare son
+ * 30 günün girdileriyle aşağıdan dolar (en çok girdisi olan dolu, hiç
+ * olmayan boş — yalnız rengini gösteren ince bir taban). Renkler Bugün
+ * bloğunun şeridi, haftanın sütunları ve girdi kartlarıyla aynı: kullanıcı
+ * "bu renk şu kategori, girdim oraya düştü" bağını kendisi kuruyor.
+ * Kareye dokununca Yapı'da o kategorinin sayfası (alt kategoriler,
+ * özellikler), sondaki kesik kare yeni kategori; altta yapının derinliği.
+ *
+ * Eskiden yerinde sayıları yazan tek satır (Yapın) vardı; neyin sayısı
+ * olduğu ve neden gidileceği belli değildi.
  */
-function StructureLink({ counts }: { counts: HomeSnapshot["counts"] }) {
+function CategoriesLayer({ snapshot, onNew }: { snapshot: HomeSnapshot; onNew: () => void }) {
   const t = useT();
+  const cats = snapshot.categories;
+  const overflow = cats.length > CATS_SHOWN;
+  const shown = overflow ? cats.slice(0, CATS_SHOWN - 1) : cats;
+  const max = Math.max(1, ...cats.map((c) => c.count));
+  const tileCls = "relative aspect-square w-full overflow-hidden rounded-[14px] border-2 border-[#111] shadow-[2px_2px_0_#111]";
+  const nameCls = "w-full truncate text-center text-[11px] font-extrabold leading-tight";
   return (
-    <Link
-      href="/structure"
-      className="mb-4 flex items-center gap-3 rounded-[18px] border-2 border-[#111] bg-white p-2.5 pr-3.5 text-[#111] shadow-[4px_4px_0_#111] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_#111]"
-    >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-[#ffd23f]">
-        <Layers className="h-5 w-5" strokeWidth={2.5} />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-black leading-tight">{t("home.structure")}</span>
-        <span className="block text-[11.5px] font-bold leading-snug text-[#111]/55">
-          {t("settings.structureCounts", {
-            categories: counts.categories,
-            subcategories: counts.subcategories,
-            features: counts.features,
+    <Layer label={t("home.cats.title")} count={cats.length}>
+      <p className="-mt-1 mb-3 ml-0.5 text-[12px] font-semibold leading-snug text-[#111]/60">{t("home.cats.hint")}</p>
+      <div className="grid grid-cols-4 gap-x-2 gap-y-2.5">
+        {shown.map(({ category: c, count }) => {
+          // Boş kategoride yalnız rengini gösteren taban; doluluk en çok
+          // girdisi olana göre
+          const fill = count ? 24 + Math.round((76 * count) / max) : 12;
+          return (
+            <Link
+              key={c.id}
+              href={routes.structureCategory(c.id)}
+              prefetch={false}
+              aria-label={t("home.cats.tile", { name: c.name, n: count })}
+              className="flex min-w-0 flex-col items-center gap-1 text-[#111] active:opacity-70"
+            >
+              <span className={cn(tileCls, "bg-white")}>
+                <span
+                  className="absolute inset-x-0 bottom-0 border-t-[1.5px] border-[#111] transition-[height] duration-500"
+                  style={{ height: `${fill}%`, background: c.color }}
+                />
+                <span className="absolute inset-0 flex items-center justify-center">
+                  {c.icon && <SymbolIcon name={c.icon} size={22} style={{ color: "#111" }} />}
+                </span>
+                {count > 0 && (
+                  <b className="absolute right-1 top-1 rounded-[5px] bg-[#111] px-1 py-px font-mono text-[9.5px] font-bold leading-tight text-white tabular-nums">
+                    {count}
+                  </b>
+                )}
+              </span>
+              <span className={nameCls}>{c.name}</span>
+            </Link>
+          );
+        })}
+        {overflow && (
+          <Link
+            href="/structure"
+            aria-label={t("home.cats.more", { n: cats.length - shown.length })}
+            className="flex min-w-0 flex-col items-center gap-1 text-[#111] active:opacity-70"
+          >
+            <span className={cn(tileCls, "flex items-center justify-center bg-white font-mono text-[16px] font-bold")}>
+              +{cats.length - shown.length}
+            </span>
+            <span className={nameCls}>{t("nav.structure")}</span>
+          </Link>
+        )}
+        {/* Yeni kategori — kesik çerçeveli boş kare, ızgaranın sonunda */}
+        <button
+          type="button"
+          onClick={onNew}
+          aria-label={t("home.cats.newAria")}
+          className="flex min-w-0 flex-col items-center gap-1 text-[#111] active:opacity-70"
+        >
+          <span className="flex aspect-square w-full items-center justify-center rounded-[14px] border-2 border-dashed border-[#111]/55 bg-white/60">
+            <Plus className="h-6 w-6" strokeWidth={3} />
+          </span>
+          <span className={nameCls}>{t("home.cats.new")}</span>
+        </button>
+      </div>
+      {/* Yapının derinliği — kategorilerin içinde ne var */}
+      <Link
+        href="/structure"
+        className="mt-3.5 flex items-center gap-2.5 rounded-xl border-2 border-[#111] bg-white px-2.5 py-2 text-[#111] shadow-[2px_2px_0_#111] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+      >
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] border-[#111] bg-[#ffd23f]">
+          <Layers className="h-4 w-4" strokeWidth={2.5} />
+        </span>
+        <span className="min-w-0 flex-1 text-[12.5px] font-extrabold leading-snug">
+          {t("home.cats.inside", {
+            subcategories: snapshot.counts.subcategories,
+            features: snapshot.counts.features,
           })}
         </span>
-      </span>
-      <ArrowRight className="h-5 w-5 shrink-0" strokeWidth={2.75} />
-    </Link>
+        <ArrowRight className="h-4 w-4 shrink-0" strokeWidth={2.75} />
+      </Link>
+    </Layer>
   );
 }
 

@@ -32,6 +32,11 @@ export type HomeSnapshot = {
   totalEntries: number;
   streak: { current: number; best: number };
   frequent: FrequentItem[];
+  /**
+   * Kategoriler yapıdaki sırasıyla, son 30 günün girdi sayısıyla — ana
+   * sayfada girdilerle dolan kareler (yerleşikler hariç)
+   */
+  categories: { category: Category; count: number }[];
   /** Örnek yapının dışında (ya da adı değiştirilmiş) bir kategori var mı */
   ownCategory: boolean;
   goalsEver: number;
@@ -102,6 +107,14 @@ export async function loadHomeSnapshot(now = new Date()): Promise<HomeSnapshot> 
     });
 
   const userCats = categories.filter((c) => !c.isBuiltIn);
+  const byCat = new Map<string, number>();
+  for (const e of recent) {
+    const catId = subById.get(e.subcategoryId)?.categoryId;
+    if (catId) byCat.set(catId, (byCat.get(catId) ?? 0) + 1);
+  }
+  const catList = [...userCats]
+    .sort((a, b) => a.order - b.order)
+    .map((category) => ({ category, count: byCat.get(category.id) ?? 0 }));
   const ownCategory = userCats.some(
     (c) => !STARTER_NAMES.has(c.name.trim().toLocaleLowerCase("en-US"))
   );
@@ -111,6 +124,7 @@ export async function loadHomeSnapshot(now = new Date()): Promise<HomeSnapshot> 
     totalEntries: (occurred as number[]).length,
     streak,
     frequent,
+    categories: catList,
     ownCategory,
     goalsEver,
     counts: {
