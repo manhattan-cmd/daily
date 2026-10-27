@@ -2,7 +2,7 @@
 
 import { type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, type LucideIcon } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
@@ -45,7 +45,23 @@ export type SummaryLink = {
   badge?: string;
   /** Alt kenardaki dağılım — renk ve pay */
   bars?: { key: string; color: string; weight: number; title?: string }[];
+  /**
+   * Verilirse satır gittiği yerin bandı gibi çizilir: o renkte tram benekli
+   * zemin, siyah kutuda ters yazılı ad, iki yanında kare düğmeler (simge ve
+   * ok). Ana sayfada Günü aç günün sarısı, Takvimi aç Takvim'in yeşili,
+   * Yapıya git Yapı'nın sarısı. Verilmezse sade beyaz satır (gün sayfası).
+   */
+  color?: string;
+  icon?: LucideIcon;
 };
+
+/** Bölüm bantlarının tram benekleri (bkz. globals.css "bolum bantlari") */
+const bandDots = (color: string) => ({
+  backgroundColor: color,
+  backgroundImage: "radial-gradient(rgba(17, 17, 17, 0.16) 1.2px, transparent 1.5px)",
+  backgroundSize: "11px 11px",
+});
+const SQ = "flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white shadow-[2px_2px_0_#111]";
 
 function Lead({ lead }: { lead: SummaryLead }) {
   if (lead.kind === "title") {
@@ -144,7 +160,6 @@ export function SummaryBlock({
   stats,
   action,
   link,
-  footer,
   children,
   className,
 }: {
@@ -154,8 +169,6 @@ export function SummaryBlock({
   /** Sayılarla alt satır arasındaki satır(lar) — zemini çağıranın (ana
    *  sayfada kategori kareleri, Yine ekle hücreleri) */
   children?: ReactNode;
-  /** En alt satırın yerine kendi düğmesi (Kategorilerin: Yapıya git) */
-  footer?: ReactNode;
   /** Ekle düğmesi (gün) — adın yanındaki kare hücreyi doldurur */
   action?: ReactNode;
   link?: SummaryLink;
@@ -191,8 +204,33 @@ export function SummaryBlock({
         <Link
           href={link.href}
           prefetch={false}
-          className="flex min-w-0 flex-col bg-white text-[#111] active:bg-[#f5f1e8]"
+          className={cn(
+            "flex min-w-0 flex-col text-[#111]",
+            link.color ? "active:brightness-95" : "bg-white active:bg-[#f5f1e8]"
+          )}
+          style={link.color ? bandDots(link.color) : undefined}
         >
+          {link.color ? (
+            <span className="flex items-center gap-3 px-3 py-3">
+              {link.icon && (
+                <span className={SQ}>
+                  <link.icon className="h-5 w-5" strokeWidth={2.5} />
+                </span>
+              )}
+              <span
+                className="min-w-0 truncate rounded-[10px] bg-[#111] px-3 pb-1.5 pt-1 text-[19px] font-black leading-none tracking-tight shadow-[3px_3px_0_rgba(17,17,17,0.25)]"
+                style={{ color: link.color }}
+              >
+                {link.label}
+              </span>
+              {link.badge && (
+                <span className="shrink-0 rounded-md bg-white px-1.5 py-px font-mono text-[11px] font-bold">{link.badge}</span>
+              )}
+              <span className={cn(SQ, "ml-auto")}>
+                <ArrowRight className="h-5 w-5" strokeWidth={2.75} />
+              </span>
+            </span>
+          ) : (
           <span className="flex h-10 items-center gap-2 px-3">
             <span className="min-w-0 flex-1 truncate text-[12.5px] font-black uppercase tracking-wide">{link.label}</span>
             {link.badge && (
@@ -202,6 +240,7 @@ export function SummaryBlock({
             )}
             <ArrowRight className="h-4 w-4 shrink-0" strokeWidth={2.75} />
           </span>
+          )}
           {link.bars && link.bars.length > 0 && (
             <span className="flex h-2.5 border-t-2 border-[#111]">
               {link.bars.map((b, i) => (
@@ -216,7 +255,6 @@ export function SummaryBlock({
           )}
         </Link>
       )}
-      {footer}
     </div>
   );
 }

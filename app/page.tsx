@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   ArrowRight,
+  CalendarDays,
+  CalendarRange,
   Layers,
   Plus,
   Search,
@@ -143,6 +145,43 @@ export default function HomePage() {
       {t("search.title")}
     </Link>
   );
+
+  // Son girdilerin gövdesi — brütalde bloğun hücresi, ötekilerde katman
+  const recentBody =
+    recent === undefined ? (
+      <CardListSkeleton rows={3} />
+    ) : recent.length === 0 ? (
+      <EmptyState
+        icon={Sparkles}
+        title={t("home.empty.title")}
+        description={hasCategories ? t("home.empty.ready") : t("home.empty.buildFirst")}
+        action={
+          hasCategories ? (
+            <Button onClick={() => add.openEntry()}>
+              <Plus className="h-4 w-4" />
+              {t("home.addEntry")}
+            </Button>
+          ) : (
+            <Button asChild>
+              <Link href="/structure">
+                <Plus className="h-4 w-4" />
+                {t("home.empty.buildAction")}
+              </Link>
+            </Button>
+          )
+        }
+      />
+    ) : (
+      <div className="flex flex-col gap-2">
+        {recent.map((it) =>
+          it.kind === "entry" ? (
+            <EntryCard key={it.entry.id} entry={it.entry} />
+          ) : (
+            <NoteCard key={it.note.id} note={it.note} />
+          )
+        )}
+      </div>
+    );
 
   return (
     <>
@@ -320,57 +359,19 @@ export default function HomePage() {
           yalnız son 20 var, düğme tüm geçmişi tarayan sayfaya götürür —
           bölüm içi büyüteçlerden (yerinde süzme) ayrılsın diye yazılı.
           Hiç girdi yokken Başlarken'in ikinci adımı aynı şeyi söylüyor. */}
-      {!(showStart && recent?.length === 0) && (
+      {!(showStart && recent?.length === 0) && (brutal ? (
+        <RecentBlock total={home?.totalEntries}>{recentBody}</RecentBlock>
+      ) : (
       <Layer label={t("home.recentEntries")} action={searchLink}>
-      {!brutal && (
       <div className="mb-3 flex items-center justify-between gap-2 px-1">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t("home.recentEntries")}
         </h2>
         {searchLink}
       </div>
-      )}
-
-      {recent === undefined ? (
-        <CardListSkeleton rows={3} />
-      ) : recent.length === 0 ? (
-        <EmptyState
-          icon={Sparkles}
-          title={t("home.empty.title")}
-          description={
-            hasCategories
-              ? t("home.empty.ready")
-              : t("home.empty.buildFirst")
-          }
-          action={
-            hasCategories ? (
-              <Button onClick={() => add.openEntry()}>
-                <Plus className="h-4 w-4" />
-                {t("home.addEntry")}
-              </Button>
-            ) : (
-              <Button asChild>
-                <Link href="/structure">
-                  <Plus className="h-4 w-4" />
-                  {t("home.empty.buildAction")}
-                </Link>
-              </Button>
-            )
-          }
-        />
-      ) : (
-        <div className="flex flex-col gap-2">
-          {recent.map((it) =>
-            it.kind === "entry" ? (
-              <EntryCard key={it.entry.id} entry={it.entry} />
-            ) : (
-              <NoteCard key={it.note.id} note={it.note} />
-            )
-          )}
-        </div>
-      )}
+      {recentBody}
       </Layer>
-      )}
+      ))}
     </PageSheet>
 
       {add.sheets}
@@ -438,7 +439,8 @@ function BrutTodayBlock({
             ]
           : []
       }
-      link={{ href: routes.day(today), label: t("home.openDay"), bars: snapshot?.today.bars }}
+      // Günün sarısı — gün sayfasının tarih kartı gibi
+      link={{ href: routes.day(today), label: t("home.openDay"), bars: snapshot?.today.bars, color: "#ffd23f", icon: CalendarDays }}
     />
   );
 }
@@ -511,6 +513,44 @@ function FrequentBlock({ items, onPick }: { items: FrequentItem[]; onPick: (sub:
 }
 
 /**
+ * Son girdiler — öteki bloklarla aynı dilde: üstte turuncu "SON GİRDİLER ·
+ * 592 girdi · bugüne kadar", yanında Ekle karosu gibi renkli Ara karosu
+ * (bütün geçmişte arama; listede yalnız son 20 var), altında kartlar.
+ */
+function RecentBlock({ total, children }: { total: number | undefined; children: ReactNode }) {
+  const t = useT();
+  const tag = intlTag(useLocale());
+  return (
+    <SummaryBlock
+      className="mb-4"
+      lead={{
+        kind: "count",
+        color: "#ffb38a",
+        overline: t("home.recentEntries"),
+        value: new Intl.NumberFormat(tag).format(total ?? 0),
+        unit: t("home.entries"),
+        hint: t("home.recentHint"),
+      }}
+      action={
+        <Link
+          href="/search"
+          aria-label={t("search.title")}
+          className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-[#8ea6ff] text-[#111] active:brightness-95"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#111] text-[#8ea6ff]">
+            <Search className="h-5 w-5" strokeWidth={3} />
+          </span>
+          <span className="text-[13px] font-black leading-none">{t("search.title")}</span>
+        </Link>
+      }
+      stats={[]}
+    >
+      <div className="flex flex-col gap-2 bg-white p-3">{children}</div>
+    </SummaryBlock>
+  );
+}
+
+/**
  * Son 7 gün — Bugün, Kategorilerin ve Yine ekle'yle aynı birleşik blokta:
  * üstte yeşil "SON 7 GÜN · 107 girdi", altında tarih aralığı ve günlük
  * ortalama; ortada sütunlar (günün kategori kırılımıyla yığılı, tepesinde
@@ -536,7 +576,8 @@ function BrutWeek({ week, today }: { week: DayBar[]; today: string }) {
         hint: t("home.weekHint", { range: weekRange(week, tag), avg }),
       }}
       stats={[]}
-      link={{ href: "/calendar", label: t("home.openCalendar") }}
+      // Takvim'in yeşili — bölümün bandı gibi
+      link={{ href: "/calendar", label: t("home.openCalendar"), color: "#7ae582", icon: CalendarRange }}
     >
       <div className="flex items-end gap-1.5 bg-white px-3 pb-3 pt-3 text-[#111]">
         {week.map((d) => {
@@ -607,12 +648,6 @@ const CATS_SHOWN = 12;
 /** Başlıktaki sayılar en çok üç basamak: 1000 ve fazlası "999+" */
 const cap = (n: number) => (n > 999 ? "999+" : String(n));
 
-/** Yapı bandının tram benekleri — Yapıya git düğmesi bandın bir parçası gibi */
-const YAPI_DOTS = {
-  backgroundColor: "#ffd23f",
-  backgroundImage: "radial-gradient(rgba(17, 17, 17, 0.16) 1.2px, transparent 1.5px)",
-  backgroundSize: "11px 11px",
-};
 
 /**
  * Kategorilerin — girdilerin gittiği yer, yapıya giden kapı. Bugün bloğunun
@@ -670,26 +705,8 @@ function CategoriesBlock({ snapshot, onNew }: { snapshot: HomeSnapshot; onNew: (
         </button>
       }
       stats={[]}
-      // Yapıya git — sayısız, yalnız düğme: Yapı bandının sarısı ve benekleri,
-      // ters etiketli ad (bandın başlığı gibi), iki yanında kare düğmeler
-      footer={
-        <Link
-          href="/structure"
-          data-cats-structure=""
-          className="flex items-center gap-3 px-3 py-3 text-[#111] active:brightness-95"
-          style={YAPI_DOTS}
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white shadow-[2px_2px_0_#111]">
-            <Layers className="h-5 w-5" strokeWidth={2.5} />
-          </span>
-          <span className="rounded-[10px] bg-[#111] px-3 pb-1.5 pt-1 text-[19px] font-black leading-none tracking-tight text-[#ffd23f] shadow-[3px_3px_0_rgba(17,17,17,0.25)]">
-            {t("home.cats.open")}
-          </span>
-          <span className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white shadow-[2px_2px_0_#111]">
-            <ArrowRight className="h-5 w-5" strokeWidth={2.75} />
-          </span>
-        </Link>
-      }
+      // Yapıya git — sayısız, yalnız düğme: Yapı bandının sarısı ve benekleri
+      link={{ href: "/structure", label: t("home.cats.open"), color: "#ffd23f", icon: Layers }}
     >
       <div className="grid grid-cols-4 gap-x-2 gap-y-2.5 bg-white p-3">
         {shown.map(({ category: c, count }) => {
