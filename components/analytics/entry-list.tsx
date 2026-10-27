@@ -3,12 +3,13 @@
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Search, X } from "lucide-react";
+import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import { getEntryWithContext } from "@/lib/db/queries";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { fmtEntryDateTime } from "@/lib/analytics";
 import { matchesSearch, normalizeSearch } from "@/lib/search";
 import { cn } from "@/lib/utils";
-import { useT } from "@/lib/i18n";
+import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
 
 export type EntryListRow = {
@@ -161,6 +162,97 @@ export function EntryListSection({
         />
       </div>
     </div>
+  );
+}
+
+/**
+ * Girdi listesi bloğu (Brütal) — ana sayfanın Son girdiler bloğunun eşi
+ * (bkz. SummaryBlock): solda turuncu "SON GİRDİLER · 114 girdi", yanında
+ * mavi Ara karosu (listeyi yerinde süzer; açıkken Kapat), altında arama
+ * kutusu ve liste beyaz hücrelerde. Yapı sayfalarının Son girdiler'i.
+ */
+export function EntryListBlock({
+  title,
+  total,
+  hint,
+  rows,
+  emptyText,
+  accent = DEFAULT_ACCENT,
+}: {
+  title: string;
+  /** Bütün girdilerin sayısı — liste en çok 200 kayıt getiriyor */
+  total?: number;
+  hint?: string;
+  rows: EntryListRow[];
+  emptyText?: string;
+  accent?: string;
+}) {
+  const t = useT();
+  const tag = intlTag(useLocale());
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const canSearch = rows.length >= SEARCH_MIN_ROWS;
+  const needle = canSearch && open ? normalizeSearch(query.trim()) : "";
+  const shown = useMemo(
+    () => (needle ? rows.filter((r) => matchesSearch(rowText(r), needle)) : rows),
+    [rows, needle]
+  );
+  const fmt = (n: number) => new Intl.NumberFormat(tag).format(n);
+  const close = () => {
+    setOpen(false);
+    setQuery("");
+  };
+  return (
+    <SummaryBlock
+      className="mb-4"
+      lead={{
+        kind: "count",
+        color: "#ffb38a",
+        overline: title,
+        // Süzgeç açıkken kaçta kaç: toplamın kaybolmadığı belli olsun
+        value: needle ? `${fmt(shown.length)}/${fmt(rows.length)}` : fmt(total ?? rows.length),
+        unit: t("home.entries"),
+        hint: rows.length ? hint : undefined,
+      }}
+      action={
+        canSearch ? (
+          <SummaryTile
+            color="#8ea6ff"
+            icon={open ? X : Search}
+            label={open ? t("action.close") : t("search.title")}
+            onClick={() => (open ? close() : setOpen(true))}
+          />
+        ) : undefined
+      }
+      stats={[]}
+    >
+      {canSearch && open && (
+        <div className="relative bg-white p-2">
+          <Search className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#111]/50" strokeWidth={2.5} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("list.searchPlaceholder")}
+            aria-label={t("list.searchInList")}
+            autoFocus
+            className="h-10 w-full rounded-[10px] border-2 border-[#111] bg-white pl-9 pr-9 text-[14px] font-bold text-[#111] placeholder:font-semibold placeholder:text-[#111]/40 focus:outline-none"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label={t("features.clearSearch")}
+              className="absolute right-4 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg active:bg-[#111]/10"
+            >
+              <X className="h-4 w-4" strokeWidth={2.75} />
+            </button>
+          )}
+        </div>
+      )}
+      <div data-entry-list="" className="bg-white px-3.5 py-1">
+        <EntryList rows={shown} emptyText={needle ? t("search.empty") : emptyText} accent={`${accent}e6`} />
+      </div>
+    </SummaryBlock>
   );
 }
 

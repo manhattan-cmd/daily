@@ -1157,6 +1157,11 @@ input[type="number"] {
 /* Brutal agac satiri: brut-only kaplari satir icinde duzgun hizalansin */
 :root[data-skin="brutal"] [data-tree-row] [data-brut-only] { display: inline-flex; align-items: center; justify-content: flex-end; }
 
+/* Blok dili (SummaryBlock): liste blogun beyaz hucresi — defterin kendi
+   cercevesi ve golgesi yok, hucreler arasi ortak cizgi yeterli */
+:root[data-skin="brutal"] [data-summary] [data-entry-list] {
+  box-shadow: none !important; background: #ffffff !important; border-radius: 0;
+}
 /* Brutal girdi listesi satirlari: duz, ince siyah ayrac */
 :root[data-skin="brutal"] [data-entry-list] button { border-radius: 0 !important; margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; }
 :root[data-skin="brutal"] [data-entry-list] button.border-t { border-top: 1.5px solid #111 !important; }

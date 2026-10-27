@@ -2,7 +2,7 @@
 
 import { useT } from "@/lib/i18n";
 import { useState } from "react";
-import { Unlink } from "lucide-react";
+import { Plus, Unlink } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   countDescendantModAttachments,
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Layer } from "@/components/ui/layer";
+import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import { useIsBrutal } from "@/components/structure/brutal";
 import { measureSummary } from "@/lib/measure-kinds";
 import { modColor } from "@/lib/mod-color";
@@ -87,29 +88,19 @@ export function ModifierSection({
     closeDetail();
   }
 
-  // Bölüm kendi katmanında (gün sayfasındaki gibi) — brütalde başlık katmanın adı
-  return (
-    <Layer label={t("structure.features")} className="mb-6">
-    <section>
-      {!brutal && (
-      <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {t("structure.features")}
-      </h2>
-      )}
-      <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
-        {(mods ?? []).map((mod) => (
-          <ModAtom
-            key={mod.id}
-            icon={modAtomIcon(mod)}
-            name={mod.name ?? mod.entryType.name}
-            // Özelliğin kendi rengi — girdi formu ve özellikler sayfasıyla aynı
-            color={modColor(mod.mod ?? { name: mod.name ?? mod.entryType.name })}
-            onClick={() => setSelected(mod)}
-          />
-        ))}
-        <ModAtomAdd label={t("entry.addFeature")} onClick={() => setPickerOpen(true)} />
-      </div>
+  const atoms = (mods ?? []).map((mod) => (
+    <ModAtom
+      key={mod.id}
+      icon={modAtomIcon(mod)}
+      name={mod.name ?? mod.entryType.name}
+      // Özelliğin kendi rengi — girdi formu ve özellikler sayfasıyla aynı
+      color={modColor(mod.mod ?? { name: mod.name ?? mod.entryType.name })}
+      onClick={() => setSelected(mod)}
+    />
+  ));
 
+  const dialogs = (
+    <>
       {/* Atom detayı — ölçüsü + buradan çıkarma */}
       <Dialog
         open={selected !== null}
@@ -220,6 +211,57 @@ export function ModifierSection({
         targetId={targetId}
         targetName={targetName}
       />
+    </>
+  );
+
+  // Brütal: ana sayfanın blok dili (bkz. SummaryBlock) — solda menekşe
+  // "ÖZELLİKLER · 3 özellik · girdi formunda sorulanlar", yanında yeşil
+  // Özellik ekle karosu (ızgaranın sonundaki kesik daire yerine), altında
+  // atomlar beyaz hücrede. Hiç yoksa ne işe yaradıkları yazıyor.
+  if (brutal) {
+    return (
+      <>
+        <SummaryBlock
+          className="mb-4"
+          lead={{
+            kind: "count",
+            color: "#c9b8ff",
+            overline: t("structure.features"),
+            value: mods ? String(mods.length) : "–",
+            unit: t("struct.features.unit"),
+            hint: t("struct.features.hint"),
+          }}
+          action={<SummaryTile color="#7ae582" icon={Plus} label={t("entry.addFeature")} onClick={() => setPickerOpen(true)} />}
+          stats={[]}
+        >
+          {mods && mods.length > 0 ? (
+            <div data-feature-cell="" className="grid grid-cols-4 gap-x-1.5 gap-y-1 bg-white p-2">
+              {atoms}
+            </div>
+          ) : mods ? (
+            <p className="bg-white px-3.5 py-3 text-[12.5px] font-semibold leading-snug text-[#111]/65">
+              {t("struct.features.empty")}
+            </p>
+          ) : null}
+        </SummaryBlock>
+        {dialogs}
+      </>
+    );
+  }
+
+  // Bölüm kendi katmanında (gün sayfasındaki gibi)
+  return (
+    <Layer label={t("structure.features")} className="mb-6">
+    <section>
+      <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {t("structure.features")}
+      </h2>
+      <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
+        {atoms}
+        <ModAtomAdd label={t("entry.addFeature")} onClick={() => setPickerOpen(true)} />
+      </div>
+
+      {dialogs}
     </section>
     </Layer>
   );

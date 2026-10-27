@@ -6,8 +6,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { BarChart3, Pencil, Plus, Trash2 } from "lucide-react";
+import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import { getSubCategory, getCategory, listCategoryTree, structureSummary } from "@/lib/db/queries";
-import { BrutEmpty, BrutSubRows, BrutThingSummary, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
+import { BrutSubsBlock, BrutThingSummary, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { toLocalDateValue } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -150,79 +151,79 @@ export function SubCategoryDetailPage({
         />
       )}
 
-      {/* Çocuk alt kategori ağacı */}
-      {category && (
-        <Layer bare label={t("structure.subcategories")} className="mb-6">
+      {/* Çocuk alt kategori ağacı. Brütal: ana sayfanın blok dili (bkz. BrutSubsBlock) */}
+      {category && brutal && (
+        <BrutSubsBlock
+          category={category}
+          subs={tree?.subs}
+          counts={tree?.counts}
+          rootId={subcategoryId}
+          onAdd={() => {
+            setEditingSelf(false);
+            setNewParentId(subcategoryId);
+            setSubFormOpen(true);
+          }}
+        />
+      )}
+      {category && !brutal && (
+        <Layer bare className="mb-6">
         <section>
-          {!brutal && (
           <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("structure.subcategories")}
           </h2>
-          )}
-          {brutal ? (
-            <div className="rounded-2xl border-2 border-[#111] bg-white px-1.5 py-2.5 shadow-[4px_4px_0_#111]">
-              <div className="mb-1.5 ml-[15px] px-2 pt-1 text-[12px] font-black uppercase leading-none tracking-[0.09em] text-[#111]">
-                {t("structure.subcategories")}
-              </div>
-              {tree && (
-                <BrutSubRows category={category} subs={tree.subs} counts={tree.counts} rootId={subcategoryId} />
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingSelf(false);
-                  setNewParentId(subcategoryId);
-                  setSubFormOpen(true);
-                }}
-                className="ml-[15px] flex min-h-[32px] items-center gap-2.5 rounded-[10px] px-2 py-1 text-[13px] font-bold text-[#111]/55 hover:bg-[#111]/5 active:bg-[#111]/10"
-              >
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] border-dashed border-[#111]/45">
-                  <Plus className="h-3.5 w-3.5" strokeWidth={2.75} />
-                </span>
-                {t("entry.addSub")}
-              </button>
-            </div>
-          ) : (
-            <SubCategoryTree
-              categoryId={categoryId}
-              categoryName={category.name}
-              color={category.color}
-              parentId={subcategoryId}
-              parentName={subcategory?.name}
-              onAddChild={(parentSubId) => {
-                setEditingSelf(false);
-                setNewParentId(parentSubId ?? subcategoryId);
-                setSubFormOpen(true);
-              }}
-            />
-          )}
+          <SubCategoryTree
+            categoryId={categoryId}
+            categoryName={category.name}
+            color={category.color}
+            parentId={subcategoryId}
+            parentName={subcategory?.name}
+            onAddChild={(parentSubId) => {
+              setEditingSelf(false);
+              setNewParentId(parentSubId ?? subcategoryId);
+              setSubFormOpen(true);
+            }}
+          />
         </section>
         </Layer>
       )}
 
       {/* Analiz — özelliklerin nasıl inceleneceği, kullanıcının seçimi */}
       {category && (
-        <AnalysisSection categoryId={categoryId} subcategoryId={subcategoryId} />
+        <AnalysisSection
+          categoryId={categoryId}
+          subcategoryId={subcategoryId}
+          analyticsHref={routes.analyticsSub(categoryId, subcategoryId)}
+        />
       )}
 
       {/* Son girdiler + analize kısayol */}
+      {/* Brütal, hiç girdi yokken: Son girdiler bloğu boş haliyle — yanında
+          yeşil İlk girdiyi ekle karosu, kalemin formu doğrudan açılır */}
       {brutal && summary && summary.entries === 0 ? (
-        <Layer label={t("home.recentEntries")} className="mb-6">
-        <section>
-          <BrutEmpty
-            title={t("brut.noEntries")}
-            hint={t("brut.noEntriesHint")}
-            action={t("brut.firstEntry")}
-            onAction={() => setEntryOpen(true)}
-          />
+        <>
+          <SummaryBlock
+            className="mb-4"
+            lead={{
+              kind: "count",
+              color: "#ffb38a",
+              overline: t("home.recentEntries"),
+              value: "0",
+              unit: t("home.entries"),
+            }}
+            action={<SummaryTile color="#7ae582" icon={Plus} label={t("brut.firstEntry")} onClick={() => setEntryOpen(true)} />}
+            stats={[]}
+          >
+            <p className="bg-white px-3.5 py-3 text-[12.5px] font-semibold leading-snug text-[#111]/65">
+              {t("brut.noEntriesHint")}
+            </p>
+          </SummaryBlock>
           <DayEntrySheet
             date={today}
             open={entryOpen && !!subcategory}
             onClose={() => setEntryOpen(false)}
             presetSub={subcategory ?? null}
           />
-        </section>
-        </Layer>
+        </>
       ) : (
       <RecentEntriesSection
         scope="subcategory"
@@ -230,6 +231,7 @@ export function SubCategoryDetailPage({
         subcategoryId={subcategoryId}
         selfName={subcategory?.name}
         color={category?.color}
+        total={summary?.entries}
       />
       )}
       </PageSheet>

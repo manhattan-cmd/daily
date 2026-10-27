@@ -13,7 +13,7 @@ import { SmartText } from "@/components/ui/smart-text";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { TopBar, TopBarButton } from "@/components/ui/top-bar";
-import { SummaryBlock, type SummaryStat } from "@/components/ui/summary-block";
+import { SummaryBlock, SummaryTile, type SummaryStat } from "@/components/ui/summary-block";
 
 /**
  * BRÜTAL YAPI SAYFALARI — yalnız Brütal tema seçiliyken (deneme).
@@ -181,6 +181,67 @@ export function BrutThingSummary({
       lead={{ kind: "thing", color, icon, overline, title }}
       stats={stats}
     />
+  );
+}
+
+/**
+ * Kategori / alt kategori sayfasının Alt kategoriler bölümü — ana sayfanın
+ * blok dili (bkz. SummaryBlock): solda pembe "ALT KATEGORİLER · 6 alt
+ * kategori" (Kategorilerin'in rengi — yapının zinciri), yanında yeşil Alt
+ * kategori ekle karosu (eskiden ağacın altında kesik çerçeveli soluk satır),
+ * altında ağaç beyaz hücrede (bkz. BrutSubRows). Hiç yoksa ne işe yaradığı
+ * yazıyor. Sayı bu kalemin altındaki bütün dallar.
+ */
+export function BrutSubsBlock({
+  category,
+  subs,
+  counts,
+  rootId,
+  onAdd,
+}: {
+  category: Category;
+  subs?: SubCategory[];
+  counts?: Map<string, number>;
+  /** Alt kategori sayfasında kendisi — yalnız altı */
+  rootId?: string;
+  onAdd: () => void;
+}) {
+  const t = useT();
+  const total = useMemo(() => {
+    if (!subs) return undefined;
+    const own = subs.filter((s) => s.categoryId === category.id);
+    if (!rootId) return own.length;
+    let n = 0;
+    const walk = (pid: string) => {
+      for (const s of own) if (s.parentId === pid) { n++; walk(s.id); }
+    };
+    walk(rootId);
+    return n;
+  }, [subs, category.id, rootId]);
+  return (
+    <SummaryBlock
+      className="mb-4"
+      lead={{
+        kind: "count",
+        color: "#ff9ecd",
+        overline: t("structure.subcategories"),
+        value: total === undefined ? "–" : String(total),
+        unit: t("struct.subs.unit"),
+        hint: total ? t("struct.subs.hint") : undefined,
+      }}
+      action={<SummaryTile color="#7ae582" icon={Plus} label={t("entry.addSub")} onClick={onAdd} />}
+      stats={[]}
+    >
+      {subs && total ? (
+        <div data-subs-cell="" className="bg-white px-1.5 py-2">
+          <BrutSubRows category={category} subs={subs} counts={counts} rootId={rootId} />
+        </div>
+      ) : subs ? (
+        <p className="bg-white px-3.5 py-3 text-[12.5px] font-semibold leading-snug text-[#111]/65">
+          {t("struct.subs.empty")}
+        </p>
+      ) : null}
+    </SummaryBlock>
   );
 }
 

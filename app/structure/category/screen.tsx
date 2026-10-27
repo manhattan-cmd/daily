@@ -6,14 +6,14 @@ import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { BarChart3, Pencil, Plus, Trash2 } from "lucide-react";
+import { BarChart3, Pencil, Trash2 } from "lucide-react";
 import {
   getCategory,
   deleteCategory,
   structureSummary,
   listCategoryTree,
 } from "@/lib/db/queries";
-import { BrutSubRows, BrutThingSummary, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
+import { BrutSubsBlock, BrutThingSummary, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
@@ -140,54 +140,41 @@ export function CategoryDetailPage({
         />
       )}
 
-      {/* Alt kategori ağacı — hiyerarşi iç içe açılır */}
-      {category && (
-        <Layer bare label={t("structure.subcategories")} className="mb-6">
+      {/* Alt kategori ağacı — hiyerarşi iç içe açılır. Brütal: ana sayfanın
+          blok dili (bkz. BrutSubsBlock) */}
+      {category && brutal && (
+        <BrutSubsBlock
+          category={category}
+          subs={tree?.subs}
+          counts={tree?.counts}
+          onAdd={() => {
+            setNewParentId(undefined);
+            setSubFormOpen(true);
+          }}
+        />
+      )}
+      {category && !brutal && (
+        <Layer bare className="mb-6">
         <section>
-          {!brutal && (
           <h2 className="px-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("structure.subcategories")}
           </h2>
-          )}
-          {/* Brütal: Yapı → Kategoriler kartlarındaki ağaç biçimi (bkz. BrutSubRows) */}
-          {brutal ? (
-            <div className="rounded-2xl border-2 border-[#111] bg-white px-1.5 py-2.5 shadow-[4px_4px_0_#111]">
-              <div className="mb-1.5 ml-[15px] px-2 pt-1 text-[12px] font-black uppercase leading-none tracking-[0.09em] text-[#111]">
-                {t("structure.subcategories")}
-              </div>
-              {tree && <BrutSubRows category={category} subs={tree.subs} counts={tree.counts} />}
-              <button
-                type="button"
-                onClick={() => {
-                  setNewParentId(undefined);
-                  setSubFormOpen(true);
-                }}
-                className="ml-[15px] flex min-h-[32px] items-center gap-2.5 rounded-[10px] px-2 py-1 text-[13px] font-bold text-[#111]/55 hover:bg-[#111]/5 active:bg-[#111]/10"
-              >
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] border-dashed border-[#111]/45">
-                  <Plus className="h-3.5 w-3.5" strokeWidth={2.75} />
-                </span>
-                {t("entry.addSub")}
-              </button>
-            </div>
-          ) : (
-            <SubCategoryTree
-              categoryId={categoryId}
-              categoryName={category.name}
-              color={category.color}
-              onAddChild={(parentSubId) => {
-                setNewParentId(parentSubId);
-                setSubFormOpen(true);
-              }}
-            />
-          )}
+          <SubCategoryTree
+            categoryId={categoryId}
+            categoryName={category.name}
+            color={category.color}
+            onAddChild={(parentSubId) => {
+              setNewParentId(parentSubId);
+              setSubFormOpen(true);
+            }}
+          />
         </section>
         </Layer>
       )}
 
       {/* Analiz — özelliklerin nasıl inceleneceği, kullanıcının seçimi */}
       {category && (
-        <AnalysisSection categoryId={categoryId} />
+        <AnalysisSection categoryId={categoryId} analyticsHref={routes.analyticsCategory(categoryId)} />
       )}
 
       {/* Son girdiler + analize kısayol */}
@@ -196,6 +183,7 @@ export function CategoryDetailPage({
         categoryId={categoryId}
         selfName={category?.name}
         color={category?.color}
+        total={summary?.entries}
       />
       </PageSheet>
 

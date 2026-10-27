@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { BarChart3, Check, ChevronDown, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { db } from "@/lib/db";
@@ -34,6 +34,7 @@ import { STAT_LABEL } from "@/components/analytics/stat-tiles";
 import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
 import { useIsBrutal } from "@/components/structure/brutal";
 import { Layer } from "@/components/ui/layer";
+import { SummaryBlock } from "@/components/ui/summary-block";
 import type { ChartKind, Mod, StatKey } from "@/types";
 
 /** Grupların sırası — sayısal olanlar önce, etiketliler sonra */
@@ -81,10 +82,13 @@ type Row = {
 export function AnalysisSection({
   categoryId,
   subcategoryId,
+  analyticsHref,
 }: {
   categoryId: string;
   /** Verilirse alt kalemin bölümü; yoksa kategorininki */
   subcategoryId?: string;
+  /** Brütal: bloğun altındaki Analizi aç satırı */
+  analyticsHref?: string;
 }) {
   const t = useT();
   const brutal = useIsBrutal();
@@ -126,6 +130,63 @@ export function AnalysisSection({
     ? "rounded-2xl border-2 border-[#111] bg-white shadow-[4px_4px_0_#111]"
     : "rounded-2xl bg-[var(--sf-2)]";
 
+  const cardOf = (r: Row, cls: string) => (
+    <ModAnalysisCard
+      key={r.mod.id}
+      row={r}
+      card={cls}
+      brutal={brutal}
+      expanded={open === r.mod.id}
+      tune={tune}
+      sourceName={r.view?.inherited ? names.get(r.view.targetId) : undefined}
+      parentName={r.parentView ? names.get(r.parentView.targetId) : undefined}
+      onToggle={() => {
+        setOpen(open === r.mod.id ? null : r.mod.id);
+        setTune(false);
+      }}
+      onTune={() => setTune(!tune)}
+      scopeType={scopeType}
+      scopeId={scopeId}
+    />
+  );
+
+  // Brütal: ana sayfanın blok dili (bkz. SummaryBlock) — üstte Analiz'in
+  // mavisinde "ANALİZ · Nasıl okunsun?", altında açıklama hücresi; her ölçü
+  // türü ince krem bir ara satır, her özellik kendi beyaz hücresinde (kendi
+  // çerçevesi ve gölgesi yok, hücreler arası ortak çizgi); en altta Analiz'in
+  // bandında Analizi aç.
+  if (brutal) {
+    return (
+      <SummaryBlock
+        className="mb-4"
+        lead={{ kind: "title", color: "#8ea6ff", overline: t("an.section"), title: t("an.blockTitle") }}
+        stats={[]}
+        link={analyticsHref ? { href: analyticsHref, label: t("an.open"), color: "#8ea6ff", icon: BarChart3 } : undefined}
+      >
+        <p data-analysis-section="" className="bg-white px-3.5 py-2.5 text-[12.5px] font-semibold leading-snug text-[#111]/70">
+          {t(subcategoryId ? "an.sectionHintSub" : "an.sectionHint")}
+        </p>
+        {!rows.length && (
+          <p className="bg-white px-3.5 py-3 text-[12.5px] font-semibold leading-snug text-[#111]/65">{t("an.empty")}</p>
+        )}
+        {GROUPS.map((g) => {
+          const list = rows.filter((r) => r.group === g);
+          if (!list.length) return null;
+          const GIcon = MEASURE_KIND_META[GROUP_ICON[g]].icon;
+          return (
+            <Fragment key={g}>
+              <div className="flex items-center gap-1.5 bg-[#f5f1e8] px-3.5 py-1.5 text-[10.5px] font-black uppercase tracking-[0.08em] text-[#111]">
+                <GIcon className="h-3.5 w-3.5" strokeWidth={2.5} />
+                {t(`an.group.${g}` as MessageKey)}
+              </div>
+              {list.map((r) => cardOf(r, "bg-white"))}
+            </Fragment>
+          );
+        })}
+      </SummaryBlock>
+    );
+  }
+
   return (
     <Layer label={t("an.section")} className="mb-6">
     <section data-analysis-section="">
@@ -161,25 +222,7 @@ export function AnalysisSection({
                 {t(`an.group.${g}` as MessageKey)}
               </div>
               <div className="flex flex-col gap-2.5">
-                {list.map((r) => (
-                  <ModAnalysisCard
-                    key={r.mod.id}
-                    row={r}
-                    card={card}
-                    brutal={brutal}
-                    expanded={open === r.mod.id}
-                    tune={tune}
-                    sourceName={r.view?.inherited ? names.get(r.view.targetId) : undefined}
-                    parentName={r.parentView ? names.get(r.parentView.targetId) : undefined}
-                    onToggle={() => {
-                      setOpen(open === r.mod.id ? null : r.mod.id);
-                      setTune(false);
-                    }}
-                    onTune={() => setTune(!tune)}
-                    scopeType={scopeType}
-                    scopeId={scopeId}
-                  />
-                ))}
+                {list.map((r) => cardOf(r, card))}
               </div>
             </div>
           );

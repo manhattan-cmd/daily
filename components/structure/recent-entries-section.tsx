@@ -7,9 +7,11 @@ import {
   listEntriesBySubtree,
 } from "@/lib/db/queries";
 import {
+  EntryListBlock,
   EntryListSection,
   type EntryListRow,
 } from "@/components/analytics/entry-list";
+import { useIsBrutal } from "@/components/structure/brutal";
 import { fmtNum } from "@/lib/analytics";
 import { Layer } from "@/components/ui/layer";
 import type { EntryWithContext } from "@/types";
@@ -31,14 +33,18 @@ export function RecentEntriesSection({
   selfName,
   /** Kategori rengi — sayı rozeti, sol şerit ve değer etiketi bununla boyanır */
   color = "#6366f1",
+  /** Bütün girdilerin sayısı (liste en çok 200 getiriyor) — brütal bloğun başında */
+  total,
 }: {
   scope: "category" | "subcategory";
   categoryId: string;
   subcategoryId?: string;
   selfName?: string;
   color?: string;
+  total?: number;
 }) {
   const t = useT();
+  const brutal = useIsBrutal();
   const entries = useLiveQuery(
     () =>
       scope === "subcategory" && subcategoryId
@@ -58,6 +64,21 @@ export function RecentEntriesSection({
       valueLabel: valueLabelOf(e),
     };
   });
+
+  // Brütal: ana sayfanın Son girdiler bloğu (bkz. EntryListBlock)
+  if (brutal) {
+    if (!entries) return null;
+    return (
+      <EntryListBlock
+        title={t("home.recentEntries")}
+        total={total}
+        hint={t("struct.recent.hint")}
+        accent={color}
+        rows={rows}
+        emptyText={t("brut.noEntries")}
+      />
+    );
+  }
 
   return (
     <Layer bare className="mb-6">
