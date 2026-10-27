@@ -511,17 +511,34 @@ function FrequentBlock({ items, onPick }: { items: FrequentItem[]; onPick: (sub:
 }
 
 /**
- * Son 7 gün — sütunlar günün kategori kırılımıyla yığılı, tepesinde sayısı;
- * bugün en sağda. Sütuna dokun, o güne git.
+ * Son 7 gün — Bugün, Kategorilerin ve Yine ekle'yle aynı birleşik blokta:
+ * üstte yeşil "SON 7 GÜN · 107 girdi", altında tarih aralığı ve günlük
+ * ortalama; ortada sütunlar (günün kategori kırılımıyla yığılı, tepesinde
+ * sayısı, bugün en sağda — dokun, o güne git); altta Takvimi aç.
  */
 function BrutWeek({ week, today }: { week: DayBar[]; today: string }) {
   const t = useT();
   const locale = useLocale();
+  const tag = intlTag(locale);
   const max = Math.max(...week.map((x) => x.count), 1);
   const total = week.reduce((n, d) => n + d.count, 0);
+  const avg = new Intl.NumberFormat(tag, { maximumFractionDigits: 1 }).format(total / Math.max(1, week.length));
   return (
-    <Layer label={t("home.last7Days")} count={total}>
-      <div className="flex items-end gap-1.5 rounded-2xl border-2 border-[#111] bg-white px-3 pb-3 pt-2.5 text-[#111] shadow-[3px_3px_0_#111]">
+    <SummaryBlock
+      className="mb-4"
+      lead={{
+        kind: "count",
+        // Takvim'in yeşili — sütunlar günler
+        color: "#7ae582",
+        overline: t("home.last7Days"),
+        value: cap(total),
+        unit: t("home.entries"),
+        hint: t("home.weekHint", { range: weekRange(week, tag), avg }),
+      }}
+      stats={[]}
+      link={{ href: "/calendar", label: t("home.openCalendar") }}
+    >
+      <div className="flex items-end gap-1.5 bg-white px-3 pb-3 pt-3 text-[#111]">
         {week.map((d) => {
           const [y, m, dd] = d.date.split("-").map(Number);
           const dt = new Date(y, m - 1, dd);
@@ -567,8 +584,21 @@ function BrutWeek({ week, today }: { week: DayBar[]; today: string }) {
           );
         })}
       </div>
-    </Layer>
+    </SummaryBlock>
   );
+}
+
+/** "21–27 Eki" ya da ay değişiyorsa "28 Eyl – 4 Eki" */
+function weekRange(week: DayBar[], tag: string): string {
+  if (!week.length) return "";
+  const toDate = (key: string) => {
+    const [y, m, d] = key.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  };
+  const a = toDate(week[0].date);
+  const b = toDate(week[week.length - 1].date);
+  const short = (d: Date) => d.toLocaleDateString(tag, { day: "numeric", month: "short" });
+  return a.getMonth() === b.getMonth() ? `${a.getDate()}–${short(b)}` : `${short(a)} – ${short(b)}`;
 }
 
 /** Görünen en çok kare; fazlası "+N" karosuyla Yapı'ya */
