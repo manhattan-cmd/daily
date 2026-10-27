@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Link2, Pencil } from "lucide-react";
+import { Link2, NotebookPen, Pencil } from "lucide-react";
 import type { EntryWithContext } from "@/types";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { EntryIcon } from "@/components/dashboard/entry-icon";
@@ -13,6 +13,9 @@ import {
 import { cn, formatDateTime } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { useLongPress } from "@/lib/use-long-press";
+import { useSkin } from "@/lib/skin";
+import { SymbolIcon } from "@/lib/icons";
+import { ENTRY_BLOCK_CLS, EntryBlockCell, EntryBlockHead, EntryBlockTime } from "@/components/dashboard/entry-block";
 import {
   SelectionLayer,
   selectedCardClass,
@@ -48,6 +51,7 @@ export function LinkedEntryCard({
   const t = useT();
   const [editingEntry, setEditingEntry] = useState<EntryWithContext | null>(null);
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
+  const brutal = useSkin() === "brutal";
   const shared = entries[0];
 
   // Ortak değer: aynı özellik ≥2 perspektifte varsa. Anahtar özelliğin
@@ -73,6 +77,113 @@ export function LinkedEntryCard({
   const sharedValues = [...sharedTypeIds]
     .map((tid) => firstValueByTypeId.get(tid)!)
     .filter(Boolean);
+
+  const editModal = editingEntry && (
+    <EditEntryModal
+      entry={editingEntry}
+      open
+      onOpenChange={(open) => {
+        if (!open) setEditingEntry(null);
+      }}
+    />
+  );
+
+  // Brütal: ana sayfanın blok dili (bkz. entry-block) — künye menekşe
+  // (paralel olma hali), ortak değerler menekşe kapsüllerle bir hücrede, her
+  // perspektif kendi hücresinde: kategori karosu ve adı, o perspektifin
+  // kalemi, altında kendi kapsülleri ve notu. Künyedeki kalem yok: karta
+  // dokunmak zaten ana perspektifi açıyor (girdi kartında da yok).
+  if (brutal) {
+    const icon = shared.subcategory.icon || shared.category.icon;
+    return (
+      <>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setEditingEntry(shared)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") setEditingEntry(shared);
+          }}
+          {...(selection && !selection.active ? longPress : {})}
+          aria-label={`${shared.subcategory.name} girdisini düzenle`}
+          data-entry-block=""
+          className={cn(
+            ENTRY_BLOCK_CLS,
+            "cursor-pointer transition-transform active:scale-[0.99]",
+            selection?.selected && selectedCardClass
+          )}
+        >
+          <EntryBlockHead
+            color={VIOLET}
+            icon={icon && <SymbolIcon name={icon} size={14} style={{ color: "#111" }} />}
+            title={
+              <span className="flex items-center gap-1.5">
+                {shared.subcategory.name}
+                <Link2 className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
+              </span>
+            }
+            sub={t("linked.perspectiveCount", { n: entries.length })}
+            right={<EntryBlockTime>{formatDateTime(shared.occurredAt)}</EntryBlockTime>}
+          />
+          {/* Ortak değerler — bir kategoriye değil olayın kendisine ait */}
+          {sharedValues.length > 0 && (
+            <EntryBlockCell>
+              <ValueCapsuleRow values={sharedValues} color={VIOLET} />
+            </EntryBlockCell>
+          )}
+          {/* Perspektifler — her biri kendi hücresinde, kendi kategori renginde */}
+          {entries.map((entry) => {
+            const ownValues = entry.values.filter(
+              (v) => v.entryType && !sharedTypeIds.has(v.modId ?? v.entryTypeId ?? "")
+            );
+            return (
+              <EntryBlockCell key={entry.id}>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border-[1.5px] border-[#111]"
+                    style={{ background: entry.category.color }}
+                  >
+                    {entry.category.icon && <SymbolIcon name={entry.category.icon} size={11} style={{ color: "#111" }} />}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[11.5px] font-extrabold">{entry.category.name}</span>
+                  <button
+                    type="button"
+                    aria-label={`${entry.category.name} perspektifini düzenle`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingEntry(entry);
+                    }}
+                    className="-mr-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] active:bg-[#111]/10"
+                  >
+                    <Pencil className="h-3.5 w-3.5" strokeWidth={2.5} />
+                  </button>
+                </div>
+                {ownValues.length > 0 && (
+                  <div className="mt-1">
+                    <ValueCapsuleRow values={ownValues} color={entry.category.color} />
+                  </div>
+                )}
+                {entry.notes && (
+                  <div className="mt-1.5 flex items-start gap-1.5">
+                    <NotebookPen className="mt-[1px] h-3 w-3 shrink-0" strokeWidth={2.25} />
+                    <p className="line-clamp-3 min-w-0 text-[11px] font-medium leading-snug text-[#111]/75">{entry.notes}</p>
+                  </div>
+                )}
+              </EntryBlockCell>
+            );
+          })}
+          {selection?.active && (
+            <SelectionLayer
+              selected={selection.selected}
+              onToggle={selection.onToggle}
+              label={`${shared.subcategory.name} paralel girdisini seç`}
+            />
+          )}
+        </div>
+        {editModal}
+      </>
+    );
+  }
 
   return (
     <>
@@ -194,15 +305,7 @@ export function LinkedEntryCard({
         )}
       </div>
 
-      {editingEntry && (
-        <EditEntryModal
-          entry={editingEntry}
-          open
-          onOpenChange={(open) => {
-            if (!open) setEditingEntry(null);
-          }}
-        />
-      )}
+      {editModal}
     </>
   );
 }
