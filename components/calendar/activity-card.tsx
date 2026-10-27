@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { thingLabel } from "@/lib/db/thing-names";
 import Link from "next/link";
-import { ArrowRight, Boxes, ChevronDown, Plus, Trash2 } from "lucide-react";
+import { ArrowRight, Boxes, ChevronDown, Plus, Sigma, Trash2 } from "lucide-react";
 import type { Activity, EntryWithContext } from "@/types";
 import { deleteActivity } from "@/lib/db/queries";
 import {
@@ -33,6 +33,13 @@ import {
   type EntrySelection,
 } from "@/components/calendar/entry-selection";
 import { routes } from "@/lib/routes";
+import { useSkin } from "@/lib/skin";
+import { SymbolIcon } from "@/lib/icons";
+import { ValueCapsuleRow } from "@/components/dashboard/entry-parts";
+import { ENTRY_BLOCK_CLS, EntryBlockCell, EntryBlockHead, EntryBlockTime } from "@/components/dashboard/entry-block";
+
+/** Aktivitenin rengi — kategorisi yok, kendi camgöbeği */
+const ACT = "#06b6d4";
 
 /**
  * Gün sayfasındaki aktivite kartı — farklı kategorilerden girdileri tek çatı
@@ -60,6 +67,7 @@ export function ActivityCard({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
+  const brutal = useSkin() === "brutal";
 
   const name = activity?.name ?? "Aktivite";
 
@@ -109,6 +117,193 @@ export function ActivityCard({
       setDeleting(false);
       setDeleteOpen(false);
     }
+  }
+
+  // Düzenleme ve silme onayı — iki biçimde de aynı
+  const overlays = (
+    <>
+      {editing && (
+        <EditEntryModal
+          entry={editing}
+          open
+          onOpenChange={(o) => {
+            if (!o) setEditing(null);
+          }}
+        />
+      )}
+
+      {/* Silme onayı — dağıt / girdilerle sil */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="max-w-[340px]">
+          <DialogHeader>
+            <DialogTitle>{`"${name}" aktivitesi`}</DialogTitle>
+            <DialogDescription>
+              Dağıtırsan içindeki {entries.length} girdi bağımsız girdi olarak
+              days kalır; girdilerle silersen hepsi kalıcı olarak silinir.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteOpen(false)}
+              disabled={deleting}
+            >
+              Vazgeç
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleDelete("disband")}
+              disabled={deleting}
+            >
+              Dağıt
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => handleDelete("with-entries")}
+              disabled={deleting}
+            >
+              {deleting ? "..." : "Girdilerle Sil"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+
+  // Brütal: ana sayfanın blok dili (bkz. entry-block) — künye aktivitenin
+  // camgöbeğinde (ad, girdi sayısı, kategori noktaları, aç/kapa), altında
+  // beyaz hücrede toplam kapsülleri; açılınca eylem satırı ve her girdi kendi
+  // hücresinde, değerleri kapsül
+  if (brutal) {
+    return (
+      <>
+        <div
+          data-entry-block=""
+          className={cn(ENTRY_BLOCK_CLS, selection?.selected && selectedCardClass)}
+          {...(selection && !selection.active ? longPress : {})}
+        >
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setExpanded((v) => !v)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") setExpanded((v) => !v);
+            }}
+            aria-label={`${name} aktivitesini ${expanded ? "kapat" : "aç"}`}
+            className="cursor-pointer"
+          >
+            <EntryBlockHead
+              color={ACT}
+              icon={<Boxes className="h-3.5 w-3.5" strokeWidth={2.25} />}
+              title={name}
+              sub={
+                <span className="flex items-center gap-1">
+                  {t("add.activity")} · {entries.length} {t("home.entries")}
+                  <span className="ml-0.5 flex items-center gap-[3px]">
+                    {cats.map((c) => (
+                      <span
+                        key={c.id}
+                        className="h-[7px] w-[7px] rounded-full border border-[#111]"
+                        style={{ backgroundColor: c.color }}
+                      />
+                    ))}
+                  </span>
+                </span>
+              }
+              right={
+                <ChevronDown
+                  className={cn("h-4 w-4 shrink-0 transition-transform duration-200", expanded && "rotate-180")}
+                  strokeWidth={2.75}
+                />
+              }
+            />
+          </div>
+
+          {/* Toplamlar — kapsül (alt kategori başına, toplanabilen özellikler) */}
+          {totals.length > 0 && (
+            <EntryBlockCell className="flex flex-wrap items-center gap-1">
+              {totals.map((x) => (
+                <span
+                  key={`${x.name}:${x.subName}`}
+                  data-capsule=""
+                  className="inline-flex items-center gap-1 rounded-full py-0.5 pl-0.5 pr-2"
+                  style={{ ["--cap-c" as string]: ACT, background: `${ACT}14`, boxShadow: `inset 0 0 0 1px ${ACT}33` }}
+                >
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: `${ACT}33` }}>
+                    <Sigma className="h-3 w-3" strokeWidth={2.25} />
+                  </span>
+                  <span className="text-[13px] font-semibold leading-none tabular-nums">{fmtNum(x.total)}</span>
+                  {x.unit && <span className="text-[10px] leading-none">{x.unit}</span>}
+                  <span className="text-[10px] leading-none">{x.subName}</span>
+                </span>
+              ))}
+            </EntryBlockCell>
+          )}
+
+          {expanded && (
+            <>
+              <EntryBlockCell className="flex items-center gap-3 text-[11.5px] font-extrabold">
+                {activity && onAddEntries && (
+                  <button type="button" onClick={() => onAddEntries(activity)} className="flex items-center gap-1 active:opacity-60">
+                    <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+                    {t("home.addEntry")}
+                  </button>
+                )}
+                <Link href={routes.activity(name)} className="ml-auto flex items-center gap-1 active:opacity-60">
+                  {t("activity.insights")}
+                  <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.75} />
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setDeleteOpen(true)}
+                  aria-label={t("activity.deleteOrUnpack")}
+                  className="flex items-center gap-1 text-[#c0262d] active:opacity-60"
+                >
+                  <Trash2 className="h-3.5 w-3.5" strokeWidth={2.5} />
+                  {t("action.delete")}
+                </button>
+              </EntryBlockCell>
+              {entries.map((e) => {
+                const icon = e.subcategory.icon || e.category.icon;
+                const vals = e.values.filter((v) => !!v.entryType && !v.thingId);
+                return (
+                  <button
+                    key={e.id}
+                    type="button"
+                    onClick={() => setEditing(e)}
+                    className="flex min-w-0 flex-col gap-1 bg-white px-2 py-1.5 text-left active:bg-[#f5f1e8]"
+                    aria-label={`${e.subcategory.name} girdisini düzenle`}
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] border-[#111]"
+                        style={{ background: e.category.color }}
+                      >
+                        {icon && <SymbolIcon name={icon} size={13} style={{ color: "#111" }} />}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-[12.5px] font-bold">
+                        {e.subcategory.isCategoryRoot ? e.category.name : e.subcategory.name}
+                      </span>
+                      <EntryBlockTime>{formatTime(e.occurredAt)}</EntryBlockTime>
+                    </span>
+                    {vals.length > 0 && <ValueCapsuleRow values={vals} color={e.category.color} />}
+                  </button>
+                );
+              })}
+            </>
+          )}
+
+          {selection?.active && (
+            <SelectionLayer
+              selected={selection.selected}
+              onToggle={selection.onToggle}
+              label={`${name} aktivitesinin girdilerini seç`}
+            />
+          )}
+        </div>
+        {overlays}
+      </>
+    );
   }
 
   return (
@@ -284,51 +479,7 @@ export function ActivityCard({
         )}
       </div>
 
-      {editing && (
-        <EditEntryModal
-          entry={editing}
-          open
-          onOpenChange={(o) => {
-            if (!o) setEditing(null);
-          }}
-        />
-      )}
-
-      {/* Silme onayı — dağıt / girdilerle sil */}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="max-w-[340px]">
-          <DialogHeader>
-            <DialogTitle>{`"${name}" aktivitesi`}</DialogTitle>
-            <DialogDescription>
-              Dağıtırsan içindeki {entries.length} girdi bağımsız girdi olarak
-              days kalır; girdilerle silersen hepsi kalıcı olarak silinir.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteOpen(false)}
-              disabled={deleting}
-            >
-              Vazgeç
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handleDelete("disband")}
-              disabled={deleting}
-            >
-              Dağıt
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => handleDelete("with-entries")}
-              disabled={deleting}
-            >
-              {deleting ? "..." : "Girdilerle Sil"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {overlays}
     </>
   );
 }

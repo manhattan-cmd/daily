@@ -9,6 +9,8 @@ import { splitChoiceLevel } from "@/lib/choice-level";
 import { EmotionFace, ScaleFace, emotionLook } from "@/lib/icons/emotions";
 import { useT } from "@/lib/i18n";
 import { useLongPress } from "@/lib/use-long-press";
+import { useSkin } from "@/lib/skin";
+import { ENTRY_BLOCK_CLS, EntryBlockCell, EntryBlockHead, EntryBlockTime } from "@/components/dashboard/entry-block";
 import {
   SelectionLayer,
   selectedCardClass,
@@ -45,6 +47,7 @@ export function MoodCard({
   const t = useT();
   const [editOpen, setEditOpen] = useState(false);
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
+  const brutal = useSkin() === "brutal";
 
   const selects = entry.values.filter(
     (v) => (v.entryType?.valueType ?? "") === "select"
@@ -67,63 +70,9 @@ export function MoodCard({
   const level = levelValue ? Number(levelValue.value) : null;
   const hasLevel = level !== null && !Number.isNaN(level);
 
-  return (
+  // Alt bölümün içeriği — iki biçimde de aynı kapsüller
+  const body = (
     <>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => setEditOpen(true)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") setEditOpen(true);
-        }}
-        {...(selection && !selection.active ? longPress : {})}
-        data-entry-card=""
-        className={cn(
-          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border px-2.5 py-2 text-left transition-transform active:scale-[0.99]",
-          selection?.selected && selectedCardClass
-        )}
-        // Kenarlık ve zemin satır içi — sınıfla verilen kenarlık rengi
-        // globals.css'teki katmansız `*` kuralı yüzünden uygulanmıyor
-        // (bkz. sleep-card)
-        style={{
-          ["--card-c" as string]: color,
-          borderColor: `${color}73`,
-          background: `linear-gradient(135deg, ${color}24, ${color}0d 45%, transparent), var(--card)`,
-        }}
-        aria-label={t("mood.edit")}
-      >
-        {/* Künye — sembol, başlık, sağda tarih */}
-        <div data-entry-head="" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
-            style={{ background: `${color}33` }}>
-            {hasLevel ? (
-              <ScaleFace
-                index={level - 1}
-                total={levelMax}
-                size={17}
-                style={{ color }}
-              />
-            ) : (
-              <Smile
-                className="h-[17px] w-[17px]"
-                style={{ color }}
-                strokeWidth={1.75}
-              />
-            )}
-          </span>
-          <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-[0.14em]"
-            style={{ color }}>
-            {t("mood.title")}
-          </span>
-          {dateLabel && (
-            <span className="shrink-0 whitespace-nowrap text-[10px] leading-none tabular-nums text-muted-foreground/70">
-              {dateLabel}
-            </span>
-          )}
-        </div>
-
-        {/* Alt bölüm — duygu kapsülleri, sağda mutluluk skalası */}
-        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-[var(--ln-1)] pt-2">
           {emotions.length > 0 ? (
             <span className="flex min-w-0 items-center gap-1 overflow-hidden">
               {emotions.slice(0, MAX_FACES).map((e) => {
@@ -195,6 +144,104 @@ export function MoodCard({
               </div>
             </div>
           )}
+    </>
+  );
+
+  // Brütal: ana sayfanın blok dili (bkz. entry-block) — künye kendi renginde,
+  // altında beyaz hücrede kapsüller; kapsüller aynı kalır
+  if (brutal) {
+    return (
+      <>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setEditOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") setEditOpen(true);
+          }}
+          {...(selection && !selection.active ? longPress : {})}
+          data-entry-block=""
+          className={cn(
+            ENTRY_BLOCK_CLS,
+            "cursor-pointer transition-transform active:scale-[0.99]",
+            selection?.selected && selectedCardClass
+          )}
+          aria-label={t("mood.edit")}
+        >
+          <EntryBlockHead
+            color={color}
+            icon={hasLevel ? <ScaleFace index={level - 1} total={levelMax} size={14} style={{ color: "#111" }} /> : <Smile className="h-3.5 w-3.5" strokeWidth={2.25} />}
+            title={t("mood.title")}
+            right={dateLabel ? <EntryBlockTime>{dateLabel}</EntryBlockTime> : undefined}
+          />
+          <EntryBlockCell className="flex flex-wrap items-center gap-x-2 gap-y-1.5">{body}</EntryBlockCell>
+          {selection?.active && (
+            <SelectionLayer selected={selection.selected} onToggle={selection.onToggle} label={t("mood.select")} />
+          )}
+        </div>
+        {editOpen && <EditEntryModal entry={entry} open={editOpen} onOpenChange={setEditOpen} />}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setEditOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") setEditOpen(true);
+        }}
+        {...(selection && !selection.active ? longPress : {})}
+        data-entry-card=""
+        className={cn(
+          "group relative w-full cursor-pointer select-none touch-manipulation overflow-hidden rounded-2xl border px-2.5 py-2 text-left transition-transform active:scale-[0.99]",
+          selection?.selected && selectedCardClass
+        )}
+        // Kenarlık ve zemin satır içi — sınıfla verilen kenarlık rengi
+        // globals.css'teki katmansız `*` kuralı yüzünden uygulanmıyor
+        // (bkz. sleep-card)
+        style={{
+          ["--card-c" as string]: color,
+          borderColor: `${color}73`,
+          background: `linear-gradient(135deg, ${color}24, ${color}0d 45%, transparent), var(--card)`,
+        }}
+        aria-label={t("mood.edit")}
+      >
+        {/* Künye — sembol, başlık, sağda tarih */}
+        <div data-entry-head="" className="flex items-center gap-2">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
+            style={{ background: `${color}33` }}>
+            {hasLevel ? (
+              <ScaleFace
+                index={level - 1}
+                total={levelMax}
+                size={17}
+                style={{ color }}
+              />
+            ) : (
+              <Smile
+                className="h-[17px] w-[17px]"
+                style={{ color }}
+                strokeWidth={1.75}
+              />
+            )}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-[0.14em]"
+            style={{ color }}>
+            {t("mood.title")}
+          </span>
+          {dateLabel && (
+            <span className="shrink-0 whitespace-nowrap text-[10px] leading-none tabular-nums text-muted-foreground/70">
+              {dateLabel}
+            </span>
+          )}
+        </div>
+
+        {/* Alt bölüm — duygu kapsülleri, sağda mutluluk skalası */}
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-[var(--ln-1)] pt-2">
+          {body}
         </div>
 
         {selection?.active && (
