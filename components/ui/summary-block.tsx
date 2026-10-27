@@ -2,7 +2,7 @@
 
 import { type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, type LucideIcon } from "lucide-react";
+import { ArrowRight, X, type LucideIcon } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
@@ -35,7 +35,16 @@ export type SummaryLead =
   | { kind: "thing"; color: string; icon?: string; overline: string; title: string }
   /** Ana sayfa: "BUGÜN · 8 girdi" — sayının neyin sayısı olduğu üstünde yazılı;
    *  renk verilmezse sarı (Kategorilerin pembe) */
-  | { kind: "count"; overline: string; value: string; unit: string; hint?: string; color?: string }
+  | {
+      kind: "count";
+      overline: string;
+      value: string;
+      unit: string;
+      hint?: string;
+      color?: string;
+      /** Köşede kapatma düğmesi (Başlarken) */
+      close?: { label: string; onClick: () => void };
+    }
   /** Ana sayfa: sayısız başlık (Yine ekle) — etiket, ad, açıklama */
   | { kind: "title"; overline: string; title: string; hint?: string; color: string };
 
@@ -81,9 +90,19 @@ function Lead({ lead }: { lead: SummaryLead }) {
   if (lead.kind === "count") {
     return (
       <div
-        className="flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-[#111]"
+        className="relative flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-[#111]"
         style={{ background: lead.color ?? "#ffd23f" }}
       >
+        {lead.close && (
+          <button
+            type="button"
+            onClick={lead.close.onClick}
+            aria-label={lead.close.label}
+            className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-lg active:bg-[#111]/10"
+          >
+            <X className="h-4 w-4" strokeWidth={2.75} />
+          </button>
+        )}
         <span
           className="self-start rounded-md bg-[#111] px-1.5 py-px text-[10px] font-black uppercase tracking-wider"
           style={{ color: lead.color ?? "#ffd23f" }}

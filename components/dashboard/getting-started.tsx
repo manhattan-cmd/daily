@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Check, Plus, X } from "lucide-react";
+import { ArrowRight, Check, Layers, Plus, ShieldCheck, Target, X, type LucideIcon } from "lucide-react";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { useSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
+import { SummaryBlock } from "@/components/ui/summary-block";
 
 /** Kapatılınca bir daha çıkmaz; Ayarlar → "Karşılamayı tekrar göster" geri getirir */
 export const WELCOME_DISMISSED = "routine:welcomeDismissed";
@@ -25,8 +26,130 @@ const HINT: Record<StartStepKey, MessageKey> = {
   backup: "home.start.backup.hint",
 };
 
+const SHORT: Record<StartStepKey, MessageKey> = {
+  category: "home.start.short.category",
+  entry: "home.start.short.entry",
+  goal: "home.start.short.goal",
+  backup: "home.start.short.backup",
+};
+
+/** Sıradaki adımın karosu — Ekle karosunun eşi, adımın kendi renginde */
+const TILE: Record<StartStepKey, { color: string; icon: LucideIcon; label: MessageKey }> = {
+  category: { color: "#ffd23f", icon: Plus, label: "home.cats.create" },
+  entry: { color: "#7ae582", icon: Plus, label: "home.addEntry" },
+  goal: { color: "#ff9ecd", icon: Target, label: "home.start.goal.action" },
+  backup: { color: "#8ea6ff", icon: ShieldCheck, label: "backup.reminder.action" },
+};
+
+type StartProps = {
+  steps: StartStep[];
+  onDismiss: () => void;
+  onCreateCategory: () => void;
+  onAddEntry: () => void;
+  onAddGoal: () => void;
+};
+
 /**
- * Başlarken — yeni kullanıcının ana sayfadaki ilk kartı. Eskiden yerinde
+ * Başlarken — yeni kullanıcının ana sayfadaki ilk kartı. Brütalde ana
+ * sayfanın öteki bloklarıyla aynı dilde (bkz. BrutGettingStarted); sade
+ * temalarda aşağıdaki liste.
+ */
+export function GettingStarted(props: StartProps) {
+  const brutal = useSkin() === "brutal";
+  return brutal ? <BrutGettingStarted {...props} /> : <ListGettingStarted {...props} />;
+}
+
+/**
+ * Brütal Başlarken — Bugün, Kategorilerin, Yine ekle ve Son 7 gün'le aynı
+ * birleşik blok (bkz. SummaryBlock): solda "BAŞLARKEN · 1/4 adım" ve köşede
+ * kapatma; sağda sıradaki adımın işi Ekle karosu gibi kendi renginde
+ * (kategori sarı, girdi yeşil, hedef pembe, yedek mavi); altında dört adım
+ * Bugün'ün sayıları gibi hücrelerde (tepedeki bant: yapıldı yeşil, sıradaki
+ * kendi renginde; dokununca o adımın işi); ortada sıradaki adımın ne işe
+ * yaradığı; kategori adımında en altta Yapı'nın sarısında Örnekleri gez.
+ */
+function BrutGettingStarted({ steps, onDismiss, onCreateCategory, onAddEntry, onAddGoal }: StartProps) {
+  const t = useT();
+  const done = steps.filter((s) => s.done).length;
+  const cur = steps.find((s) => !s.done)?.key ?? "backup";
+  const act = (key: StartStepKey) =>
+    key === "category" ? onCreateCategory : key === "entry" ? onAddEntry : key === "goal" ? onAddGoal : undefined;
+  const tile = TILE[cur];
+  const tileBody = (
+    <>
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#111]" style={{ color: tile.color }}>
+        <tile.icon className="h-6 w-6" strokeWidth={3} />
+      </span>
+      <span className="text-center text-[12px] font-black leading-[1.05]">{t(tile.label)}</span>
+    </>
+  );
+  const tileCls = "flex h-full w-full flex-col items-center justify-center gap-1.5 px-1 text-[#111] active:brightness-95";
+  return (
+    <div data-getting-started="">
+      <SummaryBlock
+        className="mb-4"
+        lead={{
+          kind: "count",
+          color: "#c9b8ff",
+          overline: t("home.start.title"),
+          value: `${done}/${steps.length}`,
+          unit: t("home.start.unit"),
+          close: { label: t("home.start.dismiss"), onClick: onDismiss },
+        }}
+        action={
+          cur === "backup" ? (
+            <Link href="/structure/backup" className={tileCls} style={{ background: tile.color }}>
+              {tileBody}
+            </Link>
+          ) : (
+            <button type="button" onClick={act(cur)} className={tileCls} style={{ background: tile.color }}>
+              {tileBody}
+            </button>
+          )
+        }
+        stats={steps.map((s, i) => ({
+          label: `${i + 1} · ${t(SHORT[s.key])}`,
+          value: s.done ? "✓" : s.key === cur ? "→" : "–",
+          // Yapıldı yeşil, sıradaki kendi renginde, ötekiler sönük
+          color: s.done ? "#7ae582" : s.key === cur ? TILE[s.key].color : "#e7e1d4",
+          onClick: s.done ? undefined : act(s.key),
+        }))}
+        link={
+          cur === "category"
+            ? { href: "/structure", label: t("home.start.category.explore"), color: "#ffd23f", icon: Layers }
+            : undefined
+        }
+      >
+        <div className="bg-white px-3.5 py-3 text-[#111]">
+          <p className="text-[15px] font-black leading-tight">{t(TITLE[cur])}</p>
+          <p className="mt-1 text-[12.5px] font-semibold leading-snug text-[#111]/70">{t(HINT[cur])}</p>
+          {/* Yapının üç halkası, şekil diliyle: kare kategori, daire özellik */}
+          {cur === "category" && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11.5px] font-extrabold">
+              {(["welcome.category", "welcome.subcategory", "welcome.feature"] as const).map((k, j) => (
+                <span key={k} className="flex items-center gap-1.5">
+                  {j > 0 && <span className="opacity-40">›</span>}
+                  <span className="flex items-center gap-1 rounded-md border-[1.5px] border-[#111] bg-white px-1.5 py-0.5">
+                    <span
+                      className={cn(
+                        "h-2.5 w-2.5 border-[1.5px] border-current",
+                        k === "welcome.feature" ? "rounded-full" : "rounded-[3px]"
+                      )}
+                    />
+                    {t(k)}
+                  </span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </SummaryBlock>
+    </div>
+  );
+}
+
+/**
+ * Başlarken (sade temalar) — yeni kullanıcının ana sayfadaki ilk kartı. Eskiden yerinde
  * "Hoş geldin" vardı: kategori › alt kategori › özellik zincirini anlatıp
  * örnek yapıya gönderiyordu, ilk girdiyle de kayboluyordu. Kullanıcıyı yapı
  * kurmaya, ilk girdiye, hedefe ve yedeğe tek tek götüren bir liste daha
@@ -36,19 +159,13 @@ const HINT: Record<StartStepKey, MessageKey> = {
  * Adımların durumu verinin kendisinden okunur (kendi kategorisi var mı,
  * girdi, hedef, yedek), hepsi bitince kart kendiliğinden kalkar.
  */
-export function GettingStarted({
+function ListGettingStarted({
   steps,
   onDismiss,
   onCreateCategory,
   onAddEntry,
   onAddGoal,
-}: {
-  steps: StartStep[];
-  onDismiss: () => void;
-  onCreateCategory: () => void;
-  onAddEntry: () => void;
-  onAddGoal: () => void;
-}) {
+}: StartProps) {
   const t = useT();
   const brutal = useSkin() === "brutal";
   const done = steps.filter((s) => s.done).length;
