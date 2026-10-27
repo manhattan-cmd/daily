@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Layer, PageSheet } from "@/components/ui/layer";
 import { SummaryBlock } from "@/components/ui/summary-block";
+import { HeaderBlock, HeaderOverline, HeaderTile, HeaderTitle } from "@/components/ui/header-block";
 import { CardListSkeleton } from "@/components/ui/skeleton";
 import { EntryCard } from "@/components/dashboard/entry-card";
 import { NoteCard } from "@/components/notes/note-card";
@@ -188,8 +189,18 @@ export default function HomePage() {
     {/* Brütal: bant krem döşemede, sayfanın geri kalanı önündeki zeminde (bkz. PageSheet) */}
     <PageSheet
       top={
-      /* Brütal: sayfanın başlığı bölümün bandında (uygulamanın moru, tram benekli;
-          bkz. globals.css "bolum bantlari") — selam üst yazı, tarih ters etiket */
+      brutal ? (
+        /* Brütal: başlık bloğu (bkz. HeaderBlock) — uygulamanın moru, tram
+           benekli hücrede selam üst yazı, tarih ters etiket; yanında Ayarlar */
+        <HeaderBlock
+          color="#6366f1"
+          sticky={false}
+          trailing={<HeaderTile icon={Settings} href="/settings" ariaLabel={t("nav.settings")} />}
+        >
+          <HeaderOverline>{getGreeting(t)}</HeaderOverline>
+          <HeaderTitle color="#6366f1" size={24}>{longDate(locale)}</HeaderTitle>
+        </HeaderBlock>
+      ) : (
       <header
         // Bant sayfayla kayıyor — durum çubuğu ekrandan çıkınca zemine döner
         // (bkz. AppShell)
@@ -229,6 +240,7 @@ export default function HomePage() {
           <Settings className="h-4 w-4" />
         </Link>
       </header>
+      )
       }
     >
 

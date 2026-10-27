@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Layer, PageSheet } from "@/components/ui/layer";
 import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
+import { HeaderBlock, HeaderTile, HeaderTitle } from "@/components/ui/header-block";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, ArrowRight, BarChart3, CalendarDays, ChevronLeft, ChevronRight, NotebookPen, Target } from "lucide-react";
 import { db } from "@/lib/db";
@@ -393,22 +394,37 @@ export function CalendarDayPage({
           girdiler ekranı kaplayan sayfa zemininde (bkz. PageSheet) */}
       <PageSheet
         top={brutal ? (
-        <div>
-          {/* Üst menü yok: takvime alt menüden dönülüyor. Komşu günler
-              pencerenin üstünde iki uçta — önceki solda, sonraki sağda; hangi
-              güne gidileceği yazılı */}
-          <div className="pt-safe" />
-          <div className="mb-3 mt-3 flex items-center justify-between">
-            <Link href={routes.day(shift(-1))} prefetch={false} aria-label={t("day.prev")} className="flex h-8 items-center gap-1 rounded-full border-[1.5px] border-[#111] bg-white text-[12.5px] font-bold text-[#111] active:bg-[#111]/10 pl-1.5 pr-3">
-              <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
-              {(() => { const x = new Date(d); x.setDate(d.getDate() - 1); return x.toLocaleDateString(tag, { day: "numeric", month: "short" }); })()}
+          /* Brütal: başlık bloğu (bkz. HeaderBlock) — Takvim'in yeşili; ortada
+             ay ve yıl, dokununca takvim; iki yanda komşu günler (gün sayfasında
+             en sık yapılan şey bir gün geri gitmek) */
+          <HeaderBlock
+            color="#7ae582"
+            sticky={false}
+            center
+            leading={
+              <HeaderTile
+                icon={ChevronLeft}
+                href={routes.day(shift(-1))}
+                ariaLabel={t("day.prev")}
+                label={(() => { const x = new Date(d); x.setDate(d.getDate() - 1); return x.toLocaleDateString(tag, { day: "numeric", month: "short" }); })()}
+              />
+            }
+            trailing={
+              <HeaderTile
+                icon={ChevronRight}
+                href={routes.day(shift(1))}
+                ariaLabel={t("day.next")}
+                label={(() => { const x = new Date(d); x.setDate(d.getDate() + 1); return x.toLocaleDateString(tag, { day: "numeric", month: "short" }); })()}
+              />
+            }
+          >
+            <Link href="/calendar" prefetch={false} className="flex flex-col items-center active:opacity-70">
+              <span className="mb-1.5 text-[11.5px] font-extrabold uppercase tracking-wider">{t("nav.calendar")}</span>
+              <HeaderTitle color="#7ae582" size={20} center>
+                {monthName(d.getMonth(), tag)} {d.getFullYear()}
+              </HeaderTitle>
             </Link>
-            <Link href={routes.day(shift(1))} prefetch={false} aria-label={t("day.next")} className="flex h-8 items-center gap-1 rounded-full border-[1.5px] border-[#111] bg-white text-[12.5px] font-bold text-[#111] active:bg-[#111]/10 pl-3 pr-1.5">
-              {(() => { const x = new Date(d); x.setDate(d.getDate() + 1); return x.toLocaleDateString(tag, { day: "numeric", month: "short" }); })()}
-              <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
-            </Link>
-          </div>
-        </div>
+          </HeaderBlock>
         ) : (
       <div className="pt-10 pb-5">
         <div className="mb-5 flex items-center justify-between gap-3">

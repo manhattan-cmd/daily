@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { useSkin } from "@/lib/skin";
+import { HeaderBlock, HeaderOverline, HeaderTile, HeaderTitle, bandColor } from "@/components/ui/header-block";
 
 interface PageHeaderProps {
   title: string;
@@ -55,55 +56,41 @@ export function PageHeader({
   const t = useT();
   const brutal = useSkin() === "brutal";
 
-  // Brütal tema: başlığın hizasında simge yok — geri ve eylemler tepede kare
-  // düğmeler, altında dev başlık, açıklama başlığın üstünde kalın üst yazı.
-  // Sade (compact) ve özel başlıklı (titleSlot) bantlar kendi düzeninde kalır.
-  if (brutal && !compact && !titleSlot) {
-    return (
-      <header
-        data-brut-header=""
-        className={cn(
-          "sticky top-0 z-30 -mx-4 mb-6 border-b-2 border-[#111] bg-background band-pad px-4",
-          className
-        )}
-      >
-        {/* Geri oku varsa tepede kare düğmeler şeridi; yoksa eylem başlığın
-            hizasında durur (eskiden başlığın üstünde boş bir satırda kalıyordu) */}
-        {back && (
-          <div className="flex items-center justify-between gap-2">
-            {back ? (
-              <Link
-                href={back}
-                data-brut-sq=""
-                className="flex h-10 w-10 shrink-0 items-center justify-center"
-                aria-label={t("action.back")}
-              >
-                <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={2.5} />
-              </Link>
-            ) : (
-              <span />
+  // Brütal tema: ana sayfanın blok dili başlıkta (bkz. HeaderBlock) — ortada
+  // bölümün rengindeki benekli hücrede açıklama üst yazı ve ters etiketli dev
+  // başlık, solda geri karosu, sağda eylem karosu; gezinme şeridi (Yapı
+  // sekmeleri) altında kendi hücreleriyle. Sade (compact) ve özel başlıklı
+  // (titleSlot) bantlarda — Analiz — ortadaki hücre o içerik, şerit altta
+  // beyaz bir hücrede.
+  if (brutal) {
+    const color = bandColor(className);
+    if (!compact && !titleSlot) {
+      return (
+        <HeaderBlock
+          color={color}
+          leading={back ? <HeaderTile icon={ArrowLeft} href={back} ariaLabel={t("action.back")} /> : undefined}
+          trailing={action ? <div data-header-actions="" className="flex shrink-0 gap-[2px]">{action}</div> : undefined}
+          rows={nav}
+        >
+          {description ? <HeaderOverline>{description}</HeaderOverline> : null}
+          <div className="flex min-w-0 items-center gap-2">
+            <HeaderTitle color={color} size={28}>{title}</HeaderTitle>
+            {badge !== undefined && badge !== null && (
+              <span data-brut-badge="" className="shrink-0 rounded-lg bg-[#111] px-2 py-0.5 text-[13px] font-black tabular-nums text-[#FFF4DC]">
+                {badge}
+              </span>
             )}
-            {action ? <div data-brut-actions="" className="shrink-0">{action}</div> : null}
           </div>
-        )}
-        <div className={cn("flex items-center gap-3", back && "pt-3")}>
-          <div className="min-w-0 flex-1">
-            {description ? (
-              <p className="truncate text-[12px] font-extrabold uppercase tracking-wider">{description}</p>
-            ) : null}
-            <div className="flex min-w-0 items-center gap-2">
-              <h1 className="min-w-0 break-words text-[32px] font-black leading-none tracking-tight">{title}</h1>
-              {badge !== undefined && badge !== null && (
-                <span data-brut-badge="" className="shrink-0 rounded-lg bg-[#111] px-2 py-0.5 text-[13px] font-black tabular-nums text-[#FFF4DC]">
-                  {badge}
-                </span>
-              )}
-            </div>
-          </div>
-          {!back && action ? <div data-brut-actions="" className="shrink-0">{action}</div> : null}
-        </div>
-        {nav ? <div className="mt-3">{nav}</div> : null}
-      </header>
+        </HeaderBlock>
+      );
+    }
+    return (
+      <HeaderBlock
+        color={color}
+        rows={nav ? <div data-header-row="" className="bg-white px-2 pt-2">{nav}</div> : undefined}
+      >
+        {titleSlot ?? <HeaderTitle color={color} size={20}>{title}</HeaderTitle>}
+      </HeaderBlock>
     );
   }
 

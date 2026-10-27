@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
+import { HeaderBlock } from "@/components/ui/header-block";
 
 /**
  * Üst menü — sayfanın tepesindeki kare düğmeler şeridi (Brütal). Solda geri,
@@ -16,35 +16,39 @@ import { cn } from "@/lib/utils";
 export function TopBar({
   back,
   backLabel,
+  label,
+  color = "#ffd23f",
   children,
   className,
 }: {
   back?: string;
   backLabel?: string;
+  /** Ortadaki hücrede küçük bölüm adı (Yapı) */
+  label?: string;
+  /** Bölümün rengi — varsayılan Yapı'nın sarısı */
+  color?: string;
   /** Sağdaki düğmeler (TopBarButton) */
   children?: ReactNode;
   className?: string;
 }) {
   const t = useT();
+  // Ana sayfanın blok dili (bkz. HeaderBlock): solda geri karosu, ortada
+  // bölümün benekli hücresi, sağda eylem karoları
   return (
-    <div
-      data-top-bar=""
-      className={cn(
-        "sticky top-0 z-30 -mx-4 mb-4 flex items-center justify-between bg-background px-4 pb-3 pt-safe",
-        className
-      )}
+    <HeaderBlock
+      color={color}
+      className={className}
+      leading={back ? <TopBarButton icon={ArrowLeft} label={backLabel ?? t("action.back")} href={back} /> : undefined}
+      trailing={children ? <div data-top-bar="" className="flex shrink-0 gap-[2px]">{children}</div> : undefined}
     >
-      <div className="pt-3">
-        {back ? <TopBarButton icon={ArrowLeft} label={backLabel ?? t("action.back")} href={back} /> : <span />}
-      </div>
-      {children && <div className="flex gap-2 pt-3">{children}</div>}
-    </div>
+      {label && <span className="truncate text-[11.5px] font-extrabold uppercase tracking-wider">{label}</span>}
+    </HeaderBlock>
   );
 }
 
-const TONE: Record<"add" | "danger", CSSProperties> = {
-  add: { background: "#7ae582" },
-  danger: { background: "#ff6b6b" },
+const TONE: Record<"add" | "danger", string> = {
+  add: "#7ae582",
+  danger: "#ff6b6b",
 };
 
 /** Kare, çerçeveli, gölgeli düğme — görünümü [data-brut-sq] kuralından */
@@ -64,14 +68,15 @@ export function TopBarButton({
   tone?: "add" | "danger";
   prefetch?: boolean;
 }) {
+  // Başlık bloğunun karosu: hücreyi boydan doldurur (eskiden çerçeveli,
+  // gölgeli kare düğmeydi)
   const props = {
-    "data-brut-sq": "",
     "aria-label": label,
     title: label,
-    style: tone ? TONE[tone] : undefined,
-    className: "flex h-10 w-10 shrink-0 items-center justify-center",
+    style: { background: tone ? TONE[tone] : "#ffffff" } as CSSProperties,
+    className: "flex w-[48px] shrink-0 items-center justify-center text-[#111] active:brightness-95",
   };
-  const icon = <Icon className="h-[18px] w-[18px]" strokeWidth={tone === "add" ? 3 : 2.5} />;
+  const icon = <Icon className="h-5 w-5" strokeWidth={tone === "add" ? 3 : 2.5} />;
   return href ? (
     <Link href={href} prefetch={prefetch} {...props}>
       {icon}

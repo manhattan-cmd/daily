@@ -64,7 +64,7 @@ export function BrutTopStrip({
 }) {
   const t = useT();
   return (
-    <TopBar back={back}>
+    <TopBar back={back} label={t("nav.structure")}>
       {onAddSub && <TopBarButton icon={Plus} label={t("entry.addSub")} onClick={onAddSub} tone="add" />}
       {analyticsHref && <TopBarButton icon={BarChart3} label={t("nav.insights")} href={analyticsHref} />}
       {onEdit && <TopBarButton icon={Pencil} label={t("action.edit")} onClick={onEdit} />}

@@ -12,6 +12,7 @@ import { routes } from "@/lib/routes";
 import { prefetchDayOnPress } from "@/lib/db/day-cache";
 import { useSkin } from "@/lib/skin";
 import { Layer, PageSheet } from "@/components/ui/layer";
+import { HeaderBlock, HeaderTile, HeaderTitle } from "@/components/ui/header-block";
 
 /** Ay ve gün adları uygulamanın dilinde (eskiden sabit İngilizce diziydi) */
 function monthName(i: number, tag: string): string {
@@ -186,8 +187,22 @@ export default function CalendarPage() {
       {/* Brütal: bant krem döşemede, ay önündeki sayfa zemininde (bkz. PageSheet) */}
       <PageSheet
         top={
-      /* Ay gezintisi — oklar sabit kalır, ay adı içerikle birlikte kayar.
-          Brütal: sayfanın başlığı, yeşil bant (bkz. globals.css "bolum bantlari") */
+      brutal ? (
+        /* Brütal: başlık bloğu (bkz. HeaderBlock) — Takvim'in yeşili, ortada
+           ay ters etiket ve yıl (içerikle birlikte kayar), iki yanda ‹ › */
+        <HeaderBlock
+          color="#7ae582"
+          sticky={false}
+          center
+          style={glideStyle}
+          leading={<HeaderTile icon={ChevronLeft} onClick={prevMonth} ariaLabel={t("selection.previousDay")} />}
+          trailing={<HeaderTile icon={ChevronRight} onClick={nextMonth} ariaLabel={t("selection.nextDay")} />}
+        >
+          <HeaderTitle color="#7ae582" size={26} center>{monthName(month, tag)}</HeaderTitle>
+          <p className="mt-1.5 text-[13px] font-extrabold tabular-nums tracking-wider">{year}</p>
+        </HeaderBlock>
+      ) : (
+      /* Ay gezintisi — oklar sabit kalır, ay adı içerikle birlikte kayar */
       <div
         className={cn(
           "flex items-center justify-between",
@@ -226,6 +241,7 @@ export default function CalendarPage() {
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
+      )
         }
       >
 

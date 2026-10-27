@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { STRUCTURE_TABS, StructureTabs } from "./structure-tabs";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { useSkin } from "@/lib/skin";
-import { cn } from "@/lib/utils";
 
 /**
  * Yapı bölümünün başlığı — dört alt sayfanın ortak üst bandı.
@@ -50,20 +49,19 @@ export function StructureAddButton({
   const t = useT();
   const brutal = useSkin() === "brutal";
   if (brutal) {
-    // Brütal: alt kategori sayfasındaki ekleme düğmesinin dili — yeşil,
-    // çerçeveli, gölgeli; başlığın hizasında
+    // Brütal: başlık bloğunun yeşil karosu (bkz. HeaderBlock) — gün
+    // sayfasının Ekle karosunun dili: siyah karede artı, altında ne eklenecek
     return (
       <button
         type="button"
         onClick={onClick}
         data-brut-label=""
-        className={cn(
-          "flex h-10 items-center gap-1.5 rounded-xl border-2 border-[#111] bg-[#7ae582] px-3 text-[14px] font-black text-[#111]",
-          "shadow-[3px_3px_0_#111] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-        )}
+        className="flex h-full min-w-[84px] flex-col items-center justify-center gap-1.5 bg-[#7ae582] px-2.5 text-[#111] active:brightness-95"
       >
-        <Plus className="h-4 w-4" strokeWidth={3} />
-        {t(labelKey)}
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[#111] text-[#7ae582]">
+          <Plus className="h-5 w-5" strokeWidth={3} />
+        </span>
+        <span className="whitespace-nowrap text-[12px] font-black leading-none">{t(labelKey)}</span>
       </button>
     );
   }
