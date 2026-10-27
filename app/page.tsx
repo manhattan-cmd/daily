@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   ArrowRight,
+  Layers,
   Plus,
   Search,
   Settings,
@@ -207,7 +208,7 @@ export default function HomePage() {
           {/* Girdilerin gittiği yer, yapıya giden kapı — Bugün'ün eşi */}
           {home && <CategoriesBlock snapshot={home} onNew={() => setCatFormOpen(true)} />}
           {home && home.frequent.length > 0 && (
-            <FrequentLayer items={home.frequent} onPick={(sub) => add.openEntry({ presetSub: sub })} />
+            <FrequentBlock items={home.frequent} onPick={(sub) => add.openEntry({ presetSub: sub })} />
           )}
           {/* Hiç girdisi olmayana boş çubuklar bir şey söylemiyor */}
           {home && home.totalEntries > 0 && week && <BrutWeek week={week} today={today} />}
@@ -443,45 +444,69 @@ function BrutTodayBlock({
 }
 
 /**
- * Yine ekle — son 30 günün en sık kalemleri. Dokununca girdi penceresi o
- * kalemin formuyla açılır; kategori › alt kategori aramaya gerek kalmıyor.
- * Kare karo = kategori/alt kategori (şekil dili).
+ * Yine ekle — son 30 günün en sık kalemleri, Bugün ve Kategorilerin'le aynı
+ * birleşik blokta: üstte mavi başlık, altında hücreler ortak çizgilerle.
+ * Her hücrenin tepesinde kategorisinin rengi (Bugün'ün sayılarındaki bant
+ * gibi), kare karo (şekil dili: kare = kategori/alt kategori), ad ve
+ * kategorisi. Dokununca girdi penceresi o kalemin formuyla açılır;
+ * kategori › alt kategori aramaya gerek kalmıyor. Tek sayıda kalem varsa
+ * sonuncusu iki sütuna yayılır (boş hücre siyah görünmesin).
  */
-function FrequentLayer({ items, onPick }: { items: FrequentItem[]; onPick: (sub: SubCategory) => void }) {
+function FrequentBlock({ items, onPick }: { items: FrequentItem[]; onPick: (sub: SubCategory) => void }) {
   const t = useT();
   return (
-    <Layer label={t("home.frequent")}>
-      <div className="grid grid-cols-2 gap-2">
-        {items.map((it) => {
+    <SummaryBlock
+      className="mb-4"
+      lead={{
+        kind: "title",
+        color: "#8ea6ff",
+        overline: t("home.frequent"),
+        title: t("home.frequentTitle"),
+        hint: t("home.frequentHint"),
+      }}
+      stats={[]}
+    >
+      <div className="grid grid-cols-2 gap-[2px]">
+        {items.map((it, idx) => {
           const name = it.isRoot ? it.category.name : it.sub.name;
           const icon = it.sub.icon ?? it.category.icon;
+          const wide = items.length % 2 === 1 && idx === items.length - 1;
           return (
             <button
               key={it.sub.id}
               type="button"
               onClick={() => onPick(it.sub)}
               aria-label={t("home.frequentAdd", { name })}
-              className="flex min-w-0 items-center gap-2 rounded-xl border-2 border-[#111] bg-white p-1.5 pr-2.5 text-left text-[#111] shadow-[2px_2px_0_#111] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+              className={cn(
+                "flex min-w-0 flex-col bg-white text-left text-[#111] active:bg-[#f5f1e8]",
+                wide && "col-span-2"
+              )}
             >
-              <span
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111]"
-                style={{ background: it.category.color }}
-              >
-                {icon && <SymbolIcon name={icon} size={17} style={{ color: "#111" }} />}
-              </span>
-              {/* Ad iki satıra sarar — iki sütunda "Kahve / ç…" diye kesiliyordu;
-                  altında kategorisi (Beslenme › Su ile Faturalar › Su ayrılsın) */}
-              <span className="min-w-0 flex-1">
-                <span className="line-clamp-2 break-words text-[13px] font-black leading-tight">{name}</span>
-                <span className="block truncate text-[10.5px] font-bold text-[#111]/50">
-                  {it.isRoot ? t("brut.category") : it.category.name}
+              <span className="h-1.5 shrink-0" style={{ background: it.category.color }} />
+              <span className="flex min-w-0 items-center gap-2 px-2.5 py-2">
+                <span
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111]"
+                  style={{ background: it.category.color }}
+                >
+                  {icon && <SymbolIcon name={icon} size={17} style={{ color: "#111" }} />}
+                </span>
+                {/* Ad iki satıra sarar — iki sütunda "Kahve / ç…" diye kesiliyordu;
+                    altında kategorisi (Beslenme › Su ile Faturalar › Su ayrılsın) */}
+                <span className="min-w-0 flex-1">
+                  <span className="line-clamp-2 break-words text-[13px] font-black leading-tight">{name}</span>
+                  <span className="block truncate text-[10.5px] font-bold text-[#111]/50">
+                    {it.isRoot ? t("brut.category") : it.category.name}
+                  </span>
+                </span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] bg-[#111] text-white">
+                  <Plus className="h-3.5 w-3.5" strokeWidth={3} />
                 </span>
               </span>
             </button>
           );
         })}
       </div>
-    </Layer>
+    </SummaryBlock>
   );
 }
 
@@ -549,11 +574,22 @@ function BrutWeek({ week, today }: { week: DayBar[]; today: string }) {
 /** Görünen en çok kare; fazlası "+N" karosuyla Yapı'ya */
 const CATS_SHOWN = 12;
 
+/** Başlıktaki sayılar en çok üç basamak: 1000 ve fazlası "999+" */
+const cap = (n: number) => (n > 999 ? "999+" : String(n));
+
+/** Yapı bandının tram benekleri — Yapıya git düğmesi bandın bir parçası gibi */
+const YAPI_DOTS = {
+  backgroundColor: "#ffd23f",
+  backgroundImage: "radial-gradient(rgba(17, 17, 17, 0.16) 1.2px, transparent 1.5px)",
+  backgroundSize: "11px 11px",
+};
+
 /**
  * Kategorilerin — girdilerin gittiği yer, yapıya giden kapı. Bugün bloğunun
  * eşi, aynı birleşik blok (bkz. SummaryBlock): üstte "KATEGORİLERİN · 10
- * kategori", yanında Ekle karosu gibi renkli Kategori yarat karosu (sarı:
- * Yapı'nın rengi); ortada kareler; altta Günü aç gibi Yapıya git satırı.
+ * kategori" ve altında küçük "66 alt kategori · 26 özellik" (999'u aşan
+ * sayı 999+), yanında Ekle karosu gibi renkli Kategori yarat karosu (sarı:
+ * Yapı'nın rengi); ortada kareler; en altta yalnız Yapıya git düğmesi.
  *
  * "Girdi eklemek için önce yapıda kategori kurulur" anlatılmıyor,
  * gösteriliyor: her kategori kendi renginde bir kare, son 30 günün
@@ -581,9 +617,13 @@ function CategoriesBlock({ snapshot, onNew }: { snapshot: HomeSnapshot; onNew: (
         kind: "count",
         color: "#ff9ecd",
         overline: t("home.cats.title"),
-        value: String(cats.length),
+        value: cap(cats.length),
         unit: t("home.cats.unit"),
-        hint: t("home.cats.hint"),
+        // Zincirin öteki iki halkası — kategorilerin içinde ne var
+        hint: t("home.cats.depth", {
+          subcategories: cap(snapshot.counts.subcategories),
+          features: cap(snapshot.counts.features),
+        }),
       }}
       // Ekle karosunun eşi — kategori yarat
       action={
@@ -600,16 +640,28 @@ function CategoriesBlock({ snapshot, onNew }: { snapshot: HomeSnapshot; onNew: (
         </button>
       }
       stats={[]}
-      link={{
-        href: "/structure",
-        label: t("home.cats.open"),
-        badge: t("home.cats.depth", {
-          subcategories: snapshot.counts.subcategories,
-          features: snapshot.counts.features,
-        }),
-      }}
+      // Yapıya git — sayısız, yalnız düğme: Yapı bandının sarısı ve benekleri,
+      // ters etiketli ad (bandın başlığı gibi), iki yanında kare düğmeler
+      footer={
+        <Link
+          href="/structure"
+          data-cats-structure=""
+          className="flex items-center gap-3 px-3 py-3 text-[#111] active:brightness-95"
+          style={YAPI_DOTS}
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white shadow-[2px_2px_0_#111]">
+            <Layers className="h-5 w-5" strokeWidth={2.5} />
+          </span>
+          <span className="rounded-[10px] bg-[#111] px-3 pb-1.5 pt-1 text-[19px] font-black leading-none tracking-tight text-[#ffd23f] shadow-[3px_3px_0_rgba(17,17,17,0.25)]">
+            {t("home.cats.open")}
+          </span>
+          <span className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white shadow-[2px_2px_0_#111]">
+            <ArrowRight className="h-5 w-5" strokeWidth={2.75} />
+          </span>
+        </Link>
+      }
     >
-      <div className="grid grid-cols-4 gap-x-2 gap-y-2.5 p-3">
+      <div className="grid grid-cols-4 gap-x-2 gap-y-2.5 bg-white p-3">
         {shown.map(({ category: c, count }) => {
           // Boş kategoride yalnız rengini gösteren taban; doluluk en çok
           // girdisi olana göre

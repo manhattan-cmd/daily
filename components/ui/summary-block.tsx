@@ -35,7 +35,9 @@ export type SummaryLead =
   | { kind: "thing"; color: string; icon?: string; overline: string; title: string }
   /** Ana sayfa: "BUGÜN · 8 girdi" — sayının neyin sayısı olduğu üstünde yazılı;
    *  renk verilmezse sarı (Kategorilerin pembe) */
-  | { kind: "count"; overline: string; value: string; unit: string; hint?: string; color?: string };
+  | { kind: "count"; overline: string; value: string; unit: string; hint?: string; color?: string }
+  /** Ana sayfa: sayısız başlık (Yine ekle) — etiket, ad, açıklama */
+  | { kind: "title"; overline: string; title: string; hint?: string; color: string };
 
 export type SummaryLink = {
   href: string;
@@ -46,6 +48,20 @@ export type SummaryLink = {
 };
 
 function Lead({ lead }: { lead: SummaryLead }) {
+  if (lead.kind === "title") {
+    return (
+      <div className="flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-[#111]" style={{ background: lead.color }}>
+        <span
+          className="self-start rounded-md bg-[#111] px-1.5 py-px text-[10px] font-black uppercase tracking-wider"
+          style={{ color: lead.color }}
+        >
+          {lead.overline}
+        </span>
+        <span className="mt-1.5 text-[19px] font-black leading-tight tracking-tight">{lead.title}</span>
+        {lead.hint && <span className="mt-0.5 line-clamp-2 text-[11.5px] font-bold leading-snug opacity-70">{lead.hint}</span>}
+      </div>
+    );
+  }
   if (lead.kind === "count") {
     return (
       <div
@@ -128,14 +144,18 @@ export function SummaryBlock({
   stats,
   action,
   link,
+  footer,
   children,
   className,
 }: {
   lead: SummaryLead;
   /** Sayılar — genelde üç; boşsa satır yok */
   stats: SummaryStat[];
-  /** Sayılarla alt satır arasında beyaz hücre (ana sayfada kategori kareleri) */
+  /** Sayılarla alt satır arasındaki satır(lar) — zemini çağıranın (ana
+   *  sayfada kategori kareleri, Yine ekle hücreleri) */
   children?: ReactNode;
+  /** En alt satırın yerine kendi düğmesi (Kategorilerin: Yapıya git) */
+  footer?: ReactNode;
   /** Ekle düğmesi (gün) — adın yanındaki kare hücreyi doldurur */
   action?: ReactNode;
   link?: SummaryLink;
@@ -166,7 +186,7 @@ export function SummaryBlock({
           ))}
         </div>
       )}
-      {children && <div className="bg-white">{children}</div>}
+      {children}
       {link && (
         <Link
           href={link.href}
@@ -196,6 +216,7 @@ export function SummaryBlock({
           )}
         </Link>
       )}
+      {footer}
     </div>
   );
 }
