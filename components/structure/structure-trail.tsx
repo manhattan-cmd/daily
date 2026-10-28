@@ -3,7 +3,6 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Square } from "lucide-react";
 import { db } from "@/lib/db";
 import { listUserCategories } from "@/lib/db/queries";
 import { useT } from "@/lib/i18n";
@@ -11,15 +10,7 @@ import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import type { SubCategory } from "@/types";
 
-type Step = {
-  key: string;
-  label: string;
-  href: string;
-  fill: string;
-  mark: string;
-  /** Kök yalnız simgesiyle (Kategoriler sekmesinin karesi) — yer darken */
-  compact?: boolean;
-};
+type Step = { key: string; label: string; href: string; fill: string; mark: string };
 
 /** Ok ucunun derinliği */
 const TIP = 10;
@@ -28,22 +19,22 @@ const YAPI = "#ffd23f";
 /**
  * Konum yolu (Brütal) — Kategoriler sekmesinin üç sayfasında başlık
  * bloğunun en alt satırı, hep aynı hizada: "Kategoriler › Harcamalar ›
- * Faturalar › Su". Satırı kenardan kenara doldurur: duraklar ok biçimli
- * parçalar, aralarındaki 2 px siyah ok çizgisi bloğun ortak çizgileri gibi.
- * Önceki duraklar renkli — kök Yapı'nın sarısı, kategori kendi rengi, alt
- * kategoriler o rengin derine indikçe açılan tonları — dokununca o sayfa.
- * Bulunulan yer satırın kalanını dolduran beyaz parça: kalın adı, önünde
- * rengi; her sayfada soldan kayarak gelir. Kategoriler'de yalnız o, yanında
- * kategori sayısı.
+ * Faturalar › Su". Duraklar ok biçimli parçalar, aralarındaki 2 px siyah ok
+ * çizgisi bloğun ortak çizgileri gibi. Önceki duraklar renkli — kök Yapı'nın
+ * sarısı, kategori kendi rengi, alt kategoriler o rengin derine indikçe
+ * açılan tonları — dokununca o sayfa. Bulunulan yer beyaz parça (kalın adı,
+ * önünde rengi), yol kısaysa satırın kalanını doldurur; her sayfada soldan
+ * kayarak gelir. Kategoriler'de yalnız o, yanında kategori sayısı.
  *
- * Hiç taşmaz, yana kaymaz: yol sığmazsa aradaki katlar tek "…" durağında
- * toplanır (dokununca gizlenenlerin en yakını; bkz. fitSteps), yine de
- * sığmayan adlar … ile kısalır — ara duraklar önce, bulunulan yer en son.
+ * Bütün yol hep tam adlarıyla: sığmazsa satır yana kayar. Açılışta sona
+ * yaslı gelir (bulunulan yer görünür) — kaydırma animasyonsuz, boyamadan
+ * önce; görünmeyen bir kısım varsa o kenarda hafif gölge. Bir ara sığmayan
+ * katlar "…" durağında toplanıyordu — kullanıcıya göre ilerledikçe alt
+ * kategoriler kayboluyordu.
  *
  * Denenip bırakılanlar: bütün kategorilerin yan yana durduğu şerit; sönük
  * yazılı düz yol; bloğun içinde beyaz satırda gölgeli oklar ("beyaz bölme
- * oklarla uyuşmuyor"); bloğun altında krem zeminde aşağı kayan oklar (yana
- * kayıyor, ekrandan taşıyordu).
+ * oklarla uyuşmuyor"); bloğun altında krem zeminde aşağı kayan oklar.
  */
 export function StructureTrail({ categoryId, subId }: { categoryId?: string; subId?: string }) {
   const t = useT();
@@ -72,60 +63,65 @@ export function StructureTrail({ categoryId, subId }: { categoryId?: string; sub
     return { steps, count: undefined };
   }, [categoryId, subId]);
 
-  const all: Step[] = [
+  const steps: Step[] = [
     { key: "root", label: t("structure.categories"), href: "/structure", fill: YAPI, mark: YAPI },
     ...(place?.steps ?? []),
   ];
-  // Satırın genişliği — yolun ne kadarının sığacağı buna göre (boyamadan önce)
-  const navRef = useRef<HTMLElement>(null);
-  const [width, setWidth] = useState(0);
-  useLayoutEffect(() => {
-    const el = navRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([e]) => setWidth(e.contentRect.width));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  const steps = fitSteps(all, width);
   const here = steps[steps.length - 1];
   const rootOnly = steps.length === 1;
+  const pathKey = steps.map((s) => s.key).join("/");
+
+  // Sona yaslı aç (boyamadan önce, kaydırma görünmesin); kenar gölgeleri
+  const rowRef = useRef<HTMLOListElement>(null);
+  const [edges, setEdges] = useState({ start: false, end: false });
+  const measure = () => {
+    const el = rowRef.current;
+    if (!el) return;
+    const start = el.scrollLeft > 1;
+    const end = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+    setEdges((e) => (e.start === start && e.end === end ? e : { start, end }));
+  };
+  useLayoutEffect(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    el.scrollLeft = el.scrollWidth;
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [pathKey]);
 
   return (
     // Zemin siyah: parçaların arasında kalan 2 px ok çizgisi
-    <nav ref={navRef} aria-label={t("structure.title")} className="min-w-0 bg-[#111]">
-      <ol data-structure-trail="" className="flex h-[40px] min-w-0">
+    <nav aria-label={t("structure.title")} className="relative min-w-0 bg-[#111]">
+      <ol
+        ref={rowRef}
+        data-structure-trail=""
+        onScroll={measure}
+        className="no-scrollbar flex h-[40px] min-w-0 overflow-x-auto overscroll-x-contain"
+      >
         {steps.slice(0, -1).map((s, i) => (
-          <li
-            key={s.key}
-            // Neyin gösterileceğini fitSteps seçti (bunlara bulunulan yer için
-            // en az 72 px bırakarak); bunlar kısalmaz — kısalınca yarım piksel
-            // gidip ad "Sp…" oluyordu. Sığmayan bulunulan yerin adı kısalır.
-            // Çok uzun ad yine de satırın %40ını geçmez.
-            className={cn("flex max-w-[40%] flex-none", i > 0 && "-ml-[8px]")}
-          >
+          <li key={s.key} className={cn("flex flex-none", i > 0 && "-ml-[8px]")}>
             <Link
               href={s.href}
               prefetch={false}
               className={cn(
-                "flex min-w-0 items-center text-[12.5px] font-black leading-none text-[#111] active:brightness-90",
+                "flex items-center whitespace-nowrap text-[12.5px] font-black leading-none text-[#111] active:brightness-90",
                 i === 0 ? "pl-3" : "pl-[19px]",
                 "pr-[15px]"
               )}
               style={{ background: s.fill, ...arrow(i === 0, false) }}
             >
-              {s.compact ? (
-                <Square aria-label={s.label} className="h-3.5 w-3.5 shrink-0" strokeWidth={3} />
-              ) : (
-                <span className="truncate">{s.label}</span>
-              )}
+              {s.label}
             </Link>
           </li>
         ))}
-        <li key={here.key} className={cn("crumb-in flex min-w-[72px]", !rootOnly && "-ml-[8px]")} style={{ flex: "1 1 auto" }}>
+        {/* Yol kısaysa satırın kalanını doldurur, uzunsa kendi boyunda */}
+        <li key={here.key} className={cn("crumb-in flex", !rootOnly && "-ml-[8px]")} style={{ flex: "1 0 auto" }}>
           <span
             aria-current="page"
             className={cn(
-              "flex min-w-0 flex-1 items-center gap-2 bg-white text-[13px] font-black leading-none text-[#111]",
+              "flex flex-1 items-center gap-2 whitespace-nowrap bg-white text-[13px] font-black leading-none text-[#111]",
               rootOnly ? "pl-3" : "pl-[20px]",
               "pr-3"
             )}
@@ -136,53 +132,32 @@ export function StructureTrail({ categoryId, subId }: { categoryId?: string; sub
               className="h-3 w-3 shrink-0 rounded-[3px] border-[1.5px]"
               style={{ background: here.mark, borderColor: "#111" }}
             />
-            <span className="min-w-0 truncate">{here.label}</span>
+            {here.label}
             {rootOnly && place?.count !== undefined && (
-              <span className="ml-auto shrink-0 text-[11.5px] font-bold text-[#111]/50">
+              <span className="ml-auto pl-3 text-[11.5px] font-bold text-[#111]/50">
                 {t("struct.cats.count", { n: place.count })}
               </span>
             )}
           </span>
         </li>
       </ol>
+      {/* Görünmeyen kısım var: o kenarda hafif gölge */}
+      <span
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute inset-y-0 left-0 w-5 bg-gradient-to-r from-[#111]/40 to-transparent transition-opacity",
+          edges.start ? "opacity-100" : "opacity-0"
+        )}
+      />
+      <span
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute inset-y-0 right-0 w-5 bg-gradient-to-l from-[#111]/40 to-transparent transition-opacity",
+          edges.end ? "opacity-100" : "opacity-0"
+        )}
+      />
     </nav>
   );
-}
-
-/**
- * Sığan en uzun yol. Sırayla denenir: hepsi; kök yalnız simgesiyle (kök
- * zaten üstteki seçili sekme); kategori ile üstü arasındaki katlar "…";
- * kategoriden sonrası "…"; en sonunda kök · "…" · burası. "…" gizlenenlerin
- * bulunulan yere en yakınına gider. Kategori en son gizlenir — rengi yolun
- * kimliği.
- *
- * Genişlik harf sayısından kestirilir (ölçmek her biçimi bir kez çizmek
- * demek); kestirim kaçırırsa adlar … ile kısalır, taşma yine olmaz.
- * Bulunulan yerin uzun adı yolu kısaltmaz — o kendisi kısalır.
- */
-function fitSteps(all: Step[], width: number): Step[] {
-  const n = all.length;
-  if (!width || n < 2) return all;
-  const more = (to: Step): Step => ({ ...to, key: "more", label: "…" });
-  const r = { ...all[0], compact: true };
-  const tries: Step[][] = [all, [r, ...all.slice(1)]];
-  if (n >= 5) tries.push([r, all[1], more(all[n - 3]), all[n - 2], all[n - 1]]);
-  if (n >= 4) tries.push([r, all[1], more(all[n - 2]), all[n - 1]]);
-  if (n >= 3) tries.push([r, more(all[n - 2]), all[n - 1]]);
-  // Cömert kestirim (geniş harfler): önceki duraklar kısalmadığı için
-  // eksik kestirim taşma demek
-  const est = (path: Step[]) =>
-    path.reduce((sum, s, i) => {
-      const last = i === path.length - 1;
-      const w = last
-        ? Math.max(72, Math.min(s.label.length * 7.4 + 44, width * 0.45))
-        : s.compact
-          ? 40
-          : Math.min(s.label.length * 7.3 + (i === 0 ? 27 : 26), width * 0.4);
-      // Parçalar bir öncekinin ucuna 8 px biner
-      return sum + w - (i > 0 ? 8 : 0);
-    }, 0);
-  return tries.find((p) => est(p) <= width) ?? tries[tries.length - 1];
 }
 
 /** Ok biçimi: sağda uç (son değilse), solda bir öncekinin ucunu alan çentik (ilk değilse) */
