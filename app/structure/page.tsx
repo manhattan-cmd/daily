@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Layers } from "lucide-react";
 import { listCategoryTree, listUserCategories } from "@/lib/db/queries";
@@ -8,7 +8,7 @@ import { BrutCategoryTree, useIsBrutal } from "@/components/structure/brutal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CategoryForm } from "@/components/structure/category-form";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
-import { StructureTrail } from "@/components/structure/structure-trail";
+import { closeStructureTrail } from "@/components/structure/structure-trail";
 import { CategoryTile } from "@/components/structure/category-tile";
 import {
   StructureAddButton,
@@ -36,11 +36,13 @@ export default function StructurePage() {
   const [subCat, setSubCat] = useState<Category | null>(null);
   const [subOpen, setSubOpen] = useState(false);
 
+  // Konum yolu burada kapalı (kök); bir kategoriye girince açılarak gelir
+  useEffect(() => closeStructureTrail(), []);
+
   return (
     <PageSheet
       top={
         <StructureHeader
-          below={brutal ? <StructureTrail /> : undefined}
           action={
             <StructureAddButton
               labelKey="structure.addCategory"

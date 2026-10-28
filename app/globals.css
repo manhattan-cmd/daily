@@ -389,6 +389,19 @@ input[type="number"] {
   animation: zoomIn 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Yapı'nın konum yolu: Kategoriler'de kapalı, bir kategoriye girince
+   başlık bloğunun altından açılır (bkz. StructureTrail) */
+@keyframes trailOpen {
+  from { height: 0; opacity: 0; }
+  to   { height: 46px; opacity: 1; }
+}
+.trail-open {
+  animation: trailOpen 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .trail-open { animation: none; }
+}
+
 /* Kapsül satırının tonu — seçim değişince yeni renk yavaşça siner.
    Kapsülün başa süzülmesiyle (~0.46s) aynı anda başlar, biraz daha uzun
    sürer: önce hareket, ardından renk oturur. */
