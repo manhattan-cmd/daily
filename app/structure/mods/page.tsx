@@ -52,7 +52,11 @@ import { useT } from "@/lib/i18n";
 import { confirmDialog } from "@/components/ui/confirm";
 import { cn } from "@/lib/utils";
 import { modColor } from "@/lib/mod-color";
-import { CATEGORY_COLORS } from "@/types";
+import { CATEGORY_COLORS, SCALE_PRESETS, type EntryValueType } from "@/types";
+import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
+
+/** Özelliklerin rengi — kategori sayfasındaki Özellikler bloğunun menekşesi */
+const FEATURES = "#c9b8ff";
 
 /** Özelliğin bağlı olduğu bir yer — rengi kategorisinden gelir (alt kalemlerin
  *  kendi rengi yok, üstündeki kategorininkini taşırlar) */
@@ -236,6 +240,14 @@ export default function ModsHomePage() {
 
   /** Yazıda gösterilen arama — çok uzunsa kısaltılmış (pencereye tamamı gider) */
   const searchShown = search.trim().length > 24 ? `${search.trim().slice(0, 23)}…` : search.trim();
+  /** Yeni özellik o türle açılır (tür bloğunun ekle karosu) */
+  function createOfKind(k: MeasureUiKind) {
+    setName("");
+    setError(null);
+    setMeasure(k === "scale" ? { valueType: "select", choices: SCALE_PRESETS[0].choices } : { valueType: k as EntryValueType });
+    setCreateOpen(true);
+  }
+
   function createFromSearch() {
     setName(search.trim());
     setError(null);
@@ -320,8 +332,52 @@ export default function ModsHomePage() {
           arasında ayrım yok — ikisi de aynı şekilde düzenlenir ve silinir */}
       {mods === undefined ? null : (
         <section className={cn("mb-6 flex flex-col", brutal ? "gap-4" : "gap-5")}>
-          {/* Her ölçü türü kendi katmanında (bkz. Layer) — adı ve sayısı katmanın başında */}
-          {groups.map((g) => (
+          {/* Brütal: her ölçü türü bir blok (bkz. SummaryBlock) — Yapı →
+              Kategoriler'deki kategori blokları gibi: menekşe ad hücresinde
+              türün simgesi, adı ve özellik sayısı, yanında o türde yeni
+              özellik açan yeşil karo, altında atomlar beyaz hücrede. Sade
+              temalarda her tür kendi katmanında (bkz. Layer). */}
+          {groups.map((g) => brutal ? (
+            <SummaryBlock
+              key={g.kind}
+              lead={{
+                kind: "thing",
+                color: FEATURES,
+                glyph: g.icon,
+                title: g.label,
+                hint: `${g.items.length} ${t("struct.features.unit")}`,
+              }}
+              action={
+                <SummaryTile color="#7ae582" icon={Plus} label={t("structure.addFeature")} onClick={() => createOfKind(g.kind)} />
+              }
+              stats={[]}
+            >
+              <div data-feature-cell="" className="grid grid-cols-4 gap-x-1.5 gap-y-3 bg-white px-2 py-3">
+                {g.items.map((mod) => {
+                  const n = usage?.get(mod.id)?.valueCount ?? 0;
+                  const c = modColor(mod);
+                  const Icon = modAtomIcon(mod);
+                  return (
+                    <button
+                      key={mod.id}
+                      type="button"
+                      onClick={() => openDetail(mod)}
+                      className="group flex min-w-0 flex-col items-center gap-1 text-[#111]"
+                    >
+                      <span
+                        className="flex h-[50px] w-[50px] items-center justify-center rounded-full border-2 border-[#111] shadow-[2px_2px_0_#111] transition-transform group-active:translate-x-[2px] group-active:translate-y-[2px] group-active:shadow-none"
+                        style={{ background: c }}
+                      >
+                        <Icon className="h-5 w-5 text-[#111]" strokeWidth={2.4} />
+                      </span>
+                      <span className="w-full truncate text-center text-[11px] font-extrabold leading-tight">{mod.name}</span>
+                      <span className="font-mono text-[10px] font-bold leading-none opacity-60">{n}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </SummaryBlock>
+          ) : (
             <Layer key={g.kind} label={g.label} count={g.items.length} className="mb-0 flex flex-col gap-2">
               {!brutal && (
               <div data-group-head="" className="flex items-center gap-2 px-0.5">
@@ -339,33 +395,6 @@ export default function ModsHomePage() {
               {/* Kartta YALNIZ ad. Birim, aralık ve seçenekler eskiden adın
                   altındaydı; iki sütunda yan yana gelince liste okunmuyordu —
                   hepsi atoma dokununca açılan detayda. */}
-              {brutal ? (
-                /* Brütal raf: dört sütun atom ızgarası; altında ad ve kayıt sayısı */
-                <div className="grid grid-cols-4 gap-x-1.5 gap-y-3">
-                  {g.items.map((mod) => {
-                    const n = usage?.get(mod.id)?.valueCount ?? 0;
-                    const c = modColor(mod);
-                    const Icon = modAtomIcon(mod);
-                    return (
-                      <button
-                        key={mod.id}
-                        type="button"
-                        onClick={() => openDetail(mod)}
-                        className="group flex min-w-0 flex-col items-center gap-1 text-[#111]"
-                      >
-                        <span
-                          className="flex h-[50px] w-[50px] items-center justify-center rounded-full border-2 border-[#111] shadow-[2px_2px_0_#111] transition-transform group-active:translate-x-[2px] group-active:translate-y-[2px] group-active:shadow-none"
-                          style={{ background: c }}
-                        >
-                          <Icon className="h-5 w-5 text-[#111]" strokeWidth={2.4} />
-                        </span>
-                        <span className="w-full truncate text-center text-[11px] font-extrabold leading-tight">{mod.name}</span>
-                        <span className="font-mono text-[10px] font-bold leading-none opacity-60">{n}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
               <div className="grid grid-cols-2 gap-1.5">
                 {g.items.map((mod) => (
                   <button
@@ -385,24 +414,20 @@ export default function ModsHomePage() {
                   </button>
                 ))}
               </div>
-              )}
             </Layer>
           ))}
 
+          {/* Brütal: her türün bloğunda kendi ekle karosu var; havuz bomboşsa
+              tek blok "0 özellik" ve karosu. Eskiden dizinin sonunda kesik
+              çerçeveli bir "Yeni özellik" yuvası vardı. */}
           {!search && (brutal ? (
-            /* Brütal: pencere dizisinin sonunda boş bir yuva — kesik siyah
-               çerçeve, pencerelerle aynı köşe; artı kesik bir dairede
-               (daire = özellik), Alt kategori ekle satırının karosu gibi */
-            <button
-              type="button"
-              onClick={() => setCreateOpen(true)}
-              className="flex h-14 items-center justify-center gap-2.5 rounded-[22px] border-2 border-dashed border-[#111] bg-white/60 text-[14px] font-black text-[#111] transition-colors hover:bg-white active:bg-white"
-            >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-[1.5px] border-dashed border-[#111]/50">
-                <Plus className="h-3.5 w-3.5" strokeWidth={3} />
-              </span>
-              {mods.length ? t("features.createNew") : t("features.first")}
-            </button>
+            mods.length === 0 && (
+              <SummaryBlock
+                lead={{ kind: "count", color: FEATURES, overline: t("structure.features"), value: "0", unit: t("struct.features.unit") }}
+                action={<SummaryTile color="#7ae582" icon={Plus} label={t("structure.addFeature")} onClick={() => setCreateOpen(true)} />}
+                stats={[]}
+              />
+            )
           ) : (
             <button
               type="button"

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Boxes, ChevronRight } from "lucide-react";
+import { Boxes, ChevronRight, Plus } from "lucide-react";
 import { db } from "@/lib/db";
 import { listCollections } from "@/lib/db/things";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -18,21 +18,34 @@ import { useT } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
 import { useRouter } from "next/navigation";
 import { PageSheet } from "@/components/ui/layer";
+import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
+import { useIsBrutal } from "@/components/structure/brutal";
+import type { Thing } from "@/types";
+
+/** Listenin bloğunda gösterilen nesne sayısı — fazlası "+N" */
+const THING_PREVIEW = 10;
 
 /**
- * Yapı › Nesneler — listeler (koleksiyonlar). Kart dili Kategoriler
- * sayfasındaki brütal kartla aynı: solda listenin renginde sırt şeridi,
- * simge karosu, ad ve sayılar.
+ * Yapı › Nesneler — listeler (koleksiyonlar). Brütalde Yapı → Kategoriler'in
+ * blok dili (bkz. SummaryBlock): her liste bir blok — listenin renginde ad
+ * hücresi (simgesi, adı, nesne · aktif sayısı; dokununca listenin sayfası),
+ * altında beyaz hücrede nesneleri etiket etiket (baklava = nesne; dokununca
+ * nesnenin sayfası, fazlası "+N"). Hiç liste yoksa tek blok: Yeni liste
+ * karosu ve nesnelerin ne olduğu. Sade temalarda sırt şeritli kartlar.
  */
 export default function ObjectsPage() {
   const t = useT();
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
+  const brutal = useIsBrutal();
   const data = useLiveQuery(async () => {
     const [cols, things] = await Promise.all([listCollections(), db.things.toArray()]);
     return cols.map((c) => {
       const mine = things.filter((th) => th.collectionId === c.id);
-      return { c, total: mine.length, active: mine.filter((th) => !th.archivedAt).length };
+      const live: Thing[] = mine
+        .filter((th) => !th.archivedAt)
+        .sort((a, b) => a.name.localeCompare(b.name, "tr"));
+      return { c, total: mine.length, active: live.length, live };
     });
   }, []);
 
@@ -47,7 +60,71 @@ export default function ObjectsPage() {
       }
     >
 
-      {data === undefined ? null : data.length === 0 ? (
+      {data === undefined ? null : brutal ? (
+        data.length === 0 ? (
+          <SummaryBlock
+            lead={{ kind: "title", color: "#ffd23f", overline: t("structure.objects"), title: t("objects.emptyTitle") }}
+            action={<SummaryTile color="#7ae582" icon={Plus} label={t("objects.addCollection")} onClick={() => setAddOpen(true)} />}
+            stats={[]}
+          >
+            <p className="bg-white px-3.5 py-3 text-[12.5px] font-semibold leading-snug text-[#111]/70">
+              {t("objects.emptyBody")}
+            </p>
+          </SummaryBlock>
+        ) : (
+          <div className="flex flex-col gap-4 pb-6 pt-1">
+            {data.map(({ c, total, active, live }) => {
+              const color = c.color ?? "#94a3b8";
+              const more = live.length - THING_PREVIEW;
+              return (
+                <SummaryBlock
+                  key={c.id}
+                  leadHref={routes.structureCollection(c.id)}
+                  lead={{
+                    kind: "thing",
+                    color,
+                    icon: c.icon,
+                    glyph: c.icon ? undefined : Boxes,
+                    title: c.name,
+                    hint: t("objects.count", { n: total, active }),
+                  }}
+                  stats={[]}
+                >
+                  {live.length > 0 && (
+                    <div data-thing-chips="" className="flex flex-wrap gap-1.5 bg-white p-2.5">
+                      {live.slice(0, THING_PREVIEW).map((th) => (
+                        <Link
+                          key={th.id}
+                          href={routes.structureThing(th.id)}
+                          prefetch={false}
+                          className="flex max-w-full items-center gap-1.5 rounded-[9px] border-[1.5px] border-[#111] bg-white px-2 py-[5px] text-[12.5px] font-extrabold leading-none text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
+                        >
+                          {/* Baklava — şekil dilinde nesne */}
+                          <span
+                            aria-hidden
+                            className="h-2 w-2 shrink-0 rotate-45 border-[1.5px]"
+                            style={{ background: color, borderColor: "#111" }}
+                          />
+                          <span className="truncate">{th.name}</span>
+                        </Link>
+                      ))}
+                      {more > 0 && (
+                        <Link
+                          href={routes.structureCollection(c.id)}
+                          prefetch={false}
+                          className="flex items-center rounded-[9px] border-[1.5px] border-dashed border-[#111]/60 px-2 py-[5px] font-mono text-[12px] font-bold leading-none text-[#111]/70"
+                        >
+                          +{more}
+                        </Link>
+                      )}
+                    </div>
+                  )}
+                </SummaryBlock>
+              );
+            })}
+          </div>
+        )
+      ) : data.length === 0 ? (
         <EmptyState icon={Boxes} title={t("objects.emptyTitle")} description={t("objects.emptyBody")} />
       ) : (
         <div className="flex flex-col gap-4 pb-6 pt-1">

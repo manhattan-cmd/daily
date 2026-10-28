@@ -34,7 +34,16 @@ export type SummaryLead =
   | { kind: "date"; weekday: string; today?: string; day: number; month: string; year: number }
   /** Kategori / alt kategori — kendi renginde, beyaz karoda simgesi. Yapı →
    *  Kategoriler listesinde üst yazı yok, adın altında sayılar (hint) */
-  | { kind: "thing"; color: string; icon?: string; overline?: string; title: string; hint?: string }
+  | {
+      kind: "thing";
+      color: string;
+      icon?: string;
+      /** Sembol adı yerine simge bileşeni (Özellikler: ölçü türünün simgesi) */
+      glyph?: LucideIcon;
+      overline?: string;
+      title: string;
+      hint?: string;
+    }
   /** Ana sayfa: "BUGÜN · 8 girdi" — sayının neyin sayısı olduğu üstünde yazılı;
    *  renk verilmezse sarı (Kategorilerin pembe) */
   | {
@@ -197,7 +206,11 @@ function Lead({ lead, linked = false }: { lead: SummaryLead; linked?: boolean })
   return (
     <div className="flex h-full min-w-0 items-center gap-3 px-3 py-2.5 text-[#111]" style={{ background: lead.color }}>
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white">
-        {lead.icon && <SymbolIcon name={lead.icon} size={22} style={{ color: "#111" }} />}
+        {lead.glyph ? (
+          <lead.glyph className="h-[22px] w-[22px]" strokeWidth={2.5} />
+        ) : (
+          lead.icon && <SymbolIcon name={lead.icon} size={22} style={{ color: "#111" }} />
+        )}
       </span>
       <div className="min-w-0 flex-1">
         {lead.overline && (

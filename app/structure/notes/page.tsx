@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useT } from "@/lib/i18n";
+import { Fragment, useState } from "react";
+import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Search, X } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import { createNote, listAllNotes } from "@/lib/db/queries";
 import {
   StructureAddButton,
@@ -14,6 +14,11 @@ import { NoteWindow } from "@/components/notes/note-window";
 import { Input } from "@/components/ui/input";
 import type { Note } from "@/types";
 import { PageSheet } from "@/components/ui/layer";
+import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
+import { useIsBrutal } from "@/components/structure/brutal";
+
+/** Notların rengi — not kartının gül rengi (NOTE_COLOR), blokta açık tonu */
+const NOTES = "#fda4af";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -34,6 +39,10 @@ const noteText = (n: Note) =>
 
 export default function StructureNotesPage() {
   const t = useT();
+  const tag = intlTag(useLocale());
+  const brutal = useIsBrutal();
+  // Brütal: arama Ara karosuyla açılır (Son girdiler bloğu gibi)
+  const [searchOpen, setSearchOpen] = useState(false);
   const notes = useLiveQuery(() => listAllNotes(), []);
   const [query, setQuery] = useState("");
 
@@ -55,6 +64,15 @@ export default function StructureNotesPage() {
     setNewNoteId(note.id);
   }
 
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setQuery("");
+  };
+  const dayLabel = (date: string) => {
+    const [y, m, d] = date.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(tag, { day: "numeric", month: "long", year: "numeric" });
+  };
+
   return (
     <PageSheet
       top={
@@ -69,7 +87,77 @@ export default function StructureNotesPage() {
       }
     >
 
-      {/* Notlar — arama + güne göre liste */}
+      {/* Brütal: ana sayfanın blok dili (bkz. SummaryBlock) — gül renginde
+          "NOTLAR · 12 not", yanında listeyi yerinde süzen mavi Ara karosu
+          (açıkken kaçta kaç ve Kapat), altında günler krem ara satırda,
+          notlar beyaz hücrede. Hiç not yoksa yalnız "0 not" ve yeşil Not
+          karosu — açıklama cümlesi yok. */}
+      {brutal ? (
+        notes === undefined ? null : (
+          <SummaryBlock
+            className="mb-6"
+            lead={{
+              kind: "count",
+              color: NOTES,
+              overline: query.trim() ? t("notes.results") : t("structure.notes"),
+              value: query.trim() ? `${filtered.length}/${notes.length}` : String(notes.length),
+              unit: t("notes.unit"),
+            }}
+            action={
+              notes.length ? (
+                <SummaryTile
+                  color="#8ea6ff"
+                  icon={searchOpen ? X : Search}
+                  label={searchOpen ? t("action.close") : t("search.title")}
+                  onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
+                />
+              ) : (
+                <SummaryTile color="#7ae582" icon={Plus} label={t("structure.addNote")} onClick={handleNewNote} />
+              )
+            }
+            stats={[]}
+          >
+            {searchOpen && (
+              <div className="relative bg-white p-2">
+                <Search className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#111]/50" strokeWidth={2.5} />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t("note.searchNotes")}
+                  aria-label={t("note.searchNotes")}
+                  autoFocus
+                  className="h-10 w-full rounded-[10px] border-2 border-[#111] bg-white pl-9 pr-9 text-[14px] font-bold text-[#111] placeholder:font-semibold placeholder:text-[#111]/40 focus:outline-none"
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    aria-label={t("features.clearSearch")}
+                    className="absolute right-4 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg active:bg-[#111]/10"
+                  >
+                    <X className="h-4 w-4" strokeWidth={2.75} />
+                  </button>
+                )}
+              </div>
+            )}
+            {notes.length > 0 && filtered.length === 0 && (
+              <p className="bg-white px-3.5 py-3 text-[12.5px] font-semibold text-[#111]/65">{t("notes.noMatch")}</p>
+            )}
+            {groups.map((g) => (
+              <Fragment key={g.date}>
+                <div className="bg-[#f5f1e8] px-3.5 py-1.5 text-[10.5px] font-black uppercase tracking-[0.08em] text-[#111]">
+                  {dayLabel(g.date)}
+                </div>
+                <div data-note-list="" className="flex flex-col gap-2 bg-white p-2">
+                  {g.notes.map((note) => (
+                    <NoteCard key={note.id} note={note} />
+                  ))}
+                </div>
+              </Fragment>
+            ))}
+          </SummaryBlock>
+        )
+      ) : (
       <section className="mb-6">
         <div className="relative mb-3">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
@@ -124,6 +212,7 @@ export default function StructureNotesPage() {
           </div>
         )}
       </section>
+      )}
       {newNoteId && (
         <NoteWindow noteId={newNoteId} open onClose={() => setNewNoteId(null)} />
       )}
