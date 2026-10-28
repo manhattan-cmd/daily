@@ -340,6 +340,7 @@ export default function ModsHomePage() {
           {groups.map((g) => brutal ? (
             <SummaryBlock
               key={g.kind}
+              compact
               lead={{
                 kind: "thing",
                 color: FEATURES,
@@ -348,7 +349,7 @@ export default function ModsHomePage() {
                 hint: `${g.items.length} ${t("struct.features.unit")}`,
               }}
               action={
-                <SummaryTile color="#7ae582" icon={Plus} label={t("structure.addFeature")} onClick={() => createOfKind(g.kind)} />
+                <SummaryTile compact color="#7ae582" icon={Plus} label={t("structure.addFeature")} onClick={() => createOfKind(g.kind)} />
               }
               stats={[]}
             >

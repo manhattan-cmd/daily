@@ -430,6 +430,7 @@ export function BrutCategoryTree({
           <SummaryBlock
             key={cat.id}
             leadHref={routes.structureCategory(cat.id)}
+            compact
             lead={{
               kind: "thing",
               color: cat.color,
@@ -437,7 +438,7 @@ export function BrutCategoryTree({
               title: cat.name,
               hint: t("brut.subsAndEntries", { subs: n, entries: counts?.get(`c:${cat.id}`) ?? 0 }),
             }}
-            action={<SummaryTile color="#7ae582" icon={Plus} label={t("structure.addSub")} onClick={() => onAddSub(cat)} />}
+            action={<SummaryTile compact color="#7ae582" icon={Plus} label={t("structure.addSub")} onClick={() => onAddSub(cat)} />}
             stats={[]}
           >
             {/* Alt kategorisi yoksa yalnız ad hücresi ve ekle karosu */}

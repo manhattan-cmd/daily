@@ -77,6 +77,7 @@ export default function ObjectsPage() {
                 <SummaryBlock
                   key={c.id}
                   leadHref={routes.structureCollection(c.id)}
+                  compact
                   lead={{
                     kind: "thing",
                     color,

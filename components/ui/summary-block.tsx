@@ -102,15 +102,35 @@ export function SummaryTile({
   label,
   onClick,
   href,
+  compact = false,
 }: {
   color: string;
   icon: LucideIcon;
   label: string;
   onClick?: () => void;
   href?: string;
+  /** İnce blok başı (Yapı'nın listeleri): yalnız simge, ad okuyucuya */
+  compact?: boolean;
 }) {
   // py: ad hücresi kısa kalınca (boş Alt kategoriler) üç satırlık ad ve simge
   // kenara, bloğun yuvarlak köşesine yapışıp kesiliyordu — satır gerekirse uzar
+  if (compact) {
+    const c = "flex h-full w-full items-center justify-center text-[#111] active:brightness-95";
+    const mark = (
+      <span className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-[#111]" style={{ color }}>
+        <Icon className="h-4 w-4" strokeWidth={3} />
+      </span>
+    );
+    return href ? (
+      <Link href={href} aria-label={label} title={label} className={c} style={{ background: color }}>
+        {mark}
+      </Link>
+    ) : (
+      <button type="button" onClick={onClick} aria-label={label} title={label} className={c} style={{ background: color }}>
+        {mark}
+      </button>
+    );
+  }
   const cls = "flex h-full w-full flex-col items-center justify-center gap-1.5 px-1 py-2.5 text-[#111] active:brightness-95";
   const body = (
     <>
@@ -152,8 +172,9 @@ function CloseButton({ close }: { close: { label: string; onClick: () => void } 
   );
 }
 
-/** linked: hücre bir bağlantının içinde (liste) — ad h2, sağda ok */
-function Lead({ lead, linked = false }: { lead: SummaryLead; linked?: boolean }) {
+/** linked: hücre bir bağlantının içinde (liste) — ad h2, sağda ok.
+ *  compact: ince baş (bkz. SummaryBlock compact) */
+function Lead({ lead, linked = false, compact = false }: { lead: SummaryLead; linked?: boolean; compact?: boolean }) {
   if (lead.kind === "title") {
     return (
       <div className="relative flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-[#111]" style={{ background: lead.color }}>
@@ -211,6 +232,24 @@ function Lead({ lead, linked = false }: { lead: SummaryLead; linked?: boolean })
     );
   }
   const Title = linked ? "h2" : "h1";
+  if (compact) {
+    return (
+      <div className="flex h-full min-w-0 items-center gap-2.5 px-3 py-2 text-[#111]" style={{ background: lead.color }}>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111] bg-white">
+          {lead.glyph ? (
+            <lead.glyph className="h-4 w-4" strokeWidth={2.5} />
+          ) : (
+            lead.icon && <SymbolIcon name={lead.icon} size={17} style={{ color: "#111" }} />
+          )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <Title className="truncate text-[16px] font-extrabold leading-tight tracking-tight">{lead.title}</Title>
+          {lead.hint && <div className="truncate text-[11px] font-bold leading-tight opacity-60">{lead.hint}</div>}
+        </div>
+        {linked && <ChevronRight className="-mr-0.5 h-4 w-4 shrink-0 opacity-50" strokeWidth={2.75} />}
+      </div>
+    );
+  }
   return (
     <div className="flex h-full min-w-0 items-center gap-3 px-3 py-2.5 text-[#111]" style={{ background: lead.color }}>
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white">
@@ -264,6 +303,7 @@ export function SummaryBlock({
   link,
   children,
   className,
+  compact = false,
 }: {
   lead: SummaryLead;
   /** Verilirse ad hücresi bağlantı (Yapı → Kategoriler: kategorinin sayfası) */
@@ -277,6 +317,14 @@ export function SummaryBlock({
   action?: ReactNode;
   link?: SummaryLink;
   className?: string;
+  /**
+   * İnce baş — Yapı'nın listeleri (kategoriler, ölçü türleri, nesne
+   * listeleri): küçük simge karosu, tek satır ad, altında soluk sayılar,
+   * yanında dar ekle karosu (yalnız +). Tam boy baş (76 px, iri ad, adlı
+   * karo) bir listede art arda gelince kaba duruyordu; ana sayfanın blokları
+   * başlarındaki etiket, sayı ve açıklamayla doluyor, bunlarınki boştu
+   */
+  compact?: boolean;
 }) {
   // Hücreler arası 2 px siyah: zemin siyah, hücreler arası boşluk 2 px.
   // grid-cols-1 (minmax(0, 1fr)): sütun kabın genişliğinde — yoksa tek
@@ -293,15 +341,15 @@ export function SummaryBlock({
       <div className="flex gap-[2px]">
         {leadHref ? (
           <Link href={leadHref} prefetch={false} className="block min-w-0 flex-1 active:brightness-95">
-            <Lead lead={lead} linked />
+            <Lead lead={lead} linked compact={compact} />
           </Link>
         ) : (
           <div className="min-w-0 flex-1">
-            <Lead lead={lead} />
+            <Lead lead={lead} compact={compact} />
           </div>
         )}
         {/* Satır boyunca uzar: ad iki satıra taşınca altında siyah boşluk kalmasın */}
-        {action && <div className="min-h-[76px] w-[76px] shrink-0">{action}</div>}
+        {action && <div className={compact ? "w-[52px] shrink-0" : "min-h-[76px] w-[76px] shrink-0"}>{action}</div>}
       </div>
       {/* Sayı kadar sütun: bağlı sayısal özelliği olmayan kategoride iki;
           sayılar yüklenirken satır hiç yok */}
