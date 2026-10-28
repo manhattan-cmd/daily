@@ -28,7 +28,7 @@ export function StructureHeader({
   below,
 }: {
   action?: React.ReactNode;
-  /** Bloğun altında, çerçevenin dışında (kategori ve alt kategori: konum yolu) */
+  /** Sekmelerin altında bloğun son satırı — konum yolu (bkz. StructureTrail) */
   below?: React.ReactNode;
 }) {
   const t = useT();
@@ -44,8 +44,12 @@ export function StructureHeader({
       action={action}
       // Brütal: bölümün kendi bandı (sarı zemin, tram benekleri) — bkz. globals.css
       className="yapi-band"
-      nav={<StructureTabs />}
-      under={below}
+      nav={
+        <>
+          <StructureTabs />
+          {below}
+        </>
+      }
     />
   );
 }

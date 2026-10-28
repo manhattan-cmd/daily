@@ -14,6 +14,7 @@ import {
   StructureHeader,
 } from "@/components/structure/structure-header";
 import { ExampleHint } from "@/components/structure/example-hint";
+import { StructureTrail } from "@/components/structure/structure-trail";
 import { useT } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
 import { PageSheet } from "@/components/ui/layer";
@@ -39,6 +40,8 @@ export default function StructurePage() {
     <PageSheet
       top={
         <StructureHeader
+          // Konum yolunun başı — kategori ve alt kategori sayfalarıyla aynı hizada
+          below={brutal ? <StructureTrail /> : undefined}
           action={
             <StructureAddButton
               labelKey="structure.addCategory"

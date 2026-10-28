@@ -135,6 +135,7 @@ export const en = {
   "structure.sample.title": "These categories are samples",
   "structure.sample.body": "Open them, see their subcategories and features. Delete what you don't need, rename the rest.",
   "structure.addSub": "Subcategory",
+  "struct.cats.count": "{n} categories",
 
   // ── Özellikler ve ölçüler ────────────────────────────────────────────
   "features.search": "Search features",
@@ -1106,6 +1107,7 @@ export const tr: Record<MessageKey, string> = {
   "structure.sample.title": "Bu kategoriler örnek",
   "structure.sample.body": "İçlerine gir, alt kategorilerini ve özelliklerini gör. İşine yaramayanı sil, istediğini yeniden adlandır.",
   "structure.addSub": "Alt kategori",
+  "struct.cats.count": "{n} kategori",
 
   "features.search": "Özellik ara",
   "features.searchPlaceholder": "Özellik ara...",

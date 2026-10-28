@@ -23,8 +23,6 @@ interface PageHeaderProps {
    * kaydırma boyunca yerinde kalıyor.
    */
   nav?: React.ReactNode;
-  /** Brütal: başlık bloğunun altında, çerçevenin dışında (Yapı'nın konum yolu) */
-  under?: React.ReactNode;
   /**
    * Sade başlık: küçük tek satır, açıklama başlığın yanında sönük. Bandın asıl
    * işi menülerse (analizde zaman + yol) odak başlıkta kalmasın diye.
@@ -55,7 +53,6 @@ export function PageHeader({
   back,
   action,
   nav,
-  under,
   compact = false,
   collapsed = false,
   titleSlot,
@@ -83,7 +80,6 @@ export function PageHeader({
           leading={back ? <HeaderTile icon={ArrowLeft} href={back} ariaLabel={t("action.back")} /> : undefined}
           trailing={action ? <div data-header-actions="" className="flex shrink-0 gap-[2px]">{action}</div> : undefined}
           rows={nav}
-          under={under}
         >
           <HeaderLead
             color={color}
