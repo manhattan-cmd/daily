@@ -27,21 +27,21 @@ export const BASE_SKIN: Skin = "gece";
 
 /**
  * Telefonun durum çubuğunun rengi (<meta name="theme-color">) — Brütal'de
- * sayfanın bandıyla aynı: bant ekranın tepesine kadar uzanıyormuş gibi
- * dursun (eskiden her sayfada koyu #09090b şerit). Bandı olmayan sayfalar
- * (gün, kategori, ayarlar…) kâğıt zemin rengi. Diğer temalarda null — çağıran
- * temanın zemin rengini (--background) kullanır.
+ * ekranın tepesindekiyle aynı, sayfa tepeden tek parça dursun: üst menüsü
+ * kenardan kenara beyaz şerit olan sayfalarda (Ana Sayfa, Gün) beyaz,
+ * ötekilerde başlık bloğunun durduğu krem döşeme. Diğer temalarda null —
+ * çağıran temanın zemin rengini (--background) kullanır.
+ *
+ * Eskiden sayfanın bandının rengiydi (Ana Sayfa mor, Takvim yeşil…);
+ * bantlar bloğa dönünce renkli şerit krem döşemenin üstünde asılı kaldı.
  *
  * Kendi içinde kapalı olmalı (dışarıdan değişken yok): açılış betiğine
- * kaynağıyla gömülüyor. Renkler globals.css'teki "bolum bantlari"yla aynı.
+ * kaynağıyla gömülüyor.
  */
 export function statusBarColor(path: string, skin: string): string | null {
   if (skin !== "brutal") return null;
   const p = path.replace(/\/+$/, "") || "/";
-  if (p === "/") return "#6366f1";
-  if (p === "/calendar") return "#7ae582";
-  if (p === "/analytics" || p.indexOf("/analytics/") === 0) return "#8ea6ff";
-  if (/^\/structure(\/(mods|objects|notes|galaxy))?$/.test(p)) return "#ffd23f";
+  if (p === "/" || p === "/calendar/day") return "#ffffff";
   return "#fff4dc";
 }
 

@@ -145,17 +145,21 @@ export function HeaderOverline({
   color = "#ffffff",
   icon: Icon,
   center = false,
+  className,
 }: {
   children: ReactNode;
   color?: string;
   icon?: LucideIcon;
   center?: boolean;
+  /** Başlığın yanında satır içi (ana sayfanın üst menüsü): "mb-0 self-center" */
+  className?: string;
 }) {
   return (
     <span
       className={cn(
         "mb-1.5 inline-flex max-w-full items-center gap-1 rounded-md bg-[#111] px-1.5 py-[2px] text-[10px] font-black uppercase leading-tight tracking-wider",
-        center ? "self-center" : "self-start"
+        center ? "self-center" : "self-start",
+        className
       )}
       style={{ color: chipInk(color) }}
     >

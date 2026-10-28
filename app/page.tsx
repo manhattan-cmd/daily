@@ -33,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Layer, PageSheet } from "@/components/ui/layer";
 import { SummaryBlock } from "@/components/ui/summary-block";
-import { HeaderBlock, HeaderLead, HeaderTile } from "@/components/ui/header-block";
+import { HeaderOverline } from "@/components/ui/header-block";
 import { CardListSkeleton } from "@/components/ui/skeleton";
 import { EntryCard } from "@/components/dashboard/entry-card";
 import { NoteCard } from "@/components/notes/note-card";
@@ -195,30 +195,9 @@ export default function HomePage() {
     <PageSheet
       top={
       brutal ? (
-        /* Brütal: başlık bloğu (bkz. HeaderBlock) — uygulamanın moru; solda
-           takvim yaprağı gibi bugünün karosu (dokununca günün sayfası), yanında
-           günün saatine göre simgeli selam etiketi, haftanın günü ve ay · yılın
-           kaçıncı haftası; sağda Ayarlar. İlk hali selam düz yazı, tarih siyah
-           kutuda ters yazıydı — kullanıcıya göre anlamsız, düz duruyordu */
-        <HeaderBlock
-          color="#6366f1"
-          sticky={false}
-          trailing={<HeaderTile icon={Settings} href="/settings" ariaLabel={t("nav.settings")} />}
-        >
-          <HeaderLead
-            color="#6366f1"
-            tile={<DateLeaf date={today} />}
-            overline={getGreeting(t)}
-            overlineIcon={greetingIcon()}
-            title={new Date().toLocaleDateString(intlTag(locale), { weekday: "long" })}
-            sub={`${new Date().toLocaleDateString(intlTag(locale), { month: "long", year: "numeric" })} · ${t("home.weekOfYear", { n: isoWeek(new Date()) })}`}
-          />
-        </HeaderBlock>
+        <HomeMenu today={today} />
       ) : (
       <header
-        // Bant sayfayla kayıyor — durum çubuğu ekrandan çıkınca zemine döner
-        // (bkz. AppShell)
-        data-band-scrolls={brutal ? "" : undefined}
         className={cn(
           "-mx-4 flex items-end gap-3 px-4",
           brutal ? "band-home band-pad mb-6" : "mb-5 pb-2 pt-12"
@@ -836,6 +815,59 @@ function WeekBar({
 }
 
 /**
+ * Ana sayfanın üst menüsü (Brütal) — gün sayfasınınki gibi (bkz. WeekStrip)
+ * alt menünün aynası: kenardan kenara beyaz şerit, altında tek kalın siyah
+ * çizgi. Durum çubuğu da beyaz (bkz. statusBarColor): ekranın tepesinden
+ * tek parça. Solda takvim yaprağı, yanında haftanın günü ve saate göre
+ * simgeli selam etiketi (gün sayfasının "ÇARŞAMBA · BUGÜN"ü gibi), altında
+ * ay · yılın kaçıncı haftası; sağda alt menünün sekmeleri gibi sönük
+ * Ayarlar. İki satır, 68 px; yapışkan.
+ *
+ * Önce krem döşemede çerçeveli, gölgeli mor bir bloktu; durum çubuğu eski
+ * bandın morunda kalıyor, ikisinin arasında krem bir boşluk açılıyordu —
+ * kullanıcıya göre çerçeve güzel durmuyordu, durum çubuğuyla tezattı.
+ */
+function HomeMenu({ today }: { today: string }) {
+  const t = useT();
+  const tag = intlTag(useLocale());
+  const now = new Date();
+  return (
+    <header
+      data-home-nav=""
+      // -mx-4: main'in kenar payını aşıp kenardan kenara (alt menü gibi)
+      className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] bg-white pt-[env(safe-area-inset-top,0px)]"
+    >
+      <div className="flex items-center gap-3 py-[9px] pl-4 pr-1">
+        <DateLeaf date={today} />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex min-w-0 items-center gap-2">
+            <h1 className="truncate text-[21px] font-black leading-none tracking-[-0.02em] text-[#111]">
+              {now.toLocaleDateString(tag, { weekday: "long" })}
+            </h1>
+            <HeaderOverline color="#6366f1" icon={greetingIcon()} className="mb-0 shrink-0 self-center">
+              {getGreeting(t)}
+            </HeaderOverline>
+          </div>
+          <p className="mt-[7px] truncate text-[11.5px] font-bold leading-none text-[#111]/55">
+            {now.toLocaleDateString(tag, { month: "long", year: "numeric" })} ·{" "}
+            {t("home.weekOfYear", { n: isoWeek(now) })}
+          </p>
+        </div>
+        <Link
+          href="/settings"
+          prefetch={false}
+          aria-label={t("nav.settings")}
+          className="flex w-[60px] shrink-0 flex-col items-center gap-[5px] py-1 text-[#111]/50 active:text-[#111]"
+        >
+          <Settings className="h-[19px] w-[19px]" strokeWidth={2.25} />
+          <span className="text-[10.5px] font-bold leading-none">{t("nav.settings")}</span>
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+/**
  * Takvim yaprağı — bugünün karosu: üstte siyah şeritte ay, altında büyük gün
  * numarası. Dokununca bugünün sayfası.
  */
@@ -848,12 +880,12 @@ function DateLeaf({ date }: { date: string }) {
       prefetch={false}
       {...prefetchDayOnPress(date)}
       aria-label={now.toLocaleDateString(tag, { day: "numeric", month: "long" })}
-      className="flex h-[54px] w-[50px] shrink-0 flex-col overflow-hidden rounded-[11px] border-2 border-[#111] bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+      className="flex h-[50px] w-[46px] shrink-0 flex-col overflow-hidden rounded-[10px] border-2 border-[#111] bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
     >
       <span className="bg-[#111] py-[3px] text-center text-[9.5px] font-black uppercase leading-none tracking-wider text-[#c7cbff]">
         {now.toLocaleDateString(tag, { month: "short" }).replace(".", "")}
       </span>
-      <span className="flex flex-1 items-center justify-center font-mono text-[23px] font-bold leading-none tabular-nums">
+      <span className="flex flex-1 items-center justify-center font-mono text-[21px] font-bold leading-none tabular-nums">
         {now.getDate()}
       </span>
     </Link>

@@ -49,9 +49,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (skin === getSkin()) delete document.documentElement.dataset.skinPending;
   }, [skin]);
 
-  // Telefonun durum çubuğu: Brütal'de sayfanın bandının rengi, diğer
-  // temalarda temanın zemini (bkz. statusBarColor). Açılışı betik boyuyor;
-  // burada sayfa ve tema değişince.
+  // Telefonun durum çubuğu: Brütal'de ekranın tepesindekinin rengi (üst
+  // menünün beyazı ya da krem döşeme), diğer temalarda temanın zemini (bkz.
+  // statusBarColor). Açılışı betik boyuyor; burada sayfa ve tema değişince.
   const pathname = usePathname();
   const barColor = statusBarColor(pathname, skin);
   useEffect(() => {
@@ -59,18 +59,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       getComputedStyle(document.documentElement).getPropertyValue("--background").trim() ||
       "#09090b";
     applyStatusBarColor(barColor ?? paper);
-    // Sayfayla birlikte kayan bant (Ana Sayfa): bant ekrandan çıkınca durum
-    // çubuğu zemine döner — yoksa renkli şerit krem içeriğin üstünde asılı
-    // kalıyordu. Yapı ve Analiz'in bandı yapışkan, Takvim kaymıyor.
-    const band = barColor ? document.querySelector("[data-band-scrolls]") : null;
-    const root = mainRef.current;
-    if (!band || !root) return;
-    const io = new IntersectionObserver(
-      ([e]) => applyStatusBarColor(e.isIntersecting ? barColor! : paper),
-      { root }
-    );
-    io.observe(band);
-    return () => io.disconnect();
   }, [barColor, skin]);
 
   useEffect(() => {
