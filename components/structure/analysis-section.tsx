@@ -151,7 +151,8 @@ export function AnalysisSection({
   );
 
   // Brütal: ana sayfanın blok dili (bkz. SummaryBlock) — üstte Analiz'in
-  // mavisinde "ANALİZ · Nasıl okunsun?", altında açıklama hücresi; her ölçü
+  // mavisinde "ANALİZ · Analiz yöntemlerini seç" (açıklama cümlesi yok —
+  // kullanıcıya göre gereksizdi; başlık eskiden "Nasıl okunsun?"); her ölçü
   // türü ince krem bir ara satır, her özellik kendi beyaz hücresinde (kendi
   // çerçevesi ve gölgesi yok, hücreler arası ortak çizgi); en altta Analiz'in
   // bandında Analizi aç.
@@ -163,9 +164,6 @@ export function AnalysisSection({
         stats={[]}
         link={analyticsHref ? { href: analyticsHref, label: t("an.open"), color: "#8ea6ff", icon: BarChart3 } : undefined}
       >
-        <p data-analysis-section="" className="bg-white px-3.5 py-2.5 text-[12.5px] font-semibold leading-snug text-[#111]/70">
-          {t(subcategoryId ? "an.sectionHintSub" : "an.sectionHint")}
-        </p>
         {!rows.length && (
           <p className="bg-white px-3.5 py-3 text-[12.5px] font-semibold leading-snug text-[#111]/65">{t("an.empty")}</p>
         )}

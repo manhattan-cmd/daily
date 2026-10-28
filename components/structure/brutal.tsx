@@ -141,9 +141,11 @@ export function BrutHeroCard({
  * Kategori / alt kategori sayfasının tepesi — tek blokta (bkz. SummaryBlock):
  * üstte renkli şeritte karo, üst kategori ve ad; altında sayılar. Eskiden
  * kategoride damgalı tek kart, alt kategoride çıplak başlık ve üç ayrı kutu
- * vardı. Sayılar aynı: para varsa para · girdi · ortalama; yoksa girdi · alt
- * kategori · bağlı sayısal özelliğin toplamı (birden çoksa dokundukça
- * sıradaki — eski damga gibi). Analiz üst menüde.
+ * vardı. Sayılar her yerde anlamlı olanlar: girdi · bu ay · son girdi.
+ * Eskiden para varsa para · girdi · ortalama, yoksa bağlı sayısal özelliğin
+ * toplamıydı — kullanıcıya göre bir özelliğin toplanarak mı ortalanarak mı
+ * okunacağı henüz belli değilken ilk pencerede gerekmiyor (o seçim Analiz
+ * bölümünde). En altta analiz · düzenle · sil.
  */
 export function BrutThingSummary({
   color,
@@ -165,26 +167,14 @@ export function BrutThingSummary({
   className?: string;
 }) {
   const t = useT();
-  const [mi, setMi] = useState(0);
-  const stats: SummaryStat[] = [];
-  if (summary?.money) {
-    stats.push({ label: summary.money.name, value: fmt(summary.money.total), unit: unitUnlessName(summary.money.unit, summary.money.name), color: "#ff6b6b" });
-    stats.push({ label: t("brut.entries"), value: String(summary.entries), color: "#8ea6ff" });
-    stats.push({ label: t("brut.average"), value: fmt(summary.money.avg), color: "#7ae582" });
-  } else if (summary) {
-    const metrics = summary.metrics;
-    const m = metrics.length ? metrics[mi % metrics.length] : undefined;
-    stats.push({ label: t("brut.entries"), value: String(summary.entries), color: "#8ea6ff" });
-    stats.push({ label: t("graph.kindSub"), value: String(summary.subs), color: "#7ae582" });
-    if (m)
-      stats.push({
-        label: m.name,
-        value: fmt(m.total),
-        unit: unitUnlessName(m.unit, m.name),
-        color: "#ff6b6b",
-        onClick: metrics.length > 1 ? () => setMi((i) => i + 1) : undefined,
-      });
-  }
+  const stats: SummaryStat[] = summary
+    ? [
+        { label: t("brut.entries"), value: fmt(summary.entries), color: "#8ea6ff" },
+        { label: t("brut.thisMonth"), value: fmt(summary.month), color: "#7ae582" },
+        // Son girdiler bölümünün turuncusu
+        { label: t("brut.lastEntry"), ...lastEntry(summary.lastAt, t), color: "#ffb38a" },
+      ]
+    : [];
   return (
     <SummaryBlock
       className={className}
@@ -295,9 +285,17 @@ export function BrutSubsBlock({
   );
 }
 
-/** Birim adın aynısıysa ("Bardak · 201 bardak") yazılmaz */
-function unitUnlessName(unit: string | undefined, name: string) {
-  return unit && unit.toLocaleLowerCase("tr") !== name.toLocaleLowerCase("tr") ? unit : undefined;
+/** Son girdi kaç gün önce — bugün, dün, "3 gün önce"; hiç yoksa – */
+function lastEntry(at: number | undefined, t: ReturnType<typeof useT>): { value: string; unit?: string } {
+  if (at === undefined) return { value: "–" };
+  const day = (ms: number) => {
+    const d = new Date(ms);
+    return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000;
+  };
+  const n = Math.max(0, Math.round(day(Date.now()) - day(at)));
+  if (n === 0) return { value: t("brut.lastToday") };
+  if (n === 1) return { value: t("brut.lastYesterday") };
+  return { value: fmt(n), unit: t("brut.daysAgo") };
 }
 
 /** Kategoriler: düz renkli, kalın çerçeveli kartlar */

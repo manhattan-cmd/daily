@@ -69,6 +69,12 @@ export function SubCategoryDetailPage({
     ? parentSub?.name ?? category?.name ?? "parent category"
     : category?.name ?? "kategori";
 
+  // Özellik atomları — Brütalde alt kategorilerin ardında (kullanıcının
+  // sırası: özet · alt kategoriler · özellikler), sade temalarda önünde
+  const features = subcategory && (
+    <ModifierSection targetType="subcategory" targetId={subcategoryId} targetName={subcategory.name} />
+  );
+
   return (
     <>
       {/* Brütal: üst menü krem döşemede; özet bloğu ve bölümler ekranı
@@ -154,14 +160,7 @@ export function SubCategoryDetailPage({
         />
       )}
 
-      {/* Özellik atomları */}
-      {subcategory && (
-        <ModifierSection
-          targetType="subcategory"
-          targetId={subcategoryId}
-          targetName={subcategory.name}
-        />
-      )}
+      {!brutal && features}
 
       {/* Çocuk alt kategori ağacı. Brütal: ana sayfanın blok dili (bkz. BrutSubsBlock) */}
       {category && brutal && (
@@ -177,6 +176,7 @@ export function SubCategoryDetailPage({
           }}
         />
       )}
+      {brutal && features}
       {category && !brutal && (
         <Layer bare className="mb-6">
         <section>

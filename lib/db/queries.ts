@@ -2767,6 +2767,10 @@ export async function listRecentNotes(limit = 20): Promise<Note[]> {
 export type StructureSummary = {
   subs: number;
   entries: number;
+  /** Bu takvim ayındaki girdi */
+  month: number;
+  /** En son girdinin zamanı */
+  lastAt?: number;
   money?: { name: string; unit: string; total: number; avg: number; count: number };
   /** Bu yere bağlı bütün sayısal özelliklerin toplamı — damgada sırayla */
   metrics: { name: string; unit: string; total: number }[];
@@ -2825,7 +2829,15 @@ export async function structureSummary(
       summary = { name: money.name, unit: money.unit!.trim(), total, avg: total / nums.length, count: nums.length };
     }
   }
-  return { subs: childCount, entries: entries.length, money: summary, metrics };
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  let month = 0;
+  let lastAt: number | undefined;
+  for (const e of entries) {
+    if (e.occurredAt >= monthStart) month++;
+    if (lastAt === undefined || e.occurredAt > lastAt) lastAt = e.occurredAt;
+  }
+  return { subs: childCount, entries: entries.length, month, lastAt, money: summary, metrics };
 }
 
 /**

@@ -65,6 +65,12 @@ export function CategoryDetailPage({
   }
 
 
+  // Özellik atomları — Brütalde alt kategorilerin ardında (kullanıcının
+  // sırası: özet · alt kategoriler · özellikler), sade temalarda önünde
+  const features = category && (
+    <ModifierSection targetType="category" targetId={categoryId} targetName={category.name} />
+  );
+
   return (
     <>
       {/* Brütal: üst menü krem döşemede; özet bloğu ve bölümler ekranı
@@ -142,14 +148,7 @@ export function CategoryDetailPage({
         />
       )}
 
-      {/* Özellik atomları */}
-      {category && (
-        <ModifierSection
-          targetType="category"
-          targetId={categoryId}
-          targetName={category.name}
-        />
-      )}
+      {!brutal && features}
 
       {/* Alt kategori ağacı — hiyerarşi iç içe açılır. Brütal: ana sayfanın
           blok dili (bkz. BrutSubsBlock) */}
@@ -164,6 +163,7 @@ export function CategoryDetailPage({
           }}
         />
       )}
+      {brutal && features}
       {category && !brutal && (
         <Layer bare className="mb-6">
         <section>
