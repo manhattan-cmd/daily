@@ -2,7 +2,7 @@
 
 import { type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, ChevronRight, X, type LucideIcon } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +32,9 @@ export type SummaryStat = {
 
 export type SummaryLead =
   | { kind: "date"; weekday: string; today?: string; day: number; month: string; year: number }
-  | { kind: "thing"; color: string; icon?: string; overline: string; title: string }
+  /** Kategori / alt kategori — kendi renginde, beyaz karoda simgesi. Yapı →
+   *  Kategoriler listesinde üst yazı yok, adın altında sayılar (hint) */
+  | { kind: "thing"; color: string; icon?: string; overline?: string; title: string; hint?: string }
   /** Ana sayfa: "BUGÜN · 8 girdi" — sayının neyin sayısı olduğu üstünde yazılı;
    *  renk verilmezse sarı (Kategorilerin pembe) */
   | {
@@ -46,7 +48,15 @@ export type SummaryLead =
       close?: { label: string; onClick: () => void };
     }
   /** Ana sayfa: sayısız başlık (Yine ekle) — etiket, ad, açıklama */
-  | { kind: "title"; overline: string; title: string; hint?: string; color: string };
+  | {
+      kind: "title";
+      overline: string;
+      title: string;
+      hint?: string;
+      color: string;
+      /** Köşede kapatma düğmesi (Yapı'nın örnek notu) */
+      close?: { label: string; onClick: () => void };
+    };
 
 export type SummaryLink = {
   href: string;
@@ -110,10 +120,25 @@ export function SummaryTile({
   );
 }
 
-function Lead({ lead }: { lead: SummaryLead }) {
+function CloseButton({ close }: { close: { label: string; onClick: () => void } }) {
+  return (
+    <button
+      type="button"
+      onClick={close.onClick}
+      aria-label={close.label}
+      className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-lg active:bg-[#111]/10"
+    >
+      <X className="h-4 w-4" strokeWidth={2.75} />
+    </button>
+  );
+}
+
+/** linked: hücre bir bağlantının içinde (liste) — ad h2, sağda ok */
+function Lead({ lead, linked = false }: { lead: SummaryLead; linked?: boolean }) {
   if (lead.kind === "title") {
     return (
-      <div className="flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-[#111]" style={{ background: lead.color }}>
+      <div className="relative flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-[#111]" style={{ background: lead.color }}>
+        {lead.close && <CloseButton close={lead.close} />}
         <span
           className="self-start rounded-md bg-[#111] px-1.5 py-px text-[10px] font-black uppercase tracking-wider"
           style={{ color: lead.color }}
@@ -131,16 +156,7 @@ function Lead({ lead }: { lead: SummaryLead }) {
         className="relative flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-[#111]"
         style={{ background: lead.color ?? "#ffd23f" }}
       >
-        {lead.close && (
-          <button
-            type="button"
-            onClick={lead.close.onClick}
-            aria-label={lead.close.label}
-            className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-lg active:bg-[#111]/10"
-          >
-            <X className="h-4 w-4" strokeWidth={2.75} />
-          </button>
-        )}
+        {lead.close && <CloseButton close={lead.close} />}
         <span
           className="self-start rounded-md bg-[#111] px-1.5 py-px text-[10px] font-black uppercase tracking-wider"
           style={{ color: lead.color ?? "#ffd23f" }}
@@ -175,15 +191,20 @@ function Lead({ lead }: { lead: SummaryLead }) {
       </div>
     );
   }
+  const Title = linked ? "h2" : "h1";
   return (
     <div className="flex h-full min-w-0 items-center gap-3 px-3 py-2.5 text-[#111]" style={{ background: lead.color }}>
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white">
         {lead.icon && <SymbolIcon name={lead.icon} size={22} style={{ color: "#111" }} />}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[10.5px] font-extrabold uppercase tracking-wider opacity-80">{lead.overline}</div>
-        <h1 className="line-clamp-2 break-words text-[22px] font-black leading-[1.05] tracking-tight">{lead.title}</h1>
+        {lead.overline && (
+          <div className="truncate text-[10.5px] font-extrabold uppercase tracking-wider opacity-80">{lead.overline}</div>
+        )}
+        <Title className="line-clamp-2 break-words text-[22px] font-black leading-[1.05] tracking-tight">{lead.title}</Title>
+        {lead.hint && <div className="mt-1 truncate text-[11.5px] font-bold leading-tight opacity-75">{lead.hint}</div>}
       </div>
+      {linked && <ChevronRight className="-mr-1 h-5 w-5 shrink-0 opacity-70" strokeWidth={2.75} />}
     </div>
   );
 }
@@ -214,6 +235,7 @@ function Stat({ s }: { s: SummaryStat }) {
 
 export function SummaryBlock({
   lead,
+  leadHref,
   stats,
   action,
   link,
@@ -221,6 +243,8 @@ export function SummaryBlock({
   className,
 }: {
   lead: SummaryLead;
+  /** Verilirse ad hücresi bağlantı (Yapı → Kategoriler: kategorinin sayfası) */
+  leadHref?: string;
   /** Sayılar — genelde üç; boşsa satır yok */
   stats: SummaryStat[];
   /** Sayılarla alt satır arasındaki satır(lar) — zemini çağıranın (ana
@@ -241,9 +265,15 @@ export function SummaryBlock({
       )}
     >
       <div className="flex gap-[2px]">
-        <div className="min-w-0 flex-1">
-          <Lead lead={lead} />
-        </div>
+        {leadHref ? (
+          <Link href={leadHref} prefetch={false} className="block min-w-0 flex-1 active:brightness-95">
+            <Lead lead={lead} linked />
+          </Link>
+        ) : (
+          <div className="min-w-0 flex-1">
+            <Lead lead={lead} />
+          </div>
+        )}
         {/* Satır boyunca uzar: ad iki satıra taşınca altında siyah boşluk kalmasın */}
         {action && <div className="min-h-[76px] w-[76px] shrink-0">{action}</div>}
       </div>

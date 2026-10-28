@@ -131,6 +131,10 @@ export const en = {
   "structure.sampleHint":
     "These categories are samples — open them, see their subcategories and features. Delete what you don't need, rename the rest.",
   "structure.sampleHintDismiss": "Dismiss note",
+  "structure.sample.overline": "Sample structure",
+  "structure.sample.title": "These categories are samples",
+  "structure.sample.body": "Open them, see their subcategories and features. Delete what you don't need, rename the rest.",
+  "structure.addSub": "Subcategory",
 
   // ── Özellikler ve ölçüler ────────────────────────────────────────────
   "features.search": "Search features",
@@ -1098,6 +1102,10 @@ export const tr: Record<MessageKey, string> = {
   "structure.sampleHint":
     "Bu kategoriler örnek — içlerine gir, alt kategorilerini ve özelliklerini gör. İşine yaramayanı sil, istediğini yeniden adlandır.",
   "structure.sampleHintDismiss": "Notu kapat",
+  "structure.sample.overline": "Örnek yapı",
+  "structure.sample.title": "Bu kategoriler örnek",
+  "structure.sample.body": "İçlerine gir, alt kategorilerini ve özelliklerini gör. İşine yaramayanı sil, istediğini yeniden adlandır.",
+  "structure.addSub": "Alt kategori",
 
   "features.search": "Özellik ara",
   "features.searchPlaceholder": "Özellik ara...",

@@ -7,6 +7,7 @@ import { listCategoryTree, listUserCategories } from "@/lib/db/queries";
 import { BrutCategoryTree, useIsBrutal } from "@/components/structure/brutal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CategoryForm } from "@/components/structure/category-form";
+import { SubCategoryForm } from "@/components/structure/subcategory-form";
 import { CategoryTile } from "@/components/structure/category-tile";
 import {
   StructureAddButton,
@@ -16,6 +17,7 @@ import { ExampleHint } from "@/components/structure/example-hint";
 import { useT } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
 import { PageSheet } from "@/components/ui/layer";
+import type { Category } from "@/types";
 
 export default function StructurePage() {
   const t = useT();
@@ -28,6 +30,10 @@ export default function StructurePage() {
   // Eskiden burada açılır küçük bir menü vardı: hazır listeye dokununca
   // sormadan kategori açıyor, "kendin yaz" satırı sıkışık kalıyordu.
   const [addOpen, setAddOpen] = useState(false);
+  // Brütal: kategori bloğunun + Alt kategori karosu. Kategori kapanışta da
+  // durur — pencere kapanırken adı boşalmasın
+  const [subCat, setSubCat] = useState<Category | null>(null);
+  const [subOpen, setSubOpen] = useState(false);
 
   return (
     <PageSheet
@@ -52,7 +58,15 @@ export default function StructurePage() {
           description={t("structure.empty.body")}
         />
       ) : brutal ? (
-        <BrutCategoryTree categories={categories} subs={tree?.subs ?? []} counts={tree?.counts} />
+        <BrutCategoryTree
+          categories={categories}
+          subs={tree?.subs ?? []}
+          counts={tree?.counts}
+          onAddSub={(c) => {
+            setSubCat(c);
+            setSubOpen(true);
+          }}
+        />
       ) : (
         /* Kategori rafları — atomlarla aynı ızgara, kare karolar */
         <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
@@ -68,6 +82,14 @@ export default function StructurePage() {
         </div>
       )}
       <CategoryForm open={addOpen} onOpenChange={setAddOpen} />
+      {subCat && (
+        <SubCategoryForm
+          open={subOpen}
+          onOpenChange={setSubOpen}
+          categoryId={subCat.id}
+          categoryName={subCat.name}
+        />
+      )}
     </PageSheet>
   );
 }

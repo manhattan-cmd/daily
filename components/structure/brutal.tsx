@@ -337,12 +337,16 @@ export function BrutEmpty({
 }
 
 /**
- * Kategoriler sayfasının ağacı ("B2 · Sırt Şeridi", Kartlı Dal denemelerinden
- * seçildi). Her kategori bir kart: solda kategorinin renginde dik sırt şeridi,
- * başlıkta renkli karo, ad ve alt kategori · girdi sayısı. Altında analizdeki
- * yer ağacının dallanması — kategorinin renginde kılavuz çizgisi, 1. kat
- * kalın, derinler ince; karolar hep kategori renginin açık tonu. Her satır kendi
- * kategori / alt kategori sayfasına gider.
+ * Yapı → Kategoriler — ana sayfanın blok dili (bkz. SummaryBlock): her
+ * kategori bir blok. Üstte kategorinin renginde ad hücresi (beyaz karoda
+ * simgesi, adı, altında alt kategori · girdi sayısı; dokununca kategorinin
+ * sayfası), yanında yeşil + Alt kategori karosu, altında beyaz hücrede
+ * analizdeki yer ağacının dallanması — kategorinin renginde kılavuz çizgisi,
+ * 1. kat kalın, derinler ince; karolar hep kategori renginin açık tonu. Her
+ * satır kendi alt kategori sayfasına gider.
+ *
+ * Önceki hali "B2 · Sırt Şeridi" (Kartlı Dal denemelerinden seçilmişti):
+ * solda kategorinin renginde dik şeritli, gölgeli beyaz kart.
  *
  * Derin ve kalabalık yapılar (bkz. "Derin Yapı Testi"): girinti MAX_INDENT
  * katta durur, daha derin satırlarda adın önünde kat numarası çıkar — 15. kattan
@@ -360,10 +364,13 @@ export function BrutCategoryTree({
   categories,
   subs,
   counts,
+  onAddSub,
 }: {
   categories: Category[];
   subs: SubCategory[];
   counts?: Map<string, number>;
+  /** + Alt kategori karosu — o kategoriye yeni alt kategori */
+  onAddSub: (category: Category) => void;
 }) {
   const t = useT();
   const subTotals = useMemo(() => {
@@ -374,36 +381,34 @@ export function BrutCategoryTree({
 
   return (
     <div className="flex flex-col gap-4 pb-6 pt-1">
-      {categories.map((cat) => (
-        <section
-          key={cat.id}
-          className="flex overflow-hidden rounded-2xl border-2 border-[#111] bg-white shadow-[4px_4px_0_#111]"
-        >
-          {/* Sırt şeridi */}
-          <span className="w-3.5 shrink-0 border-r-2 border-[#111]" style={{ background: cat.color }} />
-          <div className="min-w-0 flex-1 px-1.5 pb-2 pt-1.5">
-            <Link
-              href={routes.structureCategory(cat.id)}
-              prefetch={false}
-              className="flex items-center gap-3 rounded-xl p-2 text-[#111] hover:bg-[#111]/5 active:bg-[#111]/10"
-            >
-              <span
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border-[1.5px] border-[#111]"
-                style={{ background: cat.color }}
-              >
-                {cat.icon && <SymbolIcon name={cat.icon} size={20} style={{ color: "#111" }} />}
-              </span>
-              <span className="min-w-0 flex-1">
-                <SmartText text={cat.name} className="block text-[16px] font-black leading-tight tracking-tight" />
-                <span className="block text-[11px] font-semibold text-[#111]/55">
-                  {t("brut.subsAndEntries", { subs: subTotals.get(cat.id) ?? 0, entries: counts?.get(`c:${cat.id}`) ?? 0 })}
-                </span>
-              </span>
-            </Link>
-            <BrutSubRows category={cat} subs={subs} counts={counts} />
-          </div>
-        </section>
-      ))}
+      {categories.map((cat) => {
+        const n = subTotals.get(cat.id) ?? 0;
+        return (
+          <SummaryBlock
+            key={cat.id}
+            leadHref={routes.structureCategory(cat.id)}
+            lead={{
+              kind: "thing",
+              color: cat.color,
+              icon: cat.icon,
+              title: cat.name,
+              hint: t("brut.subsAndEntries", { subs: n, entries: counts?.get(`c:${cat.id}`) ?? 0 }),
+            }}
+            action={<SummaryTile color="#7ae582" icon={Plus} label={t("structure.addSub")} onClick={() => onAddSub(cat)} />}
+            stats={[]}
+          >
+            {n > 0 ? (
+              <div data-subs-cell="" className="bg-white px-1.5 py-2">
+                <BrutSubRows category={cat} subs={subs} counts={counts} />
+              </div>
+            ) : (
+              <p className="bg-white px-3.5 py-3 text-[12.5px] font-semibold leading-snug text-[#111]/65">
+                {t("struct.subs.empty")}
+              </p>
+            )}
+          </SummaryBlock>
+        );
+      })}
     </div>
   );
 }
