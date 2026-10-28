@@ -11,17 +11,18 @@ import { cn, toLocalDateValue } from "@/lib/utils";
 
 /**
  * Gün sayfasının üst menüsü (Brütal) — başlık değil, yalnız gezinme; alt
- * menünün aynası: kenardan kenara beyaz şerit, altında tek kalın siyah
- * çizgi, hücre çerçevesi yok. İki uçta önceki / sonraki gün, aralarında
- * haftanın yedi günü (kısa adı, numarası, altında o gün girdi alan
- * kategorilerin renkleri). Açık günün numarası alt menünün seçili sekmesi
- * gibi Takvim'in yeşilinde çerçeveli, kalkık küçük kapsülde; bugün yalnız
+ * menünün aynası: kenardan kenara şerit, altında tek kalın siyah çizgi,
+ * hücre çerçevesi yok. Rengi Takvim'in yeşili (alt menüde sekmesinin rengi;
+ * durum çubuğu da, bkz. statusBarColor). İki uçta önceki / sonraki gün,
+ * aralarında haftanın yedi günü (kısa adı, numarası, altında o gün girdi
+ * alan kategorilerin renkleri). Açık günün numarası alt menünün seçili
+ * sekmesi gibi çerçeveli, kalkık küçük beyaz kapsülde; bugün yalnız
  * çerçeveli; henüz gelmemiş günler soluk. Dokununca o gün. Yapışkan.
  *
  * Önce üstünde ay ve yıl yazan bir başlık hücresi vardı (gereksiz: gün
  * sayfası kendini anlatıyor, tarih altındaki özet bloğunda), sonra ortak
  * çizgili kalın bir blok oldu — kullanıcı alt menü gibi ince, kibar
- * istedi.
+ * istedi; sonra beyazdan başka bir renk.
  */
 export function WeekStrip({ date }: { date: string }) {
   const t = useT();
@@ -42,7 +43,7 @@ export function WeekStrip({ date }: { date: string }) {
     <header
       data-day-nav=""
       // -mx-4: main'in kenar payını aşıp kenardan kenara (alt menü gibi)
-      className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] bg-white pt-[env(safe-area-inset-top,0px)]"
+      className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] bg-[#7ae582] pt-[env(safe-area-inset-top,0px)]"
     >
       <nav data-week-strip="" aria-label={t("nav.calendar")} className="flex items-stretch px-1">
         <Arrow icon={ChevronLeft} date={shift(-1)} label={t("day.prev")} />
@@ -70,7 +71,7 @@ export function WeekStrip({ date }: { date: string }) {
                 <span
                   className={cn(
                     "text-[10px] font-bold uppercase leading-none tracking-wide",
-                    on ? "text-[#111]" : "text-[#111]/50"
+                    on ? "text-[#111]" : "text-[#111]/60"
                   )}
                 >
                   {x.toLocaleDateString(tag, { weekday: "short" }).replace(".", "")}
@@ -78,7 +79,7 @@ export function WeekStrip({ date }: { date: string }) {
                 <span
                   className={cn(
                     "rounded-full border-[1.5px] px-[7px] font-mono text-[14px] font-bold leading-[19px] tabular-nums transition-transform",
-                    on ? "-translate-y-px bg-[#7ae582] shadow-[2px_2px_0_#111]" : !isToday && "text-[#111]/75"
+                    on ? "-translate-y-px bg-white shadow-[2px_2px_0_#111]" : !isToday && "text-[#111]/80"
                   )}
                   // Çerçeve rengi satır içi: globals.css'teki katmansız
                   // "* { border-color }" kuralı border-transparent'ı eziyor
@@ -86,10 +87,11 @@ export function WeekStrip({ date }: { date: string }) {
                 >
                   {x.getDate()}
                 </span>
-                {/* Girdi alan kategoriler — boş günde yer tutucu, satır zıplamasın */}
-                <span className="flex h-1 items-center gap-[2px]">
+                {/* Girdi alan kategoriler — boş günde yer tutucu, satır zıplamasın;
+                    yeşil zeminde yeşil kategori kaybolmasın diye siyah halkalı */}
+                <span className="flex h-[6px] items-center gap-[2px]">
                   {colors.map((c, i) => (
-                    <span key={i} className="h-1 w-1 rounded-full" style={{ background: c }} />
+                    <span key={i} className="h-[6px] w-[6px] rounded-full border" style={{ background: c, borderColor: "#111" }} />
                   ))}
                 </span>
               </Link>
@@ -111,7 +113,7 @@ function Arrow({ icon: Icon, date, label }: { icon: LucideIcon; date: string; la
       {...prefetchDayOnPress(date)}
       aria-label={label}
       title={label}
-      className="flex w-9 shrink-0 items-center justify-center text-[#111]/50 active:text-[#111]"
+      className="flex w-9 shrink-0 items-center justify-center text-[#111]/60 active:text-[#111]"
     >
       <Icon className="h-5 w-5" strokeWidth={2.5} />
     </Link>

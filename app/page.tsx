@@ -195,7 +195,7 @@ export default function HomePage() {
     <PageSheet
       top={
       brutal ? (
-        <HomeMenu today={today} />
+        <HomeMenu />
       ) : (
       <header
         className={cn(
@@ -814,20 +814,24 @@ function WeekBar({
   );
 }
 
+/** Ana sayfanın üst menüsünün rengi — alt menüde Ana Sayfa sekmesinin rengi */
+const HOME_MENU = "#a9b0ff";
+
 /**
  * Ana sayfanın üst menüsü (Brütal) — gün sayfasınınki gibi (bkz. WeekStrip)
- * alt menünün aynası: kenardan kenara beyaz şerit, altında tek kalın siyah
- * çizgi. Durum çubuğu da beyaz (bkz. statusBarColor): ekranın tepesinden
- * tek parça. Solda takvim yaprağı, yanında haftanın günü ve saate göre
- * simgeli selam etiketi (gün sayfasının "ÇARŞAMBA · BUGÜN"ü gibi), altında
- * ay · yılın kaçıncı haftası; sağda alt menünün sekmeleri gibi sönük
- * Ayarlar. İki satır, 68 px; yapışkan.
+ * kenardan kenara şerit, altında tek kalın siyah çizgi; rengi alt menüde
+ * Ana Sayfa sekmesinin rengi. Durum çubuğu da aynı renk (bkz.
+ * statusBarColor): ekranın tepesinden tek parça. Solda günün saatine göre
+ * güneş / ay karosu, yanında haftanın günü ve selam etiketi (gün sayfasının
+ * "ÇARŞAMBA · BUGÜN"ü gibi), altında tarih ve yılın kaçıncı haftası; sağda
+ * alt menünün sekmeleri gibi sönük Ayarlar. İki satır; yapışkan.
  *
- * Önce krem döşemede çerçeveli, gölgeli mor bir bloktu; durum çubuğu eski
- * bandın morunda kalıyor, ikisinin arasında krem bir boşluk açılıyordu —
- * kullanıcıya göre çerçeve güzel durmuyordu, durum çubuğuyla tezattı.
+ * Önce krem döşemede çerçeveli, gölgeli mor bir bloktu (durum çubuğuyla
+ * tezat), sonra beyaz şerit; kullanıcı beyazdan başka bir renk istedi.
+ * Soldaki karo önce takvim yaprağıydı (siyah şeritte ay, büyük gün) —
+ * kullanıcıya göre tarihin altta yazması yeter.
  */
-function HomeMenu({ today }: { today: string }) {
+function HomeMenu() {
   const t = useT();
   const tag = intlTag(useLocale());
   const now = new Date();
@@ -835,21 +839,22 @@ function HomeMenu({ today }: { today: string }) {
     <header
       data-home-nav=""
       // -mx-4: main'in kenar payını aşıp kenardan kenara (alt menü gibi)
-      className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] bg-white pt-[env(safe-area-inset-top,0px)]"
+      className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]"
+      style={{ background: HOME_MENU }}
     >
       <div className="flex items-center gap-3 py-[9px] pl-4 pr-1">
-        <DateLeaf date={today} />
+        <DayPhaseTile />
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex min-w-0 items-center gap-2">
             <h1 className="truncate text-[21px] font-black leading-none tracking-[-0.02em] text-[#111]">
               {now.toLocaleDateString(tag, { weekday: "long" })}
             </h1>
-            <HeaderOverline color="#6366f1" icon={greetingIcon()} className="mb-0 shrink-0 self-center">
+            <HeaderOverline color={HOME_MENU} className="mb-0 shrink-0 self-center">
               {getGreeting(t)}
             </HeaderOverline>
           </div>
-          <p className="mt-[7px] truncate text-[11.5px] font-bold leading-none text-[#111]/55">
-            {now.toLocaleDateString(tag, { month: "long", year: "numeric" })} ·{" "}
+          <p className="mt-[7px] truncate text-[12px] font-bold leading-none text-[#111]/65">
+            {now.toLocaleDateString(tag, { day: "numeric", month: "long", year: "numeric" })} ·{" "}
             {t("home.weekOfYear", { n: isoWeek(now) })}
           </p>
         </div>
@@ -857,7 +862,7 @@ function HomeMenu({ today }: { today: string }) {
           href="/settings"
           prefetch={false}
           aria-label={t("nav.settings")}
-          className="flex w-[60px] shrink-0 flex-col items-center gap-[5px] py-1 text-[#111]/50 active:text-[#111]"
+          className="flex w-[60px] shrink-0 flex-col items-center gap-[5px] py-1 text-[#111]/60 active:text-[#111]"
         >
           <Settings className="h-[19px] w-[19px]" strokeWidth={2.25} />
           <span className="text-[10.5px] font-bold leading-none">{t("nav.settings")}</span>
@@ -868,37 +873,26 @@ function HomeMenu({ today }: { today: string }) {
 }
 
 /**
- * Takvim yaprağı — bugünün karosu: üstte siyah şeritte ay, altında büyük gün
- * numarası. Dokununca bugünün sayfası.
+ * Günün saatine göre güneş / ay — selamın simgesi kendi karosunda: sabah
+ * turuncu doğan güneş, öğlen sarı güneş, akşam ve gece siyahta sarı ay.
  */
-function DateLeaf({ date }: { date: string }) {
-  const tag = intlTag(useLocale());
-  const now = new Date();
-  return (
-    <Link
-      href={routes.day(date)}
-      prefetch={false}
-      {...prefetchDayOnPress(date)}
-      aria-label={now.toLocaleDateString(tag, { day: "numeric", month: "long" })}
-      className="flex h-[50px] w-[46px] shrink-0 flex-col overflow-hidden rounded-[10px] border-2 border-[#111] bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
-    >
-      <span className="bg-[#111] py-[3px] text-center text-[9.5px] font-black uppercase leading-none tracking-wider text-[#c7cbff]">
-        {now.toLocaleDateString(tag, { month: "short" }).replace(".", "")}
-      </span>
-      <span className="flex flex-1 items-center justify-center font-mono text-[21px] font-bold leading-none tabular-nums">
-        {now.getDate()}
-      </span>
-    </Link>
-  );
-}
-
-/** Selamın simgesi — günün saatine göre */
-function greetingIcon(): LucideIcon {
+function DayPhaseTile() {
   const h = new Date().getHours();
-  if (h < 5) return MoonStar;
-  if (h < 12) return Sunrise;
-  if (h < 18) return Sun;
-  return Moon;
+  const [Icon, bg, ink]: [LucideIcon, string, string] =
+    h < 5 ? [MoonStar, "#111", "#ffd23f"]
+    : h < 12 ? [Sunrise, "#ffb38a", "#111"]
+    : h < 18 ? [Sun, "#ffd23f", "#111"]
+    : [Moon, "#111", "#ffd23f"];
+  const night = bg === "#111";
+  return (
+    <span
+      aria-hidden
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border-2 border-[#111] shadow-[2px_2px_0_#111]"
+      style={{ background: bg, color: ink }}
+    >
+      <Icon className="h-[22px] w-[22px]" strokeWidth={2.5} fill={night ? ink : "#ffffff"} />
+    </span>
+  );
 }
 
 /** Yılın kaçıncı haftası (ISO: hafta pazartesi başlar) */
