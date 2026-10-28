@@ -217,7 +217,9 @@ export function ModifierSection({
   // Brütal: ana sayfanın blok dili (bkz. SummaryBlock) — solda menekşe
   // "ÖZELLİKLER · 3 özellik · girdi formunda sorulanlar", yanında yeşil
   // Özellik ekle karosu (ızgaranın sonundaki kesik daire yerine), altında
-  // atomlar beyaz hücrede. Hiç yoksa ne işe yaradıkları yazıyor.
+  // atomlar beyaz hücrede. Hiç yoksa yalnız "0 özellik" ve ekle karosu —
+  // eskiden altında ne işe yaradıklarını anlatan bir cümle vardı, kullanıcıya
+  // göre gereksizdi (Alt kategoriler bloğu gibi).
   if (brutal) {
     return (
       <>
@@ -229,20 +231,16 @@ export function ModifierSection({
             overline: t("structure.features"),
             value: mods ? String(mods.length) : "–",
             unit: t("struct.features.unit"),
-            hint: t("struct.features.hint"),
+            hint: mods?.length ? t("struct.features.hint") : undefined,
           }}
           action={<SummaryTile color="#7ae582" icon={Plus} label={t("entry.addFeature")} onClick={() => setPickerOpen(true)} />}
           stats={[]}
         >
-          {mods && mods.length > 0 ? (
+          {mods && mods.length > 0 && (
             <div data-feature-cell="" className="grid grid-cols-4 gap-x-1.5 gap-y-1 bg-white p-2">
               {atoms}
             </div>
-          ) : mods ? (
-            <p className="bg-white px-3.5 py-3 text-[12.5px] font-semibold leading-snug text-[#111]/65">
-              {t("struct.features.empty")}
-            </p>
-          ) : null}
+          )}
         </SummaryBlock>
         {dialogs}
       </>
