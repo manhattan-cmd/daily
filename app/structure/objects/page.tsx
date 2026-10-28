@@ -30,8 +30,9 @@ const THING_PREVIEW = 10;
  * blok dili (bkz. SummaryBlock): her liste bir blok — listenin renginde ad
  * hücresi (simgesi, adı, nesne · aktif sayısı; dokununca listenin sayfası),
  * altında beyaz hücrede nesneleri etiket etiket (baklava = nesne; dokununca
- * nesnenin sayfası, fazlası "+N"). Hiç liste yoksa tek blok: Yeni liste
- * karosu ve nesnelerin ne olduğu. Sade temalarda sırt şeritli kartlar.
+ * nesnenin sayfası, fazlası "+N"). Hiç liste yoksa tek blok: "Henüz liste
+ * yok" ve Yeni liste karosu, açıklama cümlesi yok. Sade temalarda sırt
+ * şeritli kartlar.
  */
 export default function ObjectsPage() {
   const t = useT();
@@ -66,11 +67,7 @@ export default function ObjectsPage() {
             lead={{ kind: "title", color: "#ffd23f", overline: t("structure.objects"), title: t("objects.emptyTitle") }}
             action={<SummaryTile color="#7ae582" icon={Plus} label={t("objects.addCollection")} onClick={() => setAddOpen(true)} />}
             stats={[]}
-          >
-            <p className="bg-white px-3.5 py-3 text-[12.5px] font-semibold leading-snug text-[#111]/70">
-              {t("objects.emptyBody")}
-            </p>
-          </SummaryBlock>
+          />
         ) : (
           <div className="flex flex-col gap-4 pb-6 pt-1">
             {data.map(({ c, total, active, live }) => {
