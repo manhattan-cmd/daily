@@ -41,6 +41,7 @@ export function HeaderBlock({
   leading,
   trailing,
   rows,
+  under,
   children,
   sticky = true,
   center = false,
@@ -55,6 +56,9 @@ export function HeaderBlock({
   /** Ana satırın altındaki satırlar; zeminleri çağıranın (hücreler beyaz).
    *  Ana satır boşsa (children, leading, trailing yok) blok yalnız bunlar */
   rows?: ReactNode;
+  /** Bloğun altında, çerçevenin dışında ama yapışkan başlığın içinde
+   *  (Yapı'nın konum yolu) — blok önde durur, bu onun altından çıkar */
+  under?: ReactNode;
   children?: ReactNode;
   sticky?: boolean;
   /** Ortadaki hücrenin içi ortalı (Takvim, Gün) */
@@ -73,7 +77,7 @@ export function HeaderBlock({
         className
       )}
     >
-      <div className="grid gap-[2px] overflow-hidden rounded-[18px] border-2 border-[#111] bg-[#111] text-[#111] shadow-[4px_4px_0_#111]">
+      <div className="relative z-10 grid gap-[2px] overflow-hidden rounded-[18px] border-2 border-[#111] bg-[#111] text-[#111] shadow-[4px_4px_0_#111]">
         {/* Ana satır yalnız içeriği varsa — gün sayfasının üst menüsü tek satır (rows) */}
         {(children || leading || trailing) && (
         <div className="flex min-h-[64px] gap-[2px]">
@@ -94,6 +98,7 @@ export function HeaderBlock({
         )}
         {rows}
       </div>
+      {under}
     </header>
   );
 }

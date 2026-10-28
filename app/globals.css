@@ -389,17 +389,25 @@ input[type="number"] {
   animation: zoomIn 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Yapı'nın konum yolu: Kategoriler'de kapalı, bir kategoriye girince
-   başlık bloğunun altından açılır (bkz. StructureTrail) */
-@keyframes trailOpen {
-  from { height: 0; opacity: 0; }
-  to   { height: 46px; opacity: 1; }
+/* Yapı'nın konum yolu: Kategoriler'de yok; bir kategoriye ya da alt
+   kategoriye girince başlık bloğunun altından aşağı kayarak çıkar — yer
+   açılırken (yükseklik) yol bloğun arkasından iner (bkz. StructureTrail) */
+@keyframes trailDrop {
+  from { height: 0; }
+  to   { height: 42px; }
 }
-.trail-open {
-  animation: trailOpen 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+@keyframes trailSlide {
+  from { transform: translateY(-100%); }
+  to   { transform: none; }
+}
+.trail-drop {
+  animation: trailDrop 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.trail-drop > * {
+  animation: trailSlide 0.34s cubic-bezier(0.22, 1, 0.36, 1);
 }
 @media (prefers-reduced-motion: reduce) {
-  .trail-open { animation: none; }
+  .trail-drop, .trail-drop > * { animation: none; }
 }
 
 /* Kapsül satırının tonu — seçim değişince yeni renk yavaşça siner.

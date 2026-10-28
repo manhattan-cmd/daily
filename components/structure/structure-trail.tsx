@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
@@ -16,20 +16,11 @@ const TIP = 9;
 const YAPI = "#ffd23f";
 
 /**
- * Yol bir önceki sayfada açık mıydı — kategori ↔ alt kategori geçişlerinde
- * her seferinde yeniden açılmasın; yalnız Kategoriler'den içeri girerken
- */
-let wasOpen = false;
-/** Yapı → Kategoriler'de yol kapalı: bir sonraki giriş açılarak gelir */
-export function closeStructureTrail() {
-  wasOpen = false;
-}
-
-/**
  * Konum yolu (Brütal) — kategori ve alt kategori sayfalarında başlık
- * bloğunun en alt satırı: nerede olduğun ve oraya hangi yoldan gelindiği,
- * "Kategoriler › Harcamalar › Faturalar › Su". Yapı → Kategoriler'de kapalı
- * (orası zaten kök); bir kategoriye girince bloğun altından açılır.
+ * bloğunun hemen altında, krem zeminde: nerede olduğun ve oraya hangi yoldan
+ * gelindiği, "Kategoriler › Harcamalar › Faturalar › Su". Yapı →
+ * Kategoriler'de yok (orası zaten kök). Her girişte bloğun arkasından aşağı
+ * kayarak çıkar (globals.css .trail-drop).
  *
  * Her durak ok biçimli bir parça, bir sonrakinin çentiğine oturur; bütün
  * zincirin altında blokların gölgesi. Kök Yapı'nın sarısında, kategori kendi
@@ -40,7 +31,8 @@ export function closeStructureTrail() {
  *
  * Önce yerinde bütün kategorilerin yan yana durduğu bir şerit denendi,
  * sonra düz yazılı bir yol ("Kategoriler › Harcamalar" sönük yazı, sonda
- * siyah etiket) — kullanıcı tasarımın geliştirilmesini istedi.
+ * siyah etiket), sonra bu oklar bloğun içinde beyaz bir satırda —
+ * kullanıcıya göre beyaz bölme oklarla uyuşmuyordu.
  */
 export function StructureTrail({ categoryId, subId }: { categoryId: string; subId?: string }) {
   const t = useT();
@@ -77,12 +69,6 @@ export function StructureTrail({ categoryId, subId }: { categoryId: string; subI
   ];
   const pathKey = steps.map((s) => s.key).join("/");
 
-  // Kategoriler'den girerken açılarak gelir
-  const [opening] = useState(() => !wasOpen);
-  useEffect(() => {
-    wasOpen = true;
-  }, []);
-
   const rowRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const row = rowRef.current;
@@ -92,11 +78,9 @@ export function StructureTrail({ categoryId, subId }: { categoryId: string; subI
   return (
     // min-w-0: ızgara hücresi içeriğin boyuna uzamasın — yoksa uzun yol
     // bütün başlık bloğunu ekrandan taşırıyor
-    <nav
-      aria-label={t("structure.title")}
-      className={cn("min-w-0 overflow-hidden bg-white", opening && "trail-open")}
-    >
-      <div ref={rowRef} data-structure-trail="" className="no-scrollbar flex h-[46px] items-center overflow-x-auto px-2.5">
+    // Yer açılırken (yükseklik) içi bloğun arkasından iner; blok önde (z-10)
+    <nav aria-label={t("structure.title")} className="trail-drop relative h-[42px] min-w-0 overflow-hidden">
+      <div ref={rowRef} data-structure-trail="" className="no-scrollbar flex h-full items-end overflow-x-auto pb-[2px] pr-[2px]">
         {/* Gölge bütün zincirin biçimini izler (tek tek parçalarınki
             birbirinin üstüne düşüyordu) */}
         <ol className="flex items-center pr-2" style={{ filter: "drop-shadow(2px 2px 0 #111)" }}>
