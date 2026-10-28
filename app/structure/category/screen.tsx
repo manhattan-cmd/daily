@@ -13,7 +13,8 @@ import {
   structureSummary,
   listCategoryTree,
 } from "@/lib/db/queries";
-import { BrutSubsBlock, BrutThingSummary, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
+import { BrutSubsBlock, BrutThingSummary, useIsBrutal } from "@/components/structure/brutal";
+import { StructureAddButton, StructureHeader } from "@/components/structure/structure-header";
 import { StructureTrail } from "@/components/structure/structure-trail";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
@@ -70,17 +71,19 @@ export function CategoryDetailPage({
           kaplayan sayfa zemininde (bkz. PageSheet) */}
       <PageSheet
         top={brutal ? (
-          <BrutTopStrip
-            back="/structure"
-            trail={t("structure.categories")}
-            nav={<StructureTrail categoryId={categoryId} />}
-            analyticsHref={routes.analyticsCategory(categoryId)}
-            onEdit={() => setCatFormOpen(true)}
-            onDelete={onDeleteCategory}
-            onAddSub={() => {
-              setNewParentId(undefined);
-              setSubFormOpen(true);
-            }}
+          /* Yapı → Kategoriler'in başlığı (bkz. StructureHeader): konum yolu
+             üç sayfada aynı hizada; analiz · düzenle · sil özet bloğunda */
+          <StructureHeader
+            action={
+              <StructureAddButton
+                labelKey="structure.addSub"
+                onClick={() => {
+                  setNewParentId(undefined);
+                  setSubFormOpen(true);
+                }}
+              />
+            }
+            below={<StructureTrail categoryId={categoryId} />}
           />
         ) : (
       <PageHeader
@@ -130,6 +133,11 @@ export function CategoryDetailPage({
           overline={t("brut.category")}
           title={category.name}
           summary={summary}
+          tools={{
+            analyticsHref: routes.analyticsCategory(categoryId),
+            onEdit: () => setCatFormOpen(true),
+            onDelete: onDeleteCategory,
+          }}
           className="mb-4"
         />
       )}

@@ -151,6 +151,7 @@ export function BrutThingSummary({
   overline,
   title,
   summary,
+  tools,
   className,
 }: {
   color: string;
@@ -158,6 +159,9 @@ export function BrutThingSummary({
   overline: string;
   title: string;
   summary?: StructureSummary;
+  /** En altta analiz · düzenle · sil satırı — kategori ve alt kategori
+   *  sayfasında eskiden üst menünün karolarıydı */
+  tools?: { analyticsHref: string; onEdit: () => void; onDelete: () => void };
   className?: string;
 }) {
   const t = useT();
@@ -186,7 +190,47 @@ export function BrutThingSummary({
       className={className}
       lead={{ kind: "thing", color, icon, overline, title }}
       stats={stats}
-    />
+    >
+      {tools && (
+        <div data-thing-tools="" className="grid grid-cols-3 gap-[2px]">
+          <ToolCell icon={BarChart3} label={t("nav.insights")} href={tools.analyticsHref} />
+          <ToolCell icon={Pencil} label={t("action.edit")} onClick={tools.onEdit} />
+          <ToolCell icon={Trash2} label={t("action.delete")} onClick={tools.onDelete} color="#ff6b6b" />
+        </div>
+      )}
+    </SummaryBlock>
+  );
+}
+
+/** Özet bloğunun alt satırındaki düğme — simge ve kısa ad; silme kırmızı */
+function ToolCell({
+  icon: Icon,
+  label,
+  href,
+  onClick,
+  color = "#ffffff",
+}: {
+  icon: LucideIcon;
+  label: string;
+  href?: string;
+  onClick?: () => void;
+  color?: string;
+}) {
+  const cls = "flex h-11 items-center justify-center gap-1.5 text-[12.5px] font-black text-[#111] active:brightness-95";
+  const body = (
+    <>
+      <Icon className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+      {label}
+    </>
+  );
+  return href ? (
+    <Link href={href} prefetch={false} className={cls} style={{ background: color }}>
+      {body}
+    </Link>
+  ) : (
+    <button type="button" onClick={onClick} className={cls} style={{ background: color }}>
+      {body}
+    </button>
   );
 }
 

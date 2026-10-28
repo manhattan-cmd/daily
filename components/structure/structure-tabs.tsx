@@ -18,6 +18,17 @@ export const STRUCTURE_TABS: { href: string; key: MessageKey; icon: LucideIcon }
 ];
 
 /**
+ * Seçili sekme — kategori ve alt kategori sayfaları Kategoriler sekmesinin
+ * içi: Brütalde üçünün başlığı aynı (bkz. StructureHeader), aşağı indikçe
+ * yalnız altındaki konum yolu değişir.
+ */
+export function structureTabIndex(path: string): number {
+  const i = STRUCTURE_TABS.findIndex((tab) => tab.href === path);
+  if (i >= 0) return i;
+  return /^\/structure\/(category|sub)(\/|$)/.test(path) ? 0 : -1;
+}
+
+/**
  * Yapı bölümünün üst menüsü.
  *
  * Tek parça bir ray: dört sekme eşit bölünür, seçili olanın arkasındaki
@@ -32,7 +43,7 @@ export const STRUCTURE_TABS: { href: string; key: MessageKey; icon: LucideIcon }
 export function StructureTabs() {
   const t = useT();
   const pathname = useRoutePath();
-  const activeIndex = STRUCTURE_TABS.findIndex((tab) => tab.href === pathname);
+  const activeIndex = structureTabIndex(pathname);
   const brutal = useSkin() === "brutal";
 
   // Brütal: başlık bloğunun alt satırı (bkz. HeaderBlock) — beş hücre ortak

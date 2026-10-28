@@ -8,7 +8,8 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { BarChart3, Pencil, Plus, Trash2 } from "lucide-react";
 import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import { getSubCategory, getCategory, listCategoryTree, structureSummary } from "@/lib/db/queries";
-import { BrutSubsBlock, BrutThingSummary, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
+import { BrutSubsBlock, BrutThingSummary, useIsBrutal } from "@/components/structure/brutal";
+import { StructureAddButton, StructureHeader } from "@/components/structure/structure-header";
 import { StructureTrail } from "@/components/structure/structure-trail";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { toLocalDateValue } from "@/lib/utils";
@@ -74,22 +75,21 @@ export function SubCategoryDetailPage({
           kaplayan sayfa zemininde (bkz. PageSheet) */}
       <PageSheet
         top={brutal ? (
-          <BrutTopStrip
-            back={backPath}
-            // Yapı'nın ve kategori sayfasının başlığı gibi; üstler altındaki yolda
-            trail={t("structure.categories")}
-            nav={<StructureTrail categoryId={categoryId} subId={subcategoryId} />}
-            analyticsHref={routes.analyticsSub(categoryId, subcategoryId)}
-            onEdit={() => {
-              setEditingSelf(true);
-              setSubFormOpen(true);
-            }}
-            onDelete={() => setDeleteOpen(true)}
-            onAddSub={() => {
-              setEditingSelf(false);
-              setNewParentId(subcategoryId);
-              setSubFormOpen(true);
-            }}
+          /* Yapı → Kategoriler'in başlığı (bkz. StructureHeader): konum yolu
+             üç sayfada aynı hizada, üstler yolda; analiz · düzenle · sil özet
+             bloğunda */
+          <StructureHeader
+            action={
+              <StructureAddButton
+                labelKey="structure.addSub"
+                onClick={() => {
+                  setEditingSelf(false);
+                  setNewParentId(subcategoryId);
+                  setSubFormOpen(true);
+                }}
+              />
+            }
+            below={<StructureTrail categoryId={categoryId} subId={subcategoryId} />}
           />
         ) : (
       <PageHeader
@@ -142,6 +142,14 @@ export function SubCategoryDetailPage({
           overline={parentSub?.name ?? category?.name ?? ""}
           title={subcategory.name}
           summary={summary}
+          tools={{
+            analyticsHref: routes.analyticsSub(categoryId, subcategoryId),
+            onEdit: () => {
+              setEditingSelf(true);
+              setSubFormOpen(true);
+            },
+            onDelete: () => setDeleteOpen(true),
+          }}
           className="mb-4"
         />
       )}

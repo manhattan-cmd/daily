@@ -4,7 +4,7 @@ import { useRoutePath } from "@/lib/use-route-path";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { STRUCTURE_TABS, StructureTabs } from "./structure-tabs";
+import { STRUCTURE_TABS, StructureTabs, structureTabIndex } from "./structure-tabs";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { useSkin } from "@/lib/skin";
 
@@ -16,6 +16,12 @@ import { useSkin } from "@/lib/skin";
  * Cümleler bandı şişiriyor, hepsi de altındaki menünün zaten söylediği şeyi
  * söylüyordu. Başlığın kendisi hangi sayfada olduğunu söylerse cümleye gerek
  * kalmıyor.
+ *
+ * Brütalde kategori ve alt kategori sayfaları da bu başlıkla açılır: Yapı →
+ * Kategoriler'le aynı yükseklikte, aynı sekmelerle; altındaki konum yolu
+ * (bkz. StructureTrail) hep aynı hizada, yalnız yol uzar. Geri karosu yok —
+ * yukarı yoldan çıkılır; sağdaki yeşil karo bulunulan yere ekler (+ Kategori,
+ * + Alt kategori).
  */
 export function StructureHeader({
   action,
@@ -27,7 +33,7 @@ export function StructureHeader({
 }) {
   const t = useT();
   const pathname = useRoutePath();
-  const tab = STRUCTURE_TABS.find((x) => x.href === pathname);
+  const tab = STRUCTURE_TABS[structureTabIndex(pathname)];
   return (
     <PageHeader
       title={t(tab?.key ?? "structure.title")}
