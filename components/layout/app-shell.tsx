@@ -24,6 +24,7 @@ import { prefetchPeriod } from "@/components/analytics/period-data";
 import { weekPeriod } from "@/lib/period";
 import { whenIdle } from "@/lib/db/day-cache";
 import { applyStatusBarColor, statusBarColor } from "@/lib/skin-boot";
+import { installNavDepth } from "@/lib/nav-depth";
 
 /** Açılış kurulumu — sayfa ömründe bir kez (bkz. AppShell) */
 let initOnce: Promise<void> | null = null;
@@ -54,6 +55,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // statusBarColor). Açılışı betik boyuyor; burada sayfa ve tema değişince.
   const pathname = usePathname();
   const barColor = statusBarColor(pathname, skin);
+  // "Geri" düğmeleri için uygulama içi adım sayacı (bkz. nav-depth)
+  useEffect(() => installNavDepth(), []);
   useEffect(() => {
     const paper =
       getComputedStyle(document.documentElement).getPropertyValue("--background").trim() ||

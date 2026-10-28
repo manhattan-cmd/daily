@@ -26,7 +26,11 @@ export function MetricChips({
   countFirst = false,
   asRow = false,
   colorOfMod,
+  cells = false,
 }: {
+  /** Brütal blok hücresi: beyaz hücrede çerçeveli kapsüller, seçili olan
+   *  siyah; sığmazsa satır yana kayar */
+  cells?: boolean;
   mods: MetricMod[];
   metric: Metric;
   color: string;
@@ -52,6 +56,27 @@ export function MetricChips({
     pick: () => metricOf(m),
   }));
   const chips = countFirst ? [count, ...modChips] : [...modChips, count];
+  if (cells) {
+    return (
+      <div data-metric-cells="" className="no-scrollbar flex gap-1.5 overflow-x-auto bg-white px-3 py-2.5">
+        {chips.map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            onClick={() => onChange(c.pick())}
+            aria-pressed={c.active}
+            className={cn(
+              "shrink-0 whitespace-nowrap rounded-full border-[1.5px] px-3 py-[6px] text-[12.5px] font-extrabold leading-none",
+              c.active ? "bg-[#111] text-[#fff4dc]" : "bg-white text-[#111] active:bg-[#f5f1e8]"
+            )}
+            style={{ borderColor: "#111" }}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
   if (asRow) {
     return (
       <ChipRow

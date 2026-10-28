@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
+import { HeaderOverline } from "@/components/ui/header-block";
+import { canGoBackInApp } from "@/lib/nav-depth";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useT } from "@/lib/i18n";
 import { getSubCategory } from "@/lib/db/queries";
@@ -17,7 +19,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { PeriodNav, PeriodTabs } from "./period-switcher";
 import { AnalysisTrail } from "./analysis-trail";
 import { ANALYSIS_HEADER } from "./period-view";
-import { AnalysisMenu } from "./analysis-header";
+import { ANALYSIS_COLOR, AnalysisMenu } from "./analysis-header";
 
 /**
  * Kategori / alt kategori analizinin dönemi — ?p= (lib/period anahtarı),
@@ -123,23 +125,34 @@ export function ScopeAnalysisHeader({
     />
   );
 
-  // Brütal: Analiz'in üst menüsü (bkz. AnalysisMenu) — mavi şerit, dönem ve
-  // türleri, en altta konum yolu tek beyaz kartta. Geri oku yok: yukarı
-  // yoldan çıkılıyor (geri okunun gittiği yer yolun bir önceki durağı)
+  // Brütal: Analiz'in üst menüsü (bkz. AnalysisMenu) — mavi şerit; üstte
+  // geri, ANALİZ etiketi ve neyin analizi olduğu, altında dönem ve türleri.
+  //
+  // Bu sayfalar eskiden Analiz sekmesinin gezintisinin bir durağıydı
+  // (Kategoriler › Harcamalar); sekme artık yeri kendi içinde açıyor, buraya
+  // yapının "Analizi aç"ından geliniyor. O yüzden "Kategoriler" kökü (Analiz
+  // sekmesine atıyordu) yok; geri geldiğin yere (yapı sayfası ya da üst
+  // kalemin analizi), yol yalnız kalemin üstlerini gösterir — dokununca o
+  // üstün analizi.
   if (brutal) {
     return (
       <AnalysisMenu
         period={period}
         onPick={onPick}
-        below={
-          <div
-            // Kendi işareti: eski [data-trail-wrap] kuralları yolun içine ikinci bir çerçeve çiziyordu
-            data-an-trail=""
-            className="rounded-[12px] border-2 bg-white px-1.5 py-1 shadow-[2px_2px_0_#111]"
-            style={{ borderColor: "#111" }}
-          >
-            {trail}
-          </div>
+        top={
+          category && (
+            <ScopeNavRow
+              category={category}
+              ancestors={ancestors}
+              subcategory={subcategory}
+              periodParam={p}
+              fallback={
+                subcategory
+                  ? routes.structureSub(category.id, subcategory.id)
+                  : routes.structureCategory(category.id)
+              }
+            />
+          )
         }
       />
     );
@@ -181,6 +194,113 @@ export function ScopeAnalysisHeader({
         </div>
       }
     />
+  );
+}
+
+/**
+ * Kategori / alt kategori analizinin üst satırı (Brütal) — Yapı'nın alt
+ * sayfalarının üst menüsü gibi (bkz. TopBar: geri, bölümün etiketi,
+ * bulunulan yer): sönük geri oku, ANALİZ etiketi, kalemin yolu
+ * ("Harcamalar › Faturalar › Elektrik"). Üstler sönük ve dokununca o üstün
+ * analizi (dönem taşınır); bulunulan yer kalın. Uzayınca satır yana kayar,
+ * sona yaslı açılır.
+ *
+ * Geri: geldiğin yere (çoğu zaman kalemin yapı sayfası, kırılımdan
+ * inildiyse üst kalemin analizi); sayfa doğrudan açıldıysa kalemin yapı
+ * sayfasına.
+ */
+function ScopeNavRow({
+  category,
+  ancestors,
+  subcategory,
+  periodParam,
+  fallback,
+}: {
+  category: Category;
+  ancestors: SubCategory[];
+  subcategory?: SubCategory;
+  periodParam: string;
+  fallback: string;
+}) {
+  const t = useT();
+  const router = useRouter();
+  const pathRef = useRef<HTMLDivElement>(null);
+  // Sol kenarda gizli kalan kısım var mı — varsa yazı orada solarak biter
+  // (yoksa harfin ortasından kesiliyordu)
+  const [clipped, setClipped] = useState(false);
+  const pathKey = [category.id, ...ancestors.map((a) => a.id), subcategory?.id].join("/");
+  useLayoutEffect(() => {
+    const el = pathRef.current;
+    if (!el) return;
+    el.scrollLeft = el.scrollWidth;
+    setClipped(el.scrollLeft > 0);
+  }, [pathKey]);
+  const steps: { key: string; label: string; href?: string }[] = [
+    {
+      key: category.id,
+      label: category.name,
+      href: subcategory ? `${routes.analyticsCategory(category.id)}&${periodParam}` : undefined,
+    },
+    ...ancestors.map((a) => ({
+      key: a.id,
+      label: a.name,
+      href: routes.analyticsSub(category.id, a.id, periodParam),
+    })),
+    ...(subcategory ? [{ key: subcategory.id, label: subcategory.name }] : []),
+  ];
+  const goBack = () => {
+    // Uygulamanın içinden gelindiyse geldiği yere; doğrudan açıldıysa yapı
+    // sayfası (bkz. nav-depth — history.length uygulama dışını da sayıyor)
+    if (canGoBackInApp()) router.back();
+    else router.push(fallback);
+  };
+  return (
+    <div data-scope-nav="" className="flex items-center gap-2 pl-1 pr-3 pt-1">
+      <button
+        type="button"
+        onClick={goBack}
+        aria-label={t("action.back")}
+        title={t("action.back")}
+        className="flex h-10 w-10 shrink-0 items-center justify-center text-[#111]/60 active:text-[#111]"
+      >
+        <ArrowLeft className="h-5 w-5" strokeWidth={2.5} />
+      </button>
+      <HeaderOverline color={ANALYSIS_COLOR} className="mb-0 shrink-0 self-center">
+        {t("nav.insights")}
+      </HeaderOverline>
+      <div
+        ref={pathRef}
+        onScroll={(e) => setClipped(e.currentTarget.scrollLeft > 0)}
+        className="no-scrollbar flex min-w-0 flex-1 items-center overflow-x-auto"
+        style={
+          clipped
+            ? {
+                maskImage: "linear-gradient(to right, transparent, #000 18px)",
+                WebkitMaskImage: "linear-gradient(to right, transparent, #000 18px)",
+              }
+            : undefined
+        }
+      >
+        {steps.map((s, i) => (
+          <span key={s.key} className="flex shrink-0 items-center">
+            {i > 0 && <ChevronRight className="mx-0.5 h-3.5 w-3.5 shrink-0 text-[#111]/45" strokeWidth={2.75} />}
+            {s.href ? (
+              <Link
+                href={s.href}
+                prefetch={false}
+                className="whitespace-nowrap text-[14px] font-bold leading-none text-[#111]/60 active:text-[#111]"
+              >
+                {s.label}
+              </Link>
+            ) : (
+              <span aria-current="location" className="whitespace-nowrap text-[15px] font-black leading-none text-[#111]">
+                {s.label}
+              </span>
+            )}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 

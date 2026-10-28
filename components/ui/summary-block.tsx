@@ -278,12 +278,15 @@ export function SummaryBlock({
   link?: SummaryLink;
   className?: string;
 }) {
-  // Hücreler arası 2 px siyah: zemin siyah, hücreler arası boşluk 2 px
+  // Hücreler arası 2 px siyah: zemin siyah, hücreler arası boşluk 2 px.
+  // grid-cols-1 (minmax(0, 1fr)): sütun kabın genişliğinde — yoksa tek
+  // satıra sığmayan bir yazı (Analiz'de uzun grafik adı) sütunu kendi
+  // boyuna uzatıyor, blok sağdan taşıp köşesi kesiliyordu
   return (
     <div
       data-summary=""
       className={cn(
-        "grid gap-[2px] overflow-hidden rounded-[18px] border-2 border-[#111] bg-[#111] shadow-[4px_4px_0_#111]",
+        "grid grid-cols-1 gap-[2px] overflow-hidden rounded-[18px] border-2 border-[#111] bg-[#111] shadow-[4px_4px_0_#111]",
         className
       )}
     >

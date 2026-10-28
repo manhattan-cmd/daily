@@ -22,12 +22,14 @@ import {
   zeroFilledDaily,
 } from "@/lib/analytics";
 import { periodShortLabel, shiftPeriod, type Period } from "@/lib/period";
+import { Layers } from "lucide-react";
 import { StatTile } from "./stat-tile";
-import { StatTiles } from "./stat-tiles";
+import { StatCell, StatTiles } from "./stat-tiles";
+import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import type { ChartKind, StatKey } from "@/types";
 import { AnalysisCharts } from "./analysis-chart";
 import { ShareBars, type ShareRow } from "./share-bars";
-import { EntryListSection, type EntryListRow } from "./entry-list";
+import { EntryListBlock, EntryListSection, type EntryListRow } from "./entry-list";
 import { MetricChips } from "./metric-chips";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
@@ -302,6 +304,7 @@ export function CategoryOverviewPanel({
           id,
           name: isRoot ? category.name : (s?.name ?? "—"),
           color: category.color,
+          icon: isRoot ? category.icon : (s?.icon ?? category.icon),
           value,
           outOf,
           display: unit ? `${fmtNum(value)} ${unit}` : fmtNum(value),
@@ -386,6 +389,7 @@ export function CategoryOverviewPanel({
       seriesFrame,
       shareRows,
       entryRows,
+      listTotal: listEntries.length,
     };
   }, [data, compute, metric.type, category, subcategory, period, t]);
 
@@ -413,7 +417,55 @@ export function CategoryOverviewPanel({
     </>
   );
 
+  // Brütal: ana sayfanın blok dili (bkz. SummaryBlock) — Analiz sekmesinde
+  // seçilen yerin blokları gibi. Tepede yerin kendi renginde ad hücresi ve
+  // Yapı'nın sarı karosu (yerin yapı sayfası), altında özellik kapsülleri,
+  // Sabitler hariç ve sayı hücreleri; ardından yeşil İstikrar, menekşe
+  // Gelişim, pembe Alt kategori dağılımı, mavi Grafikler, turuncu Son
+  // girdiler. Krem katmanlar, sayfa başlığı ve renkli kutular yok.
+  const structureHref = subcategory
+    ? routes.structureSub(category.id, subcategory.id)
+    : routes.structureCategory(category.id);
+  const topLead = (hint?: string) => ({
+    kind: "thing" as const,
+    color: category.color,
+    icon: subcategory?.icon ?? category.icon,
+    overline: subcategory ? category.name : t("insights.categoryInsights"),
+    title: subcategory?.name ?? category.name,
+    hint,
+  });
+  const yapiTile = <SummaryTile color="#ffd23f" icon={Layers} label={t("nav.structure")} href={structureHref} />;
+  const brutChips = (
+    <>
+      <MetricChips cells mods={data.mods} metric={metric} color={category.color} onChange={setMetricChoice} />
+      {data.hasRegular && (
+        <div className="bg-white px-3 py-2.5">
+          <RegularToggle
+            active={excludeRegular}
+            onChange={setExcludeRegular}
+            color={category.color}
+            regularSubNames={data.regularSubNames}
+            excludedEntryCount={data.excludedEntryCount}
+          />
+        </div>
+      )}
+    </>
+  );
+
   if (computed.empty) {
+    if (brutal) {
+      return (
+        <div className="flex flex-col gap-4 pb-6">
+          <SummaryBlock
+            lead={topLead(computed.empty === "period" ? translate("list.noEntriesInRange") : t("an.noEntriesYet"))}
+            action={yapiTile}
+            stats={[]}
+          >
+            {computed.empty === "period" && brutChips}
+          </SummaryBlock>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col gap-4 pb-6">
         {header}
@@ -432,6 +484,217 @@ export function CategoryOverviewPanel({
   const metricParam = metric.type === "count" ? "count" : metric.mod.id;
   const showBreakdown =
     !compute.isChoice && (!subcategory || data.children.length > 0);
+  const chartTitle = (kind: ChartKind) => ({
+    main: (
+      <>
+        {/* "Tek tek" kova değil girdi çiziyor; "Haftalık" demek yanlış olurdu */}
+        {kind !== "points" && `${GRANULARITY_TITLES[computed.granularity]} `}
+        {metric.type === "count" ? translate("an.entriesUnit") : metric.mod.name}
+      </>
+    ),
+    extra: ` · ${periodLabel}`,
+  });
+  const growthUnit = compute.isRate ? undefined : computed.isAvgMetric ? unit : metricLabel;
+
+  if (brutal) {
+    const growthValue =
+      computed.growthPoints !== null
+        ? `${computed.growthPoints >= 0 ? "+" : "−"}${fmtNum(Math.abs(computed.growthPoints))}`
+        : computed.growthPct !== null
+          ? `${computed.growthPct >= 0 ? "+" : "−"}${fmtPct(Math.abs(computed.growthPct) / 100)}`
+          : "—";
+    return (
+      <div className="flex flex-col gap-4 pb-6">
+        <SummaryBlock lead={topLead()} action={yapiTile} stats={[]}>
+          {brutChips}
+          {metric.type === "count" ? (
+            <div className="grid grid-cols-2 gap-[2px]">
+              <StatCell
+                color={category.color}
+                label={t("insights.entries")}
+                value={fmtNum(computed.withValueCount)}
+                sub={periodLabel}
+              />
+              <StatCell
+                color={category.color}
+                label={t("stat.dailyAverage")}
+                value={fmtNum(computed.dailyAvg)}
+                unit={translate("an.entriesUnit")}
+                sub={`${computed.elapsedDays} ${t("stat.days")}`}
+              />
+            </div>
+          ) : (
+            <StatTiles
+              cells
+              options={compute.statOptions}
+              onPick={pickStat}
+              keys={compute.stats}
+              color={category.color}
+              unit={unit}
+              periodSub={periodLabel}
+              daysSub={`${computed.elapsedDays} ${t("stat.days")}`}
+              values={{
+                total: computed.total,
+                dailyAvg: computed.dailyAvg,
+                avg: computed.avg,
+                medianPerDay: compute.emptyAsZero,
+                withValueCount: computed.withValueCount,
+                entriesCount: compute.isChoice ? computed.choiceTotal : computed.withValueCount,
+                rate: computed.rate,
+                yesStreakCurrent: computed.yesStreaks?.current,
+                yesStreakBest: computed.yesStreaks?.best,
+                topChoice: computed.topChoice,
+                choiceTotal: computed.choiceTotal,
+                ...computed.level,
+                ...computed.bag,
+                noCount: computed.withValueCount - computed.total,
+                streakCurrent: computed.streaks?.current,
+                streakBest: computed.streaks?.best,
+                elapsedDays: computed.elapsedDays,
+              }}
+            />
+          )}
+        </SummaryBlock>
+
+        {/* İstikrar — girdi girilen günler; tek günde anlamsız */}
+        {period.kind !== "day" && (
+          <SummaryBlock
+            lead={{
+              kind: "count",
+              color: "#7ae582",
+              overline: t("an.consistency"),
+              value: `%${fmtNum(computed.activeRatio)}`,
+              unit: t("insights.activeDays").toLocaleLowerCase("tr"),
+              hint: `${computed.activeDayCount}/${computed.elapsedDays} ${t("stat.days")}`,
+            }}
+            stats={[]}
+          >
+            <div className="grid grid-cols-2 gap-[2px]">
+              <StatCell
+                color="#7ae582"
+                label={t("insights.currentStreak")}
+                value={fmtNum(computed.streaks.current)}
+                unit={t("stat.days")}
+                sub={translate("an.inARow")}
+              />
+              <StatCell
+                color="#7ae582"
+                label={t("an.bestStreak")}
+                value={fmtNum(computed.streaks.best)}
+                unit={t("stat.days")}
+                sub={t("an.longest")}
+              />
+            </div>
+          </SummaryBlock>
+        )}
+
+        {/* Gelişim — dağılımda yalnız bir seçenek süzgeci varken anlamlı */}
+        {!(compute.isChoice && !choiceFilter) && (
+          <SummaryBlock
+            lead={{
+              kind: "count",
+              color: "#c9b8ff",
+              overline: t("an.growth"),
+              value: growthValue,
+              unit: computed.growthPoints !== null ? t("stat.points", { n: "" }).trim() : "",
+              hint: computed.hasPrev
+                ? period.kind === "all"
+                  ? t("an.growthAll")
+                  : t("an.growthPeriod")
+                : t("stat.noPrevPeriod"),
+            }}
+            stats={[]}
+          >
+            <div className="grid grid-cols-2 gap-[2px]">
+              <StatCell
+                color="#c9b8ff"
+                label={computed.recentLabel}
+                value={compute.isRate ? fmtPct(computed.recentValue) : fmtNum(computed.recentValue)}
+                unit={growthUnit}
+                sub={compute.isRate ? t("stat.yesRate") : compute.aggregateNote}
+              />
+              <StatCell
+                color="#c9b8ff"
+                label={computed.prevLabel}
+                /* Ortalama rakamlarda veri yokluğu "0" diye okunmamalı */
+                value={
+                  compute.isAvgLike && !computed.hasPrev
+                    ? "—"
+                    : compute.isRate
+                      ? fmtPct(computed.prevValue)
+                      : fmtNum(computed.prevValue)
+                }
+                unit={compute.isAvgLike && !computed.hasPrev ? undefined : growthUnit}
+                sub={
+                  compute.isAvgLike && !computed.hasPrev
+                    ? t("stat.noData")
+                    : (computed.prevNote ?? (compute.isRate ? t("stat.yesRate") : compute.aggregateNote))
+                }
+              />
+            </div>
+          </SummaryBlock>
+        )}
+
+        {/* Alt kategori kırılımı — satıra dokununca o alt kategorinin analizi
+            (dönem ve özellik taşınır) */}
+        {showBreakdown && computed.shareRows.length > 0 && (
+          <SummaryBlock
+            lead={{
+              kind: "count",
+              color: "#ff9ecd",
+              overline: translate("an.subBreakdown"),
+              value: String(computed.shareRows.filter((r) => r.drillable).length),
+              unit: t("struct.subs.unit"),
+              hint: compute.aggregateNote || undefined,
+            }}
+            stats={[]}
+          >
+            <ShareBars
+              cells
+              rows={computed.shareRows}
+              mode={compute.isRate ? "rate" : compute.scale ? "level" : "share"}
+              range={compute.scale}
+              onSelect={(subId) =>
+                router.push(routes.analyticsSub(category.id, subId, `p=${period.key}&metric=${metricParam}`))
+              }
+            />
+          </SummaryBlock>
+        )}
+
+        {computed.hasSeries && (
+          <AnalysisCharts
+            block={t("an.charts")}
+            charts={compute.charts}
+            options={compute.chartOptions}
+            onPick={pickChart}
+            buckets={computed.buckets}
+            entries={computed.entries}
+            valueByEntry={compute.valueByEntry}
+            distribution={computed.distribution}
+            choiceFilter={choiceFilter}
+            onChoiceFilter={setChoiceFilter}
+            color={category.color}
+            unit={metric.type === "count" ? translate("an.entriesUnit") : unit}
+            caption={computed.seriesFrame?.caption}
+            showAllTicks={computed.seriesFrame?.showAllTicks}
+            scale={compute.scale}
+            emptyAsZero={compute.emptyAsZero}
+            stack={compute.isRate ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") } : undefined}
+            title={chartTitle}
+          />
+        )}
+
+        {/* Girdi listesi — son 50; sayı bütün girdiler */}
+        <EntryListBlock
+          title={t("home.recentEntries")}
+          total={computed.listTotal}
+          accent={category.color}
+          rows={computed.entryRows}
+          emptyText={translate("list.noEntriesInRange")}
+        />
+      </div>
+    );
+  }
 
   return (
     // Bölümler katmanlarda (bkz. Layer) — gün ve yapı sayfalarıyla aynı iskelet
