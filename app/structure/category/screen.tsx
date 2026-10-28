@@ -14,6 +14,7 @@ import {
   listCategoryTree,
 } from "@/lib/db/queries";
 import { BrutSubsBlock, BrutThingSummary, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
+import { CategoryNav } from "@/components/structure/category-nav";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
@@ -72,6 +73,7 @@ export function CategoryDetailPage({
           <BrutTopStrip
             back="/structure"
             trail={t("structure.categories")}
+            nav={<CategoryNav activeId={categoryId} />}
             analyticsHref={routes.analyticsCategory(categoryId)}
             onEdit={() => setCatFormOpen(true)}
             onDelete={onDeleteCategory}

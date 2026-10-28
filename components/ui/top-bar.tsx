@@ -19,6 +19,7 @@ export function TopBar({
   label,
   trail,
   color = "#ffd23f",
+  rows,
   children,
   className,
 }: {
@@ -32,6 +33,8 @@ export function TopBar({
   color?: string;
   /** Sağdaki düğmeler (TopBarButton) */
   children?: ReactNode;
+  /** Bloğun alt satırı (kategori ve alt kategori sayfası: kategori şeridi) */
+  rows?: ReactNode;
   className?: string;
 }) {
   const t = useT();
@@ -41,6 +44,7 @@ export function TopBar({
     <HeaderBlock
       color={color}
       className={className}
+      rows={rows}
       leading={back ? <TopBarButton icon={ArrowLeft} label={backLabel ?? t("action.back")} href={back} /> : undefined}
       trailing={children ? <div data-top-bar="" className="flex shrink-0 gap-[2px]">{children}</div> : undefined}
     >

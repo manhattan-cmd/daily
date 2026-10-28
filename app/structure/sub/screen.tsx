@@ -9,6 +9,7 @@ import { BarChart3, Pencil, Plus, Trash2 } from "lucide-react";
 import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import { getSubCategory, getCategory, listCategoryTree, structureSummary } from "@/lib/db/queries";
 import { BrutSubsBlock, BrutThingSummary, BrutTopStrip, useIsBrutal } from "@/components/structure/brutal";
+import { CategoryNav } from "@/components/structure/category-nav";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { toLocalDateValue } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,7 @@ export function SubCategoryDetailPage({
           <BrutTopStrip
             back={backPath}
             trail={subcategory?.parentId ? parentSub?.name : category?.name}
+            nav={<CategoryNav activeId={categoryId} />}
             analyticsHref={routes.analyticsSub(categoryId, subcategoryId)}
             onEdit={() => {
               setEditingSelf(true);

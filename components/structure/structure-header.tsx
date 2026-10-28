@@ -17,7 +17,14 @@ import { useSkin } from "@/lib/skin";
  * söylüyordu. Başlığın kendisi hangi sayfada olduğunu söylerse cümleye gerek
  * kalmıyor.
  */
-export function StructureHeader({ action }: { action?: React.ReactNode }) {
+export function StructureHeader({
+  action,
+  below,
+}: {
+  action?: React.ReactNode;
+  /** Sekmelerin altında bloğun bir satırı daha (Kategoriler: kategori şeridi) */
+  below?: React.ReactNode;
+}) {
   const t = useT();
   const pathname = useRoutePath();
   const tab = STRUCTURE_TABS.find((x) => x.href === pathname);
@@ -31,7 +38,12 @@ export function StructureHeader({ action }: { action?: React.ReactNode }) {
       action={action}
       // Brütal: bölümün kendi bandı (sarı zemin, tram benekleri) — bkz. globals.css
       className="yapi-band"
-      nav={<StructureTabs />}
+      nav={
+        <>
+          <StructureTabs />
+          {below}
+        </>
+      }
     />
   );
 }

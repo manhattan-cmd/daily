@@ -55,8 +55,11 @@ export function BrutTopStrip({
   onDelete,
   onAddSub,
   trail,
+  nav,
 }: {
   back: string;
+  /** Bloğun alt satırı — kategori şeridi (bkz. CategoryNav) */
+  nav?: React.ReactNode;
   /** Başlıkta etiketin altında: geri karosunun döndüğü yer */
   trail?: string;
   analyticsHref?: string;
@@ -67,7 +70,7 @@ export function BrutTopStrip({
 }) {
   const t = useT();
   return (
-    <TopBar back={back} label={t("nav.structure")} trail={trail}>
+    <TopBar back={back} label={t("nav.structure")} trail={trail} rows={nav}>
       {onAddSub && <TopBarButton icon={Plus} label={t("entry.addSub")} onClick={onAddSub} tone="add" />}
       {analyticsHref && <TopBarButton icon={BarChart3} label={t("nav.insights")} href={analyticsHref} />}
       {onEdit && <TopBarButton icon={Pencil} label={t("action.edit")} onClick={onEdit} />}
@@ -384,8 +387,8 @@ export function BrutCategoryTree({
       {categories.map((cat) => {
         const n = subTotals.get(cat.id) ?? 0;
         return (
+          <div key={cat.id} data-cat-block={cat.id}>
           <SummaryBlock
-            key={cat.id}
             leadHref={routes.structureCategory(cat.id)}
             lead={{
               kind: "thing",
@@ -407,6 +410,7 @@ export function BrutCategoryTree({
               </p>
             )}
           </SummaryBlock>
+          </div>
         );
       })}
     </div>
