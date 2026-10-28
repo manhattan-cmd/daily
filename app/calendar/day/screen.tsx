@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Layer, PageSheet } from "@/components/ui/layer";
 import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
-import { HeaderBlock } from "@/components/ui/header-block";
 import { WeekStrip } from "@/components/calendar/week-strip";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, ArrowRight, BarChart3, CalendarDays, ChevronLeft, ChevronRight, NotebookPen, Target } from "lucide-react";
@@ -395,10 +394,10 @@ export function CalendarDayPage({
           girdiler ekranı kaplayan sayfa zemininde (bkz. PageSheet) */}
       <PageSheet
         top={brutal ? (
-          /* Brütal: başlık değil üst menü (bkz. WeekStrip) — iki uçta önceki /
-             sonraki gün, aralarında haftanın günleri; yapışkan, sayfa kayarken
-             elde kalır. Tarih altındaki özet bloğunda; takvime alt menüden */
-          <HeaderBlock color="#7ae582" rows={<WeekStrip date={date} />} />
+          /* Brütal: başlık değil üst menü, alt menünün aynası (bkz. WeekStrip) —
+             iki uçta önceki / sonraki gün, aralarında haftanın günleri;
+             yapışkan. Tarih altındaki özet bloğunda; takvime alt menüden */
+          <WeekStrip date={date} />
         ) : (
       <div className="pt-10 pb-5">
         <div className="mb-5 flex items-center justify-between gap-3">
