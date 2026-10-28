@@ -52,7 +52,8 @@ export function HeaderBlock({
   leading?: ReactNode;
   /** Sağdaki karo(lar) — eylemler, sonraki */
   trailing?: ReactNode;
-  /** Ana satırın altındaki satırlar; zeminleri çağıranın (hücreler beyaz) */
+  /** Ana satırın altındaki satırlar; zeminleri çağıranın (hücreler beyaz).
+   *  Ana satır boşsa (children, leading, trailing yok) blok yalnız bunlar */
   rows?: ReactNode;
   children?: ReactNode;
   sticky?: boolean;
@@ -73,6 +74,8 @@ export function HeaderBlock({
       )}
     >
       <div className="grid gap-[2px] overflow-hidden rounded-[18px] border-2 border-[#111] bg-[#111] text-[#111] shadow-[4px_4px_0_#111]">
+        {/* Ana satır yalnız içeriği varsa — gün sayfasının üst menüsü tek satır (rows) */}
+        {(children || leading || trailing) && (
         <div className="flex min-h-[64px] gap-[2px]">
           {leading}
           <div
@@ -88,6 +91,7 @@ export function HeaderBlock({
           </div>
           {trailing}
         </div>
+        )}
         {rows}
       </div>
     </header>

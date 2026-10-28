@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Layer, PageSheet } from "@/components/ui/layer";
 import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
-import { HeaderBlock, HeaderOverline, HeaderTile, HeaderTitle } from "@/components/ui/header-block";
+import { HeaderBlock } from "@/components/ui/header-block";
 import { WeekStrip } from "@/components/calendar/week-strip";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, ArrowRight, BarChart3, CalendarDays, ChevronLeft, ChevronRight, NotebookPen, Target } from "lucide-react";
@@ -395,41 +395,10 @@ export function CalendarDayPage({
           girdiler ekranı kaplayan sayfa zemininde (bkz. PageSheet) */}
       <PageSheet
         top={brutal ? (
-          /* Brütal: başlık bloğu (bkz. HeaderBlock) — Takvim'in yeşili; ortada
-             ay ve yıl, dokununca takvim; iki yanda komşu günler (gün sayfasında
-             en sık yapılan şey bir gün geri gitmek); altında haftanın günleri
-             (bkz. WeekStrip) */
-          <HeaderBlock
-            color="#7ae582"
-            sticky={false}
-            center
-            rows={<WeekStrip date={date} />}
-            leading={
-              <HeaderTile
-                icon={ChevronLeft}
-                href={routes.day(shift(-1))}
-                ariaLabel={t("day.prev")}
-                label={(() => { const x = new Date(d); x.setDate(d.getDate() - 1); return x.toLocaleDateString(tag, { day: "numeric", month: "short" }); })()}
-              />
-            }
-            trailing={
-              <HeaderTile
-                icon={ChevronRight}
-                href={routes.day(shift(1))}
-                ariaLabel={t("day.next")}
-                label={(() => { const x = new Date(d); x.setDate(d.getDate() + 1); return x.toLocaleDateString(tag, { day: "numeric", month: "short" }); })()}
-              />
-            }
-          >
-            <Link href="/calendar" prefetch={false} className="flex flex-col items-center active:opacity-70">
-              <HeaderOverline color="#7ae582" icon={CalendarDays} center>
-                {t("nav.calendar")}
-              </HeaderOverline>
-              <HeaderTitle size={21} center>
-                {monthName(d.getMonth(), tag)} {d.getFullYear()}
-              </HeaderTitle>
-            </Link>
-          </HeaderBlock>
+          /* Brütal: başlık değil üst menü (bkz. WeekStrip) — iki uçta önceki /
+             sonraki gün, aralarında haftanın günleri; yapışkan, sayfa kayarken
+             elde kalır. Tarih altındaki özet bloğunda; takvime alt menüden */
+          <HeaderBlock color="#7ae582" rows={<WeekStrip date={date} />} />
         ) : (
       <div className="pt-10 pb-5">
         <div className="mb-5 flex items-center justify-between gap-3">
