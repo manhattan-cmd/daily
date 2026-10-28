@@ -2,87 +2,118 @@
 
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { HeaderBlock, HeaderOverline, HeaderTile, HeaderTitle } from "@/components/ui/header-block";
+import { ChevronLeft, ChevronRight, type LucideIcon } from "lucide-react";
 import { periodLabel, shiftPeriod, type Period } from "@/lib/period";
 import { routes } from "@/lib/routes";
 import { useLocale, useT } from "@/lib/i18n";
 import { PeriodTabs } from "./period-switcher";
 
-/** Analiz'in rengi — alt menüdeki sekmesi, başlığı, Kategori dağılımı bloğu */
+/** Analiz'in rengi — alt menüdeki sekmesi, üst menüsü, durum çubuğu (bkz. statusBarColor) */
 export const ANALYSIS_COLOR = "#8ea6ff";
 
 /** Şu an — bileşen dışında: çizim saf kalsın */
 const nowMs = () => Date.now();
 
 /**
- * Analiz'in başlığı (Brütal) — Takvim'in başlık bloğunun dili: iki yanda
- * ‹ › karoları (önceki / sonraki dönem), ortada mavi benekli hücrede ANALİZ
- * etiketi, dönemin adı ve altında kısa özeti (kaç girdi, devam eden dönemde
- * kaçıncı gün). Altında dönem sekmeleri hücre hücre (Yapı sekmeleri gibi),
- * en altta verilen satır — Yer ve Özellik seçicileri.
+ * Analizlerin üst menüsü (Brütal) — Ana Sayfa ve Gün sayfasınınki gibi
+ * (bkz. HomeMenu, WeekStrip): alt menünün aynası, kenardan kenara Analiz
+ * mavisinde şerit, altında tek kalın siyah çizgi; durum çubuğu da aynı mavi.
+ * Üstte iki uçta sönük ‹ › (önceki / sonraki dönem), arada dönemin adı ve
+ * kısa özeti; altında dönem türleri düz yazı, seçili olan alt menünün seçili
+ * sekmesi gibi kalkık beyaz kapsülde; en altta verilen satır (Yer · Özellik
+ * seçicileri ya da konum yolu) tek beyaz kartta. Yapışkan.
  *
- * Eskiden ortada ince oklu bir tarih kapsülü, altında çerçeveli bir sekme
- * rayı ve gölgeli seçici kartı vardı: bloğun içinde üç ayrı çerçeve.
+ * Önce Takvim'inki gibi ortak çizgili bir bloktu: ‹ › iki uzun beyaz sütun,
+ * sekmeler ve seçiciler hücre hücre — kaba ve uzun duruyordu, üstündeki
+ * krem boşluk durum çubuğundan ayrılıyordu.
+ *
+ * `period` yoksa (hiç girdi yokken) yalnız başlık.
  */
-export function AnalysisHeader({
+export function AnalysisMenu({
   period,
+  onPick,
   sub,
   below,
+  title,
 }: {
-  period: Period;
+  period?: Period;
+  /** Verilirse dönem URL'ye gitmek yerine buraya bildirilir (kategori ve
+   *  alt kategori analizi — dönem sayfanın kendi durumu) */
+  onPick?: (p: Period) => void;
   /** Dönemin adının altındaki satır */
   sub?: ReactNode;
-  /** Sekmelerin altındaki son satır (seçiciler) */
+  /** En alttaki satır */
   below?: ReactNode;
+  /** Dönem yokken başlık */
+  title?: string;
 }) {
   const t = useT();
   // Etiket bu dille — period.label sunucuyla tutmuyordu (bkz. periodLabel)
   const locale = useLocale();
   const router = useRouter();
-  const prev = shiftPeriod(period, -1);
-  const next = shiftPeriod(period, 1);
+  const go = (p: Period | null) => {
+    if (!p) return;
+    if (onPick) onPick(p);
+    else router.push(routes.period(p.key));
+  };
+  const prev = period ? shiftPeriod(period, -1) : null;
+  const next = period ? shiftPeriod(period, 1) : null;
   // Tamamen gelecekte kalan döneme gidilmez; "Tümü"nün yönü yok
   const nextDisabled = !next || next.start > nowMs();
-  const label = periodLabel(period, locale);
+
   return (
-    <HeaderBlock
-      color={ANALYSIS_COLOR}
-      center
-      leading={
-        <HeaderTile
-          icon={ChevronLeft}
-          onClick={() => prev && router.push(routes.period(prev.key))}
-          disabled={!prev}
-          ariaLabel={t("insights.previousPeriod")}
-          width={46}
-        />
-      }
-      trailing={
-        <HeaderTile
-          icon={ChevronRight}
-          onClick={() => next && router.push(routes.period(next.key))}
-          disabled={nextDisabled}
-          ariaLabel={t("insights.nextPeriod")}
-          width={46}
-        />
-      }
-      rows={
-        <>
-          <PeriodTabs period={period} cells />
-          {below}
-        </>
-      }
+    <header
+      data-an-nav=""
+      // -mx-4: main'in kenar payını aşıp kenardan kenara (alt menü gibi)
+      className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]"
+      style={{ background: ANALYSIS_COLOR }}
     >
-      <HeaderOverline color={ANALYSIS_COLOR} center>
-        {t("nav.insights")}
-      </HeaderOverline>
-      {/* Gün dönemi uzun ("10 Eylül 2026 Perşembe") — iki satıra sarıp
-          başlığı uzatmasın diye biraz küçük */}
-      <HeaderTitle size={label.length > 19 ? 18 : 22} center>
-        {label}
-      </HeaderTitle>
-      {sub && <p className="mt-1 truncate text-[12px] font-bold leading-tight text-[#111]/70">{sub}</p>}
-    </HeaderBlock>
+      {period ? (
+        <>
+          <div className="flex items-stretch px-1">
+            <Arrow icon={ChevronLeft} label={t("insights.previousPeriod")} disabled={!prev} onClick={() => go(prev)} />
+            <div className="flex min-w-0 flex-1 flex-col items-center justify-center pb-1 pt-2.5 text-center">
+              <h1 className="max-w-full truncate text-[20px] font-black leading-none tracking-[-0.02em] text-[#111]">
+                {periodLabel(period, locale)}
+              </h1>
+              {sub && <p className="mt-[6px] max-w-full truncate text-[11.5px] font-bold leading-none text-[#111]/65">{sub}</p>}
+            </div>
+            <Arrow icon={ChevronRight} label={t("insights.nextPeriod")} disabled={nextDisabled} onClick={() => go(next)} />
+          </div>
+          <PeriodTabs period={period} onPick={onPick} strip />
+        </>
+      ) : (
+        <div className="flex items-center justify-center py-3.5">
+          <h1 className="truncate text-[20px] font-black leading-none tracking-[-0.02em] text-[#111]">{title}</h1>
+        </div>
+      )}
+      {below && <div className="px-2.5 pb-2.5">{below}</div>}
+    </header>
+  );
+}
+
+/** Komşu dönem — alt menünün seçili olmayan simgesi gibi sönük ok */
+function Arrow({
+  icon: Icon,
+  label,
+  disabled,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className="flex w-10 shrink-0 items-center justify-center pt-1.5 text-[#111]/60 active:text-[#111] disabled:text-[#111]/20"
+    >
+      <Icon className="h-5 w-5" strokeWidth={2.5} />
+    </button>
   );
 }

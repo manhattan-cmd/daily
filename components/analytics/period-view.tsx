@@ -48,7 +48,7 @@ import {
   EntryListSection,
   type EntryListRow,
 } from "@/components/analytics/entry-list";
-import { ANALYSIS_COLOR, AnalysisHeader } from "@/components/analytics/analysis-header";
+import { ANALYSIS_COLOR, AnalysisMenu } from "@/components/analytics/analysis-header";
 import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import { PeriodNav, PeriodTabs } from "@/components/analytics/period-switcher";
 import {
@@ -463,7 +463,7 @@ export function PeriodView({
     if (brutal) {
       return (
         <PageSheet
-          top={<PageHeader title={t("nav.insights")} icon={BarChart3} className="band-an" />}
+          top={<AnalysisMenu title={t("nav.insights")} />}
         >
           <SummaryBlock
             lead={{ kind: "title", color: ANALYSIS_COLOR, overline: t("nav.insights"), title: t("insights.empty.title") }}
@@ -512,7 +512,7 @@ export function PeriodView({
   if (!data) {
     if (brutal) {
       return (
-        <PageSheet top={<AnalysisHeader period={requestedPeriod} sub={" "} />}>
+        <PageSheet top={<AnalysisMenu period={requestedPeriod} sub={" "} />}>
           <div className="flex flex-col gap-4 pb-6">
             <Skeleton className="h-[220px] rounded-[18px]" />
             <Skeleton className="h-[140px] rounded-[18px]" />
@@ -564,7 +564,7 @@ export function PeriodView({
     />
   );
 
-  // Brütal: ana sayfanın blok dili — başlık bloğu (bkz. AnalysisHeader) ve
+  // Brütal: ana sayfanın blok dili — üst menü şerit (bkz. AnalysisMenu),
   // bölümler SummaryBlock: mavi Kategori dağılımı (satırlar beyaz hücrede),
   // sarı Nesneler, turuncu Tüm girdiler. Yer seçiliyken o yerin blokları
   // (bkz. PeriodCategoryPanel). Krem katmanlar yok.
@@ -574,7 +574,7 @@ export function PeriodView({
     return (
       <PageSheet
         top={
-          <AnalysisHeader
+          <AnalysisMenu
             period={period}
             sub={[
               `${fmt(entryCount)} ${t("home.entries")}`,

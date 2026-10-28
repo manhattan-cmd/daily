@@ -197,11 +197,14 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
   return (
     <>
       {brutal ? (
-        /* Brütal: başlık bloğunun son satırı (bkz. AnalysisHeader) — iki
-           beyaz hücre, aralarında bloğun ortak çizgisi. Solda yerin karosu
-           (kare = kategori), sağda özelliğin dairesi; seçimsizken Analiz'in
-           mavisinde. Eskiden blok içinde gölgeli ayrı bir kart */
-        <div data-scope-cells="" className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)] gap-[2px]">
+        /* Brütal: üst menünün son satırı (bkz. AnalysisMenu) — tek beyaz
+           kart, iki yarısı arasında siyah çizgi. Solda yerin karosu (kare =
+           kategori), sağda özelliğin dairesi; seçimsizken Analiz'in mavisinde */
+        <div
+          data-scope-cells=""
+          className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)] overflow-hidden rounded-[12px] border-2 bg-white shadow-[2px_2px_0_#111]"
+          style={{ borderColor: "#111" }}
+        >
           <button
             type="button"
             onClick={() => {
@@ -209,10 +212,10 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
               setOpen("yer");
             }}
             aria-label="Yer seç"
-            className="flex min-w-0 items-center gap-2.5 bg-white px-3 py-2 text-left text-[#111] active:bg-[#f5f1e8]"
+            className="flex min-w-0 items-center gap-2 px-2.5 py-[7px] text-left text-[#111] active:bg-[#f5f1e8]"
           >
             <span
-              className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] border-2"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-2"
               style={{ background: selectedCat?.color ?? "#8ea6ff", borderColor: "#111" }}
             >
               {selectedCat ? (
@@ -229,7 +232,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
                   ? `Yer · ${path.length > 1 ? path[path.length - 2].name : selectedCat.name}`
                   : "Yer"}
               </span>
-              <span className="mt-1 block truncate text-[14px] font-black leading-tight">
+              <span className="mt-[3px] block truncate text-[13.5px] font-black leading-tight">
                 {focus?.name ?? selectedCat?.name ?? t("structure.categories")}
               </span>
             </span>
@@ -239,17 +242,18 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
             type="button"
             onClick={() => setOpen("ne")}
             aria-label="Özellik seç"
-            className="flex min-w-0 items-center gap-2.5 bg-white px-3 py-2 text-left text-[#111] active:bg-[#f5f1e8]"
+            className="flex min-w-0 items-center gap-2 border-l-2 px-2.5 py-[7px] text-left text-[#111] active:bg-[#f5f1e8]"
+            style={{ borderLeftColor: "#111" }}
           >
             <span
-              className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full border-2"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2"
               style={{ background: currentMod ? modColor(currentMod) : "#8ea6ff", borderColor: "#111" }}
             >
               {createElement(currentMod ? atomIcon(currentMod) : ListOrdered, { className: "h-4 w-4", strokeWidth: 2.5 })}
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-[9.5px] font-black uppercase leading-none tracking-[0.1em] text-[#111]/55">Özellik</span>
-              <span className="mt-1 block truncate text-[14px] font-black leading-tight">{currentMod ? currentMod.name : "Seç"}</span>
+              <span className="mt-[3px] block truncate text-[13.5px] font-black leading-tight">{currentMod ? currentMod.name : "Seç"}</span>
             </span>
             <ChevronDown className="h-4 w-4 shrink-0" strokeWidth={2.75} />
           </button>

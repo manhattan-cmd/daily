@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { PeriodNav, PeriodTabs } from "./period-switcher";
 import { AnalysisTrail } from "./analysis-trail";
 import { ANALYSIS_HEADER } from "./period-view";
+import { AnalysisMenu } from "./analysis-header";
 
 /**
  * Kategori / alt kategori analizinin dönemi — ?p= (lib/period anahtarı),
@@ -80,6 +81,70 @@ export function ScopeAnalysisHeader({
     ) ?? [];
   const p = `p=${period.key}`;
 
+  const trail = (
+    <AnalysisTrail
+      steps={[
+        {
+          key: "cats",
+          label: t("structure.categories"),
+          root: true,
+          onClick: () =>
+            router.push(category ? `/analytics?cat=${category.id}` : "/analytics"),
+        },
+        ...(category
+          ? [
+              {
+                key: category.id,
+                label: category.name,
+                color: category.color,
+                onClick: () =>
+                  subcategory &&
+                  router.push(`${routes.analyticsCategory(category.id)}&${p}`),
+              },
+              ...ancestors.map((a) => ({
+                key: a.id,
+                label: a.name,
+                color: category.color,
+                onClick: () => router.push(routes.analyticsSub(category.id, a.id, p)),
+              })),
+              ...(subcategory
+                ? [
+                    {
+                      key: subcategory.id,
+                      label: subcategory.name,
+                      color: category.color,
+                      onClick: () => {},
+                    },
+                  ]
+                : []),
+            ]
+          : []),
+      ]}
+    />
+  );
+
+  // Brütal: Analiz'in üst menüsü (bkz. AnalysisMenu) — mavi şerit, dönem ve
+  // türleri, en altta konum yolu tek beyaz kartta. Geri oku yok: yukarı
+  // yoldan çıkılıyor (geri okunun gittiği yer yolun bir önceki durağı)
+  if (brutal) {
+    return (
+      <AnalysisMenu
+        period={period}
+        onPick={onPick}
+        below={
+          <div
+            // Kendi işareti: eski [data-trail-wrap] kuralları yolun içine ikinci bir çerçeve çiziyordu
+            data-an-trail=""
+            className="rounded-[12px] border-2 bg-white px-1.5 py-1 shadow-[2px_2px_0_#111]"
+            style={{ borderColor: "#111" }}
+          >
+            {trail}
+          </div>
+        }
+      />
+    );
+  }
+
   return (
     <PageHeader
       compact
@@ -111,45 +176,7 @@ export function ScopeAnalysisHeader({
         <div className="flex flex-col">
           <PeriodTabs period={period} onPick={onPick} />
           <div data-trail-wrap="" className="py-2">
-            <AnalysisTrail
-              steps={[
-                {
-                  key: "cats",
-                  label: t("structure.categories"),
-                  root: true,
-                  onClick: () =>
-                    router.push(category ? `/analytics?cat=${category.id}` : "/analytics"),
-                },
-                ...(category
-                  ? [
-                      {
-                        key: category.id,
-                        label: category.name,
-                        color: category.color,
-                        onClick: () =>
-                          subcategory &&
-                          router.push(`${routes.analyticsCategory(category.id)}&${p}`),
-                      },
-                      ...ancestors.map((a) => ({
-                        key: a.id,
-                        label: a.name,
-                        color: category.color,
-                        onClick: () => router.push(routes.analyticsSub(category.id, a.id, p)),
-                      })),
-                      ...(subcategory
-                        ? [
-                            {
-                              key: subcategory.id,
-                              label: subcategory.name,
-                              color: category.color,
-                              onClick: () => {},
-                            },
-                          ]
-                        : []),
-                    ]
-                  : []),
-              ]}
-            />
+            {trail}
           </div>
         </div>
       }

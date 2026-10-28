@@ -54,15 +54,15 @@ export const tabState = (on: boolean) =>
 export function PeriodTabs({
   period,
   onPick,
-  cells = false,
+  strip = false,
 }: {
   period: Period;
   /** Verilirse dönem URL'ye gitmek yerine buraya bildirilir (sayfa içi
    *  seçici); özel aralık takvimi o zaman gösterilmez */
   onPick?: (p: Period) => void;
-  /** Brütal başlık bloğunun satırı (bkz. AnalysisHeader) — her sekme bir
-   *  hücre, aralarında bloğun ortak 2 px çizgileri; seçili olan siyah */
-  cells?: boolean;
+  /** Brütal üst menünün satırı (bkz. AnalysisMenu) — düz yazı sekmeler,
+   *  seçili olan kalkık beyaz kapsülde (Gün sayfasının seçili günü gibi) */
+  strip?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -87,14 +87,14 @@ export function PeriodTabs({
     else router.push(routes.period(next.key));
   }
 
-  if (cells) {
+  if (strip) {
     return (
       <div
         role="tablist"
         aria-label={t("insights.period")}
-        data-period-cells=""
-        className="grid gap-[2px]"
-        style={{ gridTemplateColumns: `repeat(${KINDS.length}, minmax(0, 1fr))${onPick ? "" : " 46px"}` }}
+        data-period-strip=""
+        className="grid items-center px-1.5 pb-2.5 pt-2"
+        style={{ gridTemplateColumns: `repeat(${KINDS.length}, minmax(0, 1fr))${onPick ? "" : " 40px"}` }}
       >
         {KINDS.map(({ kind, label }) => {
           const on = period.kind === kind;
@@ -105,16 +105,23 @@ export function PeriodTabs({
               role="tab"
               aria-selected={on}
               onClick={() => pickKind(kind)}
-              className={cn(
-                "flex h-10 min-w-0 items-center justify-center text-[12.5px] font-extrabold",
-                on ? "bg-[#111] text-[#8ea6ff]" : "bg-white text-[#111] active:bg-[#f5f1e8]"
-              )}
+              className="flex min-w-0 justify-center"
             >
-              {t(label)}
+              <span
+                className={cn(
+                  "rounded-full border-[1.5px] px-2.5 py-[6px] text-[12.5px] font-extrabold leading-none transition-transform",
+                  on ? "-translate-y-px bg-white text-[#111] shadow-[2px_2px_0_#111]" : "text-[#111]/65 active:text-[#111]"
+                )}
+                // Çerçeve rengi satır içi: globals.css'teki katmansız
+                // "* { border-color }" kuralı border-transparent'ı eziyor
+                style={{ borderColor: on ? "#111" : "transparent" }}
+              >
+                {t(label)}
+              </span>
             </button>
           );
         })}
-        {!onPick && <PeriodJump activeKey={period.key} cell />}
+        {!onPick && <PeriodJump activeKey={period.key} strip />}
       </div>
     );
   }

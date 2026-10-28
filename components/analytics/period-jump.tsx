@@ -57,13 +57,13 @@ function addDays(t: number, n: number): number {
 export function PeriodJump({
   activeKey,
   segment = false,
-  cell = false,
+  strip = false,
 }: {
   activeKey?: string;
   /** Zaman seçicinin bölmesi olarak — yalnız takvim simgesi */
   segment?: boolean;
-  /** Brütal başlık bloğunda dönem hücrelerinin sonuncusu (bkz. PeriodTabs cells) */
-  cell?: boolean;
+  /** Brütal üst menüde dönem sekmelerinin sonuncusu (bkz. PeriodTabs strip) */
+  strip?: boolean;
 }) {
   // Özel bir dönemdeyken çip vurgulu, pencere o aralıkla açılır
   const current = activeKey?.startsWith("c-") ? parsePeriodKey(activeKey) : null;
@@ -185,10 +185,10 @@ export function PeriodJump({
         type="button"
         onClick={openPicker}
         className={
-          cell
+          strip
             ? cn(
-                "flex h-10 items-center justify-center",
-                current ? "bg-[#111] text-[#8ea6ff]" : "bg-white text-[#111] active:bg-[#f5f1e8]"
+                "flex h-[27px] w-[34px] items-center justify-center justify-self-center rounded-full border-[1.5px] transition-transform",
+                current ? "-translate-y-px bg-white text-[#111] shadow-[2px_2px_0_#111]" : "text-[#111]/65 active:text-[#111]"
               )
             : segment
             ? cn(
@@ -201,11 +201,12 @@ export function PeriodJump({
             : cn(chipClass(!!current), "flex shrink-0 items-center gap-1.5")
         }
         aria-current={current ? "page" : undefined}
-        aria-label={segment || cell ? t("period.custom") : undefined}
-        title={segment || cell ? t("period.custom") : undefined}
+        aria-label={segment || strip ? t("period.custom") : undefined}
+        title={segment || strip ? t("period.custom") : undefined}
+        style={strip ? { borderColor: current ? "#111" : "transparent" } : undefined}
       >
-        <CalendarRange className={cell ? "h-4 w-4" : "h-3.5 w-3.5"} strokeWidth={cell ? 2.5 : 2} />
-        {!segment && !cell && t("period.custom")}
+        <CalendarRange className={strip ? "h-4 w-4" : "h-3.5 w-3.5"} strokeWidth={strip ? 2.5 : 2} />
+        {!segment && !strip && t("period.custom")}
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
