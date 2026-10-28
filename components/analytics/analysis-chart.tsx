@@ -229,6 +229,7 @@ export function AnalysisCharts({
               value=""
               options={options.map((o) => ({ key: o, label: t(CHART_LABEL[o]), hint: t(CHART_HINT[o]) }))}
               onPick={(k) => onPick(-1, k as ChartKind)}
+              pickSingle
             >
               <SummaryTile color="#7ae582" icon={Plus} label={t("board.addChartShort")} />
             </ViewMenu>
@@ -348,6 +349,7 @@ export function AnalysisCharts({
             hint: t(CHART_HINT[o]),
           }))}
           onPick={(k) => onPick(-1, k as ChartKind)}
+              pickSingle
         >
           <div className="flex items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border py-3 text-[12px] font-medium text-muted-foreground/70 transition-colors hover:border-muted-foreground/50 hover:text-foreground">
             <Plus className="h-3.5 w-3.5" />

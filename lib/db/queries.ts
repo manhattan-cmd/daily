@@ -1107,11 +1107,18 @@ export async function listAnalysisViews(
 }
 
 /** Tercihi yazar; satır yoksa yaratır. Boş bırakılan alan varsayılana döner. */
+/**
+ * Panonun bölümleri (İstikrar, Gelişim…) özelliğe değil yere ait: aynı
+ * tabloda bu takma özellik kimliğiyle duruyor — böylece kategori → alt kalem
+ * mirası ve yedekleme kendiliğinden geçerli.
+ */
+export const SECTIONS_VIEW = "__sections__";
+
 export async function setAnalysisView(
   targetType: "category" | "subcategory",
   targetId: string,
   modId: string,
-  patch: Partial<Pick<AnalysisView, "stats" | "charts" | "series" | "option" | "emptyAsZero">>
+  patch: Partial<Pick<AnalysisView, "stats" | "charts" | "series" | "option" | "emptyAsZero" | "sections">>
 ): Promise<void> {
   const existing = await db.analysisViews
     .where("[targetType+targetId+modId]")

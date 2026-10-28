@@ -26,8 +26,10 @@ export default function AnalyticsPage() {
 function AnalyticsPageContent() {
   const t = useT();
   const searchParams = useSearchParams();
-  // Alt kategori detayından geri dönüşte seçili kategori korunur (?cat=)
+  // Seçili açılacak yer — yapı sayfasının Analiz'i (?cat=, alt kategoride
+  // ayrıca ?sub=)
   const initialCatId = searchParams.get("cat");
+  const initialSubId = searchParams.get("sub");
   const key = searchParams.get("key");
   // Sekme açık kaldığı sürece hafta sabit — lazy init, render başına yeniden hesaplanmaz
   const [week] = useState(() => weekPeriod(Date.now()));
@@ -41,6 +43,7 @@ function AnalyticsPageContent() {
       title={isDefault ? t("insights.title") : undefined}
       back={isDefault ? undefined : "/analytics"}
       initialCatId={initialCatId}
+      initialSubId={initialSubId}
     />
   );
 }

@@ -24,10 +24,11 @@ import {
 import {
   periodProgress,
   periodShortLabel,
-
+  shiftPeriod,
   weekPeriod,
   type Period,
 } from "@/lib/period";
+import { AnalysisSections, type ConsistencyData, type GrowthData } from "./analysis-sections";
 import { StatTile } from "./stat-tile";
 import { StatCell, StatTiles } from "./stat-tiles";
 import { ShareBars, type ShareRow } from "./share-bars";
@@ -37,7 +38,7 @@ import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
 import { modColor } from "@/lib/mod-color";
-import type { Category, ChartKind, Entry, StatKey, SubCategory } from "@/types";
+import type { AnalysisSectionKey, Category, ChartKind, Entry, StatKey, SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
 import { useIsBrutal } from "@/components/structure/brutal";
 import { cn } from "@/lib/utils";
@@ -60,6 +61,29 @@ export function panelWindow(period: Period): { start: number; end: number } {
     return { start: w.start, end: w.end };
   }
   return { start: period.start, end: period.end };
+}
+
+const DAY_MS = 86400000;
+/** "Tümü"nde gelişim penceresi: son 4 hafta vs önceki 4 hafta */
+const TREND_WINDOW_DAYS = 28;
+
+/**
+ * Gelişimin karşılaştırma pencereleri. "Tümü"nde son 4 hafta ile önceki 4
+ * hafta; takvim dönemlerinde (gün/hafta/ay/yıl/özel) bir önceki dönem —
+ * dönem sürüyorsa önceki dönemin AYNI uzunluktaki başı: ayın 12'sinde
+ * "geçen aya göre −%60" yanıltıcı olurdu.
+ */
+function growthWindows(period: Period) {
+  const nowMs = new Date().getTime();
+  if (period.kind === "all") {
+    const recentStart = startOfDayMs(new Date(nowMs)) - (TREND_WINDOW_DAYS - 1) * DAY_MS;
+    return { all: true as const, recentStart, prevStart: recentStart - TREND_WINDOW_DAYS * DAY_MS, prevEnd: recentStart };
+  }
+  const prev = shiftPeriod(period, -1);
+  const inProgress = nowMs >= period.start && nowMs < period.end;
+  const prevStart = prev?.start ?? period.start;
+  const prevEnd = prev ? (inProgress ? Math.min(prev.end, prev.start + (nowMs - period.start)) : prev.end) : period.start;
+  return { all: false as const, prev, inProgress, prevStart, prevEnd };
 }
 
 export function PeriodCategoryPanel({
@@ -96,6 +120,8 @@ export function PeriodCategoryPanel({
     data,
     metric,
     saveView,
+    sections,
+    saveSections,
     compute,
     choiceFilter,
     setChoiceFilter,
@@ -129,6 +155,38 @@ export function PeriodCategoryPanel({
     if (data && shownMetric !== metricId) onResolved?.(shownMetric);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, shownMetric]);
+
+  // Gelişimin önceki penceresi ayrı okunur — dönemin kendi verisi (özellik
+  // listesi, kırılım, sayılar) önceki dönemle karışmasın. Aynı özellik
+  // istenir; o pencerede yoksa önceki dönemde veri yok sayılır.
+  const growthWin = useMemo(() => growthWindows(period), [period]);
+  const prevMetrics = useCategoryMetrics({
+    category,
+    rootSubId: focus?.id,
+    fetchStart: growthWin.prevStart,
+    fetchEnd: growthWin.prevEnd,
+    resetKey: category.id,
+    preferredMetricId: shownMetric === "count" ? undefined : shownMetric,
+    initialMetricId: shownMetric === "count" ? "count" : undefined,
+    excludeRegular,
+  });
+  // Dağılımda gelişim seçilen seçeneğin adedi — önceki pencere de onu saysın
+  const setPrevChoice = prevMetrics.setChoiceFilter;
+  useEffect(() => setPrevChoice(choiceFilter), [choiceFilter, setPrevChoice]);
+
+  /** Bölüm ekle / değiştir / kaldır — kutularla aynı mantık */
+  const pickSection = (slot: number, key: AnalysisSectionKey | null) => {
+    const cur = sections;
+    const next =
+      slot < 0
+        ? key
+          ? [...cur, key]
+          : cur
+        : key
+          ? cur.map((k, i) => (i === slot ? key : k))
+          : cur.filter((_, i) => i !== slot);
+    void saveSections(next);
+  };
 
   /**
    * Pano düzenleme: yuvayı değiştir, kaldır (key null) ya da sona ekle
@@ -409,7 +467,78 @@ export function PeriodCategoryPanel({
     };
   }, [data, compute, metric.type, period, containingWeek, category, focus?.id]);
 
+  // Bölümlerin okumaları (bkz. AnalysisSections)
+  const prevCompute = prevMetrics.compute;
+  const prevData = prevMetrics.data;
+  const prevMetric = prevMetrics.metric;
+  const sectionData = useMemo((): { consistency: ConsistencyData | null; growth: GrowthData | null } | null => {
+    if (!computed || !compute) return null;
+    const now = new Date();
+    const entries = computed.entries;
+    const elapsed = computed.progress.elapsedDays;
+    // İstikrar — girdi girilen günler (özellikten bağımsız); tek günde anlamsız
+    const activeKeys = new Set(entries.map((e) => dayKey(e.occurredAt)));
+    const st = computeStreaks(activeKeys, new Date(Math.min(now.getTime(), period.end - 1)));
+    const consistency =
+      period.kind === "day"
+        ? null
+        : {
+            activeDays: activeKeys.size,
+            elapsedDays: elapsed,
+            ratio: elapsed ? (activeKeys.size / elapsed) * 100 : 0,
+            current: st.current,
+            best: st.best,
+          };
+    // Gelişim — dağılımda yalnız bir seçenek seçiliyken anlamlı
+    if (compute.isChoice && !choiceFilter) return { consistency, growth: null };
+    const recentEntries = growthWin.all ? entries.filter((e) => e.occurredAt >= growthWin.recentStart) : entries;
+    const same =
+      !!prevCompute &&
+      !!prevData &&
+      (metric.type === "count"
+        ? prevMetric.type === "count"
+        : prevMetric.type !== "count" && prevMetric.mod.id === metric.mod.id);
+    const prevEntries = same ? prevData!.entries : [];
+    // Oranda karşılaştırılan şey adet değil oranın kendisi; farkı da PUAN
+    const recentValue = compute.isRate ? compute.averageOf(recentEntries) : compute.aggregate(recentEntries);
+    const prevValue = same ? (compute.isRate ? prevCompute!.averageOf(prevEntries) : prevCompute!.aggregate(prevEntries)) : 0;
+    // "Önceki dönem 0" ile "önceki dönemde veri yok" farklı — kayda bakılır
+    const hasPrev = same && (metric.type === "count" ? prevValue > 0 : prevCompute!.filledCount(prevEntries) > 0);
+    const growth: GrowthData = {
+      recentLabel: growthWin.all ? t("insights.last4Weeks") : periodShortLabel(period, now),
+      prevLabel: growthWin.all
+        ? t("insights.prev4Weeks")
+        : growthWin.prev
+          ? periodShortLabel(growthWin.prev, now)
+          : "—",
+      prevNote:
+        !growthWin.all && growthWin.inProgress && period.kind !== "day"
+          ? t("an.samePortion", { n: elapsed })
+          : undefined,
+      recentValue,
+      prevValue,
+      hasPrev,
+      growthPoints: compute.isAvgLike && hasPrev ? (recentValue - prevValue) * (compute.isRate ? 100 : 1) : null,
+      growthPct: !compute.isAvgLike && hasPrev && prevValue > 0 ? ((recentValue - prevValue) / prevValue) * 100 : null,
+      isRate: compute.isRate,
+      isAvgLike: compute.isAvgLike,
+      unit: metric.type === "count" ? translate("an.entriesUnit") : compute.unit || undefined,
+      note: compute.aggregateNote,
+      basis: growthWin.all ? t("an.growthAll") : t("an.growthPeriod"),
+    };
+    return { consistency, growth };
+  }, [computed, compute, period, choiceFilter, growthWin, prevCompute, prevData, prevMetric, metric, t]);
+
   if (!data || !compute || !computed) return null;
+  const sectionsEl = sectionData && (
+    <AnalysisSections
+      keys={sections}
+      onPick={pickSection}
+      consistency={sectionData.consistency}
+      growth={sectionData.growth}
+      color={lensColor}
+    />
+  );
 
   const unit = compute.unit || undefined;
   const { progress, weekContext } = computed;
@@ -535,6 +664,9 @@ export function PeriodCategoryPanel({
           )}
           {weekLine && <p className="bg-white px-3.5 py-2.5 text-[12px] font-bold text-[#111]/70">{weekLine}</p>}
         </SummaryBlock>
+
+        {/* Panonun bölümleri — İstikrar, Gelişim; eklenir, kaldırılır */}
+        {sectionsEl}
 
         {computed.hasBreakdown && (
           <SummaryBlock
@@ -725,6 +857,8 @@ export function PeriodCategoryPanel({
         </div>
       )}
       </Layer>
+
+      {sectionsEl}
 
       {/* Alt kategori kırılımı — seçili özellikle; satıra dokununca o yere
           inilir (bandın yer seçicisi de oraya geçer) */}

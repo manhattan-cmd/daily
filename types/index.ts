@@ -308,6 +308,9 @@ export interface AnalysisView {
   stats?: StatKey[];
   /** Panodaki grafikler, sırasıyla. Boş dizi = grafik yok */
   charts?: ChartKind[];
+  /** Panonun bölümleri, sırasıyla — yalnız SECTIONS_VIEW satırında (özelliğe
+   *  bağlı değil, yerin kendisinin). Boş dizi = bölüm yok */
+  sections?: AnalysisSectionKey[];
   /** @deprecated v20'de tek grafik vardı; okunurken charts'ın ilk elemanına çevrilir */
   series?: SeriesMode;
   /**
@@ -383,6 +386,14 @@ export type ModReading = "flow" | "level";
  *  distribution etiket dağılımı       "hangisi, ne sıklıkla"
  */
 export type ChartKind = "bar" | "line" | "cumulative" | "points" | "distribution";
+
+/**
+ * Analiz panosunun bölümleri — kutular ve grafiklerin yanında, yerin
+ * tamamına dair okumalar: İstikrar (kaç gün kayıt, seriler), Gelişim
+ * (önceki döneme göre). Kutular gibi eklenip kaldırılıyor; tercih yerin
+ * (kategori / alt kategori) kendisine yazılıyor, alt kalemlere miras geçiyor.
+ */
+export type AnalysisSectionKey = "consistency" | "growth";
 
 export type StatKey =
   /** Dönemin toplamı */

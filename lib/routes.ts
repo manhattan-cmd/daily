@@ -33,12 +33,13 @@ export const routes = {
   /** Yapı: alt kategori (kalem) ayrıntısı */
   structureSub: (categoryId: string, subcategoryId: string) =>
     `/structure/sub?${q({ cat: categoryId, id: subcategoryId })}`,
-  /** Analiz: kategorinin tüm zamanlar görünümü */
-  analyticsCategory: (categoryId: string) =>
-    `/analytics/category?${q({ id: categoryId })}`,
-  /** Analiz: alt kategori — `extra` ek sorgu ("range=tum&metric=count" gibi) */
-  analyticsSub: (categoryId: string, subcategoryId: string, extra?: string) =>
-    `/analytics/sub?${q({ cat: categoryId, id: subcategoryId }, extra)}`,
+  /** Analiz sekmesi, kategori seçili açılır (yapı sayfasının Analiz'i).
+   *  Eskiden kategorinin kendi analiz sayfasıydı (/analytics/category — artık
+   *  buraya yönlendiriyor) */
+  analyticsCategory: (categoryId: string) => `/analytics?${q({ cat: categoryId })}`,
+  /** Analiz sekmesi, alt kategori seçili açılır (eskiden /analytics/sub) */
+  analyticsSub: (categoryId: string, subcategoryId: string) =>
+    `/analytics?${q({ cat: categoryId, sub: subcategoryId })}`,
   /** Analiz: nesne listesi — nesneler yan yana */
   analyticsCollection: (collectionId: string) => `/analytics/collection?${q({ id: collectionId })}`,
   /** Analiz: tek nesne — iliştirildiği bütün girdiler */

@@ -97,7 +97,10 @@ export function PeriodView({
   title,
   back,
   initialCatId,
+  initialSubId,
 }: {
+  /** Açılışta inilecek alt kategori (yapı sayfasının Analiz'i) — initialCatId'nin */
+  initialSubId?: string | null;
   period: Period;
   /** Verilmezse period.label kullanılır */
   title?: string;
@@ -368,10 +371,19 @@ export function PeriodView({
     return kept;
   }, [carried, data]);
 
+  // Adresle gelen alt kategori (yapıdan): kökten ona yol — o dönemde girdisi
+  // olmasa da (taşınan yoldan farkı); seçicilerle yer değişince geçersiz
+  const urlPath = useMemo(() => {
+    if (!initialSubId || !data || selectedCat?.id !== initialCatId) return null;
+    const subById = new Map(data.subs.map((x) => [x.id, x]));
+    const chain: SubCategory[] = [];
+    for (let cur = subById.get(initialSubId); cur; cur = cur.parentId ? subById.get(cur.parentId) : undefined) chain.unshift(cur);
+    return chain.length && chain[0].categoryId === initialCatId ? chain : null;
+  }, [initialSubId, initialCatId, data, selectedCat?.id]);
   const path: SubCategory[] = selectedCat
     ? drill?.catId === selectedCat.id
       ? drill.path
-      : carriedPath
+      : (urlPath ?? carriedPath)
     : [];
   const metricId: string = selectedCat
     ? metricSel?.catId === selectedCat.id

@@ -30,7 +30,14 @@ export function ViewMenu({
   children,
   label,
   triggerClassName = "block h-full w-full text-left",
+  pickSingle = false,
 }: {
+  /**
+   * Ekleme menüleri (Kutu / Grafik / Bölüm ekle): tek seçenek kaldıysa
+   * dokunuş onu doğrudan ekler. Yoksa tek seçenekte menü hiç açılmıyor ve
+   * + düğmesi hiçbir şey yapmıyordu.
+   */
+  pickSingle?: boolean;
   options: { key: string; label: string; hint?: string; danger?: boolean }[];
   value: string;
   onPick: (key: string) => void;
@@ -64,6 +71,13 @@ export function ViewMenu({
     };
   }, [open]);
 
+  if (pickSingle && options.length === 1) {
+    return (
+      <button type="button" onClick={() => onPick(options[0].key)} aria-label={`${label}: ${options[0].label}`} className={triggerClassName}>
+        {children}
+      </button>
+    );
+  }
   if (options.length < 2) return <>{children}</>;
 
   const choices = options.filter((o) => !o.danger);

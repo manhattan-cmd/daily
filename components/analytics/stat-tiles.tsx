@@ -369,7 +369,7 @@ export function StatTiles({
         {/* Yeni kutu — satırın sonunda yeşil hücre (ekleme işleri yeşil) */}
         {canEdit && shown.length < MAX_STATS && (
           <div className="w-[44px] shrink-0">
-            <ViewMenu label={t("board.addBox")} value="" options={addOptions()} onPick={(k) => onPick!(-1, k as StatKey)}>
+            <ViewMenu label={t("board.addBox")} value="" options={addOptions()} onPick={(k) => onPick!(-1, k as StatKey)} pickSingle>
               <span className="flex h-full min-h-[70px] items-center justify-center bg-[#7ae582] text-[#111]">
                 <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#111] text-[#7ae582]">
                   <Plus className="h-4 w-4" strokeWidth={3} />
@@ -441,6 +441,7 @@ export function StatTiles({
                 hint: t(STAT_HINT[o]),
               }))}
             onPick={(k) => onPick!(-1, k as StatKey)}
+            pickSingle
           >
             <div className="flex h-full min-h-[84px] items-center justify-center rounded-2xl border border-dashed border-border text-muted-foreground/60 transition-colors hover:border-muted-foreground/50 hover:text-foreground">
               <Plus className="h-5 w-5" />

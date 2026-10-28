@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import { resolveAnalysisViews, setAnalysisView } from "@/lib/db/queries";
+import { resolveAnalysisViews, SECTIONS_VIEW, setAnalysisView } from "@/lib/db/queries";
 import { choiceLabel } from "@/lib/choice-level";
 import {
   average,
@@ -30,7 +30,7 @@ import {
   type ModKind,
   type ScaleRange,
 } from "@/lib/analytics";
-import type { ChartKind, ModReading, SeriesMode, StatKey } from "@/types";
+import type { AnalysisSectionKey, ChartKind, ModReading, SeriesMode, StatKey } from "@/types";
 
 /** Bir girdi kümesinin bütün sayısal okumaları — kutular buradan besleniyor */
 export type StatBag = {
@@ -72,7 +72,12 @@ export interface CategoryMetricsData {
   regularSubNames: string[];
   /** excludeRegular açıkken pencereden çıkarılan girdi sayısı */
   excludedEntryCount: number;
+  /** Panonun bölümleri — yerin (ya da üstünün) tercihi; yoksa varsayılan */
+  sections?: AnalysisSectionKey[];
 }
+
+/** Hiç seçim yapılmamış yerde açık gelen bölümler */
+export const DEFAULT_SECTIONS: AnalysisSectionKey[] = ["consistency", "growth"];
 
 export interface MetricCompute {
   /** Girdi başına seçili metriğin değeri — yalnızca değeri olan girdiler haritada */
@@ -142,8 +147,8 @@ export interface MetricCompute {
 }
 
 /**
- * Kategori kapsamlı metrik analizi — PeriodCategoryPanel ve
- * CategoryOverviewPanel'in (kategori ve alt kategori) ortak çekirdeği. Veriyi çeker (alt kategoriler,
+ * Kategori kapsamlı metrik analizi — PeriodCategoryPanel'in çekirdeği
+ * (eskiden kategori ve alt kategori analizinin kendi sayfasıyla ortaktı). Veriyi çeker (alt kategoriler,
  * girdiler, değerler, sayısal modlar), metrik seçimini yönetir (varsayılan:
  * ilk mod; URL'den initialMetricId gelirse o) ve girdi kümeleri üzerinde
  * toplama fonksiyonlarını sunar. Panellere kalan: pencere/kova kurgusu ve yerleşim.
@@ -250,6 +255,7 @@ export async function loadCategoryMetrics({
         hasRegular,
         regularSubNames,
         excludedEntryCount: 0,
+        sections: (await resolveAnalysisViews(categoryId, rootSubId)).get(SECTIONS_VIEW)?.sections,
       };
     }
 
@@ -320,6 +326,7 @@ export async function loadCategoryMetrics({
       hasRegular,
       regularSubNames,
       excludedEntryCount,
+      sections: views.get(SECTIONS_VIEW)?.sections,
     };
 }
 
@@ -681,10 +688,16 @@ export function useCategoryMetrics({
     });
   };
 
+  /** Panonun bölümleri — bakılan yere yazılır (alt kalemlere miras geçer) */
+  const saveSections = (next: AnalysisSectionKey[]) =>
+    setAnalysisView(scopeType, scopeId, SECTIONS_VIEW, { sections: next });
+
   return {
     data,
     metric,
     saveView,
+    sections: data?.sections ?? DEFAULT_SECTIONS,
+    saveSections,
     // Başka bir özelliğe geçince seçenek süzgeci kalmasın — o süzgeç
     // önceki özelliğin seçeneğiydi, yenisinde karşılığı yok
     setMetricChoice: (m: Metric) => {

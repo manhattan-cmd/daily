@@ -35,14 +35,9 @@ export function AnalysisMenu({
   sub,
   below,
   title,
-  top,
 }: {
-  /** Dönem satırının üstündeki satır — kategori ve alt kategori analizinde
-   *  neyin analizi olduğu ve geri (bkz. ScopeAnalysisHeader) */
-  top?: ReactNode;
   period?: Period;
-  /** Verilirse dönem URL'ye gitmek yerine buraya bildirilir (kategori ve
-   *  alt kategori analizi — dönem sayfanın kendi durumu) */
+  /** Verilirse dönem URL'ye gitmek yerine buraya bildirilir (sayfa içi seçici) */
   onPick?: (p: Period) => void;
   /** Dönemin adının altındaki satır */
   sub?: ReactNode;
@@ -72,7 +67,6 @@ export function AnalysisMenu({
       className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]"
       style={{ background: ANALYSIS_COLOR }}
     >
-      {top}
       {period ? (
         <>
           <div className="flex items-stretch px-1">
