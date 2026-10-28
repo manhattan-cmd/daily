@@ -33,7 +33,7 @@ export function TopBar({
   color?: string;
   /** Sağdaki düğmeler (TopBarButton) */
   children?: ReactNode;
-  /** Bloğun alt satırı (kategori ve alt kategori sayfası: kategori şeridi) */
+  /** Bloğun alt satırı (kategori ve alt kategori sayfası: konum yolu) */
   rows?: ReactNode;
   className?: string;
 }) {

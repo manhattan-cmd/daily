@@ -58,7 +58,7 @@ export function BrutTopStrip({
   nav,
 }: {
   back: string;
-  /** Bloğun alt satırı — kategori şeridi (bkz. CategoryNav) */
+  /** Bloğun alt satırı — konum yolu (bkz. StructureTrail) */
   nav?: React.ReactNode;
   /** Başlıkta etiketin altında: geri karosunun döndüğü yer */
   trail?: string;
@@ -387,8 +387,8 @@ export function BrutCategoryTree({
       {categories.map((cat) => {
         const n = subTotals.get(cat.id) ?? 0;
         return (
-          <div key={cat.id} data-cat-block={cat.id}>
           <SummaryBlock
+            key={cat.id}
             leadHref={routes.structureCategory(cat.id)}
             lead={{
               kind: "thing",
@@ -410,7 +410,6 @@ export function BrutCategoryTree({
               </p>
             )}
           </SummaryBlock>
-          </div>
         );
       })}
     </div>

@@ -22,7 +22,7 @@ export function StructureHeader({
   below,
 }: {
   action?: React.ReactNode;
-  /** Sekmelerin altında bloğun bir satırı daha (Kategoriler: kategori şeridi) */
+  /** Sekmelerin altında bloğun bir satırı daha (Kategoriler: konum yolu) */
   below?: React.ReactNode;
 }) {
   const t = useT();
