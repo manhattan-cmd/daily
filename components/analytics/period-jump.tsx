@@ -57,10 +57,13 @@ function addDays(t: number, n: number): number {
 export function PeriodJump({
   activeKey,
   segment = false,
+  cell = false,
 }: {
   activeKey?: string;
   /** Zaman seçicinin bölmesi olarak — yalnız takvim simgesi */
   segment?: boolean;
+  /** Brütal başlık bloğunda dönem hücrelerinin sonuncusu (bkz. PeriodTabs cells) */
+  cell?: boolean;
 }) {
   // Özel bir dönemdeyken çip vurgulu, pencere o aralıkla açılır
   const current = activeKey?.startsWith("c-") ? parsePeriodKey(activeKey) : null;
@@ -182,7 +185,12 @@ export function PeriodJump({
         type="button"
         onClick={openPicker}
         className={
-          segment
+          cell
+            ? cn(
+                "flex h-10 items-center justify-center",
+                current ? "bg-[#111] text-[#8ea6ff]" : "bg-white text-[#111] active:bg-[#f5f1e8]"
+              )
+            : segment
             ? cn(
                 // Dönem sekmelerinin sonuncusu gibi — seçiliyken altı çizili
                 "relative flex h-8 shrink-0 items-center transition-colors",
@@ -193,11 +201,11 @@ export function PeriodJump({
             : cn(chipClass(!!current), "flex shrink-0 items-center gap-1.5")
         }
         aria-current={current ? "page" : undefined}
-        aria-label={segment ? t("period.custom") : undefined}
-        title={segment ? t("period.custom") : undefined}
+        aria-label={segment || cell ? t("period.custom") : undefined}
+        title={segment || cell ? t("period.custom") : undefined}
       >
-        <CalendarRange className="h-3.5 w-3.5" />
-        {!segment && t("period.custom")}
+        <CalendarRange className={cell ? "h-4 w-4" : "h-3.5 w-3.5"} strokeWidth={cell ? 2.5 : 2} />
+        {!segment && !cell && t("period.custom")}
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>

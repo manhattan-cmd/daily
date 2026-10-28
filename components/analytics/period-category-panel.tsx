@@ -29,10 +29,11 @@ import {
   type Period,
 } from "@/lib/period";
 import { StatTile } from "./stat-tile";
-import { StatTiles } from "./stat-tiles";
+import { StatCell, StatTiles } from "./stat-tiles";
 import { ShareBars, type ShareRow } from "./share-bars";
 import { AnalysisCharts } from "./analysis-chart";
-import { EntryListSection, type EntryListRow } from "./entry-list";
+import { EntryListBlock, EntryListSection, type EntryListRow } from "./entry-list";
+import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
 import { modColor } from "@/lib/mod-color";
@@ -314,6 +315,7 @@ export function PeriodCategoryPanel({
           id,
           name: s.isCategoryRoot ? category.name : s.name,
           color: category.color,
+          icon: s.isCategoryRoot ? category.icon : (s.icon ?? category.icon),
           value,
           outOf,
           display: unit ? `${fmtNum(value)} ${unit}` : fmtNum(value),
@@ -421,6 +423,177 @@ export function PeriodCategoryPanel({
     <span style={{ color: `${category.color}dd` }}>{focus.name} · </span>
   ) : null;
   const metricLabel = metric.type === "count" ? translate("an.entriesUnit") : unit;
+  const structureHref = focus
+    ? routes.structureSub(category.id, focus.id)
+    : routes.structureCategory(category.id);
+  const chartTitle = (kind: ChartKind) => ({
+    main: (
+      <>
+        {scopePrefix}
+        {/* "Tek tek" kova değil girdi çiziyor; "Haftalık" demek yanlış olurdu */}
+        {kind !== "points" && `${GRANULARITY_TITLES[computed.granularity]} `}
+        {metric.type === "count" ? translate("an.entriesUnit") : metric.mod.name}
+      </>
+    ),
+  });
+  const weekLine = isDay && weekContext && (
+    <>
+      Week avg.{" "}
+      <span className="font-semibold text-foreground">
+        {compute.isRate ? fmtPct(weekContext.ref) : fmtNum(weekContext.ref)}
+        {metricLabel && !compute.isRate ? ` ${metricLabel}` : ""}
+        {weekContext.perDay ? "/gün" : ""}
+      </span>{" "}
+      · this day{" "}
+      <span className="font-semibold" style={{ color: lensColor }}>
+        {weekContext.inPoints
+          ? t("stat.points", { n: fmtNum(Math.abs(weekContext.delta)) })
+          : fmtPct(Math.abs(weekContext.delta) / 100)}{" "}
+        {weekContext.delta >= 0 ? "above" : "below"}
+      </span>
+    </>
+  );
+
+  // Brütal: ana sayfanın blok dili (bkz. SummaryBlock) — yapı sayfalarının
+  // blokları gibi. Üstte yerin kendi renginde ad hücresi (dönem üstünde),
+  // yanında Yapı'nın sarı karosu (yerin yapı sayfası), altında sayı
+  // hücreleri; ardından pembe Alt kategori dağılımı, mavi Grafikler ve
+  // turuncu Girdiler. Krem katmanlar ve içlerindeki kartlar yok.
+  if (brutal) {
+    return (
+      <div className="flex flex-col gap-4">
+        <SummaryBlock
+          lead={{
+            kind: "thing",
+            color: category.color,
+            icon: focus?.icon ?? category.icon,
+            overline: focus ? `${category.name} · ${periodShortLabel(period)}` : periodShortLabel(period),
+            title: focus ? focus.name : category.name,
+          }}
+          action={<SummaryTile color="#ffd23f" icon={Layers} label={t("nav.structure")} href={structureHref} />}
+          stats={[]}
+        >
+          {data.hasRegular && (
+            <div className="bg-white px-3 py-2.5">
+              <RegularToggle
+                active={excludeRegular}
+                onChange={setExcludeRegular}
+                color={category.color}
+                regularSubNames={data.regularSubNames}
+                excludedEntryCount={data.excludedEntryCount}
+              />
+            </div>
+          )}
+          {metric.type === "count" ? (
+            <div className="grid gap-[2px]" style={{ gridTemplateColumns: `repeat(${isDay ? 1 : 2}, minmax(0, 1fr))` }}>
+              <StatCell
+                color={category.color}
+                label={t("insights.entries")}
+                value={fmtNum(computed.withValueCount)}
+                sub={isDay ? period.label : dayCountLabel}
+              />
+              {!isDay && (
+                <StatCell
+                  color={category.color}
+                  label={t("stat.dailyAverage")}
+                  value={fmtNum(computed.dailyAvg)}
+                  unit={translate("an.entriesUnit")}
+                  sub={`${progress.elapsedDays} ${t("stat.days")}`}
+                />
+              )}
+            </div>
+          ) : (
+            <StatTiles
+              cells
+              options={compute.statOptions}
+              onPick={pickStat}
+              keys={compute.stats}
+              color={lensColor}
+              unit={unit}
+              periodSub={periodShortLabel(period)}
+              daysSub={dayCountLabel}
+              values={{
+                total: computed.total,
+                dailyAvg: computed.dailyAvg,
+                avg: computed.avg,
+                medianPerDay: compute.emptyAsZero,
+                withValueCount: computed.withValueCount,
+                entriesCount: compute.isChoice ? computed.choiceTotal : computed.withValueCount,
+                rate: computed.rate,
+                yesStreakCurrent: computed.yesStreak?.current,
+                yesStreakBest: computed.yesStreak?.best,
+                topChoice: computed.topChoice,
+                choiceTotal: computed.choiceTotal,
+                ...computed.level,
+                ...computed.bag,
+                noCount: computed.withValueCount - computed.total,
+                streakCurrent: computed.streaks?.current,
+                streakBest: computed.streaks?.best,
+                elapsedDays: progress.elapsedDays,
+              }}
+            />
+          )}
+          {weekLine && <p className="bg-white px-3.5 py-2.5 text-[12px] font-bold text-[#111]/70">{weekLine}</p>}
+        </SummaryBlock>
+
+        {computed.hasBreakdown && (
+          <SummaryBlock
+            lead={{
+              kind: "count",
+              color: "#ff9ecd",
+              overline: translate("an.subBreakdown"),
+              value: String(computed.shareRows.filter((r) => r.drillable).length),
+              unit: t("struct.subs.unit"),
+              hint: compute.aggregateNote || undefined,
+            }}
+            stats={[]}
+          >
+            <ShareBars
+              cells
+              rows={computed.shareRows}
+              mode={compute.isRate ? "rate" : compute.scale ? "level" : "share"}
+              range={compute.scale}
+              onSelect={onDrill}
+            />
+          </SummaryBlock>
+        )}
+
+        {computed.hasSeries && (
+          <AnalysisCharts
+            block={t("an.charts")}
+            charts={compute.charts}
+            options={compute.chartOptions}
+            onPick={pickChart}
+            buckets={computed.buckets}
+            entries={computed.entries}
+            valueByEntry={compute.valueByEntry}
+            distribution={computed.distribution}
+            choiceFilter={choiceFilter}
+            onChoiceFilter={setChoiceFilter}
+            color={lensColor}
+            unit={metric.type === "count" ? translate("an.entriesUnit") : unit}
+            caption={computed.seriesFrame?.caption}
+            showAllTicks={computed.seriesFrame?.showAllTicks}
+            scale={compute.scale}
+            emptyAsZero={compute.emptyAsZero}
+            stack={compute.isRate ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") } : undefined}
+            title={chartTitle}
+          />
+        )}
+
+        <EntryListBlock
+          title={focus ? `${focus.name} · ${t("objects.entries")}` : t("objects.entries")}
+          accent={lensColor}
+          rows={computed.entryRows}
+          emptyText={
+            metric.type === "mod"
+              ? `No ${metric.mod.name} data in this period`
+              : "No entries in this period"
+          }
+        />
+      </div>
+    );
+  }
 
   // Bölümler katmanlarda (bkz. Layer) — gün ve yapı sayfalarıyla aynı iskelet
   return (

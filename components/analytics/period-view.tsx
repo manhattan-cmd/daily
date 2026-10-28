@@ -44,9 +44,12 @@ import { StatTile } from "@/components/analytics/stat-tile";
 import { DailyBarChart } from "@/components/analytics/daily-bar-chart";
 import { ShareBars, type ShareRow } from "@/components/analytics/share-bars";
 import {
+  EntryListBlock,
   EntryListSection,
   type EntryListRow,
 } from "@/components/analytics/entry-list";
+import { ANALYSIS_COLOR, AnalysisHeader } from "@/components/analytics/analysis-header";
+import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import { PeriodNav, PeriodTabs } from "@/components/analytics/period-switcher";
 import {
   PeriodCategoryPanel,
@@ -63,7 +66,7 @@ import {
 import { ScopePickers } from "@/components/analytics/scope-pickers";
 import type { SubCategory } from "@/types";
 import { LazyMount } from "@/components/ui/lazy-mount";
-import { useLocale, useT, translate } from "@/lib/i18n";
+import { intlTag, useLocale, useT, translate } from "@/lib/i18n";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -262,6 +265,7 @@ export function PeriodView({
           id,
           name: c?.name ?? "—",
           color: c?.color ?? "#6366f1",
+          icon: c?.icon,
           value: v,
         };
       });
@@ -454,6 +458,28 @@ export function PeriodView({
   // Hiç girdi yokken sıfırlardan bir duvar göstermek, yeni kullanıcıya
   // "burada bir şey bozuk" hissi veriyordu — davet daha dürüst
   if (totalEntries === 0) {
+    // Brütal: tek blok — "Analiz için henüz veri yok" ve yeşil İlk girdini
+    // yap karosu; açıklama cümlesi yok
+    if (brutal) {
+      return (
+        <PageSheet
+          top={<PageHeader title={t("nav.insights")} icon={BarChart3} className="band-an" />}
+        >
+          <SummaryBlock
+            lead={{ kind: "title", color: ANALYSIS_COLOR, overline: t("nav.insights"), title: t("insights.empty.title") }}
+            action={
+              <SummaryTile
+                color="#7ae582"
+                icon={PenLine}
+                label={t("insights.empty.action")}
+                href={routes.day(toLocalDateValue())}
+              />
+            }
+            stats={[]}
+          />
+        </PageSheet>
+      );
+    }
     return (
       <PageSheet
         top={
@@ -484,6 +510,16 @@ export function PeriodView({
 
   // İlk yüklemede iskelet — boş görünüp sonra dolmaktansa şeklini göster
   if (!data) {
+    if (brutal) {
+      return (
+        <PageSheet top={<AnalysisHeader period={requestedPeriod} sub={" "} />}>
+          <div className="flex flex-col gap-4 pb-6">
+            <Skeleton className="h-[220px] rounded-[18px]" />
+            <Skeleton className="h-[140px] rounded-[18px]" />
+          </div>
+        </PageSheet>
+      );
+    }
     return (
       <PageSheet
         top={
@@ -513,6 +549,86 @@ export function PeriodView({
     progress.inProgress &&
     progress.totalDays > 1 &&
     period.kind !== "all";
+
+  const fmt = (n: number) => new Intl.NumberFormat(intlTag(locale)).format(n);
+  const pickers = (
+    <ScopePickers
+      cats={data.cats}
+      subs={data.subs}
+      entries={data.entries}
+      selectedCat={selectedCat}
+      path={path}
+      metricId={metricId}
+      onPlace={pickPlace}
+      onMetric={pickMetric}
+    />
+  );
+
+  // Brütal: ana sayfanın blok dili — başlık bloğu (bkz. AnalysisHeader) ve
+  // bölümler SummaryBlock: mavi Kategori dağılımı (satırlar beyaz hücrede),
+  // sarı Nesneler, turuncu Tüm girdiler. Yer seçiliyken o yerin blokları
+  // (bkz. PeriodCategoryPanel). Krem katmanlar yok.
+  if (brutal) {
+    const catRows = computed?.catShare ?? [];
+    const entryCount = computed?.entryCount ?? 0;
+    return (
+      <PageSheet
+        top={
+          <AnalysisHeader
+            period={period}
+            sub={[
+              `${fmt(entryCount)} ${t("home.entries")}`,
+              showProgress && t("period.progress", { n: progress.elapsedDays, total: progress.totalDays }),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+            below={pickers}
+          />
+        }
+      >
+        <div className="flex flex-col gap-4 pb-6">
+          {!selectedCat && (
+            <div data-section="top" className="scroll-mt-36">
+              <SummaryBlock
+                lead={{
+                  kind: "count",
+                  color: ANALYSIS_COLOR,
+                  overline: translate("an.catBreakdown"),
+                  value: fmt(catRows.length),
+                  unit: t("an.catsUnit"),
+                }}
+                stats={[]}
+              >
+                {catRows.length > 0 && <ShareBars cells rows={catRows} nudge onSelect={(id) => pickPlace(id, [])} />}
+              </SummaryBlock>
+            </div>
+          )}
+
+          {!selectedCat && <ObjectsCard start={period.start} end={period.end} />}
+
+          {selectedCat && (
+            <PeriodCategoryPanel
+              key={`${selectedCat.id}|${period.key}`}
+              category={selectedCat}
+              period={period}
+              path={path}
+              metricId={metricId}
+              onDrill={drillTo}
+              onResolved={(id) => setMetricSel({ catId: selectedCat.id, id })}
+            />
+          )}
+
+          {/* Tüm kategorilerin girdileri — sayfanın en altı, yaklaşınca
+              çizilir; dönem boşken blok yok (başlık zaten "0 girdi" diyor) */}
+          {!selectedCat && entryCount > 0 && (
+            <LazyMount minHeight={480}>
+              <EntryListBlock title={t("insights.allEntries")} rows={computed?.entryRows ?? []} />
+            </LazyMount>
+          )}
+        </div>
+      </PageSheet>
+    );
+  }
 
   return (
     <PageSheet

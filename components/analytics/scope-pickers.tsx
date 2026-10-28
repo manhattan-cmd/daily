@@ -14,7 +14,7 @@
  * açılır.
  */
 
-import { useMemo, useState } from "react";
+import { createElement, useMemo, useState } from "react";
 import { Check, ChevronDown, LayoutGrid, ListOrdered } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
@@ -196,7 +196,66 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
 
   return (
     <>
-      {/* Tek çerçeve, iki alan: YER | ÖZELLİK */}
+      {brutal ? (
+        /* Brütal: başlık bloğunun son satırı (bkz. AnalysisHeader) — iki
+           beyaz hücre, aralarında bloğun ortak çizgisi. Solda yerin karosu
+           (kare = kategori), sağda özelliğin dairesi; seçimsizken Analiz'in
+           mavisinde. Eskiden blok içinde gölgeli ayrı bir kart */
+        <div data-scope-cells="" className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)] gap-[2px]">
+          <button
+            type="button"
+            onClick={() => {
+              setAllPlaces(false);
+              setOpen("yer");
+            }}
+            aria-label="Yer seç"
+            className="flex min-w-0 items-center gap-2.5 bg-white px-3 py-2 text-left text-[#111] active:bg-[#f5f1e8]"
+          >
+            <span
+              className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] border-2"
+              style={{ background: selectedCat?.color ?? "#8ea6ff", borderColor: "#111" }}
+            >
+              {selectedCat ? (
+                placeIcon && <SymbolIcon name={placeIcon} size={16} style={{ color: "#111" }} />
+              ) : (
+                <LayoutGrid className="h-4 w-4" strokeWidth={2.5} />
+              )}
+            </span>
+            <span className="min-w-0 flex-1">
+              {/* İnildiyse üstü etikette, bulunulan yer kalın — dar hücrede
+                  "Harcamalar › Ulaşım" sığmayıp "Harcamalar › …" oluyordu */}
+              <span className="block truncate text-[9.5px] font-black uppercase leading-none tracking-[0.1em] text-[#111]/55">
+                {focus && selectedCat
+                  ? `Yer · ${path.length > 1 ? path[path.length - 2].name : selectedCat.name}`
+                  : "Yer"}
+              </span>
+              <span className="mt-1 block truncate text-[14px] font-black leading-tight">
+                {focus?.name ?? selectedCat?.name ?? t("structure.categories")}
+              </span>
+            </span>
+            <ChevronDown className="h-4 w-4 shrink-0" strokeWidth={2.75} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpen("ne")}
+            aria-label="Özellik seç"
+            className="flex min-w-0 items-center gap-2.5 bg-white px-3 py-2 text-left text-[#111] active:bg-[#f5f1e8]"
+          >
+            <span
+              className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full border-2"
+              style={{ background: currentMod ? modColor(currentMod) : "#8ea6ff", borderColor: "#111" }}
+            >
+              {createElement(currentMod ? atomIcon(currentMod) : ListOrdered, { className: "h-4 w-4", strokeWidth: 2.5 })}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[9.5px] font-black uppercase leading-none tracking-[0.1em] text-[#111]/55">Özellik</span>
+              <span className="mt-1 block truncate text-[14px] font-black leading-tight">{currentMod ? currentMod.name : "Seç"}</span>
+            </span>
+            <ChevronDown className="h-4 w-4 shrink-0" strokeWidth={2.75} />
+          </button>
+        </div>
+      ) : (
+      /* Tek çerçeve, iki alan: YER | ÖZELLİK */
       <div
         data-scope-pickers=""
         className={cn(
@@ -254,6 +313,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
           <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
         </button>
       </div>
+      )}
 
       <Dialog open={open !== null} onOpenChange={(o) => !o && setOpen(null)}>
         <DialogContent data-scope-dialog="" className="max-h-[82vh] max-w-[370px] gap-3 overflow-y-auto p-5">

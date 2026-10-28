@@ -20,7 +20,11 @@ export function ChoiceDistribution({
   selected,
   onSelect,
   title,
+  cells = false,
 }: {
+  /** Brütal blok hücresi (bkz. AnalysisCharts block) — kart ve başlık yok,
+   *  satırlar beyaz hücrede */
+  cells?: boolean;
   rows: { choice: string; count: number }[];
   color: string;
   /** Süzgeç olarak seçili seçenek; null = tümü */
@@ -37,6 +41,32 @@ export function ChoiceDistribution({
     value: r.count,
     display: fmtNum(r.count),
   }));
+
+  if (cells) {
+    return (
+      <>
+        {selected && (
+          <div className="flex justify-end bg-white px-3 pt-2">
+            <button
+              type="button"
+              onClick={() => onSelect(null)}
+              className="rounded-lg border-[1.5px] bg-white px-2 py-1 text-[11px] font-extrabold text-[#111]"
+              style={{ borderColor: "#111" }}
+            >
+              {t("insights.allOptions")}
+            </button>
+          </div>
+        )}
+        <ShareBars
+          cells
+          rows={shareRows}
+          selectedId={selected}
+          emptyText={t("stat.noData")}
+          onSelect={(choice) => onSelect(choice === selected ? null : choice)}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4">

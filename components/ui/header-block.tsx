@@ -251,7 +251,9 @@ export function HeaderTile({
   width?: number;
 }) {
   const cls = cn(
-    "flex shrink-0 flex-col items-center justify-center gap-1 text-[#111] active:brightness-95 disabled:opacity-35",
+    // Pasifken hücre beyaz kalır, yalnız içi soluk — bütün karo soluklaşınca
+    // altındaki siyah zemin görünüp gri bir blok oluyordu (Analiz'de sonraki dönem)
+    "flex shrink-0 flex-col items-center justify-center gap-1 text-[#111] active:brightness-95 disabled:text-[#111]/20 disabled:active:brightness-100",
     label && "px-2"
   );
   const st: CSSProperties = { background: color, minWidth: width };

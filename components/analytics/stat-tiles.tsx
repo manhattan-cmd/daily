@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { HScroll } from "@/components/ui/h-scroll";
 import { fmtNum, fmtPct, MAX_STATS } from "@/lib/analytics";
 import { useT, type MessageKey } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 import { StatTile } from "./stat-tile";
 import { ViewMenu } from "./view-menu";
 import type { StatKey } from "@/types";
@@ -115,6 +116,55 @@ const REMOVE = "__remove__";
 /** Kutu genişliği — 390px'lik ekranda üçü tam sığmaz, dördüncünün ucu görünür */
 const TILE_W = "w-[124px] shrink-0";
 
+/**
+ * Bloğun sayı hücresi (Brütal) — SummaryBlock'un sayıları gibi: beyaz,
+ * tepesinde rengin bandı, üstte ad (iki satıra kadar, yan yana hücrelerde
+ * rakamlar aynı hizada), rakam ve altında bağlamı.
+ */
+export function StatCell({
+  label,
+  value,
+  unit,
+  sub,
+  color,
+  wordValue = false,
+  pickable = false,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+  sub?: string;
+  color: string;
+  wordValue?: boolean;
+  pickable?: boolean;
+}) {
+  return (
+    <span data-stat-cell="" className="flex h-full min-w-0 flex-col bg-white text-left text-[#111]">
+      <span className="h-1.5 shrink-0" style={{ background: color }} />
+      <span className="flex min-w-0 flex-1 flex-col px-2.5 pb-2 pt-1.5">
+        <span
+          className={cn(
+            "line-clamp-2 h-[22px] text-[9.5px] font-black uppercase leading-[11px] text-[#111]/60",
+            pickable && "underline decoration-dotted decoration-[#111]/40 underline-offset-2"
+          )}
+        >
+          {label}
+        </span>
+        <b
+          className={cn(
+            "mt-0.5 block truncate font-mono font-bold leading-6 tabular-nums",
+            wordValue ? "text-[15px]" : "text-[19px]"
+          )}
+        >
+          {value}
+          {unit && <span className="ml-1 font-sans text-[11px] font-extrabold opacity-70">{unit}</span>}
+        </b>
+        {sub && <span className="block truncate text-[10px] font-bold leading-tight text-[#111]/55">{sub}</span>}
+      </span>
+    </span>
+  );
+}
+
 export function StatTiles({
   keys,
   values,
@@ -126,7 +176,11 @@ export function StatTiles({
   daysSub,
   options,
   onPick,
+  cells = false,
 }: {
+  /** Brütal blok satırı: kutular yerine sayı hücreleri (bkz. StatCell),
+   *  sığmazsa satır yana kayar; sonda yeşil + hücresi */
+  cells?: boolean;
   keys: StatKey[];
   values: StatValues;
   unit?: string;
@@ -265,6 +319,68 @@ export function StatTiles({
   const shown = keys;
   const canEdit = !!onPick && (options?.length ?? 0) > 0;
   if (!shown.length && !canEdit) return null;
+
+  const boxOptions = (key: StatKey) => [
+    // Zaten panoda duran kutu listede görünmez: aynı rakamı iki kutuda
+    // göstermek yer israfı
+    ...options!
+      .filter((o) => o === key || !shown.includes(o))
+      .map((o) => ({ key: o, label: t(STAT_LABEL[o]), hint: t(STAT_HINT[o]) })),
+    { key: REMOVE, label: t("board.remove"), danger: true },
+  ];
+  const addOptions = () =>
+    options!
+      .filter((o) => !shown.includes(o))
+      .map((o) => ({ key: o, label: t(STAT_LABEL[o]), hint: t(STAT_HINT[o]) }));
+
+  if (cells) {
+    return (
+      <div data-stat-cells="" className="no-scrollbar flex gap-[2px] overflow-x-auto">
+        {shown.map((key, slot) => {
+          const it = tile(key);
+          if (!it) return null;
+          const cell = (
+            <StatCell
+              color={color}
+              label={it.label}
+              value={it.value}
+              unit={"unit" in it ? it.unit : undefined}
+              wordValue={"wordValue" in it ? it.wordValue : undefined}
+              sub={it.sub}
+              pickable={!!onPick && (options?.length ?? 0) > 1}
+            />
+          );
+          // Üçü yan yana tam sığar; fazlası yana kayar
+          const w = "min-w-[100px] flex-1 basis-0";
+          if (!canEdit) return <div key={key} className={w}>{cell}</div>;
+          return (
+            <div key={key} className={w}>
+              <ViewMenu
+                label={t("board.boxType")}
+                value={key}
+                options={boxOptions(key)}
+                onPick={(k) => onPick!(slot, k === REMOVE ? null : (k as StatKey))}
+              >
+                {cell}
+              </ViewMenu>
+            </div>
+          );
+        })}
+        {/* Yeni kutu — satırın sonunda yeşil hücre (ekleme işleri yeşil) */}
+        {canEdit && shown.length < MAX_STATS && (
+          <div className="w-[44px] shrink-0">
+            <ViewMenu label={t("board.addBox")} value="" options={addOptions()} onPick={(k) => onPick!(-1, k as StatKey)}>
+              <span className="flex h-full min-h-[70px] items-center justify-center bg-[#7ae582] text-[#111]">
+                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#111] text-[#7ae582]">
+                  <Plus className="h-4 w-4" strokeWidth={3} />
+                </span>
+              </span>
+            </ViewMenu>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // Kutular alta sarmak yerine SAĞA gidiyor: pano büyüdükçe sayfa uzamıyor,
   // sıra kaydırılıyor. Genişlik üç kutu tam sığmayacak kadar — dördüncünün

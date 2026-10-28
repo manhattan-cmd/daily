@@ -120,6 +120,14 @@ export function SummaryTile({
       <span className="text-center text-[12px] font-black leading-[1.05]">{label}</span>
     </>
   );
+  if (!href && !onClick) {
+    // Yalnız görünüş — dokunuşu dıştaki düğme alır (Analiz'in Grafik ekle menüsü)
+    return (
+      <span className={cls} style={{ background: color }}>
+        {body}
+      </span>
+    );
+  }
   return href ? (
     <Link href={href} className={cls} style={{ background: color }}>
       {body}

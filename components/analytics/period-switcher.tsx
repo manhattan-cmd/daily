@@ -54,11 +54,15 @@ export const tabState = (on: boolean) =>
 export function PeriodTabs({
   period,
   onPick,
+  cells = false,
 }: {
   period: Period;
   /** Verilirse dönem URL'ye gitmek yerine buraya bildirilir (sayfa içi
    *  seçici); özel aralık takvimi o zaman gösterilmez */
   onPick?: (p: Period) => void;
+  /** Brütal başlık bloğunun satırı (bkz. AnalysisHeader) — her sekme bir
+   *  hücre, aralarında bloğun ortak 2 px çizgileri; seçili olan siyah */
+  cells?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -81,6 +85,38 @@ export function PeriodTabs({
     if (next.key === period.key) return;
     if (onPick) onPick(next);
     else router.push(routes.period(next.key));
+  }
+
+  if (cells) {
+    return (
+      <div
+        role="tablist"
+        aria-label={t("insights.period")}
+        data-period-cells=""
+        className="grid gap-[2px]"
+        style={{ gridTemplateColumns: `repeat(${KINDS.length}, minmax(0, 1fr))${onPick ? "" : " 46px"}` }}
+      >
+        {KINDS.map(({ kind, label }) => {
+          const on = period.kind === kind;
+          return (
+            <button
+              key={kind}
+              type="button"
+              role="tab"
+              aria-selected={on}
+              onClick={() => pickKind(kind)}
+              className={cn(
+                "flex h-10 min-w-0 items-center justify-center text-[12.5px] font-extrabold",
+                on ? "bg-[#111] text-[#8ea6ff]" : "bg-white text-[#111] active:bg-[#f5f1e8]"
+              )}
+            >
+              {t(label)}
+            </button>
+          );
+        })}
+        {!onPick && <PeriodJump activeKey={period.key} cell />}
+      </div>
+    );
   }
 
   return (

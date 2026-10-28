@@ -1,6 +1,8 @@
 "use client";
 
+import { Fragment } from "react";
 import { Pencil, Plus } from "lucide-react";
+import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import { dayKey, daysIn, fmtEntryDateTime, MAX_CHARTS, type DayBucket, type ScaleRange } from "@/lib/analytics";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { DailyBarChart } from "./daily-bar-chart";
@@ -122,7 +124,14 @@ export function AnalysisCharts({
   onSelect,
   title,
   emptyAsZero,
+  block,
 }: {
+  /**
+   * Brütal: grafikler tek blokta (bkz. SummaryBlock) — mavi "GRAFİKLER ·
+   * 2 grafik", yanında yeşil Grafik ekle karosu; her grafiğin adı krem ara
+   * satırda Düzenle'siyle, çizimi altında beyaz hücrede. Değer bloğun etiketi.
+   */
+  block?: string;
   charts: ChartKind[];
   options: ChartKind[];
   onPick: (slot: number, kind: ChartKind | null) => void;
@@ -175,6 +184,90 @@ export function AnalysisCharts({
       {t("action.edit")}
     </ViewMenu>
   );
+
+  const chartOf = (kind: ChartKind) =>
+    kind === "distribution" ? (
+      <ChoiceDistribution
+        rows={distribution}
+        color={color}
+        selected={choiceFilter ?? null}
+        onSelect={onChoiceFilter ?? (() => {})}
+      />
+    ) : (
+      <DailyBarChart
+        data={
+          kind === "points"
+            ? pointsOf(entries, valueByEntry, buckets, emptyAsZero)
+            : seriesOf(kind, buckets, emptyAsZero)
+        }
+        color={color}
+        unit={unit}
+        caption={kind === "points" ? undefined : caption}
+        showAllTicks={kind === "points" ? false : showAllTicks}
+        scale={scale}
+        stack={kind === "bar" ? stack : undefined}
+        variant={kind === "bar" ? "bar" : "line"}
+        onSelect={kind === "bar" ? onSelect : undefined}
+      />
+    );
+
+  if (block !== undefined) {
+    const canAdd = canEdit && charts.length < MAX_CHARTS;
+    return (
+      <SummaryBlock
+        lead={{
+          kind: "count",
+          color: "#8ea6ff",
+          overline: block,
+          value: String(charts.length),
+          unit: t("an.chartsUnit"),
+        }}
+        action={
+          canAdd ? (
+            <ViewMenu
+              label={t("board.chartType")}
+              value=""
+              options={options.map((o) => ({ key: o, label: t(CHART_LABEL[o]), hint: t(CHART_HINT[o]) }))}
+              onPick={(k) => onPick(-1, k as ChartKind)}
+            >
+              <SummaryTile color="#7ae582" icon={Plus} label={t("board.addChartShort")} />
+            </ViewMenu>
+          ) : undefined
+        }
+        stats={[]}
+      >
+        {charts.map((kind, slot) => {
+          const head = title(kind);
+          return (
+            <Fragment key={`${kind}-${slot}`}>
+              <div data-chart-head="" className="flex min-h-[40px] items-center gap-2 bg-[#f5f1e8] py-1.5 pl-3.5 pr-2 text-[#111]">
+                <span className="min-w-0 flex-1 truncate text-[10.5px] font-black uppercase tracking-[0.08em]">
+                  {head.main}
+                  <span className="font-bold normal-case tracking-normal text-[#111]/60">
+                    {" · "}
+                    {t(CHART_LABEL[kind])}
+                    {head.extra}
+                  </span>
+                </span>
+                {canEdit && editMenu(kind, slot)}
+              </div>
+              {kind === "distribution" ? (
+                <ChoiceDistribution
+                  cells
+                  rows={distribution}
+                  color={color}
+                  selected={choiceFilter ?? null}
+                  onSelect={onChoiceFilter ?? (() => {})}
+                />
+              ) : (
+                <div className="bg-white px-3 pb-2 pt-3">{chartOf(kind)}</div>
+              )}
+            </Fragment>
+          );
+        })}
+      </SummaryBlock>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3">

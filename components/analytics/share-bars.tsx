@@ -2,12 +2,15 @@
 
 import { fmtNum, fmtPct } from "@/lib/analytics";
 import { ChevronRight } from "lucide-react";
+import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 export type ShareRow = {
   id: string;
   name: string;
   color: string;
+  /** Sembol adı — blok satırında (cells) rengin karosunda */
+  icon?: string;
   value: number;
   /** Biçimlenmiş değer (birimli); yoksa fmtNum(value) */
   display?: string;
@@ -39,6 +42,7 @@ export function ShareBars({
   range,
   selectedId = null,
   nudge = false,
+  cells = false,
 }: {
   rows: ShareRow[];
   emptyText?: string;
@@ -51,6 +55,12 @@ export function ShareBars({
   selectedId?: string | null;
   /** Satır oklarını sırayla bir kez sağa it — "bunlara basılır" ipucu */
   nudge?: boolean;
+  /**
+   * Brütal blok hücresi (bkz. SummaryBlock): satırlar beyaz hücrede alt
+   * alta, aralarında ince siyah çizgi; solda rengin karosu (kare = kategori),
+   * adın altında çerçeveli çubuk. Kartçıklar ve gölgeleri yok.
+   */
+  cells?: boolean;
 }) {
   const isRate = mode === "rate";
   const isLevel = mode === "level" && !!range;
@@ -72,6 +82,77 @@ export function ShareBars({
   const sorted = [...rows].sort((a, b) =>
     isRate ? ratioOf(b) - ratioOf(a) : b.value - a.value
   );
+
+  if (cells) {
+    return (
+      <div data-share-cells="" className="flex flex-col bg-white">
+        {sorted.map((r, i) => {
+          const pct = isRate ? ratioOf(r) * 100 : isLevel ? levelOf(r) * 100 : (r.value / total) * 100;
+          const canDrill = !!onSelect && r.drillable !== false;
+          const dimmed = selectedId !== null && r.id !== selectedId;
+          return (
+            <button
+              key={r.id}
+              type="button"
+              onClick={canDrill ? () => onSelect!(r.id) : undefined}
+              aria-pressed={selectedId !== null ? r.id === selectedId : undefined}
+              className={cn(
+                "flex w-full min-w-0 items-center gap-2.5 px-3 py-2.5 text-left text-[#111] transition-opacity",
+                i > 0 && "border-t-[1.5px]",
+                canDrill ? "active:bg-[#f5f1e8]" : "cursor-default",
+                dimmed && "opacity-40"
+              )}
+              style={i > 0 ? { borderTopColor: "#111" } : undefined}
+            >
+              <span
+                className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] border-2"
+                style={{ background: r.color, borderColor: "#111" }}
+              >
+                {r.icon && <SymbolIcon name={r.icon} size={16} style={{ color: "#111" }} />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-baseline gap-2">
+                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-black leading-tight">{r.name}</span>
+                  <b className="shrink-0 font-mono text-[13px] font-bold leading-tight tabular-nums">
+                    {isRate ? fmtPct(ratioOf(r)) : (r.display ?? fmtNum(r.value))}
+                  </b>
+                  <span className="w-10 shrink-0 text-right font-mono text-[10.5px] font-bold leading-tight text-[#111]/55">
+                    {isRate
+                      ? `${fmtNum(r.value)}/${fmtNum(r.outOf ?? 0)}`
+                      : isLevel
+                        ? fmtNum(r.outOf ?? 0)
+                        : `%${pct < 1 ? pct.toFixed(1) : Math.round(pct)}`}
+                  </span>
+                </span>
+                <span
+                  className="mt-1.5 block h-[9px] overflow-hidden rounded-full border-[1.5px] bg-[#f5f1e8]"
+                  style={{ borderColor: "#111" }}
+                >
+                  <span
+                    className="block h-full border-r-[1.5px] transition-[width] duration-300"
+                    style={{
+                      width: `${isRate || isLevel ? pct : Math.max(pct, 1.5)}%`,
+                      background: r.color,
+                      borderRightColor: pct > 0 ? "#111" : "transparent",
+                    }}
+                  />
+                </span>
+              </span>
+              {canDrill ? (
+                <ChevronRight
+                  className={cn("h-4 w-4 shrink-0", nudge && "chevron-nudge")}
+                  strokeWidth={2.75}
+                  style={nudge ? { animationDelay: `${700 + i * 90}ms` } : undefined}
+                />
+              ) : (
+                onSelect && <span aria-hidden className="w-4 shrink-0" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className={cn("flex flex-col", onSelect ? "-mx-1.5 gap-1.5" : "gap-3")}>
