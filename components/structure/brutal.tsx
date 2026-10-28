@@ -229,8 +229,10 @@ function ToolCell({
  * blok dili (bkz. SummaryBlock): solda pembe "ALT KATEGORİLER · 6 alt
  * kategori" (Kategorilerin'in rengi — yapının zinciri), yanında yeşil Alt
  * kategori ekle karosu (eskiden ağacın altında kesik çerçeveli soluk satır),
- * altında ağaç beyaz hücrede (bkz. BrutSubRows). Hiç yoksa ne işe yaradığı
- * yazıyor. Sayı bu kalemin altındaki bütün dallar.
+ * altında ağaç beyaz hücrede (bkz. BrutSubRows). Hiç yoksa yalnız "0 alt
+ * kategori" ve ekle karosu — eskiden altında ne işe yaradığını anlatan bir
+ * cümle vardı, kullanıcıya göre gereksizdi. Sayı bu kalemin altındaki bütün
+ * dallar.
  */
 export function BrutSubsBlock({
   category,
@@ -276,10 +278,6 @@ export function BrutSubsBlock({
         <div data-subs-cell="" className="bg-white px-1.5 py-2">
           <BrutSubRows category={category} subs={subs} counts={counts} rootId={rootId} />
         </div>
-      ) : subs ? (
-        <p className="bg-white px-3.5 py-3 text-[12.5px] font-semibold leading-snug text-[#111]/65">
-          {t("struct.subs.empty")}
-        </p>
       ) : null}
     </SummaryBlock>
   );
@@ -442,14 +440,11 @@ export function BrutCategoryTree({
             action={<SummaryTile color="#7ae582" icon={Plus} label={t("structure.addSub")} onClick={() => onAddSub(cat)} />}
             stats={[]}
           >
-            {n > 0 ? (
+            {/* Alt kategorisi yoksa yalnız ad hücresi ve ekle karosu */}
+            {n > 0 && (
               <div data-subs-cell="" className="bg-white px-1.5 py-2">
                 <BrutSubRows category={cat} subs={subs} counts={counts} />
               </div>
-            ) : (
-              <p className="bg-white px-3.5 py-3 text-[12.5px] font-semibold leading-snug text-[#111]/65">
-                {t("struct.subs.empty")}
-              </p>
             )}
           </SummaryBlock>
         );

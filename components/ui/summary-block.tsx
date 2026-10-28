@@ -100,7 +100,9 @@ export function SummaryTile({
   onClick?: () => void;
   href?: string;
 }) {
-  const cls = "flex h-full w-full flex-col items-center justify-center gap-1.5 px-1 text-[#111] active:brightness-95";
+  // py: ad hücresi kısa kalınca (boş Alt kategoriler) üç satırlık ad ve simge
+  // kenara, bloğun yuvarlak köşesine yapışıp kesiliyordu — satır gerekirse uzar
+  const cls = "flex h-full w-full flex-col items-center justify-center gap-1.5 px-1 py-2.5 text-[#111] active:brightness-95";
   const body = (
     <>
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#111]" style={{ color }}>
