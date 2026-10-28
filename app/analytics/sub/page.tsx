@@ -11,7 +11,7 @@ import { routes } from "@/lib/routes";
  * yeri kendi içinde açınca işlevi kalmadı — bölümleri de oranın panosuna
  * taşındı (bkz. AnalysisSections). Eski bağlantılar ve yer imleri için
  * adres duruyor: Analiz sekmesine, bu yer seçili olarak yönlendirir; dönem
- * (?p=) varsa o dönemle.
+ * (?p=) varsa o dönemle, yoksa Tümü (sayfanın kendi varsayılanı gibi).
  */
 export default function Page() {
   return (
@@ -24,10 +24,9 @@ export default function Page() {
 function Redirect() {
   const q = useSearchParams();
   const router = useRouter();
-  const target = routes.analyticsSub(q.get("cat") ?? "", q.get("id") ?? "");
-  const p = q.get("p");
+  const target = routes.analyticsSub(q.get("cat") ?? "", q.get("id") ?? "", q.get("p") || undefined);
   useEffect(() => {
-    router.replace(p ? `${target}&key=${encodeURIComponent(p)}` : target);
-  }, [router, target, p]);
+    router.replace(target);
+  }, [router, target]);
   return null;
 }
