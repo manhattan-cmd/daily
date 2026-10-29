@@ -46,14 +46,16 @@ export function StructureTabs() {
   const activeIndex = structureTabIndex(pathname);
   const brutal = useSkin() === "brutal";
 
-  // Brütal: başlık bloğunun alt satırı (bkz. HeaderBlock) — beş hücre ortak
-  // çizgilerle, seçili olan siyah (simgesi sarı, adı krem)
+  // Brütal: şeridin sekmeleri (bkz. StructureHeader) — alt menünün aynası:
+  // simge ve altında ad, çerçevesiz; seçili olanın simgesi kalkık beyaz
+  // kapsülde (şekli sarı dolu), adı koyu. Eskiden beş beyaz hücre ortak
+  // çizgilerle, seçili olan siyahtı.
   if (brutal) {
     return (
       <nav aria-label={t("structure.title")}>
         <div
-          data-tab-cells=""
-          className="grid gap-[2px]"
+          data-tab-strip=""
+          className="grid px-1 pb-2 pt-1.5"
           style={{ gridTemplateColumns: `repeat(${STRUCTURE_TABS.length}, minmax(0, 1fr))` }}
         >
           {STRUCTURE_TABS.map((tab, i) => {
@@ -63,22 +65,26 @@ export function StructureTabs() {
                 key={tab.href}
                 href={tab.href}
                 aria-current={on ? "page" : undefined}
-                className={cn(
-                  "flex min-w-0 flex-col items-center gap-1 pb-2 pt-2.5",
-                  on ? "bg-[#111] text-[#ffd23f]" : "bg-white text-[#111] active:bg-[#f5f1e8]"
-                )}
+                className="flex min-w-0 flex-col items-center gap-[5px] pt-1 text-[#111]"
               >
-                <span className="flex h-4 items-center justify-center">
+                <span
+                  className={cn(
+                    "box-content flex h-[18px] w-[18px] items-center justify-center rounded-full border-[1.5px] px-[10px] py-[2px] transition-transform",
+                    on ? "-translate-y-0.5 bg-white shadow-[2px_2px_0_#111]" : "text-[#111]/60"
+                  )}
+                  // Çerçeve rengi satır içi: katmansız "* { border-color }" kuralı border-transparent'ı eziyor
+                  style={{ borderColor: on ? "#111" : "transparent" }}
+                >
                   <tab.icon
                     className={cn("shrink-0", tab.icon === Diamond ? "h-[15px] w-[15px]" : "h-3.5 w-3.5")}
                     strokeWidth={2.6}
-                    fill={on ? "currentColor" : "none"}
+                    fill={on ? "#ffd23f" : "none"}
                   />
                 </span>
                 <span
                   className={cn(
-                    "w-full whitespace-nowrap text-center text-[10.5px] font-extrabold leading-none tracking-[-0.01em]",
-                    on && "text-[#fff4dc]"
+                    "w-full whitespace-nowrap text-center text-[10.5px] leading-none tracking-[-0.01em]",
+                    on ? "font-black" : "font-bold text-[#111]/65"
                   )}
                 >
                   {t(tab.key)}
