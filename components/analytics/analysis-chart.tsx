@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { LineChart, Pencil, Plus } from "lucide-react";
 import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import { dayKey, daysIn, fmtEntryDateTime, MAX_CHARTS, type DayBucket, type ScaleRange } from "@/lib/analytics";
 import { useT, type MessageKey } from "@/lib/i18n";
@@ -127,9 +127,16 @@ export function AnalysisCharts({
   block,
 }: {
   /**
-   * Brütal: grafikler tek blokta (bkz. SummaryBlock) — mavi "GRAFİKLER ·
-   * 2 grafik", yanında yeşil Grafik ekle karosu; her grafiğin adı krem ara
-   * satırda Düzenle'siyle, çizimi altında beyaz hücrede. Değer bloğun etiketi.
+   * Brütal: grafikler tek blokta (bkz. SummaryBlock) — ince mavi başta
+   * yalnız "Grafikler" (sayı yok), yanında dar yeşil + karosu; her grafiğin
+   * başı grafiğin renginin açık tonunda ince bir şerit — adı ("Haftalık
+   * Para"), yanında türü beyaz kapsülde ("Toplam"), sağda küçük kalem
+   * (Düzenle) — çizimi hemen altında. Baş ve çizim tek hücre (aralarında
+   * siyah çizgi yok); iki grafiğin arasında bloğun mavisinde ince şerit —
+   * alt alta birkaç grafik olunca hangi başın hangi grafiğe ait olduğu
+   * belli olsun. Eskiden baş da çizim de ayrı hücreydi, her şey aynı siyah
+   * çizgiyle ayrılıyordu; ayrı kartlar da denendi, yapışık hali seçildi.
+   * Değer bloğun etiketi.
    */
   block?: string;
   charts: ChartKind[];
@@ -176,12 +183,18 @@ export function AnalysisCharts({
       }
       triggerClassName={
         brutal
-          ? "flex h-7 shrink-0 items-center gap-1 rounded-lg border-[1.5px] border-[#111] bg-white px-2 text-[11px] font-extrabold text-[#111] shadow-[1.5px_1.5px_0_#111]"
+          ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] border-[#111] bg-white text-[#111] active:bg-[#111]/10"
           : "-mr-1 -mt-1 flex h-7 shrink-0 items-center gap-1 rounded-full bg-[var(--sf-2)] px-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-[var(--sf-3)] hover:text-foreground"
       }
     >
-      <Pencil className="h-3 w-3" />
-      {t("action.edit")}
+      {brutal ? (
+        <Pencil className="h-3 w-3" strokeWidth={2.75} />
+      ) : (
+        <>
+          <Pencil className="h-3 w-3" />
+          {t("action.edit")}
+        </>
+      )}
     </ViewMenu>
   );
 
@@ -215,13 +228,8 @@ export function AnalysisCharts({
     const canAdd = canEdit && charts.length < MAX_CHARTS;
     return (
       <SummaryBlock
-        lead={{
-          kind: "count",
-          color: "#8ea6ff",
-          overline: block,
-          value: String(charts.length),
-          unit: t("an.chartsUnit"),
-        }}
+        compact
+        lead={{ kind: "title", color: "#8ea6ff", glyph: LineChart, overline: block, title: block }}
         action={
           canAdd ? (
             <ViewMenu
@@ -231,7 +239,7 @@ export function AnalysisCharts({
               onPick={(k) => onPick(-1, k as ChartKind)}
               pickSingle
             >
-              <SummaryTile color="#7ae582" icon={Plus} label={t("board.addChartShort")} />
+              <SummaryTile compact color="#7ae582" icon={Plus} label={t("board.addChartShort")} />
             </ViewMenu>
           ) : undefined
         }
@@ -241,15 +249,26 @@ export function AnalysisCharts({
           const head = title(kind);
           return (
             <Fragment key={`${kind}-${slot}`}>
-              <div data-chart-head="" className="flex min-h-[40px] items-center gap-2 bg-[#f5f1e8] py-1.5 pl-3.5 pr-2 text-[#111]">
-                <span className="min-w-0 flex-1 truncate text-[10.5px] font-black uppercase tracking-[0.08em]">
-                  {head.main}
-                  <span className="font-bold normal-case tracking-normal text-[#111]/60">
-                    {" · "}
-                    {t(CHART_LABEL[kind])}
-                    {head.extra}
-                  </span>
+            {/* İki grafiğin arası: siyah çizgiler arasında mavi şerit */}
+            {slot > 0 && <div aria-hidden data-chart-gap="" className="h-2" style={{ background: "#c8d4ff" }} />}
+            <div data-chart-unit="" className="flex flex-col bg-white">
+              <div
+                data-chart-head=""
+                className="flex min-h-[40px] items-center gap-2 py-1.5 pl-3.5 pr-2 text-[#111]"
+                // Grafiğin renginin açık tonu — opak (bloğun ara çizgileri
+                // siyah); altında aynı rengin ince çizgisi
+                style={{
+                  backgroundColor: "#fff",
+                  backgroundImage: `linear-gradient(${color}2e, ${color}2e)`,
+                  borderBottom: `1.5px solid ${color}66`,
+                }}
+              >
+                <span className="min-w-0 truncate text-[13px] font-extrabold leading-tight tracking-tight">{head.main}</span>
+                <span className="flex h-5 min-w-0 shrink items-center truncate rounded-full border-[1px] bg-white px-2 text-[10.5px] font-bold text-[#111]/70" style={{ borderColor: "rgba(17,17,17,0.22)" }}>
+                  {t(CHART_LABEL[kind])}
+                  {head.extra}
                 </span>
+                <span className="flex-1" />
                 {canEdit && editMenu(kind, slot)}
               </div>
               {kind === "distribution" ? (
@@ -261,8 +280,9 @@ export function AnalysisCharts({
                   onSelect={onChoiceFilter ?? (() => {})}
                 />
               ) : (
-                <div className="bg-white px-3 pb-2 pt-3">{chartOf(kind)}</div>
+                <div className="px-3 pb-2 pt-3">{chartOf(kind)}</div>
               )}
+            </div>
             </Fragment>
           );
         })}

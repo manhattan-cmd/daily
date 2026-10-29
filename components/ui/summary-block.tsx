@@ -127,6 +127,14 @@ export function SummaryTile({
         <Icon className="h-4 w-4" strokeWidth={3} />
       </span>
     );
+    if (!href && !onClick) {
+      // Yalnız görünüş — dokunuşu dıştaki düğme alır (Analiz'in Grafik ekle menüsü)
+      return (
+        <span title={label} className={c} style={{ background: color }}>
+          {mark}
+        </span>
+      );
+    }
     return href ? (
       <Link href={href} aria-label={label} title={label} className={c} style={{ background: color }}>
         {mark}
