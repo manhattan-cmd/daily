@@ -207,7 +207,12 @@ export function CalendarDayPage({
   const actionEntries = otherEntries.filter((e) => e.category.builtInKey !== "objects");
   const dayCategories = [...new Map(actionEntries.map((e) => [e.category.id, e.category])).values()];
   const goalsDone = (goals ?? []).filter((g) => g.completedEntryId).length;
-  const dayItemCount = groupEntries(actionEntries).length;
+  // Günün girdileri bloğu kendi içindekileri sayar: uyku, ruh hali ve
+  // akıştaki kartlar (paralel grup tek kart). Özetin Girdi sayısı günün
+  // her şeyini: girdiler, uyku, ruh hali ve notlar
+  const sleepMoodCount = sleepEntries.length + moodEntries.length;
+  const dayItemCount = sleepMoodCount + groupEntries(actionEntries).length;
+  const dayTotalCount = actionEntries.length + sleepMoodCount + (notes?.length ?? 0);
 
   // Günün girdileri bölümünün parçaları — brütalde bloklara, ötekilerde
   // tek katmana dizilir
@@ -476,7 +481,7 @@ export function CalendarDayPage({
             year: d.getFullYear(),
           }}
           stats={[
-            { label: t("brut.entries"), value: String(actionEntries.length), color: "#8ea6ff" },
+            { label: t("brut.entries"), value: String(dayTotalCount), color: "#8ea6ff" },
             { label: t("brut.categories"), value: String(dayCategories.length), color: "#7ae582" },
             { label: t("brut.goals"), value: goals && goals.length ? `${goalsDone}/${goals.length}` : "–", color: "#ff9ecd" },
           ]}

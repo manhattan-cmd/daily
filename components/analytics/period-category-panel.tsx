@@ -3,7 +3,8 @@
 import { useEffect, useMemo } from "react";
 import { useT, translate } from "@/lib/i18n";
 import Link from "next/link";
-import { Layers } from "lucide-react";
+import { ArrowRight, Layers } from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
   bucketAncestorId,
   bucketKeyOf,
@@ -34,7 +35,7 @@ import { StatCell, StatTiles } from "./stat-tiles";
 import { ShareBars, type ShareRow } from "./share-bars";
 import { AnalysisCharts } from "./analysis-chart";
 import { EntryListBlock, EntryListSection, type EntryListRow } from "./entry-list";
-import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
+import { SummaryBlock, SummaryEmpty, SummaryTile } from "@/components/ui/summary-block";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
 import { modColor } from "@/lib/mod-color";
@@ -107,6 +108,7 @@ export function PeriodCategoryPanel({
 }) {
   const t = useT();
   const brutal = useIsBrutal();
+  const router = useRouter();
   const focus = path[path.length - 1];
   // Gün dönemlerinde hafta bağlamı gerekir — o günü kapsayan haftanın tamamı çekilir,
   // günün kendi rakamları pencere filtresiyle hesaplanır
@@ -588,7 +590,15 @@ export function PeriodCategoryPanel({
   // yanında Yapı'nın sarı karosu (yerin yapı sayfası), altında sayı
   // hücreleri; ardından pembe Alt kategori dağılımı, mavi Grafikler ve
   // turuncu Girdiler. Krem katmanlar ve içlerindeki kartlar yok.
+  // Dönemde (seçili özellikte) veri yoksa tek pencere: yerin başı, altında
+  // "Bu dönemde girdi yok" ve Tümünü gör — sıfırlardan bir duvar yok.
   if (brutal) {
+    const empty = computed.entryRows.length === 0;
+    const all = period.kind === "all";
+    const emptyText =
+      metric.type === "mod"
+        ? t(all ? "an.noModDataYet" : "an.noModData", { name: metric.mod.name })
+        : t(all ? "brut.noEntries" : "insights.noEntriesInPeriod");
     return (
       <div className="flex flex-col gap-4">
         <SummaryBlock
@@ -613,7 +623,14 @@ export function PeriodCategoryPanel({
               />
             </div>
           )}
-          {metric.type === "count" ? (
+          {empty ? (
+            <SummaryEmpty
+              text={emptyText}
+              action={
+                all ? undefined : { label: t("an.seeAll"), icon: ArrowRight, color: "#fff", onClick: () => router.push(routes.period("all")) }
+              }
+            />
+          ) : metric.type === "count" ? (
             <div className="grid gap-[2px]" style={{ gridTemplateColumns: `repeat(${isDay ? 1 : 2}, minmax(0, 1fr))` }}>
               <StatCell
                 color={category.color}
@@ -662,13 +679,10 @@ export function PeriodCategoryPanel({
               }}
             />
           )}
-          {weekLine && <p className="bg-white px-3.5 py-2.5 text-[12px] font-bold text-[#111]/70">{weekLine}</p>}
+          {!empty && weekLine && <p className="bg-white px-3.5 py-2.5 text-[12px] font-bold text-[#111]/70">{weekLine}</p>}
         </SummaryBlock>
 
-        {/* Panonun bölümleri — İstikrar, Gelişim; eklenir, kaldırılır */}
-        {sectionsEl}
-
-        {computed.hasBreakdown && (
+        {!empty && computed.hasBreakdown && (
           <SummaryBlock
             lead={{
               kind: "count",
@@ -690,7 +704,7 @@ export function PeriodCategoryPanel({
           </SummaryBlock>
         )}
 
-        {computed.hasSeries && (
+        {!empty && computed.hasSeries && (
           <AnalysisCharts
             block={t("an.charts")}
             charts={compute.charts}
@@ -713,16 +727,17 @@ export function PeriodCategoryPanel({
           />
         )}
 
-        <EntryListBlock
-          title={focus ? `${focus.name} · ${t("objects.entries")}` : t("objects.entries")}
-          accent={lensColor}
-          rows={computed.entryRows}
-          emptyText={
-            metric.type === "mod"
-              ? `No ${metric.mod.name} data in this period`
-              : "No entries in this period"
-          }
-        />
+        {/* Panonun bölümleri — İstikrar, Gelişim; eklenir, kaldırılır. Önce
+            alt kategori dağılımı ve grafikler, bölümler onların altında */}
+        {!empty && sectionsEl}
+
+        {!empty && (
+          <EntryListBlock
+            title={focus ? `${focus.name} · ${t("objects.entries")}` : t("objects.entries")}
+            accent={lensColor}
+            rows={computed.entryRows}
+          />
+        )}
       </div>
     );
   }
@@ -858,8 +873,6 @@ export function PeriodCategoryPanel({
       )}
       </Layer>
 
-      {sectionsEl}
-
       {/* Alt kategori kırılımı — seçili özellikle; satıra dokununca o yere
           inilir (bandın yer seçicisi de oraya geçer) */}
       {computed.hasBreakdown && (
@@ -927,6 +940,9 @@ export function PeriodCategoryPanel({
         </Layer>
       )}
 
+      {/* Bölümler (İstikrar, Gelişim) dağılım ve grafiklerin altında */}
+      {sectionsEl}
+
       {/* Girdi listesi */}
       <Layer bare className="mb-0">
       <EntryListSection
@@ -936,8 +952,8 @@ export function PeriodCategoryPanel({
         rows={computed.entryRows}
         emptyText={
           metric.type === "mod"
-            ? `No ${metric.mod.name} data in this period`
-            : "No entries in this period"
+            ? t("an.noModData", { name: metric.mod.name })
+            : t("insights.noEntriesInPeriod")
         }
       />
       </Layer>

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
+  ArrowRight,
   BarChart3,
   PenLine,
 } from "lucide-react";
@@ -49,7 +50,10 @@ import {
   type EntryListRow,
 } from "@/components/analytics/entry-list";
 import { ANALYSIS_COLOR, AnalysisMenu } from "@/components/analytics/analysis-header";
-import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
+import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
+import { CategoryForm } from "@/components/structure/category-form";
+import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
+import { listUserCategories } from "@/lib/db/queries";
 import { PeriodNav, PeriodTabs } from "@/components/analytics/period-switcher";
 import {
   PeriodCategoryPanel,
@@ -187,6 +191,11 @@ export function PeriodView({
 
   /** Uygulamada hiç girdi var mı — dönemden bağımsız */
   const totalEntries = useLiveQuery(() => db.entries.count(), []);
+  // Brütal boş pencere: hiç kategori yoksa Oluştur, varsa Girdi ekle
+  const userCatCount = useLiveQuery(async () => (await listUserCategories()).length, []);
+  const [catFormOpen, setCatFormOpen] = useState(false);
+  const [entryOpen, setEntryOpen] = useState(false);
+  const [today] = useState(() => toLocalDateValue());
 
 
   const computed = useMemo(() => {
@@ -470,25 +479,28 @@ export function PeriodView({
   // Hiç girdi yokken sıfırlardan bir duvar göstermek, yeni kullanıcıya
   // "burada bir şey bozuk" hissi veriyordu — davet daha dürüst
   if (totalEntries === 0) {
-    // Brütal: tek blok — "Analiz için henüz veri yok" ve yeşil İlk girdini
-    // yap karosu; açıklama cümlesi yok
+    // Brütal: boş pencere (yapı sayfalarındaki gibi) — hiç kategori yoksa
+    // "Henüz kategori yok" ve Oluştur, varsa "Analiz için henüz veri yok" ve
+    // Girdi ekle (girdi formu burada açılır)
     if (brutal) {
+      if (userCatCount === undefined) return null;
       return (
         <PageSheet
           top={<AnalysisMenu title={t("nav.insights")} />}
         >
           <SummaryBlock
-            lead={{ kind: "title", color: ANALYSIS_COLOR, overline: t("nav.insights"), title: t("insights.empty.title") }}
-            action={
-              <SummaryTile
-                color="#7ae582"
-                icon={PenLine}
-                label={t("insights.empty.action")}
-                href={routes.day(toLocalDateValue())}
-              />
-            }
+            compact
+            lead={{ kind: "count", color: ANALYSIS_COLOR, glyph: BarChart3, overline: t("nav.insights"), value: "0", unit: "" }}
             stats={[]}
-          />
+          >
+            {userCatCount === 0 ? (
+              <SummaryEmpty text={t("structure.empty.title")} action={{ label: t("action.create"), onClick: () => setCatFormOpen(true) }} />
+            ) : (
+              <SummaryEmpty text={t("insights.empty.title")} action={{ label: t("home.addEntry"), onClick: () => setEntryOpen(true) }} />
+            )}
+          </SummaryBlock>
+          <CategoryForm open={catFormOpen} onOpenChange={setCatFormOpen} />
+          <DayEntrySheet date={today} open={entryOpen} onClose={() => setEntryOpen(false)} />
         </PageSheet>
       );
     }
@@ -599,19 +611,33 @@ export function PeriodView({
         }
       >
         <div className="flex flex-col gap-4 pb-6">
+          {/* Dönem boşsa boş pencere: "Bu dönemde girdi yok" ve Tümünü gör */}
           {!selectedCat && (
             <div data-section="top" className="scroll-mt-36">
               <SummaryBlock
+                compact={catRows.length === 0}
                 lead={{
                   kind: "count",
                   color: ANALYSIS_COLOR,
+                  glyph: BarChart3,
                   overline: translate("an.catBreakdown"),
                   value: fmt(catRows.length),
                   unit: t("an.catsUnit"),
                 }}
                 stats={[]}
               >
-                {catRows.length > 0 && <ShareBars cells rows={catRows} nudge onSelect={(id) => pickPlace(id, [])} />}
+                {catRows.length > 0 ? (
+                  <ShareBars cells rows={catRows} nudge onSelect={(id) => pickPlace(id, [])} />
+                ) : (
+                  <SummaryEmpty
+                    text={t("insights.noEntriesInPeriod")}
+                    action={
+                      period.kind === "all"
+                        ? undefined
+                        : { label: t("an.seeAll"), icon: ArrowRight, color: "#fff", onClick: () => router.push(routes.period("all")) }
+                    }
+                  />
+                )}
               </SummaryBlock>
             </div>
           )}

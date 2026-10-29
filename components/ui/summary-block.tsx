@@ -175,8 +175,10 @@ export function SummaryEmpty({
   action,
 }: {
   text: string;
-  action?: { label: string; onClick: () => void };
+  /** Varsayılanı yeşil + (oluştur/ekle); başka işte simgesi ve rengi verilir */
+  action?: { label: string; onClick: () => void; icon?: LucideIcon; color?: string };
 }) {
+  const Icon = action?.icon ?? Plus;
   return (
     <div data-summary-empty="" className="flex min-h-[124px] flex-col items-center justify-center gap-3 bg-white px-4 py-5 text-center text-[#111]">
       <p className="text-[13px] font-bold leading-snug text-[#111]/55">{text}</p>
@@ -184,9 +186,10 @@ export function SummaryEmpty({
         <button
           type="button"
           onClick={action.onClick}
-          className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-[9px] border-[1.5px] border-[#111] bg-[#7ae582] px-3 text-[12.5px] font-black shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
+          className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-[9px] border-[1.5px] border-[#111] px-3 text-[12.5px] font-black shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
+          style={{ background: action.color ?? "#7ae582" }}
         >
-          <Plus className="h-3.5 w-3.5 shrink-0" strokeWidth={3} />
+          <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={3} />
           <span className="truncate">{action.label}</span>
         </button>
       )}
