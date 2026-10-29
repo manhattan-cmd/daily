@@ -34,7 +34,7 @@ import { STAT_LABEL } from "@/components/analytics/stat-tiles";
 import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
 import { useIsBrutal } from "@/components/structure/brutal";
 import { Layer } from "@/components/ui/layer";
-import { SummaryBlock } from "@/components/ui/summary-block";
+import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import type { ChartKind, Mod, StatKey } from "@/types";
 
 /** Grupların sırası — sayısal olanlar önce, etiketliler sonra */
@@ -160,13 +160,12 @@ export function AnalysisSection({
     return (
       <SummaryBlock
         className="mb-4"
-        lead={{ kind: "title", color: "#8ea6ff", overline: t("an.section"), title: t("an.blockTitle") }}
+        compact
+        lead={{ kind: "title", color: "#8ea6ff", glyph: BarChart3, overline: t("an.section"), title: t("an.blockTitle") }}
         stats={[]}
         link={analyticsHref ? { href: analyticsHref, label: t("an.open"), color: "#8ea6ff", icon: BarChart3 } : undefined}
       >
-        {!rows.length && (
-          <p className="bg-white px-3.5 py-3 text-[12.5px] font-semibold leading-snug text-[#111]/65">{t("an.empty")}</p>
-        )}
+        {!rows.length && <SummaryEmpty text={t("an.emptyShort")} />}
         {GROUPS.map((g) => {
           const list = rows.filter((r) => r.group === g);
           if (!list.length) return null;

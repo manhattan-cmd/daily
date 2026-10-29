@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { BarChart3, ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
+import { BarChart3, ChevronDown, Pencil, Plus, Square, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { useSkin } from "@/lib/skin";
@@ -13,7 +13,7 @@ import { SmartText } from "@/components/ui/smart-text";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { TopBar, TopBarButton } from "@/components/ui/top-bar";
-import { SummaryBlock, SummaryTile, type SummaryStat } from "@/components/ui/summary-block";
+import { SummaryBlock, SummaryEmpty, SummaryTile, type SummaryStat } from "@/components/ui/summary-block";
 
 /**
  * BRÜTAL YAPI SAYFALARI — yalnız Brütal tema seçiliyken (deneme).
@@ -178,6 +178,7 @@ export function BrutThingSummary({
   return (
     <SummaryBlock
       className={className}
+      compact
       lead={{ kind: "thing", color, icon, overline, title }}
       stats={stats}
     >
@@ -206,7 +207,7 @@ function ToolCell({
   onClick?: () => void;
   color?: string;
 }) {
-  const cls = "flex h-11 items-center justify-center gap-1.5 text-[12.5px] font-black text-[#111] active:brightness-95";
+  const cls = "flex h-10 items-center justify-center gap-1.5 text-[12.5px] font-black text-[#111] active:brightness-95";
   const body = (
     <>
       <Icon className="h-4 w-4 shrink-0" strokeWidth={2.5} />
@@ -263,21 +264,25 @@ export function BrutSubsBlock({
   return (
     <SummaryBlock
       className="mb-4"
+      compact
       lead={{
         kind: "count",
         color: "#ff9ecd",
+        glyph: Square,
         overline: t("structure.subcategories"),
         value: total === undefined ? "–" : String(total),
         unit: t("struct.subs.unit"),
         hint: total ? t("struct.subs.hint") : undefined,
       }}
-      action={<SummaryTile color="#7ae582" icon={Plus} label={t("entry.addSub")} onClick={onAdd} />}
+      action={total ? <SummaryTile compact color="#7ae582" icon={Plus} label={t("entry.addSub")} onClick={onAdd} /> : undefined}
       stats={[]}
     >
       {subs && total ? (
         <div data-subs-cell="" className="bg-white px-1.5 py-2">
           <BrutSubRows category={category} subs={subs} counts={counts} rootId={rootId} />
         </div>
+      ) : total === 0 ? (
+        <SummaryEmpty text={t("brut.noSubs")} action={{ label: t("action.create"), onClick: onAdd }} />
       ) : null}
     </SummaryBlock>
   );
@@ -349,36 +354,6 @@ export function BrutCta({ label, onClick }: { label: string; onClick: () => void
   );
 }
 
-/** Boş bölüm kartı — kesik çerçeveli, kısa açıklama, isteğe bağlı eylem */
-export function BrutEmpty({
-  title,
-  hint,
-  action,
-  onAction,
-}: {
-  title: string;
-  hint?: string;
-  action?: string;
-  onAction?: () => void;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-[#111] bg-white/60 px-4 py-5 text-center text-[#111]">
-      <b className="text-[14px] font-black">{title}</b>
-      {hint && <span className="text-[12px] font-semibold opacity-70">{hint}</span>}
-      {action && onAction && (
-        <button
-          type="button"
-          onClick={onAction}
-          className="mt-1 flex h-9 items-center gap-1.5 rounded-xl border-2 border-[#111] bg-[#ffd23f] px-3 text-[13px] font-black shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-        >
-          <Plus className="h-4 w-4" strokeWidth={3} />
-          {action}
-        </button>
-      )}
-    </div>
-  );
-}
-
 /**
  * Yapı → Kategoriler — ana sayfanın blok dili (bkz. SummaryBlock): her
  * kategori bir blok. Üstte kategorinin renginde ad hücresi (beyaz karoda
@@ -438,14 +413,16 @@ export function BrutCategoryTree({
               title: cat.name,
               hint: t("brut.subsAndEntries", { subs: n, entries: counts?.get(`c:${cat.id}`) ?? 0 }),
             }}
-            action={<SummaryTile compact color="#7ae582" icon={Plus} label={t("structure.addSub")} onClick={() => onAddSub(cat)} />}
+            action={n > 0 ? <SummaryTile compact color="#7ae582" icon={Plus} label={t("structure.addSub")} onClick={() => onAddSub(cat)} /> : undefined}
             stats={[]}
           >
-            {/* Alt kategorisi yoksa yalnız ad hücresi ve ekle karosu */}
-            {n > 0 && (
+            {/* Alt kategorisi yoksa boş pencere: yazı ve ufak Oluştur */}
+            {n > 0 ? (
               <div data-subs-cell="" className="bg-white px-1.5 py-2">
                 <BrutSubRows category={cat} subs={subs} counts={counts} />
               </div>
+            ) : (
+              <SummaryEmpty text={t("brut.noSubs")} action={{ label: t("action.create"), onClick: () => onAddSub(cat) }} />
             )}
           </SummaryBlock>
         );

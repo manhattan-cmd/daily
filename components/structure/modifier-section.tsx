@@ -2,7 +2,7 @@
 
 import { useT } from "@/lib/i18n";
 import { useState } from "react";
-import { Plus, Unlink } from "lucide-react";
+import { Circle, Plus, Unlink } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   countDescendantModAttachments,
@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Layer } from "@/components/ui/layer";
-import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
+import { SummaryBlock, SummaryEmpty, SummaryTile } from "@/components/ui/summary-block";
 import { useIsBrutal } from "@/components/structure/brutal";
 import { measureSummary } from "@/lib/measure-kinds";
 import { modColor } from "@/lib/mod-color";
@@ -225,21 +225,30 @@ export function ModifierSection({
       <>
         <SummaryBlock
           className="mb-4"
+          compact
           lead={{
             kind: "count",
             color: "#c9b8ff",
+            glyph: Circle,
             overline: t("structure.features"),
             value: mods ? String(mods.length) : "–",
             unit: t("struct.features.unit"),
             hint: mods?.length ? t("struct.features.hint") : undefined,
           }}
-          action={<SummaryTile color="#7ae582" icon={Plus} label={t("entry.addFeature")} onClick={() => setPickerOpen(true)} />}
+          action={
+            mods?.length ? (
+              <SummaryTile compact color="#7ae582" icon={Plus} label={t("entry.addFeature")} onClick={() => setPickerOpen(true)} />
+            ) : undefined
+          }
           stats={[]}
         >
           {mods && mods.length > 0 && (
             <div data-feature-cell="" className="grid grid-cols-4 gap-x-1.5 gap-y-1 bg-white p-2">
               {atoms}
             </div>
+          )}
+          {mods?.length === 0 && (
+            <SummaryEmpty text={t("struct.features.empty")} action={{ label: t("action.add"), onClick: () => setPickerOpen(true) }} />
           )}
         </SummaryBlock>
         {dialogs}

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Boxes, ChevronRight, Plus } from "lucide-react";
+import { Boxes, ChevronRight, Diamond } from "lucide-react";
 import { db } from "@/lib/db";
 import { listCollections } from "@/lib/db/things";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -18,7 +18,7 @@ import { useT } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
 import { useRouter } from "next/navigation";
 import { PageSheet } from "@/components/ui/layer";
-import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
+import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { useIsBrutal } from "@/components/structure/brutal";
 import type { Thing } from "@/types";
 
@@ -30,9 +30,9 @@ const THING_PREVIEW = 10;
  * blok dili (bkz. SummaryBlock): her liste bir blok — listenin renginde ad
  * hücresi (simgesi, adı, nesne · aktif sayısı; dokununca listenin sayfası),
  * altında beyaz hücrede nesneleri etiket etiket (baklava = nesne; dokununca
- * nesnenin sayfası, fazlası "+N"). Hiç liste yoksa tek blok: "Henüz liste
- * yok" ve Yeni liste karosu, açıklama cümlesi yok. Sade temalarda sırt
- * şeritli kartlar.
+ * nesnenin sayfası, fazlası "+N"). Boşsa boş pencere: hiç liste yoksa
+ * "Henüz liste yok" ve ufak Oluştur, nesnesiz listede "Henüz nesne yok" ve
+ * Ekle (listenin sayfası, ekleme orada). Sade temalarda sırt şeritli kartlar.
  */
 export default function ObjectsPage() {
   const t = useT();
@@ -64,10 +64,12 @@ export default function ObjectsPage() {
       {data === undefined ? null : brutal ? (
         data.length === 0 ? (
           <SummaryBlock
-            lead={{ kind: "title", color: "#ffd23f", overline: t("structure.objects"), title: t("objects.emptyTitle") }}
-            action={<SummaryTile color="#7ae582" icon={Plus} label={t("objects.addCollection")} onClick={() => setAddOpen(true)} />}
+            compact
+            lead={{ kind: "count", color: "#ffd23f", glyph: Diamond, overline: t("structure.objects"), value: "0", unit: "" }}
             stats={[]}
-          />
+          >
+            <SummaryEmpty text={t("objects.emptyTitle")} action={{ label: t("action.create"), onClick: () => setAddOpen(true) }} />
+          </SummaryBlock>
         ) : (
           <div className="flex flex-col gap-4 pb-6 pt-1">
             {data.map(({ c, total, active, live }) => {
@@ -88,6 +90,12 @@ export default function ObjectsPage() {
                   }}
                   stats={[]}
                 >
+                  {live.length === 0 && (
+                    <SummaryEmpty
+                      text={t("objects.noThings")}
+                      action={{ label: t("action.add"), onClick: () => router.push(routes.structureCollection(c.id)) }}
+                    />
+                  )}
                   {live.length > 0 && (
                     <div data-thing-chips="" className="flex flex-wrap gap-1.5 bg-white p-2.5">
                       {live.slice(0, THING_PREVIEW).map((th) => (

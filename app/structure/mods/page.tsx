@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { BrutEmpty, useIsBrutal } from "@/components/structure/brutal";
+import { useIsBrutal } from "@/components/structure/brutal";
 import { Layer, PageSheet } from "@/components/ui/layer";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { ArrowLeft, Circle, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { db } from "@/lib/db";
 import {
   listMods,
@@ -53,7 +53,7 @@ import { confirmDialog } from "@/components/ui/confirm";
 import { cn } from "@/lib/utils";
 import { modColor } from "@/lib/mod-color";
 import { CATEGORY_COLORS, SCALE_PRESETS, type EntryValueType } from "@/types";
-import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
+import { SummaryBlock, SummaryEmpty, SummaryTile } from "@/components/ui/summary-block";
 
 /** Özelliklerin rengi — kategori sayfasındaki Özellikler bloğunun menekşesi */
 const FEATURES = "#c9b8ff";
@@ -419,15 +419,17 @@ export default function ModsHomePage() {
           ))}
 
           {/* Brütal: her türün bloğunda kendi ekle karosu var; havuz bomboşsa
-              tek blok "0 özellik" ve karosu. Eskiden dizinin sonunda kesik
+              boş pencere — yazı ve ufak Oluştur. Eskiden dizinin sonunda kesik
               çerçeveli bir "Yeni özellik" yuvası vardı. */}
           {!search && (brutal ? (
             mods.length === 0 && (
               <SummaryBlock
-                lead={{ kind: "count", color: FEATURES, overline: t("structure.features"), value: "0", unit: t("struct.features.unit") }}
-                action={<SummaryTile color="#7ae582" icon={Plus} label={t("structure.addFeature")} onClick={() => setCreateOpen(true)} />}
+                compact
+                lead={{ kind: "count", color: FEATURES, glyph: Circle, overline: t("structure.features"), value: "0", unit: "" }}
                 stats={[]}
-              />
+              >
+                <SummaryEmpty text={t("struct.features.empty")} action={{ label: t("action.create"), onClick: () => setCreateOpen(true) }} />
+              </SummaryBlock>
             )
           ) : (
             <button
@@ -444,11 +446,16 @@ export default function ModsHomePage() {
               yaratabilirsin" diyordu ama aramada yaratma düğmesi gizliydi.
               Pencere adı dolu açılır; ad çakışması yine handleCreate'te. */}
           {visibleMods.length === 0 && search.trim() && (brutal ? (
-            <BrutEmpty
-              title={t("features.noMatchTitle", { q: searchShown })}
-              action={t("features.createNamed", { q: searchShown })}
-              onAction={createFromSearch}
-            />
+            <SummaryBlock
+              compact
+              lead={{ kind: "count", color: FEATURES, glyph: Circle, overline: t("structure.features"), value: "0", unit: "" }}
+              stats={[]}
+            >
+              <SummaryEmpty
+                text={t("features.noMatchTitle", { q: searchShown })}
+                action={{ label: t("features.createNamed", { q: searchShown }), onClick: createFromSearch }}
+              />
+            </SummaryBlock>
           ) : (
             <div className="flex flex-col items-start gap-2 px-1">
               <p className="text-xs text-muted-foreground/70">

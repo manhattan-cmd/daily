@@ -70,6 +70,7 @@ export function RecentEntriesSection({
     if (!entries) return null;
     return (
       <EntryListBlock
+        compact
         title={t("home.recentEntries")}
         total={total}
         hint={t("struct.recent.hint")}

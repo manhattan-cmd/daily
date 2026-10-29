@@ -2,7 +2,7 @@
 
 import { type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, ChevronRight, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, ChevronRight, Plus, X, type LucideIcon } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +53,8 @@ export type SummaryLead =
       unit: string;
       hint?: string;
       color?: string;
+      /** İnce başta adın yanındaki karoda (bkz. SummaryBlock compact) */
+      glyph?: LucideIcon;
       /** Köşede kapatma düğmesi (Başlarken) */
       close?: { label: string; onClick: () => void };
     }
@@ -63,6 +65,8 @@ export type SummaryLead =
       title: string;
       hint?: string;
       color: string;
+      /** İnce başta adın yanındaki karoda (bkz. SummaryBlock compact) */
+      glyph?: LucideIcon;
       /** Köşede kapatma düğmesi (Yapı'nın örnek notu) */
       close?: { label: string; onClick: () => void };
     };
@@ -90,6 +94,8 @@ const bandDots = (color: string) => ({
   backgroundSize: "11px 11px",
 });
 const SQ = "flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white shadow-[2px_2px_0_#111]";
+/** İnce bloğun bandındaki karolar */
+const SQ_SM = "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111] bg-white shadow-[1.5px_1.5px_0_#111]";
 
 /**
  * Başlığın yanındaki kare karo — gün sayfasının Ekle karosunun dili: kendi
@@ -159,6 +165,35 @@ export function SummaryTile({
   );
 }
 
+/**
+ * Boş pencerenin gövdesi — pencere kapanıp yalnız başa inmesin: belli bir
+ * boyda açık kalır, ortada kısa yazı ("Henüz alt kategori yok"), altında
+ * ufak yeşil düğme. Boşken baştaki ekle karosu çizilmez; iş bu düğmede.
+ */
+export function SummaryEmpty({
+  text,
+  action,
+}: {
+  text: string;
+  action?: { label: string; onClick: () => void };
+}) {
+  return (
+    <div data-summary-empty="" className="flex min-h-[124px] flex-col items-center justify-center gap-3 bg-white px-4 py-5 text-center text-[#111]">
+      <p className="text-[13px] font-bold leading-snug text-[#111]/55">{text}</p>
+      {action && (
+        <button
+          type="button"
+          onClick={action.onClick}
+          className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-[9px] border-[1.5px] border-[#111] bg-[#7ae582] px-3 text-[12.5px] font-black shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
+        >
+          <Plus className="h-3.5 w-3.5 shrink-0" strokeWidth={3} />
+          <span className="truncate">{action.label}</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 function CloseButton({ close }: { close: { label: string; onClick: () => void } }) {
   return (
     <button
@@ -175,6 +210,7 @@ function CloseButton({ close }: { close: { label: string; onClick: () => void } 
 /** linked: hücre bir bağlantının içinde (liste) — ad h2, sağda ok.
  *  compact: ince baş (bkz. SummaryBlock compact) */
 function Lead({ lead, linked = false, compact = false }: { lead: SummaryLead; linked?: boolean; compact?: boolean }) {
+  if (compact && lead.kind !== "date") return <CompactLead lead={lead} linked={linked} />;
   if (lead.kind === "title") {
     return (
       <div className="relative flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-[#111]" style={{ background: lead.color }}>
@@ -232,24 +268,6 @@ function Lead({ lead, linked = false, compact = false }: { lead: SummaryLead; li
     );
   }
   const Title = linked ? "h2" : "h1";
-  if (compact) {
-    return (
-      <div className="flex h-full min-w-0 items-center gap-2.5 px-3 py-2 text-[#111]" style={{ background: lead.color }}>
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111] bg-white">
-          {lead.glyph ? (
-            <lead.glyph className="h-4 w-4" strokeWidth={2.5} />
-          ) : (
-            lead.icon && <SymbolIcon name={lead.icon} size={17} style={{ color: "#111" }} />
-          )}
-        </span>
-        <div className="min-w-0 flex-1">
-          <Title className="truncate text-[16px] font-extrabold leading-tight tracking-tight">{lead.title}</Title>
-          {lead.hint && <div className="truncate text-[11px] font-bold leading-tight opacity-60">{lead.hint}</div>}
-        </div>
-        {linked && <ChevronRight className="-mr-0.5 h-4 w-4 shrink-0 opacity-50" strokeWidth={2.75} />}
-      </div>
-    );
-  }
   return (
     <div className="flex h-full min-w-0 items-center gap-3 px-3 py-2.5 text-[#111]" style={{ background: lead.color }}>
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white">
@@ -267,6 +285,46 @@ function Lead({ lead, linked = false, compact = false }: { lead: SummaryLead; li
         {lead.hint && <div className="mt-1 truncate text-[11.5px] font-bold leading-tight opacity-75">{lead.hint}</div>}
       </div>
       {linked && <ChevronRight className="-mr-1 h-5 w-5 shrink-0 opacity-70" strokeWidth={2.75} />}
+    </div>
+  );
+}
+
+/**
+ * İnce baş — bütün türler aynı satırda: küçük simge karosu, tek satır ad,
+ * altında soluk ikinci satır. Sayılı başta (Alt kategoriler, Son girdiler)
+ * etiket ad olur, sayı alt satıra iner ("20 alt kategori · …"); kategori /
+ * alt kategori özetinde üst yazı (üst kategori) alt satırda.
+ */
+function CompactLead({ lead, linked }: { lead: Exclude<SummaryLead, { kind: "date" }>; linked: boolean }) {
+  const color = lead.kind === "count" ? lead.color ?? "#ffd23f" : lead.color;
+  const title = lead.kind === "count" ? lead.overline : lead.title;
+  const hint =
+    lead.kind === "count"
+      ? [lead.value === "0" ? "" : `${lead.value} ${lead.unit}`, lead.hint].filter(Boolean).join(" · ")
+      : lead.kind === "thing"
+        ? lead.hint ?? lead.overline
+        : lead.hint;
+  const icon = lead.kind === "thing" ? lead.icon : undefined;
+  const Glyph = lead.glyph;
+  const close = lead.kind === "thing" ? undefined : lead.close;
+  // Kalemin adı sayfanın başlığı (özet); listede ve bölümlerde h2
+  const Title = lead.kind === "thing" && !linked ? "h1" : "h2";
+  return (
+    <div
+      className={cn("relative flex h-full min-h-[50px] min-w-0 items-center gap-2.5 px-3 py-2 text-[#111]", close && "pr-9")}
+      style={{ background: color }}
+    >
+      {close && <CloseButton close={close} />}
+      {(Glyph || icon) && (
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111] bg-white">
+          {Glyph ? <Glyph className="h-4 w-4" strokeWidth={2.5} /> : <SymbolIcon name={icon} size={17} style={{ color: "#111" }} />}
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
+        <Title className="truncate text-[16px] font-extrabold leading-tight tracking-tight">{title}</Title>
+        {hint && <div className="truncate text-[11px] font-bold leading-tight opacity-60">{hint}</div>}
+      </div>
+      {linked && <ChevronRight className="-mr-0.5 h-4 w-4 shrink-0 opacity-50" strokeWidth={2.75} />}
     </div>
   );
 }
@@ -372,14 +430,19 @@ export function SummaryBlock({
           style={link.color ? bandDots(link.color) : undefined}
         >
           {link.color ? (
-            <span className="flex items-center gap-3 px-3 py-3">
+            <span className={cn("flex items-center", compact ? "gap-2.5 px-3 py-2" : "gap-3 px-3 py-3")}>
               {link.icon && (
-                <span className={SQ}>
-                  <link.icon className="h-5 w-5" strokeWidth={2.5} />
+                <span className={compact ? SQ_SM : SQ}>
+                  <link.icon className={compact ? "h-4 w-4" : "h-5 w-5"} strokeWidth={2.5} />
                 </span>
               )}
               <span
-                className="min-w-0 truncate rounded-[10px] bg-[#111] px-3 pb-1.5 pt-1 text-[19px] font-black leading-none tracking-tight shadow-[3px_3px_0_rgba(17,17,17,0.25)]"
+                className={cn(
+                  "min-w-0 truncate bg-[#111] font-black leading-none tracking-tight",
+                  compact
+                    ? "rounded-[8px] px-2.5 pb-[5px] pt-[3px] text-[15px] shadow-[2px_2px_0_rgba(17,17,17,0.25)]"
+                    : "rounded-[10px] px-3 pb-1.5 pt-1 text-[19px] shadow-[3px_3px_0_rgba(17,17,17,0.25)]"
+                )}
                 style={{ color: link.color }}
               >
                 {link.label}
@@ -387,8 +450,8 @@ export function SummaryBlock({
               {link.badge && (
                 <span className="shrink-0 rounded-md bg-white px-1.5 py-px font-mono text-[11px] font-bold">{link.badge}</span>
               )}
-              <span className={cn(SQ, "ml-auto")}>
-                <ArrowRight className="h-5 w-5" strokeWidth={2.75} />
+              <span className={cn(compact ? SQ_SM : SQ, "ml-auto")}>
+                <ArrowRight className={compact ? "h-4 w-4" : "h-5 w-5"} strokeWidth={2.75} />
               </span>
             </span>
           ) : (

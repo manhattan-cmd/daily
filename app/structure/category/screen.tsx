@@ -6,13 +6,18 @@ import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { BarChart3, Pencil, Trash2 } from "lucide-react";
+import { BarChart3, List as ListIcon, Pencil, Trash2 } from "lucide-react";
 import {
   getCategory,
   deleteCategory,
   structureSummary,
   listCategoryTree,
+  getOrCreateCategoryRootSub,
 } from "@/lib/db/queries";
+import type { SubCategory } from "@/types";
+import { toLocalDateValue } from "@/lib/utils";
+import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
+import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { BrutSubsBlock, BrutThingSummary, useIsBrutal } from "@/components/structure/brutal";
 import { StructureAddButton, StructureHeader } from "@/components/structure/structure-header";
 import { StructureTrail } from "@/components/structure/structure-trail";
@@ -42,6 +47,10 @@ export function CategoryDetailPage({
   // Ağaçtan gelen ekleme hedefi — undefined kök seviye demek
   const [newParentId, setNewParentId] = useState<string | undefined>();
   const [catFormOpen, setCatFormOpen] = useState(false);
+  // Hiç girdisi yokken boş Son girdiler penceresinin Girdi ekle'si
+  const [entryOpen, setEntryOpen] = useState(false);
+  const [entrySub, setEntrySub] = useState<SubCategory | null>(null);
+  const [today] = useState(() => toLocalDateValue());
 
   // Brütal tema: renkli başlık kartı ve sayılar
   const brutal = useIsBrutal();
@@ -188,14 +197,48 @@ export function CategoryDetailPage({
         <AnalysisSection categoryId={categoryId} analyticsHref={routes.analyticsCategory(categoryId)} />
       )}
 
-      {/* Son girdiler + analize kısayol */}
-      <RecentEntriesSection
-        scope="category"
-        categoryId={categoryId}
-        selfName={category?.name}
-        color={category?.color}
-        total={summary?.entries}
-      />
+      {/* Son girdiler + analize kısayol. Brütal, hiç girdi yokken boş
+          pencere (alt kategori sayfasındaki gibi): Girdi ekle alt kategorisi
+          olmayan kategoride doğrudan kategorinin formunu, alt kategorisi
+          varsa kalem seçimini açar */}
+      {brutal && summary && summary.entries === 0 ? (
+        <>
+          <SummaryBlock
+            className="mb-4"
+            compact
+            lead={{
+              kind: "count",
+              color: "#ffb38a",
+              glyph: ListIcon,
+              overline: t("home.recentEntries"),
+              value: "0",
+              unit: t("home.entries"),
+            }}
+            stats={[]}
+          >
+            <SummaryEmpty
+              text={t("brut.noEntries")}
+              action={{
+                label: t("home.addEntry"),
+                onClick: async () => {
+                  const hasSubs = !!tree?.subs.some((s) => s.categoryId === categoryId);
+                  setEntrySub(hasSubs ? null : await getOrCreateCategoryRootSub(categoryId));
+                  setEntryOpen(true);
+                },
+              }}
+            />
+          </SummaryBlock>
+          <DayEntrySheet date={today} open={entryOpen} onClose={() => setEntryOpen(false)} presetSub={entrySub} />
+        </>
+      ) : (
+        <RecentEntriesSection
+          scope="category"
+          categoryId={categoryId}
+          selfName={category?.name}
+          color={category?.color}
+          total={summary?.entries}
+        />
+      )}
       </PageSheet>
 
       <SubCategoryForm

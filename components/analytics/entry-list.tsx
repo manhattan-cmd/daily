@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Search, X } from "lucide-react";
+import { List as ListIcon, Search, X } from "lucide-react";
 import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import { getEntryWithContext } from "@/lib/db/queries";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
@@ -178,8 +178,11 @@ export function EntryListBlock({
   rows,
   emptyText,
   accent = DEFAULT_ACCENT,
+  compact = false,
 }: {
   title: string;
+  /** İnce baş — yapı sayfaları (bkz. SummaryBlock compact) */
+  compact?: boolean;
   /** Bütün girdilerin sayısı — liste en çok 200 kayıt getiriyor */
   total?: number;
   hint?: string;
@@ -205,9 +208,11 @@ export function EntryListBlock({
   return (
     <SummaryBlock
       className="mb-4"
+      compact={compact}
       lead={{
         kind: "count",
         color: "#ffb38a",
+        glyph: compact ? ListIcon : undefined,
         overline: title,
         // Süzgeç açıkken kaçta kaç: toplamın kaybolmadığı belli olsun
         value: needle ? `${fmt(shown.length)}/${fmt(rows.length)}` : fmt(total ?? rows.length),
@@ -217,6 +222,7 @@ export function EntryListBlock({
       action={
         canSearch ? (
           <SummaryTile
+            compact={compact}
             color="#8ea6ff"
             icon={open ? X : Search}
             label={open ? t("action.close") : t("search.title")}

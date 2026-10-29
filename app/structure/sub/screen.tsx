@@ -5,8 +5,8 @@ import { useT } from "@/lib/i18n";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { BarChart3, Pencil, Plus, Trash2 } from "lucide-react";
-import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
+import { BarChart3, List as ListIcon, Pencil, Trash2 } from "lucide-react";
+import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { getSubCategory, getCategory, listCategoryTree, structureSummary } from "@/lib/db/queries";
 import { BrutSubsBlock, BrutThingSummary, useIsBrutal } from "@/components/structure/brutal";
 import { StructureAddButton, StructureHeader } from "@/components/structure/structure-header";
@@ -215,19 +215,18 @@ export function SubCategoryDetailPage({
         <>
           <SummaryBlock
             className="mb-4"
+            compact
             lead={{
               kind: "count",
               color: "#ffb38a",
+              glyph: ListIcon,
               overline: t("home.recentEntries"),
               value: "0",
               unit: t("home.entries"),
             }}
-            action={<SummaryTile color="#7ae582" icon={Plus} label={t("brut.firstEntry")} onClick={() => setEntryOpen(true)} />}
             stats={[]}
           >
-            <p className="bg-white px-3.5 py-3 text-[12.5px] font-semibold leading-snug text-[#111]/65">
-              {t("brut.noEntriesHint")}
-            </p>
+            <SummaryEmpty text={t("brut.noEntries")} action={{ label: t("home.addEntry"), onClick: () => setEntryOpen(true) }} />
           </SummaryBlock>
           <DayEntrySheet
             date={today}

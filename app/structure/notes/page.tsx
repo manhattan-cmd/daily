@@ -3,7 +3,7 @@
 import { Fragment, useState } from "react";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plus, Search, X } from "lucide-react";
+import { Search, StickyNote, X } from "lucide-react";
 import { createNote, listAllNotes } from "@/lib/db/queries";
 import {
   StructureAddButton,
@@ -14,7 +14,7 @@ import { NoteWindow } from "@/components/notes/note-window";
 import { Input } from "@/components/ui/input";
 import type { Note } from "@/types";
 import { PageSheet } from "@/components/ui/layer";
-import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
+import { SummaryBlock, SummaryEmpty, SummaryTile } from "@/components/ui/summary-block";
 import { useIsBrutal } from "@/components/structure/brutal";
 
 /** Notların rengi — not kartının gül rengi (NOTE_COLOR), blokta açık tonu */
@@ -90,10 +90,19 @@ export default function StructureNotesPage() {
       {/* Brütal: ana sayfanın blok dili (bkz. SummaryBlock) — gül renginde
           "NOTLAR · 12 not", yanında listeyi yerinde süzen mavi Ara karosu
           (açıkken kaçta kaç ve Kapat), altında günler krem ara satırda,
-          notlar beyaz hücrede. Hiç not yoksa yalnız "0 not" ve yeşil Not
-          karosu — açıklama cümlesi yok. */}
+          notlar beyaz hücrede. Hiç not yoksa boş pencere: ince başta
+          NOTLAR, altında "Henüz not yok" ve ufak Oluştur. */}
       {brutal ? (
-        notes === undefined ? null : (
+        notes === undefined ? null : notes.length === 0 ? (
+          <SummaryBlock
+            className="mb-6"
+            compact
+            lead={{ kind: "count", color: NOTES, glyph: StickyNote, overline: t("structure.notes"), value: "0", unit: "" }}
+            stats={[]}
+          >
+            <SummaryEmpty text={t("notes.none")} action={{ label: t("action.create"), onClick: handleNewNote }} />
+          </SummaryBlock>
+        ) : (
           <SummaryBlock
             className="mb-6"
             lead={{
@@ -104,16 +113,12 @@ export default function StructureNotesPage() {
               unit: t("notes.unit"),
             }}
             action={
-              notes.length ? (
-                <SummaryTile
-                  color="#8ea6ff"
-                  icon={searchOpen ? X : Search}
-                  label={searchOpen ? t("action.close") : t("search.title")}
-                  onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
-                />
-              ) : (
-                <SummaryTile color="#7ae582" icon={Plus} label={t("structure.addNote")} onClick={handleNewNote} />
-              )
+              <SummaryTile
+                color="#8ea6ff"
+                icon={searchOpen ? X : Search}
+                label={searchOpen ? t("action.close") : t("search.title")}
+                onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
+              />
             }
             stats={[]}
           >
@@ -140,9 +145,7 @@ export default function StructureNotesPage() {
                 )}
               </div>
             )}
-            {notes.length > 0 && filtered.length === 0 && (
-              <p className="bg-white px-3.5 py-3 text-[12.5px] font-semibold text-[#111]/65">{t("notes.noMatch")}</p>
-            )}
+            {filtered.length === 0 && <SummaryEmpty text={t("notes.noMatch")} />}
             {groups.map((g) => (
               <Fragment key={g.date}>
                 <div className="bg-[#f5f1e8] px-3.5 py-1.5 text-[10.5px] font-black uppercase tracking-[0.08em] text-[#111]">
