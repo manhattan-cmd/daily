@@ -28,6 +28,8 @@ import { modColor } from "@/lib/mod-color";
 import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
 import { EntryPicker, useEntryLayout } from "@/components/calendar/entry-picker";
+import { EntryTreePicker } from "@/components/calendar/entry-tree-picker";
+import { useSkin } from "@/lib/skin";
 import { SideFormWindow } from "@/components/calendar/side-form-window";
 import { CategoryForm } from "@/components/structure/category-form";
 import {
@@ -51,6 +53,7 @@ import { ENTRY_SCREEN } from "@/components/ui/entry-window";
 import type { AttachedThing } from "@/lib/db/queries";
 import { collectThings, ThingValuesContext, type ThingVals } from "@/components/forms/thing-ui";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { SheetFrame, useEmbedded } from "@/components/ui/sheet-frame";
 
 /** Değer state anahtarı: global mod id (legacy atamalarda atama id'si) */
 /** Sabit boş liste — her çizimde yeni [] bağımlılıkları boşuna tazeliyordu */
@@ -70,6 +73,8 @@ interface DayEntrySheetProps {
   presetActivity?: { id: string; name: string } | null;
   /** Doğrudan bu kalemin formuyla açıl (yapı sayfalarındaki "Girdi ekle") */
   presetSub?: SubCategory | null;
+  /** Ekle ekranının sekmesinde (bkz. AddScreen, SheetFrame) */
+  embedded?: boolean;
 }
 
 type Step =
@@ -101,6 +106,7 @@ function DayEntrySheetBody({
   activityMode,
   presetActivity,
   presetSub,
+  embedded,
 }: DayEntrySheetProps) {
   const router = useRouter();
   const t = useT();
@@ -489,22 +495,18 @@ function DayEntrySheetBody({
     setParallelQueue([]);
   }
 
-  return (
-    <>
-      {/* Tam ekran girdi ekleme (bkz. ENTRY_SCREEN). Kendi kapatma düğmesi
-          üst çubukta — standart çarpı gizli. */}
-      <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-        <DialogContent
-          hideClose
-          aria-describedby={undefined}
-          className={ENTRY_SCREEN}
-        >
-        <DialogTitle className="sr-only">{t("home.addEntry")}</DialogTitle>
-        {/* Yüzey aşağıdan yaylanarak gelir. Üst güvenli alan (durum çubuğu)
-            burada; içteki katmanlar (form, not) bunun altında kalır. */}
+  const surface = (
+        /* Yüzey aşağıdan yaylanarak gelir. Üst güvenli alan (durum çubuğu)
+           burada; içteki katmanlar (form, not) bunun altında kalır. Ekle
+           ekranının sekmesindeyken yüzey ekranın gövdesi: animasyon, güvenli
+           alan ve köşeler ekranın kendisinde. */
         <div
-          className="entry-screen-in flex h-full min-h-0 flex-col overflow-hidden bg-background md:rounded-[3rem]"
-          style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+          className={
+            embedded
+              ? "relative flex h-full min-h-0 flex-1 flex-col overflow-hidden"
+              : "entry-screen-in flex h-full min-h-0 flex-col overflow-hidden bg-background md:rounded-[3rem]"
+          }
+          style={embedded ? undefined : { paddingTop: "env(safe-area-inset-top, 0px)" }}
         >
         <div className="relative flex min-h-0 flex-1 flex-col">
         {step.type === "activity-name" ? (
@@ -604,9 +606,24 @@ function DayEntrySheetBody({
           </div>
         )}
         </div>
-        </DialogContent>
-      </Dialog>
-    </>
+  );
+
+  if (embedded) {
+    return (
+      <SheetFrame embedded open={open} onClose={onClose}>
+        {surface}
+      </SheetFrame>
+    );
+  }
+  return (
+    /* Tam ekran girdi ekleme (bkz. ENTRY_SCREEN). Kendi kapatma düğmesi üst
+       çubukta — standart çarpı gizli. */
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent hideClose aria-describedby={undefined} className={ENTRY_SCREEN}>
+        <DialogTitle className="sr-only">{t("home.addEntry")}</DialogTitle>
+        {surface}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -640,6 +657,7 @@ function ActivityNameStep({
   onClose: () => void;
 }) {
   const t = useT();
+  const embedded = useEmbedded();
   const [name, setName] = useState("");
   const suggestions = useLiveQuery(() => listActivityNameSuggestions(), []) ?? [];
 
@@ -651,6 +669,7 @@ function ActivityNameStep({
   return (
     <>
       {/* Seçicinin üst çubuğu ve büyük başlığıyla aynı düzen */}
+      {!embedded && (
       <div className="flex shrink-0 items-center px-4 pb-1 pt-3">
         <button
           onClick={onClose}
@@ -660,7 +679,8 @@ function ActivityNameStep({
           <X className="h-[18px] w-[18px]" />
         </button>
       </div>
-      <div className="entry-stagger shrink-0 px-5 pb-5 pt-2">
+      )}
+      <div className={cn("entry-stagger shrink-0 px-5 pb-5", embedded ? "pt-5" : "pt-2")}>
         <h2 className="text-[28px] font-bold leading-tight tracking-tight">
           Yeni Aktivite
         </h2>
@@ -732,6 +752,10 @@ function PickStep({
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [addCatOpen, setAddCatOpen] = useState(false);
+  // Brütalde raf düzeni Yapı'nın ağacıyla (bkz. EntryTreePicker); ray ve sade temalar eskisi
+  const skin = useSkin();
+  const layout = useEntryLayout();
+  const tree = skin === "brutal" && layout === "raf";
 
   return (
     <>
@@ -772,15 +796,24 @@ function PickStep({
             zaten onun içinde ve asıl önemlisi başlık satırı orada — kapatma
             ve "Kategori yarat" düğmeleri o satırda. Ayrı bir boş-durum
             bloğu koyunca sıfır kategorili kullanıcı çıkışsız kalıyordu. */}
-        <EntryPicker
-          groups={groups}
-          onPick={onPick}
-          onPickCategory={onPickCategory}
-          onClose={onClose}
-          onCreateCategory={() => setAddCatOpen(true)}
-          compact={compact}
-          onRailNavigate={onRailNavigate}
-        />
+        {tree ? (
+          <EntryTreePicker
+            groups={groups}
+            onPick={onPick}
+            onPickCategory={onPickCategory}
+            onClose={onClose}
+          />
+        ) : (
+          <EntryPicker
+            groups={groups}
+            onPick={onPick}
+            onPickCategory={onPickCategory}
+            onClose={onClose}
+            onCreateCategory={() => setAddCatOpen(true)}
+            compact={compact}
+            onRailNavigate={onRailNavigate}
+          />
+        )}
       </div>
 
       <CategoryForm open={addCatOpen} onOpenChange={setAddCatOpen} />

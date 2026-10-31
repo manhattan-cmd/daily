@@ -35,7 +35,7 @@ import { NoteCard } from "@/components/notes/note-card";
 import { prefetchDay, prefetchDayOnPress, whenIdle } from "@/lib/db/day-cache";
 import { BackupReminder } from "@/components/dashboard/backup-reminder";
 import { GettingStarted, WELCOME_DISMISSED, type StartStep } from "@/components/dashboard/getting-started";
-import { AddMenu, type AddMenuItem } from "@/components/calendar/add-menu";
+import { AddButton } from "@/components/calendar/add-menu";
 import { useDayAdd } from "@/components/calendar/day-add";
 import { CategoryForm } from "@/components/structure/category-form";
 import { SymbolIcon } from "@/lib/icons";
@@ -218,7 +218,7 @@ export default function HomePage() {
           </h1>
         </div>
         {/* Brütalde Ekle Bugün bloğunun karosu; ötekilerde başlıkta */}
-        {!brutal && <div className="mb-1"><AddMenu items={add.items} /></div>}
+        {!brutal && <div className="mb-1"><AddButton onOpen={add.open} /></div>}
         <Link
           href="/settings"
           aria-label={t("nav.settings")}
@@ -242,7 +242,7 @@ export default function HomePage() {
             snapshot={home}
             goals={goals?.length ?? 0}
             goalsDone={doneGoals}
-            items={add.items}
+            onAdd={add.open}
           />
           {/* Girdilerin gittiği yer, yapıya giden kapı — Bugün'ün eşi */}
           {home && <CategoriesBlock snapshot={home} onNew={() => setCatFormOpen(true)} />}
@@ -399,13 +399,13 @@ function BrutTodayBlock({
   snapshot,
   goals,
   goalsDone,
-  items,
+  onAdd,
 }: {
   today: string;
   snapshot: HomeSnapshot | undefined;
   goals: number;
   goalsDone: number;
-  items: AddMenuItem[];
+  onAdd: () => void;
 }) {
   const t = useT();
   const tag = intlTag(useLocale());
@@ -424,7 +424,7 @@ function BrutTodayBlock({
             })
           : t("home.prompt"),
       }}
-      action={<AddMenu tile items={items} />}
+      action={<AddButton tile onOpen={onAdd} />}
       stats={
         snapshot
           ? [

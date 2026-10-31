@@ -28,7 +28,7 @@ import { GoalCard } from "@/components/goals/goal-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CardListSkeleton } from "@/components/ui/skeleton";
 import type { EntryWithContext } from "@/types";
-import { AddMenu } from "@/components/calendar/add-menu";
+import { AddButton } from "@/components/calendar/add-menu";
 import { useDayAdd } from "@/components/calendar/day-add";
 import { SleepCard } from "@/components/calendar/sleep-card";
 import { MoodCard } from "@/components/calendar/mood-card";
@@ -199,8 +199,7 @@ export function CalendarDayPage({
     [prevDay, nextDay]
   );
 
-  const addMenuItems = add.items;
-  const addMenu = <AddMenu items={addMenuItems} />;
+  const addMenu = <AddButton onOpen={add.open} />;
 
   // Brütal başlığın sayıları
   // Sayılar eylemleri sayar; nesne girdileri (durum) analizde görünmez
@@ -485,7 +484,7 @@ export function CalendarDayPage({
             { label: t("brut.categories"), value: String(dayCategories.length), color: "#7ae582" },
             { label: t("brut.goals"), value: goals && goals.length ? `${goalsDone}/${goals.length}` : "–", color: "#ff9ecd" },
           ]}
-          action={<AddMenu tile items={addMenuItems} />}
+          action={<AddButton tile onOpen={add.open} />}
           link={{
             href: routes.period(`d-${date}`),
             label: t("day.insights"),
@@ -563,7 +562,7 @@ export function CalendarDayPage({
                   color="#7ae582"
                   icon={NotebookPen}
                   label={t("day.notes.add")}
-                  onClick={() => add.items.find((i) => i.key === "note")?.onSelect()}
+                  onClick={() => add.openTab("note")}
                 />
               }
               stats={[]}

@@ -1,25 +1,19 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useT } from "@/lib/i18n";
-import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog";
+import { intlTag, useLocale, useT } from "@/lib/i18n";
+import { DialogFooter } from "@/components/ui/dialog";
+import { SheetFrame, SheetTitle } from "@/components/ui/sheet-frame";
 import { Button } from "@/components/ui/button";
 import { ENTRY_WINDOW, ENTRY_WINDOW_FOOTER } from "@/components/ui/entry-window";
 import { useNoteDraft } from "@/components/notes/use-note-draft";
 import { NOTE_COLOR } from "@/components/notes/note-card";
 import { cn } from "@/lib/utils";
 
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-const WEEKDAYS_LONG = [
-  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
-];
-function dateLabel(date: string): string {
+/** Notun günü, arayüzün dilinde: "31 Ekim Cumartesi" (eskiden ay ve gün adları elle İngilizceydi) */
+function dateLabel(date: string, tag: string): string {
   const [y, m, d] = date.split("-").map(Number);
-  const dt = new Date(y, m - 1, d);
-  return `${dt.getDate()} ${MONTHS[dt.getMonth()]} ${WEEKDAYS_LONG[dt.getDay()]}`;
+  return new Date(y, m - 1, d).toLocaleDateString(tag, { day: "numeric", month: "long", weekday: "long" });
 }
 
 /**
@@ -30,26 +24,53 @@ function dateLabel(date: string): string {
  * başlık, pencereyi dolduran yazı alanı, altta eylemler.
  *
  * Yazdıkça kaydedilir; kapatmak (Kaydet, karartma, Esc, geri tuşu) son hali
- * yazar, boş kalan notu atar (bkz. useNoteDraft).
+ * yazar, boş kalan notu atar (bkz. useNoteDraft). Ekle ekranının sekmesinde
+ * (embedded) sekmeden ya da ekrandan çıkmak da aynısını yapar.
  */
 export function NoteWindow({
   noteId,
   open,
   onClose,
+  embedded,
 }: {
   noteId: string;
   open: boolean;
   onClose: () => void;
+  /** Ekle ekranının sekmesinde (bkz. AddScreen, SheetFrame) */
+  embedded?: boolean;
 }) {
   // Yalnız açıkken kurulur — kapalı notun taslağı tutulmasın
-  return open ? <NoteWindowBody noteId={noteId} onClose={onClose} /> : null;
+  return open ? <NoteWindowBody noteId={noteId} onClose={onClose} embedded={embedded} /> : null;
 }
 
-function NoteWindowBody({ noteId, onClose }: { noteId: string; onClose: () => void }) {
+function NoteWindowBody({
+  noteId,
+  onClose,
+  embedded,
+}: {
+  noteId: string;
+  onClose: () => void;
+  embedded?: boolean;
+}) {
   const t = useT();
+  const tag = intlTag(useLocale());
   const d = useNoteDraft(noteId);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const c = NOTE_COLOR;
+
+  // Gömülüyken Kaydet'e basılmadan da çıkılabilir (ekranı kapatmak, başka
+  // sekme): çıkarken son hali yaz, boşsa at. Bir kez — Kaydet de çağırıyor.
+  const finishRef = useRef(d.finish);
+  const finishedRef = useRef(false);
+  useEffect(() => {
+    finishRef.current = d.finish;
+  });
+  useEffect(() => {
+    if (!embedded) return;
+    return () => {
+      if (!finishedRef.current) void finishRef.current();
+    };
+  }, [embedded]);
 
   // Yeni (boş) not doğrudan yazmaya açılır
   const isEmpty = !!d.loaded && !d.title && !d.body;
@@ -60,21 +81,25 @@ function NoteWindowBody({ noteId, onClose }: { noteId: string; onClose: () => vo
   }, [d.loaded]);
 
   const close = async () => {
+    finishedRef.current = true;
     await d.finish();
     onClose();
   };
 
   return (
-    <Dialog open onOpenChange={(o) => !o && void close()}>
-      <DialogContent
-        className={cn(ENTRY_WINDOW, "gap-4")}
-        aria-describedby={undefined}
-        // İlk odak yazı alanında olsun (boşsa); Radix ilk düğmeye veriyordu
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
+    <SheetFrame
+      embedded={embedded}
+      open
+      onClose={() => void close()}
+      className={cn(ENTRY_WINDOW, "gap-4")}
+      embeddedClassName="gap-4 overflow-y-auto overscroll-contain px-6 pt-5"
+      hideClose={false}
+      // İlk odak yazı alanında olsun (boşsa); Radix ilk düğmeye veriyordu
+      onOpenAutoFocus={(e) => e.preventDefault()}
+    >
         {d.loaded === null ? (
           <>
-            <DialogTitle className="text-base">{t("entry.note")}</DialogTitle>
+            <SheetTitle className="text-base">{t("entry.note")}</SheetTitle>
             <p className="text-sm text-muted-foreground">Not bulunamadı.</p>
           </>
         ) : (
@@ -86,9 +111,9 @@ function NoteWindowBody({ noteId, onClose }: { noteId: string; onClose: () => vo
                 style={{ color: `${c}cc` }}
               >
                 {t("entry.note")}
-                {d.loaded && ` · ${dateLabel(d.loaded.date)}`}
+                {d.loaded && ` · ${dateLabel(d.loaded.date, tag)}`}
               </div>
-              <DialogTitle asChild>
+              <SheetTitle asChild>
                 <input
                   value={d.title}
                   onChange={(e) => d.setTitle(e.target.value)}
@@ -103,7 +128,7 @@ function NoteWindowBody({ noteId, onClose }: { noteId: string; onClose: () => vo
                     }
                   }}
                 />
-              </DialogTitle>
+              </SheetTitle>
             </div>
 
             <textarea
@@ -122,7 +147,10 @@ function NoteWindowBody({ noteId, onClose }: { noteId: string; onClose: () => vo
                 variant="outline"
                 className="text-destructive hover:text-destructive"
                 onClick={async () => {
-                  if (await d.remove()) onClose();
+                  if (await d.remove()) {
+                    finishedRef.current = true;
+                    onClose();
+                  }
                 }}
               >
                 {t("note.delete")}
@@ -131,7 +159,6 @@ function NoteWindowBody({ noteId, onClose }: { noteId: string; onClose: () => vo
             </DialogFooter>
           </>
         )}
-      </DialogContent>
-    </Dialog>
+    </SheetFrame>
   );
 }

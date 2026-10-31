@@ -13,7 +13,7 @@ import { NoteEditorView } from "@/components/forms/note-editor";
 import { modAtomIcon } from "@/components/structure/mod-atom";
 import { useSheetPresence } from "@/lib/use-sheet-presence";
 import { ENTRY_WINDOW_COMPACT } from "@/components/ui/entry-window";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { SheetFrame } from "@/components/ui/sheet-frame";
 
 /** Uykunun rengi — kutular, ip ve Ekle düğmesi */
 const ACCENT = "#8b5cf6";
@@ -22,6 +22,8 @@ interface SleepSheetProps {
   date: string;
   open: boolean;
   onClose: () => void;
+  /** Ekle ekranının sekmesinde (bkz. AddScreen, SheetFrame) */
+  embedded?: boolean;
 }
 
 /** Yerleşik Uyku akışı: Ekle → Uyku. Gece Uykusu altına süre + kalite kaydeder. */
@@ -34,7 +36,7 @@ export function SleepSheet(props: SleepSheetProps) {
   return mounted ? <SleepSheetBody {...props} open={visible} /> : null;
 }
 
-function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
+function SleepSheetBody({ date, open, onClose, embedded }: SleepSheetProps) {
   const t = useT();
   const [range, setRange] = useState("");
   const [quality, setQuality] = useState("");
@@ -118,14 +120,14 @@ function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      {/* Girdi formunun (açık defter) dili — bkz. EntryShell. Zaman ayrıca
-          sorulmuyor: girdinin zamanı uyanma saati. */}
-      <DialogContent
-        hideClose
-        aria-describedby={undefined}
-        className={cn(ENTRY_WINDOW_COMPACT, "h-[min(660px,calc(100dvh-3rem))] gap-0 overflow-hidden p-0")}
-      >
+    /* Girdi formunun (açık defter) dili — bkz. EntryShell. Zaman ayrıca
+       sorulmuyor: girdinin zamanı uyanma saati. */
+    <SheetFrame
+      embedded={embedded}
+      open={open}
+      onClose={onClose}
+      className={cn(ENTRY_WINDOW_COMPACT, "h-[min(660px,calc(100dvh-3rem))] gap-0 overflow-hidden p-0")}
+    >
         <EntryShell
           title={t("sleep.add")}
           overline={target?.sub.name}
@@ -178,7 +180,6 @@ function SleepSheetBody({ date, open, onClose }: SleepSheetProps) {
             className="absolute inset-0 z-20 bg-card px-5 pb-6 pt-5"
           />
         )}
-      </DialogContent>
-    </Dialog>
+    </SheetFrame>
   );
 }

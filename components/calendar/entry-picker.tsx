@@ -10,6 +10,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { useSkin } from "@/lib/skin";
+import { useEmbedded } from "@/components/ui/sheet-frame";
 import {
   Check,
   ChevronRight,
@@ -179,6 +180,7 @@ export function EntryPicker({
   onRailNavigate?: () => void;
 }) {
   const t = useT();
+  const embedded = useEmbedded();
   const layout = useEntryLayout();
   const [rail, setRailState] = useState<string>(() => readRail() ?? QUICK);
   // Kullanıcı raya kendisi dokunduysa boş "Hızlı ekle"den kaçırılmaz
@@ -604,6 +606,11 @@ export function EntryPicker({
           kişinin ilk işi değil; eskiden "Kategori yarat" ekranın en görünür
           düğmesiydi. */}
       <div className="flex shrink-0 flex-row-reverse items-center gap-2 px-4 pb-1 pt-3">
+        {/* Ekle ekranının sekmesindeyken kapatma şeritte; yeri boş kalır ki
+            soru ortada dursun */}
+        {embedded ? (
+          <span aria-hidden className={cn(ROUND, "invisible")} />
+        ) : (
         <button
           type="button"
           onClick={onClose}
@@ -612,6 +619,7 @@ export function EntryPicker({
         >
           <X className="h-[18px] w-[18px]" />
         </button>
+        )}
         <h2
           className={cn(
             "min-w-0 flex-1 truncate text-center text-[17px] font-bold tracking-tight transition-opacity duration-200",

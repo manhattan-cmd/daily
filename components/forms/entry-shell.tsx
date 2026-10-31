@@ -2,7 +2,7 @@
 
 import { Check, PenLine, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { DialogTitle } from "@/components/ui/dialog";
+import { SheetTitle, useEmbedded } from "@/components/ui/sheet-frame";
 import { SmartText } from "@/components/ui/smart-text";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
@@ -14,7 +14,9 @@ import { useT } from "@/lib/i18n";
  * ip ve özellik kutuları, altta not ve rengin Ekle'si. Başlık ve alt düğme
  * sabit, yalnız gövde kayar.
  *
- * DialogContent'in içine konur; kap `overflow-hidden p-0 gap-0` olmalı.
+ * DialogContent'in içine konur; kap `overflow-hidden p-0 gap-0` olmalı. Ekle
+ * ekranının sekmesindeyken (bkz. SheetFrame) kapat düğmesi çizilmez — ekranın
+ * şeridinde var.
  */
 export function EntryShell({
   title,
@@ -47,9 +49,10 @@ export function EntryShell({
   saveDisabled?: boolean;
 }) {
   const t = useT();
+  const embedded = useEmbedded();
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      <DialogTitle className="sr-only">{title}</DialogTitle>
+      <SheetTitle className="sr-only">{title}</SheetTitle>
       {/* Tepede rengin ışığı */}
       <div
         aria-hidden
@@ -61,7 +64,10 @@ export function EntryShell({
       />
       {/* Başlık bandı — Brütal temada kalemin renginde dolu bant (bkz. globals.css) */}
       <div data-entry-hero="" className="shrink-0" style={{ ["--hero-c" as string]: accent }}>
-      {/* Üst şerit — kapat */}
+      {/* Üst şerit — kapat (Ekle ekranında yok: kapatma şeritte) */}
+      {embedded ? (
+        <div aria-hidden className="h-3 shrink-0" />
+      ) : (
       <div className="flex h-12 shrink-0 items-center justify-end px-3 pt-1.5">
         <button
           type="button"
@@ -72,6 +78,7 @@ export function EntryShell({
           <X className="h-[17px] w-[17px]" />
         </button>
       </div>
+      )}
 
       {/* Başlık — karo, üst yazı, ad, zaman */}
       <div className="flex shrink-0 items-start gap-3 px-4 pb-3">

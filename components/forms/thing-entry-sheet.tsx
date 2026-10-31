@@ -13,7 +13,7 @@ import {
   type CategoryModifierWithType,
 } from "@/lib/db/queries";
 import { currentThingValues, thingUsage } from "@/lib/db/things";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { SheetFrame } from "@/components/ui/sheet-frame";
 import { ENTRY_WINDOW_LARGE } from "@/components/ui/entry-window";
 import { EntryShell } from "@/components/forms/entry-shell";
 import { EntryTime } from "@/components/forms/entry-time";
@@ -66,9 +66,12 @@ export function ThingEntrySheet({
   onClose,
   date,
   thingId: fixedThing,
+  embedded,
 }: {
   open: boolean;
   onClose: () => void;
+  /** Ekle ekranının sekmesinde (bkz. AddScreen, SheetFrame) */
+  embedded?: boolean;
   /** Gün sayfasından: o günün tarihi */
   date?: string;
   /** Nesne sayfasından: nesne hazır seçili */
@@ -176,12 +179,12 @@ export function ThingEntrySheet({
   } as CategoryModifierWithType;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent
-        hideClose
-        aria-describedby={undefined}
-        className={cn(ENTRY_WINDOW_LARGE, "gap-0 overflow-hidden p-0")}
-      >
+    <SheetFrame
+      embedded={embedded}
+      open={open}
+      onClose={onClose}
+      className={cn(ENTRY_WINDOW_LARGE, "gap-0 overflow-hidden p-0")}
+    >
         <EntryShell
           title={th?.name ?? t("objects.entryTitle")}
           overline={th ? coll?.name : t("add.thing")}
@@ -328,7 +331,6 @@ export function ThingEntrySheet({
             className="absolute inset-0 z-20 bg-card px-5 pb-6 pt-5"
           />
         )}
-      </DialogContent>
-    </Dialog>
+    </SheetFrame>
   );
 }

@@ -29,11 +29,14 @@ import { ScaleSlider } from "@/components/ui/scale-slider";
 import type { Category, EntryType, SubCategory } from "@/types";
 import { useSheetPresence } from "@/lib/use-sheet-presence";
 import { ENTRY_WINDOW } from "@/components/ui/entry-window";
+import { SheetFrame, SheetTitle } from "@/components/ui/sheet-frame";
 
 interface AddGoalSheetProps {
   date: string;
   open: boolean;
   onClose: () => void;
+  /** Ekle ekranının sekmesinde (bkz. AddScreen, SheetFrame) */
+  embedded?: boolean;
 }
 
 type Step =
@@ -50,7 +53,7 @@ export function AddGoalSheet(props: AddGoalSheetProps) {
   return mounted ? <AddGoalSheetBody {...props} open={visible} /> : null;
 }
 
-function AddGoalSheetBody({ date, open, onClose }: AddGoalSheetProps) {
+function AddGoalSheetBody({ date, open, onClose, embedded }: AddGoalSheetProps) {
   const tr = useT();
   const [step, setStep] = useState<Step>({ type: "cat" });
   // Multiple selected type IDs (in order of selection)
@@ -188,12 +191,12 @@ function AddGoalSheetBody({ date, open, onClose }: AddGoalSheetProps) {
       {/* Standart kayıt penceresi (bkz. entry-window): eskiden alttan açılan
           bir yüzeydi; Ekle menüsündeki pencereler kart pencereleriyle aynı.
           Kendi kapatma düğmesi başlıkta — standart çarpı gizli. */}
-      <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-        <DialogContent
-          hideClose
-          aria-describedby={undefined}
-          className={cn(ENTRY_WINDOW, "gap-0 overflow-hidden p-0")}
-        >
+      <SheetFrame
+        embedded={embedded}
+        open={open}
+        onClose={onClose}
+        className={cn(ENTRY_WINDOW, "gap-0 overflow-hidden p-0")}
+      >
 
 
         {/* Header */}
@@ -206,7 +209,7 @@ function AddGoalSheetBody({ date, open, onClose }: AddGoalSheetProps) {
             >
               <ArrowLeft className="h-3.5 w-3.5" />
             </button>
-          ) : (
+          ) : embedded ? null : (
             <button
               onClick={onClose}
               className="h-7 w-7 flex items-center justify-center rounded-full bg-[var(--sf-3)] text-muted-foreground hover:bg-[var(--sf-4)] transition-colors shrink-0"
@@ -236,11 +239,11 @@ function AddGoalSheetBody({ date, open, onClose }: AddGoalSheetProps) {
                 </span>
               </div>
             )}
-            <DialogTitle className="text-base font-semibold tracking-tight">
+            <SheetTitle className="text-base font-semibold tracking-tight">
               {step.type === "cat" && "Hedef ekle"}
               {step.type === "sub" && "Pick a subcategory"}
               {step.type === "mod" && "Hedefi belirle"}
-            </DialogTitle>
+            </SheetTitle>
           </div>
         </div>
 
@@ -587,8 +590,7 @@ function AddGoalSheetBody({ date, open, onClose }: AddGoalSheetProps) {
             </Button>
           </div>
         )}
-        </DialogContent>
-      </Dialog>
+      </SheetFrame>
 
       {/* Category creation dialog */}
       <CategoryForm open={catFormOpen} onOpenChange={setCatFormOpen} />

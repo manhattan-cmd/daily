@@ -15,12 +15,14 @@ import { LedgerField } from "@/components/forms/ledger-field";
 import { modAtomIcon } from "@/components/structure/mod-atom";
 import { useSheetPresence } from "@/lib/use-sheet-presence";
 import { ENTRY_WINDOW_LARGE } from "@/components/ui/entry-window";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { SheetFrame } from "@/components/ui/sheet-frame";
 
 interface MoodSheetProps {
   date: string;
   open: boolean;
   onClose: () => void;
+  /** Ekle ekranının sekmesinde (bkz. AddScreen, SheetFrame) */
+  embedded?: boolean;
 }
 
 const ACCENT = "#f472b6";
@@ -64,7 +66,7 @@ export function MoodSheet(props: MoodSheetProps) {
   return mounted ? <MoodSheetBody {...props} open={visible} /> : null;
 }
 
-function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
+function MoodSheetBody({ date, open, onClose, embedded }: MoodSheetProps) {
   const t = useT();
   const [level, setLevel] = useState("");
   /** Seçili duygular, ham değer biçiminde ("Happy|70") — kayda olduğu gibi gider */
@@ -150,14 +152,14 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      {/* Girdi formunun (açık defter) dili — bkz. EntryShell. Yüzler ve
-          duygu ızgarası kendi girişleri; kutunun başlığı ve rengi ortak. */}
-      <DialogContent
-        hideClose
-        aria-describedby={undefined}
-        className={cn(ENTRY_WINDOW_LARGE, "gap-0 overflow-hidden p-0")}
-      >
+    /* Girdi formunun (açık defter) dili — bkz. EntryShell. Yüzler ve
+       duygu ızgarası kendi girişleri; kutunun başlığı ve rengi ortak. */
+    <SheetFrame
+      embedded={embedded}
+      open={open}
+      onClose={onClose}
+      className={cn(ENTRY_WINDOW_LARGE, "gap-0 overflow-hidden p-0")}
+    >
         <EntryShell
           title={t("mood.add")}
           overline={target?.sub.name}
@@ -238,7 +240,6 @@ function MoodSheetBody({ date, open, onClose }: MoodSheetProps) {
             className="absolute inset-0 z-20 bg-card px-5 pb-6 pt-5"
           />
         )}
-      </DialogContent>
-    </Dialog>
+    </SheetFrame>
   );
 }

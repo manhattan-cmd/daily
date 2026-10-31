@@ -2,7 +2,7 @@
 
 import { type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, ChevronRight, Plus, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronRight, Plus, X, type LucideIcon } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
@@ -220,8 +220,21 @@ function CloseButton({ close }: { close: { label: string; onClick: () => void } 
 
 /** linked: hücre bir bağlantının içinde (liste) — ad h2, sağda ok.
  *  compact: ince baş (bkz. SummaryBlock compact) */
-function Lead({ lead, linked = false, compact = false }: { lead: SummaryLead; linked?: boolean; compact?: boolean }) {
-  if (compact && lead.kind !== "date") return <CompactLead lead={lead} linked={linked} />;
+function Lead({
+  lead,
+  linked = false,
+  compact = false,
+  expanded,
+  centered = false,
+}: {
+  lead: SummaryLead;
+  linked?: boolean;
+  compact?: boolean;
+  expanded?: boolean;
+  centered?: boolean;
+}) {
+  if (compact && lead.kind !== "date")
+    return <CompactLead lead={lead} linked={linked} expanded={expanded} centered={centered} />;
   if (lead.kind === "title") {
     return (
       <div className="relative flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-[#111]" style={{ background: lead.color }}>
@@ -306,7 +319,19 @@ function Lead({ lead, linked = false, compact = false }: { lead: SummaryLead; li
  * etiket ad olur, sayı alt satıra iner ("20 alt kategori · …"); kategori /
  * alt kategori özetinde üst yazı (üst kategori) alt satırda.
  */
-function CompactLead({ lead, linked }: { lead: Exclude<SummaryLead, { kind: "date" }>; linked: boolean }) {
+function CompactLead({
+  lead,
+  linked,
+  expanded,
+  centered = false,
+}: {
+  lead: Exclude<SummaryLead, { kind: "date" }>;
+  linked: boolean;
+  /** Verilirse baş açılır kapanır — ok aşağı, açıkken yukarı */
+  expanded?: boolean;
+  /** Ad ortada (Ekle › Girdi'nin kategori başları); ok simge kadar yer tutar */
+  centered?: boolean;
+}) {
   const color = lead.kind === "count" ? lead.color ?? "#ffd23f" : lead.color;
   const title = lead.kind === "count" ? lead.overline : lead.title;
   const hint =
@@ -331,11 +356,22 @@ function CompactLead({ lead, linked }: { lead: Exclude<SummaryLead, { kind: "dat
           {Glyph ? <Glyph className="h-4 w-4" strokeWidth={2.5} /> : <SymbolIcon name={icon} size={17} style={{ color: "#111" }} />}
         </span>
       )}
-      <div className="min-w-0 flex-1">
+      <div className={cn("min-w-0 flex-1", centered && "text-center")}>
         <Title className="truncate text-[16px] font-extrabold leading-tight tracking-tight">{title}</Title>
         {hint && <div className="truncate text-[11px] font-bold leading-tight opacity-60">{hint}</div>}
       </div>
-      {linked && <ChevronRight className="-mr-0.5 h-4 w-4 shrink-0 opacity-50" strokeWidth={2.75} />}
+      {linked && (
+        <span className={cn("flex shrink-0 justify-end", centered && "w-8")}>
+          {expanded === undefined ? (
+            <ChevronRight className="-mr-0.5 h-4 w-4 opacity-50" strokeWidth={2.75} />
+          ) : (
+            <ChevronDown
+              className={cn("-mr-0.5 h-4 w-4 opacity-60 transition-transform", expanded && "rotate-180")}
+              strokeWidth={2.75}
+            />
+          )}
+        </span>
+      )}
     </div>
   );
 }
@@ -367,6 +403,10 @@ function Stat({ s }: { s: SummaryStat }) {
 export function SummaryBlock({
   lead,
   leadHref,
+  onLead,
+  leadLabel,
+  leadExpanded,
+  leadCentered,
   stats,
   action,
   link,
@@ -377,6 +417,14 @@ export function SummaryBlock({
   lead: SummaryLead;
   /** Verilirse ad hücresi bağlantı (Yapı → Kategoriler: kategorinin sayfası) */
   leadHref?: string;
+  /** Verilirse ad hücresi düğme (Ekle › Girdi: kategorinin kendisine girdi) */
+  onLead?: () => void;
+  /** Düğme başın ekran okuyucu adı */
+  leadLabel?: string;
+  /** Verilirse düğme baş bloğu açıp kapatır (Ekle › Girdi'nin kategorileri) */
+  leadExpanded?: boolean;
+  /** İnce başta ad ortada */
+  leadCentered?: boolean;
   /** Sayılar — genelde üç; boşsa satır yok */
   stats: SummaryStat[];
   /** Sayılarla alt satır arasındaki satır(lar) — zemini çağıranın (ana
@@ -412,6 +460,16 @@ export function SummaryBlock({
           <Link href={leadHref} prefetch={false} className="block min-w-0 flex-1 active:brightness-95">
             <Lead lead={lead} linked compact={compact} />
           </Link>
+        ) : onLead ? (
+          <button
+            type="button"
+            onClick={onLead}
+            aria-label={leadLabel}
+            aria-expanded={leadExpanded}
+            className="block min-w-0 flex-1 text-left active:brightness-95"
+          >
+            <Lead lead={lead} linked compact={compact} expanded={leadExpanded} centered={leadCentered} />
+          </button>
         ) : (
           <div className="min-w-0 flex-1">
             <Lead lead={lead} compact={compact} />
