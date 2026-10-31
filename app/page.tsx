@@ -8,17 +8,13 @@ import {
   ArrowRight,
   CalendarDays,
   CalendarRange,
+  Check,
   Layers,
-  Moon,
-  MoonStar,
   Plus,
   Search,
   Settings,
   Sparkles,
-  Sun,
-  Sunrise,
   Target,
-  type LucideIcon,
 } from "lucide-react";
 import {
   getRecentDaySummaries,
@@ -33,7 +29,6 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Layer, PageSheet } from "@/components/ui/layer";
 import { SummaryBlock } from "@/components/ui/summary-block";
-import { HeaderOverline } from "@/components/ui/header-block";
 import { CardListSkeleton } from "@/components/ui/skeleton";
 import { EntryCard } from "@/components/dashboard/entry-card";
 import { NoteCard } from "@/components/notes/note-card";
@@ -817,24 +812,31 @@ function WeekBar({
 /** Ana sayfanın üst menüsünün rengi — alt menüde Ana Sayfa sekmesinin rengi */
 const HOME_MENU = "#a9b0ff";
 
+/** Uygulamanın adı (şimdilik) — markanın adı, çevrilmez */
+const APP_NAME = "Routine";
+
 /**
- * Ana sayfanın üst menüsü (Brütal) — gün sayfasınınki gibi (bkz. WeekStrip)
- * kenardan kenara şerit, altında tek kalın siyah çizgi; rengi alt menüde
- * Ana Sayfa sekmesinin rengi. Durum çubuğu da aynı renk (bkz.
- * statusBarColor): ekranın tepesinden tek parça. Solda günün saatine göre
- * güneş / ay karosu, yanında haftanın günü ve selam etiketi (gün sayfasının
- * "ÇARŞAMBA · BUGÜN"ü gibi), altında tarih ve yılın kaçıncı haftası; sağda
- * alt menünün sekmeleri gibi sönük Ayarlar. İki satır; yapışkan.
+ * Ana sayfanın üst menüsü (Brütal) — uygulamanın başlığı: gün sayfasınınki
+ * gibi (bkz. WeekStrip) kenardan kenara şerit, altında tek kalın siyah
+ * çizgi; rengi alt menüde Ana Sayfa sekmesinin rengi. Durum çubuğu da aynı
+ * renk (bkz. statusBarColor): ekranın tepesinden tek parça. Yalnız üç şey:
+ * solda uygulamanın simgesi (çivitte beyaz onay), yanında adı; sağda alt
+ * menünün sekmeleri gibi sönük Ayarlar simgesi. Yapışkan.
+ *
+ * Araştırmaya göre (platform rehberleri): ana ekranda küçük çubukta
+ * uygulamanın adı ya da logosu, iri başlık iç sayfaların.
  *
  * Önce krem döşemede çerçeveli, gölgeli mor bir bloktu (durum çubuğuyla
  * tezat), sonra beyaz şerit; kullanıcı beyazdan başka bir renk istedi.
- * Soldaki karo önce takvim yaprağıydı (siyah şeritte ay, büyük gün) —
- * kullanıcıya göre tarihin altta yazması yeter.
+ * Sonra solda güneş / ay karosu, yanında haftanın günü ve selam etiketi,
+ * altında tarih ve yılın kaçıncı haftası — kullanıcıya göre gün sayfasına
+ * (tarih, "ÇARŞAMBA · BUGÜN") ilk bakışta çok benziyordu; tarih gün
+ * sayfasının. Sonra iri simge karosu ve renkli selam kapsülü, gazete
+ * manşeti gibi iri ad ("hiç güzel durmuyor"); galeriden kullanıcı adın
+ * köşesinde eğik selam çıkartmalı olanı seçti, çıkartmasız.
  */
 function HomeMenu() {
   const t = useT();
-  const tag = intlTag(useLocale());
-  const now = new Date();
   return (
     <header
       data-home-nav=""
@@ -842,66 +844,37 @@ function HomeMenu() {
       className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]"
       style={{ background: HOME_MENU }}
     >
-      <div className="flex items-center gap-3 py-[9px] pl-4 pr-1">
-        <DayPhaseTile />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex min-w-0 items-center gap-2">
-            <h1 className="truncate text-[21px] font-black leading-none tracking-[-0.02em] text-[#111]">
-              {now.toLocaleDateString(tag, { weekday: "long" })}
-            </h1>
-            <HeaderOverline color={HOME_MENU} className="mb-0 shrink-0 self-center">
-              {getGreeting(t)}
-            </HeaderOverline>
-          </div>
-          <p className="mt-[7px] truncate text-[12px] font-bold leading-none text-[#111]/65">
-            {now.toLocaleDateString(tag, { day: "numeric", month: "long", year: "numeric" })} ·{" "}
-            {t("home.weekOfYear", { n: isoWeek(now) })}
-          </p>
-        </div>
+      <div className="flex min-h-[58px] items-center gap-2.5 pl-4 pr-2">
+        <AppMark />
+        <h1 className="min-w-0 truncate text-[21px] font-black leading-none tracking-[-0.02em] text-[#111]">
+          {APP_NAME}
+        </h1>
+        <span className="flex-1" />
         <Link
           href="/settings"
           prefetch={false}
           aria-label={t("nav.settings")}
-          className="flex w-[60px] shrink-0 flex-col items-center gap-[5px] py-1 text-[#111]/60 active:text-[#111]"
+          title={t("nav.settings")}
+          className="flex h-10 w-10 shrink-0 items-center justify-center text-[#111]/60 active:text-[#111]"
         >
-          <Settings className="h-[19px] w-[19px]" strokeWidth={2.25} />
-          <span className="text-[10.5px] font-bold leading-none">{t("nav.settings")}</span>
+          <Settings className="h-5 w-5" strokeWidth={2.25} />
         </Link>
       </div>
     </header>
   );
 }
 
-/**
- * Günün saatine göre güneş / ay — selamın simgesi kendi karosunda: sabah
- * turuncu doğan güneş, öğlen sarı güneş, akşam ve gece siyahta sarı ay.
- */
-function DayPhaseTile() {
-  const h = new Date().getHours();
-  const [Icon, bg, ink]: [LucideIcon, string, string] =
-    h < 5 ? [MoonStar, "#111", "#ffd23f"]
-    : h < 12 ? [Sunrise, "#ffb38a", "#111"]
-    : h < 18 ? [Sun, "#ffd23f", "#111"]
-    : [Moon, "#111", "#ffd23f"];
-  const night = bg === "#111";
+/** Uygulamanın simgesi (bkz. public/icons) — çivit karoda beyaz onay */
+function AppMark() {
   return (
     <span
       aria-hidden
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border-2 border-[#111] shadow-[2px_2px_0_#111]"
-      style={{ background: bg, color: ink }}
+      className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] border-[1.5px] shadow-[1.5px_1.5px_0_#111]"
+      style={{ background: "#6366f1", borderColor: "#111" }}
     >
-      <Icon className="h-[22px] w-[22px]" strokeWidth={2.5} fill={night ? ink : "#ffffff"} />
+      <Check className="h-[17px] w-[17px] text-white" strokeWidth={3.5} />
     </span>
   );
-}
-
-/** Yılın kaçıncı haftası (ISO: hafta pazartesi başlar) */
-function isoWeek(d: Date): number {
-  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const day = t.getUTCDay() || 7;
-  t.setUTCDate(t.getUTCDate() + 4 - day);
-  const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
-  return Math.ceil(((t.getTime() - y0.getTime()) / 86400000 + 1) / 7);
 }
 
 function getGreeting(t: (k: Parameters<typeof translate>[0]) => string): string {
