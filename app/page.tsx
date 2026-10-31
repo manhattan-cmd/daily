@@ -819,9 +819,10 @@ const APP_NAME = "Routine";
  * Ana sayfanın üst menüsü (Brütal) — uygulamanın başlığı: gün sayfasınınki
  * gibi (bkz. WeekStrip) kenardan kenara şerit, altında tek kalın siyah
  * çizgi; rengi alt menüde Ana Sayfa sekmesinin rengi. Durum çubuğu da aynı
- * renk (bkz. statusBarColor): ekranın tepesinden tek parça. Yalnız üç şey:
- * solda uygulamanın simgesi (çivitte beyaz onay), yanında adı; sağda alt
- * menünün sekmeleri gibi sönük Ayarlar simgesi. Yapışkan.
+ * renk (bkz. statusBarColor): ekranın tepesinden tek parça. İçinde, çevresi
+ * mor kalan ince çerçeveli beyaz kapsülde yalnız üç şey: solda uygulamanın
+ * simgesi (çivitte beyaz onay), yanında adı; sağda alt menünün sekmeleri
+ * gibi sönük Ayarlar simgesi. Yapışkan.
  *
  * Araştırmaya göre (platform rehberleri): ana ekranda küçük çubukta
  * uygulamanın adı ya da logosu, iri başlık iç sayfaların.
@@ -844,21 +845,27 @@ function HomeMenu() {
       className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]"
       style={{ background: HOME_MENU }}
     >
-      <div className="flex min-h-[58px] items-center gap-2.5 pl-4 pr-2">
-        <AppMark />
-        <h1 className="min-w-0 truncate text-[21px] font-black leading-none tracking-[-0.02em] text-[#111]">
-          {APP_NAME}
-        </h1>
-        <span className="flex-1" />
-        <Link
-          href="/settings"
-          prefetch={false}
-          aria-label={t("nav.settings")}
-          title={t("nav.settings")}
-          className="flex h-10 w-10 shrink-0 items-center justify-center text-[#111]/60 active:text-[#111]"
+      <div className="px-3 py-2.5">
+        <div
+          data-home-capsule=""
+          className="flex h-[46px] items-center gap-2.5 rounded-full border-[1.5px] bg-white pl-2 pr-1 shadow-[2px_2px_0_#111]"
+          style={{ borderColor: "#111" }}
         >
-          <Settings className="h-5 w-5" strokeWidth={2.25} />
-        </Link>
+          <AppMark />
+          <h1 className="min-w-0 truncate text-[20px] font-black leading-none tracking-[-0.02em] text-[#111]">
+            {APP_NAME}
+          </h1>
+          <span className="flex-1" />
+          <Link
+            href="/settings"
+            prefetch={false}
+            aria-label={t("nav.settings")}
+            title={t("nav.settings")}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#111]/60 active:bg-[#111]/5 active:text-[#111]"
+          >
+            <Settings className="h-5 w-5" strokeWidth={2.25} />
+          </Link>
+        </div>
       </div>
     </header>
   );
