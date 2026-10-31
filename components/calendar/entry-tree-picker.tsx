@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Layers, LayoutList, MoreHorizontal, Search, X } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
@@ -42,9 +42,9 @@ type Line =
  * bütün ağacı.
  *
  * Burada yapı kurulmaz (kategori / alt kategori yaratma yok): bloğun sarı
- * karosu kategorinin Yapı sayfasına götürür. Üstteki kategori şeridi
- * kategorinin bloğunu açıp ona kayar; satırdaki sayı son 30 günün girdisi
- * (sık kullanılanı ağacın içinde gösterir).
+ * karosu kategorinin Yapı sayfasına götürür. Satırdaki sayı son 30 günün
+ * girdisi (sık kullanılanı ağacın içinde gösterir). Kategori başları ince
+ * (42 px), ad ortada; üstte kategori şeridi vardı, kalktı.
  *
  * Eskiden: üstte Hızlı ekle, altta her kategorinin kalemleri dörtlü karo
  * rafında; dal karosuna basınca altı satırın altında açılıyor, dalın
@@ -75,8 +75,6 @@ export function EntryTreePicker({
     onClose();
     router.push(href);
   };
-  const listRef = useRef<HTMLDivElement>(null);
-  const blockRefs = useRef(new Map<string, HTMLDivElement>());
 
   const counts = useCachedLiveQuery(USAGE_COUNTS_KEY, loadUsageCounts) ?? NO_COUNTS;
   const categories = useMemo(() => (groups ?? []).map((g) => g.category), [groups]);
@@ -116,177 +114,145 @@ export function EntryTreePicker({
     else setOpenCats(flip);
   };
 
-  /** Şeritten: bloğu açar, başına kayar (açılan ağaç çizildikten sonra) */
-  const jump = (id: string) => {
-    setOpenCats((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
-    requestAnimationFrame(() => {
-      const el = blockRefs.current.get(id);
-      const list = listRef.current;
-      if (!el || !list) return;
-      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      list.scrollTo({ top: el.offsetTop - 12, behavior: reduce ? "auto" : "smooth" });
-    });
-  };
-
   const square =
-    "flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border-2 bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none";
+    "flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[11px] border-2 bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none";
 
+  // Sayfa zemini (bkz. PageSheet): krem döşemenin önünde beyaz yüzey — kalın
+  // çerçeve, üst köşeleri yuvarlak, iki yanda 10 px döşeme; arama sabit,
+  // altındaki liste zeminin içinde kayar
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      {/* Arama ve işlemler — sabit; altında kategori şeridi */}
-      <div className="shrink-0 px-3 pt-3">
-        <div className="flex items-center gap-2">
-          <label
-            className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-[12px] border-2 bg-white px-3 shadow-[2px_2px_0_#111]"
-            style={{ borderColor: "#111" }}
-          >
-            <Search className="h-[18px] w-[18px] shrink-0 text-[#111]/55" strokeWidth={2.5} />
-            <input
-              data-pick-search=""
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setSearchClosed(new Set());
-              }}
-              placeholder={t("pick.search")}
-              aria-label={t("entry.searchAll")}
-              className="h-full min-w-0 flex-1 bg-transparent text-[15px] font-semibold text-[#111] placeholder:font-medium placeholder:text-[#111]/45 focus:outline-none"
-            />
-            {query && (
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                aria-label={t("action.close")}
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#111] text-white"
-              >
-                <X className="h-3.5 w-3.5" strokeWidth={3} />
+      <div
+        data-page-sheet=""
+        className="mx-2.5 mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[20px] border-2 border-b-0 bg-white"
+        style={{ borderColor: "#111" }}
+      >
+        {/* Arama ve işlemler — sabit */}
+        <div className="shrink-0 px-1.5 pb-3 pt-3">
+          <div className="flex items-center gap-2">
+            <label
+              className="flex h-[38px] min-w-0 flex-1 items-center gap-2 rounded-[11px] border-2 bg-white px-2.5 shadow-[2px_2px_0_#111]"
+              style={{ borderColor: "#111" }}
+            >
+              <Search className="h-4 w-4 shrink-0 text-[#111]/55" strokeWidth={2.5} />
+              <input
+                data-pick-search=""
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setSearchClosed(new Set());
+                }}
+                placeholder={t("pick.search")}
+                aria-label={t("entry.searchAll")}
+                className="h-full min-w-0 flex-1 bg-transparent text-[14px] font-semibold text-[#111] placeholder:font-medium placeholder:text-[#111]/45 focus:outline-none"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  aria-label={t("action.close")}
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#111] text-white"
+                >
+                  <X className="h-3.5 w-3.5" strokeWidth={3} />
+                </button>
+              )}
+            </label>
+            <button
+              type="button"
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-label={t("entry.moreActions")}
+              aria-expanded={menuOpen}
+              className={square}
+              style={{ borderColor: "#111" }}
+            >
+              <MoreHorizontal className="h-[18px] w-[18px]" strokeWidth={2.5} />
+            </button>
+            {/* Tek başına pencerede (kategori sayfasının Girdi ekle'si) kapatma burada;
+                Ekle ekranında şeritte */}
+            {!embedded && (
+              <button type="button" onClick={onClose} aria-label={t("action.close")} className={square} style={{ borderColor: "#111" }}>
+                <X className="h-[18px] w-[18px]" strokeWidth={2.75} />
               </button>
             )}
-          </label>
-          <button
-            type="button"
-            onClick={() => setMenuOpen((o) => !o)}
-            aria-label={t("entry.moreActions")}
-            aria-expanded={menuOpen}
-            className={square}
-            style={{ borderColor: "#111" }}
-          >
-            <MoreHorizontal className="h-5 w-5" strokeWidth={2.5} />
-          </button>
-          {/* Tek başına pencerede (kategori sayfasının Girdi ekle'si) kapatma burada;
-              Ekle ekranında şeritte */}
-          {!embedded && (
-            <button type="button" onClick={onClose} aria-label={t("action.close")} className={square} style={{ borderColor: "#111" }}>
-              <X className="h-5 w-5" strokeWidth={2.75} />
-            </button>
-          )}
+          </div>
         </div>
 
-        {/* Kategori şeridi — uzun ağaçta kategoriye atlar */}
-        {!visible && categories.length > 1 && (
-          <nav
-            aria-label={t("structure.categories")}
-            data-pick-jump=""
-            className="no-scrollbar -mx-3 mt-2.5 flex gap-1.5 overflow-x-auto px-3 pb-2.5"
-          >
-            {categories.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => jump(c.id)}
-                className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border-[1.5px] bg-white pl-2 pr-3 text-[12.5px] font-extrabold text-[#111] active:bg-[#f5f1e8]"
-                style={{ borderColor: "#111" }}
-              >
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full border-[1.5px]" style={{ background: c.color, borderColor: "#111" }} />
-                {c.name}
-              </button>
-            ))}
-          </nav>
-        )}
-        {visible && <div className="h-3" />}
-      </div>
-
-      <div
-        ref={listRef}
-        data-pick-list=""
-        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-1"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 28px)" }}
-      >
-        {groups && categories.length === 0 ? (
-          <SummaryBlock compact lead={{ kind: "title", overline: "", title: t("structure.categories"), color: "#ffd23f" }} stats={[]}>
-            <SummaryEmpty
-              text={t("structure.empty.title")}
-              action={{ label: t("pick.goStructure"), onClick: () => goStructure("/structure") }}
-            />
-          </SummaryBlock>
-        ) : visible && shown.length === 0 ? (
-          <SummaryBlock compact lead={{ kind: "title", overline: "", title: t("pick.searchTitle"), color: "#ffd23f", glyph: Search }} stats={[]}>
-            <SummaryEmpty text={t("pick.noMatch", { q: query.trim() })} />
-          </SummaryBlock>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {shown.map((cat) => {
-              const own = subs.filter((s) => s.categoryId === cat.id);
-              const items = own.length;
-              const open = items > 0 && isOpen(cat.id);
-              // Aramada yalnız kalemi eşleşen kategoride gövde satırı gizli
-              const direct = !visible || visible.catHit.has(cat.id);
-              return (
-                <div
-                  key={cat.id}
-                  data-pick-cat={cat.id}
-                  ref={(el) => {
-                    if (el) blockRefs.current.set(cat.id, el);
-                    else blockRefs.current.delete(cat.id);
-                  }}
-                >
-                  {/* Baş bloğu açıp kapatır; alt kategorisi yoksa açacak bir şey
-                      yok — doğrudan kategoriye girdi */}
-                  <SummaryBlock
-                    compact
-                    onLead={items > 0 ? () => toggle(cat.id) : () => onPickCategory(cat)}
-                    leadLabel={items > 0 ? undefined : t("pick.addTo", { name: cat.name })}
-                    leadExpanded={items > 0 ? open : undefined}
-                    leadCentered
-                    lead={{
-                      kind: "thing",
-                      color: cat.color,
-                      icon: cat.icon,
-                      title: cat.name,
-                    }}
-                    action={
-                      <SummaryTile
-                        compact
-                        color="#ffd23f"
-                        icon={Layers}
-                        label={t("pick.openInStructure", { name: cat.name })}
-                        onClick={() => goStructure(routes.structureCategory(cat.id))}
-                      />
-                    }
-                    stats={[]}
-                  >
-                    {open && (
-                      <div data-pick-tree="" className="bg-white px-1.5 py-2">
-                        {direct && (
-                          <DirectRow cat={cat} label={t("pick.addTo", { name: cat.name })} onClick={() => onPickCategory(cat)} />
-                        )}
-                        <PickRows
-                          cat={cat}
-                          subs={own}
-                          counts={counts}
-                          keep={visible ? visible.keep : null}
-                          showAll={!!visible && !visible.catHit.has(cat.id)}
-                          query={visible && !visible.catHit.has(cat.id) ? q : ""}
-                          onRow={onPick}
+        <div
+          data-pick-list=""
+          className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5 pt-1"
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 28px)" }}
+        >
+          {groups && categories.length === 0 ? (
+            <SummaryBlock compact lead={{ kind: "title", overline: "", title: t("structure.categories"), color: "#ffd23f" }} stats={[]}>
+              <SummaryEmpty
+                text={t("structure.empty.title")}
+                action={{ label: t("pick.goStructure"), onClick: () => goStructure("/structure") }}
+              />
+            </SummaryBlock>
+          ) : visible && shown.length === 0 ? (
+            <SummaryBlock compact lead={{ kind: "title", overline: "", title: t("pick.searchTitle"), color: "#ffd23f", glyph: Search }} stats={[]}>
+              <SummaryEmpty text={t("pick.noMatch", { q: query.trim() })} />
+            </SummaryBlock>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {shown.map((cat) => {
+                const own = subs.filter((s) => s.categoryId === cat.id);
+                const items = own.length;
+                const open = items > 0 && isOpen(cat.id);
+                // Aramada yalnız kalemi eşleşen kategoride gövde satırı gizli
+                const direct = !visible || visible.catHit.has(cat.id);
+                return (
+                  <div key={cat.id} data-pick-cat={cat.id}>
+                    {/* Baş bloğu açıp kapatır; alt kategorisi yoksa açacak bir şey
+                        yok — doğrudan kategoriye girdi */}
+                    <SummaryBlock
+                      compact
+                      onLead={items > 0 ? () => toggle(cat.id) : () => onPickCategory(cat)}
+                      leadLabel={items > 0 ? undefined : t("pick.addTo", { name: cat.name })}
+                      leadExpanded={items > 0 ? open : undefined}
+                      leadCentered
+                      dense
+                      lead={{
+                        kind: "thing",
+                        color: cat.color,
+                        icon: cat.icon,
+                        title: cat.name,
+                      }}
+                      action={
+                        <SummaryTile
+                          compact
+                          dense
+                          color="#ffd23f"
+                          icon={Layers}
+                          label={t("pick.openInStructure", { name: cat.name })}
+                          onClick={() => goStructure(routes.structureCategory(cat.id))}
                         />
-                      </div>
-                    )}
-                  </SummaryBlock>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                      }
+                      stats={[]}
+                    >
+                      {open && (
+                        <div data-pick-tree="" className="bg-white px-1.5 py-2">
+                          {direct && (
+                            <DirectRow cat={cat} label={t("pick.addTo", { name: cat.name })} onClick={() => onPickCategory(cat)} />
+                          )}
+                          <PickRows
+                            cat={cat}
+                            subs={own}
+                            counts={counts}
+                            keep={visible ? visible.keep : null}
+                            showAll={!!visible && !visible.catHit.has(cat.id)}
+                            query={visible && !visible.catHit.has(cat.id) ? q : ""}
+                            onRow={onPick}
+                          />
+                        </div>
+                      )}
+                    </SummaryBlock>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ⋯ — görünüm işlemleri, aynı yüzeyde küçük bir menü */}
@@ -294,7 +260,7 @@ export function EntryTreePicker({
         <>
           <div className="absolute inset-0 z-30" onClick={() => setMenuOpen(false)} />
           <div
-            className="animate-in fade-in zoom-in-95 absolute right-3 top-[60px] z-40 flex min-w-[230px] flex-col overflow-hidden rounded-[14px] border-2 bg-white p-1 text-[#111] shadow-[3px_3px_0_#111]"
+            className="animate-in fade-in zoom-in-95 absolute right-[18px] top-[70px] z-40 flex min-w-[230px] flex-col overflow-hidden rounded-[14px] border-2 bg-white p-1 text-[#111] shadow-[3px_3px_0_#111]"
             style={{ borderColor: "#111" }}
           >
             <MenuRow

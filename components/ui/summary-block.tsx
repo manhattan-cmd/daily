@@ -109,6 +109,7 @@ export function SummaryTile({
   onClick,
   href,
   compact = false,
+  dense = false,
 }: {
   color: string;
   icon: LucideIcon;
@@ -117,14 +118,19 @@ export function SummaryTile({
   href?: string;
   /** İnce blok başı (Yapı'nın listeleri): yalnız simge, ad okuyucuya */
   compact?: boolean;
+  /** Daha da ince baş (bkz. SummaryBlock dense): simge karosu küçük */
+  dense?: boolean;
 }) {
   // py: ad hücresi kısa kalınca (boş Alt kategoriler) üç satırlık ad ve simge
   // kenara, bloğun yuvarlak köşesine yapışıp kesiliyordu — satır gerekirse uzar
   if (compact) {
     const c = "flex h-full w-full items-center justify-center text-[#111] active:brightness-95";
     const mark = (
-      <span className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-[#111]" style={{ color }}>
-        <Icon className="h-4 w-4" strokeWidth={3} />
+      <span
+        className={cn("flex items-center justify-center bg-[#111]", dense ? "h-6 w-6 rounded-[7px]" : "h-8 w-8 rounded-[9px]")}
+        style={{ color }}
+      >
+        <Icon className={dense ? "h-3 w-3" : "h-4 w-4"} strokeWidth={3} />
       </span>
     );
     if (!href && !onClick) {
@@ -226,15 +232,17 @@ function Lead({
   compact = false,
   expanded,
   centered = false,
+  dense = false,
 }: {
   lead: SummaryLead;
   linked?: boolean;
   compact?: boolean;
   expanded?: boolean;
   centered?: boolean;
+  dense?: boolean;
 }) {
   if (compact && lead.kind !== "date")
-    return <CompactLead lead={lead} linked={linked} expanded={expanded} centered={centered} />;
+    return <CompactLead lead={lead} linked={linked} expanded={expanded} centered={centered} dense={dense} />;
   if (lead.kind === "title") {
     return (
       <div className="relative flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-[#111]" style={{ background: lead.color }}>
@@ -324,6 +332,7 @@ function CompactLead({
   linked,
   expanded,
   centered = false,
+  dense = false,
 }: {
   lead: Exclude<SummaryLead, { kind: "date" }>;
   linked: boolean;
@@ -331,6 +340,8 @@ function CompactLead({
   expanded?: boolean;
   /** Ad ortada (Ekle › Girdi'nin kategori başları); ok simge kadar yer tutar */
   centered?: boolean;
+  /** 36 px baş, küçük simge (Ekle › Girdi'nin kategori satırları) */
+  dense?: boolean;
 }) {
   const color = lead.kind === "count" ? lead.color ?? "#ffd23f" : lead.color;
   const title = lead.kind === "count" ? lead.overline : lead.title;
@@ -347,21 +358,34 @@ function CompactLead({
   const Title = lead.kind === "thing" && !linked ? "h1" : "h2";
   return (
     <div
-      className={cn("relative flex h-full min-h-[50px] min-w-0 items-center gap-2.5 px-3 py-2 text-[#111]", close && "pr-9")}
+      className={cn(
+        "relative flex h-full min-w-0 items-center text-[#111]",
+        dense ? "min-h-[36px] gap-2 px-2 py-1" : "min-h-[50px] gap-2.5 px-3 py-2",
+        close && "pr-9"
+      )}
       style={{ background: color }}
     >
       {close && <CloseButton close={close} />}
       {(Glyph || icon) && (
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111] bg-white">
-          {Glyph ? <Glyph className="h-4 w-4" strokeWidth={2.5} /> : <SymbolIcon name={icon} size={17} style={{ color: "#111" }} />}
+        <span
+          className={cn(
+            "flex shrink-0 items-center justify-center border-[1.5px] border-[#111] bg-white",
+            dense ? "h-6 w-6 rounded-[7px]" : "h-8 w-8 rounded-[9px]"
+          )}
+        >
+          {Glyph ? (
+            <Glyph className={dense ? "h-3 w-3" : "h-4 w-4"} strokeWidth={2.5} />
+          ) : (
+            <SymbolIcon name={icon} size={dense ? 13 : 17} style={{ color: "#111" }} />
+          )}
         </span>
       )}
       <div className={cn("min-w-0 flex-1", centered && "text-center")}>
-        <Title className="truncate text-[16px] font-extrabold leading-tight tracking-tight">{title}</Title>
+        <Title className={cn("truncate font-extrabold leading-tight tracking-tight", dense ? "text-[14px]" : "text-[16px]")}>{title}</Title>
         {hint && <div className="truncate text-[11px] font-bold leading-tight opacity-60">{hint}</div>}
       </div>
       {linked && (
-        <span className={cn("flex shrink-0 justify-end", centered && "w-8")}>
+        <span className={cn("flex shrink-0 justify-end", centered && (dense ? "w-6" : "w-8"))}>
           {expanded === undefined ? (
             <ChevronRight className="-mr-0.5 h-4 w-4 opacity-50" strokeWidth={2.75} />
           ) : (
@@ -407,6 +431,7 @@ export function SummaryBlock({
   leadLabel,
   leadExpanded,
   leadCentered,
+  dense = false,
   stats,
   action,
   link,
@@ -425,6 +450,8 @@ export function SummaryBlock({
   leadExpanded?: boolean;
   /** İnce başta ad ortada */
   leadCentered?: boolean;
+  /** compact'tan da ince blok (36 px baş, küçük köşe ve gölge) — eklenen karo da `dense` olmalı */
+  dense?: boolean;
   /** Sayılar — genelde üç; boşsa satır yok */
   stats: SummaryStat[];
   /** Sayılarla alt satır arasındaki satır(lar) — zemini çağıranın (ana
@@ -451,7 +478,8 @@ export function SummaryBlock({
     <div
       data-summary=""
       className={cn(
-        "grid grid-cols-1 gap-[2px] overflow-hidden rounded-[18px] border-2 border-[#111] bg-[#111] shadow-[4px_4px_0_#111]",
+        "grid grid-cols-1 gap-[2px] overflow-hidden border-2 border-[#111] bg-[#111]",
+        dense ? "rounded-[13px] shadow-[3px_3px_0_#111]" : "rounded-[18px] shadow-[4px_4px_0_#111]",
         className
       )}
     >
@@ -468,7 +496,7 @@ export function SummaryBlock({
             aria-expanded={leadExpanded}
             className="block min-w-0 flex-1 text-left active:brightness-95"
           >
-            <Lead lead={lead} linked compact={compact} expanded={leadExpanded} centered={leadCentered} />
+            <Lead lead={lead} linked compact={compact} expanded={leadExpanded} centered={leadCentered} dense={dense} />
           </button>
         ) : (
           <div className="min-w-0 flex-1">
@@ -476,7 +504,9 @@ export function SummaryBlock({
           </div>
         )}
         {/* Satır boyunca uzar: ad iki satıra taşınca altında siyah boşluk kalmasın */}
-        {action && <div className={compact ? "w-[52px] shrink-0" : "min-h-[76px] w-[76px] shrink-0"}>{action}</div>}
+        {action && (
+          <div className={compact ? (dense ? "w-[40px] shrink-0" : "w-[52px] shrink-0") : "min-h-[76px] w-[76px] shrink-0"}>{action}</div>
+        )}
       </div>
       {/* Sayı kadar sütun: bağlı sayısal özelliği olmayan kategoride iki;
           sayılar yüklenirken satır hiç yok */}
