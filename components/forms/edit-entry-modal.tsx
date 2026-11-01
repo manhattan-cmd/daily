@@ -909,8 +909,11 @@ export function EditEntryModal({
               Kaydet. Başlık ve alt düğmeler sabit, yalnız gövde kayar.
               Uyku ve ruh hali de burada: renkleri akışın rengi, ruh halinin
               yüzleri ve duygu ızgarası kutunun kendi girişi.
+              Ekleme formuyla aynı kabuk (data-entry-root / hero / sheet /
+              foot): ⋯ ve kapat zaman hapının satırında, kutular Brütal
+              temada sayfa zemininde ortada, altta tek Kaydet.
             */
-            <div className="relative flex min-h-0 flex-1 flex-col">
+            <div data-entry-root="" data-form-page="" className="relative flex min-h-0 flex-1 flex-col">
               <DialogTitle className="sr-only">{structureName}</DialogTitle>
               {/* Tepede kategorinin renginde ışık */}
               <div
@@ -922,53 +925,10 @@ export function EditEntryModal({
                 }}
               />
               {/* Başlık bandı — Brütal temada kalemin renginde dolu bant (bkz. globals.css) */}
-              <div data-entry-hero="" className="shrink-0" style={{ ["--hero-c" as string]: accent }}>
-              {/* Üst şerit — seçenekler solda, kapat sağda */}
-              <div className="flex h-12 shrink-0 items-center justify-between px-3 pt-1.5">
-                <OptionsMenu
-                  align="left"
-                  touched={totalParallels > 0 || isRegular}
-                  items={[
-                    {
-                      key: "parallel",
-                      icon: Link2,
-                      title: t("entry.parallel"),
-                      subtitle: totalParallels
-                        ? `${totalParallels} perspektif`
-                        : t("entry.alsoLog"),
-                      active: panel === "parallel",
-                      onSelect: () => togglePanel("parallel"),
-                    },
-                    {
-                      key: "regular",
-                      icon: Repeat,
-                      title: t("entry.regular"),
-                      subtitle: isRegular ? t("entry.regularOn") : t("entry.regularOff"),
-                      active: panel === "regular",
-                      onSelect: () => togglePanel("regular"),
-                    },
-                    {
-                      key: "delete",
-                      icon: Trash2,
-                      title: t("entry.delete"),
-                      subtitle: t("entry.deleteHint"),
-                      tone: "destructive",
-                      active: panel === "delete",
-                      onSelect: () => togglePanel("delete"),
-                    },
-                  ]}
-                />
-                <button
-                  type="button"
-                  onClick={() => onOpenChange(false)}
-                  aria-label={t("action.close")}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sf-2)] text-foreground/80 transition-[background-color,transform] hover:bg-[var(--sf-3)] active:scale-95"
-                >
-                  <X className="h-[17px] w-[17px]" />
-                </button>
-              </div>
-
-              {/* Başlık — karo, yol, ad (dokununca kalemin yapı sayfası), zaman */}
+              <div data-entry-hero="" className="shrink-0 pt-3" style={{ ["--hero-c" as string]: accent }}>
+              {/* Başlık — karo, yol, ad (dokununca kalemin yapı sayfası), zaman;
+                  ⋯ ve kapat zamanın satırında. Eskiden ikisi bandın tepesinde
+                  kendi şeridindeydi — bant boşuna uzundu (bkz. FormStep) */}
               <div className="flex shrink-0 items-start gap-3 px-4 pb-3">
                 <button
                   type="button"
@@ -999,22 +959,69 @@ export function EditEntryModal({
                     lines={2}
                     className="text-[19px] font-bold leading-6 tracking-tight"
                   />
-                  <EntryTime
-                    occurredAt={occurredAt}
-                    onChange={setOccurredAt}
-                    baseDate={entryDate}
-                    accent={accent}
-                  />
+                  <div className="flex flex-wrap items-end gap-x-2 gap-y-1.5">
+                    <div className="flex-[1_0_auto]">
+                      <EntryTime
+                        occurredAt={occurredAt}
+                        onChange={setOccurredAt}
+                        baseDate={entryDate}
+                        accent={accent}
+                      />
+                    </div>
+                    <div data-hero-actions="" className="ml-auto flex shrink-0 items-center gap-1.5">
+                      <OptionsMenu
+                        touched={totalParallels > 0 || isRegular}
+                        items={[
+                          {
+                            key: "parallel",
+                            icon: Link2,
+                            title: t("entry.parallel"),
+                            subtitle: totalParallels
+                              ? `${totalParallels} perspektif`
+                              : t("entry.alsoLog"),
+                            active: panel === "parallel",
+                            onSelect: () => togglePanel("parallel"),
+                          },
+                          {
+                            key: "regular",
+                            icon: Repeat,
+                            title: t("entry.regular"),
+                            subtitle: isRegular ? t("entry.regularOn") : t("entry.regularOff"),
+                            active: panel === "regular",
+                            onSelect: () => togglePanel("regular"),
+                          },
+                          {
+                            key: "delete",
+                            icon: Trash2,
+                            title: t("entry.delete"),
+                            subtitle: t("entry.deleteHint"),
+                            tone: "destructive",
+                            active: panel === "delete",
+                            onSelect: () => togglePanel("delete"),
+                          },
+                        ]}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => onOpenChange(false)}
+                        aria-label={t("action.close")}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--sf-3)] text-foreground/80 transition-[background-color,transform] hover:bg-[var(--sf-4)] active:scale-95"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               </div>
 
-              {/* Gövde — açık defter */}
-              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 pb-4">
-                <div className="relative ml-[22px] flex flex-col gap-2 pl-3">
+              {/* Gövde — açık defter; Brütal temada sayfa zemini */}
+              <div data-entry-sheet="" className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 pb-4">
+                <div data-ledger-stack="" className="relative ml-[22px] flex flex-col gap-2 pl-3">
                   <span
                     aria-hidden
+                    data-rope=""
                     className="absolute -top-2.5 bottom-4 left-0 w-[2px] -translate-x-1/2 rounded-full"
                     style={{ background: `${accent}59` }}
                   />
@@ -1075,6 +1082,7 @@ export function EditEntryModal({
                   {!isBuiltInTone && (
                   <button
                     type="button"
+                    data-add-feature=""
                     onClick={() => setAddModOpen(true)}
                     className="flex h-9 items-center gap-1.5 self-start rounded-full px-3 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
                   >
@@ -1112,25 +1120,18 @@ export function EditEntryModal({
                 </div>
               </div>
 
-              {/* Alt — vazgeç ve kaydet (kalemin renginde) */}
+              {/* Alt — kalemin renginde Kaydet (vazgeçmek bandın kapatı;
+                  eskiden yanında ayrı bir Vazgeç vardı) */}
               <div
                 data-entry-foot=""
-                className="grid shrink-0 grid-cols-[auto_1fr] gap-2 border-t border-[var(--ln-1)] px-4 pt-3"
+                className="shrink-0 border-t border-[var(--ln-1)] px-4 pt-3"
                 style={{ paddingBottom: "max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem))" }}
               >
                 <button
                   type="button"
-                  onClick={() => onOpenChange(false)}
-                  disabled={saving}
-                  className="h-12 rounded-2xl bg-[var(--sf-2)] px-5 text-[14px] font-semibold text-foreground/85 transition-colors hover:bg-[var(--sf-3)]"
-                >
-                  {t("action.cancel")}
-                </button>
-                <button
-                  type="button"
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex h-12 items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-60"
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-60"
                   style={{ background: accent }}
                 >
                   {!saving && <Check className="h-5 w-5" strokeWidth={2.75} />}

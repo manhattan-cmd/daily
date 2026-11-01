@@ -186,6 +186,12 @@ function MenuRow({ item, onClick }: { item: OptionItem; onClick: () => void }) {
 }
 
 /** Menüden açılan bölüm — başlık satırı + kapatma */
+/** Açılan bölüm görünüme gelsin — formun altında açılıp görünmeyen yerde
+ *  kalıyordu (Girdiyi sil). Sabit işlev: yalnız kurulduğu an çağrılır. */
+const revealOnMount = (el: HTMLDivElement | null) => {
+  el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+};
+
 export function PanelBlock({
   icon: Icon,
   title,
@@ -198,7 +204,7 @@ export function PanelBlock({
   children: React.ReactNode;
 }) {
   return (
-    <div>
+    <div ref={revealOnMount} className="scroll-mb-4">
       <div className="mb-1.5 flex items-center gap-1.5">
         <Icon className="h-3 w-3 text-primary/70" />
         <span className="flex-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/60">
