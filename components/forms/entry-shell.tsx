@@ -51,7 +51,7 @@ export function EntryShell({
   const t = useT();
   const embedded = useEmbedded();
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
+    <div data-entry-root="" className="relative flex min-h-0 flex-1 flex-col">
       <SheetTitle className="sr-only">{title}</SheetTitle>
       {/* Tepede rengin ışığı */}
       <div
@@ -63,24 +63,10 @@ export function EntryShell({
         }}
       />
       {/* Başlık bandı — Brütal temada kalemin renginde dolu bant (bkz. globals.css) */}
-      <div data-entry-hero="" className="shrink-0" style={{ ["--hero-c" as string]: accent }}>
-      {/* Üst şerit — kapat (Ekle ekranında yok: kapatma şeritte) */}
-      {embedded ? (
-        <div aria-hidden className="h-3 shrink-0" />
-      ) : (
-      <div className="flex h-12 shrink-0 items-center justify-end px-3 pt-1.5">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={t("action.close")}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sf-2)] text-foreground/80 transition-[background-color,transform] hover:bg-[var(--sf-3)] active:scale-95"
-        >
-          <X className="h-[17px] w-[17px]" />
-        </button>
-      </div>
-      )}
-
-      {/* Başlık — karo, üst yazı, ad, zaman */}
+      <div data-entry-hero="" className="shrink-0 pt-3" style={{ ["--hero-c" as string]: accent }}>
+      {/* Başlık — karo, üst yazı, ad, zaman; kapat başlığın sağında (Ekle
+          ekranında yok: kapatma şeritte). Eskiden kendi şeridindeydi, bant
+          boşuna uzundu */}
       <div className="flex shrink-0 items-start gap-3 px-4 pb-3">
         <span
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px]"
@@ -98,15 +84,26 @@ export function EntryShell({
           <SmartText text={title} lines={2} className="text-[19px] font-bold leading-6 tracking-tight" />
           {time}
         </div>
+        {!embedded && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("action.close")}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sf-2)] text-foreground/80 transition-[background-color,transform] hover:bg-[var(--sf-3)] active:scale-95"
+          >
+            <X className="h-[17px] w-[17px]" />
+          </button>
+        )}
       </div>
 
       </div>
 
-      {/* Gövde — ip ve özellik kutuları, altta not */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 pb-4">
-        <div className="relative ml-[22px] flex flex-col gap-2 pl-3">
+      {/* Gövde — ip ve özellik kutuları, altta not; Brütal temada sayfa zemini */}
+      <div data-entry-sheet="" className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 pb-4">
+        <div data-ledger-stack="" className="relative ml-[22px] flex flex-col gap-2 pl-3">
           <span
             aria-hidden
+            data-rope=""
             className="absolute -top-2.5 bottom-4 left-0 w-[2px] -translate-x-1/2 rounded-full"
             style={{ background: `${accent}59` }}
           />

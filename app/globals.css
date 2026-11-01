@@ -872,6 +872,34 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-entry-hero] .rounded-full.h-9 {
   border-radius: 11px; background: #ffffff; border: 2px solid #111; box-shadow: 2px 2px 0 #111; color: #111;
 }
+/* Zaman hapinin yanindaki ⋯ ve kapat: hap boyunda beyaz kareler (menunun
+   satirlari degil, onlar daha icte) */
+:root[data-skin="brutal"] [data-hero-actions] > button,
+:root[data-skin="brutal"] [data-hero-actions] > div > button {
+  width: 30px; height: 30px; border-radius: 9px; background: #ffffff !important; border: 2px solid #111;
+  box-shadow: 2px 2px 0 #111; color: #111 !important;
+}
+:root[data-skin="brutal"] [data-hero-actions] > button:active,
+:root[data-skin="brutal"] [data-hero-actions] > div > button:active { transform: translate(2px, 2px); box-shadow: none; }
+/* Govde sayfa zemininde: bandin altinda krem payli, kalin cerceveli beyaz yuzey
+   (bkz. PageSheet) — kutular bandin cizgisine yapismasin */
+:root[data-skin="brutal"] [data-entry-sheet] {
+  margin: 10px 10px 0; padding: 14px 8px 16px; background: #ffffff;
+  border: 2px solid #111; border-bottom: 0; border-radius: 20px 20px 0 0;
+}
+/* Ip bandin karosuna ulasmiyor artik — zeminin kenarindan sarkmasin, kutularla baslasin */
+:root[data-skin="brutal"] [data-entry-sheet] [data-rope] { top: 0; }
+/* Ray yokken (raf duzeni; ruh hali, uyku, nesne) ip de yok: kutular zeminde
+   ortada, iki yanda esit pay; Ozellik ekle altlarinda ortada. Ray duzeninde ip kalir */
+:root[data-skin="brutal"] [data-form-page] [data-entry-sheet],
+:root[data-skin="brutal"] [data-entry-root] [data-entry-sheet] { padding-left: 10px; padding-right: 10px; }
+:root[data-skin="brutal"] [data-form-page] [data-ledger-stack],
+:root[data-skin="brutal"] [data-entry-root] [data-ledger-stack] { margin-left: 0; padding-left: 0; }
+:root[data-skin="brutal"] [data-form-page] [data-ledger-stack] > [data-rope],
+:root[data-skin="brutal"] [data-entry-root] [data-ledger-stack] > [data-rope] { display: none; }
+:root[data-skin="brutal"] [data-form-page] [data-add-feature] { align-self: center; }
+/* Ortadaki pencerede de (nesne durumu) zeminin cevresi krem */
+:root[data-skin="brutal"] [data-entry-root] { background: var(--background); }
 
 /* Zaman damgasi: duz, beyaz, cerceveli, mono */
 :root[data-skin="brutal"] [data-time-stamp] {

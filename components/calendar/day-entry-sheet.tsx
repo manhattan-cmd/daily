@@ -640,7 +640,7 @@ function FormFrame({
   if (layout === "ray")
     return <SideFormWindow onDismiss={onDismiss}>{children}</SideFormWindow>;
   return (
-    <div className="entry-push absolute inset-0 z-50 flex flex-col bg-background">
+    <div data-form-page="" className="entry-push absolute inset-0 z-50 flex flex-col bg-background">
       {children}
     </div>
   );
@@ -943,44 +943,7 @@ function FormStep({
         }}
       />
       {/* Başlık bandı — Brütal temada kalemin renginde dolu bant (bkz. globals.css) */}
-      <div data-entry-hero="" className="shrink-0" style={{ ["--hero-c" as string]: accent }}>
-      {/*
-        Üst şerit — paralel seçeneği solda, kapat sağda, ortada pencerenin
-        tutamacı. Eskiden ikisi başlık satırındaydı ve kalemin adını
-        kesiyordu ("Ağırlık antrenma…").
-      */}
-      <div className="flex h-11 shrink-0 items-center justify-between px-2.5 pt-1">
-        <div className="flex min-w-9 items-center">
-          {showParallelOption && (
-            <OptionsMenu
-              align="left"
-              touched={hasParallelSelected}
-              items={[
-                {
-                  key: "parallel",
-                  icon: Link2,
-                  title: t("entry.parallel"),
-                  subtitle: hasParallelSelected
-                    ? `${selectedParallels.length} seçili`
-                    : t("entry.alsoLog"),
-                  active: panel === "parallel",
-                  onSelect: () => togglePanel("parallel"),
-                },
-              ]}
-            />
-          )}
-        </div>
-        {/* Kapat — pencereyi kapatıp seçiciye döner (sola kaydırmak da) */}
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sf-2)] text-foreground/80 transition-[background-color,transform] hover:bg-[var(--sf-3)] active:scale-95"
-          aria-label={parallelContext ? t("action.skip") : t("action.close")}
-        >
-          {parallelContext ? <ArrowLeft className="h-[17px] w-[17px]" /> : <PanelLeftClose className="h-[17px] w-[17px]" />}
-        </button>
-      </div>
-
+      <div data-entry-hero="" className="shrink-0 pt-3" style={{ ["--hero-c" as string]: accent }}>
       {/* Başlık — kalemin karosu, yolu ve adı; bütün genişlik onun */}
       {/* items-start: zaman seçenekleri açılınca sütun uzar, karo yerinde kalsın */}
       <div className="flex shrink-0 items-start gap-3 px-3 pb-3">
@@ -1010,20 +973,59 @@ function FormStep({
           <h2>
             <SmartText text={itemName} lines={2} className="text-[19px] font-bold leading-6 tracking-tight" />
           </h2>
-          {/* Zaman — küçük hap; Dün · Şimdi · Yarın · Özel (bkz. EntryTime) */}
-          <EntryTime
-            occurredAt={occurredAt}
-            onChange={onOccurredAtChange}
-            baseDate={entryDate}
-            accent={accent}
-          />
+          {/*
+            Zaman hapı (Dün · Şimdi · Yarın · Özel, bkz. EntryTime), sağında ⋯
+            (paralel) ve kapat. Eskiden ikisi bandın tepesinde kendi şeridindeydi
+            — bant boşuna uzundu; ondan önce de başlık satırında kalemin adını
+            kesiyorlardı ("Ağırlık antrenma…"). Hapın satırının sağı boş. Hap
+            daralmaz; dar pencerede (ray) düğmeler alta, sağa iner — saat
+            kesilmesin.
+          */}
+          <div className="flex flex-wrap items-end gap-x-2 gap-y-1.5">
+            <div className="flex-[1_0_auto]">
+              <EntryTime
+                occurredAt={occurredAt}
+                onChange={onOccurredAtChange}
+                baseDate={entryDate}
+                accent={accent}
+              />
+            </div>
+            <div data-hero-actions="" className="ml-auto flex shrink-0 items-center gap-1.5">
+              {showParallelOption && (
+                <OptionsMenu
+                  touched={hasParallelSelected}
+                  items={[
+                    {
+                      key: "parallel",
+                      icon: Link2,
+                      title: t("entry.parallel"),
+                      subtitle: hasParallelSelected
+                        ? `${selectedParallels.length} seçili`
+                        : t("entry.alsoLog"),
+                      active: panel === "parallel",
+                      onSelect: () => togglePanel("parallel"),
+                    },
+                  ]}
+                />
+              )}
+              {/* Kapat — pencereyi kapatıp seçiciye döner (sola kaydırmak da) */}
+              <button
+                type="button"
+                onClick={onBack}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--sf-3)] text-foreground/80 transition-[background-color,transform] hover:bg-[var(--sf-4)] active:scale-95"
+                aria-label={parallelContext ? t("action.skip") : t("action.close")}
+              >
+                {parallelContext ? <ArrowLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       </div>
 
-      {/* Gövde — açık defter */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3 pb-4">
+      {/* Gövde — açık defter; Brütal temada sayfa zemini (beyaz yüzey, bkz. globals.css) */}
+      <div data-entry-sheet="" className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3 pb-4">
         {mods.length === 0 ? (
           <button
             type="button"
@@ -1042,10 +1044,11 @@ function FormStep({
             </span>
           </button>
         ) : (
-          <div className="relative ml-[20px] flex flex-col gap-2 pl-3">
+          <div data-ledger-stack="" className="relative ml-[20px] flex flex-col gap-2 pl-3">
             {/* İp — başlık karosundan iner, özellikleri kaleme bağlar */}
             <span
               aria-hidden
+              data-rope=""
               className="absolute -top-14 bottom-4 left-0 w-[2px] -translate-x-1/2 rounded-full"
               style={{ background: `${accent}59` }}
             />
@@ -1069,6 +1072,7 @@ function FormStep({
             {/* Bu girdiye özellik ekle — alanların sonunda, sessiz */}
             <button
               type="button"
+              data-add-feature=""
               onClick={() => setModPickerOpen(true)}
               className="flex h-9 items-center gap-1.5 self-start rounded-full px-3 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
             >
