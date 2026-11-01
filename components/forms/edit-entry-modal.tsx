@@ -70,7 +70,6 @@ import { confirmDialog } from "@/components/ui/confirm";
 import {
   DateTimeInput,
   DateTimeRangeInput,
-  formatDTRDisplay,
 } from "@/components/forms/datetime-range-input";
 import { ParallelPickList } from "@/components/forms/parallel-pick-dialog";
 import { ToggleSwitch } from "@/components/ui/scale-input";
@@ -105,6 +104,9 @@ const NO_RECENT: Record<string, string[]> = {};
 
 /** Başlık menüsünden açılan bölümler — aynı anda yalnız biri açık kalır */
 type Panel = "time" | "parallel" | "regular" | "delete";
+
+/** Paralel perspektifin rengi — ekleme akışındakiyle aynı mor (bkz. FormStep) */
+const PARALLEL_C = "#7c3aed";
 
 /** Zaman satırının etiketi — gün girdinin günüyse yalnız saat, değilse gün de */
 function occurredAtLabel(
@@ -253,6 +255,7 @@ export function EditEntryModal({
     }
   }
 
+  const pStepName = pStep ? (pStep.sub.isCategoryRoot ? pStep.sub.categoryName : pStep.sub.name) : "";
   const pValueKey = (m: CategoryModifierWithType) => m.modId ?? m.id;
   const pSharedKey = (m: CategoryModifierWithType) => m.modId ?? m.entryTypeId ?? m.id;
 
@@ -737,125 +740,131 @@ export function EditEntryModal({
           boş görünüp sonra dolardı. Bekleme birkaç on ms. */}
       <Dialog open={open && ready} onOpenChange={onOpenChange}>
         <DialogContent
-          hideClose={isLedger}
+          hideClose={isLedger || !!pStep}
           className={cn(
             // Ruh hali Ekle menüsündeki gibi büyük pencerede; diğerleri kısa
             fieldTone === "mood" ? ENTRY_WINDOW_LARGE : ENTRY_WINDOW_COMPACT,
             "gap-5",
             // Açık defter görünümü: kap kaymaz, gövde kendi içinde kayar
             // (zamanın "Özel" penceresi kabı kaplar)
-            isLedger && "h-[min(660px,calc(100dvh-3rem))] gap-0 overflow-hidden p-0"
+            (isLedger || pStep) && "h-[min(660px,calc(100dvh-3rem))] gap-0 overflow-hidden p-0"
           )}
         >
           {pStep ? (
-            /* Perspektif adımı — ekleme akışındaki t("action.saveAndContinue") davranışı */
-            <>
-              <DialogHeader>
-                <div className="flex items-center gap-1.5">
-                  <Link2 className="h-3 w-3 text-violet-400" />
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/80">
-                    {pStep.sub.categoryName}
-                    {pStep.total > 1 && ` · ${pStep.index}/${pStep.total}`}
+            /*
+              PERSPEKTİF ADIMI — ekleme akışındaki paralel formun dili (bkz.
+              FormStep, parallelContext): mor bant, bağ karosu, üstte kategori
+              ve kaçıncı adım, adı; gövdede aynı LedgerField kutuları — ana
+              girdiden taşınan ortak özellik kilitli; altta Kaydet ve devam,
+              yanında Geç. Eskiden düz bir pencereydi: renkli küçük üst yazı,
+              çıplak alanlar, altta alt alta iki düğme.
+            */
+            <div data-entry-root="" data-form-page="" className="relative flex min-h-0 flex-1 flex-col">
+              <DialogTitle className="sr-only">{pStepName}</DialogTitle>
+              <div
+                aria-hidden
+                data-glow=""
+                className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64"
+                style={{
+                  background: `radial-gradient(120% 90% at 15% 0%, ${PARALLEL_C}40 0%, ${PARALLEL_C}14 45%, transparent 75%)`,
+                }}
+              />
+              <div data-entry-hero="" className="shrink-0 pt-3" style={{ ["--hero-c" as string]: PARALLEL_C }}>
+                <div className="flex shrink-0 items-start gap-3 px-4 pb-3">
+                  <span
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px]"
+                    style={{
+                      backgroundColor: PARALLEL_C,
+                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25), inset 0 0 0 1px rgba(0,0,0,0.14)",
+                    }}
+                  >
+                    <Link2 className="h-5 w-5 text-white" />
                   </span>
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <SmartText
+                      text={`${pStep.sub.categoryName}${pStep.total > 1 ? ` · ${pStep.index}/${pStep.total}` : ""}`}
+                      className="text-[12px] font-medium text-muted-foreground"
+                    />
+                    <SmartText text={pStepName} lines={2} className="text-[19px] font-bold leading-6 tracking-tight" />
+                  </div>
+                  <div data-hero-actions="" className="flex shrink-0 items-center gap-1.5 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => onOpenChange(false)}
+                      aria-label={t("action.close")}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--sf-3)] text-foreground/80 transition-[background-color,transform] hover:bg-[var(--sf-4)] active:scale-95"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-                <DialogTitle>
-                  {pStep.sub.isCategoryRoot
-                    ? pStep.sub.categoryName
-                    : pStep.sub.name}
-                </DialogTitle>
-              </DialogHeader>
+              </div>
 
-              <div className="flex flex-col gap-4">
+              <div data-entry-sheet="" className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 pb-4">
                 {stepMods.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-border/50 bg-muted/20 px-4 py-4 text-center text-sm text-muted-foreground">
-                    Bu perspektifte mod yok — doğrudan kaydedebilirsin
+                  <p className="rounded-2xl border border-dashed border-[var(--ln-2)] px-4 py-5 text-center text-[13px] text-muted-foreground">
+                    Bu perspektifte özellik yok — doğrudan kaydedebilirsin
                   </p>
                 ) : (
-                  stepMods.map((m) => {
-                    const carried = pStep.carry[pSharedKey(m)];
-                    const label = m.name ?? m.entryType.name;
-                    if (carried !== undefined && carried !== "") {
-                      const vt = m.entryType.valueType ?? "number";
-                      const display =
-                        vt === "boolean"
-                          ? carried === "true"
-                            ? t("entry.yes")
-                            : t("entry.no")
-                          : vt === "datetime-range"
-                            ? formatDTRDisplay(carried)
-                            : carried;
+                  <div data-ledger-stack="" className="relative ml-[22px] flex flex-col gap-2 pl-3">
+                    <span
+                      aria-hidden
+                      data-rope=""
+                      className="absolute -top-2.5 bottom-4 left-0 w-[2px] -translate-x-1/2 rounded-full"
+                      style={{ background: `${PARALLEL_C}59` }}
+                    />
+                    {stepMods.map((m) => {
+                      const carried = pStep.carry[pSharedKey(m)];
+                      const locked = carried !== undefined && carried !== "";
                       return (
-                        <div key={m.id} className="flex flex-col gap-1.5">
-                          <div className="flex items-center justify-between">
-                            <label className="text-sm font-medium">
-                              {label}
-                              {m.entryType.unit && (
-                                <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                                  ({m.entryType.unit})
-                                </span>
-                              )}
-                            </label>
-                            <span className="flex items-center gap-1 text-[10px] font-medium text-violet-400/70">
-                              <Link2 className="h-3 w-3" />
-                              ana girdiden
-                            </span>
-                          </div>
-                          <div className="flex h-10 items-center rounded-xl border border-violet-500/30 bg-violet-500/8 px-3 text-sm text-muted-foreground/80 select-none">
-                            {display}
-                          </div>
-                        </div>
+                        <LedgerField
+                          key={m.id}
+                          mod={m}
+                          icon={modAtomIcon(m)}
+                          color={modColor(m.mod ?? { name: m.name ?? m.entryType.name })}
+                          value={locked ? carried : (pValues[pValueKey(m)] ?? "")}
+                          onChange={(v) => setPValues((prev) => ({ ...prev, [pValueKey(m)]: v }))}
+                          isLocked={locked}
+                          entryDate={entryDate}
+                          dense={stepMods.length >= 5}
+                        />
                       );
-                    }
-                    return (
-                      <ModInput
-                        key={m.id}
-                        label={label}
-                        entryType={m.entryType}
-                        values={
-                          pValues[pValueKey(m)] ? [pValues[pValueKey(m)]] : []
-                        }
-                        onChange={(v) =>
-                          setPValues((prev) => ({
-                            ...prev,
-                            [pValueKey(m)]: v[0] ?? "",
-                          }))
-                        }
-                        entryDate={entryDate}
-                      />
-                    );
-                  })
+                    })}
+                  </div>
                 )}
               </div>
 
-              <DialogFooter className={ENTRY_WINDOW_FOOTER}>
-                <Button
-                  variant="outline"
-                  disabled={pSaving}
-                  onClick={() =>
-                    advanceParallel(
-                      pQueue,
-                      pStep.groupId,
-                      pStep.index,
-                      pStep.total,
-                      pStep.carry
-                    )
-                  }
-                >
-                  Geç
-                </Button>
-                <Button
+              <div
+                data-entry-foot=""
+                className="flex shrink-0 gap-2 border-t border-[var(--ln-1)] px-4 pt-3"
+                style={{ paddingBottom: "max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem))" }}
+              >
+                <button
+                  type="button"
                   onClick={handleParallelStepSave}
                   disabled={pSaving}
-                  className="bg-violet-600 hover:bg-violet-700"
+                  className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-60"
+                  style={{ background: PARALLEL_C }}
                 >
+                  {!pSaving && <Check className="h-5 w-5" strokeWidth={2.75} />}
                   {pSaving
                     ? t("entry.saving")
                     : pStep.index < pStep.total
                       ? t("action.saveAndContinue")
                       : t("action.save")}
-                </Button>
-              </DialogFooter>
-            </>
+                </button>
+                <button
+                  type="button"
+                  disabled={pSaving}
+                  onClick={() =>
+                    advanceParallel(pQueue, pStep.groupId, pStep.index, pStep.total, pStep.carry)
+                  }
+                  className="h-12 shrink-0 rounded-2xl bg-[var(--sf-2)] px-5 text-[14px] font-semibold text-foreground/85 transition-colors hover:bg-[var(--sf-3)] disabled:opacity-60"
+                >
+                  {t("action.skip")}
+                </button>
+              </div>
+            </div>
           ) : pickerView ? (
             /* Perspektif seçici görünümü — aynı dialog içinde, üst üste dialog yok */
             <>

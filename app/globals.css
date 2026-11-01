@@ -658,6 +658,9 @@ input[type="number"] {
 }
 /* Kibar olcu: deger yuvasi 48 yerine 42 px */
 :root[data-skin="brutal"] [data-ledger-field] .min-h-12 { min-height: 42px; }
+/* Ana girdiden gelen kilitli deger: beyaz yuvada koyu yazi, acik mor okunmuyordu */
+:root[data-skin="brutal"] [data-ledger-field] [data-locked] { color: #111 !important; }
+:root[data-skin="brutal"] [data-ledger-field] [data-locked] svg { color: #7c3aed !important; }
 /* Kutu icindeki kutu (uyku suresi): golgesiz, ince cerceve */
 :root[data-skin="brutal"] [data-ledger-field] .rounded-2xl.border { box-shadow: none !important; border-width: 1.5px; }
 

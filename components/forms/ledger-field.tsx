@@ -358,7 +358,7 @@ export function LedgerField({
         // Kendi girişi kutunun kenarına kadar uzanır (iç boşluğunu kendisi verir)
         <div className="-mx-4 -mb-3 -mt-2">{custom}</div>
       ) : isLocked ? (
-        <div className={cn(well, "gap-2 py-2.5 text-[15px] font-semibold text-violet-200/90")} style={wellStyle}>
+        <div data-locked="" className={cn(well, "gap-2 py-2.5 text-[15px] font-semibold text-violet-200/90")} style={wellStyle}>
           <Link2 className="h-4 w-4 shrink-0 text-violet-300" />
           <span className="break-words">{lockedText}</span>
         </div>
