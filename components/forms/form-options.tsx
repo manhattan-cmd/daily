@@ -87,6 +87,8 @@ export function OptionsMenu({
                 {header}
               </div>
             )}
+            {/* Yalnız yıkıcı satır varsa (Notu sil) üstte boş bölme ve çizgi kalmasın */}
+            {normal.length > 0 && (
             <div className="p-1.5">
               {normal.map((item) => (
                 <MenuRow
@@ -99,8 +101,9 @@ export function OptionsMenu({
                 />
               ))}
             </div>
+            )}
             {destructive.length > 0 && (
-              <div className="border-t border-[var(--ln-1)] p-1.5">
+              <div className={cn("p-1.5", normal.length > 0 && "border-t border-[var(--ln-1)]")}>
                 {destructive.map((item) => (
                   <MenuRow
                     key={item.key}

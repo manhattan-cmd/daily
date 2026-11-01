@@ -458,6 +458,9 @@ export const en = {
   "note.deleteConfirm": "Delete this note?",
   "note.backSaved": "Back — the note is saved",
   "note.title": "Title",
+  "note.add": "Add note",
+  "note.titlePlaceholder": "Give it a title",
+  "note.body": "Text",
   "note.placeholder": "Write about today...",
 
   // ── Yapı ağacı ───────────────────────────────────────────────────────
@@ -1456,6 +1459,9 @@ export const tr: Record<MessageKey, string> = {
   "note.deleteConfirm": "Bu not silinsin mi?",
   "note.backSaved": "Geri — not kaydedilir",
   "note.title": "Başlık",
+  "note.add": "Not ekle",
+  "note.titlePlaceholder": "Nota bir ad ver",
+  "note.body": "Yazı",
   "note.placeholder": "Bugüne dair yaz...",
 
   "tree.moveToBranchRoot": "Bu dalın köküne taşı",
