@@ -79,9 +79,10 @@ export type SummaryLink = {
   bars?: { key: string; color: string; weight: number; title?: string }[];
   /**
    * Verilirse satır gittiği yerin bandı gibi çizilir: o renkte tram benekli
-   * zemin, siyah kutuda ters yazılı ad, iki yanında kare düğmeler (simge ve
-   * ok). Ana sayfada Günü aç günün sarısı, Takvimi aç Takvim'in yeşili,
-   * Yapıya git Yapı'nın sarısı. Verilmezse sade beyaz satır (gün sayfası).
+   * zemin, düz koyu ad, iki yanında küçük kare düğmeler (simge ve ok). Ana
+   * sayfada Günü aç günün sarısı, Takvimi aç Takvim'in yeşili, Yapıya git
+   * Yapı'nın sarısı; gün sayfasında Gün Analizi Analiz'in mavisi. Eskiden ad
+   * siyah kutuda iri ters yazıydı — bağırıyordu. Verilmezse sade beyaz satır.
    */
   color?: string;
   icon?: LucideIcon;
@@ -93,8 +94,7 @@ const bandDots = (color: string) => ({
   backgroundImage: "radial-gradient(rgba(17, 17, 17, 0.16) 1.2px, transparent 1.5px)",
   backgroundSize: "11px 11px",
 });
-const SQ = "flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white shadow-[2px_2px_0_#111]";
-/** İnce bloğun bandındaki karolar */
+/** Bandın karoları (simge ve ok) */
 const SQ_SM = "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111] bg-white shadow-[1.5px_1.5px_0_#111]";
 
 /**
@@ -151,13 +151,13 @@ export function SummaryTile({
       </button>
     );
   }
-  const cls = "flex h-full w-full flex-col items-center justify-center gap-1.5 px-1 py-2.5 text-[#111] active:brightness-95";
+  const cls = "flex h-full w-full flex-col items-center justify-center gap-1 px-1 py-2 text-[#111] active:brightness-95";
   const body = (
     <>
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#111]" style={{ color }}>
-        <Icon className="h-5 w-5" strokeWidth={3} />
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[#111]" style={{ color }}>
+        <Icon className="h-4 w-4" strokeWidth={3} />
       </span>
-      <span className="text-center text-[12px] font-black leading-[1.05]">{label}</span>
+      <span className="text-center text-[11.5px] font-extrabold leading-[1.1]">{label}</span>
     </>
   );
   if (!href && !onClick) {
@@ -224,6 +224,14 @@ function CloseButton({ close }: { close: { label: string; onClick: () => void } 
   );
 }
 
+/**
+ * Başın üst yazısı ("Bugün", "Günün girdileri") — düz, küçük, soluk. Eskiden
+ * siyah hapta renkli büyük harfti; başlıklar bağırıyordu, kibarlaştı.
+ */
+function Overline({ text }: { text: string }) {
+  return <span className="block truncate pr-6 text-[12px] font-bold leading-tight opacity-60">{text}</span>;
+}
+
 /** linked: hücre bir bağlantının içinde (liste) — ad h2, sağda ok.
  *  compact: ince baş (bkz. SummaryBlock compact) */
 function Lead({
@@ -247,14 +255,9 @@ function Lead({
     return (
       <div className="relative flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-[#111]" style={{ background: lead.color }}>
         {lead.close && <CloseButton close={lead.close} />}
-        <span
-          className="self-start rounded-md bg-[#111] px-1.5 py-px text-[10px] font-black uppercase tracking-wider"
-          style={{ color: lead.color }}
-        >
-          {lead.overline}
-        </span>
-        <span className="mt-1.5 text-[19px] font-black leading-tight tracking-tight">{lead.title}</span>
-        {lead.hint && <span className="mt-0.5 line-clamp-2 text-[11.5px] font-bold leading-snug opacity-70">{lead.hint}</span>}
+        <Overline text={lead.overline} />
+        <span className="mt-0.5 text-[17px] font-extrabold leading-tight tracking-tight">{lead.title}</span>
+        {lead.hint && <span className="mt-0.5 line-clamp-2 text-[11.5px] font-semibold leading-snug opacity-65">{lead.hint}</span>}
       </div>
     );
   }
@@ -265,17 +268,12 @@ function Lead({
         style={{ background: lead.color ?? "#ffd23f" }}
       >
         {lead.close && <CloseButton close={lead.close} />}
-        <span
-          className="self-start rounded-md bg-[#111] px-1.5 py-px text-[10px] font-black uppercase tracking-wider"
-          style={{ color: lead.color ?? "#ffd23f" }}
-        >
-          {lead.overline}
-        </span>
-        <div className="mt-1.5 flex items-baseline gap-1.5">
-          <b className="font-mono text-[30px] font-bold leading-none tabular-nums">{lead.value}</b>
-          <span className="text-[16px] font-black leading-none">{lead.unit}</span>
+        <Overline text={lead.overline} />
+        <div className="mt-1 flex items-baseline gap-1.5">
+          <b className="font-mono text-[24px] font-bold leading-none tabular-nums">{lead.value}</b>
+          <span className="text-[14px] font-extrabold leading-none">{lead.unit}</span>
         </div>
-        {lead.hint && <span className="mt-1 line-clamp-2 text-[11.5px] font-bold leading-snug opacity-70">{lead.hint}</span>}
+        {lead.hint && <span className="mt-1 line-clamp-2 text-[11.5px] font-semibold leading-snug opacity-65">{lead.hint}</span>}
       </div>
     );
   }
@@ -505,7 +503,7 @@ export function SummaryBlock({
         )}
         {/* Satır boyunca uzar: ad iki satıra taşınca altında siyah boşluk kalmasın */}
         {action && (
-          <div className={compact ? (dense ? "w-[40px] shrink-0" : "w-[52px] shrink-0") : "min-h-[76px] w-[76px] shrink-0"}>{action}</div>
+          <div className={compact ? (dense ? "w-[40px] shrink-0" : "w-[52px] shrink-0") : "min-h-[64px] w-[68px] shrink-0"}>{action}</div>
         )}
       </div>
       {/* Sayı kadar sütun: bağlı sayısal özelliği olmayan kategoride iki;
@@ -529,28 +527,20 @@ export function SummaryBlock({
           style={link.color ? bandDots(link.color) : undefined}
         >
           {link.color ? (
-            <span className={cn("flex items-center", compact ? "gap-2.5 px-3 py-2" : "gap-3 px-3 py-3")}>
+            <span className={cn("flex items-center gap-2.5 px-3", compact ? "py-2" : "py-2.5")}>
               {link.icon && (
-                <span className={compact ? SQ_SM : SQ}>
-                  <link.icon className={compact ? "h-4 w-4" : "h-5 w-5"} strokeWidth={2.5} />
+                <span className={SQ_SM}>
+                  <link.icon className="h-4 w-4" strokeWidth={2.5} />
                 </span>
               )}
-              <span
-                className={cn(
-                  "min-w-0 truncate bg-[#111] font-black leading-none tracking-tight",
-                  compact
-                    ? "rounded-[8px] px-2.5 pb-[5px] pt-[3px] text-[15px] shadow-[2px_2px_0_rgba(17,17,17,0.25)]"
-                    : "rounded-[10px] px-3 pb-1.5 pt-1 text-[19px] shadow-[3px_3px_0_rgba(17,17,17,0.25)]"
-                )}
-                style={{ color: link.color }}
-              >
+              <span className={cn("min-w-0 truncate font-extrabold leading-none tracking-tight", compact ? "text-[14px]" : "text-[15px]")}>
                 {link.label}
               </span>
               {link.badge && (
                 <span className="shrink-0 rounded-md bg-white px-1.5 py-px font-mono text-[11px] font-bold">{link.badge}</span>
               )}
-              <span className={cn(compact ? SQ_SM : SQ, "ml-auto")}>
-                <ArrowRight className={compact ? "h-4 w-4" : "h-5 w-5"} strokeWidth={2.75} />
+              <span className={cn(SQ_SM, "ml-auto")}>
+                <ArrowRight className="h-4 w-4" strokeWidth={2.75} />
               </span>
             </span>
           ) : (

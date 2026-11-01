@@ -518,7 +518,6 @@ export function CalendarDayPage({
               overline: t("day.entriesLayer"),
               value: String(dayItemCount),
               unit: t("home.entries"),
-              hint: dayItemCount > 1 ? t("day.holdToSelect") : undefined,
             }}
             stats={[]}
           >

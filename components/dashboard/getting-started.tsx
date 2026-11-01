@@ -77,13 +77,13 @@ function BrutGettingStarted({ steps, onDismiss, onCreateCategory, onAddEntry, on
   const tile = TILE[cur];
   const tileBody = (
     <>
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#111]" style={{ color: tile.color }}>
-        <tile.icon className="h-6 w-6" strokeWidth={3} />
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[#111]" style={{ color: tile.color }}>
+        <tile.icon className="h-5 w-5" strokeWidth={3} />
       </span>
-      <span className="text-center text-[12px] font-black leading-[1.05]">{t(tile.label)}</span>
+      <span className="text-center text-[11.5px] font-extrabold leading-[1.1]">{t(tile.label)}</span>
     </>
   );
-  const tileCls = "flex h-full w-full flex-col items-center justify-center gap-1.5 px-1 text-[#111] active:brightness-95";
+  const tileCls = "flex h-full w-full flex-col items-center justify-center gap-1 px-1 py-2 text-[#111] active:brightness-95";
   return (
     <div data-getting-started="">
       <SummaryBlock

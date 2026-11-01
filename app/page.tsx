@@ -535,12 +535,12 @@ function RecentBlock({ total, children }: { total: number | undefined; children:
         <Link
           href="/search"
           aria-label={t("search.title")}
-          className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-[#8ea6ff] text-[#111] active:brightness-95"
+          className="flex h-full w-full flex-col items-center justify-center gap-1 bg-[#8ea6ff] py-2 text-[#111] active:brightness-95"
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#111] text-[#8ea6ff]">
-            <Search className="h-5 w-5" strokeWidth={3} />
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[#111] text-[#8ea6ff]">
+            <Search className="h-4 w-4" strokeWidth={3} />
           </span>
-          <span className="text-[13px] font-black leading-none">{t("search.title")}</span>
+          <span className="text-[12px] font-extrabold leading-none">{t("search.title")}</span>
         </Link>
       }
       stats={[]}
@@ -696,12 +696,12 @@ function CategoriesBlock({ snapshot, onNew }: { snapshot: HomeSnapshot; onNew: (
           type="button"
           onClick={onNew}
           aria-label={t("home.cats.newAria")}
-          className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-[#ffd23f] px-1 text-[#111] active:bg-[#f5c400]"
+          className="flex h-full w-full flex-col items-center justify-center gap-1 bg-[#ffd23f] px-1 py-2 text-[#111] active:bg-[#f5c400]"
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#111] text-[#ffd23f]">
-            <Plus className="h-6 w-6" strokeWidth={3} />
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[#111] text-[#ffd23f]">
+            <Plus className="h-5 w-5" strokeWidth={3} />
           </span>
-          <span className="text-center text-[12px] font-black leading-[1.05]">{t("home.cats.create")}</span>
+          <span className="text-center text-[11.5px] font-extrabold leading-[1.1]">{t("home.cats.create")}</span>
         </button>
       }
       stats={[]}

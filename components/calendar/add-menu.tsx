@@ -27,13 +27,13 @@ export function AddButton({
       <button
         type="button"
         onClick={onOpen}
-        className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-[#7ae582] text-[#111] active:bg-[#5fd36a]"
+        className="flex h-full w-full flex-col items-center justify-center gap-1 bg-[#7ae582] py-2 text-[#111] active:bg-[#5fd36a]"
         aria-label={t("day.add")}
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#111] text-[#7ae582]">
-          <Plus className="h-6 w-6" strokeWidth={3} />
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[#111] text-[#7ae582]">
+          <Plus className="h-5 w-5" strokeWidth={3} />
         </span>
-        <span className="text-[13px] font-black leading-none">{t("day.add")}</span>
+        <span className="text-[12px] font-extrabold leading-none">{t("day.add")}</span>
       </button>
     );
   }
