@@ -251,7 +251,7 @@ function NoteBox({
       data-vt={vt}
       className={cn(
         "relative flex flex-col gap-2 rounded-2xl p-3",
-        brutal && "mt-3.5 pt-6",
+        brutal && "mt-3 pt-5",
         grow && "min-h-[240px] flex-1"
       )}
       style={{ background: `${color}0f`, boxShadow: `inset 0 0 0 1px ${color}2e` }}
@@ -259,11 +259,11 @@ function NoteBox({
       {brutal ? (
         <div
           data-ledger-tab=""
-          className="absolute -top-[13px] left-2.5 z-[1] flex max-w-[calc(100%-16px)] items-center gap-1 rounded-lg border-2 border-[#111] px-2 py-px text-[#111]"
+          className="absolute -top-[11px] left-2.5 z-[1] flex max-w-[calc(100%-16px)] items-center gap-1 rounded-md border-[1.5px] border-[#111] px-1.5 py-px text-[#111]"
           style={{ background: `color-mix(in srgb, ${color} 45%, #ffffff)` }}
         >
-          <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.6} />
-          <SmartText text={label} className="min-w-0 text-[11.5px] font-black uppercase tracking-wide" />
+          <Icon className="h-3 w-3 shrink-0" strokeWidth={2.6} />
+          <SmartText text={label} className="min-w-0 text-[10.5px] font-black uppercase leading-[14px] tracking-wide" />
         </div>
       ) : (
         <div className="flex items-center gap-2 text-[12px] font-semibold text-muted-foreground">

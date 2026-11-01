@@ -229,7 +229,7 @@ export function LedgerField({
         isBool && !isLocked ? "px-3 py-2.5" : "p-3",
         // Köşe düğmeleri yazının biraz üstünde dursun — ad satırı daralmasın
         hasCorner && "pt-[26px]",
-        brutal && "mt-3.5 px-3 pb-3 pt-6"
+        brutal && "mt-3 px-3 pb-3 pt-5"
       )}
       style={
         filled
@@ -269,7 +269,7 @@ export function LedgerField({
       {brutal && (
         <div
           data-ledger-tab=""
-          className="absolute -top-[13px] left-2.5 z-[1] flex items-center gap-1 rounded-lg border-2 border-[#111] px-2 py-px text-[#111]"
+          className="absolute -top-[11px] left-2.5 z-[1] flex items-center gap-1 rounded-md border-[1.5px] border-[#111] px-1.5 py-px text-[#111]"
           style={{
             background: `color-mix(in srgb, ${color} 45%, #ffffff)`,
             // Ad, sağ üstte gerçekten duran düğmeler kadar yer bıraksın: sabit
@@ -277,9 +277,9 @@ export function LedgerField({
             maxWidth: `calc(100% - ${cornerToggle && cornerRemove ? 62 : hasCorner ? 38 : 16}px)`,
           }}
         >
-          <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.6} />
-          <SmartText text={label} className="min-w-0 text-[11.5px] font-black uppercase tracking-wide" />
-          {entryOnly && <span className="h-2 w-2 shrink-0 rounded-full bg-[#111]" />}
+          <Icon className="h-3 w-3 shrink-0" strokeWidth={2.6} />
+          <SmartText text={label} className="min-w-0 text-[10.5px] font-black uppercase leading-[14px] tracking-wide" />
+          {entryOnly && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#111]" />}
         </div>
       )}
 
@@ -415,7 +415,7 @@ export function LedgerField({
         </label>
       ) : isBool && brutal ? (
         // Brütal: iki büyük yarım — seçilen dolu
-        <div className="grid grid-cols-2 overflow-hidden rounded-xl border-2 border-[#111] shadow-[3px_3px_0_#111]">
+        <div className="grid grid-cols-2 overflow-hidden rounded-xl border-2 border-[#111] shadow-[2px_2px_0_#111]">
           {(["true", "false"] as const).map((v) => {
             const on = (value === "true") === (v === "true");
             return (
@@ -424,7 +424,7 @@ export function LedgerField({
                 type="button"
                 aria-pressed={on}
                 onClick={() => onChange(v)}
-                className="h-14 text-[19px] font-black uppercase tracking-wide text-[#111] [&+&]:border-l-2 [&+&]:border-[#111]"
+                className="h-11 text-[15px] font-black uppercase tracking-wide text-[#111] [&+&]:border-l-2 [&+&]:border-[#111]"
                 style={{ background: on ? color : "#ffffff", color: on ? "#111" : "#111" }}
               >
                 {v === "true" ? t("entry.yes") : t("entry.no")}

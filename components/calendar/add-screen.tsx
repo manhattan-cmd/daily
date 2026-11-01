@@ -183,19 +183,19 @@ function AddScreenBody({ date, open, onClose, tab: initialTab, entryOpts }: AddS
               className="shrink-0 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)] transition-colors duration-200"
               style={{ background: active.color }}
             >
-              <div className="flex h-12 items-center gap-2.5 pl-3 pr-4 pt-1.5">
+              <div className="flex h-11 items-center gap-2.5 pl-3 pr-4 pt-1.5">
                 <button
                   type="button"
                   onClick={onClose}
                   aria-label={t("action.close")}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border-2 bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border-2 bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
                   style={{ borderColor: "#111" }}
                 >
-                  <X className="h-[18px] w-[18px]" strokeWidth={2.75} />
+                  <X className="h-4 w-4" strokeWidth={2.75} />
                 </button>
                 <div className="min-w-0 flex-1 leading-none">
-                  <div className="text-[19px] font-black tracking-[-0.02em] text-[#111]">{t("day.add")}</div>
-                  <div className="mt-1 truncate text-[11.5px] font-bold text-[#111]/60">{dayLabel}</div>
+                  <div className="text-[17px] font-extrabold tracking-[-0.02em] text-[#111]">{t("day.add")}</div>
+                  <div className="mt-1 truncate text-[11px] font-bold text-[#111]/60">{dayLabel}</div>
                 </div>
               </div>
               <nav
