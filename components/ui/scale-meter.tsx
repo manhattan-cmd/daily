@@ -46,7 +46,7 @@ export function ScaleMeter({
         )}
       </span>
       {idx < 0 ? null : n <= DOTS_MAX ? (
-        <span aria-hidden className="inline-flex items-center gap-[3px]">
+        <span aria-hidden data-dots="" className="inline-flex items-center gap-[3px]">
           {choices.map((c, i) => {
             const lit = bipolar
               ? (i >= Math.min(zero, idx) && i <= Math.max(zero, idx))
@@ -54,6 +54,7 @@ export function ScaleMeter({
             return (
               <span
                 key={c}
+                data-on={lit ? "" : undefined}
                 className="h-1.5 w-1.5 rounded-full"
                 style={{ background: color, opacity: lit ? 1 : 0.22 }}
               />

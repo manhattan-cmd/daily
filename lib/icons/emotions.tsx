@@ -1,3 +1,4 @@
+import type { MessageKey } from "@/lib/i18n";
 import type { ReactNode } from "react";
 
 /**
@@ -150,6 +151,15 @@ export const EMOTION_FALLBACK: EmotionLook = {
 
 export const emotionLook = (name: string): EmotionLook =>
   EMOTION_LOOKS[name] ?? EMOTION_FALLBACK;
+
+/**
+ * Duygunun arayüzdeki adı. Kayıtta yerleşik listenin İngilizce adı durur
+ * ("Anxious"); gösterirken dile çevrilir. Kullanıcının eklediği duygu
+ * olduğu gibi yazılır.
+ */
+export function emotionName(name: string, t: (key: MessageKey) => string): string {
+  return name in EMOTION_LOOKS ? t(`emotion.${name.toLowerCase()}` as MessageKey) : name;
+}
 
 /**
  * Mutluluk skalasının basamak yüzleri — en düşükten en yükseğe. Skala

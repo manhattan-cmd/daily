@@ -6,7 +6,8 @@ import type { EntryWithContext } from "@/types";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { cn } from "@/lib/utils";
 import { splitChoiceLevel } from "@/lib/choice-level";
-import { EmotionFace, ScaleFace, emotionLook } from "@/lib/icons/emotions";
+import { EmotionFace, ScaleFace, emotionLook, emotionName } from "@/lib/icons/emotions";
+import { LevelCapsule } from "@/components/dashboard/entry-parts";
 import { useT } from "@/lib/i18n";
 import { useLongPress } from "@/lib/use-long-press";
 import { useSkin } from "@/lib/skin";
@@ -17,8 +18,8 @@ import {
   type EntrySelection,
 } from "@/components/calendar/entry-selection";
 
-/** Kartta en fazla kaç duygu gösterilir; kalanı "+n" ile özetlenir */
-const MAX_FACES = 5;
+/** Kartta en fazla kaç duygu gösterilir (adlarıyla); kalanı "+n daha" */
+const MAX_FACES = 4;
 
 /**
  * Yerleşik ruh hali kartı — mutluluk skalası + duygular.
@@ -70,80 +71,67 @@ export function MoodCard({
   const level = levelValue ? Number(levelValue.value) : null;
   const hasLevel = level !== null && !Number.isNaN(level);
 
-  // Alt bölümün içeriği — iki biçimde de aynı kapsüller
+  // Alt bölüm — iki biçimde de aynı kapsüller: önce mutluluk (yüz, "2/5" ve
+  // noktalar), sonra her duygu ADIYLA kendi kapsülünde. Eskiden duygular
+  // yalnız yüz karolarıydı (hangisi olduğu okunmuyordu), mutluluk da kartın
+  // sağında kapsülsüz duruyordu.
+  const shown = emotions.slice(0, MAX_FACES);
   const body = (
     <>
-          {emotions.length > 0 ? (
-            <span className="flex min-w-0 items-center gap-1 overflow-hidden">
-              {emotions.slice(0, MAX_FACES).map((e) => {
-                const look = emotionLook(e.label);
-                return (
-                  <span
-                    key={e.label}
-                    data-capsule=""
-                    title={e.level === null ? e.label : `${e.label} %${e.level}`}
-                    className={cn(
-                      "inline-flex shrink-0 items-center gap-1 rounded-full py-0.5 pl-0.5",
-                      e.level === null ? "pr-0.5" : "pr-2"
-                    )}
-                    style={{
-                      ["--cap-c" as string]: look.color,
-                      background: `${look.color}1f`,
-                      boxShadow: `inset 0 0 0 1px ${look.color}47`,
-                    }}
-                  >
-                    <span
-                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-                      style={{ background: `${look.color}40` }}
-                    >
-                      <EmotionFace
-                        name={e.label}
-                        size={14}
-                        style={{ color: look.color }}
-                      />
-                    </span>
-                    {e.level !== null && (
-                      <span
-                        className="text-[11px] font-semibold leading-none tabular-nums"
-                        style={{ color: look.color }}
-                      >
-                        {e.level}
-                      </span>
-                    )}
-                  </span>
-                );
-              })}
-              {emotions.length > MAX_FACES && (
-                <span className="shrink-0 text-[10px] leading-none text-muted-foreground/70">
-                  +{emotions.length - MAX_FACES}
-                </span>
-              )}
+      {hasLevel && levelValue && (
+        <LevelCapsule
+          icon={<ScaleFace index={level - 1} total={levelMax} size={13} style={{ color }} />}
+          value={levelValue.value}
+          choices={levelValue.entryType?.choices ?? []}
+          color={color}
+          title={t("mood.level")}
+        />
+      )}
+      {shown.map((e) => {
+        const look = emotionLook(e.label);
+        const name = emotionName(e.label, t);
+        return (
+          <span
+            key={e.label}
+            data-capsule=""
+            data-word=""
+            title={e.level === null ? name : `${name} %${e.level}`}
+            className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full py-0.5 pl-0.5 pr-2"
+            style={{
+              ["--cap-c" as string]: look.color,
+              background: `${look.color}1f`,
+              boxShadow: `inset 0 0 0 1px ${look.color}47`,
+            }}
+          >
+            <span
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+              style={{ background: `${look.color}40` }}
+            >
+              <EmotionFace name={e.label} size={14} style={{ color: look.color }} />
             </span>
-          ) : (
-            <span className="truncate text-[11px] leading-none text-muted-foreground">
-              {t("mood.logged")}
+            <span className="truncate text-[12.5px] font-semibold leading-none" style={{ color: look.color }}>
+              {name}
             </span>
-          )}
-
-          {hasLevel && (
-            <div data-quality="" className="ml-auto flex shrink-0 items-center gap-1.5">
-              <span className="text-[11px] font-semibold tabular-nums" style={{ color }}>
-                {level}/{levelMax}
+            {e.level !== null && (
+              <span className="shrink-0 text-[10px] leading-none tabular-nums text-muted-foreground/70">
+                %{e.level}
               </span>
-              <div className="flex gap-1">
-                {Array.from({ length: levelMax }).map((_, i) => (
-                  <span
-                    key={i}
-                    className={cn(
-                      "h-1.5 w-1.5 rounded-full transition-colors",
-                      i < level ? "" : "opacity-25"
-                    )}
-                    style={{ background: color }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+            )}
+          </span>
+        );
+      })}
+      {emotions.length > shown.length && (
+        <span
+          data-more=""
+          className="inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold leading-none"
+          style={{ color, boxShadow: `inset 0 0 0 1px ${color}40` }}
+        >
+          {t("entry.moreValues", { n: emotions.length - shown.length })}
+        </span>
+      )}
+      {!hasLevel && emotions.length === 0 && (
+        <span className="truncate text-[11px] leading-none text-muted-foreground">{t("mood.logged")}</span>
+      )}
     </>
   );
 
@@ -174,7 +162,7 @@ export function MoodCard({
             title={t("mood.title")}
             right={dateLabel ? <EntryBlockTime>{dateLabel}</EntryBlockTime> : undefined}
           />
-          <EntryBlockCell className="flex flex-wrap items-center gap-x-2 gap-y-1.5">{body}</EntryBlockCell>
+          <EntryBlockCell className="flex flex-wrap items-center gap-1.5">{body}</EntryBlockCell>
           {selection?.active && (
             <SelectionLayer selected={selection.selected} onToggle={selection.onToggle} label={t("mood.select")} />
           )}
@@ -239,8 +227,8 @@ export function MoodCard({
           )}
         </div>
 
-        {/* Alt bölüm — duygu kapsülleri, sağda mutluluk skalası */}
-        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-[var(--ln-1)] pt-2">
+        {/* Alt bölüm — mutluluk ve duygu kapsülleri */}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-[var(--ln-1)] pt-2">
           {body}
         </div>
 

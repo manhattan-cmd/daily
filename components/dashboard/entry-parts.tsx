@@ -87,6 +87,7 @@ export function ValueCapsuleRow({
       ))}
       {rest > 0 && (
         <span
+          data-more=""
           className="inline-flex items-center rounded-full px-2 py-1 text-[10px] font-medium leading-none"
           style={{
             color: `${color}cc`,
@@ -133,9 +134,14 @@ export function ValueCapsule({
       strokeWidth: 1.9,
     }
   );
+  // Sözcük değerler (seçenek, metin, evet/hayır) Brütalde düz kalın yazı;
+  // sayılar daktilo harfiyle
+  const vt = v.entryType?.valueType ?? "number";
+  const isWord = !scale && vt !== "number" && vt !== "datetime-range";
   return (
     <span
       data-capsule=""
+      data-word={isWord ? "" : undefined}
       className="inline-flex items-center gap-1 rounded-full py-0.5 pl-0.5 pr-2"
       style={{
         ["--cap-c" as string]: c,
@@ -167,6 +173,46 @@ export function ValueCapsule({
       <span className="text-[10px] leading-none text-muted-foreground/60">
         {label}
       </span>
+    </span>
+  );
+}
+
+/**
+ * Seviye kapsülü — uyku kalitesi, mutluluk: başında simge, içinde "4/5" ve
+ * noktalar (ScaleMeter). Eskiden kartın sağında kapsülsüz, boşlukta yüzen
+ * bir "4/5 ●●●●○" duruyordu; öteki değerler kapsüldeyken o kopuk kalıyordu.
+ */
+export function LevelCapsule({
+  icon,
+  value,
+  choices,
+  color: c,
+  title,
+}: {
+  icon: React.ReactNode;
+  value: string;
+  choices: string[];
+  color: string;
+  title?: string;
+}) {
+  return (
+    <span
+      data-capsule=""
+      title={title}
+      className="inline-flex shrink-0 items-center gap-1 rounded-full py-0.5 pl-0.5 pr-2"
+      style={{
+        ["--cap-c" as string]: c,
+        background: `${c}14`,
+        boxShadow: `inset 0 0 0 1px ${c}33`,
+      }}
+    >
+      <span
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+        style={{ background: `${c}33` }}
+      >
+        {icon}
+      </span>
+      <ScaleMeter value={value} choices={choices} color={c} />
     </span>
   );
 }

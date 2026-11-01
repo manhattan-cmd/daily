@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Clock, MoonStar } from "lucide-react";
+import { Clock, MoonStar, Star } from "lucide-react";
 import type { EntryWithContext } from "@/types";
-import {
-  parseDTR,
-  calcDTRDuration,
-} from "@/components/forms/datetime-range-input";
+import { parseDTR } from "@/components/forms/datetime-range-input";
+import { LevelCapsule } from "@/components/dashboard/entry-parts";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
@@ -55,15 +53,24 @@ export function SleepCard({
   const { start, end } = parseDTR(rangeValue?.value ?? "");
   const startTime = start?.split("T")[1]?.slice(0, 5);
   const endTime = end?.split("T")[1]?.slice(0, 5);
-  const duration = calcDTRDuration(start, end);
+  // Süre kısa: "7 sa 30 dk" — uzun hali ("7 saat 30 dakika") kapsülü
+  // taşırıp kaliteyi alt satıra itiyordu
+  const duration = (() => {
+    if (!start || !end) return null;
+    const diff = new Date(end).getTime() - new Date(start).getTime();
+    if (diff <= 0) return null;
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    return h === 0 ? t("sleep.durM", { m }) : m === 0 ? t("sleep.durH", { h }) : t("sleep.durHM", { h, m });
+  })();
 
   // Yerleşik akışın rengi kategoriden; boşsa uykunun moru
   const color = entry.category.color || "#8b5cf6";
 
-  const qualityMax = qualityValue?.entryType?.choices?.length ?? 5;
-  const qualityNum = qualityValue ? Number(qualityValue.value) : null;
+  const qualityChoices = qualityValue?.entryType?.choices ?? [];
 
-  // Alt bölümün içeriği — iki biçimde de aynı kapsüller
+  // Alt bölüm — iki biçimde de aynı kapsüller: saat aralığı (süresiyle) ve
+  // kalite. Kalite eskiden kartın sağında kapsülsüz "4/5 ●●●●○" idi
   const body = (
     <>
           <span
@@ -82,7 +89,7 @@ export function SleepCard({
             {startTime || endTime ? (
               <span className="text-[13px] font-semibold leading-none tabular-nums text-foreground">
                 {startTime ?? "?"}
-                <span className="mx-1 font-normal text-muted-foreground">→</span>
+                <span className="mx-0.5 font-normal text-muted-foreground">→</span>
                 {endTime ?? "?"}
               </span>
             ) : (
@@ -91,30 +98,20 @@ export function SleepCard({
               </span>
             )}
             {duration && (
-              <span className="shrink-0 text-[10px] leading-none text-muted-foreground/70">
+              <span data-plain="" className="shrink-0 text-[10px] leading-none text-muted-foreground/70">
                 {duration}
               </span>
             )}
           </span>
 
-          {qualityNum !== null && !Number.isNaN(qualityNum) && (
-            <div data-quality="" className="ml-auto flex shrink-0 items-center gap-1.5">
-              <span className="text-[11px] font-semibold tabular-nums" style={{ color }}>
-                {qualityNum}/{qualityMax}
-              </span>
-              <div className="flex gap-1">
-                {Array.from({ length: qualityMax }).map((_, i) => (
-                  <span
-                    key={i}
-                    className={cn(
-                      "h-1.5 w-1.5 rounded-full transition-colors",
-                      i < qualityNum ? "" : "opacity-25"
-                    )}
-                    style={{ background: color }}
-                  />
-                ))}
-              </div>
-            </div>
+          {qualityValue && qualityChoices.includes(qualityValue.value) && (
+            <LevelCapsule
+              icon={<Star className="h-3 w-3" style={{ color }} strokeWidth={1.9} />}
+              value={qualityValue.value}
+              choices={qualityChoices}
+              color={color}
+              title={qualityValue.mod?.name ?? qualityValue.entryType?.name}
+            />
           )}
     </>
   );
@@ -146,7 +143,7 @@ export function SleepCard({
             title={t("sleep.title")}
             right={dateLabel ? <EntryBlockTime>{dateLabel}</EntryBlockTime> : undefined}
           />
-          <EntryBlockCell className="flex flex-wrap items-center gap-x-2 gap-y-1.5">{body}</EntryBlockCell>
+          <EntryBlockCell className="flex flex-wrap items-center gap-1.5">{body}</EntryBlockCell>
           {selection?.active && (
             <SelectionLayer selected={selection.selected} onToggle={selection.onToggle} label={t("sleep.select")} />
           )}
@@ -206,8 +203,8 @@ export function SleepCard({
           )}
         </div>
 
-        {/* Alt bölüm — aralık kapsülü, sağda kalite */}
-        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-[var(--ln-1)] pt-2">
+        {/* Alt bölüm — aralık ve kalite kapsülleri */}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-[var(--ln-1)] pt-2">
           {body}
         </div>
 

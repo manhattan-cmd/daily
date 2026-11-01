@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { EmotionFace, emotionLook } from "@/lib/icons/emotions";
+import { EmotionFace, emotionLook, emotionName } from "@/lib/icons/emotions";
 import { HScroll } from "@/components/ui/h-scroll";
 import { FIELD_TONES, type FieldTone } from "@/components/forms/field-tone";
 import { packChoiceLevel, splitChoiceLevel } from "@/lib/choice-level";
@@ -105,7 +105,7 @@ export function EmotionPicker({
                   key={c}
                   type="button"
                   onClick={() => toggle(c)}
-                  aria-label={t("mood.removeEmotion", { name: c })}
+                  aria-label={t("mood.removeEmotion", { name: emotionName(c, t) })}
                   className="flex shrink-0 items-center rounded-full border p-1 transition-transform active:scale-95"
                   style={{
                     borderColor: `${look.color}59`,
@@ -161,7 +161,7 @@ export function EmotionPicker({
                     on ? "text-foreground" : undefined
                   )}
                 >
-                  {c}
+                  {emotionName(c, t)}
                 </span>
               </button>
             );
