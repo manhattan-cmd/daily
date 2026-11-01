@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { MARK } from "../lib/brand.ts";
+import { MARK, markMaskSvg, markPartsSvg } from "../lib/brand.ts";
 
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
@@ -18,31 +18,12 @@ const ADAPTIVE_SCALE = 0.72;
 const MASKABLE_SCALE = 0.92;
 const PAPER = "#faf7f0";
 
-const st = (w = MARK.stroke, c = MARK.ink) => ` stroke="${c}" stroke-width="${w}" stroke-linejoin="round"`;
-const sqEl = (q, fill, extra = "") => `<rect x="${q.x}" y="${q.y}" width="${q.size}" height="${q.size}" rx="${q.r}" fill="${fill}"${extra}/>`;
-const bitEl = (b, fill, extra = "") => `<circle cx="${b.cx}" cy="${b.cy}" r="${b.r}" fill="${fill}"${extra}/>`;
+/** Logonun kendisi (zeminsiz) — bkz. lib/brand markPartsSvg */
+const markParts = () => markPartsSvg();
 
-/** Logonun kendisi (zeminsiz): gölgeler, dolgular, yeşil kesişimler, çerçeveler — bkz. components/ui/logbit-mark */
-function markParts() {
-  const b = MARK.bit, sh = ` transform="translate(${MARK.shadow} ${MARK.shadow})"`;
-  return [
-    MARK.squares.map((q, i) => `<clipPath id="k${i}">${sqEl(q, "#000")}</clipPath>`).join(""),
-    ...MARK.squares.map((q) => sqEl(q, MARK.ink, st() + sh)),
-    bitEl(b, MARK.ink, st() + sh),
-    ...MARK.squares.map((q) => sqEl(q, q.fill)),
-    bitEl(b, b.fill),
-    ...MARK.squares.map((_, i) => bitEl(b, MARK.meet, ` clip-path="url(#k${i})"`)),
-    ...MARK.squares.map((q) => sqEl(q, "none", st())),
-    bitEl(b, "none", st()),
-  ].join("");
-}
-
-/** Tek renk siluet (temalı ikon): şekiller dolu, aralarındaki sınırlar şeffaf boşluk (maske) */
+/** Tek renk siluet (temalı ikon): parçalar dolu, aralar ve yüz şeffaf (maske) */
 function monoParts(color) {
-  const b = MARK.bit, gap = st(14, "#000");
-  return `<mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
-    ${MARK.squares.map((q) => sqEl(q, "#fff")).join("")}${bitEl(b, "#fff")}
-    ${MARK.squares.map((q) => sqEl(q, "none", gap)).join("")}${bitEl(b, "none", gap)}</mask>
+  return `<mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">${markMaskSvg()}</mask>
     <rect width="512" height="512" fill="${color}" mask="url(#m)"/>`;
 }
 

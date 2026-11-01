@@ -37,7 +37,6 @@ import { GettingStarted, WELCOME_DISMISSED, type StartStep } from "@/components/
 import { AddButton } from "@/components/calendar/add-menu";
 import { useDayAdd } from "@/components/calendar/day-add";
 import { CategoryForm } from "@/components/structure/category-form";
-import { LogbitMark } from "@/components/ui/logbit-mark";
 import { LogbitWordmark } from "@/components/ui/logbit-wordmark";
 import { SymbolIcon } from "@/lib/icons";
 import { useLocalFlag } from "@/lib/local-flag";
@@ -818,10 +817,11 @@ const HOME_MENU = "#a9b0ff";
  * gibi (bkz. WeekStrip) kenardan kenara şerit, altında tek kalın siyah
  * çizgi; rengi alt menüde Ana Sayfa sekmesinin rengi. Durum çubuğu da aynı
  * renk (bkz. statusBarColor): ekranın tepesinden tek parça. Şeridin
- * üzerinde doğrudan yalnız üç şey: solda logo karosu (bit ızgarası, brütal
- * çerçeve ve sert gölge), yanında kelime logosu ("logbit", i'nin noktası
- * sarı bit); sağda alt menünün sekmeleri gibi sönük Ayarlar simgesi.
- * Yapışkan.
+ * üzerinde yalnız iki şey: solda kelime logosu ("logbit", i'nin noktası sarı
+ * bit) ve o'nun arkasında onu tutan Kutu maskotu — logo karosu yok, logo
+ * yazının kendisi; sağda alt menünün sekmeleri gibi sönük Ayarlar simgesi.
+ * Yapışkan. Maskotun yüzü yazının üstüne çıktığı için şerit 80 px ve yazı
+ * tabana yaslı.
  *
  * Ad ve logo belli olunca (Logbit) beyaz kapsül kalktı: içi arama kutusu
  * gibi okunuyordu; marka artık şeridin kendisinde.
@@ -847,35 +847,21 @@ function HomeMenu() {
       className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]"
       style={{ background: HOME_MENU }}
     >
-      <div data-home-brand="" className="flex h-[60px] items-center gap-3 pl-4 pr-2">
-        <AppMark />
-        <h1 className="min-w-0 flex-1 pt-px">
-          <LogbitWordmark className="text-[24px]" />
+      <div data-home-brand="" className="flex h-[80px] items-end gap-3 pb-[13px] pl-4 pr-2">
+        <h1 className="min-w-0 flex-1">
+          <LogbitWordmark mascot className="text-[34px]" />
         </h1>
         <Link
           href="/settings"
           prefetch={false}
           aria-label={t("nav.settings")}
           title={t("nav.settings")}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#111]/65 active:bg-[#111]/10 active:text-[#111]"
+          className="flex h-10 w-10 shrink-0 items-center justify-center self-center rounded-full text-[#111]/65 active:bg-[#111]/10 active:text-[#111]"
         >
           <Settings className="h-[22px] w-[22px]" strokeWidth={2.25} />
         </Link>
       </div>
     </header>
-  );
-}
-
-/** Uygulamanın logosu (bit ızgarası, bkz. lib/brand) — ikonun karosu, brütal çerçeve ve sert gölge */
-function AppMark() {
-  return (
-    <span
-      aria-hidden
-      className="block h-[34px] w-[34px] shrink-0 overflow-hidden rounded-[10px] border-2 shadow-[2px_2px_0_#111]"
-      style={{ borderColor: "#111" }}
-    >
-      <LogbitMark className="block h-full w-full" />
-    </span>
   );
 }
 
