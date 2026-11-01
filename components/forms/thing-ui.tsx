@@ -119,7 +119,11 @@ export function summaryOf(cur: ThingCurrent | undefined, modIds: string[], mods:
     .join(" · ");
 }
 
-/** Seçilen / iliştirilen nesnenin başlık satırı */
+/**
+ * Seçilen / iliştirilen nesnenin başlık satırı. `onPress`: başlığa dokunmak
+ * nesneyi değiştirir (listeyi açar) — eskiden seçilen nesne yalnız çarpıyla
+ * silinip yeniden seçilerek değişiyordu, dokunmak hiçbir şey yapmıyordu.
+ */
 export function ThingHeader({
   name,
   listName,
@@ -128,6 +132,9 @@ export function ThingHeader({
   brutal,
   onRemove,
   removeLabel,
+  onPress,
+  pressed = false,
+  pressLabel,
 }: {
   name: string;
   listName?: string;
@@ -136,16 +143,13 @@ export function ThingHeader({
   brutal: boolean;
   onRemove?: () => void;
   removeLabel?: string;
+  onPress?: () => void;
+  /** Liste açık — bu nesnenin yerine seçiliyor */
+  pressed?: boolean;
+  pressLabel?: string;
 }) {
-  return (
-    <div
-      data-thing-head=""
-      className={cn(
-        "flex items-center gap-2.5 rounded-2xl py-1.5 pl-1.5 pr-1",
-        brutal ? "border-2 border-[#111] bg-white shadow-[3px_3px_0_#111]" : "ring-1 ring-inset"
-      )}
-      style={brutal ? undefined : { background: `${color}14`, ["--tw-ring-color" as string]: `${color}55` }}
-    >
+  const body = (
+    <>
       <Diamond color={color} icon={icon} brutal={brutal} />
       <span className="min-w-0 flex-1 leading-tight">
         <span className={cn("block truncate text-[15px] font-black", brutal ? "text-[#111]" : "text-foreground")}>{name}</span>
@@ -155,6 +159,32 @@ export function ThingHeader({
           </span>
         )}
       </span>
+    </>
+  );
+  return (
+    <div
+      data-thing-head=""
+      className={cn(
+        "flex items-center gap-2.5 rounded-2xl py-1.5 pl-1.5 pr-1 transition-[transform,box-shadow]",
+        brutal ? "border-2 border-[#111] bg-white shadow-[3px_3px_0_#111]" : "ring-1 ring-inset",
+        pressed && (brutal ? "translate-x-[2px] translate-y-[2px] shadow-none" : "ring-2")
+      )}
+      style={brutal ? undefined : { background: `${color}14`, ["--tw-ring-color" as string]: pressed ? color : `${color}55` }}
+    >
+      {onPress ? (
+        <button
+          type="button"
+          onClick={onPress}
+          aria-expanded={pressed}
+          aria-label={pressLabel ? `${name} · ${pressLabel}` : undefined}
+          data-thing-change=""
+          className="-my-1.5 -ml-1.5 flex min-w-0 flex-1 items-center gap-2.5 self-stretch rounded-l-2xl py-1.5 pl-1.5 text-left"
+        >
+          {body}
+        </button>
+      ) : (
+        body
+      )}
       {onRemove && (
         <button
           type="button"

@@ -58,6 +58,8 @@ export function ThingField({
   const ctx = useThingValues();
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
+  // Yerine yenisi seçilen nesne — başlığına dokununca liste açılır
+  const [replacing, setReplacing] = useState<string | null>(null);
   const selected = splitThingIds(value);
 
   const data = useLiveQuery(async () => {
@@ -98,16 +100,22 @@ export function ThingField({
   const listColor = coll?.color ?? color;
   const featureIds = coll?.modIds ?? [];
   const exact = (data.things ?? []).some((th) => th.name.toLocaleLowerCase("tr") === q);
-  const pickerOpen = selected.length === 0 || (multiple && adding);
+  const pickerOpen = selected.length === 0 || (multiple && adding) || (!!replacing && selected.includes(replacing));
   const ink = brutal ? "text-[#111]" : "text-foreground";
   const sub = brutal ? "text-[#111]/55" : "text-muted-foreground";
 
   const pick = (thingId: string) => {
-    onChange(multiple ? joinThingIds([...selected, thingId]) : thingId);
+    if (replacing && selected.includes(replacing))
+      onChange(joinThingIds(selected.map((x) => (x === replacing ? thingId : x))));
+    else onChange(multiple ? joinThingIds([...selected, thingId]) : thingId);
     setQuery("");
     setAdding(false);
+    setReplacing(null);
   };
-  const unpick = (thingId: string) => onChange(joinThingIds(selected.filter((x) => x !== thingId)));
+  const unpick = (thingId: string) => {
+    if (replacing === thingId) setReplacing(null);
+    onChange(joinThingIds(selected.filter((x) => x !== thingId)));
+  };
 
   async function addNew() {
     const name = query.trim();
@@ -133,12 +141,19 @@ export function ThingField({
               brutal={brutal}
               onRemove={() => unpick(sid)}
               removeLabel={t("entry.removeFromEntry")}
+              onPress={() => {
+                setQuery("");
+                setAdding(false);
+                setReplacing((cur) => (cur === sid ? null : sid));
+              }}
+              pressed={replacing === sid}
+              pressLabel={t("objects.change")}
             />
           </div>
         );
       })}
 
-      {multiple && selected.length > 0 && !adding && (
+      {multiple && selected.length > 0 && !adding && !replacing && (
         <button
           type="button"
           onClick={() => setAdding(true)}
