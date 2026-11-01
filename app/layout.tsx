@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
+import { APP_NAME } from "@/lib/brand";
 import { CSP_META } from "@/lib/security-policy";
 import { SKIN_BOOT_SCRIPT } from "@/lib/skin-boot";
 
@@ -16,15 +17,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Routine",
+  title: APP_NAME,
   description:
     "Track your life with a structure you define yourself. Everything stays on your device.",
-  applicationName: "Routine",
+  applicationName: APP_NAME,
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Routine",
+    title: APP_NAME,
   },
   formatDetection: {
     telephone: false,

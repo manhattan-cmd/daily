@@ -1,4 +1,4 @@
-package app.routine.lifelog;
+package app.logbit;
 
 import com.getcapacitor.BridgeActivity;
 

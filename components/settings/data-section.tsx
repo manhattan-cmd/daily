@@ -27,6 +27,7 @@ import {
   type RestoreMode,
 } from "@/lib/db/backup";
 import { isNative, shareFileNative } from "@/lib/native";
+import { APP_NAME } from "@/lib/brand";
 import {
   agoLabel,
   daysSince,
@@ -83,7 +84,7 @@ export function DataSection() {
         const r = await shareFileNative(
           backupFileName(payload.exportedAt),
           JSON.stringify(payload, null, 2),
-          "Routine backup"
+          `${APP_NAME} backup`
         );
         if (r === "cancelled") return;
       } else {
@@ -116,7 +117,7 @@ export function DataSection() {
         const r = await shareFileNative(
           backupFileName(payload.exportedAt),
           JSON.stringify(payload, null, 2),
-          "Routine backup"
+          `${APP_NAME} backup`
         );
         if (r === "cancelled") return;
         markBackupTaken(payload.exportedAt);
@@ -137,7 +138,7 @@ export function DataSection() {
         });
         return;
       }
-      await navigator.share({ files: [file], title: "Routine backup" });
+      await navigator.share({ files: [file], title: `${APP_NAME} backup` });
       markBackupTaken(payload.exportedAt);
       setMessage({ type: "ok", text: "Backup shared." });
     } catch (err) {

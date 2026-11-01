@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Routine</string>
-    <string name="title_activity_main">Routine</string>
-    <string name="package_name">app.routine.lifelog</string>
-    <string name="custom_url_scheme">app.routine.lifelog</string>
+    <string name="app_name">Logbit</string>
+    <string name="title_activity_main">Logbit</string>
+    <string name="package_name">app.logbit</string>
+    <string name="custom_url_scheme">app.logbit</string>
 </resources>

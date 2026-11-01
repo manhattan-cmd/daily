@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Routine",
-  "short_name": "Routine",
+  "name": "Logbit",
+  "short_name": "Logbit",
   "description": "Track your life with a structure you define yourself.",
   "lang": "en",
   "start_url": "/",

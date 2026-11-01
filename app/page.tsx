@@ -8,7 +8,6 @@ import {
   ArrowRight,
   CalendarDays,
   CalendarRange,
-  Check,
   Layers,
   Plus,
   Search,
@@ -38,6 +37,8 @@ import { GettingStarted, WELCOME_DISMISSED, type StartStep } from "@/components/
 import { AddButton } from "@/components/calendar/add-menu";
 import { useDayAdd } from "@/components/calendar/day-add";
 import { CategoryForm } from "@/components/structure/category-form";
+import { LogbitMark } from "@/components/ui/logbit-mark";
+import { APP_NAME } from "@/lib/brand";
 import { SymbolIcon } from "@/lib/icons";
 import { useLocalFlag } from "@/lib/local-flag";
 import { useLastBackupAt } from "@/lib/storage-health";
@@ -812,16 +813,13 @@ function WeekBar({
 /** Ana sayfanın üst menüsünün rengi — alt menüde Ana Sayfa sekmesinin rengi */
 const HOME_MENU = "#a9b0ff";
 
-/** Uygulamanın adı (şimdilik) — markanın adı, çevrilmez */
-const APP_NAME = "Routine";
-
 /**
  * Ana sayfanın üst menüsü (Brütal) — uygulamanın başlığı: gün sayfasınınki
  * gibi (bkz. WeekStrip) kenardan kenara şerit, altında tek kalın siyah
  * çizgi; rengi alt menüde Ana Sayfa sekmesinin rengi. Durum çubuğu da aynı
  * renk (bkz. statusBarColor): ekranın tepesinden tek parça. İçinde, çevresi
  * mor kalan ince çerçeveli beyaz kapsülde yalnız üç şey: solda uygulamanın
- * simgesi (çivitte beyaz onay), yanında adı; sağda alt menünün sekmeleri
+ * logosu (bit ızgarası), yanında adı; sağda alt menünün sekmeleri
  * gibi sönük Ayarlar simgesi. Yapışkan.
  *
  * Araştırmaya göre (platform rehberleri): ana ekranda küçük çubukta
@@ -871,15 +869,15 @@ function HomeMenu() {
   );
 }
 
-/** Uygulamanın simgesi (bkz. public/icons) — çivit karoda beyaz onay */
+/** Uygulamanın logosu (bit ızgarası, bkz. lib/brand) — ikonun küçük karosu */
 function AppMark() {
   return (
     <span
       aria-hidden
-      className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] border-[1.5px] shadow-[1.5px_1.5px_0_#111]"
-      style={{ background: "#6366f1", borderColor: "#111" }}
+      className="block h-[30px] w-[30px] shrink-0 overflow-hidden rounded-[9px] border-[1.5px] shadow-[1.5px_1.5px_0_#111]"
+      style={{ borderColor: "#111" }}
     >
-      <Check className="h-[17px] w-[17px] text-white" strokeWidth={3.5} />
+      <LogbitMark className="block h-full w-full" />
     </span>
   );
 }

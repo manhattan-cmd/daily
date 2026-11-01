@@ -1,8 +1,8 @@
-# Routine
+# Logbit
 
 Track your life with a structure you define yourself.
 
-Routine has no fixed set of trackable things. You build the structure —
+Logbit has no fixed set of trackable things. You build the structure —
 categories, subcategories, and the features measured on them — and every
 number, chart and breakdown in the app is derived from that structure.
 

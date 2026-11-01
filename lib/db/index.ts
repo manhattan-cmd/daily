@@ -41,6 +41,7 @@ export class RoutineDB extends Dexie {
   structureThings!: Table<StructureThing, string>;
 
   constructor() {
+    // ad Logbit oldu ama veritabanının adı değişmez — değişirse cihazdaki veri görünmez
     super("RoutineDB");
     this.version(1).stores({
       categories: "id, name, order, createdAt",

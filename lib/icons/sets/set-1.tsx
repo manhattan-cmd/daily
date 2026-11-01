@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { IconName } from "../vocabulary";
 
 /**
- * Set 1 — Routine'in ilk sembol dili.
+ * Set 1 — Logbit'in ilk sembol dili.
  *
  * TASARIM KURALLARI (yeni set yazılacaksa bunlar korunmalı)
  * 1. DOLU kütle, çizgi değil. 16 pikselde tanınan şey siluet; emojiye

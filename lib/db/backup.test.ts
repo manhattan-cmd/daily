@@ -107,6 +107,6 @@ describe("backupFileName", () => {
   it("YEREL günü kullanır — toISOString gününü kaydırıyordu", () => {
     // Yerel saatle 15 Temmuz 00:30; UTC'ye çevrilse 14 Temmuz olabilirdi
     const t = new Date(2026, 6, 15, 0, 30).getTime();
-    expect(backupFileName(t)).toBe("routine-yedek-2026-07-15.json");
+    expect(backupFileName(t)).toBe("logbit-yedek-2026-07-15.json");
   });
 });

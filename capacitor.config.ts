@@ -12,8 +12,8 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * appId Play Store'daki kalıcı kimlik — ilk yüklemeden sonra değişmez.
  */
 const config: CapacitorConfig = {
-  appId: "app.routine.lifelog",
-  appName: "Routine",
+  appId: "app.logbit",
+  appName: "Logbit",
   webDir: "out",
   backgroundColor: "#09090b",
   android: {

@@ -148,7 +148,7 @@ async function backupRoundtrip(browser) {
   truthy("notlar yedekte", (json.data.notes ?? []).length === 1);
   truthy(
     "dosya adı yerel tarihle",
-    download.suggestedFilename().startsWith("routine-yedek-" + today())
+    download.suggestedFilename().startsWith("logbit-yedek-" + today())
   );
 
   // Cihazdaki notu yedekten YENİ yap + yedekte olmayan bir not ekle
@@ -221,7 +221,7 @@ async function backupRoundtrip(browser) {
   truthy(
     "bozuk dosyada açıklayıcı hata",
     (await page.evaluate(() => document.body.innerText)).match(
-      /Routine yedeği|Routine backup/i
+      /Logbit yedeği|Logbit backup/i
     )
   );
   await fs.unlink(tmp).catch(() => {});

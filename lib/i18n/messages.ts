@@ -940,7 +940,7 @@ export const en = {
   "settings.showWelcomeHint":
     "The getting-started list (category, first entry, goal, backup) reappears on the home page",
   "settings.about":
-    "Routine · version {version} — your data is kept on this device only and never sent to a server.",
+    "Logbit · version {version} — your data is kept on this device only and never sent to a server.",
   "settings.skin": "Theme",
   "settings.skinHint": "Colours only — the layout stays the same",
   "settings.language": "Language",
@@ -1928,7 +1928,7 @@ export const tr: Record<MessageKey, string> = {
   "settings.showWelcomeHint":
     "Kategori, ilk girdi, hedef ve yedek adımları ana sayfada tekrar çıkar",
   "settings.about":
-    "Routine · sürüm {version} — verilerin yalnızca bu cihazda tutulur, hiçbir sunucuya gönderilmez.",
+    "Logbit · sürüm {version} — verilerin yalnızca bu cihazda tutulur, hiçbir sunucuya gönderilmez.",
   "settings.skin": "Tema",
   "settings.skinHint": "Yalnız renkler — yerleşim aynı kalır",
   "settings.language": "Dil",

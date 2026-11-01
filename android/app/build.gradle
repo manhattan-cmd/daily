@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "app.routine.lifelog"
+    namespace = "app.logbit"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "app.routine.lifelog"
+        applicationId "app.logbit"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

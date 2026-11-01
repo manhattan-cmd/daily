@@ -109,6 +109,7 @@ export interface BackupData {
 }
 
 export interface BackupPayload {
+  /** iç kimlik — ad Logbit oldu ama eski yedekler açılsın diye "routine" kalır */
   app: "routine";
   version: number;
   exportedAt: number;
@@ -169,7 +170,7 @@ export async function exportBackup(): Promise<BackupPayload> {
 export function backupFileName(exportedAt: number): string {
   const d = new Date(exportedAt);
   const p = (n: number) => String(n).padStart(2, "0");
-  return `routine-yedek-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`;
+  return `logbit-yedek-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`;
 }
 
 export function backupToBlob(payload: BackupPayload): Blob {
@@ -178,7 +179,7 @@ export function backupToBlob(payload: BackupPayload): Blob {
   });
 }
 
-/** Tarayıcıya routine-yedek-YYYY-MM-DD.json olarak indirtir. */
+/** Tarayıcıya logbit-yedek-YYYY-MM-DD.json olarak indirtir. */
 export function downloadBackup(payload: BackupPayload): void {
   const url = URL.createObjectURL(backupToBlob(payload));
   const a = document.createElement("a");
@@ -200,7 +201,7 @@ export function parseBackupFile(text: string): BackupPayload {
   }
   const p = parsed as Partial<BackupPayload> | null;
   if (!p || typeof p !== "object" || p.app !== "routine" || !p.data) {
-    throw new Error("Bu dosya bir Routine yedeği gibi görünmüyor.");
+    throw new Error("Bu dosya bir Logbit yedeği gibi görünmüyor.");
   }
   if (typeof p.version === "number" && p.version > BACKUP_VERSION) {
     throw new Error(
