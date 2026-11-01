@@ -38,7 +38,7 @@ import { AddButton } from "@/components/calendar/add-menu";
 import { useDayAdd } from "@/components/calendar/day-add";
 import { CategoryForm } from "@/components/structure/category-form";
 import { LogbitMark } from "@/components/ui/logbit-mark";
-import { APP_NAME } from "@/lib/brand";
+import { LogbitWordmark } from "@/components/ui/logbit-wordmark";
 import { SymbolIcon } from "@/lib/icons";
 import { useLocalFlag } from "@/lib/local-flag";
 import { useLastBackupAt } from "@/lib/storage-health";
@@ -817,10 +817,14 @@ const HOME_MENU = "#a9b0ff";
  * Ana sayfanın üst menüsü (Brütal) — uygulamanın başlığı: gün sayfasınınki
  * gibi (bkz. WeekStrip) kenardan kenara şerit, altında tek kalın siyah
  * çizgi; rengi alt menüde Ana Sayfa sekmesinin rengi. Durum çubuğu da aynı
- * renk (bkz. statusBarColor): ekranın tepesinden tek parça. İçinde, çevresi
- * mor kalan ince çerçeveli beyaz kapsülde yalnız üç şey: solda uygulamanın
- * logosu (bit ızgarası), yanında adı; sağda alt menünün sekmeleri
- * gibi sönük Ayarlar simgesi. Yapışkan.
+ * renk (bkz. statusBarColor): ekranın tepesinden tek parça. Şeridin
+ * üzerinde doğrudan yalnız üç şey: solda logo karosu (bit ızgarası, brütal
+ * çerçeve ve sert gölge), yanında kelime logosu ("logbit", i'nin noktası
+ * sarı bit); sağda alt menünün sekmeleri gibi sönük Ayarlar simgesi.
+ * Yapışkan.
+ *
+ * Ad ve logo belli olunca (Logbit) beyaz kapsül kalktı: içi arama kutusu
+ * gibi okunuyordu; marka artık şeridin kendisinde.
  *
  * Araştırmaya göre (platform rehberleri): ana ekranda küçük çubukta
  * uygulamanın adı ya da logosu, iri başlık iç sayfaların.
@@ -843,38 +847,31 @@ function HomeMenu() {
       className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]"
       style={{ background: HOME_MENU }}
     >
-      <div className="px-3 py-2.5">
-        <div
-          data-home-capsule=""
-          className="flex h-[46px] items-center gap-2.5 rounded-full border-[1.5px] bg-white pl-2 pr-1 shadow-[2px_2px_0_#111]"
-          style={{ borderColor: "#111" }}
+      <div data-home-brand="" className="flex h-[60px] items-center gap-3 pl-4 pr-2">
+        <AppMark />
+        <h1 className="min-w-0 flex-1 pt-px">
+          <LogbitWordmark className="text-[24px]" />
+        </h1>
+        <Link
+          href="/settings"
+          prefetch={false}
+          aria-label={t("nav.settings")}
+          title={t("nav.settings")}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#111]/65 active:bg-[#111]/10 active:text-[#111]"
         >
-          <AppMark />
-          <h1 className="min-w-0 truncate text-[20px] font-black leading-none tracking-[-0.02em] text-[#111]">
-            {APP_NAME}
-          </h1>
-          <span className="flex-1" />
-          <Link
-            href="/settings"
-            prefetch={false}
-            aria-label={t("nav.settings")}
-            title={t("nav.settings")}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#111]/60 active:bg-[#111]/5 active:text-[#111]"
-          >
-            <Settings className="h-5 w-5" strokeWidth={2.25} />
-          </Link>
-        </div>
+          <Settings className="h-[22px] w-[22px]" strokeWidth={2.25} />
+        </Link>
       </div>
     </header>
   );
 }
 
-/** Uygulamanın logosu (bit ızgarası, bkz. lib/brand) — ikonun küçük karosu */
+/** Uygulamanın logosu (bit ızgarası, bkz. lib/brand) — ikonun karosu, brütal çerçeve ve sert gölge */
 function AppMark() {
   return (
     <span
       aria-hidden
-      className="block h-[30px] w-[30px] shrink-0 overflow-hidden rounded-[9px] border-[1.5px] shadow-[1.5px_1.5px_0_#111]"
+      className="block h-[34px] w-[34px] shrink-0 overflow-hidden rounded-[10px] border-2 shadow-[2px_2px_0_#111]"
       style={{ borderColor: "#111" }}
     >
       <LogbitMark className="block h-full w-full" />
