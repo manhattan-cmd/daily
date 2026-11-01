@@ -765,14 +765,14 @@ input[type="number"] {
   background: #111 !important; color: #ffd23f !important; box-shadow: none !important;
 }
 
-/* Takvim: çerçeveli gün kutuları, bugün sarı */
+/* Takvim: çerçeveli gün kutuları; bugün pembe Kutu maskotu, elinde günün sarı biti (components/calendar/today-mascot) */
 :root[data-skin="brutal"] [data-cal-grid] { column-gap: 5px; row-gap: 5px !important; }
 :root[data-skin="brutal"] [data-cal-day] { border-radius: 10px; }
 :root[data-skin="brutal"] [data-cal-day][data-has] {
   background: #ffffff; border: 2px solid #111; box-shadow: 2px 2px 0 #111;
 }
 :root[data-skin="brutal"] [data-cal-day][data-today] {
-  background: #ffd23f !important; border: 2px solid #111; box-shadow: 3px 3px 0 #111;
+  background: #ff9ecd !important; border: 2px solid #111; box-shadow: 3px 3px 0 #111;
 }
 :root[data-skin="brutal"] [data-cal-day][data-today] span { color: #111 !important; font-weight: 900; }
 

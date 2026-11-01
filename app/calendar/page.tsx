@@ -13,6 +13,7 @@ import { prefetchDayOnPress } from "@/lib/db/day-cache";
 import { useSkin } from "@/lib/skin";
 import { Layer, PageSheet } from "@/components/ui/layer";
 import { HeaderBlock, HeaderTile, HeaderTitle } from "@/components/ui/header-block";
+import { TodayMascot } from "@/components/calendar/today-mascot";
 
 /** Ay ve gün adları uygulamanın dilinde (eskiden sabit İngilizce diziydi) */
 function monthName(i: number, tag: string): string {
@@ -316,6 +317,11 @@ export default function CalendarPage() {
                     : "hover:bg-muted/60"
               )}
             >
+              {/* Brütalde bugün Kutu maskotu: günün numarası elindeki sarı bitte */}
+              {brutal && isToday ? (
+                <TodayMascot day={day} />
+              ) : (
+              <>
               <span
                 className={cn(
                   "text-sm leading-none",
@@ -344,6 +350,8 @@ export default function CalendarPage() {
                     />
                   ))}
                 </span>
+              )}
+              </>
               )}
             </Link>
           );
