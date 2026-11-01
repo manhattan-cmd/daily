@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, Boxes, Check, Link2, ListPlus, PanelLeftClose, PenLine, Plus, X } from "lucide-react";
@@ -75,6 +75,13 @@ interface DayEntrySheetProps {
   presetSub?: SubCategory | null;
   /** Ekle ekranının sekmesinde (bkz. AddScreen, SheetFrame) */
   embedded?: boolean;
+  /**
+   * Seçicinin yerine çizilecek liste (Ekle › Hızlı, bkz. QuickPicker): kaleme
+   * dokunmak formu açar, formdan dönünce yine bu liste
+   */
+  picker?: (onPick: (sub: SubCategory) => void) => ReactNode;
+  /** Seçici bu kategoriyi açık getirsin (Hızlı'daki kategoriler); n her dokunuşta yeni */
+  focusCategory?: { id: string; n: number } | null;
 }
 
 type Step =
@@ -107,6 +114,8 @@ function DayEntrySheetBody({
   presetActivity,
   presetSub,
   embedded,
+  picker,
+  focusCategory,
 }: DayEntrySheetProps) {
   const router = useRouter();
   const t = useT();
@@ -164,6 +173,13 @@ function DayEntrySheetBody({
         setStep({ type: "form", sub: presetSub });
       }
     }
+  }
+
+  // Başka sekmeden bir kategori istendi: açık form kapanır, seçici o kategoride
+  const [seenFocus, setSeenFocus] = useState(focusCategory);
+  if (focusCategory !== seenFocus) {
+    setSeenFocus(focusCategory);
+    if (focusCategory && step.type !== "pick" && step.type !== "activity-name") leaveForm();
   }
 
   // Önbellekli: pencere açılır açılmaz liste dolu gelsin (bkz. live-cache)
@@ -523,6 +539,9 @@ function DayEntrySheetBody({
                 ÜSTÜNE bir panel açıyor. Böylece kullanıcı nereye kayıt
                 yaptığını görmeye devam ediyor ve geri dönünce liste aynı
                 yerde (odak EntryPicker'ın içinde tutuluyor). */}
+            {picker ? (
+              picker(handlePick)
+            ) : (
             <PickStep
               key={open ? "open" : "closed"}
               groups={groups}
@@ -532,7 +551,9 @@ function DayEntrySheetBody({
               activity={activity ? { name: activity.name, count: activityCount } : null}
               compact={layout === "ray" && step.type !== "pick"}
               onRailNavigate={leaveForm}
+              focus={focusCategory}
             />
+            )}
 
             {step.type !== "pick" && (
               <>
@@ -548,7 +569,7 @@ function DayEntrySheetBody({
                     entryDate: date,
                   }}
                 >
-                <FormFrame layout={layout} key={step.sub.id} onDismiss={leaveForm}>
+                <FormFrame layout={picker ? "raf" : layout} key={step.sub.id} onDismiss={leaveForm}>
                   <FormStep
             key={step.sub.id}
             sub={step.sub}
@@ -736,10 +757,13 @@ function PickStep({
   activity,
   compact,
   onRailNavigate,
+  focus,
 }: {
   groups:
     | { category: Category; topSubs: SubCategory[]; allSubs: SubCategory[] }[]
     | undefined;
+  /** Bu kategori açık gelsin (bkz. DayEntrySheet focusCategory) */
+  focus?: { id: string; n: number } | null;
   /** Form yandan açık — seçici rayı daraltır */
   compact?: boolean;
   onRailNavigate?: () => void;
@@ -802,6 +826,7 @@ function PickStep({
             onPick={onPick}
             onPickCategory={onPickCategory}
             onClose={onClose}
+            focus={focus}
           />
         ) : (
           <EntryPicker
@@ -812,6 +837,7 @@ function PickStep({
             onCreateCategory={() => setAddCatOpen(true)}
             compact={compact}
             onRailNavigate={onRailNavigate}
+            focus={focus}
           />
         )}
       </div>

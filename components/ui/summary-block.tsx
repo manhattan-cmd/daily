@@ -498,7 +498,7 @@ export function SummaryBlock({
           </button>
         ) : (
           <div className="min-w-0 flex-1">
-            <Lead lead={lead} compact={compact} />
+            <Lead lead={lead} compact={compact} dense={dense} />
           </div>
         )}
         {/* Satır boyunca uzar: ad iki satıra taşınca altında siyah boşluk kalmasın */}

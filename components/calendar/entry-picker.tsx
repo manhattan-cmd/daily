@@ -161,6 +161,7 @@ export function EntryPicker({
   onCreateCategory,
   compact = false,
   onRailNavigate,
+  focus,
 }: {
   groups: NetGroup[] | undefined;
   /**
@@ -178,11 +179,13 @@ export function EntryPicker({
    */
   compact?: boolean;
   onRailNavigate?: () => void;
+  /** Rayda bu kategori seçili gelsin (Ekle › Hızlı'daki kategoriler) */
+  focus?: { id: string; n: number } | null;
 }) {
   const t = useT();
   const embedded = useEmbedded();
   const layout = useEntryLayout();
-  const [rail, setRailState] = useState<string>(() => readRail() ?? QUICK);
+  const [rail, setRailState] = useState<string>(() => focus?.id ?? readRail() ?? QUICK);
   // Kullanıcı raya kendisi dokunduysa boş "Hızlı ekle"den kaçırılmaz
   const [railTouched, setRailTouched] = useState(false);
   const [addSub, setAddSub] = useState<{
@@ -228,6 +231,15 @@ export function EntryPicker({
       localStorage.setItem(LS_RAIL, id);
     } catch {
       /* kalıcı yazılamazsa oturum boyunca geçerli */
+    }
+  }
+  // Başka sekmeden bir kategori istendi (Ekle › Hızlı)
+  const [seenFocus, setSeenFocus] = useState(focus);
+  if (focus !== seenFocus) {
+    setSeenFocus(focus);
+    if (focus) {
+      setQuery("");
+      setRail(focus.id);
     }
   }
 

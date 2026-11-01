@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Layers, LayoutList, MoreHorizontal, Search, X } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
@@ -55,11 +55,14 @@ export function EntryTreePicker({
   onPick,
   onPickCategory,
   onClose,
+  focus,
 }: {
   groups: NetGroup[] | undefined;
   onPick: (sub: SubCategory) => void;
   onPickCategory: (category: Category) => void;
   onClose: () => void;
+  /** Bu kategori açık ve görünür gelsin (Ekle › Hızlı'daki kategoriler) */
+  focus?: { id: string; n: number } | null;
 }) {
   const t = useT();
   const router = useRouter();
@@ -67,8 +70,25 @@ export function EntryTreePicker({
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   // Bloklar kapalı başlar; aramada eşleşenler açık başlar (kapatılabilir)
-  const [openCats, setOpenCats] = useState<ReadonlySet<string>>(() => new Set());
+  const [openCats, setOpenCats] = useState<ReadonlySet<string>>(() => new Set(focus ? [focus.id] : []));
   const [searchClosed, setSearchClosed] = useState<ReadonlySet<string>>(() => new Set());
+  const listRef = useRef<HTMLDivElement>(null);
+  const [seenFocus, setSeenFocus] = useState(focus);
+  if (focus !== seenFocus) {
+    setSeenFocus(focus);
+    if (focus) {
+      setQuery("");
+      setOpenCats((prev) => new Set(prev).add(focus.id));
+    }
+  }
+  // İstenen kategori listenin tepesine
+  useEffect(() => {
+    if (!focus) return;
+    const id = requestAnimationFrame(() =>
+      listRef.current?.querySelector(`[data-pick-cat="${focus.id}"]`)?.scrollIntoView({ block: "start" })
+    );
+    return () => cancelAnimationFrame(id);
+  }, [focus]);
   // Önce pencere kapanır: kategori sayfasının kendi Girdi ekle'sinden aynı
   // sayfaya gidince yalnız kapanmış olur
   const goStructure = (href: string) => {
@@ -178,6 +198,7 @@ export function EntryTreePicker({
         </div>
 
         <div
+          ref={listRef}
           data-pick-list=""
           className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5 pt-1"
           style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 28px)" }}

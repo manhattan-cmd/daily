@@ -2,20 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import {
-  Boxes,
-  MoonStar,
-  NotebookPen,
-  Package,
-  PenLine,
-  Smile,
-  Target,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { X } from "lucide-react";
 import { db } from "@/lib/db";
 import { createNote } from "@/lib/db/queries";
-import { intlTag, useLocale, useT, type MessageKey } from "@/lib/i18n";
+import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { useSkin } from "@/lib/skin";
 import { useSheetPresence } from "@/lib/use-sheet-presence";
 import { cn } from "@/lib/utils";
@@ -28,8 +18,10 @@ import { SleepSheet } from "@/components/calendar/sleep-sheet";
 import { NoteWindow } from "@/components/notes/note-window";
 import { ThingEntrySheet } from "@/components/forms/thing-entry-sheet";
 import { AddGoalSheet } from "@/components/goals/add-goal-sheet";
+import { QuickPicker } from "@/components/calendar/quick-picker";
+import { ADD_TABS, tabDef, type AddTab } from "@/components/calendar/add-tabs";
 
-export type AddTab = "entry" | "mood" | "sleep" | "note" | "thing" | "goal" | "activity";
+export type { AddTab };
 
 export type AddEntryOpts = {
   /** Var olan aktiviteye girdi: Aktivite sekmesi, ad adımı atlanır */
@@ -37,27 +29,6 @@ export type AddEntryOpts = {
   /** Kalem seçili açılır (ana sayfanın Yine ekle satırı) */
   presetSub?: SubCategory | null;
 };
-
-type TabDef = {
-  key: AddTab;
-  label: MessageKey;
-  icon: LucideIcon;
-  /** Brütalde şeridin rengi — türün kendi tonu */
-  color: string;
-  /** Yerleşik akış: kategorisi silinmişse sekme çıkmaz */
-  builtIn?: BuiltInCategoryKey;
-};
-
-/** Sıra: en sık yapılan önde; aktivite en sonda (ileride girdinin çoklu seçimine katılacak) */
-const TABS: TabDef[] = [
-  { key: "entry", label: "add.entry", icon: PenLine, color: "#7ae582" },
-  { key: "mood", label: "add.mood", icon: Smile, color: "#ff8fab", builtIn: "mood" },
-  { key: "sleep", label: "add.sleep", icon: MoonStar, color: "#c9b8ff", builtIn: "sleep" },
-  { key: "note", label: "add.note", icon: NotebookPen, color: "#ffb38a" },
-  { key: "thing", label: "add.thing", icon: Package, color: "#8fe0d4", builtIn: "objects" },
-  { key: "goal", label: "add.goal", icon: Target, color: "#ffd23f" },
-  { key: "activity", label: "add.activity", icon: Boxes, color: "#8ec5ff" },
-];
 
 type AddScreenProps = {
   date: string;
@@ -83,8 +54,9 @@ type AddScreenProps = {
  * sekmeye bakıp dönünce yazılan kaybolmaz.
  *
  * Bu ilk adım (2026-10-31): sekmelerin içi bugünkü pencereler. Öneri sayfası
- * ve sonraki adımlar (sık eklenenler, kategori blokları, çoklu seçim): bkz.
- * proje notları.
+ * ve sonraki adımlar (kategori blokları, çoklu seçim): bkz. proje notları.
+ * İlk sekme Hızlı (2026-11-01, bkz. QuickPicker): en sık eklenenler; Ekle
+ * düğmesi onu açar. Oradaki kategori Girdi sekmesinde açık gelir.
  */
 export function AddScreen(props: AddScreenProps) {
   const { mounted, visible } = useSheetPresence(props.open);
@@ -109,8 +81,10 @@ function AddScreenBody({ date, open, onClose, tab: initialTab, entryOpts }: AddS
     // Anahtarı henüz doldurulmamış tek yerleşik = eski kurulumdaki Uyku
     return new Set<BuiltInCategoryKey>(cats.map((c) => c.builtInKey ?? "sleep"));
   }, []);
-  const tabs = TABS.filter((d) => !d.builtIn || !builtInKeys || builtInKeys.has(d.builtIn));
-  const active = TABS.find((d) => d.key === tab) ?? TABS[0];
+  const tabs = ADD_TABS.filter((d) => !d.builtIn || !builtInKeys || builtInKeys.has(d.builtIn));
+  const active = tabDef(tab);
+  // Hızlı'daki kategori: Girdi sekmesinde o kategori açık gelir (n: her dokunuş yeni)
+  const [focusCat, setFocusCat] = useState<{ id: string; n: number } | null>(null);
 
   const ensureNote = () => {
     if (noteAsked.current) return;
@@ -139,6 +113,27 @@ function AddScreenBody({ date, open, onClose, tab: initialTab, entryOpts }: AddS
 
   function body(k: AddTab) {
     switch (k) {
+      case "quick":
+        // Seçicinin yerinde Hızlı: kalem formu bu sekmede açılır, geri dönünce yine burası
+        return (
+          <DayEntrySheet
+            embedded
+            date={date}
+            open={open}
+            onClose={onClose}
+            picker={(onPick) => (
+              <QuickPicker
+                date={date}
+                onPick={onPick}
+                onTab={pick}
+                onCategory={(c) => {
+                  setFocusCat((f) => ({ id: c.id, n: (f?.n ?? 0) + 1 }));
+                  pick("entry");
+                }}
+              />
+            )}
+          />
+        );
       case "entry":
         return (
           <DayEntrySheet
@@ -147,6 +142,7 @@ function AddScreenBody({ date, open, onClose, tab: initialTab, entryOpts }: AddS
             open={open}
             onClose={onClose}
             presetSub={entryOpts.presetSub ?? null}
+            focusCategory={focusCat}
           />
         );
       case "activity":

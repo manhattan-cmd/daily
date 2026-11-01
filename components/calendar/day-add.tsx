@@ -20,14 +20,14 @@ type EntryOpts = {
  * gitmek gerekiyordu. Sonra ortak bir seçenek menüsü oldu, her satırı ayrı
  * bir pencere; şimdi tek ekran.
  *
- * `open` Ekle düğmesi için (Girdi sekmesinde açar), `openTab` başka bir
+ * `open` Ekle düğmesi için (Hızlı sekmesinde açar: en sık eklenenler), `openTab` başka bir
  * türle açmak için (gün sayfasının not bloğu), `openEntry`/`openGoal`
  * menü dışından (aktivite kartı, Yine ekle, başlarken adımları). `sheets`
  * sayfanın sonuna konur.
  */
 export function useDayAdd(date: string) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<AddTab>("entry");
+  const [tab, setTab] = useState<AddTab>("quick");
   const [opts, setOpts] = useState<AddEntryOpts>({});
 
   const openTab = (next: AddTab = "entry", entryOpts: AddEntryOpts = {}) => {
@@ -47,7 +47,7 @@ export function useDayAdd(date: string) {
   );
 
   return {
-    open: () => openTab("entry"),
+    open: () => openTab("quick"),
     openTab,
     openEntry,
     openGoal: () => openTab("goal"),
