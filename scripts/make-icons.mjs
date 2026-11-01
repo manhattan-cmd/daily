@@ -1,6 +1,7 @@
 // Logbit ikonlarını üretir: web (favicon, PWA, Apple), Android (başlatıcı,
 // uyarlanabilir katmanlar, temalı tek renk, açılış ekranı).
 // Geometri lib/brand.ts'den — logo değişirse: node scripts/make-icons.mjs
+// (--profil <yol.png> verilirse 1080 px sosyal medya profil fotoğrafı da yazılır)
 import { createRequire } from "node:module";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -17,12 +18,32 @@ const ADAPTIVE_SCALE = 0.72;
 const MASKABLE_SCALE = 0.92;
 const PAPER = "#faf7f0";
 
-function partSvg(p, fill, { stroke = true, dx = 0 } = {}) {
-  const st = stroke ? ` stroke="${MARK.ink}" stroke-width="${MARK.stroke}" stroke-linejoin="round"` : "";
-  const tr = dx ? ` transform="translate(${dx} ${dx})"` : "";
-  return p.kind === "rect"
-    ? `<rect x="${p.x}" y="${p.y}" width="${p.size}" height="${p.size}" rx="${p.r}" fill="${fill}"${st}${tr}/>`
-    : `<circle cx="${p.cx}" cy="${p.cy}" r="${p.r}" fill="${fill}"${st}${tr}/>`;
+const st = (w = MARK.stroke, c = MARK.ink) => ` stroke="${c}" stroke-width="${w}" stroke-linejoin="round"`;
+const sqEl = (q, fill, extra = "") => `<rect x="${q.x}" y="${q.y}" width="${q.size}" height="${q.size}" rx="${q.r}" fill="${fill}"${extra}/>`;
+const bitEl = (b, fill, extra = "") => `<circle cx="${b.cx}" cy="${b.cy}" r="${b.r}" fill="${fill}"${extra}/>`;
+
+/** Logonun kendisi (zeminsiz): gölgeler, dolgular, yeşil kesişimler, çerçeveler — bkz. components/ui/logbit-mark */
+function markParts() {
+  const b = MARK.bit, sh = ` transform="translate(${MARK.shadow} ${MARK.shadow})"`;
+  return [
+    MARK.squares.map((q, i) => `<clipPath id="k${i}">${sqEl(q, "#000")}</clipPath>`).join(""),
+    ...MARK.squares.map((q) => sqEl(q, MARK.ink, st() + sh)),
+    bitEl(b, MARK.ink, st() + sh),
+    ...MARK.squares.map((q) => sqEl(q, q.fill)),
+    bitEl(b, b.fill),
+    ...MARK.squares.map((_, i) => bitEl(b, MARK.meet, ` clip-path="url(#k${i})"`)),
+    ...MARK.squares.map((q) => sqEl(q, "none", st())),
+    bitEl(b, "none", st()),
+  ].join("");
+}
+
+/** Tek renk siluet (temalı ikon): şekiller dolu, aralarındaki sınırlar şeffaf boşluk (maske) */
+function monoParts(color) {
+  const b = MARK.bit, gap = st(14, "#000");
+  return `<mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+    ${MARK.squares.map((q) => sqEl(q, "#fff")).join("")}${bitEl(b, "#fff")}
+    ${MARK.squares.map((q) => sqEl(q, "none", gap)).join("")}${bitEl(b, "none", gap)}</mask>
+    <rect width="512" height="512" fill="${color}" mask="url(#m)"/>`;
 }
 
 /**
@@ -36,12 +57,9 @@ function markSvg({ radius = 0, circle = false, bg = true, scale = 1, mono = null
     : radius
       ? `<clipPath id="c"><rect width="512" height="512" rx="${512 * radius}"/></clipPath>`
       : "";
-  const parts = MARK.parts
-    .map((p) => (mono ? partSvg(p, mono, { stroke: false }) : partSvg(p, MARK.ink, { dx: MARK.shadow }) + partSvg(p, p.fill)))
-    .join("");
   const body =
     (bg && !mono ? `<rect width="512" height="512" fill="${MARK.bg}"/>` : "") +
-    `<g transform="translate(256 256) scale(${scale}) translate(-256 -256)">${parts}</g>`;
+    `<g transform="translate(256 256) scale(${scale}) translate(-256 -256)">${mono ? monoParts(mono) : markParts()}</g>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%"><defs>${clip}</defs><g${clip ? ' clip-path="url(#c)"' : ""}>${body}</g></svg>`;
 }
 
@@ -123,6 +141,12 @@ const SPLASH = {
 };
 for (const [dir, [w, h]] of Object.entries(SPLASH)) {
   save(`android/app/src/main/res/${dir}/splash.png`, await png(w, h, splashHtml(w, h), false));
+}
+
+const profil = process.argv.indexOf("--profil");
+if (profil > 0 && process.argv[profil + 1]) {
+  writeFileSync(process.argv[profil + 1], await png(1080, 1080, markSvg({ scale: 0.8 }), false));
+  console.log("   profil:", process.argv[profil + 1]);
 }
 
 await browser.close();

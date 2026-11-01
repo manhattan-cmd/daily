@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
  * className ile text-[..] ver. Ekran okuyucu "Logbit" duyar.
  */
 export function LogbitWordmark({ className }: { className?: string }) {
-  const bit = MARK.parts.find((p) => p.kind === "circle")?.fill ?? "#ffd23f";
+  const bit = MARK.bit.fill;
   return (
     <span
       className={cn(
