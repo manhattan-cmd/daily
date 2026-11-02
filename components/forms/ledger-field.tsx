@@ -41,6 +41,10 @@ const LARGE_SET = 8;
 const SEARCH_FROM = 12;
 /** Öneri çipi yuvası */
 const SUGGEST_SLOTS = 3;
+/** Brütal köşe düğmesi — ad sekmesiyle aynı boyda (18 px) beyaz kare; dokunma
+ *  alanı görünenden geniş (before ile her yana 8 px) */
+const BRUT_CORNER =
+  "relative flex h-[18px] w-[18px] items-center justify-center rounded-md border-[1.5px] border-[#111] bg-white text-[#111] before:absolute before:-inset-2 before:content-[''] active:translate-x-px active:translate-y-px";
 
 /** Sayıyı okunur yaz — 104181.75 → 104.181,75 (yalnız gösterim) */
 function fmtNum(v: string): string {
@@ -237,18 +241,30 @@ export function LedgerField({
           : { background: `${color}0f`, boxShadow: `inset 0 0 0 1px ${color}2e` }
       }
     >
-      {/* Köşe — aç/kapa ve kaldır: sağ üstte, yazı hizasının üstünde */}
+      {/* Köşe — aç/kapa ve kaldır: sağ üstte, yazı hizasının üstünde.
+          Brütalde kutunun üst kenarına oturur, soldaki ad sekmesinin
+          karşısında aynı boyda beyaz kareler: kutunun içinde durduğunda
+          üst payı (20 px) düğmeye yetmiyor, × giriş alanına 6 px biniyordu. */}
       {hasCorner && (
-        <div className="absolute right-1.5 top-1 flex items-center gap-0.5">
+        <div
+          data-ledger-corner=""
+          className={cn(
+            "absolute flex items-center",
+            brutal ? "-top-[11px] right-2.5 z-[1] gap-1" : "right-1.5 top-1 gap-0.5"
+          )}
+        >
           {cornerToggle && (
             <button
               type="button"
               onClick={() => (open ? close() : setOpen(true))}
               aria-expanded={open}
               aria-label={open ? t("action.close") : t("entry.expand")}
-              className="flex h-[22px] w-[22px] items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+              className={brutal ? BRUT_CORNER : "flex h-[22px] w-[22px] items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"}
             >
-              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+              <ChevronDown
+                className={cn(brutal ? "h-3 w-3" : "h-3.5 w-3.5", "transition-transform", open && "rotate-180")}
+                strokeWidth={brutal ? 3 : 2}
+              />
             </button>
           )}
           {cornerRemove && (
@@ -257,9 +273,9 @@ export function LedgerField({
               onClick={onRemove}
               aria-label={t("entry.removeFromEntry")}
               title={t("entry.removeFromEntry")}
-              className="flex h-[22px] w-[22px] items-center justify-center rounded-full text-muted-foreground/60 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+              className={brutal ? BRUT_CORNER : "flex h-[22px] w-[22px] items-center justify-center rounded-full text-muted-foreground/60 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"}
             >
-              <X className="h-3.5 w-3.5" />
+              <X className={brutal ? "h-3 w-3" : "h-3.5 w-3.5"} strokeWidth={brutal ? 3 : 2} />
             </button>
           )}
         </div>
@@ -274,7 +290,8 @@ export function LedgerField({
             background: `color-mix(in srgb, ${color} 45%, #ffffff)`,
             // Ad, sağ üstte gerçekten duran düğmeler kadar yer bıraksın: sabit
             // 70px dar formda "Yüz nemlendirme"yi "YÜZ…"e indiriyordu
-            maxWidth: `calc(100% - ${cornerToggle && cornerRemove ? 62 : hasCorner ? 38 : 16}px)`,
+            // (kenar payı 10 + kare 18 + ara 4/6 px)
+            maxWidth: `calc(100% - ${cornerToggle && cornerRemove ? 70 : hasCorner ? 46 : 16}px)`,
           }}
         >
           <Icon className="h-3 w-3 shrink-0" strokeWidth={2.6} />
