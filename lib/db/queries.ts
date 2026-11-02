@@ -973,6 +973,9 @@ export interface ModMeasure {
   /** object türünde koleksiyon ve çoklu seçim */
   collectionId?: string;
   multiple?: boolean;
+  /** Yalnız formda: yazılan yeni listenin adı — liste kayıtta açılır (bkz.
+   *  settleMeasure), vazgeçilirse hiç açılmamış olur. Kayda geçmez. */
+  newCollection?: string;
 }
 
 /** Türe uymayan alanları düşürerek kaydet — tür değişince eski yapılandırma

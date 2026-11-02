@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Check, Plus, Search, X } from "lucide-react";
+import { ArrowLeft, Check, Circle, Plus, Search, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -15,10 +15,14 @@ import {
   ENTRY_WINDOW_LARGE,
 } from "@/components/ui/entry-window";
 import {
+  BrutalFormFrame,
   FormSection,
   NAME_INPUT,
   PreviewTile,
 } from "@/components/structure/structure-form-shell";
+import { FeatureFilter, type KindCount } from "@/components/structure/feature-filter";
+import { StructureAddButton } from "@/components/structure/structure-header";
+import { SummaryBlock, SummaryEmpty, SummaryTile } from "@/components/ui/summary-block";
 import {
   listMods,
   listModifiersForTarget,
@@ -29,7 +33,12 @@ import {
   findModByName,
   type ModWithType,
 } from "@/lib/db/queries";
-import { MeasureEditor, isMeasureComplete } from "@/components/structure/measure-editor";
+import {
+  MeasureEditor,
+  isMeasureComplete,
+  settleMeasure,
+  useMeasureDefaultName,
+} from "@/components/structure/measure-editor";
 import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
 import { modColor } from "@/lib/mod-color";
 import { db } from "@/lib/db";
@@ -40,9 +49,22 @@ import {
   type MeasureUiKind,
 } from "@/lib/measure-kinds";
 import { cn } from "@/lib/utils";
+import { SCALE_PRESETS, type EntryValueType } from "@/types";
 import { useT } from "@/lib/i18n";
 import { useSkin } from "@/lib/skin";
 import { BrutWhereStep, type WhereRow } from "@/components/structure/where-step";
+
+/** Özelliklerin rengi — Yapı › Özellikler'deki tür bloklarının menekşesi */
+const FEATURES = "#c9b8ff";
+
+/** Belirdiği an kaydırılıp görünür olur (yalnız ilk çizimde) */
+function RevealOnMount({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, []);
+  return <div ref={ref}>{children}</div>;
+}
 
 /**
  * Mod ekleme: havuzdaki atomlardan seç ya da yeni atom yarat (isim tekildir).
@@ -174,6 +196,10 @@ export function ModPickDialog({
   }, [persist, open, targetType, targetId]);
   const hasBelow = (below?.length ?? 0) > 0;
 
+  // Nesne türünde ad boş bırakılırsa listenin adı (bkz. useMeasureDefaultName)
+  const defaultName = useMeasureDefaultName(measure);
+  const finalName = name.trim() || defaultName;
+
   const knownUnits = [
     ...new Set((pool ?? []).map((m) => m.unit?.trim()).filter((u): u is string => !!u)),
   ].sort((a, b) => a.localeCompare(b, "en"));
@@ -273,7 +299,7 @@ export function ModPickDialog({
     // Yaratmadan gelindi: özellik şimdi yaratılıyor
     setSaving(true);
     try {
-      const { mod } = await createMod(name, measure);
+      const { mod } = await createMod(finalName, await settleMeasure(measure));
       await attachMod(targetType, targetId, mod.id, chosenSubs);
       attachedRef.current = true;
       onOpenChange(false);
@@ -326,12 +352,12 @@ export function ModPickDialog({
   }
 
   async function handleCreate() {
-    if (!name.trim() || !isMeasureComplete(measure)) return;
+    if (!finalName || !isMeasureComplete(measure)) return;
     setSaving(true);
     setError(null);
     setExistingId(null);
     try {
-      const clash = await findModByName(name);
+      const clash = await findModByName(finalName);
       if (clash) {
         if (attachedModIds.has(clash.id)) {
           setError(
@@ -347,7 +373,7 @@ export function ModPickDialog({
         openWhere([], "create");
         return;
       }
-      const { mod } = await createMod(name, measure);
+      const { mod } = await createMod(finalName, await settleMeasure(measure));
       const withType = { ...mod, entryType: measureOf(mod) };
       if (!persist) {
         attachedRef.current = true;
@@ -364,55 +390,335 @@ export function ModPickDialog({
     }
   }
 
+  const byId = new Map((pool ?? []).map((m) => [m.id, m.name]));
+  const featureNames = pending.length
+    ? pending.map((id) => byId.get(id) ?? "")
+    : [finalName];
+
+  // Seçilen liste zaten bir nesne özelliğindeyse ikincisi yaratılmasın —
+  // var olan önerilir ("Arabalarım listesi zaten bir özellikte: Hangi araba")
+  const twin =
+    mode === "create" && measure.valueType === "object" && measure.collectionId
+      ? available.find(
+          (m) => m.valueType === "object" && m.collectionId === measure.collectionId
+        )
+      : undefined;
+  const twinHint = twin && (
+    // Ölçü kutusunun altında, ekranın dışında kalabiliyor — belirince görünür
+    <RevealOnMount key={twin.id}>
+      <div
+        data-warn=""
+        className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed text-amber-200/90"
+      >
+        {t("features.listInUse", { list: defaultName, name: twin.name })}
+        <button
+          type="button"
+          onClick={() => handleAttach(twin.id)}
+          className="mt-1.5 flex items-center gap-1 font-medium text-amber-100 hover:underline"
+        >
+          <Check className="h-3 w-3" />
+          {t("features.useThat", { name: twin.name })}
+        </button>
+      </div>
+    </RevealOnMount>
+  );
+
+  /** Yeni özellik — aranan ad taşınır; tür bloğundan gelinirse o türle */
+  function startCreate(kind?: MeasureUiKind) {
+    setMode("create");
+    setError(null);
+    setExistingId(null);
+    if (kind) {
+      setName("");
+      setMeasure(
+        kind === "scale"
+          ? { valueType: "select", choices: SCALE_PRESETS[0].choices }
+          : { valueType: kind as EntryValueType }
+      );
+    } else if (search.trim()) setName(search.trim());
+  }
+
+  const eyebrow = persist
+    ? targetName
+    : `${targetName} · ${contextLabel ?? t("entry.onlyThisEntry")}`;
+  const closeAutoFocus = (e: Event) => {
+    if (attachedRef.current) {
+      e.preventDefault();
+      attachedRef.current = false;
+    }
+  };
+
+  // Brütal: her adım aynı fiş (bkz. BrutalFormFrame) — tepede renkli bant,
+  // gövdede Yapı › Özellikler'in parçaları (arama kapsülü, tür blokları,
+  // atomlar), altta sarı ana düğme. Adımlar aynı pencerede değişir, üst üste
+  // pencere açılmaz.
+  if (brutal) {
+    const cancel = (
+      <button
+        type="button"
+        onClick={() => onOpenChange(false)}
+        disabled={saving}
+        className="h-12 shrink-0 rounded-2xl px-4 text-[15px] font-extrabold"
+      >
+        {t("action.cancel")}
+      </button>
+    );
+    const submit = (label: string, disabled: boolean) => (
+      <button
+        type="submit"
+        disabled={disabled}
+        className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl disabled:opacity-50"
+        style={{ background: "#ffd23f" }}
+      >
+        <Check className="h-5 w-5 shrink-0" strokeWidth={2.75} />
+        <span className="truncate">{label}</span>
+      </button>
+    );
+    const emptyLead = {
+      kind: "count" as const,
+      color: FEATURES,
+      glyph: Circle,
+      overline: t("structure.features"),
+      value: "0",
+      unit: "",
+    };
+    const kinds: KindCount[] = [
+      { kind: null, label: t("features.allKinds"), n: searched.length },
+      ...kindCounts,
+    ];
+    const featureColor = modColor({ name: finalName });
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          hideClose
+          aria-describedby={undefined}
+          className={cn(ENTRY_WINDOW_LARGE, "gap-0 overflow-hidden p-0")}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={closeAutoFocus}
+        >
+          {mode === "where" ? (
+            <BrutWhereStep
+              color={accent}
+              icon={target?.icon}
+              targetName={targetName}
+              featureNames={featureNames}
+              rows={below ?? []}
+              chosen={chosenSubs}
+              pending={pending}
+              saving={saving}
+              onToggle={toggleSub}
+              onToggleAll={toggleAllSubs}
+              onBack={() => setMode(whereFrom)}
+              onCancel={() => onOpenChange(false)}
+              onConfirm={confirmWhere}
+            />
+          ) : mode === "create" ? (
+            <BrutalFormFrame
+              // Yapı › Özellikler'deki yaratma fişiyle aynı: bant özelliğin
+              // renginde (addan türüyor), dairede seçilen ölçü türü
+              color={featureColor}
+              atom={MEASURE_KIND_META[uiKindOf(measure)].icon}
+              title={finalName || t("features.createNew")}
+              eyebrow={eyebrow}
+              onBack={() => {
+                setMode("pick");
+                setError(null);
+                setExistingId(null);
+              }}
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleCreate();
+              }}
+              footer={
+                <>
+                  {cancel}
+                  {submit(
+                    hasBelow ? t("action.continue") : t("features.createAndAttach"),
+                    saving || !finalName || !isMeasureComplete(measure)
+                  )}
+                </>
+              }
+            >
+              <FormSection label={t("tree.name")}>
+                <input
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setError(null);
+                    setExistingId(null);
+                  }}
+                  // Nesne türünde boş bırakılırsa listenin adı — yer tutucu onu gösterir
+                  placeholder={defaultName || t("form.namePlaceholder")}
+                  aria-label={t("features.name")}
+                  className={NAME_INPUT}
+                />
+                {error && (
+                  <div data-warn="" className="rounded-xl px-3 py-2.5 text-xs leading-relaxed">
+                    {error}
+                    {existingId && (
+                      <button
+                        type="button"
+                        onClick={() => handleAttach(existingId)}
+                        className="mt-1.5 flex items-center gap-1"
+                      >
+                        <Check className="h-3 w-3" />
+                        {t("features.attachExisting")}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </FormSection>
+              <FormSection label={t("measure.howMeasured")}>
+                <MeasureEditor
+                  value={measure}
+                  onChange={setMeasure}
+                  knownUnits={knownUnits}
+                  color={featureColor}
+                  hideLabel
+                />
+              </FormSection>
+              {twinHint}
+            </BrutalFormFrame>
+          ) : (
+            <BrutalFormFrame
+              color={accent}
+              icon={target?.icon}
+              title={t("entry.addFeature")}
+              eyebrow={eyebrow}
+              titleAction={
+                <StructureAddButton large labelKey="features.addNew" onClick={() => startCreate()} />
+              }
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleAttachSelected();
+              }}
+              footer={
+                <>
+                  {cancel}
+                  {submit(
+                    hasBelow
+                      ? t("action.continue")
+                      : selected.length > 0
+                        ? `${t("action.add")} (${selected.length})`
+                        : t("action.add"),
+                    saving || selected.length === 0
+                  )}
+                </>
+              }
+            >
+              <FeatureFilter
+                search={search}
+                onSearch={setSearch}
+                kinds={kinds}
+                active={activeKind}
+                onActive={setKindFilter}
+              />
+              {/* Her tür bir blok, başı ince ve tek satır (gün sayfasının
+                  blokları gibi): yalnız türün adı — kaç özellik olduğu
+                  altındaki atomlardan zaten okunuyor. Yeşil karo o türde yeni
+                  özellik açar. Dokunmak SEÇER (daire gölgesine oturur,
+                  köşede sarı tik), ekleme alttaki düğmeyle. */}
+              {groups.map((g) => (
+                <SummaryBlock
+                  key={g.kind}
+                  compact
+                  dense
+                  lead={{ kind: "thing", color: FEATURES, glyph: g.icon, title: g.label }}
+                  action={
+                    <SummaryTile
+                      compact
+                      dense
+                      color="#7ae582"
+                      icon={Plus}
+                      label={t("structure.addFeature")}
+                      onClick={() => startCreate(g.kind)}
+                    />
+                  }
+                  stats={[]}
+                >
+                  <div className="grid grid-cols-4 gap-x-1.5 gap-y-3 bg-white px-2 py-3">
+                    {g.items.map((m) => {
+                      const c = modColor(m);
+                      const on = selected.includes(m.id);
+                      const Icon = modAtomIcon(m);
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          data-pick-atom=""
+                          onClick={() => toggle(m.id)}
+                          aria-pressed={on}
+                          disabled={saving}
+                          className="flex min-w-0 flex-col items-center gap-1 text-[#111] disabled:opacity-50"
+                        >
+                          <span
+                            className={cn(
+                              "relative flex h-[50px] w-[50px] items-center justify-center rounded-full border-2 border-[#111] transition-transform",
+                              on ? "translate-x-[2px] translate-y-[2px]" : "shadow-[2px_2px_0_#111]"
+                            )}
+                            style={{ background: c }}
+                          >
+                            <Icon className="h-5 w-5 text-[#111]" strokeWidth={2.4} />
+                            {on && (
+                              <span className="entry-tile-pop absolute -right-1.5 -top-1.5 flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 border-[#111] bg-[#ffd23f]">
+                                <Check className="h-3 w-3 text-[#111]" strokeWidth={3.5} />
+                              </span>
+                            )}
+                          </span>
+                          <span
+                            className={cn(
+                              "max-w-full truncate rounded-[5px] px-1 text-center text-[11px] font-extrabold leading-4",
+                              on && "bg-[#111] text-[#fff4dc]"
+                            )}
+                          >
+                            {m.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </SummaryBlock>
+              ))}
+              {available.length === 0 && !search && (
+                <SummaryBlock compact lead={emptyLead} stats={[]}>
+                  <SummaryEmpty
+                    text={t("features.allAttached")}
+                    action={{ label: t("features.addNew"), onClick: () => startCreate() }}
+                  />
+                </SummaryBlock>
+              )}
+              {search.trim() && filtered.length === 0 && (
+                <SummaryBlock compact lead={emptyLead} stats={[]}>
+                  <SummaryEmpty
+                    text={t("features.noMatchTitle", { q: search.trim() })}
+                    action={{
+                      label: t("features.createNamed", { q: search.trim() }),
+                      onClick: () => startCreate(),
+                    }}
+                  />
+                </SummaryBlock>
+              )}
+            </BrutalFormFrame>
+          )}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   // Kategori pencereleriyle aynı dil (bkz. structure-form-shell): kenarlarda
   // pay, üstte simge + başlık, bölmeler kendi kibar kutusunda, eylemler altta
   // sabit. Eskiden pencere ekranın iki kenarına dayanıyordu ve havuz, arama,
   // "yeni yarat" tek bir sıkışık başlık satırına doluşmuştu.
-  // Brütal temada "Nereye eklensin?" kendi fiş düzeniyle çizilir
-  const brutalWhere = brutal && mode === "where";
-  const byId = new Map((pool ?? []).map((m) => [m.id, m.name]));
-  const featureNames = pending.length
-    ? pending.map((id) => byId.get(id) ?? "")
-    : [name.trim()];
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        hideClose={brutalWhere}
-        className={cn(
-          ENTRY_WINDOW_LARGE,
-          "gap-0",
-          brutalWhere && "overflow-hidden p-0"
-        )}
+        className={cn(ENTRY_WINDOW_LARGE, "gap-0")}
         // Açıklama satırı yok — Radix'in uyarısı sussun
         aria-describedby={undefined}
         // Açılışta klavye fırlamasın — arama ya da ad alanına dokununca açılır
         onOpenAutoFocus={(e) => e.preventDefault()}
-        onCloseAutoFocus={(e) => {
-          if (attachedRef.current) {
-            e.preventDefault();
-            attachedRef.current = false;
-          }
-        }}
+        onCloseAutoFocus={closeAutoFocus}
       >
-        {brutalWhere ? (
-          <BrutWhereStep
-            color={accent}
-            icon={target?.icon}
-            targetName={targetName}
-            featureNames={featureNames}
-            rows={below ?? []}
-            chosen={chosenSubs}
-            pending={pending}
-            saving={saving}
-            onToggle={toggleSub}
-            onToggleAll={toggleAllSubs}
-            onBack={() => setMode(whereFrom)}
-            onCancel={() => onOpenChange(false)}
-            onConfirm={confirmWhere}
-          />
-        ) : (
-        <>
         {/* Başlık — yaratmada çekirdek seçilen ölçüm türüyle değişir */}
         <div className="flex items-center gap-3.5 pb-4 pr-6">
           {mode !== "pick" ? (
@@ -447,7 +753,7 @@ export function ModPickDialog({
               {mode === "where"
                 ? t("features.whereTitle")
                 : mode === "create"
-                  ? name.trim() || t("features.createNew")
+                  ? finalName || t("features.createNew")
                   : t("entry.addFeature")}
             </DialogTitle>
           </div>
@@ -698,6 +1004,7 @@ export function ModPickDialog({
                     setError(null);
                     setExistingId(null);
                   }}
+                  placeholder={defaultName || undefined}
                   className={NAME_INPUT}
                 />
                 {error && (
@@ -722,10 +1029,11 @@ export function ModPickDialog({
                   value={measure}
                   onChange={setMeasure}
                   knownUnits={knownUnits}
-                  color={modColor({ name })}
+                  color={modColor({ name: finalName })}
                   hideLabel
                 />
               </FormSection>
+              {twinHint}
             </>
           )}
         </div>
@@ -766,7 +1074,7 @@ export function ModPickDialog({
           {mode === "create" && (
             <Button
               onClick={handleCreate}
-              disabled={saving || !name.trim() || !isMeasureComplete(measure)}
+              disabled={saving || !finalName || !isMeasureComplete(measure)}
               className="text-white"
               style={{ backgroundColor: accent }}
             >
@@ -774,8 +1082,6 @@ export function ModPickDialog({
             </Button>
           )}
         </DialogFooter>
-        </>
-        )}
       </DialogContent>
     </Dialog>
   );

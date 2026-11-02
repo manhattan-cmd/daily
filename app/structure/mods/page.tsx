@@ -35,7 +35,12 @@ import {
   uiKindOf,
   type MeasureUiKind,
 } from "@/lib/measure-kinds";
-import { MeasureEditor, isMeasureComplete } from "@/components/structure/measure-editor";
+import {
+  MeasureEditor,
+  isMeasureComplete,
+  settleMeasure,
+  useMeasureDefaultName,
+} from "@/components/structure/measure-editor";
 import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
 import { FeatureFilter, type KindCount } from "@/components/structure/feature-filter";
 import {
@@ -79,6 +84,9 @@ export default function ModsHomePage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
   const [measure, setMeasure] = useState<ModMeasure>({ valueType: "number" });
+  // Nesne türünde ad boş bırakılırsa listenin adı (bkz. useMeasureDefaultName)
+  const defaultName = useMeasureDefaultName(measure);
+  const finalName = name.trim() || defaultName;
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // Atom detayı — dokununca açılır; düzenleme aynı diyalog içinde görünüm
@@ -164,16 +172,16 @@ export default function ModsHomePage() {
   }
 
   async function handleCreate() {
-    if (!name.trim() || !isMeasureComplete(measure)) return;
+    if (!finalName || !isMeasureComplete(measure)) return;
     setSaving(true);
     setError(null);
     try {
-      const clash = await findModByName(name);
+      const clash = await findModByName(finalName);
       if (clash) {
         setError(t("features.nameClashOf", { name: clash.name }));
         return;
       }
-      await createMod(name, measure);
+      await createMod(finalName, await settleMeasure(measure));
       setCreateOpen(false);
       setName("");
       setMeasure({ valueType: "number" });
@@ -196,7 +204,7 @@ export default function ModsHomePage() {
         }
       }
       // Ölçü değişikliği — mod + tüm atamaları senkronlanır
-      await setModMeasure(selected.id, editMeasure);
+      await setModMeasure(selected.id, await settleMeasure(editMeasure));
       await setModColor(selected.id, editColor);
       setSelected(null);
     } finally {
@@ -718,9 +726,9 @@ export default function ModsHomePage() {
              renginde (addan türüyor, yazdıkça değişir), daire karoda
              seçilen ölçü türünün simgesi, başlık yazılan ad */
           <StructureFormShell
-            color={modColor({ name })}
+            color={modColor({ name: finalName })}
             atom={MEASURE_KIND_META[uiKindOf(measure)].icon}
-            title={name.trim() || t("features.createNew")}
+            title={finalName || t("features.createNew")}
             eyebrow={t("structure.features")}
             onSubmit={(e) => {
               e.preventDefault();
@@ -730,7 +738,7 @@ export default function ModsHomePage() {
               <FormActions
                 submitLabel={t("action.create")}
                 cancelLabel={t("action.cancel")}
-                disabled={saving || !name.trim() || !isMeasureComplete(measure)}
+                disabled={saving || !finalName || !isMeasureComplete(measure)}
                 onCancel={() => setCreateOpen(false)}
               />
             }
@@ -739,7 +747,7 @@ export default function ModsHomePage() {
               <input
                 value={name}
                 onChange={(e) => { setName(e.target.value); setError(null); }}
-                placeholder={t("form.namePlaceholder")}
+                placeholder={defaultName || t("form.namePlaceholder")}
                 aria-label={t("features.name")}
                 className={NAME_INPUT}
               />
@@ -754,7 +762,7 @@ export default function ModsHomePage() {
                 value={measure}
                 onChange={setMeasure}
                 knownUnits={knownUnits}
-                color={modColor({ name })}
+                color={modColor({ name: finalName })}
                 hideLabel
               />
             </FormSection>
@@ -790,13 +798,14 @@ export default function ModsHomePage() {
               id="pool-mod-name"
               value={name}
               onChange={(e) => { setName(e.target.value); setError(null); }}
+              placeholder={defaultName || undefined}
             />
           </div>
           <MeasureEditor
             value={measure}
             onChange={setMeasure}
             knownUnits={knownUnits}
-            color={modColor({ name })}
+            color={modColor({ name: finalName })}
           />
           {error && (
             <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200/90">
@@ -813,7 +822,7 @@ export default function ModsHomePage() {
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={saving || !name.trim() || !isMeasureComplete(measure)}
+              disabled={saving || !finalName || !isMeasureComplete(measure)}
             >
               {t("action.create")}
             </Button>

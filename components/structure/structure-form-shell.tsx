@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import { Check, Folder, X, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Check, Folder, X, type LucideIcon } from "lucide-react";
 import {
   DialogClose,
   DialogContent,
@@ -63,19 +63,17 @@ export function StructureFormShell({
   const brutal = useSkin() === "brutal";
   if (brutal) {
     return (
-      <BrutalCtx.Provider value>
-        <BrutalFormShell
-          color={color}
-          icon={icon}
-          atom={atom}
-          title={title}
-          eyebrow={eyebrow}
-          onSubmit={onSubmit}
-          footer={footer}
-        >
-          {children}
-        </BrutalFormShell>
-      </BrutalCtx.Provider>
+      <BrutalFormShell
+        color={color}
+        icon={icon}
+        atom={atom}
+        title={title}
+        eyebrow={eyebrow}
+        onSubmit={onSubmit}
+        footer={footer}
+      >
+        {children}
+      </BrutalFormShell>
     );
   }
   return (
@@ -118,12 +116,35 @@ export function StructureFormShell({
  * Bant seçilen renkle canlı değişir — önizleme bandın kendisi. Başlık ve alt
  * düğmeler sabit, yalnız gövde kayar.
  */
-function BrutalFormShell({
+function BrutalFormShell(props: React.ComponentProps<typeof BrutalFormFrame>) {
+  return (
+    <DialogContent
+      hideClose
+      aria-describedby={undefined}
+      className={cn(ENTRY_WINDOW_LARGE, "gap-0 overflow-hidden p-0")}
+      onOpenAutoFocus={(e) => e.preventDefault()}
+    >
+      <BrutalFormFrame {...props} />
+    </DialogContent>
+  );
+}
+
+/**
+ * Brütal fişin kendisi, penceresiz — tek pencerede adım değiştiren akışlar
+ * (özellik ekle → yeni yarat, bkz. ModPickDialog) her adımı bununla çizer;
+ * üst üste pencere açılmaz. onBack verilirse bandın üst şeridinde solda geri
+ * düğmesi durur, kapat hep sağda. titleAction: başlıkla aynı satırda, sağda
+ * duran eylem (Yapı başlığındaki yeşil ekle kapsülü gibi); üst yazı onun
+ * üstünden tam genişlikte geçer, kesilmez.
+ */
+export function BrutalFormFrame({
   color,
   icon,
   atom: Atom,
   title,
   eyebrow,
+  onBack,
+  titleAction,
   onSubmit,
   footer,
   children,
@@ -133,18 +154,15 @@ function BrutalFormShell({
   atom?: LucideIcon;
   title: string;
   eyebrow?: React.ReactNode;
+  onBack?: () => void;
+  titleAction?: React.ReactNode;
   onSubmit: (e: React.FormEvent) => void;
   footer: React.ReactNode;
   children: React.ReactNode;
 }) {
   const t = useT();
   return (
-    <DialogContent
-      hideClose
-      aria-describedby={undefined}
-      className={cn(ENTRY_WINDOW_LARGE, "gap-0 overflow-hidden p-0")}
-      onOpenAutoFocus={(e) => e.preventDefault()}
-    >
+    <BrutalCtx.Provider value>
       <form
         onSubmit={onSubmit}
         data-struct-form=""
@@ -152,7 +170,19 @@ function BrutalFormShell({
         style={{ ["--form-c" as string]: color }}
       >
         <div data-entry-hero="" className="shrink-0" style={{ ["--hero-c" as string]: color }}>
-          <div className="flex h-12 items-center justify-end px-3 pt-1.5">
+          <div className="flex h-12 items-center justify-between px-3 pt-1.5">
+            {onBack ? (
+              <button
+                type="button"
+                onClick={onBack}
+                aria-label={t("action.back")}
+                className="flex h-9 w-9 items-center justify-center rounded-full"
+              >
+                <ArrowLeft className="h-[17px] w-[17px]" strokeWidth={2.6} />
+              </button>
+            ) : (
+              <span />
+            )}
             <DialogClose
               type="button"
               aria-label={t("action.close")}
@@ -180,18 +210,22 @@ function BrutalFormShell({
               {eyebrow && (
                 <div className="truncate text-[12px] text-muted-foreground">{eyebrow}</div>
               )}
-              <DialogTitle asChild>
-                <div>
-                  <SmartText text={title} lines={2} className="text-[19px] font-bold leading-6" />
-                </div>
-              </DialogTitle>
+              <div className="flex items-center gap-2.5">
+                <DialogTitle asChild>
+                  <div className="min-w-0 flex-1">
+                    <SmartText text={title} lines={2} className="text-[19px] font-bold leading-6" />
+                  </div>
+                </DialogTitle>
+                {titleAction && <div className="shrink-0">{titleAction}</div>}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Çubuğun yeri hep ayrılı — ölçü türü değişip gövde kısalınca
-            kutular 6 px yana oynamasın (bkz. AppShell'in main'i) */}
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 pb-6 pt-6 [scrollbar-gutter:stable]">
+            kutular 6 px yana oynamasın (bkz. AppShell'in main'i). Bölümler
+            büzülmez: gövde taşınca kayar, kutular ezilmez. */}
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 pb-6 pt-6 [scrollbar-gutter:stable] [&>*]:shrink-0">
           {children}
         </div>
 
@@ -203,7 +237,7 @@ function BrutalFormShell({
           {footer}
         </div>
       </form>
-    </DialogContent>
+    </BrutalCtx.Provider>
   );
 }
 

@@ -2,24 +2,26 @@
 
 import { useState, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { createCollection, findCollectionByName, listCollections } from "@/lib/db/things";
+import { createCollection, findCollectionByName } from "@/lib/db/things";
+import { db } from "@/lib/db";
 import { ArrowRight, Check, Clock, Minus, Plus, X } from "lucide-react";
 import {
   MEASURE_KIND_META,
   MEASURE_UI_KINDS,
   SCALE_MAX_STEPS,
   SCALE_MIN_STEPS,
-  scaleChoices,
-  scaleRangeOf,
-  uiKindOf,
-  type MeasureUiKind,
 } from "@/lib/measure-kinds";
-import { SCALE_PRESETS, type EntryValueType } from "@/types";
+import { SCALE_PRESETS } from "@/types";
 import type { ModMeasure } from "@/lib/db/queries";
 import { Label } from "@/components/ui/label";
 import { ScaleSlider } from "@/components/ui/scale-slider";
 import { useT } from "@/lib/i18n";
+import { useSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
+import { isMeasureComplete, useMeasureEditor } from "./measure-editor-state";
+import { BrutMeasureEditor } from "./brut-measure-editor";
+
+export { isMeasureComplete };
 
 /**
  * Özelliğin "nasıl ölçülüyor" bölümü — bir ayar tezgâhı.
@@ -40,76 +42,64 @@ import { cn } from "@/lib/utils";
  * Serbest aralık kaybolmadı ama öne çıkmıyor: hazır aralıklar kısayol,
  * "Özel" dokunulunca sayaçlar açılıyor. Çoğu kişi 1–5 isteyip geçiyor.
  */
-export function MeasureEditor({
-  value,
-  onChange,
-  /** Havuzda hâlihazırda kullanılan birimler — önce bunlar önerilir ki
-   *  "adet / Adet / tane" gibi ayrışma olmasın */
-  knownUnits = [],
-  hideLabel = false,
-  color = "#818cf8",
-}: {
+export type MeasureEditorProps = {
   value: ModMeasure;
   onChange: (next: ModMeasure) => void;
+  /** Havuzda hâlihazırda kullanılan birimler — önce bunlar önerilir ki
+   *  "adet / Adet / tane" gibi ayrışma olmasın */
   knownUnits?: string[];
   /** Başlık dışarıda (bölmenin kendi başlığı) — içeride tekrar etmesin */
   hideLabel?: boolean;
   /** Özelliğin rengi — ölçek önizlemesi girdi ekranındaki gibi onunla */
   color?: string;
-}) {
+};
+
+/** Brütalde kendi düzeni (bkz. BrutMeasureEditor); durum ikisinde ortak */
+export function MeasureEditor(props: MeasureEditorProps) {
+  return useSkin() === "brutal" ? (
+    <BrutMeasureEditor {...props} />
+  ) : (
+    <SadeMeasureEditor {...props} />
+  );
+}
+
+function SadeMeasureEditor({
+  value,
+  onChange,
+  knownUnits = [],
+  hideLabel = false,
+  color = "#818cf8",
+}: MeasureEditorProps) {
   const t = useT();
-  const kind = uiKindOf(value);
-  const [choiceDraft, setChoiceDraft] = useState("");
-  /** Yalnızca hissi vermek için — kaydedilmez */
-  const [demo, setDemo] = useState("");
-  const [customOpen, setCustomOpen] = useState(false);
-  // Nesne türü: listeler ve yeni liste taslağı
-  const collections = useLiveQuery(
-    () => (kind === "object" ? listCollections() : Promise.resolve([])),
-    [kind]
-  );
-  const [collDraft, setCollDraft] = useState("");
-  async function addCollection() {
-    const name = collDraft.trim();
-    if (!name) return;
-    const c = (await findCollectionByName(name)) ?? (await createCollection({ name }));
-    onChange({ ...value, valueType: "object", collectionId: c.id });
-    setCollDraft("");
-  }
-
-  const choices = value.choices ?? [];
-  const range = scaleRangeOf(choices);
-  const steps = choices.length;
-  const activePreset = SCALE_PRESETS.find(
-    (p) => p.choices.join() === choices.join()
-  );
-
-  function pickKind(k: MeasureUiKind) {
-    setDemo("");
-    setCustomOpen(false);
-    if (k === "scale") {
-      onChange({ valueType: "select", choices: SCALE_PRESETS[0].choices });
-      return;
-    }
-    onChange({ valueType: k as EntryValueType });
-  }
-
-  const setRange = (min: number, max: number) =>
-    onChange({ ...value, choices: scaleChoices(min, max) });
-
-  const setLabel = (end: "low" | "high", v: string) =>
-    onChange({ ...value, scaleLabels: { ...value.scaleLabels, [end]: v } });
+  const {
+    kind,
+    choiceDraft,
+    setChoiceDraft,
+    demo,
+    setDemo,
+    customOpen,
+    setCustomOpen,
+    collections,
+    collDraft,
+    newOpen,
+    noLists,
+    showNew,
+    typeCollection,
+    pickCollection,
+    openNewCollection,
+    choices,
+    range,
+    steps,
+    activePreset,
+    pickKind,
+    setRange,
+    setLabel,
+    addChoice,
+  } = useMeasureEditor(value, onChange);
 
   // Seçili aralık özelliğin renginde — önizleme rayıyla aynı renk
   const presetStyle = (on: boolean) =>
     on ? { color, borderColor: color, background: `${color}1a` } : undefined;
-
-  const addChoice = () => {
-    const v = choiceDraft.trim();
-    if (!v || choices.includes(v)) return;
-    onChange({ ...value, choices: [...choices, v] });
-    setChoiceDraft("");
-  };
 
   return (
     <div data-measure-editor="" className="flex flex-col gap-2.5">
@@ -401,52 +391,73 @@ export function MeasureEditor({
           </Readout>
         )}
 
+        {/* Nesne: önce hangi listeden — var olanlar çip (rengi ve kaç
+            nesnesi olduğu), yanında aynı biçimde "+ Yeni liste". Hiç liste
+            yoksa ad alanı doğrudan açık. */}
         {kind === "object" && (
           <div className="flex flex-col gap-2.5">
             <span className="text-[11px] font-semibold text-muted-foreground">
               {t("measure.collection")}
             </span>
-            {(collections ?? []).length > 0 && (
+            {!noLists && (
               <div className="flex flex-wrap gap-1.5" data-collections="">
-                {(collections ?? []).map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => onChange({ ...value, collectionId: c.id })}
-                    aria-pressed={value.collectionId === c.id}
-                    className={pillClass(value.collectionId === c.id)}
-                    style={presetStyle(value.collectionId === c.id)}
-                  >
-                    {c.name}
-                  </button>
-                ))}
+                {(collections ?? []).map((c) => {
+                  const on = value.collectionId === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => pickCollection(c.id)}
+                      aria-pressed={on}
+                      className={cn(pillClass(on), "flex items-center gap-1.5")}
+                      style={presetStyle(on)}
+                    >
+                      <span
+                        className="h-2 w-2 shrink-0 rotate-45 rounded-[2px]"
+                        style={{ background: c.color ?? color }}
+                      />
+                      {c.name}
+                      <span className="font-mono text-[10px] opacity-55">{c.n}</span>
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  data-new-collection=""
+                  onClick={openNewCollection}
+                  aria-pressed={showNew && !value.collectionId}
+                  className={cn(pillClass(showNew && !value.collectionId), "flex items-center gap-1")}
+                  style={presetStyle(showNew && !value.collectionId)}
+                >
+                  <Plus className="h-3 w-3" strokeWidth={2.6} />
+                  {t("measure.newCollection")}
+                </button>
               </div>
             )}
-            <div className="flex gap-1.5">
+            {showNew && (
               <input
                 value={collDraft}
-                onChange={(e) => setCollDraft(e.target.value)}
+                onChange={(e) => typeCollection(e.target.value)}
                 onKeyDown={(e) => {
+                  // Enter özelliği kaydetmesin — yalnız klavyeyi kapatır
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    void addCollection();
+                    e.currentTarget.blur();
                   }
                 }}
+                autoFocus={newOpen}
                 placeholder={t("measure.collectionPlaceholder")}
                 aria-label={t("measure.newCollection")}
                 size={1}
-                className="h-9 w-0 min-w-0 flex-1 rounded-xl border border-border bg-black/25 px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/45 focus:border-primary/60"
+                data-collection-name=""
+                className="h-10 w-full min-w-0 rounded-xl border border-border bg-black/25 px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/45 focus:border-primary/60"
               />
-              <button
-                type="button"
-                onClick={() => void addCollection()}
-                disabled={!collDraft.trim()}
-                aria-label={t("measure.newCollection")}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/40 bg-primary/10 text-primary transition-all active:scale-95 disabled:border-border disabled:bg-card disabled:text-muted-foreground disabled:opacity-40"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            </div>
+            )}
+            {value.newCollection?.trim() && !value.collectionId && (
+              <p className="text-[11px] leading-snug text-muted-foreground/80">
+                {t("measure.newCollectionHint", { name: value.newCollection.trim() })}
+              </p>
+            )}
             <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-border bg-card px-3 py-2.5 text-[13px]">
               <span>{t("measure.multiple")}</span>
               <input
@@ -456,7 +467,7 @@ export function MeasureEditor({
                 className="h-4 w-4 accent-[var(--primary)]"
               />
             </label>
-            {!value.collectionId && (
+            {!isMeasureComplete(value) && (
               <p className="text-[11px] leading-snug text-amber-300/80">
                 {t("measure.pickCollection")}
               </p>
@@ -640,9 +651,27 @@ function Stepper({
   );
 }
 
-/** Ölçüm ayarı kaydedilebilir mi (çoktan seçmeli en az iki seçenek ister) */
-export function isMeasureComplete(m: ModMeasure): boolean {
-  if (m.valueType === "select") return (m.choices?.length ?? 0) >= 2;
-  if (m.valueType === "object") return !!m.collectionId;
-  return true;
+/** Kayıttan hemen önce: yazılan yeni liste şimdi açılır (aynı adda varsa o) */
+export async function settleMeasure(m: ModMeasure): Promise<ModMeasure> {
+  const name = m.newCollection?.trim();
+  if (m.valueType !== "object" || m.collectionId || !name) return m;
+  const c = (await findCollectionByName(name)) ?? (await createCollection({ name }));
+  return { ...m, collectionId: c.id, newCollection: undefined };
+}
+
+/**
+ * Ad boş bırakılırsa özelliğin adı — nesne türünde seçilen listenin adı
+ * ("Arabalarım"). Nesne özelliği çoğu zaman listesiyle aynı adı taşıyor;
+ * ayrıca ad düşünmek gerekmesin. Ad yazılırsa ("Hangi araba") o geçer.
+ */
+export function useMeasureDefaultName(m: ModMeasure): string {
+  const c = useLiveQuery(
+    async () =>
+      m.valueType === "object" && m.collectionId
+        ? await db.collections.get(m.collectionId)
+        : undefined,
+    [m.valueType, m.collectionId]
+  );
+  if (m.valueType !== "object") return "";
+  return (m.collectionId ? c?.name : m.newCollection)?.trim() ?? "";
 }
