@@ -146,7 +146,8 @@ export function NoteEditorView({
   }, []);
 
   return (
-    <div className={cn("flex min-h-0 flex-1 flex-col gap-4", className)}>
+    // data-note-editor: Brütalde zemin ve kutu beyaz (bkz. globals.css)
+    <div data-note-editor="" className={cn("flex min-h-0 flex-1 flex-col gap-4", className)}>
       <div className="flex shrink-0 items-center gap-3">
         <button
           type="button"

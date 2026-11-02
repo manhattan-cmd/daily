@@ -954,6 +954,12 @@ input[type="number"] {
   background: #ffffff !important; min-height: 58px;
   border: 2px solid #111; box-shadow: 2px 2px 0 #111 !important;
 }
+/* Not yazma gorunumu: zemin krem degil beyaz, kutu da not kutusu gibi beyaz ve cerceveli */
+:root[data-skin="brutal"] [data-note-editor] { background: #ffffff !important; }
+:root[data-skin="brutal"] [data-note-editor] textarea {
+  background: #ffffff !important; border: 2px solid #111 !important;
+  border-radius: 14px; box-shadow: 2px 2px 0 #111;
+}
 /* Alt bolum: sari EKLE, yaninda kare devam */
 :root[data-skin="brutal"] [data-entry-foot] { border-top: 2px solid #111 !important; background: var(--background); }
 /* Kibar: EKLE 48 yerine 44 px, yazi 15 px, golge 3 px */
