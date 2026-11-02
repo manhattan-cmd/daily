@@ -23,7 +23,7 @@ const YAPI = "#ffd23f";
  * kategori kendi rengi, alt kategoriler o rengin derine indikçe açılan
  * tonları — dokununca o sayfa; aralarında › oku. Bulunulan yer sonda kalın
  * yazı, önünde rengi; her sayfada soldan kayarak gelir. Kategoriler'de
- * yalnız o, yanında kategori sayısı.
+ * yalnız kategori sayısı: "10 kategori".
  *
  * Bütün yol hep tam adlarıyla: sığmazsa satır yana kayar. Açılışta sona
  * yaslı gelir (bulunulan yer görünür) — kaydırma animasyonsuz, boyamadan
@@ -97,7 +97,7 @@ export function StructureTrail({ categoryId, subId }: { categoryId?: string; sub
         ref={rowRef}
         data-structure-trail=""
         onScroll={measure}
-        className="no-scrollbar flex h-[44px] min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain px-2"
+        className="no-scrollbar flex h-10 min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain px-2"
       >
         {steps.slice(0, -1).map((s) => (
           <li key={s.key} className="flex flex-none items-center gap-1">
@@ -126,12 +126,11 @@ export function StructureTrail({ categoryId, subId }: { categoryId?: string; sub
               className="h-3 w-3 shrink-0 rounded-[3px] border-[1.5px]"
               style={{ background: here.mark, borderColor: "#111" }}
             />
-            {here.label}
-            {rootOnly && place?.count !== undefined && (
-              <span className="ml-auto pl-3 text-[11.5px] font-bold text-[#111]/50">
-                {t("struct.cats.count", { n: place.count })}
-              </span>
-            )}
+            {/* Kategoriler sekmesinin kendisinde ad değil sayı: adı seçili
+                sekme söylüyor (bkz. StructureHere) */}
+            {rootOnly
+              ? place?.count !== undefined && t("struct.cats.count", { n: place.count })
+              : here.label}
           </span>
         </li>
       </ol>

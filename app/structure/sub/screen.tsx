@@ -9,7 +9,7 @@ import { BarChart3, List as ListIcon, Pencil, Trash2 } from "lucide-react";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { getSubCategory, getCategory, listCategoryTree, structureSummary } from "@/lib/db/queries";
 import { BrutSubsBlock, BrutThingSummary, useIsBrutal } from "@/components/structure/brutal";
-import { StructureAddButton, StructureHeader } from "@/components/structure/structure-header";
+import { StructureHeader } from "@/components/structure/structure-header";
 import { StructureTrail } from "@/components/structure/structure-trail";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { toLocalDateValue } from "@/lib/utils";
@@ -83,18 +83,9 @@ export function SubCategoryDetailPage({
         top={brutal ? (
           /* Yapı → Kategoriler'in başlığı (bkz. StructureHeader): konum yolu
              üç sayfada aynı hizada, üstler yolda; analiz · düzenle · sil özet
-             bloğunda */
+             bloğunda. Ekle düğmesi yok — Alt kategoriler bloğunun yeşil
+             karosu ekliyor */
           <StructureHeader
-            action={
-              <StructureAddButton
-                labelKey="structure.addSub"
-                onClick={() => {
-                  setEditingSelf(false);
-                  setNewParentId(subcategoryId);
-                  setSubFormOpen(true);
-                }}
-              />
-            }
             below={<StructureTrail categoryId={categoryId} subId={subcategoryId} />}
           />
         ) : (

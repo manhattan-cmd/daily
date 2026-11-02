@@ -55,7 +55,7 @@ export function StructureTabs() {
       <nav aria-label={t("structure.title")}>
         <div
           data-tab-strip=""
-          className="grid px-1 pb-2 pt-1.5"
+          className="grid px-1 pb-2 pt-2"
           style={{ gridTemplateColumns: `repeat(${STRUCTURE_TABS.length}, minmax(0, 1fr))` }}
         >
           {STRUCTURE_TABS.map((tab, i) => {

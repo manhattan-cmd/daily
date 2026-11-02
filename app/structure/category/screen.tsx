@@ -19,7 +19,7 @@ import { toLocalDateValue } from "@/lib/utils";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { BrutSubsBlock, BrutThingSummary, useIsBrutal } from "@/components/structure/brutal";
-import { StructureAddButton, StructureHeader } from "@/components/structure/structure-header";
+import { StructureHeader } from "@/components/structure/structure-header";
 import { StructureTrail } from "@/components/structure/structure-trail";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
@@ -87,17 +87,9 @@ export function CategoryDetailPage({
       <PageSheet
         top={brutal ? (
           /* Yapı → Kategoriler'in başlığı (bkz. StructureHeader): konum yolu
-             üç sayfada aynı hizada; analiz · düzenle · sil özet bloğunda */
+             üç sayfada aynı hizada; analiz · düzenle · sil özet bloğunda. Ekle
+             düğmesi yok — Alt kategoriler bloğunun yeşil karosu ekliyor */
           <StructureHeader
-            action={
-              <StructureAddButton
-                labelKey="structure.addSub"
-                onClick={() => {
-                  setNewParentId(undefined);
-                  setSubFormOpen(true);
-                }}
-              />
-            }
             below={<StructureTrail categoryId={categoryId} />}
           />
         ) : (

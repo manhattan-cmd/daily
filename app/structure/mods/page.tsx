@@ -41,6 +41,7 @@ import { FeatureFilter, type KindCount } from "@/components/structure/feature-fi
 import {
   StructureAddButton,
   StructureHeader,
+  StructureHere,
 } from "@/components/structure/structure-header";
 import {
   FormActions,
@@ -287,6 +288,11 @@ export default function ModsHomePage() {
            satıra taşınca başlık uzuyor ve sekme şeridi aşağı kayıyordu.
            Uzun anlatım sekmelerin altına indi. */
         <StructureHeader
+          below={
+            brutal ? (
+              <StructureHere text={mods && t("struct.features.count", { n: mods.length })} />
+            ) : undefined
+          }
           action={
             <StructureAddButton
               labelKey="structure.addFeature"

@@ -11,6 +11,7 @@ import { CollectionForm } from "@/components/structure/collection-form";
 import {
   StructureAddButton,
   StructureHeader,
+  StructureHere,
 } from "@/components/structure/structure-header";
 import { SymbolIcon } from "@/lib/icons";
 import { SmartText } from "@/components/ui/smart-text";
@@ -54,6 +55,19 @@ export default function ObjectsPage() {
     <PageSheet
       top={
         <StructureHeader
+          below={
+            brutal ? (
+              <StructureHere
+                text={
+                  data &&
+                  t("struct.lists.count", {
+                    n: data.length,
+                    things: data.reduce((n, d) => n + d.active, 0),
+                  })
+                }
+              />
+            ) : undefined
+          }
           action={
             <StructureAddButton labelKey="objects.addCollection" onClick={() => setAddOpen(true)} />
           }

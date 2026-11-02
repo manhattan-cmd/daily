@@ -8,6 +8,7 @@ import { createNote, listAllNotes } from "@/lib/db/queries";
 import {
   StructureAddButton,
   StructureHeader,
+  StructureHere,
 } from "@/components/structure/structure-header";
 import { NoteCard } from "@/components/notes/note-card";
 import { NoteWindow } from "@/components/notes/note-window";
@@ -77,6 +78,11 @@ export default function StructureNotesPage() {
     <PageSheet
       top={
         <StructureHeader
+          below={
+            brutal ? (
+              <StructureHere text={notes && t("struct.notes.count", { n: notes.length })} />
+            ) : undefined
+          }
           action={
             <StructureAddButton
               labelKey="structure.addNote"

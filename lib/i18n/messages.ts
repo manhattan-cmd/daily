@@ -137,6 +137,9 @@ export const en = {
   "structure.sample.body": "Open them, see their subcategories and features. Delete what you don't need, rename the rest.",
   "structure.addSub": "Subcategory",
   "struct.cats.count": "{n} categories",
+  "struct.features.count": "{n} features",
+  "struct.lists.count": "{n} lists · {things} objects",
+  "struct.notes.count": "{n} notes",
 
   // ── Özellikler ve ölçüler ────────────────────────────────────────────
   "features.search": "Search features",
@@ -1168,6 +1171,9 @@ export const tr: Record<MessageKey, string> = {
   "structure.sample.body": "İçlerine gir, alt kategorilerini ve özelliklerini gör. İşine yaramayanı sil, istediğini yeniden adlandır.",
   "structure.addSub": "Alt kategori",
   "struct.cats.count": "{n} kategori",
+  "struct.features.count": "{n} özellik",
+  "struct.lists.count": "{n} liste · {things} nesne",
+  "struct.notes.count": "{n} not",
 
   "features.search": "Özellik ara",
   "features.searchPlaceholder": "Özellik ara...",
