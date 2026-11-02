@@ -507,11 +507,16 @@ export function CalendarDayPage({
 
       {/* Brütal: ana sayfanın blok dili — Günün girdileri (uyku, ruh hali ve
           saat damgalı akış), varsa Hedefler ve Notlar kendi bloklarında,
-          yanlarında ekleme karoları. Ötekilerde tek katman. */}
+          yanlarında ekleme karoları. Ötekilerde tek katman.
+          Başlar ince ve tek satır (compact + dense): solda ad, sağda sayı
+          beyaz etikette. Eskiden üstte küçük ad, altında iri "22 girdi" —
+          listenin başı gün özetinin kendisi kadar kalın duruyordu. */}
       {brutal ? (
         <>
           <SummaryBlock
             className="mb-4"
+            compact
+            dense
             lead={{
               kind: "count",
               color: "#ffb38a",
@@ -529,6 +534,8 @@ export function CalendarDayPage({
           {goals && goals.length > 0 && (
             <SummaryBlock
               className="mb-4"
+              compact
+              dense
               lead={{
                 kind: "count",
                 color: "#ff9ecd",
@@ -536,7 +543,7 @@ export function CalendarDayPage({
                 value: `${goalsDone}/${goals.length}`,
                 unit: t("day.goals.unit"),
               }}
-              action={<SummaryTile color="#7ae582" icon={Target} label={t("day.goals.add")} onClick={add.openGoal} />}
+              action={<SummaryTile compact dense color="#7ae582" icon={Target} label={t("day.goals.add")} onClick={add.openGoal} />}
               stats={[]}
             >
               <div className="flex flex-col gap-2 bg-white p-3">
@@ -549,6 +556,8 @@ export function CalendarDayPage({
           {notes && notes.length > 0 && (
             <SummaryBlock
               className="mb-4"
+              compact
+              dense
               lead={{
                 kind: "count",
                 color: "#c9b8ff",
@@ -558,6 +567,8 @@ export function CalendarDayPage({
               }}
               action={
                 <SummaryTile
+                  compact
+                  dense
                   color="#7ae582"
                   icon={NotebookPen}
                   label={t("day.notes.add")}

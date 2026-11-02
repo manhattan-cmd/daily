@@ -343,9 +343,12 @@ function CompactLead({
 }) {
   const color = lead.kind === "count" ? lead.color ?? "#ffd23f" : lead.color;
   const title = lead.kind === "count" ? lead.overline : lead.title;
+  // En ince başta sayı alt satırda değil, adın sağında küçük beyaz etikette
+  // (girdi kartlarının saat etiketi gibi): baş tek satır kalır (gün sayfası)
+  const countTag = dense && lead.kind === "count" ? lead.value : undefined;
   const hint =
     lead.kind === "count"
-      ? [lead.value === "0" ? "" : `${lead.value} ${lead.unit}`, lead.hint].filter(Boolean).join(" · ")
+      ? [lead.value === "0" || countTag ? "" : `${lead.value} ${lead.unit}`, lead.hint].filter(Boolean).join(" · ")
       : lead.kind === "thing"
         ? lead.hint ?? lead.overline
         : lead.hint;
@@ -382,6 +385,14 @@ function CompactLead({
         <Title className={cn("truncate font-extrabold leading-tight tracking-tight", dense ? "text-[14px]" : "text-[16px]")}>{title}</Title>
         {hint && <div className="truncate text-[11px] font-bold leading-tight opacity-60">{hint}</div>}
       </div>
+      {countTag && (
+        <span
+          title={lead.kind === "count" ? `${lead.value} ${lead.unit}` : undefined}
+          className="shrink-0 rounded-[6px] border-[1.5px] border-[#111] bg-white px-1.5 py-[3px] font-mono text-[11px] font-bold leading-none tabular-nums"
+        >
+          {countTag}
+        </span>
+      )}
       {linked && (
         <span className={cn("flex shrink-0 justify-end", centered && (dense ? "w-6" : "w-8"))}>
           {expanded === undefined ? (
