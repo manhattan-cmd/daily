@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Home, CalendarDays, BarChart3, Layers } from "lucide-react";
+import { MARK } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
@@ -50,6 +51,35 @@ function NavItem({
       <Icon className={cn("h-5 w-5 transition-transform", active && "scale-110")} />
       <span className="font-medium">{label}</span>
     </Link>
+  );
+}
+
+/**
+ * Brütal: Bugün dairesini Kutu maskotu (logo) tutuyor — daire menünün öbür
+ * simgeleriyle aynı hizada (globals.css: 30 px, ortası bağlantının
+ * tepesinden 19 px aşağıda), pembe gövde logodaki gibi arkasında, beyaz
+ * elleri iki yanında. Kafanın üstü menünün çizgisini aşıp dışarı taşar.
+ * Maskot da bağlantının içinde: daireyle birlikte tek dokunma alanı, ikisi
+ * de bugünün sayfasını açar. Birim px, bağlantının tepesine göre.
+ */
+function NavMascot() {
+  return (
+    <span data-brut-only aria-hidden className="absolute inset-0">
+      <svg viewBox="0 0 49 44" className="absolute left-1/2 -top-[13px] h-[44px] w-[49px] -translate-x-[23px]">
+        <rect x="3" y="3" width="44" height="40" rx="9" fill={MARK.ink} />
+        <rect x="1" y="1" width="44" height="40" rx="9" fill={MARK.body} stroke={MARK.ink} strokeWidth="1.5" />
+        <ellipse cx="17.8" cy="7.5" rx="1.6" ry="2.3" fill={MARK.ink} />
+        <ellipse cx="28.2" cy="7.5" rx="1.6" ry="2.3" fill={MARK.ink} />
+        <path d="M20 11.8 Q23 14 26 11.8" fill="none" stroke={MARK.ink} strokeWidth="1.4" strokeLinecap="round" />
+      </svg>
+      {[-16, 16].map((dx) => (
+        <span
+          key={dx}
+          className="absolute top-[20px] z-20 h-[9px] w-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-[#111] bg-white"
+          style={{ left: `calc(50% + ${dx}px)` }}
+        />
+      ))}
+    </span>
   );
 }
 
@@ -118,6 +148,7 @@ function NavBar({ day }: { day: string | null }) {
           >
             {new Date().getDate()}
           </span>
+          <NavMascot />
           <span
             className={cn(
               "font-medium transition-colors",
