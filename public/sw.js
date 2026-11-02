@@ -3,8 +3,11 @@
 // de uygulama açılsın, veriler zaten cihazda.
 //
 // Önbellek stratejisi (bayat "eski tasarım" parlamasını önlemek için kritik):
-//   • /_next/static ve /icons → içerik-hash'li, gerçekten değişmez: cache-first.
+//   • /_next/static → içerik-hash'li, gerçekten değişmez: cache-first.
 //     (URL değişince içerik de değişir; bayat sunmak imkânsız.)
+//   • /icons → network-first. Adları sabit (icon-512.png): logo değişince aynı
+//     adla yenileniyor, cache-first eski logoyu sonsuza dek sunuyordu. Manifest
+//     onları içerik özetli ?v= ekiyle istiyor (scripts/make-icons.mjs yazar).
 //   • Navigasyon HTML'i, RSC/flight verisi ve diğer her şey → network-first.
 //     (Bunları önbellekten "önce" sunmak, yeni sürüm yayınlandıktan sonra eski
 //      build'in parçalarını gösterip "sonra kendiliğinden düzelme" yaşatıyordu.)
@@ -12,17 +15,13 @@
 //     sürümün kodu çalışırken Ana Sayfa bandı eski renkte kalmıştı. Küçükler,
 //     ağdan almak ucuz; çevrimdışıysa önbellek.
 // v3: o bayat önbellek bir kez tamamen silinsin.
-const CACHE_VERSION = "v3";
+// v4: eski logonun önbellekteki ikonları silinsin (Kutu maskotuna geçiş).
+const CACHE_VERSION = "v4";
 const CACHE_NAME = `routine-${CACHE_VERSION}`;
 const APP_SHELL = "/";
 
-const PRECACHE_URLS = [
-  "/",
-  "/manifest.webmanifest",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/icons/icon-maskable-512.png",
-];
+// İkonlar burada yok: manifest onları ?v= ekiyle istiyor, ilk istekte önbelleğe girerler
+const PRECACHE_URLS = ["/", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -89,10 +88,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Değişmez, hash'li varlıklar → cache-first.
-  if (
-    url.pathname.startsWith("/_next/static/") ||
-    url.pathname.startsWith("/icons/")
-  ) {
+  if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(cacheFirst(request));
     return;
   }

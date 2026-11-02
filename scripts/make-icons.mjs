@@ -3,7 +3,8 @@
 // Geometri lib/brand.ts'den — logo değişirse: node scripts/make-icons.mjs
 // (--profil <yol.png> verilirse 1080 px sosyal medya profil fotoğrafı da yazılır)
 import { createRequire } from "node:module";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MARK, markMaskSvg, markPartsSvg } from "../lib/brand.ts";
@@ -100,6 +101,20 @@ save("app/favicon.ico", ico(await Promise.all([16, 32, 48].map(async (size) => (
 save("public/icons/icon-192.png", await rounded(192));
 save("public/icons/icon-512.png", await rounded(512));
 save("public/icons/icon-maskable-512.png", await png(512, 512, markSvg({ scale: MASKABLE_SCALE }), false));
+
+// Manifest ikonları içerik özetli ?v= ekiyle istesin: adres değişmezse Chrome ana
+// ekrandaki ikonu güncellemiyor, önbellek de eski dosyayı sunabiliyor
+// (dosyanın geri kalanı olduğu gibi kalsın diye yalnız "src" satırları değişir)
+const manifestPath = join(ROOT, "public/manifest.webmanifest");
+const manifest = readFileSync(manifestPath, "utf8").replace(
+  /"src": "(\/icons\/[^"?]+)(\?v=[0-9a-f]+)?"/g,
+  (_, path) => {
+    const v = createHash("sha1").update(readFileSync(join(ROOT, "public", path))).digest("hex").slice(0, 8);
+    return `"src": "${path}?v=${v}"`;
+  }
+);
+writeFileSync(manifestPath, manifest);
+console.log("   public/manifest.webmanifest (ikon sürümleri)");
 
 console.log("android");
 const DENSITIES = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
