@@ -1377,3 +1377,19 @@ input[type="number"] {
 @media (prefers-reduced-motion: reduce) {
   .sel-bar-up { animation: none; }
 }
+
+/* -- Eklendi bildirimi (Brutal): yukaridan iner, suresi dolunca yukari kayip solar -- */
+@keyframes addedIn {
+  from { transform: translateY(-140%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+@keyframes addedOut {
+  from { transform: translateY(0); opacity: 1; }
+  to   { transform: translateY(-140%); opacity: 0; }
+}
+.added-in { animation: addedIn 0.28s cubic-bezier(0.32, 1.25, 0.56, 1) both; }
+.added-out { animation: addedOut 0.24s cubic-bezier(0.55, 0, 0.75, 0.3) both; }
+@media (prefers-reduced-motion: reduce) {
+  .added-in { animation: none; }
+  .added-out { animation: none; opacity: 0; }
+}

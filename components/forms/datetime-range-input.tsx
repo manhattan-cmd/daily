@@ -1,9 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, Moon, Sun } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Moon,
+  Sun,
+} from "lucide-react";
 import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
 import { intlTag, useT, type MessageKey } from "@/lib/i18n";
+import { useSkin } from "@/lib/skin";
 import {
   colorSkin,
   FIELD_TONES,
@@ -109,6 +118,24 @@ const SIDES = {
 
 type Side = keyof typeof SIDES;
 
+/** Aralığın dakikası — iki uç da girili ve bitiş sonra değilse null */
+function rangeMinutes(start: string, end: string): number | null {
+  if (!start || !end) return null;
+  const diff = new Date(end).getTime() - new Date(start).getTime();
+  return diff > 0 ? Math.floor(diff / 60000) : null;
+}
+
+/** Bir ucun gününü kaydır — boşsa girdinin gününden ve varsayılan saatten */
+function stepped(value: string, side: Side, entryDate: string, delta: number): string {
+  const cfg = SIDES[side];
+  const [datePart = "", timePart = ""] = value.split("T");
+  const base = datePart || offsetDate(entryDate, cfg.offset);
+  return `${offsetDate(base, delta)}T${timePart || cfg.time}`;
+}
+
+/** Brütal fişlerin künye rengi: yatış gece moru, kalkış gün doğumu */
+const BRUT_HEAD: Record<Side, string> = { start: "#b9a6ff", end: "#ffb38a" };
+
 export function DateTimeRangeInput({
   value,
   onChange,
@@ -118,6 +145,7 @@ export function DateTimeRangeInput({
   color,
 }: DateTimeRangeInputProps) {
   const t = useT();
+  const brutal = useSkin() === "brutal";
   const skin = FIELD_TONES[tone];
   const cs = color ? colorSkin(color) : null;
   const parsed = useMemo(() => parseDTR(value), [value]);
@@ -147,6 +175,67 @@ export function DateTimeRangeInput({
 
   const editingValue = editing ? parsed[editing] : "";
   const [editingDate = "", editingTime = ""] = editingValue.split("T");
+
+  // Brütal: iki fiş (yatış · kalkış) ve altında süre etiketi — bkz. BrutalSide
+  if (brutal) {
+    const mins = rangeMinutes(parsed.start, parsed.end);
+    const h = mins === null ? 0 : Math.floor(mins / 60);
+    const m = mins === null ? 0 : mins % 60;
+    const durText =
+      mins === null
+        ? null
+        : h === 0
+          ? t("sleep.durM", { m })
+          : m === 0
+            ? t("sleep.durH", { h })
+            : t("sleep.durHM", { h, m });
+    return (
+      <div data-dtr="" className={cn("flex flex-col gap-2.5", disabled && "opacity-50")}>
+        <div className="relative grid grid-cols-2 gap-3.5">
+          {(["start", "end"] as const).map((side) => (
+            <BrutalSide
+              key={side}
+              side={side}
+              value={parsed[side]}
+              onChange={(v) => update(side, v)}
+              entryDate={entryDate}
+              open={editing === side}
+              onOpen={() => openPicker(side)}
+              disabled={disabled}
+            />
+          ))}
+          {/* İki fişi bağlayan ok — aralığın yönü */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-[41px] z-10 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full border-2 border-[#111] bg-white text-[#111]"
+          >
+            <ArrowRight className="h-3 w-3" strokeWidth={3} />
+          </span>
+        </div>
+
+        {editing && !disabled && (
+          <TimeWheel
+            key={editing}
+            brutal
+            label={t("datetime.sideTime", { side: t(SIDES[editing].labelKey) })}
+            time={editingTime}
+            onChange={(t) => update(editing, `${editingDate}T${t}`)}
+            onClose={() => setEditing(null)}
+          />
+        )}
+
+        {durText && (
+          <span
+            data-dtr-duration=""
+            className="inline-flex items-center gap-1.5 self-center rounded-lg border-2 border-[#111] bg-[#111] px-2.5 py-1 text-[12.5px] font-black uppercase leading-4 tracking-wide text-white"
+          >
+            <Clock className="h-3.5 w-3.5" strokeWidth={2.75} />
+            {durText}
+          </span>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -242,10 +331,7 @@ function DateTimePanel({
   const [datePart = "", timePart = ""] = value.split("T");
 
   /** Gün bir adım ileri/geri — boşsa girdinin gününden başlar */
-  function stepDate(delta: number) {
-    const base = datePart || offsetDate(entryDate, cfg.offset);
-    onChange(`${offsetDate(base, delta)}T${timePart || cfg.time}`);
-  }
+  const stepDate = (delta: number) => onChange(stepped(value, side, entryDate, delta));
 
   const hasValue = !!(datePart && timePart);
   const shownDate = datePart || offsetDate(entryDate, cfg.offset);
@@ -316,6 +402,115 @@ function DateTimePanel({
           className="flex h-7 w-5 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
         >
           <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Brütal fiş — aralığın bir ucu. Ana sayfanın kart dili (bkz. entry-block):
+ * üstte renkli künye (sembol + Başlangıç/Bitiş), ortada büyük saat, kesikli
+ * çizginin altında gün adımlayıcı. Eskiden klasik temanın gri kutusu
+ * duruyordu: saat gri zeminde soluk, oklar ince, gün silik — Brütal formun
+ * geri kalanından kopuk görünüyordu. Açıkken fiş gölgesine oturur ve saat
+ * çarkın bandıyla aynı sarıya döner (hangi ucun ayarlandığı belli olsun).
+ */
+function BrutalSide({
+  side,
+  value,
+  onChange,
+  entryDate,
+  open,
+  onOpen,
+  disabled = false,
+}: {
+  side: Side;
+  value: string;
+  onChange: (v: string) => void;
+  entryDate: string;
+  open: boolean;
+  onOpen: () => void;
+  disabled?: boolean;
+}) {
+  const t = useT();
+  const cfg = SIDES[side];
+  const [datePart = "", timePart = ""] = value.split("T");
+  const label = t(cfg.labelKey);
+  const Icon = side === "start" ? Moon : Sun;
+  const shown = new Date(
+    (datePart || offsetDate(entryDate, cfg.offset)) + "T00:00:00"
+  ).toLocaleDateString(intlTag(), { day: "numeric", month: "short", weekday: "short" });
+
+  const step = (delta: number) => onChange(stepped(value, side, entryDate, delta));
+  const stepBtn =
+    "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-[1.5px] border-[#111] bg-white text-[#111] active:translate-x-px active:translate-y-px disabled:cursor-not-allowed";
+
+  return (
+    <div
+      data-dtr-side={side}
+      className={cn(
+        "min-w-0 overflow-hidden rounded-[14px] border-2 border-[#111] bg-white text-[#111] transition-[transform,box-shadow] duration-150",
+        open ? "translate-x-[2px] translate-y-[2px] shadow-none" : "shadow-[3px_3px_0_#111]"
+      )}
+    >
+      <div
+        className="flex items-center gap-1.5 border-b-2 border-[#111] px-2 py-[3px]"
+        style={{ background: BRUT_HEAD[side] }}
+      >
+        <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.6} />
+        <span className="truncate text-[10.5px] font-black uppercase leading-4 tracking-[0.08em]">
+          {label}
+        </span>
+      </div>
+
+      {/* Saat — dokununca altta çark açılır */}
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onOpen}
+        aria-label={t("datetime.pickSideTime", { side: label })}
+        aria-expanded={open}
+        className={cn(
+          "block w-full py-1.5 text-center text-[30px] font-black leading-[38px] tabular-nums tracking-tight outline-none transition-colors disabled:cursor-not-allowed",
+          !timePart && "text-[#111]/25"
+        )}
+        style={{ background: open ? "#ffd23f" : "#ffffff" }}
+      >
+        {timePart || "--:--"}
+      </button>
+
+      {/* Gün — kesikli çizginin altında, tek satır adımlayıcı */}
+      <div
+        role="group"
+        aria-label={t("datetime.pickDate")}
+        className="flex items-center gap-1 border-t-2 border-dashed border-[#111] px-1.5 py-1.5"
+      >
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => step(-1)}
+          aria-label={t("datetime.prevDay")}
+          className={stepBtn}
+        >
+          <ChevronLeft className="h-3.5 w-3.5" strokeWidth={3} />
+        </button>
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate text-center text-[12px] font-extrabold leading-4 tabular-nums",
+            !datePart && "text-[#111]/40"
+          )}
+        >
+          {shown}
+        </span>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => step(1)}
+          aria-label={t("datetime.nextDay")}
+          className={stepBtn}
+        >
+          <ChevronRight className="h-3.5 w-3.5" strokeWidth={3} />
         </button>
       </div>
     </div>
@@ -507,6 +702,7 @@ function TimeWheel({
   onClose,
   minuteStep = 5,
   skin = FIELD_TONES.default,
+  brutal = false,
 }: {
   label: string;
   time: string;
@@ -515,6 +711,8 @@ function TimeWheel({
   /** Uyku aralığında 5 dk yeter; tek girdi saatinde dakika birebir seçilir */
   minuteStep?: 1 | 5;
   skin?: FieldToneSkin;
+  /** Brütal fişlerin altında: kendi çerçeveli kartı (bkz. BrutalSide) */
+  brutal?: boolean;
 }) {
   const [hour = "", minute = ""] = time.split(":");
   // Kayıtlı dakika adıma denk gelmiyorsa (eski kayıt/elle giriş) listeye eklenir
@@ -526,17 +724,33 @@ function TimeWheel({
 
   return (
     <div
-      className={cn("border-t px-4 pb-3 pt-2.5", skin.strip)}
-      style={{ borderTopColor: skin.lineBorder }}
+      data-time-wheel=""
+      className={cn(
+        "px-4 pb-3 pt-2.5",
+        brutal
+          ? "rounded-[14px] border-2 border-[#111] bg-white shadow-[3px_3px_0_#111]"
+          : cn("border-t", skin.strip)
+      )}
+      style={brutal ? undefined : { borderTopColor: skin.lineBorder }}
     >
       <div className="mb-1.5 flex items-center justify-between">
-        <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50">
+        <span
+          className={
+            brutal
+              ? "text-[10.5px] font-black uppercase tracking-[0.08em] text-[#111]"
+              : "text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50"
+          }
+        >
           {label}
         </span>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full bg-[var(--sf-3)] px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-[var(--sf-4)] hover:text-foreground"
+          className={
+            brutal
+              ? "rounded-lg border-2 border-[#111] bg-white px-2.5 py-0.5 text-[11px] font-black uppercase text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+              : "rounded-full bg-[var(--sf-3)] px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-[var(--sf-4)] hover:text-foreground"
+          }
         >
           Tamam
         </button>

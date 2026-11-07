@@ -128,10 +128,19 @@ function NavBar({ day }: { day: string | null }) {
           />
         ))}
 
-        {/* Bugün — ortadaki yükseltilmiş buton */}
+        {/* Bugün — ortadaki yükseltilmiş buton. Zaten bugünün sayfasındayken
+            adres değişmiyor, ScrollReset de çalışmıyordu: dokunuş hiçbir şey
+            yapmıyordu. O durumda sayfanın başına kayar. */}
         <Link
           href={todayHref}
           {...prefetchDayOnPress(today)}
+          onClick={(e) => {
+            if (!todayActive) return;
+            e.preventDefault();
+            document
+              .querySelector<HTMLElement>("[data-app-main]")
+              ?.scrollTo({ top: 0, behavior: "smooth" });
+          }}
           data-active={todayActive ? "" : undefined}
           data-today=""
           className="relative flex flex-1 flex-col items-center justify-end gap-1 py-3 text-xs"
