@@ -60,7 +60,7 @@ export function EntryBlockTime({ children }: { children: ReactNode }) {
 }
 
 /** Hücre zemininde kartın renginden ne kadar — "hafif renk" */
-const TINT = 14;
+const TINT = 20;
 
 /**
  * Hücrenin zemini: kartın rengi beyaza karışmış hafif bir ton. Hücreler
