@@ -11,22 +11,36 @@ import { splitThingIds } from "./things";
  * readValue gibi zaman uyumlu yardımcılar her çağrıda veritabanına gidemez.
  * Dizin ilk kullanımda kurulur ve nesneler değiştikçe kendini tazeler;
  * useThingNames() çağıran bileşen de o anda yeniden çizilir.
+ *
+ * `icons`: nesnenin listesinin sembolü (Arabalarım → araba). Girdi kartındaki
+ * nesne kapsülünün başında durur. Listeler de dinlenir, sembol değişince
+ * kapsül de değişir.
  */
 
-type Index = { names: Map<string, string>; archived: Set<string> };
+type Index = { names: Map<string, string>; archived: Set<string>; icons: Map<string, string> };
 
-let index: Index = { names: new Map(), archived: new Set() };
+let index: Index = { names: new Map(), archived: new Set(), icons: new Map() };
 let started = false;
 const listeners = new Set<() => void>();
 
 function start() {
   if (started || typeof window === "undefined") return;
   started = true;
-  liveQuery(() => db.things.toArray()).subscribe({
-    next(things) {
+  liveQuery(async () => ({
+    things: await db.things.toArray(),
+    collections: await db.collections.toArray(),
+  })).subscribe({
+    next({ things, collections }) {
+      const colIcon = new Map(collections.flatMap((c) => (c.icon ? [[c.id, c.icon] as const] : [])));
       index = {
         names: new Map(things.map((t) => [t.id, t.name])),
         archived: new Set(things.filter((t) => t.archivedAt).map((t) => t.id)),
+        icons: new Map(
+          things.flatMap((t) => {
+            const icon = colIcon.get(t.collectionId);
+            return icon ? [[t.id, icon] as const] : [];
+          })
+        ),
       };
       for (const l of listeners) l();
     },
@@ -40,7 +54,7 @@ function subscribe(l: () => void) {
 }
 
 const snapshot = () => index;
-const empty: Index = { names: new Map(), archived: new Set() };
+const empty: Index = { names: new Map(), archived: new Set(), icons: new Map() };
 
 /** Bileşende kullan — adlar değişince yeniden çizer */
 export function useThingNames(): Index {

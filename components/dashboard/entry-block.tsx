@@ -13,9 +13,13 @@ import { cn } from "@/lib/utils";
  * Değerler hücrenin içinde KAPSÜL olarak kalır (kullanıcı kararı): bir
  * dönem değerler de hücre hücre denendi, kapsül mantığı daha iyi bulundu.
  * Girdi, uyku, ruh hali ve aktivite kartları bunu kullanır.
+ *
+ * Sütun kart genişliğine sabit (minmax(0,1fr)): yoksa ızgaranın örtük sütunu
+ * içerik kadar genişliyor, uzun bir nesne adı kısalmak yerine kartı sağa
+ * taşırıp künyedeki saati ekran dışına itiyordu.
  */
 export const ENTRY_BLOCK_CLS =
-  "relative grid w-full select-none touch-manipulation gap-[2px] overflow-hidden rounded-[14px] border-2 border-[#111] bg-[#111] text-left text-[#111] shadow-[3px_3px_0_#111]";
+  "relative grid w-full grid-cols-[minmax(0,1fr)] select-none touch-manipulation gap-[2px] overflow-hidden rounded-[14px] border-2 border-[#111] bg-[#111] text-left text-[#111] shadow-[3px_3px_0_#111]";
 
 /** Künye — renkli hücre: beyaz kare karoda simge, ad, altında bağlam, sağda saat */
 export function EntryBlockHead({

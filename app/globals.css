@@ -1393,3 +1393,17 @@ input[type="number"] {
   .added-in { animation: none; }
   .added-out { animation: none; opacity: 0; }
 }
+
+/* -- Nesne kapsulu (Brutal): deger kapsulunun kurallarini (data-capsule) alir;
+   burada yalniz ona ozgu parcalar. Degerler daktilo harfi, rol yoksa da
+   buyuk harfli etikete donmesin. Liste sembolu yoksa bolmede beyaz baklava. -- */
+:root[data-skin="brutal"] [data-thing-capsule] > span[data-thing-vals] {
+  font-family: var(--font-mono), monospace; font-weight: 800 !important; font-size: 11.5px !important;
+  text-transform: none !important; letter-spacing: 0 !important; opacity: 0.75 !important;
+}
+:root[data-skin="brutal"] [data-thing-capsule] [data-thing-unit] {
+  font-family: var(--font-sans), sans-serif; font-weight: 700; font-size: 10.5px; margin-left: 3px;
+}
+:root[data-skin="brutal"] [data-thing-capsule] [data-thing-mark] {
+  width: 9px; height: 9px; background: #ffffff !important; box-shadow: inset 0 0 0 1.5px #111;
+}

@@ -12,6 +12,7 @@ import { splitChoiceLevel } from "@/lib/choice-level";
 import { isScaleChoices } from "@/types";
 import { ScaleMeter } from "@/components/ui/scale-meter";
 import { thingLabel, useThingNames } from "@/lib/db/thing-names";
+import { SymbolIcon } from "@/lib/icons";
 
 /**
  * Girdi kartlarının ortak parçaları — hem tek girdi kartı hem paralel girdi
@@ -219,8 +220,17 @@ export function LevelCapsule({
 
 /**
  * İliştirilen nesneler — her biri kendi kapsülünde, adı ve bu girdide onun
- * için yazılan değerlerle: "Dacia Duster · 45.230 km". Kategorinin değer
- * kapsüllerinden ayrı satır: eylem ile ilgili olduğu şey karışmasın.
+ * için yazılan değerlerle: "Dacia Duster · 45230 km · HANGİ ARABA".
+ * Kategorinin değer kapsüllerinden ayrı satır: eylem ile ilgili olduğu şey
+ * karışmasın.
+ *
+ * Kapsül değer kapsülüyle (ValueCapsule) AYNI kalıpta: başta kartın renginde
+ * simge bölmesi, sonra ad, değerler, en sonda rol. Brütalde de aynı kurallar
+ * (data-capsule) uygulanır: çerçeve, sert gölge, renkli bölme. Eskiden kendi
+ * dili vardı (köşeli, tonlu, çerçevesiz kutu, baklava nokta) ve çerçeveli
+ * değer kapsüllerinin yanında soluk kalıyordu. Bölmedeki simge nesnenin
+ * listesinin sembolü (araba, kitap); listenin sembolü yoksa nesnenin şekli
+ * baklava.
  */
 export function ThingCapsuleRow({
   thingIds,
@@ -235,30 +245,60 @@ export function ThingCapsuleRow({
   return (
     <div className="flex flex-wrap items-center gap-1" data-thing-capsules="">
       {thingIds.map((tid) => {
-        const parts = values
-          .filter((v) => v.thingId === tid && v.entryType)
-          .map((v) => {
-            const r = readValue(v);
-            return [r.main, r.unit].filter(Boolean).join(" ");
-          });
-        // Nesnenin girdideki rolü — onu seçtiren özelliğin adı (ARABALARIM)
+        const parts = values.filter((v) => v.thingId === tid && v.entryType).map(readValue);
+        // Nesnenin girdideki rolü — onu seçtiren özelliğin adı (HANGİ ARABA)
         const role = values.find(
           (v) => v.entryType?.valueType === "object" && v.value.split(",").includes(tid)
         );
+        const icon = names.icons.get(tid);
         return (
           <span
             key={tid}
+            data-capsule=""
+            data-word=""
             data-thing-capsule=""
-            className="inline-flex max-w-full items-center gap-1.5 rounded-lg py-0.5 pl-1 pr-2 text-[12.5px] font-bold leading-5"
-            style={{ background: `${c}1f`, boxShadow: `inset 0 0 0 1.5px ${c}66` }}
+            className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full py-0.5 pl-0.5 pr-2"
+            style={{
+              ["--cap-c" as string]: c,
+              background: `${c}14`,
+              boxShadow: `inset 0 0 0 1px ${c}33`,
+            }}
           >
-            <span className="h-2.5 w-2.5 shrink-0 rotate-45 rounded-[2px]" style={{ background: c }} />
-            <span className="truncate">{names.names.get(tid) ?? "?"}</span>
+            <span
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+              style={{ background: `${c}33` }}
+            >
+              {icon ? (
+                <SymbolIcon name={icon} size={12} style={{ color: c }} />
+              ) : (
+                <span data-thing-mark="" className="h-2 w-2 rotate-45 rounded-[1.5px]" style={{ background: c }} />
+              )}
+            </span>
+            <span className="min-w-0 truncate text-[13px] font-semibold leading-tight" style={{ color: c }}>
+              {names.names.get(tid) ?? "?"}
+            </span>
+            {/* Değerler: sayı ve birim ayrı — değer kapsülündeki gibi birim
+                küçük ve düz yazı ("45230 km"), aralarına " · " */}
             {parts.length > 0 && (
-              <span className="truncate font-semibold opacity-70">{parts.join(" · ")}</span>
+              <span
+                data-thing-vals=""
+                className="shrink-0 text-[11px] font-semibold leading-none tabular-nums text-foreground/70"
+              >
+                {parts.map((p, i) => (
+                  <span key={i}>
+                    {i > 0 && <span className="opacity-60"> · </span>}
+                    {p.main}
+                    {p.unit && (
+                      <span data-thing-unit="" className="ml-0.5 text-[10px] font-normal text-muted-foreground/80">
+                        {p.unit}
+                      </span>
+                    )}
+                  </span>
+                ))}
+              </span>
             )}
             {role && (
-              <span className="shrink-0 text-[10px] font-bold uppercase leading-none opacity-55">
+              <span className="shrink-0 text-[10px] leading-none text-muted-foreground/60">
                 {role.mod?.name ?? role.entryType?.name}
               </span>
             )}
