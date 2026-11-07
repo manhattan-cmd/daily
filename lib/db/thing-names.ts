@@ -12,14 +12,16 @@ import { splitThingIds } from "./things";
  * Dizin ilk kullanımda kurulur ve nesneler değiştikçe kendini tazeler;
  * useThingNames() çağıran bileşen de o anda yeniden çizilir.
  *
- * `icons`: nesnenin listesinin sembolü (Arabalarım → araba). Girdi kartındaki
- * nesne kapsülünün başında durur. Listeler de dinlenir, sembol değişince
- * kapsül de değişir.
+ * `looks`: nesnenin listesinin sembolü ve rengi (Arabalarım → araba, mavi).
+ * Girdi kartındaki nesne kapsülünün baklavası bunlarla çizilir. Listeler de
+ * dinlenir, sembol ya da renk değişince kapsül de değişir.
  */
 
-type Index = { names: Map<string, string>; archived: Set<string>; icons: Map<string, string> };
+export type ThingLook = { icon?: string; color?: string };
 
-let index: Index = { names: new Map(), archived: new Set(), icons: new Map() };
+type Index = { names: Map<string, string>; archived: Set<string>; looks: Map<string, ThingLook> };
+
+let index: Index = { names: new Map(), archived: new Set(), looks: new Map() };
 let started = false;
 const listeners = new Set<() => void>();
 
@@ -31,14 +33,14 @@ function start() {
     collections: await db.collections.toArray(),
   })).subscribe({
     next({ things, collections }) {
-      const colIcon = new Map(collections.flatMap((c) => (c.icon ? [[c.id, c.icon] as const] : [])));
+      const cols = new Map(collections.map((c) => [c.id, c]));
       index = {
         names: new Map(things.map((t) => [t.id, t.name])),
         archived: new Set(things.filter((t) => t.archivedAt).map((t) => t.id)),
-        icons: new Map(
-          things.flatMap((t) => {
-            const icon = colIcon.get(t.collectionId);
-            return icon ? [[t.id, icon] as const] : [];
+        looks: new Map(
+          things.map((t) => {
+            const c = cols.get(t.collectionId);
+            return [t.id, { icon: c?.icon || undefined, color: c?.color || undefined }];
           })
         ),
       };
@@ -54,7 +56,7 @@ function subscribe(l: () => void) {
 }
 
 const snapshot = () => index;
-const empty: Index = { names: new Map(), archived: new Set(), icons: new Map() };
+const empty: Index = { names: new Map(), archived: new Set(), looks: new Map() };
 
 /** Bileşende kullan — adlar değişince yeniden çizer */
 export function useThingNames(): Index {

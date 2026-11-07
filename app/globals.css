@@ -1395,8 +1395,19 @@ input[type="number"] {
 }
 
 /* -- Nesne kapsulu (Brutal): deger kapsulunun kurallarini (data-capsule) alir;
-   burada yalniz ona ozgu parcalar. Degerler daktilo harfi, rol yoksa da
-   buyuk harfli etikete donmesin. Liste sembolu yoksa bolmede beyaz baklava. -- */
+   burada yalniz ona ozgu parcalar. Basta renkli bolme yerine cerceveli
+   baklava (listenin renginde, icinde siyah sembol): nesne oldugu ilk bakista
+   belli. Degerler daktilo harfi, rol yoksa da buyuk harfli etikete donmesin. -- */
+:root[data-skin="brutal"] [data-thing-capsule] { overflow: visible !important; padding-left: 3px !important; }
+:root[data-skin="brutal"] [data-thing-capsule] > span[data-thing-slot] {
+  align-self: center !important; width: 24px !important; height: 24px; padding: 0 !important;
+  background: none !important; box-shadow: none !important;
+}
+:root[data-skin="brutal"] [data-thing-capsule] [data-thing-dia] {
+  width: 17px; height: 17px; border-radius: 4px;
+  background: var(--dia-c) !important; box-shadow: inset 0 0 0 2px #111 !important;
+}
+:root[data-skin="brutal"] [data-thing-capsule] > span[data-thing-slot] svg { width: 10px !important; height: 10px !important; }
 :root[data-skin="brutal"] [data-thing-capsule] > span[data-thing-vals] {
   font-family: var(--font-mono), monospace; font-weight: 800 !important; font-size: 11.5px !important;
   text-transform: none !important; letter-spacing: 0 !important; opacity: 0.75 !important;
@@ -1404,6 +1415,60 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-thing-capsule] [data-thing-unit] {
   font-family: var(--font-sans), sans-serif; font-weight: 700; font-size: 10.5px; margin-left: 3px;
 }
-:root[data-skin="brutal"] [data-thing-capsule] [data-thing-mark] {
-  width: 9px; height: 9px; background: #ffffff !important; box-shadow: inset 0 0 0 1.5px #111;
+
+/* -- Kapsul turleri Brutal: kabuk hepsinde ayni data-capsule, ici
+   ozelligin turune gore data-cap-kind, bkz. entry-parts ValueCapsule. -- */
+/* Skala: degerin yaninda dolan cubuk; beyaz, cerceveli, dolgu kartin renginde
+   ve ucunda siyah cizgi. Etiketsiz skalada deger son cocuk olsa da kucuk
+   etikete donmesin. */
+:root[data-skin="brutal"] [data-cap-kind="scale"] > span[data-scale-val] {
+  font-size: 12px !important; font-weight: 800 !important; opacity: 1 !important;
+  text-transform: none !important; letter-spacing: 0 !important;
+}
+:root[data-skin="brutal"] [data-cap-kind="scale"] > span[data-track] {
+  width: 32px; height: 10px; border-radius: 3px; background: #ffffff !important; border: 1.5px solid #111; opacity: 1 !important;
+}
+:root[data-skin="brutal"] [data-cap-kind="scale"] [data-gauge] {
+  background: var(--cap-c) !important; box-shadow: inset -1.5px 0 0 #111;
+}
+/* Duygu: tam yuvarlak hap, basta duygunun yuzu kendi renginde, gozleri ve
+   agzi siyah - siyah zeminli dairede renkli yuz */
+:root[data-skin="brutal"] [data-cap-kind="emotion"] { border-radius: 999px !important; padding-left: 2px !important; }
+:root[data-skin="brutal"] [data-cap-kind="emotion"] > span:first-child {
+  align-self: center !important; width: 20px !important; height: 20px !important; padding: 0 !important;
+  border-radius: 50% !important; background: #111 !important; box-shadow: none !important;
+}
+:root[data-skin="brutal"] [data-cap-kind="emotion"] > span:first-child svg {
+  width: 20px !important; height: 20px !important;
+}
+:root[data-skin="brutal"] [data-cap-kind="emotion"] > span:first-child svg,
+:root[data-skin="brutal"] [data-cap-kind="emotion"] > span:first-child svg * { color: var(--cap-c) !important; }
+/* Secenek: basta dolu secim dugmesi radyo */
+:root[data-skin="brutal"] [data-cap-kind="choice"] { padding-left: 5px !important; gap: 5px !important; }
+:root[data-skin="brutal"] [data-cap-kind="choice"] > span[data-radio] {
+  align-self: center !important; width: 14px !important; height: 14px !important; padding: 0 !important;
+  background: none !important; box-shadow: none !important;
+}
+:root[data-skin="brutal"] [data-cap-kind="choice"] [data-radio] > span {
+  width: 14px; height: 14px;
+  background: radial-gradient(circle, var(--cap-c) 0 2.6px, #111 2.7px 3.9px, #ffffff 4px) !important;
+  box-shadow: inset 0 0 0 2px #111 !important;
+}
+/* Evet / hayir: onay kutusu; hayirda kutu bos, ad ustu cizili */
+:root[data-skin="brutal"] [data-cap-kind="bool"] { padding-left: 5px !important; gap: 5px !important; }
+:root[data-skin="brutal"] [data-cap-kind="bool"] > span[data-check] {
+  align-self: center !important; width: 15px !important; height: 15px !important; padding: 0 !important;
+  background: none !important; box-shadow: none !important;
+}
+:root[data-skin="brutal"] [data-cap-kind="bool"] [data-check] > span {
+  width: 15px; height: 15px; border-radius: 4px; background: #ffffff !important; box-shadow: inset 0 0 0 2px #111 !important;
+}
+:root[data-skin="brutal"] [data-cap-kind="bool"] [data-check][data-on] > span { background: var(--cap-c) !important; }
+:root[data-skin="brutal"] [data-cap-kind="bool"] [data-check] svg { color: #111 !important; width: 10px !important; height: 10px !important; }
+:root[data-skin="brutal"] [data-cap-kind="bool"] [data-check]:not([data-on]) svg { opacity: 0.4; }
+/* Metin: tirnakla acilan konusma balonu, sol alt kosesi sivri */
+:root[data-skin="brutal"] [data-cap-kind="text"] { border-radius: 9px 9px 9px 2px !important; padding-left: 4px !important; }
+:root[data-skin="brutal"] [data-cap-kind="text"] > span[data-quote] {
+  align-self: center !important; width: 11px !important; height: 20px !important; padding: 0 !important;
+  background: none !important; box-shadow: none !important; color: #111 !important;
 }

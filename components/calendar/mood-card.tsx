@@ -6,8 +6,8 @@ import type { EntryWithContext } from "@/types";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { cn, formatDateTime } from "@/lib/utils";
 import { splitChoiceLevel } from "@/lib/choice-level";
-import { EmotionFace, ScaleFace, emotionLook, emotionName } from "@/lib/icons/emotions";
-import { LevelCapsule } from "@/components/dashboard/entry-parts";
+import { ScaleFace } from "@/lib/icons/emotions";
+import { EmotionCapsule, LevelCapsule } from "@/components/dashboard/entry-parts";
 import { useT } from "@/lib/i18n";
 import { useLongPress } from "@/lib/use-long-press";
 import { useSkin } from "@/lib/skin";
@@ -89,39 +89,9 @@ export function MoodCard({
           title={t("mood.level")}
         />
       )}
-      {shown.map((e) => {
-        const look = emotionLook(e.label);
-        const name = emotionName(e.label, t);
-        return (
-          <span
-            key={e.label}
-            data-capsule=""
-            data-word=""
-            title={e.level === null ? name : `${name} %${e.level}`}
-            className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full py-0.5 pl-0.5 pr-2"
-            style={{
-              ["--cap-c" as string]: look.color,
-              background: `${look.color}1f`,
-              boxShadow: `inset 0 0 0 1px ${look.color}47`,
-            }}
-          >
-            <span
-              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-              style={{ background: `${look.color}40` }}
-            >
-              <EmotionFace name={e.label} size={14} style={{ color: look.color }} />
-            </span>
-            <span className="truncate text-[12.5px] font-semibold leading-none" style={{ color: look.color }}>
-              {name}
-            </span>
-            {e.level !== null && (
-              <span className="shrink-0 text-[10px] leading-none tabular-nums text-muted-foreground/70">
-                %{e.level}
-              </span>
-            )}
-          </span>
-        );
-      })}
+      {shown.map((e) => (
+        <EmotionCapsule key={e.label} name={e.label} level={e.level} />
+      ))}
       {emotions.length > shown.length && (
         <span
           data-more=""
