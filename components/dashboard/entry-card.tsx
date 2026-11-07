@@ -283,7 +283,7 @@ function BrutEntryCard({
         right={<EntryBlockTime>{formatDateTime(entry.occurredAt)}</EntryBlockTime>}
       />
       {(typedValues.length > 0 || thingIds.length > 0) && (
-        <EntryBlockCell>
+        <EntryBlockCell color={color}>
           {typedValues.length > 0 && <ValueCapsuleRow values={typedValues} color={color} />}
           {thingIds.length > 0 && (
             <div className={cn(typedValues.length > 0 && "mt-1.5")}>
@@ -293,7 +293,7 @@ function BrutEntryCard({
         </EntryBlockCell>
       )}
       {entry.notes && (
-        <EntryBlockCell className="flex items-start gap-1.5">
+        <EntryBlockCell color={color} className="flex items-start gap-1.5">
           <NotebookPen className="mt-[1px] h-3 w-3 shrink-0" strokeWidth={2.25} />
           <p className="line-clamp-3 min-w-0 text-[11px] font-medium leading-snug text-[#111]/75">{entry.notes}</p>
         </EntryBlockCell>

@@ -59,7 +59,31 @@ export function EntryBlockTime({ children }: { children: ReactNode }) {
   );
 }
 
-/** Beyaz hücre — kapsüller, not, satırlar */
-export function EntryBlockCell({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("bg-white px-2.5 py-2", className)}>{children}</div>;
+/** Hücre zemininde kartın renginden ne kadar — "hafif renk" */
+const TINT = 14;
+
+/**
+ * Hücrenin zemini: kartın rengi beyaza karışmış hafif bir ton. Hücreler
+ * eskiden düz beyazdı; künye renkliyken kartın gövdesi kopuk duruyordu.
+ * Beyaz kapsüller tonlu zeminde daha iyi seçiliyor. Renk yoksa beyaz.
+ */
+export function blockTint(color?: string): string {
+  return color ? `color-mix(in srgb, ${color} ${TINT}%, #ffffff)` : "#ffffff";
+}
+
+/** Hücre — kapsüller, not, satırlar; `color` verilirse onun hafif tonunda */
+export function EntryBlockCell({
+  children,
+  className,
+  color,
+}: {
+  children: ReactNode;
+  className?: string;
+  color?: string;
+}) {
+  return (
+    <div className={cn("px-2.5 py-2", className)} style={{ background: blockTint(color) }}>
+      {children}
+    </div>
+  );
 }

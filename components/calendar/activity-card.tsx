@@ -36,7 +36,7 @@ import { routes } from "@/lib/routes";
 import { useSkin } from "@/lib/skin";
 import { SymbolIcon } from "@/lib/icons";
 import { ValueCapsuleRow } from "@/components/dashboard/entry-parts";
-import { ENTRY_BLOCK_CLS, EntryBlockCell, EntryBlockHead, EntryBlockTime } from "@/components/dashboard/entry-block";
+import { ENTRY_BLOCK_CLS, blockTint, EntryBlockCell, EntryBlockHead, EntryBlockTime } from "@/components/dashboard/entry-block";
 
 /** Aktivitenin rengi — kategorisi yok, kendi camgöbeği */
 const ACT = "#06b6d4";
@@ -221,7 +221,7 @@ export function ActivityCard({
 
           {/* Toplamlar — kapsül (alt kategori başına, toplanabilen özellikler) */}
           {totals.length > 0 && (
-            <EntryBlockCell className="flex flex-wrap items-center gap-1">
+            <EntryBlockCell color={ACT} className="flex flex-wrap items-center gap-1">
               {totals.map((x) => (
                 <span
                   key={`${x.name}:${x.subName}`}
@@ -242,7 +242,7 @@ export function ActivityCard({
 
           {expanded && (
             <>
-              <EntryBlockCell className="flex items-center gap-3 text-[11.5px] font-extrabold">
+              <EntryBlockCell color={ACT} className="flex items-center gap-3 text-[11.5px] font-extrabold">
                 {activity && onAddEntries && (
                   <button type="button" onClick={() => onAddEntries(activity)} className="flex items-center gap-1 active:opacity-60">
                     <Plus className="h-3.5 w-3.5" strokeWidth={3} />
@@ -271,7 +271,8 @@ export function ActivityCard({
                     key={e.id}
                     type="button"
                     onClick={() => setEditing(e)}
-                    className="flex min-w-0 flex-col gap-1 bg-white px-2 py-1.5 text-left active:bg-[#f5f1e8]"
+                    className="flex min-w-0 flex-col gap-1 px-2 py-1.5 text-left active:brightness-95"
+                    style={{ background: blockTint(e.category.color) }}
                     aria-label={`${e.subcategory.name} girdisini düzenle`}
                   >
                     <span className="flex min-w-0 items-center gap-2">

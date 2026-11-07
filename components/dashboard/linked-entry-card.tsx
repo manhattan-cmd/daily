@@ -127,7 +127,7 @@ export function LinkedEntryCard({
           />
           {/* Ortak değerler — bir kategoriye değil olayın kendisine ait */}
           {sharedValues.length > 0 && (
-            <EntryBlockCell>
+            <EntryBlockCell color={VIOLET}>
               <ValueCapsuleRow values={sharedValues} color={VIOLET} />
             </EntryBlockCell>
           )}
@@ -137,7 +137,7 @@ export function LinkedEntryCard({
               (v) => v.entryType && !sharedTypeIds.has(v.modId ?? v.entryTypeId ?? "")
             );
             return (
-              <EntryBlockCell key={entry.id}>
+              <EntryBlockCell key={entry.id} color={entry.category.color}>
                 <div className="flex items-center gap-2">
                   <span
                     className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border-[1.5px] border-[#111]"

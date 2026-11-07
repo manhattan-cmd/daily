@@ -164,7 +164,7 @@ export function MoodCard({
             title={t("mood.title")}
             right={dateLabel ? <EntryBlockTime>{dateLabel}</EntryBlockTime> : undefined}
           />
-          <EntryBlockCell className="flex flex-wrap items-center gap-1.5">{body}</EntryBlockCell>
+          <EntryBlockCell color={color} className="flex flex-wrap items-center gap-1.5">{body}</EntryBlockCell>
           {selection?.active && (
             <SelectionLayer selected={selection.selected} onToggle={selection.onToggle} label={t("mood.select")} />
           )}
