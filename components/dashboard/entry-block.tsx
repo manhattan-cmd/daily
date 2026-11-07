@@ -32,7 +32,8 @@ export function EntryBlockHead({
   right?: ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2 px-2.5 py-1.5" style={{ background: color }}>
+    // data-sel-head: seçim modunda sağında daireye yer açılır (bkz. SelectionLayer)
+    <div data-sel-head="edge" className="flex items-center gap-2 px-2.5 py-1.5" style={{ background: color }}>
       <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[8px] bg-white text-[#111] shadow-[inset_0_0_0_2px_#111,1.5px_1.5px_0_#111]">
         {icon}
       </span>

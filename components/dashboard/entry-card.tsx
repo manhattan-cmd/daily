@@ -158,7 +158,7 @@ function PlainEntryCard({
         aria-label={`${entry.subcategory.name} girdisini düzenle`}
       >
         {/* Künye — sembol düşeyde ortalı, sağda tarih + eylemler tek bölüm */}
-        <div data-entry-head="" className="flex items-center gap-2">
+        <div data-entry-head="" data-sel-head="" className="flex items-center gap-2">
           <EntryIcon category={entry.category} subcategory={entry.subcategory} />
 
           <div className="min-w-0 flex-1">

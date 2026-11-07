@@ -71,7 +71,7 @@ export function NoteCard({
           background: `linear-gradient(135deg, ${c}24, ${c}0d 45%, transparent), var(--card)`,
         }}
       >
-        <div className="flex items-center gap-2">
+        <div data-sel-head="" className="flex items-center gap-2">
           <span
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
             style={{

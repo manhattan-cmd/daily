@@ -197,7 +197,11 @@ export function GoalCard({
           </div>
         </div>
 
-        {!isCompleted && (
+        {/* Seçim modunda düzenle/sil yerine boşluk: köşedeki seçim dairesi
+            onların üstüne biniyordu (katmanın altında zaten dokunulmuyorlar) */}
+        {selection?.active ? (
+          <span className="w-6 shrink-0" />
+        ) : !isCompleted && (
           <div className="flex items-center gap-0.5 shrink-0">
             <button
               onClick={() => setEditOpen(true)}

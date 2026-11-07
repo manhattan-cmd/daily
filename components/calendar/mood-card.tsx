@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Smile } from "lucide-react";
 import type { EntryWithContext } from "@/types";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
-import { cn } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
 import { splitChoiceLevel } from "@/lib/choice-level";
 import { EmotionFace, ScaleFace, emotionLook, emotionName } from "@/lib/icons/emotions";
 import { LevelCapsule } from "@/components/dashboard/entry-parts";
@@ -30,7 +30,9 @@ const MAX_FACES = 4;
  * dağıtıyordu. Ayrılan tek şey kapsülün içeriği: uykuda tek bir saat aralığı,
  * burada duygu başına bir yuvarlak yüz — veri öyle geliyor.
  *
- * `dateLabel` yalnız günleri karışık listelerde (ana sayfa) verilir.
+ * Künyenin sağında tarih ve saat; `dateLabel` verilirse o yazar (ana sayfanın
+ * karışık listesi yalnız günü verir). Gün sayfasında eskiden boştu — sıradan
+ * girdilerde tarih duruyor, ruh halinde durmuyordu.
  *
  * Duygular aynı özellikten gelen BİRDEN ÇOK değer, o yüzden `find` değil
  * `filter` ile toplanıyor: girdi kartının geri kalanı tek değer varsayar,
@@ -39,7 +41,7 @@ const MAX_FACES = 4;
 export function MoodCard({
   entry,
   selection,
-  dateLabel,
+  dateLabel = formatDateTime(entry.occurredAt),
 }: {
   entry: EntryWithContext;
   selection?: EntrySelection;
@@ -198,7 +200,7 @@ export function MoodCard({
         aria-label={t("mood.edit")}
       >
         {/* Künye — sembol, başlık, sağda tarih */}
-        <div data-entry-head="" className="flex items-center gap-2">
+        <div data-entry-head="" data-sel-head="" className="flex items-center gap-2">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
             style={{ background: `${color}33` }}>
             {hasLevel ? (

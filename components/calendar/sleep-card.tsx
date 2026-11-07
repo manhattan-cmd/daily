@@ -6,7 +6,7 @@ import type { EntryWithContext } from "@/types";
 import { parseDTR } from "@/components/forms/datetime-range-input";
 import { LevelCapsule } from "@/components/dashboard/entry-parts";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
-import { cn } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { useLongPress } from "@/lib/use-long-press";
 import { useSkin } from "@/lib/skin";
@@ -24,15 +24,17 @@ import {
  * saç teli çizgiyle ayrılmış bölümde ölçü kapsülü. Başlık eskiden saatlerin
  * üstünde sıkışıyor, kart iki satırlık tek bir blok gibi duruyordu.
  *
- * `dateLabel` yalnız günleri karışık listelerde (ana sayfa) verilir: gün
- * sayfasında hangi güne ait olduğu zaten belli, orada boş bırakılır.
+ * Künyenin sağında tarih ve saat (uyanma anı); `dateLabel` verilirse o yazar
+ * (ana sayfanın karışık listesi yalnız günü verir). Gün sayfasında eskiden
+ * boş bırakılıyordu — sıradan girdilerin künyesinde tarih dururken uykunun
+ * künyesi eksik görünüyordu.
  * `selection` verilirse basılı tutmak toplu seçimi başlatır; kartın kendisi
  * `<button>` olduğundan seçim katmanı dıştaki sarmalayıcıya konur.
  */
 export function SleepCard({
   entry,
   selection,
-  dateLabel,
+  dateLabel = formatDateTime(entry.occurredAt),
 }: {
   entry: EntryWithContext;
   selection?: EntrySelection;
@@ -183,7 +185,7 @@ export function SleepCard({
         aria-label={t("sleep.edit")}
       >
         {/* Künye — sembol, başlık, sağda tarih */}
-        <div data-entry-head="" className="flex items-center gap-2">
+        <div data-entry-head="" data-sel-head="" className="flex items-center gap-2">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
             style={{ background: `${color}33` }}>
             <MoonStar

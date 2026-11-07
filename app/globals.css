@@ -1353,3 +1353,27 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-struct-form] [data-struct-box] {
   background: #ffffff; box-shadow: inset 0 0 0 2px #111, 3px 3px 0 #111 !important;
 }
+
+/* -- Secim modu (gun sayfasi, basili tutunca) --
+   Daire kartin sag ust kosesinde; kunyenin sagindaki tarih etiketi onun
+   altinda kaliyordu. Katman varken kunye (data-sel-head) saginda daireye yer
+   acar. "edge": kunye kartin kenarina dayali (brutal blok, aktivite basligi),
+   digerleri kartin ic payinin icinde. */
+:has(> [data-selection-layer]) [data-sel-head] { padding-right: 28px !important; }
+:has(> [data-selection-layer]) [data-sel-head="edge"] { padding-right: 40px !important; }
+/* Brutal daire: beyaz, kalin cerceve, sert golge; secilince mavi dolu ve golgesine oturur */
+:root[data-skin="brutal"] [data-sel-dot] {
+  background: #ffffff !important; border-color: #111 !important; box-shadow: 1.5px 1.5px 0 #111;
+}
+:root[data-skin="brutal"] [data-sel-dot][data-on] {
+  background: #3a5bff !important; color: #ffffff !important; transform: translate(1.5px, 1.5px); box-shadow: none;
+}
+/* Secim cubugu asagidan kayarak gelir */
+@keyframes selBarUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.sel-bar-up { animation: selBarUp 0.24s cubic-bezier(0.32, 1.2, 0.56, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .sel-bar-up { animation: none; }
+}

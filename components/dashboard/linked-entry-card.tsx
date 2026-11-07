@@ -208,7 +208,7 @@ export function LinkedEntryCard({
         }}
       >
         {/* Künye */}
-        <div data-entry-head="" className="flex items-center gap-2">
+        <div data-entry-head="" data-sel-head="" className="flex items-center gap-2">
           <EntryIcon
             category={shared.category}
             subcategory={shared.subcategory}

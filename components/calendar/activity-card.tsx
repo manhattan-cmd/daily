@@ -327,6 +327,7 @@ export function ActivityCard({
             if (e.key === "Enter") setExpanded((v) => !v);
           }}
           aria-label={`${name} aktivitesini ${expanded ? "kapat" : "aç"}`}
+          data-sel-head="edge"
           className="relative flex w-full cursor-pointer items-center gap-2.5 px-3 py-2.5 text-left select-none"
         >
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-cyan-500/20">
