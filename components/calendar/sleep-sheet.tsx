@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { MoonStar } from "lucide-react";
-import { createEntry, getBuiltInTarget } from "@/lib/db/queries";
-import { parseDTR } from "@/components/forms/datetime-range-input";
+import { createEntry, getBuiltInTarget, listRecentModValues } from "@/lib/db/queries";
+import { carryDTR, parseDTR } from "@/components/forms/datetime-range-input";
 import { EntryShell } from "@/components/forms/entry-shell";
 import { LedgerField } from "@/components/forms/ledger-field";
 import { cn } from "@/lib/utils";
@@ -38,7 +38,8 @@ export function SleepSheet(props: SleepSheetProps) {
 
 function SleepSheetBody({ date, open, onClose, embedded }: SleepSheetProps) {
   const t = useT();
-  const [range, setRange] = useState("");
+  // null = kullanıcı saatlere dokunmadı → son uykunun saatleri gösterilir
+  const [range, setRange] = useState<string | null>(null);
   const [quality, setQuality] = useState("");
   const [notes, setNotes] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
@@ -47,7 +48,7 @@ function SleepSheetBody({ date, open, onClose, embedded }: SleepSheetProps) {
   useEffect(() => {
     if (!open) {
       const t = setTimeout(() => {
-        setRange("");
+        setRange(null);
         setQuality("");
         setNotes("");
         setNoteOpen(false);
@@ -63,27 +64,51 @@ function SleepSheetBody({ date, open, onClose, embedded }: SleepSheetProps) {
   const target = useLiveQuery(async () => {
     const found = await getBuiltInTarget("sleep");
     if (!found) return null;
+    const rangeMod = found.mods.find(
+      (m) => (m.entryType.valueType ?? "number") === "datetime-range"
+    );
+    // Son uykunun (en yeni gece) saatleri — kullanıcı çoğu gece aynı
+    // saatlerde yatıp kalkıyor; her seferinde çarkı çevirtmeyelim. Değerler
+    // mod kimliğiyle, eski kayıtlar ölçü türüyle anahtarlı.
+    let lastRange = "";
+    if (rangeMod) {
+      const recent = await listRecentModValues(found.sub.id, 1);
+      const keys = [rangeMod.modId, rangeMod.entryTypeId, rangeMod.entryType.id];
+      for (const k of keys) {
+        const v = k ? recent[k]?.[0] : undefined;
+        if (v) {
+          lastRange = v;
+          break;
+        }
+      }
+    }
     return {
       sub: found.sub,
-      rangeMod: found.mods.find(
-        (m) => (m.entryType.valueType ?? "number") === "datetime-range"
-      ),
+      rangeMod,
       qualityMod: found.mods.find(
         (m) => (m.entryType.valueType ?? "number") === "select"
       ),
+      lastRange,
     };
   }, []);
+
+  // Son saatler girilen güne taşınır (bitiş bu gün, başlangıç eski gün farkıyla)
+  const carried = useMemo(
+    () => (target?.lastRange ? carryDTR(target.lastRange, date) : ""),
+    [target?.lastRange, date]
+  );
+  const rangeValue = range ?? carried;
 
   async function handleSave() {
     if (!target) return;
     setSaving(true);
     try {
       const typeValues: { entryTypeId?: string; modId?: string; value: string }[] = [];
-      if (range && target.rangeMod) {
+      if (rangeValue && target.rangeMod) {
         typeValues.push({
           entryTypeId: target.rangeMod.entryTypeId,
           modId: target.rangeMod.modId,
-          value: range,
+          value: rangeValue,
         });
       }
       if (quality && target.qualityMod) {
@@ -95,7 +120,7 @@ function SleepSheetBody({ date, open, onClose, embedded }: SleepSheetProps) {
       }
 
       // Uyanma saati varsa girdinin zamanı odur; yoksa günün o anki saati
-      const { end } = parseDTR(range);
+      const { end } = parseDTR(rangeValue);
       let occurredAt: number;
       if (end) {
         occurredAt = new Date(end).getTime();
@@ -151,7 +176,7 @@ function SleepSheetBody({ date, open, onClose, embedded }: SleepSheetProps) {
                   mod={target.rangeMod}
                   icon={modAtomIcon(target.rangeMod)}
                   color={ACCENT}
-                  value={range}
+                  value={rangeValue}
                   onChange={setRange}
                   entryDate={date}
                 />

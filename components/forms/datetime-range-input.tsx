@@ -30,6 +30,31 @@ export function stringifyDTR(v: { start: string; end: string }): string {
   return JSON.stringify(v);
 }
 
+/**
+ * Bir aralığın SAATLERİNİ başka bir güne taşır — yeni uyku girdisi son
+ * uykunun saatleriyle dolu gelsin diye. Bitiş girilen güne oturur;
+ * başlangıç, eski kayıttaki gün farkı korunarak geriye (23:30'da yatan dün,
+ * 00:30'da yatan aynı gün). Fark okunamazsa ya da tuhafsa varsayılan 1 gün.
+ */
+export function carryDTR(raw: string, entryDate: string): string {
+  const { start, end } = parseDTR(raw);
+  const [sd = "", st = ""] = (start ?? "").split("T");
+  const [ed = "", et = ""] = (end ?? "").split("T");
+  if (!st && !et) return "";
+  let gap = SIDES.end.offset - SIDES.start.offset;
+  if (sd && ed) {
+    const d = Math.round(
+      (new Date(ed + "T00:00:00").getTime() - new Date(sd + "T00:00:00").getTime()) /
+        86400000
+    );
+    if (Number.isFinite(d) && d >= 0 && d <= 2) gap = d;
+  }
+  return stringifyDTR({
+    start: st ? `${offsetDate(entryDate, -gap)}T${st}` : "",
+    end: et ? `${entryDate}T${et}` : "",
+  });
+}
+
 export function calcDTRDuration(start: string, end: string): string | null {
   if (!start || !end) return null;
   const diff = new Date(end).getTime() - new Date(start).getTime();
