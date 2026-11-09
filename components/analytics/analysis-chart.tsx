@@ -1,15 +1,26 @@
 "use client";
 
 import { Fragment } from "react";
-import { LineChart, Pencil, Plus } from "lucide-react";
+import { AreaChart, BarChart3, BarChartHorizontal, LineChart, Pencil, PieChart, Plus, ScatterChart, type LucideIcon } from "lucide-react";
 import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
-import { dayKey, daysIn, fmtEntryDateTime, MAX_CHARTS, type DayBucket, type ScaleRange } from "@/lib/analytics";
+import {
+  chartFormsFor,
+  dayKey,
+  daysIn,
+  fmtEntryDateTime,
+  formOf,
+  MAX_CHARTS,
+  type DayBucket,
+  type FormContext,
+  type ScaleRange,
+} from "@/lib/analytics";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { DailyBarChart } from "./daily-bar-chart";
 import { ChoiceDistribution } from "./choice-distribution";
+import { ChoiceDonut } from "./choice-donut";
 import { ViewMenu } from "./view-menu";
 import { useIsBrutal } from "@/components/structure/brutal";
-import type { ChartKind, Entry } from "@/types";
+import type { ChartForm, ChartKind, Entry } from "@/types";
 
 /**
  * Panodaki grafikler — kullanıcının kurduğu liste.
@@ -39,6 +50,41 @@ export const CHART_HINT: Record<ChartKind, MessageKey> = {
   cumulative: "chart.cumulativeHint",
   points: "chart.pointsHint",
   distribution: "chart.distributionHint",
+};
+
+/** Çizim biçiminin adı, açıklaması ve simgesi — "Nasıl" menüsü */
+export const FORM_LABEL: Record<ChartForm, MessageKey> = {
+  column: "form.column",
+  line: "form.line",
+  area: "form.area",
+  dots: "form.dots",
+  hbar: "form.hbar",
+  donut: "form.donut",
+};
+const FORM_HINT: Record<ChartForm, MessageKey> = {
+  column: "form.columnHint",
+  line: "form.lineHint",
+  area: "form.areaHint",
+  dots: "form.dotsHint",
+  hbar: "form.hbarHint",
+  donut: "form.donutHint",
+};
+const FORM_ICON: Record<ChartForm, LucideIcon> = {
+  column: BarChart3,
+  line: LineChart,
+  area: AreaChart,
+  dots: ScatterChart,
+  hbar: BarChartHorizontal,
+  donut: PieChart,
+};
+/** Seri biçiminin DailyBarChart karşılığı */
+const VARIANT: Record<ChartForm, "bar" | "line" | "area" | "dots"> = {
+  column: "bar",
+  line: "line",
+  area: "area",
+  dots: "dots",
+  hbar: "bar",
+  donut: "bar",
 };
 
 /** Noktalı grafikte en fazla kaç girdi — daha fazlası okunmuyor, kaydırıyor */
@@ -109,6 +155,9 @@ export function AnalysisCharts({
   charts,
   options,
   onPick,
+  forms,
+  formCtx,
+  onPickForm,
   buckets,
   entries,
   valueByEntry,
@@ -142,6 +191,15 @@ export function AnalysisCharts({
   charts: ChartKind[];
   options: ChartKind[];
   onPick: (slot: number, kind: ChartKind | null) => void;
+  /**
+   * NASIL: grafiklerin kayıtlı çizim biçimi (türe göre) ve seçimi. "Ne"
+   * (Düzenle) grafiğin hesabını seçiyor — toplam, ortalama, dağılım;
+   * bu onun nasıl çizileceğini — sütun, çizgi, alan, halka. Bağlamda
+   * sunulamayan biçim seçiliyse türün varsayılanı çizilir.
+   */
+  forms?: Partial<Record<ChartKind, ChartForm>>;
+  formCtx?: FormContext;
+  onPickForm?: (kind: ChartKind, form: ChartForm) => void;
   buckets: DayBucket[];
   entries: Entry[];
   valueByEntry: Map<string, number>;
@@ -198,15 +256,64 @@ export function AnalysisCharts({
     </ViewMenu>
   );
 
-  const chartOf = (kind: ChartKind) =>
-    kind === "distribution" ? (
-      <ChoiceDistribution
-        rows={distribution}
-        color={color}
-        selected={choiceFilter ?? null}
-        onSelect={onChoiceFilter ?? (() => {})}
-      />
-    ) : (
+  // Biçimin bağlamı: dağılımdaki ayrı değer sayısı çizim anında belli
+  const ctx: FormContext = { ...(formCtx ?? { kind: "number" }), slices: distribution.length };
+  const formFor = (kind: ChartKind) => formOf(kind, forms, ctx);
+
+  /** NASIL — grafiğin çizim biçimi. Tek biçim kaldıysa düğme hiç yok. */
+  const formMenu = (kind: ChartKind) => {
+    const opts = chartFormsFor(kind, ctx);
+    if (!onPickForm || opts.length < 2) return null;
+    const cur = formFor(kind);
+    const Icon = FORM_ICON[cur];
+    return (
+      <ViewMenu
+        label={t("board.chartForm")}
+        value={cur}
+        options={opts.map((f) => ({ key: f, label: t(FORM_LABEL[f]), hint: t(FORM_HINT[f]) }))}
+        onPick={(k) => onPickForm(kind, k as ChartForm)}
+        triggerClassName={
+          brutal
+            ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] border-[#111] bg-white text-[#111] active:bg-[#111]/10"
+            : "-mt-1 flex h-7 shrink-0 items-center gap-1 rounded-full bg-[var(--sf-2)] px-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-[var(--sf-3)] hover:text-foreground"
+        }
+      >
+        {brutal ? (
+          <Icon className="h-3.5 w-3.5" strokeWidth={2.5} />
+        ) : (
+          <>
+            <Icon className="h-3 w-3" />
+            {t(FORM_LABEL[cur])}
+          </>
+        )}
+      </ViewMenu>
+    );
+  };
+
+  const chartOf = (kind: ChartKind, cells = false) => {
+    const form = formFor(kind);
+    if (kind === "distribution") {
+      return form === "donut" ? (
+        <ChoiceDonut
+          cells={cells}
+          rows={distribution}
+          color={color}
+          selected={choiceFilter ?? null}
+          onSelect={onChoiceFilter ?? (() => {})}
+        />
+      ) : (
+        <ChoiceDistribution
+          cells={cells}
+          rows={distribution}
+          color={color}
+          selected={choiceFilter ?? null}
+          onSelect={onChoiceFilter ?? (() => {})}
+        />
+      );
+    }
+    // Yığın (evet/hayır) ve kovaya inme yalnız toplamın sütununda
+    const column = kind === "bar" && form === "column";
+    const chart = (
       <DailyBarChart
         data={
           kind === "points"
@@ -218,11 +325,13 @@ export function AnalysisCharts({
         caption={kind === "points" ? undefined : caption}
         showAllTicks={kind === "points" ? false : showAllTicks}
         scale={scale}
-        stack={kind === "bar" ? stack : undefined}
-        variant={kind === "bar" ? "bar" : "line"}
-        onSelect={kind === "bar" ? onSelect : undefined}
+        stack={column ? stack : undefined}
+        variant={VARIANT[form]}
+        onSelect={column ? onSelect : undefined}
       />
     );
+    return cells ? <div className="px-3 pb-2 pt-3">{chart}</div> : chart;
+  };
 
   if (block !== undefined) {
     const canAdd = canEdit && charts.length < MAX_CHARTS;
@@ -269,19 +378,10 @@ export function AnalysisCharts({
                   {head.extra}
                 </span>
                 <span className="flex-1" />
+                {formMenu(kind)}
                 {canEdit && editMenu(kind, slot)}
               </div>
-              {kind === "distribution" ? (
-                <ChoiceDistribution
-                  cells
-                  rows={distribution}
-                  color={color}
-                  selected={choiceFilter ?? null}
-                  onSelect={onChoiceFilter ?? (() => {})}
-                />
-              ) : (
-                <div className="px-3 pb-2 pt-3">{chartOf(kind)}</div>
-              )}
+              {chartOf(kind, true)}
             </div>
             </Fragment>
           );
@@ -307,6 +407,7 @@ export function AnalysisCharts({
                   {head.extra}
                 </span>
               </div>
+              {formMenu(kind)}
               {editMenu(kind, slot)}
             </div>
           )}
@@ -326,34 +427,12 @@ export function AnalysisCharts({
                 {head.extra}
               </h3>
             </div>
+            {formMenu(kind)}
             {editMenu(kind, slot)}
           </div>
           )}
 
-          {kind === "distribution" ? (
-            <ChoiceDistribution
-              rows={distribution}
-              color={color}
-              selected={choiceFilter ?? null}
-              onSelect={onChoiceFilter ?? (() => {})}
-            />
-          ) : (
-            <DailyBarChart
-              data={
-                kind === "points"
-                  ? pointsOf(entries, valueByEntry, buckets, emptyAsZero)
-                  : seriesOf(kind, buckets, emptyAsZero)
-              }
-              color={color}
-              unit={unit}
-              caption={kind === "points" ? undefined : caption}
-              showAllTicks={kind === "points" ? false : showAllTicks}
-              scale={scale}
-              stack={kind === "bar" ? stack : undefined}
-              variant={kind === "bar" ? "bar" : "line"}
-              onSelect={kind === "bar" ? onSelect : undefined}
-            />
-          )}
+          {chartOf(kind)}
         </div>
         </div>
         );

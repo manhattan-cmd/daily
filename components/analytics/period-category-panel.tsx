@@ -39,7 +39,7 @@ import { SummaryBlock, SummaryEmpty, SummaryTile } from "@/components/ui/summary
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
 import { modColor } from "@/lib/mod-color";
-import type { AnalysisSectionKey, Category, ChartKind, Entry, StatKey, SubCategory } from "@/types";
+import type { AnalysisSectionKey, Category, ChartForm, ChartKind, Entry, StatKey, SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
 import { useIsBrutal } from "@/components/structure/brutal";
 import { cn } from "@/lib/utils";
@@ -221,6 +221,10 @@ export function PeriodCategoryPanel({
           : cur.filter((_, i) => i !== slot);
     void saveView({ charts: next });
   };
+
+  /** Grafiğin çizim biçimi (Nasıl) — grafiğin türüne yazılır */
+  const pickForm = (kind: ChartKind, form: ChartForm) =>
+    void saveView({ chartForms: { ...(compute?.chartForms ?? {}), [kind]: form } });
 
   const computed = useMemo(() => {
     if (!data || !compute) return null;
@@ -710,6 +714,9 @@ export function PeriodCategoryPanel({
             charts={compute.charts}
             options={compute.chartOptions}
             onPick={pickChart}
+            forms={compute.chartForms}
+            formCtx={compute.formCtx}
+            onPickForm={pickForm}
             buckets={computed.buckets}
             entries={computed.entries}
             valueByEntry={compute.valueByEntry}
@@ -909,6 +916,9 @@ export function PeriodCategoryPanel({
           charts={compute.charts}
           options={compute.chartOptions}
           onPick={pickChart}
+          forms={compute.chartForms}
+          formCtx={compute.formCtx}
+          onPickForm={pickForm}
           buckets={computed.buckets}
           entries={computed.entries}
           valueByEntry={compute.valueByEntry}

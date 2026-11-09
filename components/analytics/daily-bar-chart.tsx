@@ -2,6 +2,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
@@ -92,8 +94,12 @@ export function DailyBarChart({
    * sorulan şey "ne kadar biriktiği" değil "nereye gittiği". Çubuk 0'dan
    * yükseldiği için 78,8 ile 79,4 arasındaki fark görünmez oluyordu; çizgi
    * ekseni değerlerin kendi aralığına oturtur ve eğilim okunur.
+   *
+   * "area": çizginin altı dolu, eksen sıfırdan — biriken miktar (birikimli
+   * toplam, kova toplamları). "dots": yalnız noktalar, aralarında çizgi yok —
+   * tek tek kayıtlar; çizgi aradaki zamanı varmış gibi birleştiriyordu.
    */
-  variant?: "bar" | "line";
+  variant?: "bar" | "line" | "area" | "dots";
 }) {
   // Skalada çubuklar skalanın tabanından yükselir; boş kova çizilmez —
   // recharts null değeri atlar, 0 ise gerçek bir puan olabilir
@@ -283,7 +289,52 @@ export function DailyBarChart({
         height="100%"
         initialDimension={{ width: boxWidth, height: CHART_H }}
       >
-        {variant === "line" ? (
+        {variant === "area" ? (
+        <AreaChart
+          data={chartData}
+          margin={{ top: 8, right: MARGIN_RIGHT, bottom: 0, left: MARGIN_LEFT }}
+          accessibilityLayer={false}
+        >
+          <CartesianGrid vertical={false} stroke="var(--border)" strokeWidth={1} />
+          <XAxis
+            dataKey="axisLabel"
+            tickLine={false}
+            axisLine={{ stroke: "var(--border)" }}
+            tick={
+              hasSub ? <TwoLineTick data={data} /> : { fill: "#a1a1aa", fontSize: 10 }
+            }
+            height={hasSub ? 34 : undefined}
+            interval={tickInterval}
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            tick={{ fill: "#a1a1aa", fontSize: 10 }}
+            // Alan biriken miktar: taban sıfır, tıpkı çubuk gibi
+            domain={barAxis.domain}
+            ticks={barAxis.ticks}
+            tickFormatter={(v: number) => fmtNum(v)}
+            width={Y_AXIS_WIDTH}
+            className="tabular-nums"
+          />
+          <Tooltip
+            cursor={false}
+            active={tipActive}
+            content={<ChartTip unit={unit} />}
+          />
+          <Area
+            type="monotone"
+            dataKey="value"
+            stroke={color}
+            strokeWidth={2}
+            fill={color}
+            fillOpacity={0.22}
+            dot={false}
+            activeDot={{ r: 4 }}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+        ) : variant === "line" || variant === "dots" ? (
         <LineChart
           data={lineData}
           margin={{ top: 8, right: MARGIN_RIGHT, bottom: 0, left: MARGIN_LEFT }}
@@ -318,10 +369,11 @@ export function DailyBarChart({
           <Line
             type="monotone"
             dataKey="value"
-            stroke={color}
+            // Noktalarda çizgi yok — her kayıt kendi başına
+            stroke={variant === "dots" ? "none" : color}
             strokeWidth={2}
-            dot={{ r: 2.5, fill: color, strokeWidth: 0 }}
-            activeDot={{ r: 4 }}
+            dot={{ r: variant === "dots" ? 3.5 : 2.5, fill: color, strokeWidth: 0 }}
+            activeDot={{ r: variant === "dots" ? 5 : 4 }}
             // Ölçüm yapılmayan gün boşluk bırakmasın: iki tartım arasındaki
             // çizgi kesilirse eğilim parça parça okunuyordu
             connectNulls

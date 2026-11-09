@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  chartFormsFor,
+  formOf,
+  MAX_DONUT_VALUES,
   niceAxis,
   zeroFilledDaily,
   medianOf,
@@ -395,5 +398,52 @@ describe("boş günler 0", () => {
     const daily = zeroFilledDaily(entries, vals, d(1, 0), d(8, 0), d(4));
     expect(daily).toEqual([5, 0, 4, 0]);
     expect(medianOf(daily)).toBe(2);
+  });
+});
+
+describe("grafiğin çizim biçimi (Nasıl)", () => {
+  it("ilk biçim bugünkü çizim: toplam sütun, ortalama çizgi, dağılım yatay çubuk", () => {
+    expect(chartFormsFor("bar", { kind: "number" })[0]).toBe("column");
+    expect(chartFormsFor("line", { kind: "number" })[0]).toBe("line");
+    expect(chartFormsFor("distribution", { kind: "choice", slices: 3 })[0]).toBe("hbar");
+  });
+
+  it("alan yalnız toplanan şeyde; skalanın ortalamasında yok", () => {
+    expect(chartFormsFor("bar", { kind: "number" })).toContain("area");
+    expect(chartFormsFor("bar", { kind: "scale" })).not.toContain("area");
+    expect(chartFormsFor("cumulative", { kind: "duration" })[0]).toBe("area");
+  });
+
+  it("düzey ölçüsünün ortalaması sütunla çizilmez", () => {
+    expect(chartFormsFor("line", { kind: "number", levelMeasure: true })).not.toContain("column");
+    expect(chartFormsFor("line", { kind: "number" })).toContain("column");
+  });
+
+  it("evet/hayır yığını tek biçimli — Nasıl düğmesi çıkmaz", () => {
+    expect(chartFormsFor("bar", { kind: "rate" })).toEqual(["column"]);
+  });
+
+  it("halka: sırasız, az değerli, girdi başına tek değer", () => {
+    expect(chartFormsFor("distribution", { kind: "choice", slices: 4 })).toContain("donut");
+    // Skalanın seviyeleri sıralı
+    expect(chartFormsFor("distribution", { kind: "scale", slices: 4 })).toEqual(["hbar"]);
+    // Duygular: bir girdi birden çok dilime düşer
+    expect(chartFormsFor("distribution", { kind: "choice", slices: 4, multi: true })).toEqual(["hbar"]);
+    // Çok değer
+    expect(chartFormsFor("distribution", { kind: "presence", slices: MAX_DONUT_VALUES + 1 })).toEqual(["hbar"]);
+  });
+
+  it("kayıtlı biçim uymuyorsa varsayılana düşer", () => {
+    const ctx = { kind: "choice" as const, slices: 3 };
+    expect(formOf("distribution", { distribution: "donut" }, ctx)).toBe("donut");
+    expect(formOf("distribution", { distribution: "donut" }, { ...ctx, slices: 20 })).toBe("hbar");
+    expect(formOf("bar", { bar: "donut" }, { kind: "number" })).toBe("column");
+    expect(formOf("bar", undefined, { kind: "number" })).toBe("column");
+  });
+
+  it("biçim kayıtları görünümden geçer", () => {
+    const v = resolveView("number", undefined, { charts: ["bar"], chartForms: { bar: "area" } });
+    expect(v.chartForms).toEqual({ bar: "area" });
+    expect(resolveView("number").chartForms).toEqual({});
   });
 });

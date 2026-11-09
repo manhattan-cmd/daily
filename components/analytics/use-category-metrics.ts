@@ -21,6 +21,8 @@ import {
   SERIES_FOR,
   STATS_FOR,
   CHARTS_FOR,
+  presetOf,
+  type FormContext,
   dayKey,
   textToNumber,
   type DayBucket,
@@ -30,7 +32,7 @@ import {
   type ModKind,
   type ScaleRange,
 } from "@/lib/analytics";
-import type { AnalysisSectionKey, ChartKind, ModReading, SeriesMode, StatKey } from "@/types";
+import type { AnalysisSectionKey, ChartForm, ChartKind, ModReading, SeriesMode, StatKey } from "@/types";
 
 /** Bir girdi kümesinin bütün sayısal okumaları — kutular buradan besleniyor */
 export type StatBag = {
@@ -132,6 +134,10 @@ export interface MetricCompute {
   /** Panodaki grafikler ve bu ölçüde sunulanlar */
   charts: ChartKind[];
   chartOptions: ChartKind[];
+  /** Grafiklerin kayıtlı çizim biçimleri ve biçim seçiminin bağlamı (bkz.
+   *  lib/analytics chartFormsFor) — dağılımın dilim sayısı çizerken eklenir */
+  chartForms: Partial<Record<ChartKind, ChartForm>>;
+  formCtx: FormContext;
   /** Kayıt girilmeyen günler 0 sayılıyor mu (bkz. ResolvedView.emptyAsZero) */
   emptyAsZero: boolean;
   /** Bu ölçüde kutuya konabilecekler */
@@ -507,6 +513,7 @@ export function useCategoryMetrics({
             stats: [] as StatKey[],
             chart: "bar" as const,
             charts: [] as ChartKind[],
+            chartForms: {} as Partial<Record<ChartKind, ChartForm>>,
             series: "sum" as SeriesMode,
             emptyAsZero: false,
           }
@@ -659,6 +666,13 @@ export function useCategoryMetrics({
       chart: spec.chart,
       emptyAsZero: spec.emptyAsZero,
       charts: spec.charts ?? [],
+      chartForms: spec.chartForms ?? {},
+      formCtx: {
+        kind: optionKind,
+        levelMeasure: metric.type === "mod" && presetOf(optionKind, metric.mod.analysis) === "level",
+        // Duygular: aynı özellikten bir girdide birden çok değer
+        multi: [...choicesByEntry.values()].some((l) => l.length > 1),
+      },
       chartOptions:
         metric.type === "count" ? [] : CHARTS_FOR[optionKind] ?? [],
       statsFor,
@@ -674,6 +688,7 @@ export function useCategoryMetrics({
   const saveView = async (patch: {
     stats?: StatKey[];
     charts?: ChartKind[];
+    chartForms?: Partial<Record<ChartKind, ChartForm>>;
     series?: SeriesMode;
   }) => {
     if (metric.type === "count") return;
@@ -683,6 +698,7 @@ export function useCategoryMetrics({
     await setAnalysisView(scopeType, scopeId, metric.mod.id, {
       stats: patch.stats ?? spec?.stats,
       charts: patch.charts ?? spec?.charts,
+      chartForms: patch.chartForms ?? spec?.chartForms,
       emptyAsZero: spec?.emptyAsZero,
       ...(patch.series ? { series: patch.series } : {}),
     });

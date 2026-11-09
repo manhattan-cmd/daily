@@ -308,6 +308,14 @@ export interface AnalysisView {
   stats?: StatKey[];
   /** Panodaki grafikler, sırasıyla. Boş dizi = grafik yok */
   charts?: ChartKind[];
+  /**
+   * Grafiklerin çizim biçimi — "ne" (charts) ile "nasıl" ayrı seçim. Anahtar
+   * grafiğin türü: aynı tür iki kez eklenirse ikisi aynı biçimde çizilir;
+   * sıra değişse ya da yapı sayfası grafikleri yeniden kursa da biçim
+   * kaybolmasın diye konuma değil türe bağlı. Yoksa ya da ölçüye uymuyorsa
+   * türün varsayılanı (bkz. lib/analytics chartFormsFor). İndekssiz alan.
+   */
+  chartForms?: Partial<Record<ChartKind, ChartForm>>;
   /** Panonun bölümleri, sırasıyla — yalnız SECTIONS_VIEW satırında (özelliğe
    *  bağlı değil, yerin kendisinin). Boş dizi = bölüm yok */
   sections?: AnalysisSectionKey[];
@@ -386,6 +394,14 @@ export type ModReading = "flow" | "level";
  *  distribution etiket dağılımı       "hangisi, ne sıklıkla"
  */
 export type ChartKind = "bar" | "line" | "cumulative" | "points" | "distribution";
+
+/**
+ * Grafiğin çizim biçimi — ChartKind grafiğin NE gösterdiği (toplam,
+ * ortalama, dağılım…), bu NASIL çizildiği. Her türde yalnız sonucun
+ * şekline uyan biçimler sunulur: halka yalnız paylarda, alan yalnız
+ * toplanabilen değerlerde (bkz. lib/analytics chartFormsFor).
+ */
+export type ChartForm = "column" | "line" | "area" | "dots" | "hbar" | "donut";
 
 /**
  * Analiz panosunun bölümleri — kutular ve grafiklerin yanında, yerin

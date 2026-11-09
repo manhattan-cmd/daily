@@ -7,6 +7,7 @@ import { numberFormatter, dateFormatter } from "@/lib/utils";
 import { choiceLabel } from "@/lib/choice-level";
 import type {
   AnalysisPreset,
+  ChartForm,
   ChartKind,
   SeriesMode,
   EntryType,
@@ -565,7 +566,7 @@ export function statSub(
 export function classifyMod(
   mod: Mod,
   /** Bakılan kapsamın bu özellik için tercihi (varsa) */
-  view?: { stats?: StatKey[]; charts?: ChartKind[]; series?: SeriesMode; emptyAsZero?: boolean }
+  view?: ViewPrefs
 ): MetricMod | null {
   const vt = mod.valueType ?? "number";
   const spec = resolveView(analysisKindOf(vt, mod.choices), mod.analysis, view);
@@ -761,6 +762,18 @@ export type ResolvedView = {
   /** Kayıt girilmeyen günler 0 sayılır: ortalama/ortanca/en düşük gün
    *  başına, çizgi boş günlerde 0'a iner (bkz. ZERO_FILL_KINDS) */
   emptyAsZero: boolean;
+  /** Grafiklerin kayıtlı çizim biçimi (türe göre); geçerliliği çizerken
+   *  chartFormsFor ile denetlenir — kimi biçim veriye bağlı (halka ≤ 8 değer) */
+  chartForms: Partial<Record<ChartKind, ChartForm>>;
+};
+
+/** Kapsamın kayıtlı tercihleri (AnalysisView’in analize giren alanları) */
+export type ViewPrefs = {
+  stats?: StatKey[];
+  charts?: ChartKind[];
+  chartForms?: Partial<Record<ChartKind, ChartForm>>;
+  series?: SeriesMode;
+  emptyAsZero?: boolean;
 };
 
 /** Ölçüye göre sunulan seri okumaları; ilki varsayılan */
@@ -826,6 +839,70 @@ export const CHART_READING: Record<ChartKind, ModReading> = {
   distribution: "flow",
 };
 
+/**
+ * Grafiğin çizileceği bağlam — biçimlerin bir kısmı ölçüye, bir kısmı
+ * eldeki veriye bağlı.
+ */
+export type FormContext = {
+  /** Ölçünün analiz türü */
+  kind: ModKindForAnalysis;
+  /** Düzey ölçüsü (kilo gibi): sütun sıfırdan başlar, 80 ile 82 kg arası
+   *  kaybolur — ortalaması sütunla çizilmez */
+  levelMeasure?: boolean;
+  /** Dağılımdaki ayrı değer sayısı */
+  slices?: number;
+  /** Bir girdide birden çok değer olabiliyor (duygular) */
+  multi?: boolean;
+};
+
+/** Halka bundan çok ayrı değerde sunulmaz — dilimler okunmaz */
+export const MAX_DONUT_VALUES = 8;
+/** Halkada en çok bu kadar dilim; kalanı "Diğer"de toplanır */
+export const DONUT_SLICES = 5;
+
+/**
+ * Bir grafik türünün çizilebileceği biçimler; ilki varsayılan.
+ *
+ * Grafik seçimi ölçü türüne değil, grafiğin ürettiği sonucun ŞEKLİNE bağlı:
+ * kova başına toplam bir zaman serisi (sütun, çizgi, alan), dağılım bir
+ * bütünün payları (yatay çubuk, halka). Uymayan biçim hiç sunulmuyor:
+ *  - alan yalnız toplanan şeyde — skalanın, oranın ortalaması birikmez,
+ *  - düzey ölçüsünün ortalaması sütunla çizilmez (sıfır tabanı farkı ezer),
+ *  - halka yalnız sırasız etiketlerde, en çok 8 ayrı değerde ve bir girdinin
+ *    tek değer taşıdığı yerde: duygularda bir girdi birden çok dilime düşer,
+ *    skalanın seviyeleri sıralı ve dairede sıra kaybolur,
+ *  - evet/hayır yığını tek biçimli (yığın sütunun kendisi).
+ * Tek biçim kalınca "Nasıl" düğmesi hiç görünmüyor.
+ */
+export function chartFormsFor(chart: ChartKind, ctx: FormContext): ChartForm[] {
+  switch (chart) {
+    case "bar":
+      if (ctx.kind === "rate") return ["column"];
+      if (ctx.kind === "scale") return ["column", "line"];
+      return ["column", "line", "area"];
+    case "line":
+      return ctx.levelMeasure ? ["line", "dots"] : ["line", "column"];
+    case "cumulative":
+      return ["area", "line"];
+    case "points":
+      return ["dots", "line"];
+    case "distribution":
+      if (ctx.kind === "scale" || ctx.multi || (ctx.slices ?? 0) > MAX_DONUT_VALUES) return ["hbar"];
+      return ["hbar", "donut"];
+  }
+}
+
+/** Kayıtlı biçim uyuyorsa o, yoksa türün varsayılanı */
+export function formOf(
+  chart: ChartKind,
+  saved: Partial<Record<ChartKind, ChartForm>> | undefined,
+  ctx: FormContext
+): ChartForm {
+  const opts = chartFormsFor(chart, ctx);
+  const s = saved?.[chart];
+  return s && opts.includes(s) ? s : opts[0];
+}
+
 /** Seri okumasının grafiğe karşılığı — skalada ortalama çubukta kalır
  *  (eksen skalanın kendi aralığı; çizgi orada bir şey kazandırmıyor) */
 function chartFor(kind: ModKindForAnalysis, series: SeriesMode): ChartKind {
@@ -842,7 +919,7 @@ export const MAX_CHARTS = 4;
 export function resolveView(
   kind: ModKindForAnalysis,
   modAnalysis?: ModAnalysis,
-  view?: { stats?: StatKey[]; charts?: ChartKind[]; series?: SeriesMode; emptyAsZero?: boolean }
+  view?: ViewPrefs
 ): ResolvedView {
   const allowedStats = STATS_FOR[kind] ?? STATS_FOR.number;
   const allowedCharts = CHARTS_FOR[kind] ?? CHARTS_FOR.number;
@@ -875,6 +952,7 @@ export function resolveView(
     series: first === "line" || first === "points" ? "average" : first === "distribution" ? "distribution" : "sum",
     chart: first,
     emptyAsZero: ZERO_FILL_KINDS.includes(kind) && !!view?.emptyAsZero,
+    chartForms: view?.chartForms ?? {},
   };
 }
 
