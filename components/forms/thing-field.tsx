@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import {
   createThing,
   currentThingValues,
+  findThingByName,
   joinThingIds,
   splitThingIds,
   thingUsage,
@@ -34,7 +35,9 @@ import type { Mod } from "@/types";
  *
  * Boşken: arama ve listenin nesneleri satır satır (en son kullanılan önde,
  * her satırda nesnenin güncel durumu: "53.485 km"); listede olmayan ad tek
- * dokunuşla eklenir — nesneler çoğu zaman girdi anında doğar.
+ * dokunuşla eklenir — nesneler çoğu zaman girdi anında doğar. Aramanın
+ * yanındaki "Yeni" bunu açıkça söyler: kutu ad yazmaya döner, yazılan ad
+ * listeye eklenip seçilir (yalnız aramaya yazınca çıkan yol görünmüyordu).
  * Seçilince: nesnenin başlığı ve altında, başlıktan inen ipe asılı kendi
  * özellikleri ("Mevcut km", Son önerisi güncel değer). Yazılan değer bu
  * girdiye bu nesne için kaydedilir ve nesnenin güncel durumu olur.
@@ -60,6 +63,8 @@ export function ThingField({
   const [adding, setAdding] = useState(false);
   // Yerine yenisi seçilen nesne — başlığına dokununca liste açılır
   const [replacing, setReplacing] = useState<string | null>(null);
+  // Listeye yeni nesne — arama kutusu ad yazma kutusuna döner
+  const [naming, setNaming] = useState(false);
   const selected = splitThingIds(value);
 
   const data = useLiveQuery(async () => {
@@ -76,7 +81,8 @@ export function ThingField({
   const q = query.trim().toLocaleLowerCase("tr");
   const pool = (data?.things ?? [])
     .filter((th) => !selected.includes(th.id))
-    .filter((th) => (q ? th.name.toLocaleLowerCase("tr").includes(q) : !th.archivedAt))
+    // Ad yazarken liste yalnız yazılana benzeyenleri gösterir — "zaten var mı?"
+    .filter((th) => (q ? th.name.toLocaleLowerCase("tr").includes(q) : !naming && !th.archivedAt))
     .sort(
       (a, b) =>
         (data?.usage.get(b.id)?.last ?? b.createdAt) - (data?.usage.get(a.id)?.last ?? a.createdAt)
@@ -104,13 +110,18 @@ export function ThingField({
   const ink = brutal ? "text-[#111]" : "text-foreground";
   const sub = brutal ? "text-[#111]/55" : "text-muted-foreground";
 
+  const closePicker = () => {
+    setQuery("");
+    setNaming(false);
+    setAdding(false);
+    setReplacing(null);
+  };
   const pick = (thingId: string) => {
+    if (selected.includes(thingId)) return closePicker();
     if (replacing && selected.includes(replacing))
       onChange(joinThingIds(selected.map((x) => (x === replacing ? thingId : x))));
     else onChange(multiple ? joinThingIds([...selected, thingId]) : thingId);
-    setQuery("");
-    setAdding(false);
-    setReplacing(null);
+    closePicker();
   };
   const unpick = (thingId: string) => {
     if (replacing === thingId) setReplacing(null);
@@ -120,7 +131,8 @@ export function ThingField({
   async function addNew() {
     const name = query.trim();
     if (!name || !collectionId) return;
-    const th = await createThing({ collectionId, name });
+    // Aynı ad listede varsa ikincisi açılmaz, o seçilir
+    const th = (await findThingByName(collectionId, name)) ?? (await createThing({ collectionId, name }));
     pick(th.id);
   }
 
@@ -167,34 +179,90 @@ export function ThingField({
       {pickerOpen && (
         <>
           {/* Arama ince bir çubuk — satırlarla aynı boyda bir kutu listeyi
-              ezip geçiyordu */}
-          <label
-            data-thing-search=""
-            className={cn(
-                "flex h-9 items-center gap-2 rounded-lg px-2.5",
-                brutal ? "border-[1.5px] border-[#111] bg-white" : "bg-[var(--sf-2)] ring-1 ring-inset ring-[var(--ln-1)] focus-within:ring-primary/50"
+              ezip geçiyordu. Yanında "Yeni": basınca çubuk ad yazmaya döner
+              (simge +, liste rengi), Enter ya da altta beliren satır ekler */}
+          <div className="flex items-center gap-1.5">
+            <label
+              data-thing-search=""
+              data-naming={naming ? "" : undefined}
+              className={cn(
+                "flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg px-2.5",
+                brutal
+                  ? "border-[1.5px] border-[#111] bg-white"
+                  : "bg-[var(--sf-2)] ring-1 ring-inset ring-[var(--ln-1)] focus-within:ring-primary/50"
               )}
-          >
-            <Search className={cn("h-3.5 w-3.5 shrink-0", sub)} strokeWidth={2.4} />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && q && !exact) {
-                  e.preventDefault();
-                  void addNew();
+              style={
+                naming
+                  ? brutal
+                    ? { background: `color-mix(in srgb, ${listColor} 14%, white)` }
+                    : { boxShadow: `inset 0 0 0 1.5px ${listColor}` }
+                  : undefined
+              }
+            >
+              {naming ? (
+                <Plus className={cn("h-4 w-4 shrink-0", ink)} strokeWidth={2.8} style={brutal ? undefined : { color: listColor }} />
+              ) : (
+                <Search className={cn("h-3.5 w-3.5 shrink-0", sub)} strokeWidth={2.4} />
+              )}
+              <input
+                // Kutu değişince yeniden kurulur — "Yeni"de odak doğrudan ada
+                key={naming ? "name" : "search"}
+                autoFocus={naming}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && q && (naming || !exact)) {
+                    e.preventDefault();
+                    void addNew();
+                  } else if (e.key === "Escape" && naming) {
+                    e.preventDefault();
+                    setNaming(false);
+                    setQuery("");
+                  }
+                }}
+                placeholder={naming ? t("objects.newNamePh") : t("objects.searchIn", { list: coll?.name ?? "" })}
+                aria-label={naming ? t("objects.addToList", { list: coll?.name ?? "" }) : t("action.search")}
+                className={cn("h-full min-w-0 flex-1 bg-transparent text-[13px] font-semibold outline-none", ink, brutal ? "placeholder:text-[#111]/40" : "placeholder:text-muted-foreground/50")}
+              />
+              {(query || naming) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery("");
+                    setNaming(false);
+                  }}
+                  aria-label={naming ? t("action.cancel") : t("action.close")}
+                  className={sub}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </label>
+            {!naming && (
+              <button
+                type="button"
+                data-thing-new=""
+                onClick={() => setNaming(true)}
+                aria-label={t("objects.addToList", { list: coll?.name ?? "" })}
+                className={cn(
+                  "flex h-9 shrink-0 items-center gap-1 rounded-lg pl-2 pr-2.5 text-[13px]",
+                  brutal ? "border-[1.5px] border-[#111] font-black text-[#111] active:translate-y-px" : "font-bold"
+                )}
+                style={
+                  brutal
+                    ? { background: `color-mix(in srgb, ${listColor} 30%, white)` }
+                    : {
+                        background: `color-mix(in srgb, ${listColor} 16%, transparent)`,
+                        color: listColor,
+                        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${listColor} 40%, transparent)`,
+                      }
                 }
-              }}
-              placeholder={t("objects.searchIn", { list: coll?.name ?? "" })}
-              aria-label={t("action.search")}
-              className={cn("h-full min-w-0 flex-1 bg-transparent text-[13px] font-semibold outline-none", ink, brutal ? "placeholder:text-[#111]/40" : "placeholder:text-muted-foreground/50")}
-            />
-            {query && (
-              <button type="button" onClick={() => setQuery("")} aria-label={t("action.close")} className={sub}>
-                <X className="h-3.5 w-3.5" />
+              >
+                <Plus className="h-4 w-4" strokeWidth={2.8} />
+                {t("objects.new")}
               </button>
             )}
-          </label>
+          </div>
 
           {/* Liste bir yere kadar büyür, sonra kendi içinde kayar */}
           <div
@@ -218,6 +286,12 @@ export function ThingField({
                   <span className="block truncate text-[11px] font-semibold opacity-60">{t("objects.newIn", { list: coll?.name ?? "" })}</span>
                 </span>
               </button>
+            )}
+            {naming && !q && (
+              <p className={cn("px-1 text-[12px] leading-snug", sub)}>{t("objects.newHint", { list: coll?.name ?? "" })}</p>
+            )}
+            {naming && shown.length > 0 && (
+              <p className={cn("px-1 pt-0.5 text-[11px] font-bold uppercase tracking-wide", sub)}>{t("objects.alreadyIn")}</p>
             )}
             {shown.map((th) => {
               const summary = summaryOf(states?.get(th.id), featureIds, data.mods);
@@ -244,7 +318,7 @@ export function ThingField({
                 </button>
               );
             })}
-            {!q && pool.length === 0 && (
+            {!q && !naming && pool.length === 0 && (
               <p className={cn("px-1 text-[12px]", sub)}>{t("objects.typeToAdd")}</p>
             )}
           </div>
