@@ -1109,19 +1109,21 @@ export async function listAnalysisViews(
   return new Map(rows.map((r) => [r.modId, r]));
 }
 
-/** Tercihi yazar; satır yoksa yaratır. Boş bırakılan alan varsayılana döner. */
 /**
- * Panonun bölümleri (İstikrar, Gelişim…) özelliğe değil yere ait: aynı
- * tabloda bu takma özellik kimliğiyle duruyor — böylece kategori → alt kalem
- * mirası ve yedekleme kendiliğinden geçerli.
+ * Girdi sayısının (özelliği olmayan okuma) tercihleri — İstatistikler
+ * seçimi. Aynı tabloda bu takma özellik kimliğiyle duruyor: kategori → alt
+ * kalem mirası ve yedekleme kendiliğinden geçerli. (Eskiden aynı yolla
+ * "__sections__" satırında panonun bölümleri duruyordu; o satırlar artık
+ * okunmuyor.)
  */
-export const SECTIONS_VIEW = "__sections__";
+export const COUNT_VIEW = "__count__";
 
+/** Tercihi yazar; satır yoksa yaratır. Boş bırakılan alan varsayılana döner. */
 export async function setAnalysisView(
   targetType: "category" | "subcategory",
   targetId: string,
   modId: string,
-  patch: Partial<Pick<AnalysisView, "stats" | "charts" | "chartForms" | "series" | "option" | "emptyAsZero" | "sections">>
+  patch: Partial<Pick<AnalysisView, "stats" | "charts" | "chartForms" | "series" | "option" | "emptyAsZero" | "insights">>
 ): Promise<void> {
   const existing = await db.analysisViews
     .where("[targetType+targetId+modId]")

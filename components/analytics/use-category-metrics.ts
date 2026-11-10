@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import { resolveAnalysisViews, SECTIONS_VIEW, setAnalysisView } from "@/lib/db/queries";
+import { COUNT_VIEW, resolveAnalysisViews, setAnalysisView } from "@/lib/db/queries";
 import { choiceLabel } from "@/lib/choice-level";
 import {
   average,
@@ -32,7 +32,7 @@ import {
   type ModKind,
   type ScaleRange,
 } from "@/lib/analytics";
-import type { AnalysisSectionKey, ChartForm, ChartKind, ModReading, SeriesMode, StatKey } from "@/types";
+import type { ChartForm, ChartKind, InsightKey, ModReading, SeriesMode, StatKey } from "@/types";
 
 /** Bir girdi kümesinin bütün sayısal okumaları — kutular buradan besleniyor */
 export type StatBag = {
@@ -74,12 +74,18 @@ export interface CategoryMetricsData {
   regularSubNames: string[];
   /** excludeRegular açıkken pencereden çıkarılan girdi sayısı */
   excludedEntryCount: number;
-  /** Panonun bölümleri — yerin (ya da üstünün) tercihi; yoksa varsayılan */
-  sections?: AnalysisSectionKey[];
+  /** İstatistikler seçimi, özelliğe göre (girdi sayısı COUNT_VIEW'da) —
+   *  yerin ya da üstünün tercihi; yoksa türün varsayılanı (bkz. lib/insights) */
+  insightPrefs: Map<string, InsightKey[]>;
 }
 
-/** Hiç seçim yapılmamış yerde açık gelen bölümler */
-export const DEFAULT_SECTIONS: AnalysisSectionKey[] = ["consistency", "growth"];
+/** Görünüm satırlarından İstatistikler seçimleri */
+const insightPrefsOf = (views: Map<string, { insights?: InsightKey[] }>) =>
+  new Map(
+    [...views.entries()]
+      .filter(([, v]) => Array.isArray(v.insights))
+      .map(([k, v]) => [k, v.insights as InsightKey[]])
+  );
 
 export interface MetricCompute {
   /** Girdi başına seçili metriğin değeri — yalnızca değeri olan girdiler haritada */
@@ -150,6 +156,16 @@ export interface MetricCompute {
   statsFor: (subset: Entry[]) => StatBag;
   /** Alt kümedeki son/en düşük/en yüksek değer — düzey kutularının kaynağı */
   levelOf: (subset: Entry[]) => { last: number; min: number; max: number };
+  /**
+   * Girdinin bu okumadaki miktarı — İstatistikler (haftanın günü, en yoğun
+   * gün, ritim) buradan. Girdi sayısında 1; seçenekte 1, süzgeç açıksa o
+   * seçeneğin adedi; özellikte değeri. Değeri yoksa undefined.
+   */
+  amountOf: (entryId: string) => number | undefined;
+  /** Girdinin etiketleri — seçenekte seçilenler, metinde yazının kendisi */
+  labelsOf: (entryId: string) => string[];
+  /** Özelliğin tanımlı seçenekleri (adlarıyla) — "hiç seçilmeyen" bunlardan */
+  choiceOptions: string[];
 }
 
 /**
@@ -261,7 +277,7 @@ export async function loadCategoryMetrics({
         hasRegular,
         regularSubNames,
         excludedEntryCount: 0,
-        sections: (await resolveAnalysisViews(categoryId, rootSubId)).get(SECTIONS_VIEW)?.sections,
+        insightPrefs: insightPrefsOf(await resolveAnalysisViews(categoryId, rootSubId)),
       };
     }
 
@@ -332,7 +348,7 @@ export async function loadCategoryMetrics({
       hasRegular,
       regularSubNames,
       excludedEntryCount,
-      sections: views.get(SECTIONS_VIEW)?.sections,
+      insightPrefs: insightPrefsOf(views),
     };
 }
 
@@ -681,6 +697,24 @@ export function useCategoryMetrics({
       statOptions: metric.type === "count" ? [] : STATS_FOR[optionKind] ?? [],
       // Girdiler zaman sırasında geldiği için "son" gerçekten sonuncusu
       levelOf: (subset: Entry[]) => levelStats(valuesOf(subset)),
+      amountOf: (entryId: string) => {
+        if (metric.type === "count") return 1;
+        if (isChoice) {
+          const list = choicesByEntry.get(entryId);
+          if (!list?.length) return undefined;
+          return choiceFilter ? list.filter((c) => c === choiceFilter).length : 1;
+        }
+        return valueByEntry.get(entryId);
+      },
+      labelsOf: (entryId: string) => {
+        if (isChoice) return choicesByEntry.get(entryId) ?? [];
+        const raw = kind === "presence" ? rawByEntry.get(entryId)?.trim() : undefined;
+        return raw ? [raw] : [];
+      },
+      choiceOptions:
+        rawMod?.valueType === "select"
+          ? (rawMod.choices ?? []).map((c) => choiceLabel(c).trim()).filter(Boolean)
+          : [],
     };
   }, [data, metric, choiceFilter, t]);
 
@@ -700,20 +734,37 @@ export function useCategoryMetrics({
       charts: patch.charts ?? spec?.charts,
       chartForms: patch.chartForms ?? spec?.chartForms,
       emptyAsZero: spec?.emptyAsZero,
+      insights: data?.insightPrefs.get(metric.mod.id),
       ...(patch.series ? { series: patch.series } : {}),
     });
   };
 
-  /** Panonun bölümleri — bakılan yere yazılır (alt kalemlere miras geçer) */
-  const saveSections = (next: AnalysisSectionKey[]) =>
-    setAnalysisView(scopeType, scopeId, SECTIONS_VIEW, { sections: next });
+  /** İstatistikler seçimi — bakılan yere, özelliğin satırına (alt kalemlere
+   *  miras geçer); girdi sayısında COUNT_VIEW satırına */
+  const insightView = metric.type === "count" ? COUNT_VIEW : metric.mod.id;
+  const saveInsights = (next: InsightKey[]) =>
+    setAnalysisView(
+      scopeType,
+      scopeId,
+      insightView,
+      // Miras gelen satırın kutu ve grafikleri de taşınır (bkz. saveView)
+      metric.type === "count"
+        ? { insights: next }
+        : {
+            stats: metric.mod.spec?.stats,
+            charts: metric.mod.spec?.charts,
+            chartForms: metric.mod.spec?.chartForms,
+            emptyAsZero: metric.mod.spec?.emptyAsZero,
+            insights: next,
+          }
+    );
 
   return {
     data,
     metric,
     saveView,
-    sections: data?.sections ?? DEFAULT_SECTIONS,
-    saveSections,
+    savedInsights: data?.insightPrefs.get(insightView),
+    saveInsights,
     // Başka bir özelliğe geçince seçenek süzgeci kalmasın — o süzgeç
     // önceki özelliğin seçeneğiydi, yenisinde karşılığı yok
     setMetricChoice: (m: Metric) => {

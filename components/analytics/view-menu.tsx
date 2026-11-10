@@ -31,7 +31,13 @@ export function ViewMenu({
   label,
   triggerClassName = "block h-full w-full text-left",
   pickSingle = false,
+  selected,
 }: {
+  /**
+   * Çoklu seçim (İstatistikler): verilirse her satır aç/kapa, dokunuş
+   * pencereyi kapatmaz; value yok sayılır, onPick dokunulan anahtarı alır.
+   */
+  selected?: string[];
   /**
    * Ekleme menüleri (Kutu / Grafik / Bölüm ekle): tek seçenek kaldıysa
    * dokunuş onu doğrudan ekler. Yoksa tek seçenekte menü hiç açılmıyor ve
@@ -71,6 +77,7 @@ export function ViewMenu({
     };
   }, [open]);
 
+  const multi = Array.isArray(selected);
   if (pickSingle && options.length === 1) {
     return (
       <button type="button" onClick={() => onPick(options[0].key)} aria-label={`${label}: ${options[0].label}`} className={triggerClassName}>
@@ -78,13 +85,13 @@ export function ViewMenu({
       </button>
     );
   }
-  if (options.length < 2) return <>{children}</>;
+  if (options.length < (multi ? 1 : 2)) return <>{children}</>;
 
   const choices = options.filter((o) => !o.danger);
   const dangers = options.filter((o) => o.danger);
   const pick = (key: string) => {
     onPick(key);
-    setOpen(false);
+    if (!multi) setOpen(false);
   };
 
   return (
@@ -141,11 +148,11 @@ export function ViewMenu({
                 className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5 pb-1.5"
               >
                 {choices.map((o) => {
-                  const on = o.key === value;
+                  const on = multi ? selected.includes(o.key) : o.key === value;
                   return (
                     <button
                       key={o.key}
-                      ref={on ? selectedRef : undefined}
+                      ref={on && !multi ? selectedRef : undefined}
                       type="button"
                       role="option"
                       aria-selected={on}
@@ -170,7 +177,19 @@ export function ViewMenu({
                           </span>
                         )}
                       </span>
-                      {on && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                      {multi ? (
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border-[1.5px]",
+                            on ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40"
+                          )}
+                        >
+                          {on && <Check className="h-3 w-3" strokeWidth={3} />}
+                        </span>
+                      ) : (
+                        on && <Check className="h-4 w-4 shrink-0 text-primary" />
+                      )}
                     </button>
                   );
                 })}

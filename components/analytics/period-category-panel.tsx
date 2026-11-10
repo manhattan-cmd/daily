@@ -25,11 +25,12 @@ import {
 import {
   periodProgress,
   periodShortLabel,
-  shiftPeriod,
   weekPeriod,
   type Period,
 } from "@/lib/period";
-import { AnalysisSections, type ConsistencyData, type GrowthData } from "./analysis-sections";
+import { comparisonWindows, insightOptions, resolveInsights, type InsightKind } from "@/lib/insights";
+import { AnalysisInsights } from "./analysis-insights";
+import { buildInsights } from "./insight-data";
 import { StatTile } from "./stat-tile";
 import { StatCell, StatTiles } from "./stat-tiles";
 import { ShareBars, type ShareRow } from "./share-bars";
@@ -39,7 +40,7 @@ import { SummaryBlock, SummaryEmpty, SummaryTile } from "@/components/ui/summary
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
 import { useCategoryMetrics } from "./use-category-metrics";
 import { modColor } from "@/lib/mod-color";
-import type { AnalysisSectionKey, Category, ChartForm, ChartKind, Entry, StatKey, SubCategory } from "@/types";
+import type { Category, ChartForm, ChartKind, Entry, InsightKey, StatKey, SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
 import { useIsBrutal } from "@/components/structure/brutal";
 import { cn } from "@/lib/utils";
@@ -62,29 +63,6 @@ export function panelWindow(period: Period): { start: number; end: number } {
     return { start: w.start, end: w.end };
   }
   return { start: period.start, end: period.end };
-}
-
-const DAY_MS = 86400000;
-/** "Tümü"nde gelişim penceresi: son 4 hafta vs önceki 4 hafta */
-const TREND_WINDOW_DAYS = 28;
-
-/**
- * Gelişimin karşılaştırma pencereleri. "Tümü"nde son 4 hafta ile önceki 4
- * hafta; takvim dönemlerinde (gün/hafta/ay/yıl/özel) bir önceki dönem —
- * dönem sürüyorsa önceki dönemin AYNI uzunluktaki başı: ayın 12'sinde
- * "geçen aya göre −%60" yanıltıcı olurdu.
- */
-function growthWindows(period: Period) {
-  const nowMs = new Date().getTime();
-  if (period.kind === "all") {
-    const recentStart = startOfDayMs(new Date(nowMs)) - (TREND_WINDOW_DAYS - 1) * DAY_MS;
-    return { all: true as const, recentStart, prevStart: recentStart - TREND_WINDOW_DAYS * DAY_MS, prevEnd: recentStart };
-  }
-  const prev = shiftPeriod(period, -1);
-  const inProgress = nowMs >= period.start && nowMs < period.end;
-  const prevStart = prev?.start ?? period.start;
-  const prevEnd = prev ? (inProgress ? Math.min(prev.end, prev.start + (nowMs - period.start)) : prev.end) : period.start;
-  return { all: false as const, prev, inProgress, prevStart, prevEnd };
 }
 
 export function PeriodCategoryPanel({
@@ -122,8 +100,8 @@ export function PeriodCategoryPanel({
     data,
     metric,
     saveView,
-    sections,
-    saveSections,
+    savedInsights,
+    saveInsights,
     compute,
     choiceFilter,
     setChoiceFilter,
@@ -158,37 +136,25 @@ export function PeriodCategoryPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, shownMetric]);
 
-  // Gelişimin önceki penceresi ayrı okunur — dönemin kendi verisi (özellik
-  // listesi, kırılım, sayılar) önceki dönemle karışmasın. Aynı özellik
-  // istenir; o pencerede yoksa önceki dönemde veri yok sayılır.
-  const growthWin = useMemo(() => growthWindows(period), [period]);
+  // İstatistiklerin geçmişi ayrı okunur — dönemin kendi verisi (özellik
+  // listesi, kırılım, sayılar) geçmişle karışmasın. Önceki dönemler
+  // (haftada son 12 hafta, ayda son 12 ay…) tek seferde; aynı özellik
+  // istenir, o pencerede yoksa geçmişte veri yok sayılır. "Tümü"nde geçmiş
+  // dönemin kendi verisinden kesilir, burası boş okunur.
+  const win = useMemo(() => comparisonWindows(period), [period]);
   const prevMetrics = useCategoryMetrics({
     category,
     rootSubId: focus?.id,
-    fetchStart: growthWin.prevStart,
-    fetchEnd: growthWin.prevEnd,
+    fetchStart: win.fetchStart,
+    fetchEnd: win.fetchEnd,
     resetKey: category.id,
     preferredMetricId: shownMetric === "count" ? undefined : shownMetric,
     initialMetricId: shownMetric === "count" ? "count" : undefined,
     excludeRegular,
   });
-  // Dağılımda gelişim seçilen seçeneğin adedi — önceki pencere de onu saysın
+  // Seçenek süzgeci açıkken geçmiş de o seçeneğin adedini saysın
   const setPrevChoice = prevMetrics.setChoiceFilter;
   useEffect(() => setPrevChoice(choiceFilter), [choiceFilter, setPrevChoice]);
-
-  /** Bölüm ekle / değiştir / kaldır — kutularla aynı mantık */
-  const pickSection = (slot: number, key: AnalysisSectionKey | null) => {
-    const cur = sections;
-    const next =
-      slot < 0
-        ? key
-          ? [...cur, key]
-          : cur
-        : key
-          ? cur.map((k, i) => (i === slot ? key : k))
-          : cur.filter((_, i) => i !== slot);
-    void saveSections(next);
-  };
 
   /**
    * Pano düzenleme: yuvayı değiştir, kaldır (key null) ya da sona ekle
@@ -473,80 +439,66 @@ export function PeriodCategoryPanel({
     };
   }, [data, compute, metric.type, period, containingWeek, category, focus?.id]);
 
-  // Bölümlerin okumaları (bkz. AnalysisSections)
+  // İstatistikler (bkz. AnalysisInsights) — ölçünün türüne göre sunulanlar
+  // ve panoda duranlar; seçim bakılan yere, özelliğin satırına yazılır
+  const insightKind: InsightKind =
+    metric.type === "count" ? "count" : (compute?.formCtx.kind ?? "number");
+  const insightLevel = compute?.reading === "level";
+  const insightOpts = useMemo(
+    () => insightOptions(insightKind, { level: insightLevel }),
+    [insightKind, insightLevel]
+  );
+  const insightKeys = useMemo(
+    () => resolveInsights(savedInsights, insightKind, { level: insightLevel }),
+    [savedInsights, insightKind, insightLevel]
+  );
+  const toggleInsight = (k: InsightKey) =>
+    void saveInsights(insightKeys.includes(k) ? insightKeys.filter((x) => x !== k) : [...insightKeys, k]);
+
   const prevCompute = prevMetrics.compute;
   const prevData = prevMetrics.data;
   const prevMetric = prevMetrics.metric;
-  const sectionData = useMemo((): { consistency: ConsistencyData | null; growth: GrowthData | null } | null => {
+  const insightData = useMemo(() => {
     if (!computed || !compute) return null;
-    const now = new Date();
-    const entries = computed.entries;
-    const elapsed = computed.progress.elapsedDays;
-    // İstikrar — girdi girilen günler (özellikten bağımsız); tek günde anlamsız
-    const activeKeys = new Set(entries.map((e) => dayKey(e.occurredAt)));
-    const st = computeStreaks(activeKeys, new Date(Math.min(now.getTime(), period.end - 1)));
-    const consistency =
-      period.kind === "day"
-        ? null
-        : {
-            activeDays: activeKeys.size,
-            elapsedDays: elapsed,
-            ratio: elapsed ? (activeKeys.size / elapsed) * 100 : 0,
-            current: st.current,
-            best: st.best,
-          };
-    // Gelişim — dağılımda yalnız bir seçenek seçiliyken anlamlı
-    if (compute.isChoice && !choiceFilter) return { consistency, growth: null };
-    const recentEntries = growthWin.all ? entries.filter((e) => e.occurredAt >= growthWin.recentStart) : entries;
+    // Geçmiş aynı özelliği okuyabildiyse — yoksa (o pencerede o özelliğe
+    // hiç veri girilmemiş) geçmiş yok sayılır
     const same =
       !!prevCompute &&
       !!prevData &&
       (metric.type === "count"
         ? prevMetric.type === "count"
         : prevMetric.type !== "count" && prevMetric.mod.id === metric.mod.id);
-    const prevEntries = same ? prevData!.entries : [];
-    // Oranda karşılaştırılan şey adet değil oranın kendisi; farkı da PUAN
-    const recentValue = compute.isRate ? compute.averageOf(recentEntries) : compute.aggregate(recentEntries);
-    const prevValue = same ? (compute.isRate ? prevCompute!.averageOf(prevEntries) : prevCompute!.aggregate(prevEntries)) : 0;
-    // "Önceki dönem 0" ile "önceki dönemde veri yok" farklı — kayda bakılır
-    const hasPrev = same && (metric.type === "count" ? prevValue > 0 : prevCompute!.filledCount(prevEntries) > 0);
-    const growth: GrowthData = {
-      recentLabel: growthWin.all ? t("insights.last4Weeks") : periodShortLabel(period, now),
-      prevLabel: growthWin.all
-        ? t("insights.prev4Weeks")
-        : growthWin.prev
-          ? periodShortLabel(growthWin.prev, now)
-          : "—",
-      prevNote:
-        !growthWin.all && growthWin.inProgress && period.kind !== "day"
-          ? t("an.samePortion", { n: elapsed })
-          : undefined,
-      recentValue,
-      prevValue,
-      hasPrev,
-      growthPoints: compute.isAvgLike && hasPrev ? (recentValue - prevValue) * (compute.isRate ? 100 : 1) : null,
-      growthPct: !compute.isAvgLike && hasPrev && prevValue > 0 ? ((recentValue - prevValue) / prevValue) * 100 : null,
-      isRate: compute.isRate,
-      isAvgLike: compute.isAvgLike,
-      unit: metric.type === "count" ? translate("an.entriesUnit") : compute.unit || undefined,
-      note: compute.aggregateNote,
-      basis: growthWin.all ? t("an.growthAll") : t("an.growthPeriod"),
-    };
-    return { consistency, growth };
-  }, [computed, compute, period, choiceFilter, growthWin, prevCompute, prevData, prevMetric, metric, t]);
+    const subLabels = new Map(computed.entryRows.map((r) => [r.id, r.subLabel]));
+    return buildInsights({
+      keys: insightKeys,
+      kind: insightKind,
+      level: insightLevel,
+      period,
+      now: new Date(),
+      progress: computed.progress,
+      cur: { entries: computed.entries, compute },
+      past: same ? { entries: prevData!.entries, compute: prevCompute! } : null,
+      windows: win,
+      buckets: computed.buckets,
+      granularity: computed.granularity,
+      periodLabel: periodShortLabel(period),
+      subLabelOf: (id) => subLabels.get(id),
+    });
+  }, [computed, compute, prevCompute, prevData, prevMetric, metric, insightKeys, insightKind, insightLevel, period, win]);
 
   if (!data || !compute || !computed) return null;
-  const sectionsEl = sectionData && (
-    <AnalysisSections
-      keys={sections}
-      onPick={pickSection}
-      consistency={sectionData.consistency}
-      growth={sectionData.growth}
+  const unit = compute.unit || undefined;
+  const insightsEl = insightData && (
+    <AnalysisInsights
+      block={brutal}
+      data={insightData}
+      keys={insightKeys}
+      options={insightOpts}
+      onToggle={toggleInsight}
       color={lensColor}
+      unit={metric.type === "count" ? translate("an.entriesUnit") : unit}
     />
   );
-
-  const unit = compute.unit || undefined;
   const { progress, weekContext } = computed;
   const isDay = period.kind === "day";
   /** Girdi kutusunun alt yazısı — sayının kaç günü kapsadığı */
@@ -734,9 +686,8 @@ export function PeriodCategoryPanel({
           />
         )}
 
-        {/* Panonun bölümleri — İstikrar, Gelişim; eklenir, kaldırılır. Önce
-            alt kategori dağılımı ve grafikler, bölümler onların altında */}
-        {!empty && sectionsEl}
+        {/* İstatistikler — grafiklerin altında, dönemin rakamlarının bağlamı */}
+        {!empty && insightsEl}
 
         {!empty && (
           <EntryListBlock
@@ -950,8 +901,8 @@ export function PeriodCategoryPanel({
         </Layer>
       )}
 
-      {/* Bölümler (İstikrar, Gelişim) dağılım ve grafiklerin altında */}
-      {sectionsEl}
+      {/* İstatistikler dağılım ve grafiklerin altında */}
+      {insightsEl}
 
       {/* Girdi listesi */}
       <Layer bare className="mb-0">

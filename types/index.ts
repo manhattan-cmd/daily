@@ -316,9 +316,13 @@ export interface AnalysisView {
    * türün varsayılanı (bkz. lib/analytics chartFormsFor). İndekssiz alan.
    */
   chartForms?: Partial<Record<ChartKind, ChartForm>>;
-  /** Panonun bölümleri, sırasıyla — yalnız SECTIONS_VIEW satırında (özelliğe
-   *  bağlı değil, yerin kendisinin). Boş dizi = bölüm yok */
-  sections?: AnalysisSectionKey[];
+  /**
+   * Panonun İstatistikler bölümünde duranlar (bkz. lib/insights). Sıra
+   * katalogdan gelir, bu bir küme. Boş dizi = hepsi kaldırıldı; yoksa
+   * türün varsayılanı. Girdi sayısının seçimi COUNT_VIEW satırında.
+   * İndekssiz alan.
+   */
+  insights?: InsightKey[];
   /** @deprecated v20'de tek grafik vardı; okunurken charts'ın ilk elemanına çevrilir */
   series?: SeriesMode;
   /**
@@ -404,12 +408,42 @@ export type ChartKind = "bar" | "line" | "cumulative" | "points" | "distribution
 export type ChartForm = "column" | "line" | "area" | "dots" | "hbar" | "donut";
 
 /**
- * Analiz panosunun bölümleri — kutular ve grafiklerin yanında, yerin
- * tamamına dair okumalar: İstikrar (kaç gün kayıt, seriler), Gelişim
- * (önceki döneme göre). Kutular gibi eklenip kaldırılıyor; tercih yerin
- * (kategori / alt kategori) kendisine yazılıyor, alt kalemlere miras geçiyor.
+ * Analiz panosunun İstatistikler bölümündeki okumalar — grafiklerin
+ * altında, dönemin rakamlarının bağlamı (bkz. lib/insights INSIGHTS_FOR).
+ * Eskiden yerine İstikrar ve Gelişim bölümleri vardı; ikisinin içeriği
+ * buradaki "streak" ve "change" oldu.
  */
-export type AnalysisSectionKey = "consistency" | "growth";
+export type InsightKey =
+  /** Önceki döneme göre — aynı uzunlukta */
+  | "change"
+  /** Son dönemler arasında kaçıncı, kişisel ortalamaya göre nerede */
+  | "history"
+  /** Dönem boyunca artıyor mu, azalıyor mu */
+  | "trend"
+  /** Bu gidişle dönem sonu */
+  | "projection"
+  /** En yüksek ve en düşük girdi, tarihleriyle */
+  | "extremes"
+  /** Girdilerin ortadaki yarısı — çeyrekler arası aralık */
+  | "typical"
+  /** Toplamı en yüksek gün */
+  | "peakDay"
+  /** En sık tekrarlanan değerler */
+  | "top"
+  /** En az seçilenler ve hiç seçilmeyenler */
+  | "rare"
+  /** Son dönemlerde hiç görülmemiş değerler */
+  | "fresh"
+  /** Payı en çok artan ve azalan seçenek */
+  | "movers"
+  /** Haftanın günlerine dağılım */
+  | "weekday"
+  /** Günün saatlerine dağılım */
+  | "hours"
+  /** Kaç günde bir, en uzun ara, son kayıt */
+  | "rhythm"
+  /** Aktif günler, güncel ve rekor seri */
+  | "streak";
 
 export type StatKey =
   /** Dönemin toplamı */
