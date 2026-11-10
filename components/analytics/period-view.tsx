@@ -74,6 +74,7 @@ import { intlTag, useLocale, useT, translate } from "@/lib/i18n";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { HoldHeight } from "@/components/ui/hold-height";
 import { routes } from "@/lib/routes";
 
 /**
@@ -634,7 +635,7 @@ export function PeriodView({
                     action={
                       period.kind === "all"
                         ? undefined
-                        : { label: t("an.seeAll"), icon: ArrowRight, color: "#fff", onClick: () => router.push(routes.period("all")) }
+                        : { label: t("an.seeAll"), icon: ArrowRight, color: "#fff", onClick: () => router.push(routes.period("all"), { scroll: false }) }
                     }
                   />
                 )}
@@ -644,16 +645,20 @@ export function PeriodView({
 
           {!selectedCat && <ObjectsCard start={period.start} end={period.end} />}
 
+          {/* Dönem değişince panel baştan kurulur; verisi gelene kadar eski
+              boyu tutulur ki kaydırma başa kırpılmasın (bkz. HoldHeight) */}
           {selectedCat && (
-            <PeriodCategoryPanel
-              key={`${selectedCat.id}|${period.key}`}
-              category={selectedCat}
-              period={period}
-              path={path}
-              metricId={metricId}
-              onDrill={drillTo}
-              onResolved={(id) => setMetricSel({ catId: selectedCat.id, id })}
-            />
+            <HoldHeight holdKey={period.key}>
+              <PeriodCategoryPanel
+                key={`${selectedCat.id}|${period.key}`}
+                category={selectedCat}
+                period={period}
+                path={path}
+                metricId={metricId}
+                onDrill={drillTo}
+                onResolved={(id) => setMetricSel({ catId: selectedCat.id, id })}
+              />
+            </HoldHeight>
           )}
 
           {/* Tüm kategorilerin girdileri — sayfanın en altı, yaklaşınca
@@ -756,7 +761,7 @@ export function PeriodView({
               unit={translate("an.entriesUnit")}
               caption={computed.seriesFrame?.caption}
               showAllTicks={computed.seriesFrame?.showAllTicks}
-              onSelect={(k) => router.push(routes.period(k))}
+              onSelect={(k) => router.push(routes.period(k), { scroll: false })}
             />
           </div>
         )}
@@ -793,15 +798,17 @@ export function PeriodView({
         {/* Seçilen yerin analizi — bandın seçicileriyle belirlenen özellik
             ve yer; kırılımdan inmek de yeri değiştirir */}
         {data && selectedCat && (
-          <PeriodCategoryPanel
-            key={`${selectedCat.id}|${period.key}`}
-            category={selectedCat}
-            period={period}
-            path={path}
-            metricId={metricId}
-            onDrill={drillTo}
-            onResolved={(id) => setMetricSel({ catId: selectedCat.id, id })}
-          />
+          <HoldHeight holdKey={period.key}>
+            <PeriodCategoryPanel
+              key={`${selectedCat.id}|${period.key}`}
+              category={selectedCat}
+              period={period}
+              path={path}
+              metricId={metricId}
+              onDrill={drillTo}
+              onResolved={(id) => setMetricSel({ catId: selectedCat.id, id })}
+            />
+          </HoldHeight>
         )}
 
         {/* Tüm kategorilerin girdileri — sayfanın en altı, yaklaşınca çizilir */}

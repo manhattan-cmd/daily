@@ -1,4 +1,4 @@
-import { computeStreaks, dayKey, fmtNum, startOfDayMs, type DayBucket, type Granularity } from "@/lib/analytics";
+import { computeStreaks, dayKey, fmtNum, startOfDayMs, type Granularity } from "@/lib/analytics";
 import {
   compareValues,
   freshLabels,
@@ -9,6 +9,7 @@ import {
   rankAmong,
   rhythmOf,
   tally,
+  trendWindows,
   weekdayProfile,
   type ComparisonWindows,
   type DayPart,
@@ -74,6 +75,15 @@ export type InsightData = {
     intercept: number;
     dir: "up" | "down" | "flat";
     per: Granularity;
+    /** Kovaların kısa adları — eksen */
+    labels: string[];
+    /** Toplananlar sütunla, ortalamalar noktayla çizilir */
+    bars: boolean;
+    /** Yarım kovalar (süren, ya da kayıtlar ortasında başlayan) — toplananlarda
+     *  hesaba katılmaz, kesik çizilir */
+    skipped: Pt[];
+    /** Değer ekseninin uçları — oranda 0–1, skalada skalanın uçları; yoksa veriden */
+    range: [number, number] | null;
   };
   projection?: { cur: number; projected: number; prevFull: number | null; prevLabel: string; kind: PeriodKind };
   extremes?: {
@@ -108,6 +118,13 @@ function stripOf(start: number, end: number, on: Set<string>, now: number): Stri
   return out.slice(-STRIP_DAYS);
 }
 
+/** Eğilimin kovaları — ölçünün dolu ilk girdisinden başlar */
+function trendWindowsOf(s: Src, period: Period, nowMs: number) {
+  let first = Infinity;
+  for (const e of s.entries) if (e.occurredAt < first && s.compute.filledCount([e]) > 0) first = e.occurredAt;
+  return Number.isFinite(first) ? trendWindows(period, first, nowMs) : null;
+}
+
 export function buildInsights(p: {
   keys: InsightKey[];
   kind: InsightKind;
@@ -121,8 +138,6 @@ export function buildInsights(p: {
   /** Önceki pencerelerin girdileri — aynı özellik okunabildiyse; "Tümü"nde kullanılmaz */
   past: Src | null;
   windows: ComparisonWindows;
-  buckets: DayBucket[];
-  granularity: Granularity;
   /** Dönemin kısa adı ("bu ay", "Tüm zamanlar") — dağılımların dayanağı */
   periodLabel: string;
   /** Girdinin yeri — en yüksek girdinin altında */
@@ -194,19 +209,33 @@ export function buildInsights(p: {
     }
   }
 
-  if (has("trend") && !isDay && p.buckets.length) {
+  // Eğilim kendi kovalarıyla (bkz. trendWindows): ayda günler, yılda haftalar;
+  // kayıtların başladığı kovadan bugüne
+  const tw = has("trend") && !isDay ? trendWindowsOf(cur, period, nowMs) : null;
+  if (tw) {
     const pts: Pt[] = [];
-    p.buckets.forEach((b, i) => {
-      if ((b.start ?? 0) > nowMs) return;
-      // Süren kova toplananlarda yarım — son nokta düşük çıkıp "azalıyor"
-      // derdi; ortalamalarda yarım kova da ortalama
-      if (additive && (b.end ?? 0) > nowMs) return;
-      if (additive) pts.push({ x: i, y: b.value });
-      else if (b.hasData) pts.push({ x: i, y: rate ? (b.avg ?? 0) : b.value });
+    const skipped: Pt[] = [];
+    tw.wins.forEach((w, i) => {
+      const list = inWin(cur.entries, w);
+      // Yarım kova toplananlarda düşük çıkıp eğilimi bükerdi (süren gün
+      // "azalıyor" derdi) — çizilir ama hesaba katılmaz; ortalamalarda
+      // yarım kova da ortalama
+      if (additive) (w.open || w.partial ? skipped : pts).push({ x: i, y: H(cur, list) });
+      else if (filled(cur, list)) pts.push({ x: i, y: H(cur, list) });
     });
     const ref = rate ? 1 : c.scale ? Math.max(1, c.scale.max - c.scale.min) : undefined;
     const tr = linearTrend(pts, ref);
-    if (tr) out.trend = { pts, span: p.buckets.length, ...tr, per: p.granularity };
+    if (tr)
+      out.trend = {
+        pts,
+        span: tw.wins.length,
+        ...tr,
+        per: tw.res,
+        labels: tw.wins.map((w) => w.label),
+        bars: additive,
+        skipped,
+        range: rate ? [0, 1] : c.scale ? [c.scale.min, c.scale.max] : null,
+      };
   }
 
   if (

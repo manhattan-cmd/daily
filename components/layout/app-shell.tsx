@@ -176,11 +176,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
  *
  * Sorgu da adresin parçası: gün, not ve kategori sayfaları kimliği sorguda
  * taşıyor (bkz. lib/routes); günden güne geçişte yol aynı kalıyor.
+ *
+ * İstisna Analiz: dönemler aynı sayfada sorguyla (?key=) değişiyor ve
+ * görünüm yerinde kalıyor (bkz. app/analytics/page). Aşağıdaki istatistiklere
+ * bakarken zamanı ileri geri oynatan her dokunuşta başa fırlatılıyordu;
+ * Analiz içinde yalnız sorgu değişince kaydırma olduğu yerde kalır.
  */
+const KEEP_SCROLL_ON_QUERY = new Set(["/analytics"]);
+
 function ScrollReset({ target }: { target: React.RefObject<HTMLElement | null> }) {
   const pathname = usePathname();
   const query = useSearchParams().toString();
+  const last = useRef(pathname);
   useEffect(() => {
+    const samePage = last.current === pathname;
+    last.current = pathname;
+    if (samePage && KEEP_SCROLL_ON_QUERY.has(pathname)) return;
     target.current?.scrollTo({ top: 0 });
   }, [pathname, query, target]);
   return null;

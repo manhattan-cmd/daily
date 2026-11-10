@@ -479,8 +479,6 @@ export function PeriodCategoryPanel({
       cur: { entries: computed.entries, compute },
       past: same ? { entries: prevData!.entries, compute: prevCompute! } : null,
       windows: win,
-      buckets: computed.buckets,
-      granularity: computed.granularity,
       periodLabel: periodShortLabel(period),
       subLabelOf: (id) => subLabels.get(id),
     });
@@ -583,7 +581,7 @@ export function PeriodCategoryPanel({
             <SummaryEmpty
               text={emptyText}
               action={
-                all ? undefined : { label: t("an.seeAll"), icon: ArrowRight, color: "#fff", onClick: () => router.push(routes.period("all")) }
+                all ? undefined : { label: t("an.seeAll"), icon: ArrowRight, color: "#fff", onClick: () => router.push(routes.period("all"), { scroll: false }) }
               }
             />
           ) : metric.type === "count" ? (

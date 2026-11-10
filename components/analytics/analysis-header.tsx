@@ -53,7 +53,7 @@ export function AnalysisMenu({
   const go = (p: Period | null) => {
     if (!p) return;
     if (onPick) onPick(p);
-    else router.push(routes.period(p.key));
+    else router.push(routes.period(p.key), { scroll: false });
   };
   const prev = period ? shiftPeriod(period, -1) : null;
   const next = period ? shiftPeriod(period, 1) : null;

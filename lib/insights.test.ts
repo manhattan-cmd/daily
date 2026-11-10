@@ -12,12 +12,46 @@ import {
   resolveInsights,
   rhythmOf,
   tally,
+  trendWindows,
   weekdayProfile,
   HISTORY_COUNT,
 } from "./insights";
-import { allPeriod, monthPeriod, weekPeriod } from "./period";
+import { allPeriod, dayPeriod, monthPeriod, weekPeriod, yearPeriod } from "./period";
 
 const day = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
+
+describe("trendWindows", () => {
+  const at = (y: number, m: number, d: number, h = 12) => new Date(y, m, d, h).getTime();
+  it("ayda günler — kayıtların başladığı günden bugüne, bugün süren", () => {
+    const r = trendWindows(monthPeriod(at(2026, 10, 1)), at(2026, 10, 3, 9), at(2026, 10, 10, 15))!;
+    expect(r.res).toBe("day");
+    expect(r.wins).toHaveLength(8); // 3–10 Kas
+    expect(r.wins[0].partial).toBe(false);
+    expect(r.wins.at(-1)!.open).toBe(true);
+    expect(r.wins.slice(0, -1).some((w) => w.open)).toBe(false);
+  });
+  it("yılda haftalar — kayıtlardan önceki haftalar yok, ortada başlayan ilk hafta yarım", () => {
+    // 19 Ağu 2026 çarşamba
+    const r = trendWindows(yearPeriod(at(2026, 0, 1)), at(2026, 7, 19), at(2026, 10, 10))!;
+    expect(r.res).toBe("week");
+    expect(r.wins[0].start).toBe(weekPeriod(at(2026, 7, 19)).start);
+    expect(r.wins[0].partial).toBe(true);
+    expect(r.wins[1].partial).toBe(false);
+    expect(r.wins.at(-1)!.open).toBe(true);
+  });
+  it("yılın ilk haftası dönemin başında kırpılır", () => {
+    // 1 Oca 2026 perşembe
+    const r = trendWindows(yearPeriod(at(2026, 0, 1)), at(2026, 0, 1, 0), at(2026, 2, 1))!;
+    expect(r.wins[0].start).toBe(at(2026, 0, 1, 0));
+    expect(r.wins[0].partial).toBe(true);
+  });
+  it("biten dönemde süren kova yok; günde eğilim yok", () => {
+    const r = trendWindows(monthPeriod(at(2026, 9, 1)), at(2026, 8, 1), at(2026, 10, 10))!;
+    expect(r.wins).toHaveLength(31);
+    expect(r.wins.some((w) => w.open || w.partial)).toBe(false);
+    expect(trendWindows(dayPeriod(at(2026, 10, 10)), 0, at(2026, 10, 10))).toBeNull();
+  });
+});
 
 describe("istatistik kataloğu", () => {
   it("türe uymayan okuma sunulmaz", () => {

@@ -18,7 +18,15 @@
 import { dateFormatter } from "@/lib/utils";
 import { intlTag, translate } from "@/lib/i18n";
 import { startOfDayMs } from "@/lib/analytics";
-import { periodShortLabel, shiftPeriod, type Period, type PeriodKind } from "@/lib/period";
+import {
+  dayPeriod,
+  monthPeriod,
+  periodShortLabel,
+  shiftPeriod,
+  weekPeriod,
+  type Period,
+  type PeriodKind,
+} from "@/lib/period";
 import type { InsightKey, ModKindForAnalysis } from "@/types";
 
 export type { InsightKey };
@@ -220,6 +228,64 @@ export function linearTrend(
   const rel = base ? (slope * span) / base : 0;
   const dir = Math.abs(rel) < 0.05 ? "flat" : rel > 0 ? "up" : "down";
   return { slope, intercept: my - slope * mx, rel, dir };
+}
+
+export type TrendRes = "day" | "week" | "month";
+
+export type TrendWin = {
+  start: number;
+  end: number;
+  /** Kova tam değil — dönemin kenarında kırpıldı ya da kayıtlar ortasında başladı */
+  partial: boolean;
+  /** Kova sürüyor (bugün içinde) */
+  open: boolean;
+  label: string;
+};
+
+/**
+ * Eğilimin kovaları — grafiğin kovalarından bağımsız. Ayın grafiği haftalık;
+ * ayın 10'unda iki haftalık nokta eğilim çizdirmiyordu, ayın eğilimi günlerden
+ * okunur. Hafta ve ayda gün, yılda hafta; "Tümü"nde ve özel aralıkta
+ * uzunluğa göre. Kayıtların başladığı kovadan bugünün kovasına kadar:
+ * öncesindeki boş aylar toplananlarda 0 sayılıp eğilimi şişiriyordu (yılın
+ * eğilimi −2.400 ₺'den başlıyordu), sonrasındaki günler henüz yok.
+ */
+export function trendWindows(period: Period, firstAt: number, nowMs = Date.now()): { res: TrendRes; wins: TrendWin[] } | null {
+  if (period.kind === "day") return null;
+  const from = Math.max(period.start, firstAt);
+  const end = Math.min(period.end, nowMs + 1);
+  if (!(from < end)) return null;
+  const days = (end - from) / DAY_MS;
+  const res: TrendRes =
+    period.kind === "week" || period.kind === "month"
+      ? "day"
+      : period.kind === "year"
+        ? "week"
+        : days <= 62
+          ? "day"
+          : days <= 366
+            ? "week"
+            : "month";
+  const of = res === "day" ? dayPeriod : res === "week" ? weekPeriod : monthPeriod;
+  const fmt = dateFormatter(
+    intlTag(),
+    res === "month" ? { month: "short", year: days > 366 ? "2-digit" : undefined } : { day: "numeric", month: "short" }
+  );
+  const firstDay = startOfDayMs(new Date(from));
+  const wins: TrendWin[] = [];
+  for (let t = from; t < end; ) {
+    const p = of(t);
+    const start = Math.max(p.start, period.start);
+    wins.push({
+      start,
+      end: Math.min(p.end, period.end),
+      partial: p.start < period.start || p.end > period.end || (!wins.length && firstDay > p.start),
+      open: p.end > nowMs,
+      label: fmt.format(new Date(start)),
+    });
+    t = p.end;
+  }
+  return { res, wins };
 }
 
 /** Dörde bölen noktalar (doğrusal aradeğerleme) — en az 4 değer */

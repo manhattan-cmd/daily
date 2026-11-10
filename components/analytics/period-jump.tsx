@@ -123,7 +123,7 @@ export function PeriodJump({
         ? dayPeriod(start).key
         : customPeriod(start, e).key;
     setOpen(false);
-    router.push(routes.period(key));
+    router.push(routes.period(key), { scroll: false });
   }
 
   // Takvim ızgarası: ayın ilk haftasının pazartesisinden 6 hafta

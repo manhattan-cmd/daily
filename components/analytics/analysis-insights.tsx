@@ -5,11 +5,11 @@ import { ArrowDownRight, ArrowRight, ArrowUpRight, Pencil, Sigma } from "lucide-
 import { fmtNum, fmtPct } from "@/lib/analytics";
 import { fmtInsightDate, partOfHour, weekdayNames } from "@/lib/insights";
 import { useT, type MessageKey } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
+import { cn, numberFormatter } from "@/lib/utils";
 import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import { useIsBrutal } from "@/components/structure/brutal";
 import type { InsightKey } from "@/types";
-import type { InsightData, Pt, StripDay } from "./insight-data";
+import type { InsightData, StripDay } from "./insight-data";
 import { ViewMenu } from "./view-menu";
 
 /**
@@ -78,6 +78,9 @@ const END_KEY = {
 } as const satisfies Record<string, MessageKey>;
 
 const PER_KEY = { day: "ins.per.day", week: "ins.per.week", month: "ins.per.month" } as const satisfies Record<string, MessageKey>;
+
+/** Eğilim açıklamasında kovanın sıfatı — "Günlük toplam" */
+const ADJ_KEY = { day: "ins.adj.day", week: "ins.adj.week", month: "ins.adj.month" } as const satisfies Record<string, MessageKey>;
 
 const PART_KEY = {
   morning: "ins.part.morning",
@@ -234,47 +237,208 @@ export function AnalysisInsights({
     );
   };
 
-  /** Eğilim — kovaların noktaları ve en uygun doğru */
-  const TrendLine = ({ pts, span, slope, intercept }: { pts: Pt[]; span: number; slope: number; intercept: number }) => {
-    const W = 320;
-    const H = 48;
-    const ys = [...pts.map((p) => p.y), intercept, intercept + slope * (span - 1)];
-    const lo = Math.min(...ys);
-    const hi = Math.max(...ys);
-    const X = (x: number) => (span > 1 ? (x / (span - 1)) * (W - 8) + 4 : W / 2);
-    const Y = (y: number) => H - 5 - ((y - lo) / (hi - lo || 1)) * (H - 10);
-    return (
-      <svg viewBox={`0 0 ${W} ${H}`} className="block h-12 w-full" preserveAspectRatio="none" aria-hidden>
-        <polyline
-          points={pts.map((p) => `${X(p.x)},${Y(p.y)}`).join(" ")}
-          fill="none"
-          stroke={gray}
-          strokeWidth={1.5}
-          vectorEffect="non-scaling-stroke"
-        />
-        <line
-          x1={X(0)}
-          y1={Y(intercept)}
-          x2={X(span - 1)}
-          y2={Y(intercept + slope * (span - 1))}
-          stroke={brutal ? "#111" : color}
-          strokeWidth={brutal ? 3 : 2.5}
-          strokeLinecap="round"
-          vectorEffect="non-scaling-stroke"
-        />
-        {brutal && (
-          <line
-            x1={X(0)}
-            y1={Y(intercept)}
-            x2={X(span - 1)}
-            y2={Y(intercept + slope * (span - 1))}
-            stroke={color}
-            strokeWidth={1.5}
-            strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
+  /**
+   * Eğilim — kovaların kendisi (toplananlarda sütun, ortalamalarda nokta) ve
+   * üstünde en uygun doğru; doğrunun iki ucunda değeri, altta eksen ve
+   * açıklama. Yarım kova (süren gün, kayıtların ortasında başladığı hafta)
+   * toplananlarda kesik çerçeveyle, hesaba katılmadan durur.
+   */
+  const TrendChart = ({ d }: { d: NonNullable<InsightData["trend"]> }) => {
+    const xs = d.pts.map((p) => p.x);
+    const x0 = Math.min(...xs);
+    const x1 = Math.max(...xs);
+    const fit = (x: number) => d.intercept + d.slope * x;
+    const ends = [fit(x0), fit(x1)];
+    const vals = [...d.pts.map((p) => p.y), ...ends, ...d.skipped.map((p) => p.y)];
+    let lo: number;
+    let hi: number;
+    if (d.range) {
+      // Skala ve oran kendi uçlarında; doğru taşarsa eksen genişler
+      lo = Math.min(d.range[0], ...ends);
+      hi = Math.max(d.range[1], ...ends);
+    } else if (d.bars) {
+      lo = Math.min(0, ...vals);
+      hi = Math.max(...vals);
+    } else {
+      const a = Math.min(...vals);
+      const b = Math.max(...vals);
+      const pad = (b - a) * 0.15 || Math.abs(b) * 0.1 || 1;
+      lo = a - pad;
+      hi = b + pad;
+    }
+    /** Değerin yüksekliği, alttan yüzde */
+    const Y = (v: number) => ((v - lo) / (hi - lo || 1)) * 100;
+    /** Kovanın ortası, soldan yüzde */
+    const X = (x: number) => ((x + 0.5) / d.span) * 100;
+    const at = new Map(d.pts.map((p) => [p.x, p.y]));
+    const skip = new Map(d.skipped.map((p) => [p.x, p.y]));
+
+    const ink = brutal ? "#111" : color;
+    const fill = brutal ? `color-mix(in srgb, ${color} 42%, #fff)` : `color-mix(in srgb, ${color} 30%, transparent)`;
+    const pill = brutal
+      ? "border-[1.5px] border-[#111] bg-white text-[#111]"
+      : "border border-border bg-card text-foreground";
+
+    /** Doğrunun ucu: halka ve değeri — üst kısımdaysa altında, değilse üstünde */
+    const End = ({ x, v, side }: { x: number; v: number; side: "start" | "end" }) => {
+      const y = Y(v);
+      const below = y > 62;
+      return (
+        <>
+          <span
+            aria-hidden
+            className={cn("absolute h-2.5 w-2.5 -translate-x-1/2 translate-y-1/2 rounded-full", brutal ? "border-[1.5px] border-[#111] bg-white" : "border-2 bg-card")}
+            style={{ left: `${X(x)}%`, bottom: `${y}%`, borderColor: brutal ? undefined : color }}
           />
-        )}
-      </svg>
+          <span
+            className={cn(
+              "absolute whitespace-nowrap rounded-full px-1.5 py-px text-[10px] font-extrabold tabular-nums leading-[14px]",
+              pill
+            )}
+            style={{
+              ...(side === "start" ? { left: `max(0px, calc(${X(x)}% - 6px))` } : { right: `max(0px, calc(${100 - X(x)}% - 6px))` }),
+              ...(below ? { top: `calc(${100 - y}% + 8px)` } : { bottom: `calc(${y}% + 8px)` }),
+            }}
+          >
+            ≈ {fv(v)}
+          </span>
+        </>
+      );
+    };
+
+    const mid = Math.floor((d.span - 1) / 2);
+    const ticks = d.span > 2 ? [0, mid, d.span - 1] : [0, d.span - 1];
+    const series = t(d.range && data.rate ? "ins.trendSeries.rate" : d.bars ? "ins.trendSeries.sum" : "ins.trendSeries.avg", {
+      per: t(ADJ_KEY[d.per]),
+    });
+
+    return (
+      <div>
+        {/* Çizim alanı — üstte uç değerlerine pay; skala ve oranda solda
+            eksenin uçları ("1"–"5", "%0"–"%100"), yoksa noktanın yüksekliği
+            neye göre okunacağı belli değildi */}
+        <div className="relative flex h-[112px] pt-5">
+          {d.range && (
+            <div className={cn("relative mr-1.5 w-7 shrink-0 text-right text-[9.5px] font-bold tabular-nums leading-none", soft)}>
+              <span className="absolute right-0 top-0 -translate-y-1/2">{fv(hi)}</span>
+              <span className="absolute bottom-0 right-0 translate-y-1/2">{fv(lo)}</span>
+            </div>
+          )}
+          <div
+            className={cn(
+              "relative h-full min-w-0 flex-1",
+              d.bars && (brutal ? "border-b-[1.5px] border-[#111]" : "border-b border-border"),
+              d.range && "border-y border-dashed"
+            )}
+            style={d.range ? { borderColor: gray } : undefined}
+          >
+            {d.bars && (
+              <div className="absolute inset-0 flex items-end" style={{ gap: d.span <= 40 ? 2 : d.span <= 80 ? 1 : 0 }}>
+                {Array.from({ length: d.span }, (_, i) => {
+                  const v = at.get(i);
+                  const half = skip.get(i);
+                  return (
+                    <span
+                      key={i}
+                      className={cn("block min-w-0 flex-1 rounded-t-[2px]", half !== undefined && "border-[1.5px] border-dashed border-b-0")}
+                      style={{
+                        height: half !== undefined ? `max(3px, ${Y(half)}%)` : v === undefined ? 0 : `max(2px, ${Y(v)}%)`,
+                        background: half !== undefined ? "transparent" : fill,
+                        borderColor: half !== undefined ? (brutal ? "#111" : color) : undefined,
+                        opacity: half !== undefined ? 0.7 : 1,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            )}
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
+              {!d.bars && (
+                <polyline
+                  points={d.pts.map((p) => `${X(p.x)},${100 - Y(p.y)}`).join(" ")}
+                  fill="none"
+                  stroke={gray}
+                  strokeWidth={1.25}
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              )}
+              <line
+                x1={X(x0)}
+                y1={100 - Y(ends[0])}
+                x2={X(x1)}
+                y2={100 - Y(ends[1])}
+                stroke={ink}
+                strokeWidth={brutal ? 3.5 : 2.5}
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+              />
+              {brutal && (
+                <line
+                  x1={X(x0)}
+                  y1={100 - Y(ends[0])}
+                  x2={X(x1)}
+                  y2={100 - Y(ends[1])}
+                  stroke={color}
+                  strokeWidth={1.5}
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              )}
+            </svg>
+            {!d.bars &&
+              d.pts.map((p) => (
+                <span
+                  key={p.x}
+                  aria-hidden
+                  className={cn("absolute h-[7px] w-[7px] -translate-x-1/2 translate-y-1/2 rounded-full", brutal && "border border-[#111]")}
+                  style={{ left: `${X(p.x)}%`, bottom: `${Y(p.y)}%`, background: brutal ? fill : `color-mix(in srgb, ${color} 55%, transparent)` }}
+                />
+              ))}
+            {End({ x: x0, v: ends[0], side: "start" })}
+            {End({ x: x1, v: ends[1], side: "end" })}
+          </div>
+        </div>
+        {/* Eksen — ilk, orta ve son kova */}
+        <div className={cn("relative mt-1 h-3.5", d.range && "ml-[34px]")}>
+          {ticks.map((i, n) => (
+            <span
+              key={i}
+              className={cn("absolute whitespace-nowrap text-[9.5px] font-bold tabular-nums", soft)}
+              style={
+                n === 0
+                  ? { left: 0 }
+                  : n === ticks.length - 1
+                    ? { right: 0 }
+                    : { left: `${X(i)}%`, transform: "translateX(-50%)" }
+              }
+            >
+              {d.labels[i]}
+            </span>
+          ))}
+        </div>
+        {/* Açıklama */}
+        <div className={cn("mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] font-bold", soft)}>
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              aria-hidden
+              className={cn(d.bars ? "h-2.5 w-2 rounded-[2px]" : "h-[7px] w-[7px] rounded-full", brutal && !d.bars && "border border-[#111]")}
+              style={{ background: d.bars ? fill : brutal ? fill : `color-mix(in srgb, ${color} 55%, transparent)` }}
+            />
+            {series}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="h-[3px] w-3.5 rounded-full" style={{ background: ink }} />
+            {t("ins.trendLine")}
+          </span>
+          {d.skipped.length > 0 && (
+            <span className="inline-flex items-center gap-1.5">
+              <span aria-hidden className="h-2.5 w-2 rounded-t-[2px] border-[1.5px] border-b-0 border-dashed" style={{ borderColor: brutal ? "#111" : color }} />
+              {t("ins.trendOpen")}
+            </span>
+          )}
+        </div>
+      </div>
     );
   };
 
@@ -415,13 +579,23 @@ export function AnalysisInsights({
       case "trend": {
         const d = data.trend;
         if (!d) return null;
-        const step = Math.abs(d.slope) * (data.rate ? 100 : 1);
-        const x = `${d.slope >= 0 ? "+" : "−"}${data.rate ? t("stat.points", { n: fmtNum(step) }) : `${fmtNum(step)}${unit ? ` ${unit}` : ""}`}`;
+        /** İşaretli fark — oranda puan, ötekilerde birimiyle; küçük adım iki
+         *  anlamlı basamakla (skalada "günde +0" yazıyordu) */
+        const signed = (n: number) => {
+          const v = Math.abs(n) * (data.rate ? 100 : 1);
+          const s = v && v < 0.1 ? numberFormatter("en-US", { maximumSignificantDigits: 2 }).format(v) : fmtNum(v);
+          return `${n >= 0 ? "+" : "−"}${data.rate ? t("stat.points", { n: s }) : `${s}${unit ? ` ${unit}` : ""}`}`;
+        };
+        const xs = d.pts.map((p) => p.x);
+        const over = d.slope * (Math.max(...xs) - Math.min(...xs));
         return {
           head: t(d.dir === "up" ? "ins.up" : d.dir === "down" ? "ins.down" : "ins.flat"),
-          sub: d.dir === "flat" ? t("ins.flatSub") : t(PER_KEY[d.per], { x }),
+          sub:
+            d.dir === "flat"
+              ? t("ins.flatSub")
+              : `${t(PER_KEY[d.per], { x: signed(d.slope) })} · ${t("ins.trendOver", { x: signed(over) })}`,
           badge: Badge({ dir: d.dir }),
-          visual: TrendLine({ pts: d.pts, span: d.span, slope: d.slope, intercept: d.intercept }),
+          visual: TrendChart({ d }),
         };
       }
       case "projection": {

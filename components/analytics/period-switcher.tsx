@@ -84,7 +84,7 @@ export function PeriodTabs({
               : allPeriod();
     if (next.key === period.key) return;
     if (onPick) onPick(next);
-    else router.push(routes.period(next.key));
+    else router.push(routes.period(next.key), { scroll: false });
   }
 
   if (strip) {
@@ -189,7 +189,7 @@ export function PeriodNav({
       <button
         type="button"
         disabled={!prev}
-        onClick={() => prev && (onPick ? onPick(prev) : router.push(routes.period(prev.key)))}
+        onClick={() => prev && (onPick ? onPick(prev) : router.push(routes.period(prev.key), { scroll: false }))}
         aria-label={t("insights.previousPeriod")}
         className={btn}
       >
@@ -206,7 +206,7 @@ export function PeriodNav({
       <button
         type="button"
         disabled={nextDisabled}
-        onClick={() => nextP && (onPick ? onPick(nextP) : router.push(routes.period(nextP.key)))}
+        onClick={() => nextP && (onPick ? onPick(nextP) : router.push(routes.period(nextP.key), { scroll: false }))}
         aria-label={t("insights.nextPeriod")}
         className={btn}
       >
