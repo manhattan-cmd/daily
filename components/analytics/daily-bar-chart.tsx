@@ -16,6 +16,9 @@ import {
 } from "recharts";
 import { ArrowRight } from "lucide-react";
 import { fmtNum, niceAxis, type DayBucket, type ScaleRange } from "@/lib/analytics";
+
+/** Zamana oturan eksen: aralık ve işaretleri (kova başları) */
+export type TimeAxis = { domain: [number, number]; ticks: { at: number; label: string }[] };
 import { translate } from "@/lib/i18n";
 
 const MARGIN_RIGHT = 4;
@@ -75,6 +78,7 @@ export function DailyBarChart({
   stack,
   scale,
   variant = "bar",
+  timeAxis,
 }: {
   data: DayBucket[];
   color: string;
@@ -100,14 +104,23 @@ export function DailyBarChart({
    * tek tek kayıtlar; çizgi aradaki zamanı varmış gibi birleştiriyordu.
    */
   variant?: "bar" | "line" | "area" | "dots";
+  /**
+   * "Tek tek" grafiği: eksen ZAMANIN kendisi — kayıtlar tarihlerine göre
+   * yerleşir (veride `at`), kayıtsız hafta boşluk olarak görünür. Eşit
+   * aralıkla dizmek boş haftayı yok ediyordu. Yalnız çizgi/nokta biçiminde.
+   */
+  timeAxis?: TimeAxis;
 }) {
+  const tickText = new Map(timeAxis?.ticks.map((t) => [t.at, t.label]));
   // Skalada çubuklar skalanın tabanından yükselir; boş kova çizilmez —
   // recharts null değeri atlar, 0 ise gerçek bir puan olabilir
   const chartData = scale
     ? data.map((d) => ({ ...d, value: d.hasData === false ? null : d.value }))
     : data;
 
-  // Çizgide boş kova NOKTA değil delik: 0 diye çizilirse eğilim yere düşüyor
+  // Çizgide ve alanda okuması olmayan kova NOKTA değil delik: 0 diye
+  // çizilirse eğilim yere düşüyor; atlanırsa iki yanı birleşip o kova hiç
+  // yokmuş gibi akıyor. Eksende yeri durur — x zamanın kendisi
   const lineData = data.map((d) => ({
     ...d,
     value: d.hasData === false ? null : d.value,
@@ -291,7 +304,7 @@ export function DailyBarChart({
       >
         {variant === "area" ? (
         <AreaChart
-          data={chartData}
+          data={lineData}
           margin={{ top: 8, right: MARGIN_RIGHT, bottom: 0, left: MARGIN_LEFT }}
           accessibilityLayer={false}
         >
@@ -341,16 +354,33 @@ export function DailyBarChart({
           accessibilityLayer={false}
         >
           <CartesianGrid vertical={false} stroke="var(--border)" strokeWidth={1} />
-          <XAxis
-            dataKey="axisLabel"
-            tickLine={false}
-            axisLine={{ stroke: "var(--border)" }}
-            tick={
-              hasSub ? <TwoLineTick data={data} /> : { fill: "#a1a1aa", fontSize: 10 }
-            }
-            height={hasSub ? 34 : undefined}
-            interval={tickInterval}
-          />
+          {timeAxis ? (
+            <XAxis
+              type="number"
+              dataKey="at"
+              domain={timeAxis.domain}
+              allowDataOverflow
+              ticks={timeAxis.ticks.map((t) => t.at)}
+              tickFormatter={(v: number) => tickText.get(v) ?? ""}
+              interval={0}
+              tickLine={false}
+              axisLine={{ stroke: "var(--border)" }}
+              tick={{ fill: "#a1a1aa", fontSize: 10 }}
+              // Uçtaki nokta eksenin kenarında yarım kalmasın
+              padding={{ left: 6, right: 6 }}
+            />
+          ) : (
+            <XAxis
+              dataKey="axisLabel"
+              tickLine={false}
+              axisLine={{ stroke: "var(--border)" }}
+              tick={
+                hasSub ? <TwoLineTick data={data} /> : { fill: "#a1a1aa", fontSize: 10 }
+              }
+              height={hasSub ? 34 : undefined}
+              interval={tickInterval}
+            />
+          )}
           <YAxis
             tickLine={false}
             axisLine={false}
@@ -374,9 +404,11 @@ export function DailyBarChart({
             strokeWidth={2}
             dot={{ r: variant === "dots" ? 3.5 : 2.5, fill: color, strokeWidth: 0 }}
             activeDot={{ r: variant === "dots" ? 5 : 4 }}
-            // Ölçüm yapılmayan gün boşluk bırakmasın: iki tartım arasındaki
-            // çizgi kesilirse eğilim parça parça okunuyordu
-            connectNulls
+            // Okuması olmayan kovada çizgi KESİLİR — birleştirmek orada veri
+            // varmış gibi gösteriyordu (kullanıcı: "x ekseni zamanın
+            // sürekliliği, ama veri olmayan yerde süreklilik görünmemeli").
+            // İki boşluk arasındaki tek okuma noktasıyla durur
+            connectNulls={false}
             isAnimationActive={false}
           />
         </LineChart>

@@ -9,7 +9,7 @@ import { cn, numberFormatter } from "@/lib/utils";
 import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import { useIsBrutal } from "@/components/structure/brutal";
 import type { InsightKey } from "@/types";
-import type { InsightData, StripDay } from "./insight-data";
+import type { InsightData, Pt, StripDay } from "./insight-data";
 import { ViewMenu } from "./view-menu";
 
 /**
@@ -353,16 +353,27 @@ export function AnalysisInsights({
               </div>
             )}
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
-              {!d.bars && (
-                <polyline
-                  points={d.pts.map((p) => `${X(p.x)},${100 - Y(p.y)}`).join(" ")}
-                  fill="none"
-                  stroke={gray}
-                  strokeWidth={1.25}
-                  strokeLinejoin="round"
-                  vectorEffect="non-scaling-stroke"
-                />
-              )}
+              {/* Noktaları bağlayan soluk çizgi yalnız ardışık kovalarda —
+                  kaydı olmayan kovanın üstünden geçmez (orada veri yok) */}
+              {!d.bars &&
+                d.pts
+                  .reduce<Pt[][]>((runs, p, i) => {
+                    if (i && p.x === d.pts[i - 1].x + 1) runs[runs.length - 1].push(p);
+                    else runs.push([p]);
+                    return runs;
+                  }, [])
+                  .filter((run) => run.length > 1)
+                  .map((run) => (
+                    <polyline
+                      key={run[0].x}
+                      points={run.map((p) => `${X(p.x)},${100 - Y(p.y)}`).join(" ")}
+                      fill="none"
+                      stroke={gray}
+                      strokeWidth={1.25}
+                      strokeLinejoin="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  ))}
               <line
                 x1={X(x0)}
                 y1={100 - Y(ends[0])}

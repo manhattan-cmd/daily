@@ -10,12 +10,13 @@ import {
   fmtEntryDateTime,
   formOf,
   MAX_CHARTS,
+  shortMonth,
   type DayBucket,
   type FormContext,
   type ScaleRange,
 } from "@/lib/analytics";
 import { useT, type MessageKey } from "@/lib/i18n";
-import { DailyBarChart } from "./daily-bar-chart";
+import { DailyBarChart, type TimeAxis } from "./daily-bar-chart";
 import { ChoiceDistribution } from "./choice-distribution";
 import { ChoiceDonut } from "./choice-donut";
 import { ViewMenu } from "./view-menu";
@@ -90,8 +91,19 @@ const VARIANT: Record<ChartForm, "bar" | "line" | "area" | "dots"> = {
 /** Noktalı grafikte en fazla kaç girdi — daha fazlası okunmuyor, kaydırıyor */
 const MAX_POINTS = 60;
 
-/** Grafiğin kovadan okuduğu rakam */
-function seriesOf(kind: ChartKind, buckets: DayBucket[], emptyAsZero = false): DayBucket[] {
+/** Henüz gelmemiş kova — eksende yeri durur ama hiçbir okuma çizilmez */
+const ahead = (b: DayBucket, now: number) => b.start !== undefined && b.start > now;
+
+/**
+ * Grafiğin kovadan okuduğu rakam. X ekseni zamanın kendisi: her kova
+ * (kaydı olmayan hafta da) yerini korur. `hasData` "burada çizilecek bir
+ * okuma var mı": toplamda geçmişteki boş kova GERÇEK 0'dır (o hafta
+ * antrenman yok = 0 dk), ortalamada boş kovanın değeri yoktur — çizgi orada
+ * kesilir; gelecekteki kova hiçbirinde çizilmez. Eskiden boş haftanın
+ * iki yanı birleştiriliyor, grafik o hafta hiç yokmuş gibi akıyordu.
+ */
+function seriesOf(kind: ChartKind, buckets: DayBucket[], emptyAsZero = false, scale = false): DayBucket[] {
+  const now = Date.now();
   if (kind === "line") {
     // "Boş günler 0": kovanın değeri gün başına — kaydı olmayan gün 0, çizgi
     // boş günde 0'a iner; henüz gelmemiş günler hiç çizilmez
@@ -101,28 +113,35 @@ function seriesOf(kind: ChartKind, buckets: DayBucket[], emptyAsZero = false): D
         return { ...b, value: days ? (b.sum ?? 0) / days : 0, hasData: days > 0 };
       });
     }
-    return buckets.map((b) => ({ ...b, value: b.avg ?? 0 }));
+    return buckets.map((b) => ({ ...b, value: b.avg ?? 0, hasData: !!b.hasData && !ahead(b, now) }));
   }
   if (kind === "cumulative") {
     let run = 0;
     return buckets.map((b) => {
       run += b.sum ?? 0;
-      // Birikimli çizgide "veri yok" diye bir kova olmaz: birikmiş toplam
-      // boş günlerde de geçerlidir, düz devam eder
-      return { ...b, value: run, hasData: true };
+      // Birikmiş toplam boş günlerde de geçerlidir, düz devam eder — ama
+      // bugünde durur; gelecekteki düz çizgi veri varmış gibi okunuyordu
+      return { ...b, value: run, hasData: !ahead(b, now) };
     });
   }
-  return buckets.map((b) => ({ ...b, value: b.sum ?? b.value }));
+  // Skalada boş kova 0 puan değil, veri yok (bkz. DayBucket.hasData)
+  return buckets.map((b) => ({ ...b, value: b.sum ?? b.value, hasData: scale ? b.hasData : !ahead(b, now) }));
 }
 
-/** Girdi girdi seri — her kayıt kendi noktası. "Boş günler 0" açıksa
- *  kovaların kapsadığı aralıkta kaydı olmayan her gün de 0 noktası olur. */
+/**
+ * Girdi girdi seri — her kayıt kendi noktası, ZAMAN ekseninde tarihine göre
+ * (eşit aralıkla dizmek kayıtsız haftayı yok ediyordu). Aralarında kaydı
+ * olmayan en az bir kova (haftalık görünümde hafta, günlükte gün) kalan iki
+ * kayıt birleşmez: araya delik konur, çizgi orada kesilir — kovalı
+ * grafiklerle aynı kural. "Boş günler 0" açıksa kaydı olmayan her gün de 0
+ * noktası olur (o zaman delik yok, boş gün gerçek 0).
+ */
 function pointsOf(
   entries: Entry[],
   valueByEntry: Map<string, number>,
   buckets: DayBucket[],
   emptyAsZero = false
-): DayBucket[] {
+): { data: DayBucket[]; time?: TimeAxis } {
   const pts: { key: string; at: number; value: number; full: string }[] = entries
     .filter((e) => valueByEntry.has(e.id))
     .map((e) => ({
@@ -142,13 +161,49 @@ function pointsOf(
       pts.push({ key: `zero-${day}`, at, value: 0, full: fmtEntryDateTime(at).split(" · ")[0] });
     }
   }
-  return pts
-    .sort((a, b) => a.at - b.at)
-    .slice(-MAX_POINTS)
-    .map((p) => {
-      const label = fmtEntryDateTime(p.at).split(" · ")[0];
-      return { key: p.key, label, axisLabel: label, full: p.full, value: p.value, hasData: true };
-    });
+  const shown = pts.sort((a, b) => a.at - b.at).slice(-MAX_POINTS);
+  const spans = buckets.filter(
+    (b): b is DayBucket & { start: number; end: number } => b.start !== undefined && b.end !== undefined
+  );
+  const idxOf = (at: number) => spans.findIndex((b) => at >= b.start && at < b.end);
+  const data: DayBucket[] = [];
+  shown.forEach((p, i) => {
+    if (i) {
+      const prev = shown[i - 1];
+      const a = idxOf(prev.at);
+      if (a >= 0 && idxOf(p.at) - a > 1)
+        data.push({ key: `gap-${p.key}`, label: "", axisLabel: "", full: "", value: 0, hasData: false, at: (prev.at + p.at) / 2 });
+    }
+    const label = fmtEntryDateTime(p.at).split(" · ")[0];
+    data.push({ key: p.key, label, axisLabel: label, full: p.full, value: p.value, hasData: true, at: p.at });
+  });
+  if (!spans.length || !shown.length) return { data };
+
+  // Eksen kovaların aralığı (gelecek kovalar da — öteki grafiklerle aynı
+  // çerçeve); son MAX_POINTS kayda kırpıldıysa ilk gösterilen kaydın kovasından
+  const from = pts.length > shown.length ? Math.max(0, idxOf(shown[0].at)) : 0;
+  const axis = spans.slice(from);
+  const monthly = axis[0].periodKey?.startsWith("m-");
+  const step = axis.length > 7 ? Math.ceil(axis.length / 6) : 1;
+  const ticks: TimeAxis["ticks"] = [];
+  let lastMonth = -1;
+  let lastYear = -1;
+  axis.forEach((b, i) => {
+    if (i % step) return;
+    const d = new Date(b.start);
+    // Ay (ayda yıl) değişince adı yazılır, aynı ayda sade gün numarası
+    const label = monthly
+      ? d.getFullYear() !== lastYear
+        ? `${shortMonth(d.getMonth())} ${String(d.getFullYear()).slice(2)}`
+        : shortMonth(d.getMonth())
+      : d.getMonth() !== lastMonth
+        ? `${shortMonth(d.getMonth())} ${d.getDate()}`
+        : `${d.getDate()}`;
+    lastMonth = d.getMonth();
+    lastYear = d.getFullYear();
+    ticks.push({ at: b.start, label });
+  });
+  return { data, time: { domain: [axis[0].start, axis[axis.length - 1].end], ticks } };
 }
 
 export function AnalysisCharts({
@@ -313,13 +368,11 @@ export function AnalysisCharts({
     }
     // Yığın (evet/hayır) ve kovaya inme yalnız toplamın sütununda
     const column = kind === "bar" && form === "column";
+    const pts = kind === "points" ? pointsOf(entries, valueByEntry, buckets, emptyAsZero) : null;
     const chart = (
       <DailyBarChart
-        data={
-          kind === "points"
-            ? pointsOf(entries, valueByEntry, buckets, emptyAsZero)
-            : seriesOf(kind, buckets, emptyAsZero)
-        }
+        data={pts ? pts.data : seriesOf(kind, buckets, emptyAsZero, !!scale)}
+        timeAxis={pts?.time}
         color={color}
         unit={unit}
         caption={kind === "points" ? undefined : caption}

@@ -132,6 +132,8 @@ export type DayBucket = {
   sum?: number;
   avg?: number;
   count?: number;
+  /** "Tek tek" grafikte kaydın anı — zaman ekseninde yeri (bkz. DailyBarChart timeAxis) */
+  at?: number;
   /** Kovanın pencere içindeki sınırları [start, end) */
   start?: number;
   end?: number;
