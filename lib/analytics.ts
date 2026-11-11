@@ -1176,3 +1176,29 @@ export function levelStats(values: number[]): {
     max: Math.max(...values),
   };
 }
+
+/**
+ * Yerin BÜTÜN alt kategorilerinde ortak özellikler — kategori ya da altı
+ * olan alt kategori düzeyinde analiz edilecekler (seçici yalnız bunları
+ * listeler, varsayılan bunlardan açılır). `kidIds`: yerin doğrudan alt
+ * kategorileri (gizli kök hariç).
+ * Bağlar alt kategori hedefli okunur: özellik kategoriye bağlanınca alt
+ * kategorilere kopyalanarak yayılır (bkz. attachMod). Alt kategori yoksa
+ * null — süzülecek bir şey yok.
+ */
+export function commonModIds(
+  kidIds: readonly string[],
+  links: readonly { targetType: string; targetId: string; modId?: string }[]
+): Set<string> | null {
+  if (!kidIds.length) return null;
+  const kids = new Set(kidIds);
+  const per = new Map<string, Set<string>>();
+  for (const a of links) {
+    if (a.targetType !== "subcategory" || !a.modId || !kids.has(a.targetId)) continue;
+    const s = per.get(a.targetId) ?? new Set<string>();
+    s.add(a.modId);
+    per.set(a.targetId, s);
+  }
+  const sets = kidIds.map((k) => per.get(k) ?? new Set<string>());
+  return new Set([...sets[0]].filter((id) => sets.every((s) => s.has(id))));
+}

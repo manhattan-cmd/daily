@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   chartFormsFor,
+  commonModIds,
   formOf,
   MAX_DONUT_VALUES,
   niceAxis,
@@ -445,5 +446,27 @@ describe("grafiğin çizim biçimi (Nasıl)", () => {
     const v = resolveView("number", undefined, { charts: ["bar"], chartForms: { bar: "area" } });
     expect(v.chartForms).toEqual({ bar: "area" });
     expect(resolveView("number").chartForms).toEqual({});
+  });
+});
+
+describe("commonModIds — kategori düzeyinde ortak özellikler", () => {
+  const link = (targetId: string, modId: string, targetType = "subcategory") => ({ targetType, targetId, modId });
+  it("yalnız bütün alt kategorilerde bağlı olanlar", () => {
+    const r = commonModIds(["a", "b", "c"], [
+      link("a", "para"), link("a", "doy"),
+      link("b", "para"), link("b", "doy"), link("b", "yer"),
+      link("c", "para"), link("c", "sure"),
+    ]);
+    expect([...r!]).toEqual(["para"]);
+  });
+  it("kategori bağı, başka kategorinin bağı ve modsuz bağ sayılmaz", () => {
+    const r = commonModIds(["a", "b"], [
+      link("cat", "para", "category"),
+      link("a", "para"), link("x", "doy"), { targetType: "subcategory", targetId: "b" },
+    ]);
+    expect(r!.size).toBe(0);
+  });
+  it("alt kategori yoksa süzgeç yok", () => {
+    expect(commonModIds([], [link("a", "para")])).toBeNull();
   });
 });

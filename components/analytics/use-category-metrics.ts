@@ -13,6 +13,7 @@ import {
   displayModeOf,
   dtrDurationHours,
   fmtNum,
+  commonModIds,
   isChoiceMod,
   parseNumeric,
   sumOrAvg,
@@ -77,6 +78,9 @@ export interface CategoryMetricsData {
   /** İstatistikler seçimi, özelliğe göre (girdi sayısı COUNT_VIEW'da) —
    *  yerin ya da üstünün tercihi; yoksa türün varsayılanı (bkz. lib/insights) */
   insightPrefs: Map<string, InsightKey[]>;
+  /** Yerin bütün doğrudan alt kategorilerinde ortak özellikler — varsayılan
+   *  bunlardan açılır; altı olmayan kalemde null */
+  commonModIds: Set<string> | null;
 }
 
 /** Görünüm satırlarından İstatistikler seçimleri */
@@ -264,6 +268,12 @@ export async function loadCategoryMetrics({
           .map((s) => s.name)
       : [];
     const applyExclude = hasRegular && excludeRegular;
+    // Yerin doğrudan alt kategorileri — kategoride üst düzey kalemler,
+    // alt kategoride kendi çocukları; hepsinde ortak olan özellik varsayılan
+    const kidIds = (rootSubId ? children : allSubs.filter((s) => !s.parentId))
+      .filter((s) => !s.isCategoryRoot)
+      .map((s) => s.id);
+    const common = kidIds.length ? commonModIds(kidIds, await db.categoryModifiers.toArray()) : null;
 
     if (!scopeSubIds.length) {
       return {
@@ -278,6 +288,7 @@ export async function loadCategoryMetrics({
         regularSubNames,
         excludedEntryCount: 0,
         insightPrefs: insightPrefsOf(await resolveAnalysisViews(categoryId, rootSubId)),
+        commonModIds: common,
       };
     }
 
@@ -349,6 +360,7 @@ export async function loadCategoryMetrics({
       regularSubNames,
       excludedEntryCount,
       insightPrefs: insightPrefsOf(views),
+      commonModIds: common,
     };
 }
 
@@ -470,6 +482,12 @@ export function useCategoryMetrics({
         if (found) return metricOf(found);
       }
       if (initialMetricId === undefined && data.mods.length > 0) {
+        // Altı olan yerde bütün alt kategorilerde ortak olandan (seçici de
+        // yalnız onları listeler); ortak yoksa girdi sayısı
+        if (data.commonModIds) {
+          const shared = data.mods.find((m) => data.commonModIds!.has(m.id));
+          return shared ? metricOf(shared) : { type: "count" };
+        }
         return metricOf(data.mods[0]);
       }
     }

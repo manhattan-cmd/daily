@@ -29,6 +29,7 @@ import type {
 } from "@/types";
 import { SCALE_1_5, isScaleChoices } from "@/types";
 import { getLocale, type Locale } from "@/lib/i18n";
+import { commonModIds } from "@/lib/analytics";
 import {
   STARTER_CATEGORIES,
   STARTER_FEATURES,
@@ -1187,6 +1188,15 @@ export async function resolveAnalysisViews(
     for (const [modId, v] of rows) out.set(modId, { ...v, inherited: tid !== self });
   }
   return out;
+}
+
+/** Yerin (kategori ya da alt kategori) bütün doğrudan alt kategorilerinde
+ *  ortak özellikler (bkz. commonModIds) */
+export async function loadCommonModIds(categoryId: string, parentSubId?: string): Promise<Set<string> | null> {
+  const kids = (await db.subcategories.where("categoryId").equals(categoryId).toArray())
+    .filter((s) => (parentSubId ? s.parentId === parentSubId : !s.parentId) && !s.isCategoryRoot)
+    .map((s) => s.id);
+  return kids.length ? commonModIds(kids, await db.categoryModifiers.toArray()) : null;
 }
 
 /**

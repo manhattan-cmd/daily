@@ -12,12 +12,18 @@
  * Bir özellik seçiliyken yer ağacı yalnız o özelliğin bu dönem GEÇTİĞİ
  * yerleri gösterir (sayılar da o özelliğin kayıtları); istenirse tüm yerlere
  * açılır.
+ *
+ * Bulunulan yerin (kategori ya da altı olan alt kategori) alt kategorileri
+ * varsa özellik listesi yalnız onların HEPSİNDE ortak olanları gösterir —
+ * o düzeyde ancak hepsinde olan özellik bütünü anlatır; ötekiler alt
+ * kategoriye inince listede. Altı olmayan kalemde süzgeç yok.
  */
 
 import { createElement, useMemo, useState } from "react";
 import { Check, ChevronDown, LayoutGrid, ListOrdered } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
+import { loadCommonModIds } from "@/lib/db/queries";
 import { SymbolIcon } from "@/lib/icons";
 import { useSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
@@ -85,6 +91,15 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
   const scopeIds = useMemo(() => entries.filter(inScope).map((e) => e.id), [entries, inScope]);
   const scopeKey = scopeIds.join(",");
 
+  // Yerin alt kategorilerinin hepsinde ortak özellikler; altı yoksa süzgeç yok
+  const commonCatId = selectedCat?.id ?? null;
+  const commonSubId = focus?.id;
+  const common = useLiveQuery(
+    async () => ({ ids: commonCatId ? await loadCommonModIds(commonCatId, commonSubId) : null }),
+    [commonCatId, commonSubId]
+  );
+  const commonOn = !!commonCatId && !!common?.ids;
+
   // Kapsamdaki özellikler, kayıt sayılarıyla
   const features = useLiveQuery(async () => {
     const [allValues, mods] = await Promise.all([
@@ -123,6 +138,9 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
   }, [metricId, periodIds]);
   const currentMod =
     metricId !== "count" ? features?.find((f) => f.mod.id === metricId)?.mod : undefined;
+  // Seçili özellik ortak olmasa da listede kalır (alt kategoriden çıkılınca
+  // seçim taşınıyor — işaretsiz kalmasın)
+  const listed = commonOn ? features?.filter((f) => common!.ids!.has(f.mod.id) || f.mod.id === metricId) : features;
   const filtering = !!metricEntryIds && !allPlaces;
 
   // Ağaç: dönemde (süzgeçte o özelliğin) kaydı olan kategoriler ve kalemler
@@ -325,9 +343,14 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
             <>
               <DialogHeader className="text-left">
                 <DialogTitle className="text-[17px]">Özellik</DialogTitle>
+                {commonOn && (
+                  <p data-common-hint="" className={cn("text-[12px] leading-snug", brutal ? "text-[#111]/60" : "text-muted-foreground")}>
+                    {t("an.commonOnly", { place: focus?.name ?? selectedCat?.name ?? "" })}
+                  </p>
+                )}
               </DialogHeader>
               <div className="flex flex-col gap-1">
-                {(features ?? []).map((f) => {
+                {(listed ?? []).map((f) => {
                   const on = metricId === f.mod.id;
                   return (
                     <button
@@ -348,6 +371,9 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
                 })}
                 {features && features.length === 0 && (
                   <p className="px-2.5 py-3 text-[13px] text-muted-foreground">Bu dönemde burada özellik değeri yok.</p>
+                )}
+                {features && features.length > 0 && listed?.length === 0 && (
+                  <p className="px-2.5 py-3 text-[13px] text-muted-foreground">{t("an.noCommon")}</p>
                 )}
               </div>
             </>
