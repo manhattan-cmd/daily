@@ -17,6 +17,8 @@ import {
   type Win,
 } from "@/lib/insights";
 import type { Period, PeriodKind } from "@/lib/period";
+import { intlTag } from "@/lib/i18n";
+import { dateFormatter } from "@/lib/utils";
 import type { Entry, InsightKey } from "@/types";
 import type { MetricCompute } from "./use-category-metrics";
 
@@ -32,7 +34,7 @@ const DAY_MS = 86400000;
 const STRIP_DAYS = 56;
 
 export type Pt = { x: number; y: number };
-export type StripDay = { on: boolean; today: boolean };
+export type StripDay = { on: boolean; today: boolean; at: number };
 
 export type InsightData = {
   /** Oran (evet/hayır) — değerler yüzde, farklar puan */
@@ -57,6 +59,8 @@ export type InsightData = {
   history?: {
     /** Eskiden yeniye; sonuncusu bu pencere. Verisiz ortalama penceresi null */
     values: (number | null)[];
+    /** Sütunların kısa adları — "Eyl", "27 Eki", "2025" */
+    labels: string[];
     rank: number;
     of: number;
     lowest: boolean;
@@ -90,12 +94,13 @@ export type InsightData = {
     max: { v: number; at: number; sub?: string };
     min: { v: number; at: number; sub?: string };
   };
-  typical?: { min: number; q1: number; median: number; q3: number; max: number };
+  /** values: girdilerin kendisi — şeridin altındaki çentikler */
+  typical?: { min: number; q1: number; median: number; q3: number; max: number; values: number[] };
   peakDay?: { v: number; at: number; avgDay: number };
   top?: { rows: { label: string; count: number }[]; total: number; distinct: number; repeats: boolean };
   rare?: { least: { label: string; count: number }[]; never: string[] };
   fresh?: { labels: string[]; n: number; unit: PeriodKind; allBefore: boolean };
-  movers?: ReturnType<typeof moversOf> & { prevLabel: string };
+  movers?: ReturnType<typeof moversOf> & { prevLabel: string; curLabel: string };
   /** basis: dönemin adı, ya da (kısa dönemde geçmişle birlikte) son kaç gün */
   weekday?: { values: (number | null)[]; mode: "sum" | "avg"; basis: string | number; best: number; worst: number };
   hours?: { hours: number[]; part: DayPart; share: number; peakHour: number; basis: string | number };
@@ -113,9 +118,22 @@ function stripOf(start: number, end: number, on: Set<string>, now: number): Stri
   const todayKey = dayKey(now);
   for (let t = startOfDayMs(new Date(start)); t < end; t = startOfDayMs(new Date(t + DAY_MS * 1.5))) {
     const k = dayKey(t);
-    out.push({ on: on.has(k), today: k === todayKey });
+    out.push({ on: on.has(k), today: k === todayKey, at: t });
   }
   return out.slice(-STRIP_DAYS);
+}
+
+/** Geçmiş sütununun kısa adı — pencerenin başından, dönemin türüne göre */
+function winLabel(start: number, kind: PeriodKind): string {
+  const opts: Intl.DateTimeFormatOptions =
+    kind === "month"
+      ? { month: "short" }
+      : kind === "year"
+        ? { year: "numeric" }
+        : kind === "day"
+          ? { weekday: "short" }
+          : { day: "numeric", month: "short" };
+  return dateFormatter(intlTag(), opts).format(new Date(start));
 }
 
 /** Eğilimin kovaları — ölçünün dolu ilk girdisinden başlar */
@@ -187,7 +205,7 @@ export function buildInsights(p: {
     const series = [...windows.prev].reverse().map((w) => {
       const list = inWin(pastSrc.entries, w);
       const ok = filled(pastSrc, list);
-      return { ok, v: ok ? H(pastSrc, list) : additive ? 0 : null };
+      return { ok, v: ok ? H(pastSrc, list) : additive ? 0 : null, at: w.start };
     });
     // Kayıtların başladığı pencereden öncesi sıralamaya girmez — üç hafta
     // önce başlayan birinin "12 haftanın en yükseği" boş haftalardan çıkardı
@@ -200,6 +218,7 @@ export function buildInsights(p: {
       const r = rankAmong(v, others);
       out.history = {
         values: [...kept.map((s) => s.v), v],
+        labels: [...kept.map((s) => winLabel(s.at, period.kind)), winLabel(windows.cur.start, period.kind)],
         ...r,
         vsPct: !avgLike && r.avg > 0 ? ((v - r.avg) / r.avg) * 100 : null,
         vsPoints: avgLike ? (v - r.avg) * (rate ? 100 : 1) : null,
@@ -290,7 +309,7 @@ export function buildInsights(p: {
 
   if (has("typical")) {
     const q = quartiles(vals.map((x) => x.v));
-    if (q && q.max > q.min) out.typical = q;
+    if (q && q.max > q.min) out.typical = { ...q, values: vals.map((x) => x.v) };
   }
 
   // Gün toplamları — en yoğun gün, ritim, seri
@@ -388,6 +407,7 @@ export function buildInsights(p: {
       out.movers = {
         ...moversOf(c.distributionOf(curEntries), pastSrc.compute.distributionOf(prevEntries)),
         prevLabel: windows.prev[0].label,
+        curLabel: windows.cur.label,
       };
     }
   }
