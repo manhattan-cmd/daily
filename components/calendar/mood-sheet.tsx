@@ -8,6 +8,7 @@ import { cn, toLocalDateTimeValue } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { EmotionPicker } from "@/components/forms/emotion-picker";
 import { MoodScale } from "@/components/forms/mood-scale";
+import { moodText } from "@/lib/icons/emotions";
 import { NoteEditorView } from "@/components/forms/note-editor";
 import { EntryShell } from "@/components/forms/entry-shell";
 import { EntryTime } from "@/components/forms/entry-time";
@@ -162,7 +163,7 @@ function MoodSheetBody({ date, open, onClose, embedded }: MoodSheetProps) {
     >
         <EntryShell
           title={t("mood.add")}
-          overline={target?.sub.name}
+          overline={moodText(target?.sub.name, t)}
           icon={Smile}
           accent={ACCENT}
           onClose={onClose}
@@ -189,26 +190,25 @@ function MoodSheetBody({ date, open, onClose, embedded }: MoodSheetProps) {
               {target.scale && scaleChoices.length > 0 && (
                 <LedgerField
                   mod={target.scale}
+                  label={moodText(target.scale.mod?.name ?? target.scale.entryType.name, t)}
                   icon={modAtomIcon(target.scale)}
                   color={ACCENT}
                   value={level}
                   onChange={setLevel}
                   custom={
-                    <>
-                      <MoodScale choices={scaleChoices} value={level} onChange={setLevel} />
-                      {(scaleLabels?.low || scaleLabels?.high) && (
-                        <div className="-mt-1.5 flex justify-between px-4 pb-3 text-[11.5px] font-medium text-muted-foreground">
-                          <span>{scaleLabels?.low}</span>
-                          <span>{scaleLabels?.high}</span>
-                        </div>
-                      )}
-                    </>
+                    <MoodScale
+                      choices={scaleChoices}
+                      value={level}
+                      onChange={setLevel}
+                      labels={scaleLabels}
+                    />
                   }
                 />
               )}
               {target.feelings && emotionChoices.length > 0 && (
                 <LedgerField
                   mod={target.feelings}
+                  label={moodText(target.feelings.mod?.name ?? target.feelings.entryType.name, t)}
                   icon={modAtomIcon(target.feelings)}
                   color={ACCENT}
                   value={emotions.join(",")}
@@ -235,7 +235,7 @@ function MoodSheetBody({ date, open, onClose, embedded }: MoodSheetProps) {
             value={notes}
             onChange={setNotes}
             onDone={() => setNoteOpen(false)}
-            subtitle={target?.sub.name}
+            subtitle={moodText(target?.sub.name, t)}
             accent={ACCENT}
             className="absolute inset-0 z-20 bg-card px-5 pb-6 pt-5"
           />

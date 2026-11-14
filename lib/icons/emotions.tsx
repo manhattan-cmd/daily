@@ -1,153 +1,105 @@
 import type { MessageKey } from "@/lib/i18n";
-import type { ReactNode } from "react";
+import {
+  EMOTION_FACES,
+  FACE_INK,
+  FALLBACK_FACE,
+  SCALE_FACE_PARTS,
+  SHADE_OPACITY,
+  type FaceInk,
+  type FacePart,
+} from "./emotion-faces";
 
 /**
  * Duygu yüzleri — ruh hali akışının kendi sembol ailesi.
  *
  * Neden ayrı bir dosya: bunlar kullanıcının seçtiği semboller değil, yerleşik
- * duygu listesinin sabit karşılıkları. `vocabulary.ts`e konsalardı sözlük 16
- * birbirine benzeyen yüzle şişer, kategori sembolü seçicisi okunmaz olurdu.
- * Çizim dili set-1 ile aynı (bkz. lib/icons/sets/set-1.tsx):
- *   dolu kütle · currentColor · 24×24 · en ince kütle 2,6px · en dar boşluk
- *   1,8px · yalnız geometrik parçalar · delik dış şeklin İÇİNDE.
+ * duygu listesinin sabit karşılıkları. `vocabulary.ts`e konsalardı sözlük
+ * birbirine benzeyen yüzlerle şişer, kategori sembolü seçicisi okunmaz olurdu.
  *
- * Yüzün tamamı TEK yol: disk + gözler/kaşlar/ağız `fill-rule="evenodd"` ile
- * delik. Emoji yerine bunlar çiziliyor çünkü emoji her cihazda başka görünüyor
- * ve kendi rengini dayatıyor — burada rengi duygunun kendisi veriyor.
+ * Çizim (geometri) `emotion-faces.ts`te — orada çizim dili de yazılı:
+ * duygunun renginde disk, mürekkep halka, mürekkep yüz. Burada yalnız renk,
+ * yerleşim ve çizen bileşenler var.
  *
- * Geometri elle değil hesapla kuruluyor: 16 yüzü elde koordinatla yazmak hem
- * aileyi bozuyor hem de kaş/göz boşluğunu 1,8px'in altına düşürüyordu.
+ * DUYGU HARİTASI
+ * Liste rastgele değil, iki eksenli bir harita (Russell'ın çember modeli;
+ * Yale'in Mood Meter'ı ve Apple'ın State of Mind'ı da bunu kullanıyor):
+ * yatayda hoş değil → hoş, dikeyde yüksek → düşük enerji. Dört çeyrek,
+ * her birinde altı duygu; köşeye yaklaştıkça duygu yoğunlaşıyor (Kızgın
+ * sol üst köşede, Kaygılı merkeze yakın).
+ *
+ * Renk çeyreği söylüyor, ton yoğunluğu: kırmızı = gergin, sarı = canlı,
+ * mavi = durgun, yeşil = dingin. Köşedeki duygu koyu, merkeze yakın olan
+ * açık. Eskiden 16 duygunun 16 ayrı rengi vardı ve üçü kırmızıydı (Stresli,
+ * Kızgın, Bıkkın) — renk bir şey anlatmıyordu.
  */
 
-const f = (n: number) => Math.round(n * 100) / 100;
-const rad = (deg: number) => (deg * Math.PI) / 180;
-
-/** Yüzün diski — bütün ailenin ortak gövdesi */
-const DISC = "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z";
-
-/** Daire delik — göz, ağız */
-const dot = (cx: number, cy: number, r: number) =>
-  `M${f(cx - r)} ${f(cy)}a${f(r)} ${f(r)} 0 1 0 ${f(r * 2)} 0 ${f(r)} ${f(r)} 0 1 0 ${f(-r * 2)} 0Z`;
-
-/** Yuvarlak uçlu eğik çubuk — kaş, kapalı göz, düz ağız */
-const bar = (x1: number, y1: number, x2: number, y2: number, w: number) => {
-  const len = Math.hypot(x2 - x1, y2 - y1) || 1;
-  const h = w / 2;
-  const nx = (-(y2 - y1) / len) * h;
-  const ny = ((x2 - x1) / len) * h;
-  return (
-    `M${f(x1 - nx)} ${f(y1 - ny)}` +
-    `A${f(h)} ${f(h)} 0 0 0 ${f(x1 + nx)} ${f(y1 + ny)}` +
-    `L${f(x2 + nx)} ${f(y2 + ny)}` +
-    `A${f(h)} ${f(h)} 0 0 0 ${f(x2 - nx)} ${f(y2 - ny)}Z`
-  );
-};
-
-/** Yay şeridi — gülümseme, asık ağız. Açılar derece, 0 sağ, 90 aşağı. */
-const arcBand = (
-  cx: number,
-  cy: number,
-  r: number,
-  w: number,
-  a0: number,
-  a1: number
-) => {
-  const ro = r + w / 2;
-  const ri = r - w / 2;
-  const p = (a: number, rr: number) =>
-    `${f(cx + rr * Math.cos(rad(a)))} ${f(cy + rr * Math.sin(rad(a)))}`;
-  const large = Math.abs(a1 - a0) > 180 ? 1 : 0;
-  const sweep = a1 > a0 ? 1 : 0;
-  return (
-    `M${p(a0, ro)}A${f(ro)} ${f(ro)} 0 ${large} ${sweep} ${p(a1, ro)}` +
-    `L${p(a1, ri)}A${f(ri)} ${f(ri)} 0 ${large} ${1 - sweep} ${p(a0, ri)}Z`
-  );
-};
-
-/** Yarım disk — kocaman açık ağız, kapalı "mutlu" göz */
-const halfDisc = (cx: number, cy: number, r: number, down: boolean) =>
-  `M${f(cx - r)} ${f(cy)}a${f(r)} ${f(r)} 0 0 ${down ? 0 : 1} ${f(r * 2)} 0Z`;
-
-// ── Gözler ────────────────────────────────────────────────────────────────
-// Kaş kullanan yüzlerde gözler 11,8'e iner: kaşın alt kenarıyla arada 1,8px
-// kalsın diye. Kaşsız yüzlerde göz 10,4–10,9 arasında, ağza yer açar.
-const eyesRound = (r: number, y: number) => dot(9, y, r) + dot(15, y, r);
-const eyesOpen = eyesRound(1.5, 10.4);
-const eyesUnder = eyesRound(1.4, 11.8);
-const eyesWide = eyesRound(1.95, 10.2);
-const eyesSmall = (y = 11.6) => eyesRound(1.1, y);
-/** Kapalı göz — yatay çubuk */
-const eyesShut = bar(7.4, 10.9, 10.6, 10.9, 2) + bar(13.4, 10.9, 16.6, 10.9, 2);
-/** Gülen kapalı göz — yukarı kabaran yarım disk */
-const eyesArch = halfDisc(9, 11.9, 2.2, false) + halfDisc(15, 11.9, 2.2, false);
-
-// ── Kaşlar ────────────────────────────────────────────────────────────────
-/** Öfke: iç uçlar aşağı */
-const browAngry = bar(6.7, 6, 10.3, 7.7, 1.9) + bar(17.3, 6, 13.7, 7.7, 1.9);
-/** Kaygı/üzüntü: iç uçlar yukarı */
-const browWorry = bar(6.7, 7.7, 10.3, 6.1, 1.9) + bar(17.3, 7.7, 13.7, 6.1, 1.9);
-/** Kararlılık: düz */
-const browFlat = bar(6.8, 7.5, 10.2, 7.5, 1.9) + bar(17.2, 7.5, 13.8, 7.5, 1.9);
-/** Umut: düz ama yukarıda ve kısa — "kaşlar kalkmış" */
-const browRaised = bar(7.2, 6.9, 10, 6.9, 1.8) + bar(16.8, 6.9, 14, 6.9, 1.8);
-
-// ── Ağızlar ───────────────────────────────────────────────────────────────
-const mouthGrin = halfDisc(12, 14, 5, true);
-const mouthSmile = arcBand(12, 12.6, 4.4, 1.9, 32, 148);
-const mouthSmileSm = arcBand(12, 13.4, 3.4, 1.9, 34, 146);
-const mouthFlat = bar(8.6, 16.4, 15.4, 16.4, 2);
-const mouthFrown = arcBand(12, 20.4, 4.4, 1.9, -148, -32);
-const mouthFrownSm = arcBand(12, 19.6, 3.4, 1.9, -146, -34);
-const mouthO = dot(12, 16.8, 1.7);
-const mouthOWide = dot(12, 16.4, 2.5);
-/** Yamuk ağız — kendine güven, bıkkınlık */
-const mouthSmirk = bar(8.8, 17, 15.2, 15.4, 2);
-/** Sıkılmış ağız — geniş ve alçak düz çubuk */
-const mouthGrit = bar(8, 16.6, 16, 16.6, 2.4);
-
-/** Gözyaşı — diskin İÇİNDE kalan damla (kural: delik dışa taşmaz) */
-const tear =
-  "M6.6 13.4c1.45 1.7 1.45 2.15 1.45 2.5a1.45 1.45 0 0 1-2.9 0c0-.35 0-.8 1.45-2.5Z";
-
-const glyph = (...parts: string[]) => (
-  <path fillRule="evenodd" clipRule="evenodd" d={DISC + parts.join("")} />
-);
+export type EmotionQuadrant = "tense" | "lively" | "low" | "serene";
 
 /**
- * Duygu → yüz + renk. Anahtarlar yerleşik listedeki adlar (MOOD_EMOTIONS).
- * Renk yüzü tek başına ayırt etmeye yetmez, ayırt eden çift: biçim + renk;
- * ızgarada her ikisinin altında adı da yazıyor.
+ * Izgaradaki yerleşim: 6 satır × 4 sütun. Sol iki sütun hoş değil, sağ iki
+ * sütun hoş; üst üç satır yüksek, alt üç satır düşük enerji. Yerleşik
+ * listenin (MOOD_EMOTIONS) sırası da bu.
+ */
+export const EMOTION_GRID: readonly (readonly string[])[] = [
+  ["Angry", "Scared", "Motivated", "Excited"],
+  ["Overwhelmed", "Stressed", "Proud", "Happy"],
+  ["Frustrated", "Anxious", "Focused", "Confident"],
+  ["Hurt", "Bored", "Hopeful", "Grateful"],
+  ["Sad", "Lonely", "Relieved", "Loved"],
+  ["Drained", "Tired", "Content", "Calm"],
+];
+
+/** Haritanın dört çeyreği, okuma sırasıyla (sol üst, sağ üst, sol alt, sağ alt) */
+export const EMOTION_QUADRANTS: readonly EmotionQuadrant[] = ["tense", "lively", "low", "serene"];
+
+/**
+ * Renkler çeyreğin tonundan, köşeye uzaklığa göre koyulaşarak hesaplandı
+ * (HSL; dış sütun ile iç sütun arasında küçük bir ton kayması var ki aynı
+ * yoğunluktaki iki komşu birbirinin aynısı olmasın). Hesap tasarım
+ * önizlemesinde; burada sonucu duruyor — renk hex olmalı, çağıranlar
+ * saydamlığı sonuna ekliyor (`${color}40`).
  */
 export interface EmotionLook {
-  glyph: ReactNode;
   color: string;
+  quadrant: EmotionQuadrant | null;
 }
 
+const LOOK = (color: string, quadrant: EmotionQuadrant): EmotionLook => ({ color, quadrant });
+
 export const EMOTION_LOOKS: Record<string, EmotionLook> = {
-  Happy: { glyph: glyph(eyesOpen, mouthGrin), color: "#fbbf24" },
-  Calm: { glyph: glyph(eyesShut, mouthSmileSm), color: "#7dd3fc" },
-  Grateful: { glyph: glyph(eyesShut, mouthSmile), color: "#a3e635" },
-  Excited: { glyph: glyph(eyesWide, mouthOWide), color: "#fb923c" },
-  Confident: { glyph: glyph(eyesOpen, mouthSmirk), color: "#34d399" },
-  Loved: { glyph: glyph(eyesArch, mouthGrin), color: "#fb7185" },
-  Hopeful: { glyph: glyph(browRaised, eyesRound(1.4, 11.4), mouthSmileSm), color: "#22d3ee" },
-  Focused: { glyph: glyph(browFlat, eyesSmall(), mouthFlat), color: "#818cf8" },
-  Tired: { glyph: glyph(eyesShut, mouthFrownSm), color: "#94a3b8" },
-  Stressed: { glyph: glyph(browWorry, eyesSmall(11.8), mouthGrit), color: "#f87171" },
-  Anxious: { glyph: glyph(browWorry, eyesUnder, mouthO), color: "#c084fc" },
-  Sad: { glyph: glyph(browWorry, eyesUnder, mouthFrown), color: "#60a5fa" },
-  Angry: { glyph: glyph(browAngry, eyesUnder, mouthFrown), color: "#ef4444" },
-  Lonely: { glyph: glyph(eyesSmall(10.9), mouthFrownSm, tear), color: "#a78bfa" },
-  Bored: { glyph: glyph(eyesShut, mouthSmirk), color: "#a1a1aa" },
-  Frustrated: { glyph: glyph(browAngry, eyesShut, mouthOWide), color: "#e11d48" },
+  // Gergin — yüksek enerji, hoş değil
+  Angry: LOOK("#ef372a", "tense"),
+  Scared: LOOK("#f1465d", "tense"),
+  Overwhelmed: LOOK("#f15146", "tense"),
+  Stressed: LOOK("#f36276", "tense"),
+  Frustrated: LOOK("#f36c62", "tense"),
+  Anxious: LOOK("#f57f8f", "tense"),
+  // Canlı — yüksek enerji, hoş
+  Motivated: LOOK("#fbcd28", "lively"),
+  Excited: LOOK("#faac0f", "lively"),
+  Proud: LOOK("#fbd23c", "lively"),
+  Happy: LOOK("#fbb428", "lively"),
+  Focused: LOOK("#fcd755", "lively"),
+  Confident: LOOK("#fbbb3c", "lively"),
+  // Durgun — düşük enerji, hoş değil
+  Hurt: LOOK("#779cf3", "low"),
+  Bored: LOOK("#93cbf6", "low"),
+  Sad: LOOK("#5f8bf1", "low"),
+  Lonely: LOOK("#77bdf3", "low"),
+  Drained: LOOK("#487aef", "low"),
+  Tired: LOOK("#5fb2f1", "low"),
+  // Dingin — düşük enerji, hoş
+  Hopeful: LOOK("#79d78c", "serene"),
+  Grateful: LOOK("#5ecf9a", "serene"),
+  Relieved: LOOK("#5ecf75", "serene"),
+  Loved: LOOK("#46c88b", "serene"),
+  Content: LOOK("#46c860", "serene"),
+  Calm: LOOK("#36b57a", "serene"),
 };
 
 /** Listeyi kullanıcı değiştirirse (seçenekleri düzenlemek serbest) tanımadığımız
- *  duygu yüzsüz kalmasın — nötr yüz ve sönük renk. */
-export const EMOTION_FALLBACK: EmotionLook = {
-  glyph: glyph(eyesOpen, mouthFlat),
-  color: "#a1a1aa",
-};
+ *  duygu yüzsüz kalmasın — nötr yüz ve sönük renk, haritanın dışında. */
+export const EMOTION_FALLBACK: EmotionLook = { color: "#a1a1aa", quadrant: null };
 
 export const emotionLook = (name: string): EmotionLook =>
   EMOTION_LOOKS[name] ?? EMOTION_FALLBACK;
@@ -162,27 +114,118 @@ export function emotionName(name: string, t: (key: MessageKey) => string): strin
 }
 
 /**
- * Mutluluk skalasının basamak yüzleri — en düşükten en yükseğe. Skala
- * kaç basamaklıysa dizi ona göre örneklenir (bkz. scaleFace).
- * Duygularla aynı ailede: skala emoji, duygular çizim olsaydı pencere iki
- * ayrı dilde konuşuyor olurdu.
+ * Yerleşik ruh hali kaleminin ve özelliklerinin adı. Kayıtta İngilizce
+ * kanonik ad duruyor (bkz. BUILT_IN_CATEGORIES); Türkçe arayüzde pencere
+ * "MOOD · HAPPINESS · EMOTIONS" yazıyordu. Kullanıcı yeniden adlandırdıysa
+ * onun verdiği ad olduğu gibi kalır.
  */
-export const SCALE_FACES: ReactNode[] = [
-  glyph(browWorry, eyesUnder, mouthFrown),
-  glyph(eyesShut, mouthFrownSm),
-  glyph(eyesOpen, mouthFlat),
-  glyph(eyesOpen, mouthSmileSm),
-  glyph(eyesOpen, mouthGrin),
-];
-
-/** Basamağı 5'lik yüz dizisine oturtur — 3, 5 ya da 10 basamaklı skala olsun */
-export function scaleFace(index: number, total: number): ReactNode {
-  if (total <= 1) return SCALE_FACES[2];
-  const pos = (index / (total - 1)) * (SCALE_FACES.length - 1);
-  return SCALE_FACES[Math.round(pos)];
+const MOOD_NAMES: Record<string, MessageKey> = {
+  Mood: "mood.title",
+  Happiness: "mood.level",
+  Emotions: "mood.emotions",
+};
+export function moodText(name: string | undefined, t: (key: MessageKey) => string): string {
+  if (!name) return "";
+  const key = MOOD_NAMES[name];
+  return key ? t(key) : name;
 }
 
-/** Skala basamağının yüzü — currentColor ile boyanır */
+// ── Mutluluk skalası ──────────────────────────────────────────────────────
+
+/**
+ * Basamak renkleri — mor (berbat) → mavi → gri (eh işte) → yeşil → sarı (harika).
+ * Duygu haritasıyla aynı yön: hoş olmayan soğuk, hoş olan sıcak. Apple'ın
+ * State of Mind kaydırıcısı da aynı mor → turuncu yönünü kullanıyor. Eskiden
+ * bütün basamaklar ruh halinin pembesindeydi; hangisinin seçildiği ancak
+ * yüzden okunuyordu.
+ */
+export const SCALE_COLORS = ["#8b7cf6", "#5aa6f2", "#aab4c3", "#5fcf86", "#ffc53d"];
+
+/** Basamağı 5'lik diziye oturtur — 3, 5 ya da 10 basamaklı skala olsun */
+function scaleSlot(index: number, total: number): number {
+  if (total <= 1) return 2;
+  return Math.round((index / (total - 1)) * (SCALE_FACE_PARTS.length - 1));
+}
+
+export function scaleColor(index: number, total: number): string {
+  return SCALE_COLORS[scaleSlot(index, total)];
+}
+
+/**
+ * Beş basamaklı skalada her basamağın adı (Daylio'nun rad/good/meh/bad/awful
+ * dizisi gibi). Yalnız uç etiketleri yazmak ortadaki üç yüzü yoruma
+ * bırakıyordu: "3 iyi mi kötü mü?"
+ */
+export const SCALE_STEP_KEYS: MessageKey[] = [
+  "mood.step1",
+  "mood.step2",
+  "mood.step3",
+  "mood.step4",
+  "mood.step5",
+];
+
+/** Yerleşik skalanın uç etiketleri — kayıtta İngilizce durur */
+const SCALE_END_KEYS: Record<string, MessageKey> = {
+  Awful: "mood.step1",
+  Great: "mood.step5",
+};
+export function scaleEndText(label: string | undefined, t: (key: MessageKey) => string): string {
+  if (!label) return "";
+  const key = SCALE_END_KEYS[label];
+  return key ? t(key) : label;
+}
+
+/** Uç etiketleri yerleşik varsayılan mı (ya da hiç yok mu) */
+export function scaleLabelsAreDefault(labels?: { low?: string; high?: string }): boolean {
+  const low = labels?.low?.trim();
+  const high = labels?.high?.trim();
+  return (!low || low === "Awful") && (!high || high === "Great");
+}
+
+// ── Çizim ─────────────────────────────────────────────────────────────────
+
+const paint = (k: FaceInk | undefined): string =>
+  !k || k === "none" ? "none" : FACE_INK[k];
+
+function Face({
+  parts,
+  color,
+  size,
+  className,
+  style,
+}: {
+  parts: FacePart[];
+  color: string;
+  size: number;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      data-face=""
+      className={className}
+      style={{ width: size, height: size, flexShrink: 0, ...style }}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10.2" fill={color} stroke={FACE_INK.ink} strokeWidth="1.6" />
+      {parts.map((p, i) => (
+        <path
+          key={i}
+          d={p.d}
+          fill={paint(p.fill ?? (p.stroke ? "none" : "ink"))}
+          fillOpacity={p.fill === "shade" ? SHADE_OPACITY : undefined}
+          stroke={p.stroke ? paint(p.stroke) : undefined}
+          strokeWidth={p.stroke ? (p.w ?? 1.9) : undefined}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ))}
+    </svg>
+  );
+}
+
+/** Skala basamağının yüzü — kendi renginde */
 export function ScaleFace({
   index,
   total,
@@ -196,20 +239,19 @@ export function ScaleFace({
   className?: string;
   style?: React.CSSProperties;
 }) {
+  const slot = scaleSlot(index, total);
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
+    <Face
+      parts={SCALE_FACE_PARTS[slot]}
+      color={SCALE_COLORS[slot]}
+      size={size}
       className={className}
-      style={{ width: size, height: size, ...style }}
-      aria-hidden="true"
-    >
-      {scaleFace(index, total)}
-    </svg>
+      style={style}
+    />
   );
 }
 
-/** Tek duygu yüzü. Renk currentColor'dan gelir — çağıran boyar. */
+/** Tek duygu yüzü — duygunun kendi renginde */
 export function EmotionFace({
   name,
   size = 24,
@@ -222,14 +264,12 @@ export function EmotionFace({
   style?: React.CSSProperties;
 }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
+    <Face
+      parts={EMOTION_FACES[name] ?? FALLBACK_FACE}
+      color={emotionLook(name).color}
+      size={size}
       className={className}
-      style={{ width: size, height: size, ...style }}
-      aria-hidden="true"
-    >
-      {emotionLook(name).glyph}
-    </svg>
+      style={style}
+    />
   );
 }

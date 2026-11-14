@@ -1431,18 +1431,23 @@ input[type="number"] {
 :root[data-skin="brutal"] [data-cap-kind="scale"] [data-gauge] {
   background: var(--cap-c) !important; box-shadow: inset -1.5px 0 0 #111;
 }
-/* Duygu: tam yuvarlak hap, basta duygunun yuzu kendi renginde, gozleri ve
-   agzi siyah - siyah zeminli dairede renkli yuz */
+/* Duygu: tam yuvarlak hap, basta duygunun yuzu - kendi renginde cikartma,
+   gozleri ve agzi murekkep, cevresi murekkep halka (zemin dairesi yok) */
 :root[data-skin="brutal"] [data-cap-kind="emotion"] { border-radius: 999px !important; padding-left: 2px !important; }
 :root[data-skin="brutal"] [data-cap-kind="emotion"] > span:first-child {
   align-self: center !important; width: 20px !important; height: 20px !important; padding: 0 !important;
-  border-radius: 50% !important; background: #111 !important; box-shadow: none !important;
+  border-radius: 50% !important; background: none !important; box-shadow: none !important;
 }
 :root[data-skin="brutal"] [data-cap-kind="emotion"] > span:first-child svg {
   width: 20px !important; height: 20px !important;
 }
-:root[data-skin="brutal"] [data-cap-kind="emotion"] > span:first-child svg,
-:root[data-skin="brutal"] [data-cap-kind="emotion"] > span:first-child svg * { color: var(--cap-c) !important; }
+/* Ruh hali penceresi: mutluluk skalasi ve duygu haritasi. Secilen dugme
+   kendi renginde, cercevesi siyah, golgesine oturmus (diger secenekler gibi) */
+:root[data-skin="brutal"] [data-mood-scale] button[aria-pressed="true"],
+:root[data-skin="brutal"] [data-emotion-grid] button[aria-pressed="true"] {
+  border-color: #111 !important; box-shadow: none !important;
+}
+:root[data-skin="brutal"] [data-emotion-grid] button[aria-pressed] { font-weight: 700; }
 /* Secenek: basta dolu secim dugmesi radyo */
 :root[data-skin="brutal"] [data-cap-kind="choice"] { padding-left: 5px !important; gap: 5px !important; }
 :root[data-skin="brutal"] [data-cap-kind="choice"] > span[data-radio] {

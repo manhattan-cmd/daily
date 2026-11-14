@@ -222,25 +222,41 @@ export async function listDimensions(): Promise<GlobalDimension[]> {
  *
  * Adlar İngilizce: tohum verisinin tamamı öyle (Expenses, Groceries,
  * Sleep Quality…) ve v19 Türkçe adları bilerek İngilizceye taşıdı.
+ *
+ * Sıra duygu haritasının okuma sırası (bkz. lib/icons/emotions
+ * EMOTION_GRID): 6 satır × 4 sütun, sol yarı hoş değil, sağ yarı hoş; üst
+ * yarı yüksek, alt yarı düşük enerji. Her çeyrekte altı duygu.
  */
 export const MOOD_EMOTIONS = [
-  "Happy",
-  "Calm",
-  "Grateful",
-  "Excited",
-  "Confident",
-  "Loved",
-  "Hopeful",
-  "Focused",
-  "Tired",
-  "Stressed",
-  "Anxious",
-  "Sad",
-  "Angry",
-  "Lonely",
-  "Bored",
-  "Frustrated",
+  "Angry", "Scared", "Motivated", "Excited",
+  "Overwhelmed", "Stressed", "Proud", "Happy",
+  "Frustrated", "Anxious", "Focused", "Confident",
+  "Hurt", "Bored", "Hopeful", "Grateful",
+  "Sad", "Lonely", "Relieved", "Loved",
+  "Drained", "Tired", "Content", "Calm",
 ] as const;
+
+/**
+ * İlk sürümün 16 duygusu. Kullanıcı listeye hiç dokunmadıysa (bu 16'sı, ne
+ * eksik ne fazla) yeni haritaya taşınır; düzenlediyse onun listesi kalır.
+ * 16 duygunun hepsi yeni listede de var — eski kayıtlar adını ve yüzünü
+ * korur.
+ */
+const MOOD_EMOTIONS_V1 = [
+  "Happy", "Calm", "Grateful", "Excited", "Confident", "Loved", "Hopeful", "Focused",
+  "Tired", "Stressed", "Anxious", "Sad", "Angry", "Lonely", "Bored", "Frustrated",
+];
+
+/** Yerleşik duygu özelliğinin seçeneklerini (dokunulmamışsa) yeni listeye taşı */
+export async function upgradeMoodEmotions(mod: Mod): Promise<boolean> {
+  const current = mod.choices ?? [];
+  const untouched =
+    current.length === MOOD_EMOTIONS_V1.length &&
+    MOOD_EMOTIONS_V1.every((c) => current.includes(c));
+  if (!untouched) return false;
+  await db.mods.update(mod.id, { choices: [...MOOD_EMOTIONS], updatedAt: now() });
+  return true;
+}
 
 /**
  * Yerleşik akışların şablonu. `key` şart: `isBuiltIn` tek başına "Uyku"
@@ -382,7 +398,10 @@ async function ensureBuiltInCategoryTemplates(): Promise<void> {
       // sembolleri ve göçler bu adlara bakıyor) — dile göre değişmez.
       for (const ref of tpl.mods) {
         const mod = await resolveStarterMod(ref, "en");
-        if (mod) await attachMod("subcategory", sub.id, mod.id);
+        if (!mod) continue;
+        await attachMod("subcategory", sub.id, mod.id);
+        // Duygu listesi büyüdü (16 → 24): dokunulmamış eski liste taşınır
+        if (template.key === "mood" && ref.name === "Emotions") await upgradeMoodEmotions(mod);
       }
     }
   }

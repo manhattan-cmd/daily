@@ -6,7 +6,7 @@ import type { EntryWithContext } from "@/types";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { cn, formatDateTime } from "@/lib/utils";
 import { splitChoiceLevel } from "@/lib/choice-level";
-import { ScaleFace } from "@/lib/icons/emotions";
+import { ScaleFace, scaleColor } from "@/lib/icons/emotions";
 import { EmotionCapsule, LevelCapsule } from "@/components/dashboard/entry-parts";
 import { useT } from "@/lib/i18n";
 import { useLongPress } from "@/lib/use-long-press";
@@ -72,6 +72,10 @@ export function MoodCard({
   const levelMax = levelValue?.entryType?.choices?.length ?? 5;
   const level = levelValue ? Number(levelValue.value) : null;
   const hasLevel = level !== null && !Number.isNaN(level);
+  // Basamağın kendi rengi (mor berbat → sarı harika, bkz. SCALE_COLORS):
+  // kapsülün çubuğu da o renkte dolsun, kartın pembesinde değil
+  const levelIdx = Math.max(0, (levelValue?.entryType?.choices ?? []).indexOf(levelValue?.value ?? ""));
+  const levelColor = scaleColor(levelIdx, levelMax);
 
   // Alt bölüm — iki biçimde de aynı kapsüller: önce mutluluk (yüz, "2/5" ve
   // noktalar), sonra her duygu ADIYLA kendi kapsülünde. Eskiden duygular
@@ -82,10 +86,10 @@ export function MoodCard({
     <>
       {hasLevel && levelValue && (
         <LevelCapsule
-          icon={<ScaleFace index={level - 1} total={levelMax} size={13} style={{ color }} />}
+          icon={<ScaleFace index={levelIdx} total={levelMax} size={16} />}
           value={levelValue.value}
           choices={levelValue.entryType?.choices ?? []}
-          color={color}
+          color={levelColor}
           title={t("mood.level")}
         />
       )}
@@ -130,7 +134,7 @@ export function MoodCard({
         >
           <EntryBlockHead
             color={color}
-            icon={hasLevel ? <ScaleFace index={level - 1} total={levelMax} size={14} style={{ color: "#111" }} /> : <Smile className="h-3.5 w-3.5" strokeWidth={2.25} />}
+            icon={hasLevel ? <ScaleFace index={levelIdx} total={levelMax} size={17} /> : <Smile className="h-3.5 w-3.5" strokeWidth={2.25} />}
             title={t("mood.title")}
             right={dateLabel ? <EntryBlockTime>{dateLabel}</EntryBlockTime> : undefined}
           />
@@ -174,12 +178,7 @@ export function MoodCard({
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
             style={{ background: `${color}33` }}>
             {hasLevel ? (
-              <ScaleFace
-                index={level - 1}
-                total={levelMax}
-                size={17}
-                style={{ color }}
-              />
+              <ScaleFace index={levelIdx} total={levelMax} size={20} />
             ) : (
               <Smile
                 className="h-[17px] w-[17px]"

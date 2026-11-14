@@ -77,6 +77,7 @@ import { ScaleSlider } from "@/components/ui/scale-slider";
 import { EmotionPicker } from "@/components/forms/emotion-picker";
 import { FieldWindow } from "@/components/forms/field-window";
 import { MoodScale } from "@/components/forms/mood-scale";
+import { moodText } from "@/lib/icons/emotions";
 import { colorSkin, FIELD_TONES } from "@/components/forms/field-tone";
 import { splitChoiceLevel } from "@/lib/choice-level";
 import type { FieldTone } from "@/components/forms/field-tone";
@@ -373,10 +374,13 @@ export function EditEntryModal({
   /** Mevcut kardeş perspektifler + bu oturumda eklenenler */
   const totalParallels = siblings.length + newParallels.length;
 
-  // Kök girdiler kategoriye aittir; gizli kök alt kategorisinin sayfası yok
-  const structureName = entry.subcategory.isCategoryRoot
+  // Kök girdiler kategoriye aittir; gizli kök alt kategorisinin sayfası yok.
+  // Yerleşik ruh halinin kayıttaki adı İngilizce ("Mood") — dile çevrilir.
+  const rawStructureName = entry.subcategory.isCategoryRoot
     ? entry.category.name
     : entry.subcategory.name;
+  const structureName = fieldTone === "mood" ? moodText(rawStructureName, t) : rawStructureName;
+  const categoryName = fieldTone === "mood" ? moodText(entry.category.name, t) : entry.category.name;
   const structureHref = entry.subcategory.isCategoryRoot
     ? routes.structureCategory(entry.category.id)
     : routes.structureSub(entry.category.id, entry.subcategoryId);
@@ -960,7 +964,7 @@ export function EditEntryModal({
                 </button>
                 <div className="min-w-0 flex-1 leading-tight">
                   <SmartText
-                    text={entry.subcategory.isCategoryRoot ? t("entry.general") : entry.category.name}
+                    text={entry.subcategory.isCategoryRoot ? t("entry.general") : categoryName}
                     className="text-[12px] font-medium text-muted-foreground"
                   />
                   <SmartText
@@ -1047,6 +1051,7 @@ export function EditEntryModal({
                       <LedgerField
                         key={row.key}
                         mod={m}
+                        label={fieldTone === "mood" ? moodText(row.label, t) : undefined}
                         icon={modAtomIcon({ name: row.label, entryType: row.entryType })}
                         color={isBuiltInTone ? accent : modColor(m.mod ?? { name: row.label })}
                         filled={moodSelect ? rowVals.length > 0 : undefined}
@@ -1059,19 +1064,12 @@ export function EditEntryModal({
                               gridHeight={400}
                             />
                           ) : moodSelect ? (
-                            <>
-                              <MoodScale
-                                choices={row.entryType.choices ?? []}
-                                value={rowVals[0] ?? ""}
-                                onChange={setRow}
-                              />
-                              {(m.mod?.scaleLabels?.low || m.mod?.scaleLabels?.high) && (
-                                <div className="-mt-1.5 flex justify-between px-4 pb-3 text-[11.5px] font-medium text-muted-foreground">
-                                  <span>{m.mod?.scaleLabels?.low}</span>
-                                  <span>{m.mod?.scaleLabels?.high}</span>
-                                </div>
-                              )}
-                            </>
+                            <MoodScale
+                              choices={row.entryType.choices ?? []}
+                              value={rowVals[0] ?? ""}
+                              onChange={setRow}
+                              labels={m.mod?.scaleLabels}
+                            />
                           ) : undefined
                         }
                         value={rowVals[0] ?? ""}

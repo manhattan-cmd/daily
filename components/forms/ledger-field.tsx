@@ -111,8 +111,12 @@ export function LedgerField({
   autoFocus = false,
   custom,
   filled: filledProp,
+  label: labelProp,
 }: {
   mod: CategoryModifierWithType;
+  /** Başlıkta yazacak ad — yerleşik özelliklerin çevrilmiş adı için
+   *  (kayıtta "Happiness", ekranda "Mutluluk"). Boşsa özelliğin adı. */
+  label?: string;
   icon: LucideIcon;
   /** Özelliğin rengi */
   color: string;
@@ -140,7 +144,7 @@ export function LedgerField({
   // Brütal tema: ad kutunun üst kenarında sekme, evet/hayır iki büyük yarım
   const brutal = useSkin() === "brutal";
   const vt = mod.entryType.valueType ?? "number";
-  const label = mod.name ?? mod.entryType.name;
+  const label = labelProp || (mod.name ?? mod.entryType.name);
   const unit = mod.entryType.unit;
   const choices = mod.entryType.choices ?? [];
   const filled = filledProp ?? isFieldFilled(vt, value);

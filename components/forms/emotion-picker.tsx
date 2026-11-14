@@ -3,13 +3,39 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { EmotionFace, emotionLook, emotionName } from "@/lib/icons/emotions";
+import {
+  EMOTION_GRID,
+  EMOTION_QUADRANTS,
+  EmotionFace,
+  emotionLook,
+  emotionName,
+  type EmotionQuadrant,
+} from "@/lib/icons/emotions";
 import { HScroll } from "@/components/ui/h-scroll";
 import { FIELD_TONES, type FieldTone } from "@/components/forms/field-tone";
 import { packChoiceLevel, splitChoiceLevel } from "@/lib/choice-level";
 
+/** Çeyreğin ızgaradaki hücreleri: üst çeyrekler 0–2. satırlar, sol çeyrekler 0–1. sütunlar */
+function quadrantCells(q: EmotionQuadrant): string[] {
+  const rows = q === "tense" || q === "lively" ? [0, 1, 2] : [3, 4, 5];
+  const cols = q === "tense" || q === "low" ? [0, 1] : [2, 3];
+  return rows.flatMap((r) => cols.map((c) => EMOTION_GRID[r][c]));
+}
+
 /**
- * Duygu seçici — ızgaradan çok seçimli işaretleme.
+ * Duygu seçici — duygu haritasından çok seçimli işaretleme.
+ *
+ * Izgara bir HARİTA: sol yarı hoş olmayan, sağ yarı hoş duygular; üst yarı
+ * yüksek, alt yarı düşük enerji (bkz. lib/icons/emotions). Dört çeyrek
+ * arasında boşluk var ve her çeyrek kendi renginde: kırmızı gergin, sarı
+ * canlı, mavi durgun, yeşil dingin. "Nasıl hissediyorum?" sorusu önce
+ * "hangi köşedeyim?"e iniyor, sonra o köşenin altı adından biri seçiliyor
+ * (Yale'in Mood Meter'ı aynı iki adımı kullanıyor). Eskiden 16 duygu iyi
+ * ve kötü diye iki yarıya dizilmişti, sıranın bir anlamı yoktu.
+ *
+ * Kullanıcının listeye eklediği (haritada yeri olmayan) duygular haritanın
+ * altında ayrı bir satırda; haritadan çıkardığı duygunun yeri boş kalmıyor,
+ * çeyreğin geri kalanı kayıyor.
  *
  * Bir de yoğunluk (0–100) katmanı vardı: seçilen duygunun üstünde küçük bir
  * balonda çubuk açılıyordu. Dört tasarım turundan sonra fikirden şimdilik
@@ -55,6 +81,19 @@ export function EmotionPicker({
     return map;
   }, [values]);
 
+  /** Haritanın çeyrekleri (yalnız listede olanlar) + haritada yeri olmayanlar */
+  const { quadrants, others } = useMemo(() => {
+    const offered = new Set(choices);
+    const onMap = new Set(EMOTION_GRID.flat());
+    return {
+      quadrants: EMOTION_QUADRANTS.map((q) => ({
+        q,
+        cells: quadrantCells(q).filter((c) => offered.has(c)),
+      })),
+      others: choices.filter((c) => !onMap.has(c)),
+    };
+  }, [choices]);
+
   /** Izgara sırasında yaz; listede olmayan (elle/eski) etiketler sona eklenir */
   function emit(next: Map<string, number | null>) {
     const known = choices.filter((c) => next.has(c));
@@ -92,6 +131,43 @@ export function EmotionPicker({
     return () => ro.disconnect();
   }, []);
 
+  const cell = (c: string) => {
+    const look = emotionLook(c);
+    const on = picked.has(c);
+    return (
+      <button
+        key={c}
+        type="button"
+        onClick={() => toggle(c)}
+        aria-pressed={on}
+        data-emotion={c}
+        className={cn(
+          "flex min-w-0 flex-col items-center gap-1 rounded-xl border px-1 pb-1 pt-1.5 transition-colors",
+          !on && skin.choiceOff
+        )}
+        style={
+          on
+            ? {
+                borderColor: look.color,
+                background: `${look.color}4d`,
+                boxShadow: `inset 0 0 0 1px ${look.color}`,
+              }
+            : undefined
+        }
+      >
+        <EmotionFace name={c} size={24} />
+        <span
+          className={cn(
+            "w-full truncate text-center text-[10px] leading-3",
+            on ? "font-bold text-foreground" : "font-medium"
+          )}
+        >
+          {emotionName(c, t)}
+        </span>
+      </button>
+    );
+  };
+
   return (
     <>
       {/* Seçilenler şeridi — pencerenin en üstü */}
@@ -106,13 +182,13 @@ export function EmotionPicker({
                   type="button"
                   onClick={() => toggle(c)}
                   aria-label={t("mood.removeEmotion", { name: emotionName(c, t) })}
-                  className="flex shrink-0 items-center rounded-full border p-1 transition-transform active:scale-95"
+                  className="flex shrink-0 items-center rounded-full border p-0.5 transition-transform active:scale-95"
                   style={{
-                    borderColor: `${look.color}59`,
-                    background: `${look.color}1c`,
+                    borderColor: `${look.color}80`,
+                    background: `${look.color}26`,
                   }}
                 >
-                  <EmotionFace name={c} size={16} style={{ color: look.color }} />
+                  <EmotionFace name={c} size={20} />
                 </button>
               );
             })}
@@ -124,49 +200,25 @@ export function EmotionPicker({
           parmak duygular kutusunun üstündeyken pencere kaydırılamıyordu. */}
       <div
         ref={gridRef}
+        data-emotion-grid=""
         className="no-scrollbar overflow-y-auto px-4 pb-3 pt-2"
         style={{ maxHeight: gridHeight }}
       >
-        <div className="grid grid-cols-4 gap-1.5">
-          {choices.map((c) => {
-            const look = emotionLook(c);
-            const on = picked.has(c);
-            return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => toggle(c)}
-                aria-pressed={on}
-                className={cn(
-                  "flex flex-col items-center gap-1 rounded-xl border px-1.5 pb-1.5 pt-1.5 transition-colors",
-                  !on && skin.choiceOff
-                )}
-                style={
-                  on
-                    ? {
-                        borderColor: `${look.color}80`,
-                        background: `${look.color}24`,
-                      }
-                    : undefined
-                }
-              >
-                <EmotionFace
-                  name={c}
-                  size={20}
-                  style={{ color: look.color, opacity: on ? 1 : 0.62 }}
-                />
-                <span
-                  className={cn(
-                    "w-full truncate text-center text-[9px] font-medium leading-3",
-                    on ? "text-foreground" : undefined
-                  )}
-                >
-                  {emotionName(c, t)}
-                </span>
-              </button>
-            );
-          })}
+        {/* Harita: 2×2 çeyrek, çeyrekler arası geniş, içi sık */}
+        <div className="grid grid-cols-2 gap-x-2.5 gap-y-2.5">
+          {quadrants.map(({ q, cells }) =>
+            cells.length > 0 ? (
+              <div key={q} data-quadrant={q} className="grid grid-cols-2 content-start gap-1.5">
+                {cells.map(cell)}
+              </div>
+            ) : (
+              <div key={q} aria-hidden />
+            )
+          )}
         </div>
+        {others.length > 0 && (
+          <div className="mt-2.5 grid grid-cols-4 gap-1.5">{others.map(cell)}</div>
+        )}
       </div>
     </>
   );

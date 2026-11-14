@@ -424,9 +424,10 @@ export function LevelCapsule({
 }
 
 /**
- * Duygu kapsülü — tam yuvarlak, başında duygunun yüzü kendi renginde bir
- * daire içinde, yanında adı (ve kaydedildiyse yoğunluğu). Ruh hali kartı ve
- * duygu seçenekli özellikler bunu kullanır.
+ * Duygu kapsülü — tam yuvarlak, başında duygunun yüzü (kendi renginde
+ * çıkartma; zemin dairesi gerekmiyor, yüzün mürekkep halkası var), yanında
+ * adı (ve kaydedildiyse yoğunluğu). Ruh hali kartı ve duygu seçenekli
+ * özellikler bunu kullanır.
  */
 export function EmotionCapsule({ name, level }: { name: string; level: number | null }) {
   const t = useT();
@@ -434,11 +435,8 @@ export function EmotionCapsule({ name, level }: { name: string; level: number | 
   const shown = emotionName(name, t);
   return (
     <Cap kind="emotion" color={look.color} word title={level === null ? shown : `${shown} %${level}`}>
-      <span
-        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-        style={{ background: `${look.color}40` }}
-      >
-        <EmotionFace name={name} size={14} style={{ color: look.color }} />
+      <span data-emotion-face="" className="flex h-5 w-5 shrink-0 items-center justify-center">
+        <EmotionFace name={name} size={20} />
       </span>
       <span className="min-w-0 truncate text-[12.5px] font-semibold leading-tight" style={{ color: look.color }}>
         {shown}
