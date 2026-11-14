@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Check, ChevronDown, CornerDownRight } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { useIsBrutal } from "@/components/structure/brutal";
 import { Dialog } from "@/components/ui/dialog";
 import {
   FormActions,
@@ -89,6 +90,7 @@ export function SubCategoryForm({
 }: SubCategoryFormProps) {
   const isEdit = !!subcategory;
   const t = useT();
+  const brutal = useIsBrutal();
   const [name, setName] = useState(subcategory?.name ?? "");
   const [icon, setIcon] = useState<string | undefined>(subcategory?.icon);
   const [isRegular, setIsRegular] = useState(!!subcategory?.isRegular);
@@ -384,7 +386,10 @@ export function SubCategoryForm({
           </FormSection>
         )}
 
-        {/* Üstten gelecek özellikler — varsayılan hepsi; dokununca çıkar/geri gelir */}
+        {/* Üstten gelecek özellikler — varsayılan hepsi seçili. Solundaki
+            yuvarlak kutu (tikli = gelir, boş = gelmez) açıklamasız anlaşılsın
+            diye; eskiden yalnız renkli nokta doluyor/boşalıyordu ve altta
+            "istemediğine dokun" yazıyordu */}
         {!isEdit && inherited && inherited.length > 0 && (
           <FormSection label={t("tree.inheritedFeatures")}>
             <div className="flex flex-wrap gap-1.5">
@@ -395,7 +400,8 @@ export function SubCategoryForm({
                   <button
                     key={a.id}
                     type="button"
-                    aria-pressed={on}
+                    role="checkbox"
+                    aria-checked={on}
                     onClick={() =>
                       setSkipInherit((prev) => {
                         const next = new Set(prev);
@@ -405,28 +411,35 @@ export function SubCategoryForm({
                       })
                     }
                     data-inherit=""
-                    className={cn(
-                      SUGGESTION_CHIP,
-                      "pl-2",
-                      !on && "text-muted-foreground line-through opacity-60"
-                    )}
+                    className={cn(SUGGESTION_CHIP, !on && "text-muted-foreground")}
                   >
                     <span
-                      className="h-3 w-3 shrink-0 rounded-full"
+                      aria-hidden
+                      className={cn(
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors",
+                        brutal && "border-[1.5px] border-[#111]"
+                      )}
                       style={
                         on
                           ? { backgroundColor: c }
-                          : { boxShadow: `inset 0 0 0 1.5px ${c}` }
+                          : brutal
+                            ? { backgroundColor: "#fff" }
+                            : { boxShadow: "inset 0 0 0 1.5px var(--muted-foreground)" }
                       }
-                    />
+                    >
+                      {on && (
+                        <Check
+                          className="h-3 w-3"
+                          strokeWidth={3.5}
+                          style={{ color: brutal ? "#111" : "#fff" }}
+                        />
+                      )}
+                    </span>
                     {a.name ?? a.entryType.name}
                   </button>
                 );
               })}
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              {t("tree.inheritedHint")}
-            </p>
           </FormSection>
         )}
 
