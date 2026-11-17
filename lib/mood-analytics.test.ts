@@ -12,11 +12,14 @@ import {
   isMoodModName,
   levelDistribution,
   levelSlot,
+  linkStats,
   partStats,
   pickMoodMods,
   quadrantCounts,
   quadrantsOf,
   scaleOf,
+  sleepNights,
+  sleepVsMood,
   weekdayStats,
 } from "./mood-analytics";
 
@@ -181,5 +184,52 @@ describe("duygu ilişkileri ve ritimler", () => {
     // 5→6: 3→1, 6→7: 1→5, 7→8: 5→3; 9 Ekim'de mutluluk yok
     expect(ch.map((c) => c.v)).toEqual([2, 4, 2]);
     expect(ch[1]).toMatchObject({ day: "2026-10-07", from: 1, to: 5 });
+  });
+});
+
+describe("uyku ve öteki kayıtlar", () => {
+  const sl = (id: string, d: number, bedH: number, hours: number): Entry => {
+    const end = new Date(2026, 9, d, 7, 0).getTime();
+    return { id, subcategoryId: "u", occurredAt: end, createdAt: 0, updatedAt: 0, _range: { start: end - hours * 3600000, end, bedH } } as unknown as Entry;
+  };
+  const range = (e: Entry) => {
+    const r = (e as unknown as { _range: { start: number; end: number } })._range;
+    return val(e.id, "dur", JSON.stringify({ start: new Date(r.start).toISOString(), end: new Date(r.end).toISOString() }));
+  };
+  const nights = [sl("n1", 5, 23, 5.5), sl("n2", 6, 23, 7.5), sl("n3", 6, 13, 1), sl("n4", 7, 23, 8.5)];
+  const values = [...nights.map(range), val("n1", "q", "2"), val("n4", "q", "5")];
+
+  it("gece uyanılan güne bağlanır, öğle uykusu geceyi ezmez", () => {
+    const m = sleepNights(nights, values, "q");
+    expect([...m.keys()]).toEqual(["2026-10-05", "2026-10-06", "2026-10-07"]);
+    expect(m.get("2026-10-06")!.hours).toBe(7.5);
+    expect(m.get("2026-10-05")!.quality).toBe(2);
+    expect(m.get("2026-10-06")!.quality).toBeNull();
+  });
+
+  it("ertesi günün ortalaması kovalara göre", () => {
+    const day = (d: number, avg: number | null) => ({ day: `2026-10-0${d}`, avg, min: avg, max: avg, records: [] });
+    const r = sleepVsMood([day(5, 2), day(6, 4), day(7, 5), day(8, 3)], sleepNights(nights, values, "q"));
+    expect(r.paired).toBe(3);
+    expect(r.duration.map((x) => x.n)).toEqual([1, 0, 1, 1]);
+    expect(r.short).toEqual({ avg: 2, n: 1 });
+    expect(r.long).toEqual({ avg: 4.5, n: 2 });
+    expect(r.quality).toEqual([
+      { q: 2, avg: 2, n: 1 },
+      { q: 5, avg: 5, n: 1 },
+    ]);
+  });
+
+  it("var − yok farkı yalnız 3 gün var ve 3 gün yokken", () => {
+    const days = [5, 4, 4, 2, 2, 3, null].map((avg, i) => ({ day: `d${i}`, avg, min: avg, max: avg, records: [] }));
+    const [koşu, kahve] = linkStats(days, [
+      { id: "koşu", days: new Set(["d0", "d1", "d2", "d6"]) },
+      { id: "kahve", days: new Set(["d0", "d1"]) },
+    ]);
+    // var: 5, 4, 4 → 4,33; yok: 2, 2, 3 → 2,33 (d6 ruh halsiz, sayılmaz)
+    expect(koşu.withN).toBe(3);
+    expect(koşu.withoutN).toBe(3);
+    expect(koşu.diff).toBeCloseTo(2);
+    expect(kahve.diff).toBeNull();
   });
 });

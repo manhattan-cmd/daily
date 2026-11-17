@@ -337,3 +337,114 @@ export function dayChanges(days: DayStat[]): { day: string; from: number; to: nu
   }
   return out;
 }
+
+// ── 3. adım: uyku ve öteki kayıtlarla bağlantı ──
+// Dil "birlikte görülüyor", "yol açıyor" değil: kişi neyi hangi gün
+// kaydedeceğini kendisi seçiyor, fark neden göstermez.
+
+export interface Night {
+  /** Uyanılan gün — gece o sabaha bağlanır */
+  day: string;
+  hours: number;
+  start: number;
+  end: number;
+  /** Uyku kalitesi (skala); girilmemişse null */
+  quality: number | null;
+}
+
+/**
+ * Uyku kayıtlarından geceler, uyanılan güne göre. Süre aralık değerinden
+ * ({start, end}); bir güne birden çok uyku düşerse en uzunu gece sayılır
+ * (öğle uykusu geceyi ezmesin).
+ */
+export function sleepNights(entries: Entry[], values: EntryValue[], qualityModId?: string): Map<string, Night> {
+  const byEntry = new Map<string, EntryValue[]>();
+  for (const v of values) {
+    const list = byEntry.get(v.entryId);
+    if (list) list.push(v);
+    else byEntry.set(v.entryId, [v]);
+  }
+  const out = new Map<string, Night>();
+  for (const e of entries) {
+    const vs = byEntry.get(e.id) ?? [];
+    let range: { start: number; end: number } | null = null;
+    for (const v of vs) {
+      if (!v.value || v.value[0] !== "{") continue;
+      try {
+        const { start, end } = JSON.parse(v.value) as { start?: string; end?: string };
+        const s = start ? new Date(start).getTime() : NaN;
+        const en = end ? new Date(end).getTime() : NaN;
+        if (Number.isFinite(s) && Number.isFinite(en) && en > s) range = { start: s, end: en };
+      } catch {
+        // aralık değil
+      }
+    }
+    if (!range) continue;
+    const hours = (range.end - range.start) / 3600000;
+    if (hours > 24) continue;
+    const qv = qualityModId ? vs.find((v) => v.modId === qualityModId) : undefined;
+    const q = qv ? Number(qv.value) : NaN;
+    const night: Night = { day: dayKey(range.end), hours, start: range.start, end: range.end, quality: Number.isFinite(q) ? q : null };
+    const had = out.get(night.day);
+    if (!had || had.hours < hours) out.set(night.day, night);
+  }
+  return out;
+}
+
+export const SLEEP_BUCKETS = ["lt6", "6to7", "7to8", "8plus"] as const;
+export type SleepBucket = (typeof SLEEP_BUCKETS)[number];
+export const sleepBucketOf = (h: number): SleepBucket => (h < 6 ? "lt6" : h < 7 ? "6to7" : h < 8 ? "7to8" : "8plus");
+
+const meanOf = (a: number[]) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : null);
+
+/**
+ * Gecenin ertesindeki günün ortalaması — süre kovalarına ve kaliteye göre;
+ * ayrıca 7 saatin altı ve üstü. Yalnız ruh hali girilmiş günler.
+ */
+export function sleepVsMood(days: DayStat[], nights: Map<string, Night>) {
+  const dur = new Map<SleepBucket, number[]>(SLEEP_BUCKETS.map((b) => [b, []]));
+  const qual = new Map<number, number[]>();
+  const short: number[] = [];
+  const long: number[] = [];
+  let paired = 0;
+  for (const d of days) {
+    if (d.avg === null) continue;
+    const n = nights.get(d.day);
+    if (!n) continue;
+    paired++;
+    dur.get(sleepBucketOf(n.hours))!.push(d.avg);
+    (n.hours < 7 ? short : long).push(d.avg);
+    if (n.quality !== null) {
+      const list = qual.get(n.quality);
+      if (list) list.push(d.avg);
+      else qual.set(n.quality, [d.avg]);
+    }
+  }
+  return {
+    paired,
+    duration: SLEEP_BUCKETS.map((b) => ({ bucket: b, avg: meanOf(dur.get(b)!), n: dur.get(b)!.length })),
+    quality: [...qual.entries()].sort((a, b) => a[0] - b[0]).map(([q, a]) => ({ q, avg: meanOf(a)!, n: a.length })),
+    short: { avg: meanOf(short), n: short.length },
+    long: { avg: meanOf(long), n: long.length },
+  };
+}
+
+/**
+ * Kayıtlarla bağlantı: bir kaydın olduğu ve olmadığı günlerin ortalaması ve
+ * aradaki fark. Fark ancak en az `min` gün var ve `min` gün yokken
+ * hesaplanır (Bearable'ın eşiği); yoksa null.
+ */
+export function linkStats(
+  days: DayStat[],
+  items: { id: string; days: Set<string> }[],
+  min = 3
+): { id: string; withN: number; withoutN: number; withAvg: number | null; diff: number | null }[] {
+  const rated = days.filter((d) => d.avg !== null);
+  return items.map(({ id, days: has }) => {
+    const w: number[] = [];
+    const wo: number[] = [];
+    for (const d of rated) (has.has(d.day) ? w : wo).push(d.avg!);
+    const ok = w.length >= min && wo.length >= min;
+    return { id, withN: w.length, withoutN: wo.length, withAvg: meanOf(w), diff: ok ? meanOf(w)! - meanOf(wo)! : null };
+  });
+}

@@ -15,6 +15,8 @@ import {
   LayoutGrid,
   LineChart,
   Link2,
+  Moon,
+  Shapes,
   Smile,
   Star,
   SunMoon,
@@ -53,11 +55,14 @@ import {
   isMoodModName,
   levelDistribution,
   levelSlot,
+  linkStats,
   partStats,
   pickMoodMods,
   quadrantCounts,
   quadrantsOf,
   scaleOf,
+  sleepNights,
+  sleepVsMood,
   weekdayStats,
   type DayPart,
   type DayStat,
@@ -148,6 +153,27 @@ function useMoodData(categoryId: string, focusId: string | undefined, start: num
   }, [categoryId, focusId, start, end]);
 }
 
+/** Uyku kayıtları ve bütün kategorilerin girdileri (bağlantı için) */
+function useContextData(start: number, end: number, enabled: boolean) {
+  return useLiveQuery(async () => {
+    if (!enabled) return null;
+    const [cats, subs, entries] = await Promise.all([
+      db.categories.toArray(),
+      db.subcategories.toArray(),
+      db.entries.where("occurredAt").between(start, end, true, false).toArray(),
+    ]);
+    const sleepCats = new Set(cats.filter((c) => c.builtInKey === "sleep").map((c) => c.id));
+    const sleepSubs = new Set(subs.filter((x) => sleepCats.has(x.categoryId)).map((x) => x.id));
+    const sleepEntries = entries.filter((e) => sleepSubs.has(e.subcategoryId));
+    const sleepValues = sleepEntries.length
+      ? (await db.entryValues.where("entryId").anyOf(sleepEntries.map((e) => e.id)).toArray()).filter((v) => !v.thingId)
+      : [];
+    const modIds = [...new Set(sleepValues.map((v) => v.modId).filter((x): x is string => !!x))];
+    const sleepMods = (await db.mods.bulkGet(modIds)).filter((m): m is Mod => !!m);
+    return { cats, subs, entries, sleepEntries, sleepValues, sleepMods };
+  }, [start, end, enabled]);
+}
+
 /** Blokların baş renkleri — analiz sayfasının bölüm renkleriyle aynı aile */
 const LEAD = {
   map: "#7ae582",
@@ -162,6 +188,8 @@ const LEAD = {
   weekdays: "#a8d8ff",
   parts: "#ffe08a",
   vol: "#d9d4c7",
+  sleep: "#a9b8e6",
+  links: "#e6c3a0",
 };
 
 /** Bölgelerin rengi — haritadaki köşe tonları (bkz. EMOTION_LOOKS) */
@@ -209,11 +237,15 @@ function MoodBody({ category, period, focus }: { category: Category; period: Per
   const router = useRouter();
   const [allEmotions, setAllEmotions] = useState(false);
   const [allLevels, setAllLevels] = useState(false);
+  const [allLinks, setAllLinks] = useState(false);
 
   const ref = useMemo(() => refPeriodOf(period), [period]);
-  const fetchStart = Math.min(period.start, ref?.start ?? period.start);
+  const ctxStart = period.kind === "day" ? period.start - 30 * 86400000 : period.start;
+  const fetchStart = Math.min(ctxStart, ref?.start ?? period.start);
   const fetchEnd = Math.max(period.end, ref?.end ?? period.end);
   const data = useMoodData(category.id, focus?.id, fetchStart, fetchEnd);
+  // Uyku ve öteki kayıtlar (3. adım) — haftada yok
+  const ctx = useContextData(ctxStart, period.end, period.kind !== "week");
 
   const nf1 = useMemo(() => new Intl.NumberFormat(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1 }), [tag]);
   const pctFmt = useMemo(() => new Intl.NumberFormat(tag, { style: "percent", maximumFractionDigits: 0 }), [tag]);
@@ -258,8 +290,72 @@ function MoodBody({ category, period, focus }: { category: Category; period: Per
       hl: highlights(days),
       // Önceki dönemin dalgalanması — kıyas yalnız yeterli veri varsa
       prevChanges: comparable ? dayChanges(prevDays) : [],
+      // Günde: son 30 günün günleri (gecenin kıyası için)
+      recentDays: period.kind === "day" ? byDay(records.filter((r) => r.at >= ctxStart && r.at < period.end)) : [],
     };
-  }, [data, period, ref]);
+  }, [data, period, ref, ctxStart]);
+
+  // ── Uyku geceleri ve öteki kayıtların günleri ──
+  const context = useMemo(() => {
+    if (!view || !ctx) return null;
+    const qualityMod = ctx.sleepMods.find((m) => m.valueType === "select" && !!m.choices?.length && m.choices.every((c) => /^\d+$/.test(c)));
+    const nights = sleepNights(ctx.sleepEntries, ctx.sleepValues, qualityMod?.id);
+    const qualityMax = qualityMod ? Math.max(...qualityMod.choices!.map(Number)) : 5;
+    // Ruh hali, uyku (kendi bloğunda) ve nesne durumları dışında her kategori
+    // ve alt kategori; alt kategorinin günleri üstününkiyle aynıysa tekrar etmez
+    const skip = new Set(ctx.cats.filter((c) => c.builtInKey).map((c) => c.id));
+    const subById = new Map(ctx.subs.map((x) => [x.id, x]));
+    const catById = new Map(ctx.cats.map((c) => [c.id, c]));
+    const catDays = new Map<string, Set<string>>();
+    const subDays = new Map<string, Set<string>>();
+    const add = (m: Map<string, Set<string>>, k: string, d: string) => {
+      const set = m.get(k);
+      if (set) set.add(d);
+      else m.set(k, new Set([d]));
+    };
+    const dayCount = new Map<string, number>();
+    const todayKey = dayKey(period.start);
+    for (const e of ctx.entries) {
+      if (e.occurredAt < period.start || e.occurredAt >= period.end) continue;
+      const sub = subById.get(e.subcategoryId);
+      if (!sub || skip.has(sub.categoryId)) continue;
+      const d = dayKey(e.occurredAt);
+      add(catDays, sub.categoryId, d);
+      for (let c: SubCategory | undefined = sub; c; c = c.parentId ? subById.get(c.parentId) : undefined) {
+        if (!c.isCategoryRoot) add(subDays, c.id, d);
+      }
+      // Günde: kalem başına kayıt sayısı (gizli kök kalemde kategorinin adı)
+      if (period.kind === "day" && d === todayKey) {
+        const k = sub.isCategoryRoot ? `c:${sub.categoryId}` : `s:${sub.id}`;
+        dayCount.set(k, (dayCount.get(k) ?? 0) + 1);
+      }
+    }
+    const same = (a: Set<string>, b?: Set<string>) => !!b && a.size === b.size && [...a].every((x) => b.has(x));
+    const items: { id: string; name: string; color: string; cat?: string; days: Set<string> }[] = [];
+    for (const [id, ds] of catDays) {
+      const c = catById.get(id);
+      if (c) items.push({ id: `c:${id}`, name: c.name, color: c.color, days: ds });
+    }
+    for (const [id, ds] of subDays) {
+      const sub = subById.get(id)!;
+      const c = catById.get(sub.categoryId);
+      if (!c) continue;
+      const parentDays = sub.parentId && !subById.get(sub.parentId)?.isCategoryRoot ? subDays.get(sub.parentId) : catDays.get(sub.categoryId);
+      if (same(ds, parentDays)) continue;
+      items.push({ id: `s:${id}`, name: sub.name, color: c.color, cat: c.name, days: ds });
+    }
+    const byId = new Map(items.map((x) => [x.id, x]));
+    const rows = linkStats(view.days, items).map((r) => ({ ...r, item: byId.get(r.id)! }));
+    const dayOthers = [...dayCount.entries()]
+      .map(([k, n]) => {
+        const isCat = k.startsWith("c:");
+        const sub = isCat ? undefined : subById.get(k.slice(2));
+        const c = catById.get(isCat ? k.slice(2) : sub!.categoryId);
+        return { key: k, name: isCat ? (c?.name ?? "") : sub!.name, color: c?.color ?? "#ddd", n };
+      })
+      .sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
+    return { nights, qualityMax, rows, dayOthers };
+  }, [view, ctx, period]);
 
   if (!view) return null;
   const { scale, named, cur, days, avg, refAvg, progress, counts } = view;
@@ -1156,6 +1252,210 @@ function MoodBody({ category, period, focus }: { category: Category; period: Per
     }
   }
 
+  // ══ 3. adım: uyku ve öteki kayıtlarla bağlantı ══
+  const durText = (h: number) => {
+    const m = Math.round(h * 60);
+    return t("sleep.durHM", { h: Math.floor(m / 60), m: String(m % 60).padStart(2, "0") });
+  };
+  const rowLine = (i: number) => (i > 0 ? { borderTopColor: "#111" } : undefined);
+  const groupLabel = (text: string, first: boolean) => (
+    <span className={cn(LABEL, "bg-[#f5f1e8] px-3 py-1.5", !first && "border-t-[1.5px]")} style={first ? undefined : { borderTopColor: "#111" }}>
+      {text}
+    </span>
+  );
+
+  // ── Uyku ve ertesi gün (ay, yıl, tümü) ──
+  let sleepBlock: ReactNode = null;
+  if (long && context && avg !== null) {
+    const sv = sleepVsMood(days, context.nights);
+    const okDur = sv.duration.filter((x) => x.n >= 3).length;
+    const okQual = sv.quality.filter((x) => x.n >= 3).length;
+    const row = (key: string, label: string, x: { avg: number | null; n: number }, i: number) => (
+      <div
+        key={key}
+        className={cn(
+          "grid grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_30px_50px] items-center gap-2 px-3 py-2 text-[#111]",
+          i > 0 && "border-t-[1.5px]"
+        )}
+        style={rowLine(i)}
+      >
+        <span className={cn("truncate text-[12.5px] font-black", x.n < 3 && "text-[#111]/45")}>{label}</span>
+        {x.avg !== null ? (
+          <span className={x.n < 3 ? "opacity-40" : undefined}>
+            <ScaleTrack value={x.avg} mean={avg} scale={scale} colorOf={colorOf} />
+          </span>
+        ) : (
+          <span />
+        )}
+        <b className={cn("text-right font-mono text-[12.5px] font-bold tabular-nums", x.n < 3 && "text-[#111]/45")}>
+          {x.avg !== null ? nf1.format(x.avg) : "–"}
+        </b>
+        <span className="whitespace-nowrap text-right font-mono text-[10px] font-bold text-[#111]/55">
+          {x.n ? t("moodan.nightsN", { n: x.n }) : t("moodan.noNights")}
+        </span>
+      </div>
+    );
+    sleepBlock = (
+      <Section color={LEAD.sleep} glyph={Moon} title={t("moodan.sleep")} hint={okDur >= 2 ? t("moodan.nightsN", { n: sv.paired }) : undefined}>
+        {context.nights.size === 0 ? (
+          thin(t("moodan.sleepNone"))
+        ) : okDur < 2 ? (
+          thin(t("moodan.sleepThin", { n: okDur }))
+        ) : (
+          <>
+            <div className="flex flex-col bg-white">
+              {groupLabel(t("moodan.byDuration"), true)}
+              {sv.duration.map((x, i) => row(x.bucket, t(`moodan.sl.${x.bucket}` as const), x, i))}
+              {okQual >= 2 && (
+                <>
+                  {groupLabel(t("moodan.byQuality"), false)}
+                  {sv.quality.map((x, i) => row(`q${x.q}`, `${t("moodan.qualityN", { n: x.q })}/${context.qualityMax}`, x, i))}
+                </>
+              )}
+            </div>
+            {sv.short.n >= 3 && sv.long.n >= 3 && (
+              <ReadLine text={t("moodan.sleepRead", { a: nf1.format(sv.long.avg!), b: nf1.format(sv.short.avg!) })} />
+            )}
+          </>
+        )}
+      </Section>
+    );
+  }
+
+  // ── Kayıtlarla bağlantı (ay, yıl, tümü): olan − olmayan günler ──
+  let linksBlock: ReactNode = null;
+  if (long && context && avg !== null && context.rows.length > 0) {
+    const ok = context.rows.filter((r) => r.diff !== null).sort((a, b) => b.diff! - a.diff! || b.withN - a.withN);
+    const out = context.rows.filter((r) => r.diff === null && r.withN > 0).length;
+    const list = ok.length > 8 && !allLinks ? [...ok.slice(0, 4), null, ...ok.slice(-4)] : ok;
+    const top = ok[0];
+    const bot = ok[ok.length - 1];
+    // Çubuk ölçeği: listedeki en büyük fark, en az bir basamak
+    const barMax = Math.max(1, ...ok.map((r) => Math.abs(r.diff!)));
+    linksBlock = (
+      <Section color={LEAD.links} glyph={Shapes} title={t("moodan.links")} hint={ok.length ? t("moodan.linksHint") : undefined}>
+        {!ok.length ? (
+          thin(t("moodan.linksThin"))
+        ) : (
+          <>
+            <div className="flex flex-col bg-white">
+              {list.map((r, i) =>
+                r === null ? (
+                  <button
+                    key="gap"
+                    type="button"
+                    onClick={() => setAllLinks(true)}
+                    className="border-t-[1.5px] py-1.5 text-center text-[12px] font-black text-[#111]/70 active:bg-[#f5f1e8]"
+                    style={{ borderTopColor: "#111" }}
+                  >
+                    ⋯ {t("moodan.showAll", { n: ok.length })}
+                  </button>
+                ) : (
+                  <div
+                    key={r.id}
+                    className={cn("grid grid-cols-[minmax(0,1fr)_88px_36px] items-center gap-2 px-3 py-2 text-[#111]", i > 0 && "border-t-[1.5px]")}
+                    style={rowLine(i)}
+                    title={`${r.item.name}: ${t("moodan.linkDays", { w: r.withN, o: r.withoutN })}`}
+                  >
+                    <span className="min-w-0">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <i className="h-2.5 w-2.5 shrink-0 rounded-[3px] border-[1.5px]" style={{ background: r.item.color, borderColor: "#111" }} />
+                        <span className="truncate text-[13px] font-black leading-tight">{r.item.name}</span>
+                      </span>
+                      <span className="block truncate text-[10px] font-bold leading-tight text-[#111]/55">
+                        {r.item.cat ? `${r.item.cat} · ` : ""}
+                        {t("moodan.linkDays", { w: r.withN, o: r.withoutN })}
+                        {r.withN < 14 || r.withoutN < 14 ? ` · ${t("moodan.early")}` : ""}
+                      </span>
+                    </span>
+                    <DiffBar diff={r.diff!} max={barMax} />
+                    <b className="text-right font-mono text-[12.5px] font-bold tabular-nums">{signed(r.diff!)}</b>
+                  </div>
+                )
+              )}
+              {ok.length > 8 && allLinks && (
+                <button
+                  type="button"
+                  onClick={() => setAllLinks(false)}
+                  className="border-t-[1.5px] px-3 py-2 text-center text-[12.5px] font-black text-[#111] active:bg-[#f5f1e8]"
+                  style={{ borderTopColor: "#111" }}
+                >
+                  {t("moodan.showLess")}
+                </button>
+              )}
+              {out > 0 && (
+                <p className="border-t-[1.5px] px-3 py-2 text-[11px] font-bold text-[#111]/55" style={{ borderTopColor: "#111" }}>
+                  {t("moodan.linksOut", { n: out })}
+                </p>
+              )}
+            </div>
+            <ReadLine
+              text={
+                ok.length > 1 && top.diff! > 0.05 && bot.diff! < -0.05
+                  ? t("moodan.linksRead", { a: top.item.name, x: signed(top.diff!), b: bot.item.name, y: signed(bot.diff!) })
+                  : t("moodan.linksReadOne", {
+                      a: (Math.abs(top.diff!) >= Math.abs(bot.diff!) ? top : bot).item.name,
+                      x: signed((Math.abs(top.diff!) >= Math.abs(bot.diff!) ? top : bot).diff!),
+                    })
+              }
+            />
+          </>
+        )}
+      </Section>
+    );
+  }
+
+  // ── Günde: bu sabaha bağlanan gece ve günün diğer kayıtları ──
+  let lastNight: ReactNode = null;
+  let dayOthers: ReactNode = null;
+  if (isDay && context) {
+    const night = context.nights.get(dayKey(period.start));
+    if (night) {
+      const sv = sleepVsMood(view.recentDays, context.nights);
+      lastNight = (
+        <Section color={LEAD.sleep} glyph={Moon} title={t("moodan.lastNight")}>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-white px-3.5 py-3 text-[#111]">
+            <b className="font-mono text-[24px] font-bold leading-none tabular-nums">{durText(night.hours)}</b>
+            <span className="font-mono text-[12px] font-bold tabular-nums text-[#111]/60">
+              {timeOf(night.start)} → {timeOf(night.end)}
+            </span>
+            {night.quality !== null && (
+              <span
+                className="rounded-full border-[1.5px] px-2 py-px font-mono text-[11px] font-bold leading-[16px] tabular-nums"
+                style={{ borderColor: "#111", background: "#eef0fb" }}
+              >
+                {t("moodan.quality", { n: night.quality, m: context.qualityMax })}
+              </span>
+            )}
+          </div>
+          {sv.short.n >= 3 && sv.long.n >= 3 && (
+            <ReadLine text={t("moodan.night30", { a: nf1.format(sv.short.avg!), b: nf1.format(sv.long.avg!) })} />
+          )}
+        </Section>
+      );
+    }
+    if (context.dayOthers.length) {
+      dayOthers = (
+        <Section color={LEAD.links} glyph={Shapes} title={t("moodan.dayOthers")}>
+          <div className="flex flex-wrap gap-1.5 bg-white p-3">
+            {context.dayOthers.map((o) => (
+              <span
+                key={o.key}
+                className="inline-flex max-w-full items-center gap-1.5 rounded-full border-2 bg-white px-2.5 py-1 text-[12px] font-black text-[#111]"
+                style={{ borderColor: "#111" }}
+              >
+                <i className="h-2.5 w-2.5 shrink-0 rounded-[3px] border-[1.5px]" style={{ background: o.color, borderColor: "#111" }} />
+                <span className="truncate">{o.name}</span>
+                {o.n > 1 && <b className="font-mono text-[11px]">×{o.n}</b>}
+              </span>
+            ))}
+          </div>
+          {thin(t("moodan.dayOthersHint"))}
+        </Section>
+      );
+    }
+  }
+
   // ── Girdiler (gün dışında; günde gün akışı zaten listeliyor) ──
   const entryRows: EntryListRow[] = isDay
     ? []
@@ -1177,12 +1477,16 @@ function MoodBody({ category, period, focus }: { category: Category; period: Per
       {trend}
       {distribution}
       {emotions}
+      {lastNight}
+      {dayOthers}
       {emoMap}
       {flow}
       {emoHap}
       {together}
       {weekdays}
       {dayParts}
+      {sleepBlock}
+      {linksBlock}
       {standout}
       {vol}
       {!isDay && <EntryListBlock title={t("objects.entries")} accent={category.color} rows={entryRows} />}
@@ -1627,5 +1931,26 @@ function VolBars({ bars }: { bars: ({ v: number; big: boolean; title: string } |
         );
       })}
     </svg>
+  );
+}
+
+/** Olan − olmayan farkı: ortadan sağa yeşil (olan günler daha iyi), sola mor; `max` farkta yarı dolu */
+function DiffBar({ diff, max }: { diff: number; max: number }) {
+  const w = (Math.min(Math.abs(diff), max) / max) * 50;
+  return (
+    <span className="relative block h-[14px]">
+      <span className="absolute inset-y-[-2px] left-1/2 w-[2px] -translate-x-1/2 bg-[#111]" />
+      {w > 0 && (
+        <span
+          className="absolute top-[1px] h-[12px] rounded-[3px] border-[1.5px]"
+          style={{
+            width: `${w}%`,
+            ...(diff >= 0 ? { left: "50%" } : { right: "50%" }),
+            background: diff >= 0 ? "#5fcf86" : "#8b7cf6",
+            borderColor: "#111",
+          }}
+        />
+      )}
+    </span>
   );
 }
