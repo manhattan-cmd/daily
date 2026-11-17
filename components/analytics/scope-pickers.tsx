@@ -19,7 +19,7 @@
  * kategoriye inince listede. Altı olmayan kalemde süzgeç yok.
  */
 
-import { createElement, useMemo, useState } from "react";
+import { createElement, useCallback, useMemo, useState } from "react";
 import { Check, ChevronDown, LayoutGrid, ListOrdered } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
@@ -27,8 +27,9 @@ import { loadCommonModIds } from "@/lib/db/queries";
 import { SymbolIcon } from "@/lib/icons";
 import { useSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
-import { useT } from "@/lib/i18n";
+import { translate, useLocale, useT } from "@/lib/i18n";
 import { modColor } from "@/lib/mod-color";
+import { moodText } from "@/lib/icons/emotions";
 import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Category, Entry, Mod, SubCategory } from "@/types";
@@ -71,6 +72,18 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
 
   const subById = useMemo(() => new Map(subs.map((s) => [s.id, s])), [subs]);
   const focus = path[path.length - 1] ?? null;
+  // Yerleşik ruh halinin adları kayıtta İngilizce ("Mood", "Emotions") — dile çevrilir
+  const moodCatIds = useMemo(() => new Set(cats.filter((c) => c.builtInKey === "mood").map((c) => c.id)), [cats]);
+  const locale = useLocale();
+  const local = useCallback(
+    (name: string, catId: string | undefined) =>
+      catId && moodCatIds.has(catId) ? moodText(name, (k) => translate(k, undefined, locale)) : name,
+    [moodCatIds, locale]
+  );
+  const inMood = !!selectedCat && moodCatIds.has(selectedCat.id);
+  const modName = (m: Mod, catId = selectedCat?.id) => local(m.name, catId);
+  // Ruh halinin özel sayfası mutluluğu ve duyguları birlikte okuyor (bkz. MoodPanel)
+  const noMetric = inMood ? t("moodan.allFeatures") : "Seç";
 
   /** Girdinin kalemi bulunulan kapsamın içinde mi */
   const inScope = useMemo(() => {
@@ -161,7 +174,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
         .sort((a, b) => a.order - b.order)
         .forEach((s) => {
           const p = [...trail, s.id];
-          out.push({ key: [cat.id, ...p].join("/"), catId: cat.id, pathIds: p, name: s.name, icon: s.icon ?? cat.icon, color: cat.color, depth, n: count.get(s.id) ?? 0, isCat: false });
+          out.push({ key: [cat.id, ...p].join("/"), catId: cat.id, pathIds: p, name: local(s.name, cat.id), icon: s.icon ?? cat.icon, color: cat.color, depth, n: count.get(s.id) ?? 0, isCat: false });
           walk(cat, s.id, depth + 1, p);
         });
     };
@@ -169,13 +182,13 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
       .filter((c) => (count.get(`c:${c.id}`) ?? 0) > 0)
       .sort((a, b) => (count.get(`c:${b.id}`) ?? 0) - (count.get(`c:${a.id}`) ?? 0))
       .forEach((c) => {
-        out.push({ key: c.id, catId: c.id, pathIds: [], name: c.name, icon: c.icon, color: c.color, depth: 0, n: count.get(`c:${c.id}`) ?? 0, isCat: true });
+        out.push({ key: c.id, catId: c.id, pathIds: [], name: local(c.name, c.id), icon: c.icon, color: c.color, depth: 0, n: count.get(`c:${c.id}`) ?? 0, isCat: true });
         walk(c, undefined, 1, []);
       });
     return out;
-  }, [cats, subs, entries, subById, filtering, metricEntryIds]);
+  }, [cats, subs, entries, subById, filtering, metricEntryIds, local]);
 
-  const placeText = selectedCat ? [selectedCat.name, ...path.map((s) => s.name)].slice(-2).join(" › ") : t("structure.categories");
+  const placeText = selectedCat ? [selectedCat.name, ...path.map((s) => s.name)].map((x) => local(x, selectedCat.id)).slice(-2).join(" › ") : t("structure.categories");
   const placeIcon = focus?.icon ?? selectedCat?.icon;
   const curPathKey = selectedCat ? [selectedCat.id, ...path.map((s) => s.id)].join("/") : "";
 
@@ -247,11 +260,11 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
                   "Harcamalar › Ulaşım" sığmayıp "Harcamalar › …" oluyordu */}
               <span className="block truncate text-[9.5px] font-black uppercase leading-none tracking-[0.1em] text-[#111]/55">
                 {focus && selectedCat
-                  ? `Yer · ${path.length > 1 ? path[path.length - 2].name : selectedCat.name}`
+                  ? `Yer · ${local(path.length > 1 ? path[path.length - 2].name : selectedCat.name, selectedCat.id)}`
                   : "Yer"}
               </span>
               <span className="mt-[3px] block truncate text-[13.5px] font-black leading-tight">
-                {focus?.name ?? selectedCat?.name ?? t("structure.categories")}
+                {selectedCat ? local(focus?.name ?? selectedCat.name, selectedCat.id) : t("structure.categories")}
               </span>
             </span>
             <ChevronDown className="h-4 w-4 shrink-0" strokeWidth={2.75} />
@@ -271,7 +284,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-[9.5px] font-black uppercase leading-none tracking-[0.1em] text-[#111]/55">Özellik</span>
-              <span className="mt-[3px] block truncate text-[13.5px] font-black leading-tight">{currentMod ? currentMod.name : "Seç"}</span>
+              <span className="mt-[3px] block truncate text-[13.5px] font-black leading-tight">{currentMod ? modName(currentMod) : noMetric}</span>
             </span>
             <ChevronDown className="h-4 w-4 shrink-0" strokeWidth={2.75} />
           </button>
@@ -330,7 +343,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
           )}
           <span className="min-w-0 flex-1">
             <span className={fieldLabel}>Özellik</span>
-            <span className={fieldValue}>{currentMod ? currentMod.name : "Seç"}</span>
+            <span className={fieldValue}>{currentMod ? modName(currentMod) : noMetric}</span>
           </span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
         </button>
@@ -345,7 +358,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
                 <DialogTitle className="text-[17px]">Özellik</DialogTitle>
                 {commonOn && (
                   <p data-common-hint="" className={cn("text-[12px] leading-snug", brutal ? "text-[#111]/60" : "text-muted-foreground")}>
-                    {t("an.commonOnly", { place: focus?.name ?? selectedCat?.name ?? "" })}
+                    {t("an.commonOnly", { place: selectedCat ? local(focus?.name ?? selectedCat.name, selectedCat.id) : "" })}
                   </p>
                 )}
               </DialogHeader>
@@ -364,7 +377,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
                       }}
                     >
                       {atom(f.mod)}
-                      <span className="truncate text-[14px] font-semibold">{f.mod.name}</span>
+                      <span className="truncate text-[14px] font-semibold">{modName(f.mod, selectedCat?.id ?? f.topCat)}</span>
                       {on ? <Check className="ml-auto h-4 w-4 shrink-0" /> : <span className={pill(false)}>{f.n}</span>}
                     </button>
                   );
@@ -385,7 +398,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
               {currentMod && (
                 <div className={cn("flex gap-1 rounded-xl p-[3px]", brutal ? "border-[1.5px] border-[#111] bg-white" : "bg-[var(--sf-2)]")}>
                   {[
-                    { on: !allPlaces, label: `${currentMod.name} geçen yerler`, set: false },
+                    { on: !allPlaces, label: `${modName(currentMod)} geçen yerler`, set: false },
                     { on: allPlaces, label: "Tüm yerler", set: true },
                   ].map((o) => (
                     <button

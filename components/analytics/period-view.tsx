@@ -68,6 +68,8 @@ import {
   setAnalysisMetric,
 } from "@/components/analytics/analysis-selection";
 import { ScopePickers } from "@/components/analytics/scope-pickers";
+import { MoodPanel } from "@/components/analytics/mood-panel";
+import { moodText } from "@/lib/icons/emotions";
 import type { SubCategory } from "@/types";
 import { LazyMount } from "@/components/ui/lazy-mount";
 import { intlTag, useLocale, useT, translate } from "@/lib/i18n";
@@ -276,7 +278,8 @@ export function PeriodView({
         const c = catById.get(id);
         return {
           id,
-          name: c?.name ?? "—",
+          // Yerleşik ruh halinin adı kayıtta İngilizce — dile çevrilir
+          name: c ? (c.builtInKey === "mood" ? moodText(c.name, translate) : c.name) : "—",
           color: c?.color ?? "#6366f1",
           icon: c?.icon,
           value: v,
@@ -649,15 +652,29 @@ export function PeriodView({
               boyu tutulur ki kaydırma başa kırpılmasın (bkz. HoldHeight) */}
           {selectedCat && (
             <HoldHeight holdKey={period.key}>
-              <PeriodCategoryPanel
-                key={`${selectedCat.id}|${period.key}`}
-                category={selectedCat}
-                period={period}
-                path={path}
-                metricId={metricId}
-                onDrill={drillTo}
-                onResolved={(id) => setMetricSel({ catId: selectedCat.id, id })}
-              />
+              {/* Ruh halinin kendi sayfası: mutluluk ve duygular birlikte
+                  (bkz. MoodPanel); kişinin eklediği özellikte genel panel */}
+              {selectedCat.builtInKey === "mood" ? (
+                <MoodPanel
+                  key={`${selectedCat.id}|${period.key}`}
+                  category={selectedCat}
+                  period={period}
+                  path={path}
+                  metricId={metricId}
+                  onDrill={drillTo}
+                  onResolved={(id) => setMetricSel({ catId: selectedCat.id, id })}
+                />
+              ) : (
+                <PeriodCategoryPanel
+                  key={`${selectedCat.id}|${period.key}`}
+                  category={selectedCat}
+                  period={period}
+                  path={path}
+                  metricId={metricId}
+                  onDrill={drillTo}
+                  onResolved={(id) => setMetricSel({ catId: selectedCat.id, id })}
+                />
+              )}
             </HoldHeight>
           )}
 
