@@ -421,10 +421,13 @@ export function PeriodView({
     setDrill({ catId, path: next });
     setAnalysisPath(catId, next);
     // Seçili özellik yeni yerde de seçili kalsın (ağaç zaten onun geçtiği
-    // yerleri gösteriyor)
+    // yerleri gösteriyor). Başka kategoriden Ruh haline geçerken taşınmaz:
+    // özel sayfası özellik seçmeden açılır, seçici de orada çoğunlukla gizli
     if (metricId !== "count") {
-      setMetricSel({ catId, id: metricId });
-      setAnalysisMetric(catId, metricId);
+      const toMood = catId !== selectedCat?.id && data?.cats.find((c) => c.id === catId)?.builtInKey === "mood";
+      const id = toMood ? "count" : metricId;
+      setMetricSel({ catId, id });
+      setAnalysisMetric(catId, id);
     }
     toTop();
   };

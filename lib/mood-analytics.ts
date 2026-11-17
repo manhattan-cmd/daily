@@ -203,3 +203,137 @@ export function highlights(days: DayStat[]): { best: DayStat; worst: DayStat } |
   if (best.avg === worst.avg) return null;
   return { best, worst };
 }
+
+// ── 2. adım: duygu ilişkileri ve ritimler ──
+// Her analizin bir eşiği var; eşiğin altında sonuç yerine ne kadar veri
+// gerektiği yazılır (yanlış bir "Pazartesileri kötüsün" sonucundan iyidir).
+
+export type QuadCounts = Record<EmotionQuadrant, number>;
+
+/** Kayıtlardaki duygu seçimlerinin bölgelere dağılımı (haritada olmayanlar sayılmaz) */
+export function quadrantsOf(records: MoodRecord[]): QuadCounts {
+  const q: QuadCounts = { tense: 0, lively: 0, low: 0, serene: 0 };
+  for (const r of records) {
+    for (const e of r.emotions) {
+      const k = EMOTION_LOOKS[e]?.quadrant;
+      if (k) q[k]++;
+    }
+  }
+  return q;
+}
+
+/** Hoş bölgeler (canlı, dingin) */
+export const isPleasant = (q: EmotionQuadrant) => q === "lively" || q === "serene";
+
+/**
+ * Duygunun geçtiği kayıtların ortalama mutluluğu — en az `minN` kaydı olan
+ * duygular, iyiden zora. Mutluluğu girilmemiş kayıt sayılmaz.
+ */
+export function emotionLevels(records: MoodRecord[], minN = 4): { name: string; avg: number; n: number }[] {
+  const by = new Map<string, number[]>();
+  for (const r of records) {
+    if (r.level === null) continue;
+    for (const e of r.emotions) {
+      const list = by.get(e);
+      if (list) list.push(r.level);
+      else by.set(e, [r.level]);
+    }
+  }
+  return [...by.entries()]
+    .filter(([, a]) => a.length >= minN)
+    .map(([name, a]) => ({ name, avg: a.reduce((s, x) => s + x, 0) / a.length, n: a.length }))
+    .sort((a, b) => b.avg - a.avg || b.n - a.n || a.name.localeCompare(b.name));
+}
+
+/**
+ * Aynı kayıtta birlikte seçilen duygu çiftleri (en az `minN` kez) ve birden
+ * çok duygulu kayıtlardan kaçında hoş ile hoş olmayan bir arada.
+ */
+export function emotionPairs(
+  records: MoodRecord[],
+  minN = 3
+): { pairs: { a: string; b: string; n: number }[]; multi: number; mixed: number } {
+  const pc = new Map<string, number>();
+  let multi = 0;
+  let mixed = 0;
+  for (const r of records) {
+    if (r.emotions.length < 2) continue;
+    multi++;
+    const qs = r.emotions.map((e) => EMOTION_LOOKS[e]?.quadrant).filter((q): q is EmotionQuadrant => !!q);
+    if (qs.some(isPleasant) && qs.some((q) => !isPleasant(q))) mixed++;
+    const s = [...r.emotions].sort();
+    for (let i = 0; i < s.length; i++) {
+      for (let j = i + 1; j < s.length; j++) {
+        const k = `${s[i]}\u0000${s[j]}`;
+        pc.set(k, (pc.get(k) ?? 0) + 1);
+      }
+    }
+  }
+  const pairs = [...pc.entries()]
+    .filter(([, n]) => n >= minN)
+    .map(([k, n]) => {
+      const [a, b] = k.split("\u0000");
+      return { a, b, n };
+    })
+    .sort((x, y) => y.n - x.n || `${x.a}${x.b}`.localeCompare(`${y.a}${y.b}`));
+  return { pairs, multi, mixed };
+}
+
+/** Haftanın günleri, pazartesiden: gün ortalamalarının ortalaması ve kaç gün */
+export function weekdayStats(days: DayStat[]): { avg: number | null; n: number }[] {
+  const g: number[][] = [[], [], [], [], [], [], []];
+  for (const d of days) {
+    if (d.avg === null) continue;
+    const wd = (new Date(d.day + "T12:00:00").getDay() + 6) % 7;
+    g[wd].push(d.avg);
+  }
+  return g.map((a) => ({ avg: a.length ? a.reduce((s, x) => s + x, 0) / a.length : null, n: a.length }));
+}
+
+/** Günün dilimleri — sabah 05–11, öğle 11–17, akşam 17–22, gece 22–05 */
+export const DAY_PARTS = ["morning", "noon", "evening", "night"] as const;
+export type DayPart = (typeof DAY_PARTS)[number];
+export const DAY_PART_HOURS: Record<DayPart, string> = {
+  morning: "05–11",
+  noon: "11–17",
+  evening: "17–22",
+  night: "22–05",
+};
+
+export function partOf(ms: number): DayPart {
+  const h = new Date(ms).getHours();
+  return h >= 5 && h < 11 ? "morning" : h >= 11 && h < 17 ? "noon" : h >= 17 && h < 22 ? "evening" : "night";
+}
+
+/** Dilim başına kayıtlar: kayıt sayısı, mutluluk ortalaması (kayıtların) ve bölgeler */
+export function partStats(records: MoodRecord[]): Record<DayPart, { n: number; avg: number | null; quad: QuadCounts }> {
+  const out = {} as Record<DayPart, { n: number; avg: number | null; quad: QuadCounts }>;
+  for (const p of DAY_PARTS) {
+    const rs = records.filter((r) => partOf(r.at) === p);
+    const lv = rs.map((r) => r.level).filter((x): x is number => x !== null);
+    out[p] = {
+      n: lv.length,
+      avg: lv.length ? lv.reduce((s, x) => s + x, 0) / lv.length : null,
+      quad: quadrantsOf(rs),
+    };
+  }
+  return out;
+}
+
+/**
+ * Dalgalanma: takvimde art arda iki günün ikisi de kayıtlıysa aradaki fark
+ * (gün ortalamaları). Araştırmadaki "ardışık farkların karesi" ölçüsünün sade
+ * hali; arada boş gün varsa çift sayılmaz.
+ */
+export function dayChanges(days: DayStat[]): { day: string; from: number; to: number; v: number }[] {
+  const byKey = new Map(days.map((d) => [d.day, d]));
+  const out: { day: string; from: number; to: number; v: number }[] = [];
+  for (const d of days) {
+    if (d.avg === null) continue;
+    const t = new Date(d.day + "T12:00:00");
+    const p = byKey.get(dayKey(new Date(t.getFullYear(), t.getMonth(), t.getDate() - 1, 12).getTime()));
+    if (!p || p.avg === null) continue;
+    out.push({ day: d.day, from: p.avg, to: d.avg, v: Math.abs(d.avg - p.avg) });
+  }
+  return out;
+}

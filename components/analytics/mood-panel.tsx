@@ -3,7 +3,23 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowRight, BarChart3, CalendarDays, Layers, LayoutGrid, LineChart, Smile, Star, type LucideIcon } from "lucide-react";
+import {
+  Activity,
+  ArrowRight,
+  BarChart3,
+  CalendarDays,
+  CalendarRange,
+  ChartColumnStacked,
+  Gauge,
+  Layers,
+  LayoutGrid,
+  LineChart,
+  Link2,
+  Smile,
+  Star,
+  SunMoon,
+  type LucideIcon,
+} from "lucide-react";
 import { db } from "@/lib/db";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -24,20 +40,30 @@ import {
   type EmotionQuadrant,
 } from "@/lib/icons/emotions";
 import {
+  DAY_PARTS,
+  DAY_PART_HOURS,
   averageOfDays,
   buildRecords,
   byDay,
+  dayChanges,
   emotionCounts,
+  emotionLevels,
+  emotionPairs,
   highlights,
   isMoodModName,
   levelDistribution,
   levelSlot,
+  partStats,
   pickMoodMods,
   quadrantCounts,
+  quadrantsOf,
   scaleOf,
+  weekdayStats,
+  type DayPart,
   type DayStat,
   type MoodRecord,
   type MoodScale,
+  type QuadCounts,
 } from "@/lib/mood-analytics";
 import { SummaryBlock, SummaryEmpty, SummaryTile } from "@/components/ui/summary-block";
 import { EmotionCapsule, LevelCapsule } from "@/components/dashboard/entry-parts";
@@ -130,7 +156,25 @@ const LEAD = {
   emotions: "#ff9ecd",
   emoMap: "#c9b8ff",
   highlights: "#ffb38a",
+  flow: "#7fe0d3",
+  emoHap: "#b8f28c",
+  pairs: "#f6b8ff",
+  weekdays: "#a8d8ff",
+  parts: "#ffe08a",
+  vol: "#d9d4c7",
 };
+
+/** Bölgelerin rengi — haritadaki köşe tonları (bkz. EMOTION_LOOKS) */
+const QUAD_COLOR: Record<EmotionQuadrant, string> = {
+  tense: "#ef372a",
+  lively: "#faac0f",
+  low: "#487aef",
+  serene: "#36b57a",
+};
+/** Yığının sırası, alttan üste: hoşlar altta, aradaki sınır hoş payını çiziyor */
+const QUAD_STACK: EmotionQuadrant[] = ["serene", "lively", "tense", "low"];
+/** Bir pazartesi — hafta günlerinin adları için */
+const MONDAY = new Date(2026, 10, 16).getTime();
 
 /** İnce başlı analiz bloğu — başta renk + simge + ad, altında soluk açıklama */
 function Section({
@@ -164,6 +208,7 @@ function MoodBody({ category, period, focus }: { category: Category; period: Per
   const tag = intlTag(locale);
   const router = useRouter();
   const [allEmotions, setAllEmotions] = useState(false);
+  const [allLevels, setAllLevels] = useState(false);
 
   const ref = useMemo(() => refPeriodOf(period), [period]);
   const fetchStart = Math.min(period.start, ref?.start ?? period.start);
@@ -211,6 +256,8 @@ function MoodBody({ category, period, focus }: { category: Category; period: Per
           : null,
       dist: levelDistribution(cur, scale),
       hl: highlights(days),
+      // Önceki dönemin dalgalanması — kıyas yalnız yeterli veri varsa
+      prevChanges: comparable ? dayChanges(prevDays) : [],
     };
   }, [data, period, ref]);
 
@@ -399,14 +446,12 @@ function MoodBody({ category, period, focus }: { category: Category; period: Per
     const first = new Date(period.start);
     const lead = (first.getDay() + 6) % 7;
     const nd = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
-    // Pazartesi başlayan bir haftanın günleri — başlık satırı
-    const monday = new Date(2026, 10, 16).getTime();
     timeMap = (
       <Section color={LEAD.map} glyph={CalendarDays} title={t("moodan.calendar")} hint={t("moodan.calendarHint")}>
         <div className="grid grid-cols-7 gap-1 bg-white p-2.5">
           {Array.from({ length: 7 }, (_, i) => (
             <span key={`h${i}`} className="pb-0.5 text-center text-[9.5px] font-black uppercase tracking-wide text-[#111]/60">
-              {weekdayShort(monday + i * 86400000)}
+              {weekdayShort(MONDAY + i * 86400000)}
             </span>
           ))}
           {Array.from({ length: lead }, (_, i) => (
@@ -764,6 +809,353 @@ function MoodBody({ category, period, focus }: { category: Category; period: Per
     );
   }
 
+  // ══ 2. adım: duygu ilişkileri ve ritimler ══
+  // Eşiğin altında sonuç yerine ne kadar veri gerektiği yazılır. Haftada
+  // yalnız bölge akışı ve dalgalanma var; eşik tutmazsa blok hiç görünmez.
+  const long = !isDay && period.kind !== "week";
+  const rangeStart = period.kind === "all" || period.kind === "custom" ? startOfDayMs(new Date(cur[0].at)) : period.start;
+  const rangeEnd = period.kind === "all" ? Math.min(period.end, startOfDayMs(new Date(view.nowMs)) + 86400000) : period.end;
+  const spanDays = (rangeEnd - rangeStart) / 86400000;
+  const signed = (v: number) => `${v > 0.05 ? "+" : v < -0.05 ? "−" : "±"}${nf1.format(Math.abs(v))}`;
+  const thin = (msg: string) => <ReadLine text={msg} muted />;
+
+  // ── Bölge akışı: dört bölgenin payı zaman içinde ──
+  let flow: ReactNode = null;
+  if (!isDay && picks > 0) {
+    const fg: Granularity =
+      period.kind === "week"
+        ? "day"
+        : period.kind === "month"
+          ? "week"
+          : period.kind === "year"
+            ? "month"
+            : spanDays <= 14
+              ? "day"
+              : spanDays <= 120
+                ? "week"
+                : "month";
+    const fb = buildSeriesBuckets(rangeStart, rangeEnd, fg);
+    const idx = new Map(fb.map((b, i) => [b.key, i]));
+    const groups = fb.map(() => [] as MoodRecord[]);
+    for (const r of cur) {
+      const i = idx.get(bucketKeyOf(r.at, fg));
+      if (i !== undefined) groups[i].push(r);
+    }
+    const multiYear = new Date(rangeStart).getFullYear() !== new Date(rangeEnd - 1).getFullYear();
+    const every = Math.ceil(fb.length / 8);
+    const cols = fb.map((b, i) => {
+      const d = bucketDate(b.key, fg);
+      const label =
+        i % every !== 0
+          ? ""
+          : fg === "day"
+            ? fb.length <= 7
+              ? d.toLocaleDateString(tag, { weekday: "short" })
+              : String(d.getDate())
+            : fg === "week"
+              ? String(new Date(Math.max(d.getTime(), rangeStart)).getDate())
+              : `${shortMonth(d.getMonth())}${multiYear && (d.getMonth() === 0 || i === 0) ? ` ${String(d.getFullYear()).slice(2)}` : ""}`;
+      return { key: b.key, periodKey: b.periodKey ?? `d-${b.key}`, title: b.full, label, q: quadrantsOf(groups[i]), future: d.getTime() > view.nowMs };
+    });
+    const filled = cols.filter((c) => QUAD_STACK.some((q) => c.q[q] > 0)).length;
+    if (filled >= 2) {
+      const showShare = cols.length <= 12;
+      flow = (
+        <Section
+          color={LEAD.flow}
+          glyph={ChartColumnStacked}
+          title={t("moodan.flow")}
+          hint={t(fg === "day" ? "moodan.byDay" : fg === "week" ? "moodan.byWeek" : "moodan.byMonth")}
+        >
+          <div className="bg-white px-3 pb-2.5 pt-2.5">
+            <FlowChart cols={cols} showShare={showShare} pct={(v) => pctFmt.format(v)} qName={(q) => t(`moodan.q.${q}` as const)} onPick={go} />
+            <div className="mt-2 flex flex-wrap gap-x-2.5 gap-y-1 text-[10.5px] font-bold text-[#111]">
+              {[...QUAD_STACK].reverse().map((q) => (
+                <span key={q} className="inline-flex items-center gap-1">
+                  <i className="inline-block h-2.5 w-2.5 rounded-[3px] border-[1.5px]" style={{ background: QUAD_COLOR[q], borderColor: "#111" }} />
+                  {t(`moodan.q.${q}` as const)}
+                </span>
+              ))}
+              {showShare && <span className="text-[#111]/60">{t("moodan.pleasantTop")}</span>}
+            </div>
+          </div>
+        </Section>
+      );
+    }
+  }
+
+  // ── Duygu ve mutluluk: duygunun geçtiği kayıtların ortalaması ──
+  let emoHap: ReactNode = null;
+  if (long && picks > 0 && rated > 0) {
+    const MIN = 4;
+    const levels = emotionLevels(cur, MIN);
+    const list = levels.length > 8 && !allLevels ? [...levels.slice(0, 4), null, ...levels.slice(-4)] : levels;
+    emoHap = (
+      <Section color={LEAD.emoHap} glyph={Gauge} title={t("moodan.emoHap")} hint={levels.length >= 3 ? t("moodan.emoHapHint") : undefined}>
+        {levels.length < 3 ? (
+          thin(t("moodan.emoHapThin", { k: MIN, n: levels.length }))
+        ) : (
+          <>
+            <div className="flex flex-col bg-white">
+              {list.map((x, i) =>
+                x === null ? (
+                  <button
+                    key="gap"
+                    type="button"
+                    onClick={() => setAllLevels(true)}
+                    className="border-t-[1.5px] py-1.5 text-center text-[12px] font-black text-[#111]/70 active:bg-[#f5f1e8]"
+                    style={{ borderTopColor: "#111" }}
+                  >
+                    ⋯ {t("moodan.showAll", { n: levels.length })}
+                  </button>
+                ) : (
+                  <div
+                    key={x.name}
+                    className={cn(
+                      "grid grid-cols-[24px_minmax(0,0.9fr)_minmax(0,1fr)_30px] items-center gap-2 px-3 py-2 text-[#111]",
+                      i > 0 && "border-t-[1.5px]"
+                    )}
+                    style={i > 0 ? { borderTopColor: "#111" } : undefined}
+                    title={`${emotionName(x.name, t)}: ${nf1.format(x.avg)}`}
+                  >
+                    <EmotionFace name={x.name} size={24} />
+                    <span className="min-w-0">
+                      <span className="block truncate text-[13px] font-black leading-tight">{emotionName(x.name, t)}</span>
+                      <span className="block font-mono text-[10px] font-bold leading-tight text-[#111]/55">{t("moodan.recordsN", { n: x.n })}</span>
+                    </span>
+                    <ScaleTrack value={x.avg} mean={avg} scale={scale} colorOf={colorOf} />
+                    <b className="text-right font-mono text-[13px] font-bold tabular-nums">{nf1.format(x.avg)}</b>
+                  </div>
+                )
+              )}
+              {levels.length > 8 && allLevels && (
+                <button
+                  type="button"
+                  onClick={() => setAllLevels(false)}
+                  className="border-t-[1.5px] px-3 py-2 text-center text-[12.5px] font-black text-[#111] active:bg-[#f5f1e8]"
+                  style={{ borderTopColor: "#111" }}
+                >
+                  {t("moodan.showLess")}
+                </button>
+              )}
+            </div>
+            <ReadLine
+              text={t("moodan.emoHapRead", {
+                a: emotionName(levels[0].name, t),
+                x: nf1.format(levels[0].avg),
+                b: emotionName(levels[levels.length - 1].name, t),
+                y: nf1.format(levels[levels.length - 1].avg),
+              })}
+            />
+          </>
+        )}
+      </Section>
+    );
+  }
+
+  // ── Birlikte görülen duygular ──
+  let together: ReactNode = null;
+  if (long && picks > 0) {
+    const pr = emotionPairs(cur, 3);
+    const top = pr.pairs.slice(0, 5);
+    together = (
+      <Section color={LEAD.pairs} glyph={Link2} title={t("moodan.pairs")} hint={top.length ? t("moodan.pairsHint") : undefined}>
+        {!top.length ? (
+          thin(t("moodan.pairsThin"))
+        ) : (
+          <>
+            <div className="flex flex-col bg-white">
+              {top.map((p, i) => (
+                <div
+                  key={`${p.a}+${p.b}`}
+                  className={cn("flex min-w-0 items-center gap-2.5 px-3 py-2 text-[#111]", i > 0 && "border-t-[1.5px]")}
+                  style={i > 0 ? { borderTopColor: "#111" } : undefined}
+                >
+                  <span className="flex shrink-0">
+                    <EmotionFace name={p.a} size={24} />
+                    <span className="-ml-1.5">
+                      <EmotionFace name={p.b} size={24} />
+                    </span>
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-black">
+                    {emotionName(p.a, t)} + {emotionName(p.b, t)}
+                  </span>
+                  <span className="shrink-0 font-mono text-[11.5px] font-bold tabular-nums">{t("moodan.recordsN", { n: p.n })}</span>
+                </div>
+              ))}
+            </div>
+            {pr.multi >= 5 && <ReadLine text={t("moodan.pairsRead", { p: pctFmt.format(pr.mixed / pr.multi) })} />}
+          </>
+        )}
+      </Section>
+    );
+  }
+
+  // ── Haftanın günleri: dönem ortalamasından sapma ──
+  let weekdays: ReactNode = null;
+  if (long && avg !== null) {
+    const wd = weekdayStats(days);
+    const ok = wd.map((w, i) => ({ avg: w.avg, n: w.n, i })).filter((w) => w.n >= 3 && w.avg !== null);
+    const wdName = (i: number, style: "short" | "long") => new Date(MONDAY + i * 86400000).toLocaleDateString(tag, { weekday: style });
+    const best = ok.reduce((a, b) => (b.avg! > a.avg! ? b : a), ok[0]);
+    const worst = ok.reduce((a, b) => (b.avg! < a.avg! ? b : a), ok[0]);
+    weekdays = (
+      <Section
+        color={LEAD.weekdays}
+        glyph={CalendarRange}
+        title={t("moodan.weekdays")}
+        hint={ok.length >= 4 ? t("moodan.weekdaysHint", { n: nf1.format(avg) }) : undefined}
+      >
+        {ok.length < 4 ? (
+          thin(t("moodan.weekdaysThin", { n: ok.length }))
+        ) : (
+          <>
+            <div className="bg-white px-3 pb-2 pt-2.5">
+              <WeekdayChart
+                stats={wd}
+                mean={avg}
+                names={wd.map((_, i) => wdName(i, "short"))}
+                colorOf={colorOf}
+                signed={signed}
+                daysLabel={(n) => t("moodan.daysN", { n })}
+              />
+              {wd.some((w) => w.n > 0 && w.n < 3) && <p className="mt-1 text-[10.5px] font-bold text-[#111]/60">○ {t("moodan.hollow")}</p>}
+            </div>
+            {best.i !== worst.i && (
+              <ReadLine
+                text={t("moodan.weekdaysRead", {
+                  a: wdName(best.i, "long"),
+                  x: signed(best.avg! - avg),
+                  b: wdName(worst.i, "long"),
+                  y: signed(worst.avg! - avg),
+                })}
+              />
+            )}
+          </>
+        )}
+      </Section>
+    );
+  }
+
+  // ── Günün saatleri: sabah, öğle, akşam, gece ──
+  let dayParts: ReactNode = null;
+  if (long && rated > 0) {
+    const ps = partStats(cur);
+    const ok = DAY_PARTS.filter((p) => ps[p].n >= 3).map((p) => ({ p, avg: ps[p].avg! }));
+    const used = DAY_PARTS.filter((p) => ps[p].n > 0);
+    const partName = (p: DayPart) => t(`moodan.part.${p}` as const);
+    const best = ok.reduce((a, b) => (b.avg > a.avg ? b : a), ok[0]);
+    const worst = ok.reduce((a, b) => (b.avg < a.avg ? b : a), ok[0]);
+    dayParts = (
+      <Section color={LEAD.parts} glyph={SunMoon} title={t("moodan.parts")} hint={ok.length >= 2 ? t("moodan.partsBar") : undefined}>
+        {ok.length < 2 ? (
+          thin(
+            used.length === 1
+              ? t("moodan.partsOne", { p: partName(used[0]).toLocaleLowerCase(tag) })
+              : t("moodan.partsThin", { n: ok.length })
+          )
+        ) : (
+          <>
+            <div className="grid grid-cols-4 gap-[2px]">
+              {DAY_PARTS.map((p) => {
+                const s = ps[p];
+                const qt = QUAD_STACK.reduce((a, q) => a + s.quad[q], 0);
+                return (
+                  <div key={p} className="flex min-w-0 flex-col items-center gap-1 bg-white px-1 pb-2 pt-2 text-[#111]">
+                    <span className={cn(LABEL, "max-w-full truncate")}>{partName(p)}</span>
+                    <span className="font-mono text-[9px] font-bold leading-none text-[#111]/55">{DAY_PART_HOURS[p]}</span>
+                    <span className={s.n < 3 ? "opacity-45" : undefined}>
+                      {s.avg !== null ? face(s.avg, 26) : <span className="block h-[26px] w-[26px] rounded-full border-2" style={DASHED} />}
+                    </span>
+                    <b className={cn("font-mono text-[14px] font-bold leading-none tabular-nums", s.n < 3 && "text-[#111]/45")}>
+                      {s.avg !== null ? nf1.format(s.avg) : "–"}
+                    </b>
+                    <span className="text-[9.5px] font-bold leading-none text-[#111]/55">{s.n ? t("moodan.recordsN", { n: s.n }) : t("moodan.noRecord")}</span>
+                    <span
+                      className="mt-0.5 flex h-[8px] w-full gap-px overflow-hidden rounded-full border-[1.5px] bg-[#f5f1e8]"
+                      style={{ borderColor: qt ? "#111" : "rgba(17,17,17,0.2)" }}
+                    >
+                      {QUAD_STACK.map((q) =>
+                        s.quad[q] ? (
+                          <i key={q} style={{ flex: s.quad[q], background: QUAD_COLOR[q] }} title={`${t(`moodan.q.${q}` as const)} ${pctFmt.format(s.quad[q] / qt)}`} />
+                        ) : null
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            {best.p !== worst.p && (
+              <ReadLine
+                text={t("moodan.partsRead", {
+                  a: partName(best.p),
+                  x: nf1.format(best.avg),
+                  b: partName(worst.p).toLocaleLowerCase(tag),
+                  y: nf1.format(worst.avg),
+                })}
+              />
+            )}
+          </>
+        )}
+      </Section>
+    );
+  }
+
+  // ── Dalgalanma: art arda kayıtlı iki gün arasındaki fark ──
+  let vol: ReactNode = null;
+  if (!isDay && avg !== null) {
+    const ch = dayChanges(days);
+    if (ch.length >= 5) {
+      const v = ch.reduce((s, x) => s + x.v, 0) / ch.length;
+      const big = ch.reduce((a, b) => (b.v > a.v ? b : a), ch[0]);
+      const pc = view.prevChanges;
+      const prevV = pc.length >= 5 ? pc.reduce((s, x) => s + x.v, 0) / pc.length : null;
+      const vg: Granularity =
+        period.kind === "week" || period.kind === "month" ? "day" : period.kind === "year" ? "week" : chooseGranularity(rangeStart, rangeEnd);
+      const vb = buildSeriesBuckets(rangeStart, rangeEnd, vg);
+      const vi = new Map(vb.map((b, i) => [b.key, i]));
+      const sums = vb.map(() => ({ s: 0, n: 0, big: false }));
+      for (const c of ch) {
+        const i = vi.get(bucketKeyOf(new Date(c.day + "T12:00:00").getTime(), vg));
+        if (i === undefined) continue;
+        sums[i].s += c.v;
+        sums[i].n++;
+        // Haftalık ya da aylık çubukta ortalama var; tek sıçramanın kovası en uzun olmayabilir, vurgulanmaz
+        if (c === big && vg === "day") sums[i].big = true;
+      }
+      const dayLong = (d: string) => new Date(d + "T12:00:00").toLocaleDateString(tag, { day: "numeric", month: "long" });
+      vol = (
+        <Section color={LEAD.vol} glyph={Activity} title={t("moodan.vol")}>
+          <div className="flex flex-col gap-2 bg-white px-3 pb-2.5 pt-3 text-[#111]">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <b className="font-mono text-[28px] font-bold leading-none tabular-nums">{nf1.format(v)}</b>
+              <span className="text-[12px] font-bold text-[#111]/60">{t("moodan.volUnit")}</span>
+              {prevV !== null && ref && (
+                <span
+                  className="ml-auto rounded-full border-[1.5px] px-2 py-px font-mono text-[11px] font-bold leading-[16px] tabular-nums"
+                  style={{ borderColor: "#111", background: "#f1ede4" }}
+                >
+                  {ref.label} · {nf1.format(prevV)}
+                </span>
+              )}
+            </div>
+            <VolBars bars={sums.map((x, i) => (x.n ? { v: x.s / x.n, big: x.big, title: `${vb[i].full}: ${nf1.format(x.s / x.n)}` } : null))} />
+            <span className="text-[10.5px] font-bold text-[#111]/60">
+              ▮ {t(vg === "day" ? "moodan.volDaily" : vg === "week" ? "moodan.volWeekly" : "moodan.volMonthly")}
+            </span>
+          </div>
+          <ReadLine text={t("moodan.volRead", { v: nf1.format(v), d: dayLong(big.day), a: nf1.format(big.from), b: nf1.format(big.to) })} />
+        </Section>
+      );
+    } else if (long) {
+      vol = (
+        <Section color={LEAD.vol} glyph={Activity} title={t("moodan.vol")}>
+          {thin(t("moodan.volThin", { n: ch.length }))}
+        </Section>
+      );
+    }
+  }
+
   // ── Girdiler (gün dışında; günde gün akışı zaten listeliyor) ──
   const entryRows: EntryListRow[] = isDay
     ? []
@@ -786,7 +1178,13 @@ function MoodBody({ category, period, focus }: { category: Category; period: Per
       {distribution}
       {emotions}
       {emoMap}
+      {flow}
+      {emoHap}
+      {together}
+      {weekdays}
+      {dayParts}
       {standout}
+      {vol}
       {!isDay && <EntryListBlock title={t("objects.entries")} accent={category.color} rows={entryRows} />}
     </div>
   );
@@ -1013,5 +1411,221 @@ function DayFlowChart({ records, scale }: { records: MoodRecord[]; scale: MoodSc
         );
       })}
     </div>
+  );
+}
+
+/** Bloğun altındaki okuma cümlesi — **iki yıldız** arası kalın; eşiğin altındaki not soluk */
+function ReadLine({ text, muted = false }: { text: string; muted?: boolean }) {
+  return (
+    <p className={cn("bg-white px-3.5 py-2.5 text-[12px] font-semibold leading-snug", muted ? "text-[#111]/55" : "text-[#111]/75")}>
+      {text.split("**").map((p, i) =>
+        i % 2 ? (
+          <b key={i} className="font-black text-[#111]">
+            {p}
+          </b>
+        ) : (
+          <span key={i}>{p}</span>
+        )
+      )}
+    </p>
+  );
+}
+
+/** Bölge akışı — her dilim dört bölgenin payıyla yığılı bir sütun; dokununca o dönem */
+function FlowChart({
+  cols,
+  showShare,
+  pct,
+  qName,
+  onPick,
+}: {
+  cols: { key: string; periodKey: string; title: string; label: string; q: QuadCounts; future: boolean }[];
+  showShare: boolean;
+  pct: (v: number) => string;
+  qName: (q: EmotionQuadrant) => string;
+  onPick: (periodKey: string) => void;
+}) {
+  return (
+    <div className="flex items-stretch gap-[3px]">
+      {cols.map((c) => {
+        const tot = QUAD_STACK.reduce((s, q) => s + c.q[q], 0);
+        const bar = tot ? (
+          <span className="flex h-full w-full max-w-[34px] flex-col-reverse gap-[2px]">
+            {QUAD_STACK.map((q) =>
+              c.q[q] ? (
+                <span
+                  key={q}
+                  className="min-h-[4px] rounded-[4px] border-[1.5px]"
+                  style={{ flex: c.q[q], background: QUAD_COLOR[q], borderColor: "#111" }}
+                  title={`${c.title} · ${qName(q)}: ${pct(c.q[q] / tot)}`}
+                />
+              ) : null
+            )}
+          </span>
+        ) : c.future ? null : (
+          // Kayıtsız dilim yerini korur — kesik taban
+          <span className="mt-auto block h-0 w-full max-w-[34px] border-t-2" style={{ borderTopStyle: "dashed", borderTopColor: "rgba(17,17,17,0.35)" }} />
+        );
+        return (
+          <div key={c.key} className="flex min-w-0 flex-1 flex-col items-center">
+            <span className="h-[15px] font-mono text-[9px] font-bold leading-[15px] tabular-nums">
+              {showShare && tot ? pct((c.q.serene + c.q.lively) / tot) : ""}
+            </span>
+            {tot ? (
+              <button type="button" onClick={() => onPick(c.periodKey)} aria-label={c.title} className="flex h-[118px] w-full justify-center active:opacity-75">
+                {bar}
+              </button>
+            ) : (
+              <span className="flex h-[118px] w-full justify-center">{bar}</span>
+            )}
+            <span className="h-[15px] whitespace-nowrap pt-1 font-mono text-[9px] font-bold leading-none text-[#111]/60">{c.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Bir değerin skaladaki yeri — basamak noktaları, dönem ortalaması kesik çizgi */
+function ScaleTrack({
+  value,
+  mean,
+  scale,
+  colorOf,
+}: {
+  value: number;
+  mean: number | null;
+  scale: MoodScale;
+  colorOf: (v: number) => string;
+}) {
+  const pos = (v: number) => `${((v - scale.min) / Math.max(1, scale.max - scale.min)) * 100}%`;
+  return (
+    <span className="relative mx-[7px] block h-[18px]">
+      <span className="absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-[#111]/20" />
+      {scale.values.length <= 7 &&
+        scale.values.map((v) => (
+          <span
+            key={v}
+            className="absolute top-1/2 h-[6px] w-[6px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1px]"
+            style={{ left: pos(v), background: colorOf(v), borderColor: "#111" }}
+          />
+        ))}
+      {mean !== null && (
+        <span
+          className="absolute top-0 h-full w-0 border-l-[1.5px]"
+          style={{ left: pos(mean), borderLeftStyle: "dashed", borderLeftColor: "rgba(17,17,17,0.55)" }}
+        />
+      )}
+      <span
+        className="absolute top-1/2 h-[13px] w-[13px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2"
+        style={{ left: pos(value), background: colorOf(value), borderColor: "#111" }}
+      />
+    </span>
+  );
+}
+
+/** Haftanın günleri — her günün ortalamadan sapması; 3 günden az veride içi boş nokta */
+function WeekdayChart({
+  stats,
+  mean,
+  names,
+  colorOf,
+  signed,
+  daysLabel,
+}: {
+  stats: { avg: number | null; n: number }[];
+  mean: number;
+  names: string[];
+  colorOf: (v: number) => string;
+  signed: (v: number) => string;
+  daysLabel: (n: number) => string;
+}) {
+  const W = 320;
+  const H = 170;
+  const T = 16;
+  const B = 34;
+  const ch = H - T - B;
+  const slot = W / 7;
+  const range = Math.max(0.5, ...stats.filter((s) => s.avg !== null).map((s) => Math.abs(s.avg! - mean))) * 1.25;
+  const y = (v: number) => T + ch / 2 - ((v - mean) / range) * (ch / 2);
+  const mono = "var(--font-mono), monospace";
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="weekdays" className="block">
+      <line x1={0} x2={W} y1={y(mean)} y2={y(mean)} stroke="#111" strokeWidth={1.2} strokeDasharray="4 3" opacity={0.55} />
+      {stats.map((s, i) => {
+        const cx = slot * (i + 0.5);
+        const few = s.n < 3;
+        return (
+          <g key={i}>
+            {s.avg !== null && (
+              <>
+                <line x1={cx} x2={cx} y1={y(mean)} y2={y(s.avg)} stroke="#111" strokeWidth={2} opacity={few ? 0.35 : 1} />
+                <circle
+                  cx={cx}
+                  cy={y(s.avg)}
+                  r={7}
+                  fill={few ? "#fff" : colorOf(s.avg)}
+                  stroke="#111"
+                  strokeWidth={2}
+                  strokeDasharray={few ? "2 2" : undefined}
+                >
+                  <title>{`${names[i]}: ${signed(s.avg - mean)} · ${daysLabel(s.n)}`}</title>
+                </circle>
+                {!few && (
+                  <text
+                    x={cx}
+                    y={s.avg >= mean ? y(s.avg) - 12 : y(s.avg) + 20}
+                    textAnchor="middle"
+                    fontSize={9.5}
+                    fontWeight={800}
+                    fill="#111"
+                    fontFamily={mono}
+                  >
+                    {signed(s.avg - mean)}
+                  </text>
+                )}
+              </>
+            )}
+            <text x={cx} y={H - 18} textAnchor="middle" fontSize={10.5} fontWeight={800} fill="#111">
+              {names[i]}
+            </text>
+            <text x={cx} y={H - 5} textAnchor="middle" fontSize={8.5} fontWeight={700} fill="rgba(17,17,17,0.55)" fontFamily={mono}>
+              {daysLabel(s.n)}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/** Dalgalanmanın çubukları — zaman ekseninde, boş yerde çubuk yok; en büyük sıçrama koyu */
+function VolBars({ bars }: { bars: ({ v: number; big: boolean; title: string } | null)[] }) {
+  const W = 320;
+  const H = 48;
+  const bw = W / Math.max(1, bars.length);
+  // En az bir basamaklık ölçek — küçük değişimler olduğundan büyük görünmesin
+  const mx = Math.max(1, ...bars.map((b) => b?.v ?? 0));
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="changes" className="block">
+      <line x1={0} x2={W} y1={H - 0.75} y2={H - 0.75} stroke="rgba(17,17,17,0.25)" strokeWidth={1.5} />
+      {bars.map((b, i) => {
+        if (!b) return null;
+        const h = Math.max(2, (b.v / mx) * (H - 6));
+        return (
+          <rect
+            key={i}
+            x={i * bw + bw * 0.15}
+            y={H - 1.5 - h}
+            width={Math.max(1.5, bw * 0.7)}
+            height={h}
+            rx={Math.min(2, bw * 0.3)}
+            fill={b.big ? "#111" : "rgba(17,17,17,0.35)"}
+          >
+            <title>{b.title}</title>
+          </rect>
+        );
+      })}
+    </svg>
   );
 }

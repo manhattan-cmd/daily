@@ -17,6 +17,10 @@
  * varsa özellik listesi yalnız onların HEPSİNDE ortak olanları gösterir —
  * o düzeyde ancak hepsinde olan özellik bütünü anlatır; ötekiler alt
  * kategoriye inince listede. Altı olmayan kalemde süzgeç yok.
+ *
+ * Ruh halinde (brütal) Mutluluk ve Duygular özel sayfada birlikte okunuyor;
+ * özellik hücresi yalnız kişinin Ruh hali kategorisine kendi eklediği bir
+ * özellik varsa görünür ve listede onlarla birlikte "Hepsi" (özel sayfa) durur.
  */
 
 import { createElement, useCallback, useMemo, useState } from "react";
@@ -30,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { translate, useLocale, useT } from "@/lib/i18n";
 import { modColor } from "@/lib/mod-color";
 import { moodText } from "@/lib/icons/emotions";
+import { isMoodModName } from "@/lib/mood-analytics";
 import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Category, Entry, Mod, SubCategory } from "@/types";
@@ -155,6 +160,12 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
   // seçim taşınıyor — işaretsiz kalmasın)
   const listed = commonOn ? features?.filter((f) => common!.ids!.has(f.mod.id) || f.mod.id === metricId) : features;
   const filtering = !!metricEntryIds && !allPlaces;
+  // Ruh halinde kişinin eklediği özellikler; yoksa özellik hücresi gizli
+  const moodExtras = inMood ? (listed ?? []).filter((f) => !isMoodModName(f.mod.name)) : [];
+  const moodMenu = brutal && inMood;
+  const hideMetric = moodMenu && moodExtras.length === 0;
+  // Yerleşik ruh hali özelliği seçili kalmışsa (eski seçim) hücrede "Hepsi"
+  const cellMod = moodMenu && currentMod && isMoodModName(currentMod.name) ? undefined : currentMod;
 
   // Ağaç: dönemde (süzgeçte o özelliğin) kaydı olan kategoriler ve kalemler
   const tree = useMemo<TreeRow[]>(() => {
@@ -233,7 +244,10 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
            kategori), sağda özelliğin dairesi; seçimsizken Analiz'in mavisinde */
         <div
           data-scope-cells=""
-          className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)] overflow-hidden rounded-[12px] border-2 bg-white shadow-[2px_2px_0_#111]"
+          className={cn(
+            "grid overflow-hidden rounded-[12px] border-2 bg-white shadow-[2px_2px_0_#111]",
+            hideMetric ? "grid-cols-1" : "grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)]"
+          )}
           style={{ borderColor: "#111" }}
         >
           <button
@@ -269,6 +283,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
             </span>
             <ChevronDown className="h-4 w-4 shrink-0" strokeWidth={2.75} />
           </button>
+          {!hideMetric && (
           <button
             type="button"
             onClick={() => setOpen("ne")}
@@ -278,16 +293,17 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
           >
             <span
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2"
-              style={{ background: currentMod ? modColor(currentMod) : "#8ea6ff", borderColor: "#111" }}
+              style={{ background: cellMod ? modColor(cellMod) : "#8ea6ff", borderColor: "#111" }}
             >
-              {createElement(currentMod ? atomIcon(currentMod) : ListOrdered, { className: "h-4 w-4", strokeWidth: 2.5 })}
+              {createElement(cellMod ? atomIcon(cellMod) : ListOrdered, { className: "h-4 w-4", strokeWidth: 2.5 })}
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-[9.5px] font-black uppercase leading-none tracking-[0.1em] text-[#111]/55">Özellik</span>
-              <span className="mt-[3px] block truncate text-[13.5px] font-black leading-tight">{currentMod ? modName(currentMod) : noMetric}</span>
+              <span className="mt-[3px] block truncate text-[13.5px] font-black leading-tight">{cellMod ? modName(cellMod) : noMetric}</span>
             </span>
             <ChevronDown className="h-4 w-4 shrink-0" strokeWidth={2.75} />
           </button>
+          )}
         </div>
       ) : (
       /* Tek çerçeve, iki alan: YER | ÖZELLİK */
@@ -356,14 +372,33 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
             <>
               <DialogHeader className="text-left">
                 <DialogTitle className="text-[17px]">Özellik</DialogTitle>
-                {commonOn && (
+                {commonOn && !moodMenu && (
                   <p data-common-hint="" className={cn("text-[12px] leading-snug", brutal ? "text-[#111]/60" : "text-muted-foreground")}>
                     {t("an.commonOnly", { place: selectedCat ? local(focus?.name ?? selectedCat.name, selectedCat.id) : "" })}
                   </p>
                 )}
               </DialogHeader>
               <div className="flex flex-col gap-1">
-                {(listed ?? []).map((f) => {
+                {moodMenu && selectedCat && (
+                  <button
+                    type="button"
+                    className={rowCls(!cellMod)}
+                    onClick={() => {
+                      setOpen(null);
+                      onMetric(selectedCat.id, "count");
+                    }}
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-[1.5px] border-[#111] bg-[#8ea6ff] text-[#111]">
+                      <ListOrdered className="h-4 w-4" strokeWidth={2.5} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[14px] font-semibold">{t("moodan.allFeatures")}</span>
+                      <span className="block truncate text-[11.5px] opacity-60">{t("moodan.allFeaturesHint")}</span>
+                    </span>
+                    {!cellMod && <Check className="ml-auto h-4 w-4 shrink-0" />}
+                  </button>
+                )}
+                {((moodMenu ? moodExtras : listed) ?? []).map((f) => {
                   const on = metricId === f.mod.id;
                   return (
                     <button

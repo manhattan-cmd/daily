@@ -4,14 +4,20 @@ import {
   averageOfDays,
   buildRecords,
   byDay,
+  dayChanges,
+  emotionLevels,
+  emotionPairs,
   emotionCounts,
   highlights,
   isMoodModName,
   levelDistribution,
   levelSlot,
+  partStats,
   pickMoodMods,
   quadrantCounts,
+  quadrantsOf,
   scaleOf,
+  weekdayStats,
 } from "./mood-analytics";
 
 const mod = (id: string, name: string, choices: string[]): Mod =>
@@ -118,5 +124,62 @@ describe("öne çıkan günler", () => {
     const h = highlights([d("2026-10-01", 5), d("2026-10-02", 5, 2), d("2026-10-03", 2), d("2026-10-04", 2), d("2026-10-05", null)]);
     expect(h?.best.day).toBe("2026-10-02");
     expect(h?.worst.day).toBe("2026-10-04");
+  });
+});
+
+describe("duygu ilişkileri ve ritimler", () => {
+  const r = (id: string, d: number, h: number, level: number | null, emotions: string[]) => ({
+    id,
+    at: at(d, h),
+    day: `2026-10-${String(d).padStart(2, "0")}`,
+    level,
+    emotions,
+  });
+  const recs = [
+    r("a", 5, 8, 2, ["Tired", "Stressed"]),
+    r("b", 5, 20, 4, ["Tired", "Calm"]),
+    r("c", 6, 9, 1, ["Tired", "Stressed", "Sad"]),
+    r("d", 7, 13, 5, ["Happy", "Calm"]),
+    r("e", 8, 23, 3, ["Tired", "Stressed"]),
+    r("f", 9, 14, null, ["Calm", "Nostaljik"]),
+  ];
+
+  it("bölgeler haritada olmayanı saymaz", () => {
+    expect(quadrantsOf(recs)).toEqual({ tense: 3, lively: 1, low: 5, serene: 3 });
+  });
+
+  it("duygunun kayıtlarının ortalaması, eşikle", () => {
+    // Tired: 2, 4, 1, 3 → 2,5; Calm'ın mutluluklu iki kaydı var, eşiğin altında
+    expect(emotionLevels(recs, 4)).toEqual([{ name: "Tired", avg: 2.5, n: 4 }]);
+    expect(emotionLevels(recs, 2).map((x) => x.name)).toEqual(["Calm", "Tired", "Stressed"]);
+  });
+
+  it("çiftler ve karışık kayıtlar", () => {
+    const p = emotionPairs(recs, 3);
+    expect(p.pairs).toEqual([{ a: "Stressed", b: "Tired", n: 3 }]);
+    expect(p.multi).toBe(6);
+    // b Yorgun + Sakin: karışık. f Sakin + Nostaljik: Nostaljik haritada yok, karışık sayılmaz
+    expect(p.mixed).toBe(1);
+  });
+
+  it("haftanın günleri pazartesiden", () => {
+    const w = weekdayStats(byDay(recs));
+    // 5 Ekim 2026 pazartesi
+    expect(w[0]).toEqual({ avg: 3, n: 1 });
+    expect(w[4]).toEqual({ avg: null, n: 0 });
+  });
+
+  it("günün dilimleri", () => {
+    const p = partStats(recs);
+    expect(p.morning).toMatchObject({ n: 2, avg: 1.5 });
+    expect(p.night).toMatchObject({ n: 1, avg: 3 });
+    expect(p.noon.n).toBe(1);
+  });
+
+  it("dalgalanma yalnız art arda kayıtlı günlerde", () => {
+    const ch = dayChanges(byDay(recs));
+    // 5→6: 3→1, 6→7: 1→5, 7→8: 5→3; 9 Ekim'de mutluluk yok
+    expect(ch.map((c) => c.v)).toEqual([2, 4, 2]);
+    expect(ch[1]).toMatchObject({ day: "2026-10-07", from: 1, to: 5 });
   });
 });
