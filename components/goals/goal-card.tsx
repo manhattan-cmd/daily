@@ -1,9 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Bell, Check, ChevronRight, Repeat } from "lucide-react";
-import type { EntryType, GoalTargetWithContext, Mod } from "@/types";
-import { isScaleChoices } from "@/types";
+import { useRef, useState, type ReactNode } from "react";
+import { Bell, Check, MoonStar, NotebookPen, Repeat, Smile, Target } from "lucide-react";
+import type { EntryValueWithType, GoalTargetWithContext, GoalWithContext } from "@/types";
 import {
   completeGoal,
   goalCompletesDirectly,
@@ -14,11 +13,12 @@ import {
 import { occursOn, weekOf } from "@/lib/goals";
 import { playEntrySound } from "@/lib/sound";
 import { useSkin } from "@/lib/skin";
+import { SymbolIcon } from "@/lib/icons";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { cn, toLocalDateValue } from "@/lib/utils";
-import { formatDTRDisplay, calcDTRDuration, parseDTR } from "@/components/forms/datetime-range-input";
-import { ScaleMeter } from "@/components/ui/scale-meter";
 import { useLongPress } from "@/lib/use-long-press";
+import { blockTint } from "@/components/dashboard/entry-block";
+import { ValueCapsuleRow } from "@/components/dashboard/entry-parts";
 import { SelectionLayer, selectedCardClass, type EntrySelection } from "@/components/calendar/entry-selection";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
@@ -37,101 +37,107 @@ function accentOf(category: { color?: string; isBuiltIn?: boolean; builtInKey?: 
   return category.color || "#818cf8";
 }
 
-/** Tek bir değer: planlanan hedef ya da yapılan girdinin değeri */
-function ValueBit({
-  value,
-  entryType,
-  mod,
-  color,
-}: {
-  value: string;
-  entryType: EntryType;
-  mod?: Mod;
-  color: string;
-}) {
-  const vt = entryType.valueType ?? "number";
-  const name = mod?.name ?? entryType.name;
-  if (vt === "datetime-range") {
-    const { start, end } = parseDTR(value);
-    const duration = calcDTRDuration(start, end);
-    return (
-      <span className="text-[13px]">
-        <span className="font-semibold tabular-nums">{formatDTRDisplay(value)}</span>
-        <span className="text-muted-foreground">{duration ? ` · ${duration}` : ""}</span>
-      </span>
-    );
+/** Künyedeki simge: alt kategorinin, yoksa kategorinin; uyku ve ruh halinin kendi simgesi */
+function goalIcon(goal: GoalWithContext, size: number): ReactNode {
+  if (goal.category.isBuiltIn) {
+    const key = goal.category.builtInKey ?? "sleep";
+    if (key === "sleep") return <MoonStar style={{ width: size, height: size }} strokeWidth={2.25} />;
+    if (key === "mood") return <Smile style={{ width: size, height: size }} strokeWidth={2.25} />;
   }
-  if (vt === "boolean") {
-    if (value !== "true") return null;
-    return <span className="text-[13px] font-semibold">{name}</span>;
-  }
-  const scale =
-    vt === "select" && isScaleChoices(entryType.choices) && entryType.choices!.includes(value)
-      ? entryType.choices!
-      : null;
-  return (
-    <span className="inline-flex items-center gap-1 text-[13px]">
-      {scale ? (
-        <ScaleMeter value={value} choices={scale} color={color} valueClassName="text-[13px]" />
-      ) : (
-        <span className="font-semibold tabular-nums">{value}</span>
-      )}
-      {vt === "number" && entryType.unit && <span className="text-muted-foreground">{entryType.unit}</span>}
-      <span className="text-muted-foreground">{name}</span>
-    </span>
-  );
+  const name = goal.subcategory.icon || goal.category.icon;
+  return name ? <SymbolIcon name={name} size={size} /> : <Target style={{ width: size, height: size }} strokeWidth={2.25} />;
 }
 
-/** Tekrar eden hedefin bu haftası: yapılan, kaçan, bugün, gelecek */
-function WeekDots({ occ, color }: { occ: GoalOccurrence; color: string }) {
+/** Planlanan değerler girdi değeri kılığında — kapsüller girdi kartındakilerle aynı çizilsin */
+function plannedValues(targets: GoalTargetWithContext[]): EntryValueWithType[] {
+  return targets
+    .filter((tg) => tg.targetValue)
+    .map((tg) => ({
+      id: `plan-${tg.modId ?? tg.entryTypeId}`,
+      entryId: "",
+      modId: tg.modId,
+      entryTypeId: tg.entryTypeId,
+      value: tg.targetValue,
+      updatedAt: 0,
+      entryType: tg.entryType,
+      mod: tg.mod,
+    }));
+}
+
+/**
+ * Tekrar eden hedefin bu haftası — günün baş harfi dairenin içinde: yapılan
+ * dolu, kartın günü kalın çerçeveli (yarının sayfasında yarın), kaçan sönük,
+ * gelecek ince çerçeveli; hedefin olmadığı gün yalnız harf. Kaçan / gelecek
+ * ayrımı gerçek bugüne göre.
+ */
+function WeekRow({ occ, color, brutal }: { occ: GoalOccurrence; color: string; brutal: boolean }) {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const tag = intlTag(useLocale());
+  const repeatLabel = useRepeatLabel();
   const today = toLocalDateValue();
   const days = weekOf(occ.date);
   const done = new Set(occ.weekDone ?? []);
   const scheduled = days.filter((d) => occursOn(occ.goal, d));
+  const line = brutal ? "#111" : color;
   return (
-    <div data-goal-week="" className="mt-2 flex items-center gap-2">
-      <div className="flex items-center gap-[5px]">
+    <div data-goal-week="" className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-[3px]">
         {days.map((d) => {
+          const [y, m, dd] = d.split("-").map(Number);
+          const letter = new Date(y, m - 1, dd).toLocaleDateString(tag, { weekday: "narrow" });
           const on = occursOn(occ.goal, d);
           const isDone = done.has(d);
+          const isThis = d === occ.date;
           const past = d < today;
-          if (!on)
-            return <span key={d} className="h-1 w-2.5 rounded-full bg-muted-foreground/20" />;
           return (
             <span
               key={d}
               title={d}
-              className={cn("h-2.5 w-2.5 rounded-full", brutal && "border-[1.5px] border-[#111]")}
+              data-day={isDone ? "done" : !on ? "off" : isThis ? "this" : past ? "missed" : "next"}
+              className="flex h-[17px] w-[17px] items-center justify-center rounded-full text-[8.5px] font-extrabold leading-none"
               style={
-                isDone
-                  ? { background: color }
-                  : d === today
-                    ? { boxShadow: brutal ? undefined : `inset 0 0 0 2px ${color}`, background: brutal ? "#fff" : undefined }
-                    : past
-                      ? { boxShadow: brutal ? undefined : "inset 0 0 0 2px var(--ln-3, rgba(127,127,127,.45))", opacity: brutal ? 0.35 : 1 }
-                      : { boxShadow: brutal ? undefined : "inset 0 0 0 1.5px rgba(127,127,127,.35)", opacity: brutal ? 0.6 : 1 }
+                !on
+                  ? { color: "var(--muted-foreground)", opacity: 0.45 }
+                  : isDone
+                    ? { background: color, color: brutal ? "#111" : inkOn(color), boxShadow: brutal ? "inset 0 0 0 1.5px #111" : undefined }
+                    : isThis
+                      ? { background: brutal ? "#fff" : "transparent", color: brutal ? "#111" : color, boxShadow: `inset 0 0 0 2px ${line}` }
+                      : past
+                        ? { color: "var(--muted-foreground)", boxShadow: "inset 0 0 0 1.5px currentColor", opacity: 0.4 }
+                        : { color: brutal ? "#111" : "var(--muted-foreground)", boxShadow: `inset 0 0 0 1.5px ${brutal ? "#111" : "currentColor"}`, opacity: brutal ? 0.55 : 0.7 }
               }
-            />
+            >
+              {letter}
+            </span>
           );
         })}
       </div>
-      <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
-        {t("goal.weekCount", { done: scheduled.filter((d) => done.has(d)).length, total: scheduled.length })}
-      </span>
+      <div className="min-w-0 flex-1 text-right leading-tight">
+        <div className="flex items-center justify-end gap-1 truncate text-[10.5px] font-bold">
+          <Repeat className="h-2.5 w-2.5 shrink-0" strokeWidth={2.75} />
+          <span className="truncate">{repeatLabel(occ.goal.repeat!)}</span>
+        </div>
+        <div className="mt-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+          {t("goal.weekCount", { done: scheduled.filter((d) => done.has(d)).length, total: scheduled.length })}
+        </div>
+      </div>
     </div>
   );
 }
 
 /**
- * Hedef kartı — günün bekleyen girdisi.
+ * Hedef kartı — günün bekleyen girdisi, girdi kartıyla aynı dilde.
  *
- * Soldaki daire "Yaptım": hedef o an girdiye dönüşür (planlanan değerlerle),
- * ses ve kıvılcımlar onu kutlar. Ruh hali ve saati verilmemiş uyku
- * hedefinde daire kendi penceresini açar; kaydedince yine kutlanır.
- * Yapılmış hedefe dokunmak girdinin kendisini açar (gerçekte 12 km
- * koştuysan düzelt); bekleyene dokunmak hedefi düzenler.
+ * Solda girdinin künyesi (simge, ad, kategori), altında planlanan değerler,
+ * tekrar ediyorsa haftanın şeridi. Sağda boydan boya "Yaptım" karosu.
+ * Bekleyen kartın künyesi kategorinin renginde ÇİZGİLİ: yapılacak, henüz
+ * olmadı. "Yaptım" deyince künye dolar, değerler girdinin değerleri olur,
+ * karo kategorinin rengine boyanır: hedef girdiye dönüştü. Ses ve
+ * kıvılcımlar bu anı kutlar.
+ *
+ * Ruh hali ve saati verilmemiş uyku hedefinde karo kendi penceresini açar;
+ * kaydedince yine kutlanır. Bekleyene dokunmak hedefi düzenler, yapılmışa
+ * dokunmak girdinin kendisini açar (gerçekte 12 km koştuysan düzelt).
  *
  * Yapıldı durumu verinin kendisinden: girdi silinirse hedef yeniden bekler,
  * aynı yere başka yoldan girilen kayıt da hedefi yapılmış sayar.
@@ -153,10 +159,10 @@ export function GoalCard({
   const t = useT();
   const tag = intlTag(useLocale());
   const brutal = useSkin() === "brutal";
-  const repeatLabel = useRepeatLabel();
   const { goal, entry, date } = occ;
-  const accent = accentOf(goal.category);
-  const ink = brutal ? "#111" : inkOn(accent);
+  // Brütalde girdi kartlarıyla aynı renk (kategorinin kendisi)
+  const color = brutal ? goal.category.color || accentOf(goal.category) : accentOf(goal.category);
+  const ink = brutal ? "#111" : inkOn(color);
   const done = !!entry;
 
   const [optimistic, setOptimistic] = useState(false);
@@ -215,13 +221,22 @@ export function GoalCard({
   }
 
   const doneAt =
-    entry &&
-    new Date(entry.occurredAt).toLocaleTimeString(tag, { hour: "2-digit", minute: "2-digit" });
+    entry && new Date(entry.occurredAt).toLocaleTimeString(tag, { hour: "2-digit", minute: "2-digit" });
   const name = goalTitle(goal);
-  const path = goal.subcategory.isCategoryRoot || goal.category.isBuiltIn ? "" : goal.category.name;
+  const sub = goal.subcategory.isCategoryRoot || goal.category.isBuiltIn ? "" : goal.category.name;
+  // Yapıldıysa girilen değerler, değilse planlananlar
+  const values = shown && entry ? entry.values.filter((v) => v.entryType && !v.thingId) : plannedValues(goal.targets);
+  const note = shown && entry ? entry.notes : goal.note;
 
-  const planned = goal.targets.filter((tg: GoalTargetWithContext) => tg.targetValue);
-  const actual = (entry?.values ?? []).filter((v) => v.entryType && !v.thingId);
+  // Künyenin zemini: bekleyen çizgili (kategorinin açık tonu), yapılmış dolu
+  const stripe = brutal ? `color-mix(in srgb, ${color} 34%, #fff)` : `${color}26`;
+  const headBg = shown
+    ? brutal
+      ? color
+      : `linear-gradient(135deg, ${color}2e, ${color}12)`
+    : `repeating-linear-gradient(-45deg, ${stripe} 0 5px, ${brutal ? "#fff" : "transparent"} 5px 11px)`;
+  const cellBg = brutal ? (shown ? blockTint(color) : "#fff") : undefined;
+  const cellCls = cn("px-2.5 py-2", !brutal && "border-t border-[var(--ln-1)]");
 
   return (
     <>
@@ -229,23 +244,97 @@ export function GoalCard({
         ref={scrollIn}
         data-goal-card=""
         data-done={shown ? "" : undefined}
+        key={`card-${burst}`}
         className={cn(
-          "relative flex select-none touch-manipulation items-stretch gap-3 rounded-2xl border bg-card px-3 py-3 transition-colors",
+          "relative grid select-none touch-manipulation grid-cols-[minmax(0,1fr)_72px]",
+          brutal
+            ? "gap-[2px] rounded-[14px] border-2 border-[#111] bg-[#111] text-[#111] shadow-[3px_3px_0_#111]"
+            : "rounded-2xl border bg-card",
           burst > 0 && "goal-bounce",
           highlight && "goal-attn",
           selection?.selected && selectedCardClass
         )}
-        key={`card-${burst}`}
         style={
           {
-            "--goal-c": accent,
-            ...(shown && !brutal ? { borderColor: `${accent}55`, background: `${accent}12` } : {}),
-            ...(shown && brutal ? { background: `color-mix(in srgb, ${accent} 22%, #fff)` } : {}),
+            "--goal-c": color,
+            ...(!brutal ? { borderColor: shown ? `${color}66` : `${color}40` } : {}),
           } as React.CSSProperties
         }
         {...(selection && !selection.active ? longPress : {})}
       >
-        {/* Yaptım */}
+        {/* Gövde: bekleyen → hedefi düzenle, yapılmış → girdiyi aç */}
+        <button
+          type="button"
+          data-goal-body=""
+          onClick={() => setSheet(shown && entry ? "entry" : "goal")}
+          className={cn(
+            // Son hücre boşluğu doldurur: karo kartın boyunu belirler, gövde kısa kalırsa altında boşluk kalmasın
+            "flex min-w-0 flex-col overflow-hidden text-left transition-transform active:scale-[0.99] [&>*:last-child]:flex-1",
+            brutal ? "gap-[2px] rounded-l-[12px] bg-[#111]" : "rounded-l-2xl"
+          )}
+        >
+          {/* Künye */}
+          <div data-goal-head="" className="flex items-center gap-2 px-2.5 py-2" style={{ background: headBg }}>
+            <span
+              className={cn(
+                "flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[8px]",
+                brutal ? "bg-white text-[#111] shadow-[inset_0_0_0_2px_#111,1.5px_1.5px_0_#111]" : "bg-[var(--sf-2)]"
+              )}
+              style={brutal ? undefined : { color }}
+            >
+              {goalIcon(goal, 15)}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className={cn("break-words text-[14px] leading-snug tracking-[-0.01em]", brutal ? "font-extrabold" : "font-semibold")}>
+                {name}
+              </div>
+              {sub && (
+                <div
+                  className="mt-0.5 truncate text-[8.5px] font-bold uppercase leading-none tracking-[0.12em]"
+                  style={{ color: brutal ? undefined : `${color}cc`, opacity: brutal ? 0.75 : 1 }}
+                >
+                  {sub}
+                </div>
+              )}
+            </div>
+            {/* Sağda: bekleyende hatırlatma saati, yapılmışta yapıldığı saat */}
+            {(shown ? doneAt : goal.remindAt) && (
+              <span
+                data-goal-time=""
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-mono text-[9.5px] font-bold leading-none tabular-nums",
+                  brutal
+                    ? "rounded-[6px] border-[1.5px] border-[#111] bg-white px-1.5 py-[3px]"
+                    : "rounded-full bg-[var(--sf-2)] px-1.5 py-1 text-muted-foreground"
+                )}
+              >
+                {!shown && <Bell className="h-2.5 w-2.5" strokeWidth={2.75} />}
+                {shown ? doneAt : goal.remindAt}
+              </span>
+            )}
+          </div>
+
+          {values.length > 0 && (
+            <div data-goal-values="" className={cn(cellCls, "flex flex-col justify-center")} style={{ background: cellBg }}>
+              <ValueCapsuleRow values={values} color={color} />
+            </div>
+          )}
+
+          {note && (
+            <div className={cn(cellCls, "flex items-center gap-1.5")} style={{ background: cellBg }}>
+              <NotebookPen className="h-3 w-3 shrink-0 opacity-70" strokeWidth={2.25} />
+              <p className="line-clamp-2 min-w-0 text-[11px] font-medium leading-snug opacity-75">{note}</p>
+            </div>
+          )}
+
+          {goal.repeat && (
+            <div className={cn(cellCls, "flex flex-col justify-center")} style={{ background: brutal ? "#fff" : undefined }}>
+              <WeekRow occ={occ} color={color} brutal={brutal} />
+            </div>
+          )}
+        </button>
+
+        {/* Yaptım — boydan boya karo; daire dolar, kıvılcım oradan çıkar */}
         <button
           type="button"
           data-goal-check=""
@@ -254,80 +343,43 @@ export function GoalCard({
           aria-pressed={shown}
           aria-label={shown ? t("goal.completedUndo") : t("goal.markComplete")}
           className={cn(
-            "relative mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center self-start rounded-full transition-[background-color,transform] active:scale-90",
-            brutal ? "border-[2.5px] border-[#111]" : "border-[2.5px]"
+            "group relative flex flex-col items-center justify-center gap-1.5 px-1 py-2.5 transition-colors",
+            brutal ? "rounded-r-[12px]" : "rounded-r-2xl border-l border-[var(--ln-1)]"
           )}
           style={{
-            borderColor: brutal ? "#111" : accent,
-            background: shown ? accent : brutal ? "#fff" : "transparent",
-            boxShadow: brutal && !shown ? "2px 2px 0 #111" : undefined,
+            background: shown ? (brutal ? color : `${color}22`) : brutal ? "#fff" : undefined,
           }}
         >
-          {shown ? (
-            <Check key={`c-${burst}`} className="goal-pop h-6 w-6" strokeWidth={3.25} style={{ color: ink }} />
-          ) : (
-            <Check className="h-5 w-5 opacity-25" strokeWidth={3} style={{ color: brutal ? "#111" : accent }} />
-          )}
-          {burst > 0 && <GoalBurst key={burst} color={accent} />}
-        </button>
-
-        {/* Gövde: bekleyen → hedefi düzenle, yapılmış → girdiyi aç */}
-        <button
-          type="button"
-          data-goal-body=""
-          onClick={() => setSheet(shown && entry ? "entry" : "goal")}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left"
-        >
-          <div className="min-w-0 flex-1">
-            {path && (
-              <div className="flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: accent }} />
-                <span className="truncate text-[11.5px] font-medium text-muted-foreground">{path}</span>
-              </div>
+          <span
+            className={cn(
+              "relative flex h-10 w-10 items-center justify-center rounded-full border-[2.5px] transition-[background-color,transform] group-active:scale-90",
+              brutal && "border-[#111]"
             )}
-            <div className="text-[15px] font-semibold leading-5 tracking-tight">{name}</div>
-
-            {/* Değerler: yapıldıysa girilenler, değilse planlananlar */}
-            {(shown && actual.length > 0) || (!shown && planned.length > 0) ? (
-              <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
-                {shown && entry
-                  ? actual.map((v) => (
-                      <ValueBit key={v.id} value={v.value} entryType={v.entryType!} mod={v.mod} color={accent} />
-                    ))
-                  : planned.map((tg) => (
-                      <ValueBit
-                        key={tg.modId ?? tg.entryTypeId}
-                        value={tg.targetValue}
-                        entryType={tg.entryType}
-                        mod={tg.mod}
-                        color={accent}
-                      />
-                    ))}
-              </div>
-            ) : null}
-
-            <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11.5px] font-medium text-muted-foreground">
-              {shown ? (
-                <span data-goal-done-label="" className="font-semibold" style={{ color: brutal ? "#111" : accent }}>
-                  {doneAt ? t("goal.doneAt", { time: doneAt }) : t("goal.doneLabel")}
-                </span>
-              ) : null}
-              {goal.repeat && (
-                <span className="inline-flex items-center gap-1">
-                  <Repeat className="h-3 w-3" />
-                  {repeatLabel(goal.repeat)}
-                </span>
-              )}
-              {goal.remindAt && !shown && (
-                <span className="inline-flex items-center gap-1">
-                  <Bell className="h-3 w-3" />
-                  {goal.remindAt}
-                </span>
-              )}
-            </div>
-            {goal.repeat && <WeekDots occ={occ} color={accent} />}
-          </div>
-          {!selection?.active && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40" />}
+            style={{
+              borderColor: brutal ? "#111" : color,
+              background: shown ? (brutal ? "#111" : color) : brutal ? "#fff" : "transparent",
+              boxShadow: brutal ? "2px 2px 0 #111" : undefined,
+            }}
+          >
+            {shown ? (
+              <Check
+                key={`c-${burst}`}
+                className="goal-pop h-[22px] w-[22px]"
+                strokeWidth={3.5}
+                style={{ color: brutal ? "#fff" : ink }}
+              />
+            ) : (
+              <Check className="h-5 w-5 opacity-25" strokeWidth={3} style={{ color: brutal ? "#111" : color }} />
+            )}
+            {burst > 0 && <GoalBurst key={burst} color={color} />}
+          </span>
+          <span
+            data-goal-done-label={shown ? "" : undefined}
+            className="text-[10.5px] font-extrabold leading-none tracking-[0.02em]"
+            style={{ color: brutal ? "#111" : shown ? color : undefined }}
+          >
+            {shown ? t("goal.doneLabel") : t("goal.checkLabel")}
+          </span>
         </button>
 
         {selection?.active && (
@@ -339,24 +391,12 @@ export function GoalCard({
         )}
       </div>
 
-      {sheet === "goal" && (
-        <DayEntrySheet date={date} open onClose={() => setSheet(null)} editGoal={goal} />
-      )}
+      {sheet === "goal" && <DayEntrySheet date={date} open onClose={() => setSheet(null)} editGoal={goal} />}
       {sheet === "entry" && entry && (
         <EditEntryModal entry={entry} open onOpenChange={(o) => !o && setSheet(null)} />
       )}
-      <MoodSheet
-        date={date}
-        open={sheet === "mood"}
-        onClose={() => setSheet(null)}
-        goal={{ id: goal.id, date }}
-      />
-      <SleepSheet
-        date={date}
-        open={sheet === "sleep"}
-        onClose={() => setSheet(null)}
-        goal={{ id: goal.id, date }}
-      />
+      <MoodSheet date={date} open={sheet === "mood"} onClose={() => setSheet(null)} goal={{ id: goal.id, date }} />
+      <SleepSheet date={date} open={sheet === "sleep"} onClose={() => setSheet(null)} goal={{ id: goal.id, date }} />
     </>
   );
 }

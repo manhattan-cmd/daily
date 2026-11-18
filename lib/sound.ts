@@ -16,9 +16,11 @@ import { setLocalFlag, useLocalFlag } from "./local-flag";
 /**
  * goal: hedefin "Yaptım" anı — girdinin sesinden belirgin biçimde büyük; plan
  * yapılınca değil, plan gerçekleşince ödül. plan: hedef kuruldu — sakin,
- * kısa; söz verildi ama henüz bir şey kazanılmadı.
+ * kısa; söz verildi ama henüz bir şey kazanılmadı. add: Ekle düğmesi —
+ * ekran açılırken yukarı kayan hafif bir "pop"; çok basılan bir düğme,
+ * o yüzden en kısa ve en kısık ses bu.
  */
-export type EntrySoundKind = "entry" | "mood" | "sleep" | "goal" | "plan";
+export type EntrySoundKind = "entry" | "mood" | "sleep" | "goal" | "plan" | "add";
 
 /** İşaretliyse sesler kapalı. Varsayılan: açık. */
 export const SOUND_OFF_KEY = "logbit-sound-off";
@@ -88,6 +90,10 @@ interface Tone {
   /** FM yoğunluğu (taşıyıcı frekansın katı); verilirse tokmak ya da çan tınısı */
   fm?: number;
   ratio?: number;
+  /** Perdenin kayacağı yer (frekansın katı); verilirse ses yukarı/aşağı kayar */
+  slide?: number;
+  /** Kaymanın süresi (sn); verilmezse sesin yarısı */
+  glide?: number;
 }
 
 function tone(c: AudioContext, o: Tone): void {
@@ -97,6 +103,7 @@ function tone(c: AudioContext, o: Tone): void {
   const osc = c.createOscillator();
   osc.type = o.type ?? "sine";
   osc.frequency.setValueAtTime(o.f, t0);
+  if (o.slide) osc.frequency.exponentialRampToValueAtTime(o.f * o.slide, t0 + (o.glide ?? dur / 2));
   const g = c.createGain();
   g.gain.setValueAtTime(0.0001, t0);
   g.gain.exponentialRampToValueAtTime(o.gain ?? 0.2, t0 + (o.attack ?? 0.004));
@@ -172,6 +179,12 @@ const SOUNDS: Record<EntrySoundKind, (c: AudioContext) => void> = {
     tone(c, { f: E5, t: 0.09, dur: 0.9, gain: 0.07, fm: 0.4, ratio: 3.5, attack: 0.003 });
     tone(c, { f: C5, t: 0.02, dur: 0.9, gain: 0.035, type: "triangle", attack: 0.05 });
   },
+  // Ekle: E5'ten C6'ya kayan yuvarlak bir pop, ucunda küçük bir parıltı —
+  // ekran açılıyor, henüz bir şey eklenmedi
+  add: (c) => {
+    tone(c, { f: E5, slide: C6 / E5, glide: 0.06, dur: 0.15, gain: 0.12, attack: 0.003 });
+    tone(c, { f: G6, t: 0.055, dur: 0.12, gain: 0.025, fm: 0.4, ratio: 3, attack: 0.003 });
+  },
 };
 
 const HAPTICS: Record<EntrySoundKind, number | number[]> = {
@@ -180,6 +193,7 @@ const HAPTICS: Record<EntrySoundKind, number | number[]> = {
   sleep: 24,
   goal: [14, 60, 14, 60, 40],
   plan: 10,
+  add: 8,
 };
 
 /** Girdi eklendi: türüne göre ses ve kısa titreşim. Sesler kapalıysa yalnız titreşim. */

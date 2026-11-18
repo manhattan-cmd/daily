@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { SubCategory } from "@/types";
 import { AddScreen, type AddEntryOpts, type AddTab } from "@/components/calendar/add-screen";
+import { playEntrySound } from "@/lib/sound";
 
 type EntryOpts = {
   /** Aktivite sekmesiyle açılır */
@@ -47,7 +48,11 @@ export function useDayAdd(date: string) {
   );
 
   return {
-    open: () => openTab("quick"),
+    // Ekle düğmesinin sesi — yalnız düğmeden açılınca (bkz. lib/sound "add")
+    open: () => {
+      playEntrySound("add");
+      openTab("quick");
+    },
     openTab,
     openEntry,
     openGoal: () => openTab("goal"),

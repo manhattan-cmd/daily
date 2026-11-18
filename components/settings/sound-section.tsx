@@ -8,6 +8,7 @@ import type { MessageKey } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
 const PREVIEWS: { kind: EntrySoundKind; label: MessageKey }[] = [
+  { kind: "add", label: "settings.soundAdd" },
   { kind: "entry", label: "settings.soundEntry" },
   { kind: "mood", label: "settings.soundMood" },
   { kind: "sleep", label: "settings.soundSleep" },

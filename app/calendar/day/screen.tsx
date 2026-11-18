@@ -519,32 +519,17 @@ export function CalendarDayPage({
       {/* Divider */}
       {!brutal && <div className="h-px bg-border mb-5" />}
 
-      {/* Brütal: ana sayfanın blok dili — Günün girdileri (uyku, ruh hali ve
-          saat damgalı akış), varsa Hedefler ve Notlar kendi bloklarında,
+      {/* Brütal: ana sayfanın blok dili — varsa Hedefler en üstte (günün
+          yapılacakları), sonra Günün girdileri (uyku, ruh hali ve saat damgalı
+          akış), varsa Notlar; her biri kendi bloğunda,
           yanlarında ekleme karoları. Ötekilerde tek katman.
           Başlar ince ve tek satır (compact + dense): solda ad, sağda sayı
           beyaz etikette. Eskiden üstte küçük ad, altında iri "22 girdi" —
           listenin başı gün özetinin kendisi kadar kalın duruyordu. */}
       {brutal ? (
         <>
-          <SummaryBlock
-            className="mb-4"
-            compact
-            dense
-            lead={{
-              kind: "count",
-              color: "#ffb38a",
-              overline: t("day.entriesLayer"),
-              value: String(dayItemCount),
-              unit: t("home.entries"),
-            }}
-            stats={[]}
-          >
-            <div className="bg-white p-3">
-              {sleepMoodSlot}
-              {entriesSlot}
-            </div>
-          </SummaryBlock>
+          {/* Hedefler önce: günün yapılacakları, yapılanların üstünde.
+              Yalnız o gün hedef varsa çıkar. */}
           {goals && goals.length > 0 && (
             <SummaryBlock
               className="mb-4"
@@ -566,6 +551,24 @@ export function CalendarDayPage({
               </div>
             </SummaryBlock>
           )}
+          <SummaryBlock
+            className="mb-4"
+            compact
+            dense
+            lead={{
+              kind: "count",
+              color: "#ffb38a",
+              overline: t("day.entriesLayer"),
+              value: String(dayItemCount),
+              unit: t("home.entries"),
+            }}
+            stats={[]}
+          >
+            <div className="bg-white p-3">
+              {sleepMoodSlot}
+              {entriesSlot}
+            </div>
+          </SummaryBlock>
           {notes && notes.length > 0 && (
             <SummaryBlock
               className="mb-4"
@@ -600,8 +603,8 @@ export function CalendarDayPage({
         </>
       ) : (
       <Layer label={t("day.entriesLayer")} count={dayItemCount}>
-      {sleepMoodSlot}
       {goalsSlot}
+      {sleepMoodSlot}
       {notesSlot}
       {entriesSlot}
       </Layer>
