@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { DataSection } from "@/components/settings/data-section";
 import { LanguageSection } from "@/components/settings/language-section";
 import { SkinSection } from "@/components/settings/skin-section";
+import { SoundSection } from "@/components/settings/sound-section";
 import { PageSheet } from "@/components/ui/layer";
 
 const APP_VERSION = "0.1.0";
@@ -51,6 +52,7 @@ export default function SettingsPage() {
           <div className="flex flex-col gap-3">
             <LanguageSection />
             <SkinSection />
+            <SoundSection />
           </div>
         </section>
 

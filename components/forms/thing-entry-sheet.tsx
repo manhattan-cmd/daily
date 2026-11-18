@@ -12,6 +12,7 @@ import {
   measureOf,
   type CategoryModifierWithType,
 } from "@/lib/db/queries";
+import { playEntrySound } from "@/lib/sound";
 import { currentThingValues, thingUsage } from "@/lib/db/things";
 import { SheetFrame } from "@/components/ui/sheet-frame";
 import { ENTRY_WINDOW_LARGE } from "@/components/ui/entry-window";
@@ -157,6 +158,7 @@ export function ThingEntrySheet({
         notes: notes.trim() || undefined,
         things: [{ thingId, values: Object.fromEntries(Object.entries(vals).filter(([, v]) => v !== "")) }],
       });
+      playEntrySound("entry");
       onClose();
     } finally {
       setSaving(false);

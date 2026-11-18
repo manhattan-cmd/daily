@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Smile } from "lucide-react";
 import { createEntry, getBuiltInTarget } from "@/lib/db/queries";
+import { playEntrySound } from "@/lib/sound";
 import { cn, toLocalDateTimeValue } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { EmotionPicker } from "@/components/forms/emotion-picker";
@@ -146,6 +147,7 @@ function MoodSheetBody({ date, open, onClose, embedded }: MoodSheetProps) {
         occurredAt: new Date(occurredAt).getTime(),
         notes: notes.trim() || undefined,
       });
+      playEntrySound("mood");
       onClose();
     } finally {
       setSaving(false);

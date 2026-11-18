@@ -60,6 +60,7 @@ import {
   type ParallelSub,
   measureOf,
 } from "@/lib/db/queries";
+import { playEntrySound } from "@/lib/sound";
 import { Switch } from "@/components/ui/switch";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
 import { isNumericChoiceSet, shortMonth } from "@/lib/analytics";
@@ -305,6 +306,7 @@ export function EditEntryModal({
         occurredAt: new Date(occurredAt).getTime(),
         linkedGroupId: pStep.groupId,
       });
+      playEntrySound("entry");
       pCreated.current = true;
       await advanceParallel(
         pQueue,

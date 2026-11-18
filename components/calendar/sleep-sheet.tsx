@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { MoonStar } from "lucide-react";
 import { createEntry, getBuiltInTarget, listRecentModValues } from "@/lib/db/queries";
+import { playEntrySound } from "@/lib/sound";
 import { carryDTR, parseDTR } from "@/components/forms/datetime-range-input";
 import { EntryShell } from "@/components/forms/entry-shell";
 import { LedgerField } from "@/components/forms/ledger-field";
@@ -138,6 +139,7 @@ function SleepSheetBody({ date, open, onClose, embedded }: SleepSheetProps) {
         occurredAt,
         notes: notes.trim() || undefined,
       });
+      playEntrySound("sleep");
       onClose();
     } finally {
       setSaving(false);

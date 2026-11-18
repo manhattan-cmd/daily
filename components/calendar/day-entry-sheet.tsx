@@ -51,6 +51,7 @@ import {
 } from "@/lib/db/live-cache";
 import { ENTRY_SCREEN } from "@/components/ui/entry-window";
 import type { AttachedThing } from "@/lib/db/queries";
+import { entrySoundFor, playEntrySound } from "@/lib/sound";
 import { collectThings, ThingValuesContext, type ThingVals } from "@/components/forms/thing-ui";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { SheetFrame, useEmbedded } from "@/components/ui/sheet-frame";
@@ -419,6 +420,10 @@ function DayEntrySheetBody({
     return () => clearTimeout(tm);
   }, [toast]);
 
+  /** Girdi sesi kategoriye göre: ruh hali ve uyku kendi sesiyle, gerisi ortak */
+  const soundFor = (categoryId: string) =>
+    entrySoundFor((groups ?? []).find((g) => g.category.id === categoryId)?.category.builtInKey);
+
   /** stay: kaydet ve seçiciye dön, pencere kapanmasın (seri giriş) */
   async function handleFormSave(stay = false) {
     setSaving(true);
@@ -430,6 +435,7 @@ function DayEntrySheetBody({
           thingVals
         );
         const created = await persistEntry(step.sub.id, activeMods, values, groupId, undefined, things);
+        playEntrySound(soundFor(step.sub.categoryId));
         setThingVals({});
         if (stay && !activity && selectedParallels.length === 0) {
           const group = (groups ?? []).find((g) => g.category.id === step.sub.categoryId);
@@ -470,6 +476,7 @@ function DayEntrySheetBody({
         }
       } else if (step.type === "parallel-form") {
         await persistEntry(step.sub.id, activeMods, values, step.groupId, notes);
+        playEntrySound(soundFor(step.sub.categoryId));
         const accumulated = { ...step.carryover, ...toSharedKeyed(activeMods, values) };
         await advanceToNextParallel(parallelQueue, step.groupId, step.queueIndex, step.queueTotal, accumulated);
       }

@@ -1233,6 +1233,12 @@ export const en = {
   "settings.skinHint": "Colours only — the layout stays the same",
   "settings.language": "Language",
   "settings.languageHint": "Also sets date and number formatting",
+  "settings.sound": "Sounds",
+  "settings.soundHint": "A short sound plays when you add an entry",
+  "settings.soundTry": "Listen",
+  "settings.soundEntry": "Entry",
+  "settings.soundMood": "Mood",
+  "settings.soundSleep": "Sleep",
 
   // ── Yedek ────────────────────────────────────────────────────────────
   "backup.reminder.never": "Your data has no backup",
@@ -2506,6 +2512,12 @@ export const tr: Record<MessageKey, string> = {
   "settings.skinHint": "Yalnız renkler — yerleşim aynı kalır",
   "settings.language": "Dil",
   "settings.languageHint": "Tarih ve sayı biçimini de belirler",
+  "settings.sound": "Sesler",
+  "settings.soundHint": "Girdi eklenince kısa bir ses çalar",
+  "settings.soundTry": "Dinle",
+  "settings.soundEntry": "Girdi",
+  "settings.soundMood": "Ruh hali",
+  "settings.soundSleep": "Uyku",
 
   "backup.reminder.never": "Verinin yedeği yok",
   "backup.reminder.stale": "Son yedeğin {when}",
