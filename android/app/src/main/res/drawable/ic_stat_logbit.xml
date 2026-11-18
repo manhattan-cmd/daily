@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bildirim cubugu simgesi: Logbit maskotunun tek renk silueti (kutu, gozler,
+     gulus ve ayaklar oyuk). Android bu simgeyi beyaz maske olarak cizer; renk
+     bildirimin kendi rengi (iconColor). Geometri lib/brand.ts ile ayni tuvalde. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="340"
+    android:viewportHeight="340">
+    <group
+        android:translateX="-86"
+        android:translateY="-105">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M166,120 H346 A50,50 0 0 1 396,170 V332 A50,50 0 0 1 346,382 H166 A50,50 0 0 1 116,332 V170 A50,50 0 0 1 166,120 Z M204,204 A18,26 0 1 0 240,204 A18,26 0 1 0 204,204 Z M272,204 A18,26 0 1 0 308,204 A18,26 0 1 0 272,204 Z M214,250 Q256,302 298,250 Q256,278 214,250 Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M190,396 H240 V430 H190 Z M272,396 H322 V430 H272 Z" />
+    </group>
+</vector>

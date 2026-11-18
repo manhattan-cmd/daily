@@ -20,6 +20,14 @@ const config: CapacitorConfig = {
     // Açılışta beyaz parlama olmasın — uygulamanın koyu zemini
     backgroundColor: "#09090b",
   },
+  plugins: {
+    // Hedef hatırlatmaları (bkz. lib/goal-reminders): bildirim çubuğunda
+    // maskotun silueti, bildirimin rengi hedefin sarısı
+    LocalNotifications: {
+      smallIcon: "ic_stat_logbit",
+      iconColor: "#ffd23f",
+    },
+  },
 };
 
 export default config;

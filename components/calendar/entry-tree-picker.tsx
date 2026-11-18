@@ -56,11 +56,14 @@ export function EntryTreePicker({
   onPickCategory,
   onClose,
   focus,
+  searchPlaceholder,
 }: {
   groups: NetGroup[] | undefined;
   onPick: (sub: SubCategory) => void;
   onPickCategory: (category: Category) => void;
   onClose: () => void;
+  /** Hedef kurarken "Ne yapacaksın? Ara…" */
+  searchPlaceholder?: string;
   /** Bu kategori açık ve görünür gelsin (Ekle › Hızlı'daki kategoriler) */
   focus?: { id: string; n: number } | null;
 }) {
@@ -162,7 +165,7 @@ export function EntryTreePicker({
                   setQuery(e.target.value);
                   setSearchClosed(new Set());
                 }}
-                placeholder={t("pick.search")}
+                placeholder={searchPlaceholder ?? t("pick.search")}
                 aria-label={t("entry.searchAll")}
                 className="h-full min-w-0 flex-1 bg-transparent text-[14px] font-semibold text-[#111] placeholder:font-medium placeholder:text-[#111]/45 focus:outline-none"
               />

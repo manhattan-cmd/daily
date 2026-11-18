@@ -30,6 +30,7 @@ import { Layer, PageSheet } from "@/components/ui/layer";
 import { SummaryBlock } from "@/components/ui/summary-block";
 import { CardListSkeleton } from "@/components/ui/skeleton";
 import { EntryCard } from "@/components/dashboard/entry-card";
+import { GoalCard } from "@/components/goals/goal-card";
 import { NoteCard } from "@/components/notes/note-card";
 import { prefetchDay, prefetchDayOnPress, whenIdle } from "@/lib/db/day-cache";
 import { BackupReminder } from "@/components/dashboard/backup-reminder";
@@ -114,7 +115,16 @@ export default function HomePage() {
   const hasCategories = (home?.counts.categories ?? 0) > 0;
 
   const todayInfo = week?.[week.length - 1];
-  const doneGoals = (goals ?? []).filter((g) => g.completedEntryId).length;
+  const doneGoals = (goals ?? []).filter((o) => o.entry).length;
+  // Bugünün hedefleri — ana sayfadan da "Yaptım" denebilsin (bkz. GoalCard)
+  const todayGoals =
+    goals && goals.length > 0 ? (
+      <div data-home-goals="" className="flex flex-col gap-2">
+        {goals.map((o) => (
+          <GoalCard key={o.goal.id} occ={o} />
+        ))}
+      </div>
+    ) : null;
 
   // Başlarken — adımların durumu verinin kendisinden
   const lastBackupAt = useLastBackupAt();
@@ -244,6 +254,23 @@ export default function HomePage() {
             goalsDone={doneGoals}
             onAdd={add.open}
           />
+          {todayGoals && (
+            <SummaryBlock
+              className="mb-4"
+              compact
+              dense
+              lead={{
+                kind: "count",
+                color: "#ffd23f",
+                overline: t("goal.today"),
+                value: `${doneGoals}/${goals!.length}`,
+                unit: t("day.goals.unit"),
+              }}
+              stats={[]}
+            >
+              <div className="bg-white p-3">{todayGoals}</div>
+            </SummaryBlock>
+          )}
           {/* Girdilerin gittiği yer, yapıya giden kapı — Bugün'ün eşi */}
           {home && <CategoriesBlock snapshot={home} onNew={() => setCatFormOpen(true)} />}
           {home && home.frequent.length > 0 && (
@@ -257,6 +284,8 @@ export default function HomePage() {
       <Layer label={t("home.today")}>
       {start}
       {!showStart && <BackupReminder />}
+
+      {todayGoals && <div className="mb-4">{todayGoals}</div>}
 
       {/* Bugün — günün özeti + doğrudan girdi ekleme */}
       <section data-home-today="" className="mb-4 overflow-hidden rounded-2xl border border-border bg-card">

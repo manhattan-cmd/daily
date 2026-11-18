@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useLayoutEffect, useRef } from "react";
 import { migrateThingAttachments } from "@/lib/db/things";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ensureBuiltInDimensions,
   ensureBuiltInCategories,
@@ -24,6 +24,7 @@ import { prefetchPeriod } from "@/components/analytics/period-data";
 import { weekPeriod } from "@/lib/period";
 import { whenIdle } from "@/lib/db/day-cache";
 import { applyStatusBarColor, statusBarColor } from "@/lib/skin-boot";
+import { startGoalReminders } from "@/lib/goal-reminders";
 
 /** Açılış kurulumu — sayfa ömründe bir kez (bkz. AppShell) */
 let initOnce: Promise<void> | null = null;
@@ -101,6 +102,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Mobil uygulamada Android geri tuşu: önce açık pencere, sonra sayfa
   useEffect(() => (isNative() ? listenBackButton() : undefined), []);
+
+  // Hedef hatırlatmaları: plan değişince yeniden kurulur, bildirime dokunmak
+  // hedefin gününü açar (bkz. lib/goal-reminders)
+  const router = useRouter();
+  const routerRef = useRef(router);
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
+  useEffect(() => startGoalReminders((url) => routerRef.current.push(url)), []);
 
   // Service worker yalnızca production'da — dev'de Turbopack'in HMR'ıyla çakışır.
   // Mobil uygulamada hiç yok: dosyalar zaten uygulamanın içinde.

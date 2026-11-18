@@ -11,10 +11,11 @@ const PREVIEWS: { kind: EntrySoundKind; label: MessageKey }[] = [
   { kind: "entry", label: "settings.soundEntry" },
   { kind: "mood", label: "settings.soundMood" },
   { kind: "sleep", label: "settings.soundSleep" },
+  { kind: "goal", label: "settings.soundGoal" },
 ];
 
 /**
- * Girdi sesleri: aç/kapat ve üç sesi dinleme. Kapalıyken girdi eklenince
+ * Girdi sesleri: aç/kapat ve sesleri dinleme. Kapalıyken girdi eklenince
  * yalnız kısa bir titreşim kalıyor.
  */
 export function SoundSection() {

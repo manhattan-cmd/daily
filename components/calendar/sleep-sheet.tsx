@@ -25,6 +25,8 @@ interface SleepSheetProps {
   onClose: () => void;
   /** Ekle ekranının sekmesinde (bkz. AddScreen, SheetFrame) */
   embedded?: boolean;
+  /** Hedef kartından açıldı: kayıt bu hedefin o günü olur (bkz. GoalCard) */
+  goal?: { id: string; date: string };
 }
 
 /** Yerleşik Uyku akışı: Ekle → Uyku. Gece Uykusu altına süre + kalite kaydeder. */
@@ -37,7 +39,7 @@ export function SleepSheet(props: SleepSheetProps) {
   return mounted ? <SleepSheetBody {...props} open={visible} /> : null;
 }
 
-function SleepSheetBody({ date, open, onClose, embedded }: SleepSheetProps) {
+function SleepSheetBody({ date, open, onClose, embedded, goal }: SleepSheetProps) {
   const t = useT();
   // null = kullanıcı saatlere dokunmadı → son uykunun saatleri gösterilir
   const [range, setRange] = useState<string | null>(null);
@@ -133,13 +135,15 @@ function SleepSheetBody({ date, open, onClose, embedded }: SleepSheetProps) {
         occurredAt = dt.getTime();
       }
 
-      await createEntry({
+      const created = await createEntry({
         subcategoryId: target.sub.id,
         typeValues,
         occurredAt,
         notes: notes.trim() || undefined,
+        goalId: goal?.id,
       });
-      playEntrySound("sleep");
+      // Bir hedefi yerine getirdiyse hedefin sesi (kutlama kartta)
+      playEntrySound(created.goalId ? "goal" : "sleep");
       onClose();
     } finally {
       setSaving(false);

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Boxes, Check, Link2, ListPlus, PanelLeftClose, PenLine, Plus, X } from "lucide-react";
+import { ArrowLeft, Boxes, Check, Link2, ListPlus, MoonStar, PanelLeftClose, PenLine, Plus, Smile, Target, Trash2, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import {
   listModifiersForTarget,
@@ -12,6 +12,12 @@ import {
   getOrCreateCategoryRootSub,
   listActivityNameSuggestions,
   listRecentModValues,
+  createGoal,
+  builtInTitle,
+  getBuiltInTarget,
+  updateGoal,
+  deleteGoal,
+  stopGoal,
   type CategoryModifierWithType,
   type ModWithType,
   type ParallelSub,
@@ -49,6 +55,17 @@ import {
   loadEntryGroups,
   useCachedLiveQuery,
 } from "@/lib/db/live-cache";
+import {
+  GoalPlanFields,
+  inkOn,
+  planFromGoal,
+  planToGoal,
+  planValid,
+  type GoalPlanState,
+} from "@/components/goals/goal-plan";
+import { requestReminderPermission, invalidateReminderPlan, syncGoalReminders } from "@/lib/goal-reminders";
+import { confirmDialog } from "@/components/ui/confirm";
+import type { GoalWithContext } from "@/types";
 import { ENTRY_SCREEN } from "@/components/ui/entry-window";
 import type { AttachedThing } from "@/lib/db/queries";
 import { entrySoundFor, playEntrySound } from "@/lib/sound";
@@ -63,6 +80,22 @@ const NO_MODS: CategoryModifierWithType[] = [];
 const valueKey = (m: CategoryModifierWithType) => m.modId ?? m.id;
 /** Paralel perspektifler arası taşıma anahtarı: aynı atom = aynı anahtar */
 const sharedKey = (m: CategoryModifierWithType) => m.modId ?? m.entryTypeId ?? m.id;
+
+/** Yalnız bu girdiye (ya da hedefe) eklenen özelliğin form satırı — yapıya bağlanmaz */
+function entryModRow(m: ModWithType, subId: string): CategoryModifierWithType {
+  return {
+    id: `entry-${m.id}`,
+    modId: m.id,
+    name: m.name,
+    targetType: "subcategory",
+    targetId: subId,
+    order: 9999,
+    createdAt: 0,
+    updatedAt: 0,
+    mod: m,
+    entryType: m.entryType,
+  };
+}
 
 interface DayEntrySheetProps {
   date: string;
@@ -83,6 +116,14 @@ interface DayEntrySheetProps {
   picker?: (onPick: (sub: SubCategory) => void) => ReactNode;
   /** Seçici bu kategoriyi açık getirsin (Hızlı'daki kategoriler); n her dokunuşta yeni */
   focusCategory?: { id: string; n: number } | null;
+  /**
+   * HEDEF: aynı seçici ve form, kayıt "yaptım" değil "yapacağım". Form
+   * özelliklerin altında zamanı (bir gün / tekrar) ve hatırlatmayı sorar;
+   * Ekle bir hedef kurar (bkz. lib/goals, components/goals).
+   */
+  goalMode?: boolean;
+  /** Var olan hedefi düzenle: form onun değerleri ve zamanıyla açılır */
+  editGoal?: GoalWithContext | null;
 }
 
 type Step =
@@ -117,8 +158,15 @@ function DayEntrySheetBody({
   embedded,
   picker,
   focusCategory,
+  goalMode: goalModeProp,
+  editGoal,
 }: DayEntrySheetProps) {
   const router = useRouter();
+  const goalMode = !!goalModeProp || !!editGoal;
+  // Hedefin zamanı — bir gün / tekrar ve hatırlatma (bkz. GoalPlanFields)
+  const [plan, setPlan] = useState<GoalPlanState>(() =>
+    planFromGoal(editGoal ?? undefined, date < toLocalDateValue() ? toLocalDateValue() : date)
+  );
   const t = useT();
   // Raf görünümünde form eskisi gibi bütün yüzeyi kaplar; rayda soldan pencere
   const layout = useEntryLayout();
@@ -169,6 +217,8 @@ function DayEntrySheetBody({
         setStep({ type: "pick" });
       } else if (activityMode) {
         setStep({ type: "activity-name" });
+      } else if (editGoal) {
+        openGoalForEdit(editGoal);
       } else if (presetSub) {
         setOccurredAt(nowOnDay(date));
         setStep({ type: "form", sub: presetSub });
@@ -185,6 +235,22 @@ function DayEntrySheetBody({
 
   // Önbellekli: pencere açılır açılmaz liste dolu gelsin (bkz. live-cache)
   const groups = useCachedLiveQuery(ENTRY_GROUPS_KEY, loadEntryGroups);
+  // Hedefte uyku ve ruh hali de kurulabilir ("her sabah uykunu gir"); onlar
+  // seçicinin listesinde değil, bandın üstünde kendi düğmeleriyle
+  const builtIns =
+    useLiveQuery(async () => {
+      if (!goalMode) return [];
+      const found = await Promise.all(
+        (["sleep", "mood"] as const).map(async (key) => {
+          const f = await getBuiltInTarget(key);
+          return f ? { key, sub: f.sub, category: f.category } : null;
+        })
+      );
+      return found.filter((x): x is NonNullable<typeof x> => !!x);
+    }, [goalMode]) ?? [];
+  const categoryOf = (sub: SubCategory) =>
+    (groups ?? []).find((g) => g.category.id === sub.categoryId)?.category ??
+    builtIns.find((b) => b.category.id === sub.categoryId)?.category;
 
   const currentSubId =
     step.type === "form" || step.type === "parallel-form" ? step.sub.id : "";
@@ -214,11 +280,23 @@ function DayEntrySheetBody({
     setExtraMods([]);
     setHiddenKeys(new Set());
   }
+  // Düzenlenen hedefin, kaleme takılı olmayan özellikleri (hedefe özel eklenmiş)
+  const goalExtras = useMemo(() => {
+    if (!editGoal || editGoal.subcategoryId !== currentSubId) return [];
+    return editGoal.targets
+      .filter((tg) => tg.mod)
+      .map((tg) => entryModRow({ ...tg.mod!, entryType: tg.entryType }, currentSubId));
+  }, [editGoal, currentSubId]);
   const activeMods = useMemo(() => {
     const base = formMods.filter((m) => !hiddenKeys.has(valueKey(m)));
     const seen = new Set(base.map(valueKey));
-    return [...base, ...extraMods.filter((m) => !seen.has(valueKey(m)))];
-  }, [formMods, extraMods, hiddenKeys]);
+    const extras = [...goalExtras, ...extraMods].filter((m) => {
+      if (seen.has(valueKey(m)) || hiddenKeys.has(valueKey(m))) return false;
+      seen.add(valueKey(m));
+      return true;
+    });
+    return [...base, ...extras];
+  }, [formMods, extraMods, goalExtras, hiddenKeys]);
 
   function addEntryMods(picked: ModWithType[]) {
     const attachedIds = new Set(formMods.map((m) => m.modId));
@@ -227,19 +305,7 @@ function DayEntrySheetBody({
     for (const m of picked) {
       // Kalemin kendi özelliği gizlenmişse geri gelir, kopyası açılmaz
       if (attachedIds.has(m.id)) unhide.push(m.id);
-      else
-        extras.push({
-          id: `entry-${m.id}`,
-          modId: m.id,
-          name: m.name,
-          targetType: "subcategory",
-          targetId: currentSubId,
-          order: 9999,
-          createdAt: 0,
-          updatedAt: 0,
-          mod: m,
-          entryType: m.entryType,
-        });
+      else extras.push(entryModRow(m, currentSubId));
     }
     if (unhide.length)
       setHiddenKeys((prev) => {
@@ -259,7 +325,7 @@ function DayEntrySheetBody({
 
   function removeEntryMod(mod: CategoryModifierWithType) {
     const key = valueKey(mod);
-    if (mod.id.startsWith("entry-"))
+    if (mod.id.startsWith("entry-") && extraMods.some((m) => m.id === mod.id))
       setExtraMods((prev) => prev.filter((m) => m.id !== mod.id));
     else setHiddenKeys((prev) => new Set(prev).add(key));
     // Değeri de bırakma — gizlenen özellik kayda yazılmasın
@@ -298,6 +364,77 @@ function DayEntrySheetBody({
     return toLocalDateTimeValue(
       new Date(y, mo - 1, d, n.getHours(), n.getMinutes(), 0, 0).getTime()
     );
+  }
+
+  /** Var olan hedefin formu: değerleri, notu ve zamanıyla */
+  function openGoalForEdit(goal: GoalWithContext) {
+    const vals: Record<string, string> = {};
+    for (const tg of goal.targets) {
+      const key = tg.modId ?? tg.entryTypeId;
+      if (key) vals[key] = tg.targetValue;
+    }
+    setValues(vals);
+    setThingVals({});
+    setNotes(goal.note ?? "");
+    setPlan(planFromGoal(goal, goal.date));
+    setOccurredAt(nowOnDay(goal.date));
+    setStep({ type: "form", sub: goal.subcategory });
+  }
+
+  /** Hedefi kur ya da düzenlemeyi kaydet */
+  async function saveGoal(sub: SubCategory) {
+    const targets = activeMods
+      .map((m) => ({ modId: m.modId, entryTypeId: m.modId ? undefined : m.entryTypeId, targetValue: values[valueKey(m)] ?? "" }))
+      // Evet/hayır özelliğinin boş hali "false" — hedefte "seçilmedi" demek
+      .filter((tg) => tg.targetValue !== "" && tg.targetValue !== "false");
+    const when = planToGoal(plan);
+    const patch = {
+      date: when.date,
+      repeat: when.repeat,
+      remindAt: when.remindAt,
+      targets,
+      note: notes.trim() || undefined,
+    };
+    if (editGoal) await updateGoal(editGoal.id, patch);
+    else await createGoal({ subcategoryId: sub.id, ...patch });
+    playEntrySound("plan");
+    // Hatırlatma açıldıysa izin tam şimdi istenir; verilince plan kurulur
+    if (when.remindAt) {
+      void requestReminderPermission().then(() => {
+        invalidateReminderPlan();
+        void syncGoalReminders();
+      });
+    }
+    onClose();
+    if (!editGoal) router.push(routes.day(when.date));
+  }
+
+  async function handleGoalDelete() {
+    if (!editGoal) return;
+    const recurring = !!editGoal.repeat;
+    const ok = await confirmDialog({
+      title: t(recurring ? "goal.stopConfirm" : "confirm.deleteGoal"),
+      body: t(recurring ? "goal.stopConfirmBody" : "goal.deleteKeepsEntries"),
+      confirmLabel: t(recurring ? "goal.stop" : "goal.delete"),
+      destructive: !recurring,
+    });
+    if (!ok) return;
+    if (recurring) await stopGoal(editGoal.id);
+    else await deleteGoal(editGoal.id);
+    onClose();
+  }
+
+  async function handleGoalDeleteAll() {
+    if (!editGoal) return;
+    const ok = await confirmDialog({
+      title: t("confirm.deleteGoal"),
+      body: t("goal.deleteKeepsEntries"),
+      confirmLabel: t("goal.delete"),
+      destructive: true,
+    });
+    if (!ok) return;
+    await deleteGoal(editGoal.id);
+    onClose();
   }
 
   /**
@@ -428,6 +565,10 @@ function DayEntrySheetBody({
   async function handleFormSave(stay = false) {
     setSaving(true);
     try {
+      if (goalMode && step.type === "form") {
+        await saveGoal(step.sub);
+        return;
+      }
       if (step.type === "form") {
         const groupId = selectedParallels.length > 0 ? nanoid(12) : undefined;
         const things = collectThings(
@@ -435,7 +576,8 @@ function DayEntrySheetBody({
           thingVals
         );
         const created = await persistEntry(step.sub.id, activeMods, values, groupId, undefined, things);
-        playEntrySound(soundFor(step.sub.categoryId));
+        // O günün bekleyen hedefine bağlandıysa hedefin sesi (bkz. autoLinkGoal)
+        playEntrySound(created.goalId ? "goal" : soundFor(step.sub.categoryId));
         setThingVals({});
         if (stay && !activity && selectedParallels.length === 0) {
           const group = (groups ?? []).find((g) => g.category.id === step.sub.categoryId);
@@ -501,6 +643,10 @@ function DayEntrySheetBody({
   }
 
   function handleBack() {
+    if (editGoal) {
+      onClose();
+      return;
+    }
     if (step.type === "parallel-form") {
       advanceToNextParallel(parallelQueue, step.groupId, step.queueIndex, step.queueTotal, step.carryover);
       return;
@@ -546,7 +692,12 @@ function DayEntrySheetBody({
                 ÜSTÜNE bir panel açıyor. Böylece kullanıcı nereye kayıt
                 yaptığını görmeye devam ediyor ve geri dönünce liste aynı
                 yerde (odak EntryPicker'ın içinde tutuluyor). */}
-            {picker ? (
+            {goalMode && !editGoal && (
+              <GoalPickBand
+                builtIns={builtIns.map((b) => ({ key: b.key, label: builtInTitle(b.category) ?? b.sub.name, onPick: () => handlePick(b.sub) }))}
+              />
+            )}
+            {editGoal ? null : picker ? (
               picker(handlePick)
             ) : (
             <PickStep
@@ -559,6 +710,7 @@ function DayEntrySheetBody({
               compact={layout === "ray" && step.type !== "pick"}
               onRailNavigate={leaveForm}
               focus={focusCategory}
+              goalMode={goalMode}
             />
             )}
 
@@ -576,20 +728,29 @@ function DayEntrySheetBody({
                     entryDate: date,
                   }}
                 >
-                <FormFrame layout={picker ? "raf" : layout} key={step.sub.id} onDismiss={leaveForm}>
+                <FormFrame layout={picker || editGoal ? "raf" : layout} key={step.sub.id} onDismiss={leaveForm}>
                   <FormStep
             key={step.sub.id}
             sub={step.sub}
-            category={
-              (groups ?? []).find((g) => g.category.id === step.sub.categoryId)
-                ?.category
-            }
+            category={categoryOf(step.sub)}
             pathLabel={pathLabelFor(step.sub)}
             mods={activeMods}
             onAddMods={addEntryMods}
             onRemoveMod={removeEntryMod}
             currentCategoryId={step.sub.categoryId}
-            hideParallels={!!activity}
+            hideParallels={!!activity || goalMode}
+            goal={
+              goalMode
+                ? {
+                    plan,
+                    onPlanChange: setPlan,
+                    editing: !!editGoal,
+                    recurring: !!editGoal?.repeat,
+                    onDelete: handleGoalDelete,
+                    onDeleteAll: handleGoalDeleteAll,
+                  }
+                : undefined
+            }
             activityName={activity?.name}
             selectedParallels={step.type === "form" ? selectedParallels : []}
             onAddParallel={(ps) => setSelectedParallels((prev) => [...prev, ps])}
@@ -648,7 +809,7 @@ function DayEntrySheetBody({
        çubukta — standart çarpı gizli. */
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent hideClose aria-describedby={undefined} className={ENTRY_SCREEN}>
-        <DialogTitle className="sr-only">{t("home.addEntry")}</DialogTitle>
+        <DialogTitle className="sr-only">{t(goalMode ? (editGoal ? "goal.edit" : "goal.add") : "home.addEntry")}</DialogTitle>
         {surface}
       </DialogContent>
     </Dialog>
@@ -754,6 +915,70 @@ function ActivityNameStep({
   );
 }
 
+// ─── Goal Pick Band ──────────────────────────────────────────────────────────
+
+/**
+ * Hedef kurarken seçicinin üstü: burada seçilen şey yapılacak olan. Seçici
+ * girdininkiyle aynı; tek fark bu soru.
+ */
+function GoalPickBand({
+  builtIns,
+}: {
+  /** Uyku ve ruh hali: seçicinin listesinde yoklar, burada kendi düğmeleri */
+  builtIns: { key: "sleep" | "mood"; label: string; onPick: () => void }[];
+}) {
+  const t = useT();
+  const brutal = useSkin() === "brutal";
+  return (
+    <div
+      data-goal-band=""
+      className={cn(
+        "flex shrink-0 flex-col gap-2.5 px-4 py-3",
+        brutal ? "border-b-[3px] border-[#111] bg-[#ffd23f] text-[#111]" : "border-b border-[var(--ln-1)]"
+      )}
+    >
+    <div className="flex items-center gap-3">
+      <span
+        className={cn(
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+          brutal ? "border-2 border-[#111] bg-white" : "bg-amber-400/15 text-amber-400"
+        )}
+      >
+        <Target className="h-[18px] w-[18px]" strokeWidth={2.4} />
+      </span>
+      <div className="min-w-0 flex-1 leading-tight">
+        <div className="text-[16px] font-bold tracking-tight">{t("goal.pickTitle")}</div>
+        <div className={cn("text-[12px]", brutal ? "text-[#111]/70" : "text-muted-foreground")}>{t("goal.pickHint")}</div>
+      </div>
+    </div>
+      {builtIns.length > 0 && (
+        <div className="flex gap-2">
+          {builtIns.map((b) => {
+            const Icon = b.key === "sleep" ? MoonStar : Smile;
+            const color = b.key === "sleep" ? "#c9b8ff" : "#ff8fab";
+            return (
+              <button
+                key={b.key}
+                type="button"
+                data-goal-builtin={b.key}
+                onClick={b.onPick}
+                className={cn(
+                  "flex h-10 flex-1 items-center justify-center gap-2 rounded-full text-[14px] font-bold transition-transform active:scale-[0.97]",
+                  brutal ? "border-2 border-[#111] text-[#111] shadow-[2px_2px_0_#111]" : "bg-[var(--sf-2)]"
+                )}
+                style={brutal ? { background: color } : undefined}
+              >
+                <Icon className="h-4 w-4" strokeWidth={2.4} style={brutal ? undefined : { color }} />
+                {b.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Pick Step ───────────────────────────────────────────────────────────────
 
 function PickStep({
@@ -765,7 +990,10 @@ function PickStep({
   compact,
   onRailNavigate,
   focus,
+  goalMode,
 }: {
+  /** Hedef kuruluyor: seçicinin başlığı ve arama yazısı ona göre */
+  goalMode?: boolean;
   groups:
     | { category: Category; topSubs: SubCategory[]; allSubs: SubCategory[] }[]
     | undefined;
@@ -781,6 +1009,7 @@ function PickStep({
   /** Aktivite akışında başlık bandı + Bitti butonu */
   activity?: { name: string; count: number } | null;
 }) {
+  const t = useT();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [addCatOpen, setAddCatOpen] = useState(false);
   // Brütalde raf düzeni Yapı'nın ağacıyla (bkz. EntryTreePicker); ray ve sade temalar eskisi
@@ -834,9 +1063,11 @@ function PickStep({
             onPickCategory={onPickCategory}
             onClose={onClose}
             focus={focus}
+            searchPlaceholder={goalMode ? t("goal.searchPlaceholder") : undefined}
           />
         ) : (
           <EntryPicker
+            title={goalMode ? t("goal.listTitle") : undefined}
             groups={groups}
             onPick={onPick}
             onPickCategory={onPickCategory}
@@ -899,7 +1130,18 @@ function FormStep({
   onSaveStay,
   saving,
   entryDate,
+  goal,
 }: {
+  /** Hedef hali: zaman çipi yerine "Hedef" işareti, özelliklerin altında
+   *  Ne zaman / Hatırlat, Ekle yerine "Hedefi kur" */
+  goal?: {
+    plan: GoalPlanState;
+    onPlanChange: (p: GoalPlanState) => void;
+    editing: boolean;
+    recurring: boolean;
+    onDelete: () => void;
+    onDeleteAll: () => void;
+  };
   sub: SubCategory;
   category?: Category;
   /** Kalemin üstündeki yol — "Harcamalar › Yemek" */
@@ -946,21 +1188,31 @@ function FormStep({
 
   /** Bu sayfanın rengi — paralel perspektifte mor, yoksa kalemin kategorisi */
   const accent = parallelContext ? "#7c3aed" : category?.color ?? "#6366f1";
-  const itemName = sub.isCategoryRoot ? (category?.name ?? sub.name) : sub.name;
-  const topLine = parallelContext
+  const itemName =
+    (category && builtInTitle(category)) ?? (sub.isCategoryRoot ? (category?.name ?? sub.name) : sub.name);
+  const topLine = category?.isBuiltIn
+    ? ""
+    : parallelContext
     ? `${parallelContext.catName}${parallelContext.total > 1 ? ` · ${parallelContext.index}/${parallelContext.total}` : ""}`
     : activityName ?? pathLabel ?? category?.name ?? "";
 
+  const builtInKey = category?.isBuiltIn ? category.builtInKey ?? "sleep" : undefined;
+  const skin = useSkin();
+  // Ruh hali hedefinde değer önceden kurulmaz: nasıl hissettiğin o an sorulur
+  const moodGoal = !!goal && builtInKey === "mood";
   const saveLabel = saving
     ? t("entry.saving")
-    : parallelContext
+    : goal
+      ? t(goal.editing ? "action.save" : "goal.create")
+      : parallelContext
       ? parallelContext.index < parallelContext.total
         ? t("action.saveAndContinue")
         : t("entry.addNow")
       : hasParallelSelected
         ? t("action.saveAndContinue")
         : t("entry.addNow");
-  const canStay = !!onSaveStay && !parallelContext && !hasParallelSelected && !activityName;
+  const canStay = !goal && !!onSaveStay && !parallelContext && !hasParallelSelected && !activityName;
+  const saveDisabled = saving || (!!goal && !planValid(goal.plan));
 
   return (
     <>
@@ -1016,12 +1268,23 @@ function FormStep({
           */}
           <div className="flex flex-wrap items-end gap-x-2 gap-y-1.5">
             <div className="flex-[1_0_auto]">
-              <EntryTime
-                occurredAt={occurredAt}
-                onChange={onOccurredAtChange}
-                baseDate={entryDate}
-                accent={accent}
-              />
+              {goal ? (
+                <span
+                  data-goal-badge=""
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-bold"
+                  style={{ background: accent, color: skin === "brutal" ? "#111" : inkOn(accent) }}
+                >
+                  <Target className="h-4 w-4" strokeWidth={2.5} />
+                  {t(goal.editing ? "goal.edit" : "goal.badge")}
+                </span>
+              ) : (
+                <EntryTime
+                  occurredAt={occurredAt}
+                  onChange={onOccurredAtChange}
+                  baseDate={entryDate}
+                  accent={accent}
+                />
+              )}
             </div>
             <div data-hero-actions="" className="ml-auto flex shrink-0 items-center gap-1.5">
               {showParallelOption && (
@@ -1059,7 +1322,17 @@ function FormStep({
 
       {/* Gövde — açık defter; Brütal temada sayfa zemini (beyaz yüzey, bkz. globals.css) */}
       <div data-entry-sheet="" className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3 pb-4">
-        {mods.length === 0 ? (
+        {moodGoal ? (
+          <div
+            data-goal-mood=""
+            className="flex items-start gap-3 rounded-2xl border border-[var(--ln-2)] bg-[var(--sf-1)] px-4 py-3.5"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: `${accent}26`, color: accent }}>
+              <Smile className="h-5 w-5" />
+            </span>
+            <p className="text-[13px] leading-5 text-muted-foreground">{t("goal.moodHint")}</p>
+          </div>
+        ) : mods.length === 0 ? (
           <button
             type="button"
             onClick={() => setModPickerOpen(true)}
@@ -1073,7 +1346,7 @@ function FormStep({
             </span>
             <span className="text-sm font-semibold leading-5">{t("entry.addFeature")}</span>
             <span className="max-w-[240px] text-[11px] leading-4 text-muted-foreground">
-              {t("entry.featuresHint")}
+              {t(goal ? "goal.featuresHint" : "entry.featuresHint")}
             </span>
           </button>
         ) : (
@@ -1156,6 +1429,10 @@ function FormStep({
           </div>
         )}
 
+        {goal && (
+          <GoalPlanFields plan={goal.plan} onChange={goal.onPlanChange} accent={accent} />
+        )}
+
         {/*
           Not — tam genişlik, başlıklı; yazılanın ilk üç satırı okunur.
           Basınca not penceresi açılır. Tek satırlık kutuda yazı
@@ -1178,10 +1455,37 @@ function FormStep({
                 notes ? "text-foreground" : "text-muted-foreground/70"
               )}
             >
-              {notes || t("entry.notePlaceholder")}
+              {notes || t(goal ? "goal.notePlaceholder" : "entry.notePlaceholder")}
             </span>
           </button>
         </div>
+
+        {goal?.editing && (
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              data-goal-stop=""
+              onClick={goal.onDelete}
+              className={cn(
+                "flex h-10 items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold",
+                goal.recurring ? "bg-[var(--sf-2)] text-foreground/85" : "bg-destructive/10 text-destructive"
+              )}
+            >
+              <Trash2 className="h-4 w-4" />
+              {t(goal.recurring ? "goal.stop" : "goal.delete")}
+            </button>
+            {goal.recurring && (
+              <button
+                type="button"
+                data-goal-delete=""
+                onClick={goal.onDeleteAll}
+                className="flex h-10 items-center gap-1.5 rounded-full bg-destructive/10 px-4 text-[13px] font-semibold text-destructive"
+              >
+                {t("goal.delete")}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Asli eylem: kalemin renginde; yanında ekle ve devam et */}
@@ -1193,11 +1497,12 @@ function FormStep({
         <button
           type="button"
           onClick={onSave}
-          disabled={saving}
+          disabled={saveDisabled}
+          data-save=""
           className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-60"
           style={{ backgroundColor: accent }}
         >
-          {!saving && <Check className="h-5 w-5" strokeWidth={2.75} />}
+          {!saving && (goal ? <Target className="h-5 w-5" strokeWidth={2.5} /> : <Check className="h-5 w-5" strokeWidth={2.75} />)}
           {saveLabel}
         </button>
         {canStay && (

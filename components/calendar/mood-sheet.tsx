@@ -25,6 +25,8 @@ interface MoodSheetProps {
   onClose: () => void;
   /** Ekle ekranının sekmesinde (bkz. AddScreen, SheetFrame) */
   embedded?: boolean;
+  /** Hedef kartından açıldı: kayıt bu hedefin o günü olur (bkz. GoalCard) */
+  goal?: { id: string; date: string };
 }
 
 const ACCENT = "#f472b6";
@@ -68,7 +70,7 @@ export function MoodSheet(props: MoodSheetProps) {
   return mounted ? <MoodSheetBody {...props} open={visible} /> : null;
 }
 
-function MoodSheetBody({ date, open, onClose, embedded }: MoodSheetProps) {
+function MoodSheetBody({ date, open, onClose, embedded, goal }: MoodSheetProps) {
   const t = useT();
   const [level, setLevel] = useState("");
   /** Seçili duygular, ham değer biçiminde ("Happy|70") — kayda olduğu gibi gider */
@@ -141,13 +143,15 @@ function MoodSheetBody({ date, open, onClose, embedded }: MoodSheetProps) {
         });
       }
 
-      await createEntry({
+      const created = await createEntry({
         subcategoryId: target.sub.id,
         typeValues,
         occurredAt: new Date(occurredAt).getTime(),
         notes: notes.trim() || undefined,
+        goalId: goal?.id,
       });
-      playEntrySound("mood");
+      // Bir hedefi yerine getirdiyse hedefin sesi (kutlama kartta)
+      playEntrySound(created.goalId ? "goal" : "mood");
       onClose();
     } finally {
       setSaving(false);

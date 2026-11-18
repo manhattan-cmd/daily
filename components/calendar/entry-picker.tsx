@@ -162,7 +162,10 @@ export function EntryPicker({
   compact = false,
   onRailNavigate,
   focus,
+  title,
 }: {
+  /** Başlık; hedef kurarken "Listeden seç" (soru üstteki bantta) */
+  title?: string;
   groups: NetGroup[] | undefined;
   /**
    * Bir kaleme kayıt aç. Seçicinin tek çıkışı bu: kaleme dokunmak, hızlı
@@ -638,7 +641,7 @@ export function EntryPicker({
             compact && "opacity-0"
           )}
         >
-          {t("entry.pickTitle")}
+          {title ?? t("entry.pickTitle")}
         </h2>
         <button
           type="button"

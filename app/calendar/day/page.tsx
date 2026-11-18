@@ -23,5 +23,8 @@ export default function Page() {
 function Route() {
   const q = useSearchParams();
   const date = q.get("d") ?? "";
-  return <CalendarDayPage key={`${date}`} params={{ date }} />;
+  // Bildirimden gelindiyse: hangi hedef, "Yaptım"la mı
+  const goal = q.get("goal") ?? undefined;
+  const celebrate = q.get("celebrate") === "1";
+  return <CalendarDayPage key={`${date}`} params={{ date, goal, celebrate }} />;
 }

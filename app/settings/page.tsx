@@ -12,6 +12,7 @@ import { DataSection } from "@/components/settings/data-section";
 import { LanguageSection } from "@/components/settings/language-section";
 import { SkinSection } from "@/components/settings/skin-section";
 import { SoundSection } from "@/components/settings/sound-section";
+import { ReminderSection } from "@/components/settings/reminder-section";
 import { PageSheet } from "@/components/ui/layer";
 
 const APP_VERSION = "0.1.0";
@@ -53,6 +54,7 @@ export default function SettingsPage() {
             <LanguageSection />
             <SkinSection />
             <SoundSection />
+            <ReminderSection />
           </div>
         </section>
 

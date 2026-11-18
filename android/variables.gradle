@@ -13,4 +13,7 @@ ext {
     androidxJunitVersion = '1.3.0'
     androidxEspressoCoreVersion = '3.7.0'
     cordovaAndroidVersion = '14.0.1'
+    // Bildirim eklentisi (local-notifications) Kotlin ile yazılı; sürümü burada
+    // sabit, cihazdaki Gradle önbelleğinde olan sürüm
+    kotlin_version = '2.2.20'
 }

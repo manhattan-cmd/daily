@@ -537,6 +537,13 @@ export interface Entry {
    *  eylemin ilgili olduğu şeyler burada. Çok girdili dizin: nesne sayfası
    *  bağlı girdileri buradan bulur. */
   thingIds?: string[];
+  /** Bu girdinin yerine getirdiği hedef. Tekrar eden hedefte hangi günün
+   *  hedefi olduğu girdinin kendi gününden okunur. */
+  goalId?: string;
+  /** Girdi hedeften doğmadı: kullanıcı aynı yere kendisi kayıt açtı ve o
+   *  günün bekleyen hedefine bağlandı. İşaret geri alınınca girdi silinmez,
+   *  yalnız bağ çözülür. */
+  goalAuto?: boolean;
 }
 
 export interface EntryValue {
@@ -590,13 +597,35 @@ export interface GoalTargetWithContext extends GoalTarget {
   mod?: Mod;
 }
 
+/**
+ * Hedefin tekrarı. Gün numaraları JavaScript'in getDay() sırasında:
+ * 0 = pazar, 1 = pazartesi … 6 = cumartesi.
+ */
+export type GoalRepeat =
+  | { kind: "daily" }
+  | { kind: "weekly"; days: number[] };
+
+/**
+ * Hedef = önceden kurulmuş girdi. Girdi "şunu yaptım, şu özelliklerle"
+ * diyor; hedef "şunu yapacağım". Yapıldı denince bir girdiye dönüşür, o
+ * girdi `goalId` ile hedefe bağlı kalır.
+ *
+ * Tek günlük hedefte `date` o gün; tekrar edende ilk gün. Tekrar `until`
+ * gününe kadar (dahil) sürer; boşsa süresiz.
+ */
 export interface Goal {
   id: string;
   date: string;
   subcategoryId: string;
   targets: GoalTarget[];
   note?: string;
+  /** @deprecated v24 öncesi tek günlük hedefin girdisi. Artık girdinin goalId alanı. */
   completedEntryId?: string;
+  repeat?: GoalRepeat;
+  /** Tekrarın son günü (YYYY-MM-DD, dahil) */
+  until?: string;
+  /** Hatırlatma saati ("HH:mm"); boşsa hatırlatma yok */
+  remindAt?: string;
   createdAt: number;
   updatedAt: number;
 }

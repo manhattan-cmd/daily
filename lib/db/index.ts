@@ -445,6 +445,25 @@ export class RoutineDB extends Dexie {
       structureThings: "id, [targetType+targetId], thingId, collectionId, updatedAt",
     });
 
+    // v24 — Hedef = önceden kurulmuş girdi; tekrar edebilir. Bir günlük
+    // hedefin "yapıldı"sı artık hedefte değil, girdinin üzerinde (goalId):
+    // tekrar eden hedefin her gününün ayrı girdisi var. Eski tamamlanmış
+    // hedeflerin girdisine bağ yazılır; completedEntryId alanı silinmez.
+    this.version(24)
+      .stores({
+        entries:
+          "id, subcategoryId, occurredAt, createdAt, title, linkedGroupId, activityId, updatedAt, *thingIds, goalId",
+      })
+      .upgrade(async (tx) => {
+        const goals = await tx.table<Goal, string>("goals").toArray();
+        const entries = tx.table<Entry, string>("entries");
+        for (const g of goals) {
+          if (!g.completedEntryId) continue;
+          const e = await entries.get(g.completedEntryId);
+          if (e && !e.goalId) await entries.update(e.id, { goalId: g.id });
+        }
+      });
+
     this.stampTimestamps();
   }
 

@@ -13,7 +13,12 @@ import { setLocalFlag, useLocalFlag } from "./local-flag";
  * jest saymıyor).
  */
 
-export type EntrySoundKind = "entry" | "mood" | "sleep";
+/**
+ * goal: hedefin "Yaptım" anı — girdinin sesinden belirgin biçimde büyük; plan
+ * yapılınca değil, plan gerçekleşince ödül. plan: hedef kuruldu — sakin,
+ * kısa; söz verildi ama henüz bir şey kazanılmadı.
+ */
+export type EntrySoundKind = "entry" | "mood" | "sleep" | "goal" | "plan";
 
 /** İşaretliyse sesler kapalı. Varsayılan: açık. */
 export const SOUND_OFF_KEY = "logbit-sound-off";
@@ -120,8 +125,9 @@ function mallet(c: AudioContext, f: number, t: number, dur: number, gain: number
 }
 
 // Do majör: hepsi aynı ailede, yan yana çalınca uyumlu
-const C4 = 261.63, G4 = 392.0, C5 = 523.25, E5 = 659.25, F5 = 698.46, G5 = 783.99,
-  A5 = 880.0, C6 = 1046.5, E6 = 1318.51;
+const C3 = 130.81, C4 = 261.63, G4 = 392.0, C5 = 523.25, E5 = 659.25, F5 = 698.46,
+  G5 = 783.99, A5 = 880.0, C6 = 1046.5, E6 = 1318.51, G6 = 1567.98, C7 = 2093.0,
+  E7 = 2637.02, G7 = 3135.96;
 
 const SOUNDS: Record<EntrySoundKind, (c: AudioContext) => void> = {
   // Girdi: yükselen iki tokmak notası (büyük üçlü) — kısa, net, "tamam"
@@ -147,12 +153,33 @@ const SOUNDS: Record<EntrySoundKind, (c: AudioContext) => void> = {
       tone(c, { f, t: 0.05, dur: 1.5, gain: 0.045, type: "triangle", attack: 0.15 })
     );
   },
+  // Hedef yapıldı: hızlı yükselen arpej, üstüne açılan parlak akor ve
+  // dağılan kıvılcımlar; altta kısa, yumuşak bir vuruş gövde veriyor
+  goal: (c) => {
+    tone(c, { f: C3, dur: 0.28, gain: 0.16, attack: 0.004 });
+    [G5, C6, E6, G6].forEach((f, i) => mallet(c, f, i * 0.055, 0.32, 0.16));
+    [C6, E6, G6].forEach((f) =>
+      tone(c, { f, t: 0.22, dur: 1.3, gain: 0.06, type: "triangle", attack: 0.012 })
+    );
+    tone(c, { f: C7, t: 0.22, dur: 1.1, gain: 0.05, fm: 0.5, ratio: 3.5 });
+    [E7, G7, C7 * 2, G7].forEach((f, i) =>
+      tone(c, { f, t: 0.3 + i * 0.07, dur: 0.22, gain: 0.018 + (i % 2) * 0.008 })
+    );
+  },
+  // Hedef kuruldu: tek, metalik ve yumuşak bir çan; altında alçak bir dolgu
+  plan: (c) => {
+    tone(c, { f: A5, dur: 0.8, gain: 0.12, fm: 0.9, ratio: 3.5, attack: 0.003 });
+    tone(c, { f: E5, t: 0.09, dur: 0.9, gain: 0.07, fm: 0.4, ratio: 3.5, attack: 0.003 });
+    tone(c, { f: C5, t: 0.02, dur: 0.9, gain: 0.035, type: "triangle", attack: 0.05 });
+  },
 };
 
 const HAPTICS: Record<EntrySoundKind, number | number[]> = {
   entry: 14,
   mood: [10, 50, 14],
   sleep: 24,
+  goal: [14, 60, 14, 60, 40],
+  plan: 10,
 };
 
 /** Girdi eklendi: türüne göre ses ve kısa titreşim. Sesler kapalıysa yalnız titreşim. */

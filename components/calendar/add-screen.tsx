@@ -17,7 +17,6 @@ import { MoodSheet } from "@/components/calendar/mood-sheet";
 import { SleepSheet } from "@/components/calendar/sleep-sheet";
 import { NoteWindow } from "@/components/notes/note-window";
 import { ThingEntrySheet } from "@/components/forms/thing-entry-sheet";
-import { AddGoalSheet } from "@/components/goals/add-goal-sheet";
 import { QuickPicker } from "@/components/calendar/quick-picker";
 import { ADD_TABS, tabDef, type AddTab } from "@/components/calendar/add-tabs";
 
@@ -163,7 +162,8 @@ function AddScreenBody({ date, open, onClose, tab: initialTab, entryOpts }: AddS
       case "thing":
         return <ThingEntrySheet embedded date={date} open={open} onClose={onClose} />;
       case "goal":
-        return <AddGoalSheet embedded date={date} open={open} onClose={onClose} />;
+        // Hedef = önceden kurulmuş girdi: girdinin seçicisi ve formu, zamanıyla
+        return <DayEntrySheet embedded goalMode date={date} open={open} onClose={onClose} />;
       case "note":
         return noteId ? <NoteWindow embedded noteId={noteId} open={open} onClose={onClose} /> : null;
     }

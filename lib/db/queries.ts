@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { db } from "./index";
 import { logDeletions, newBatchId } from "./deletions";
 import { toLocalDateValue } from "@/lib/utils";
+import { addDays, daysBetween, occursOn, shiftRange, weekOf } from "@/lib/goals";
 import { matchesSearch, normalizeSearch } from "@/lib/search";
 import type {
   Activity,
@@ -17,7 +18,9 @@ import type {
   GlobalDimension,
   EntryWithContext,
   Goal,
+  GoalRepeat,
   GoalTarget,
+  GoalTargetWithContext,
   GoalWithContext,
   Mod,
   Note,
@@ -28,7 +31,7 @@ import type {
   ScaleLabels,
 } from "@/types";
 import { SCALE_1_5, isScaleChoices } from "@/types";
-import { getLocale, type Locale } from "@/lib/i18n";
+import { getLocale, translate, type Locale } from "@/lib/i18n";
 import { commonModIds } from "@/lib/analytics";
 import {
   STARTER_CATEGORIES,
@@ -1762,6 +1765,8 @@ export async function createEntry(input: {
   activityId?: string;
   /** İliştirilen nesneler ve onlar için girilen değerler */
   things?: AttachedThing[];
+  /** Girdi bu hedefin yapıldısı (Yaptım ya da hedefin açtığı pencere) */
+  goalId?: string;
 }): Promise<Entry> {
   const entry: Entry = {
     id: id(),
@@ -1776,6 +1781,15 @@ export async function createEntry(input: {
     ...(input.activityId ? { activityId: input.activityId } : {}),
     ...(input.things?.length ? { thingIds: input.things.map((t) => t.thingId) } : {}),
   };
+  if (input.goalId) {
+    entry.goalId = input.goalId;
+  } else {
+    const auto = await autoLinkGoal(entry);
+    if (auto) {
+      entry.goalId = auto;
+      entry.goalAuto = true;
+    }
+  }
   const values: EntryValue[] = [
     ...(input.typeValues ?? []).map((v) => ({
       id: id(),
@@ -2396,12 +2410,31 @@ export async function listEntriesByCategory(
 }
 
 // ============ Goals ============
+//
+// Hedef = önceden kurulmuş girdi (bkz. types Goal). Bir günün hedefleri o
+// günde "var olan" hedefler: tek günlükler kendi gününde, tekrar edenler
+// kuralına uyan her günde (lib/goals). "Yapıldı" hedefte tutulmuyor; o günü
+// yerine getiren girdinin goalId alanında. Girdi silinince hedef kendiliğinden
+// yeniden bekler.
+
+export interface GoalOccurrence {
+  goal: GoalWithContext;
+  /** Hedefin bu günü (YYYY-MM-DD) */
+  date: string;
+  /** Bu günü yerine getiren girdi */
+  entry?: EntryWithContext;
+  /** Tekrar eden hedefte bu haftanın yapılmış günleri */
+  weekDone?: string[];
+}
 
 export async function createGoal(input: {
   date: string;
   subcategoryId: string;
   targets: GoalTarget[];
   note?: string;
+  repeat?: GoalRepeat;
+  until?: string;
+  remindAt?: string;
 }): Promise<Goal> {
   const goal: Goal = {
     id: id(),
@@ -2409,6 +2442,9 @@ export async function createGoal(input: {
     subcategoryId: input.subcategoryId,
     targets: input.targets,
     ...(input.note ? { note: input.note } : {}),
+    ...(input.repeat ? { repeat: input.repeat } : {}),
+    ...(input.until ? { until: input.until } : {}),
+    ...(input.remindAt ? { remindAt: input.remindAt } : {}),
     createdAt: now(),
     updatedAt: now(),
   };
@@ -2416,10 +2452,149 @@ export async function createGoal(input: {
   return goal;
 }
 
-export async function listGoalsByDate(date: string): Promise<GoalWithContext[]> {
-  const goals = await db.goals.where("date").equals(date).toArray();
-  goals.sort((a, b) => a.createdAt - b.createdAt);
-  return hydrateGoals(goals);
+/** Hedefi yerine getiren girdiler, gün → girdi. Tek günlük hedefte gün hedefin kendi günü. */
+function linkedByDay(goal: Goal, entries: Entry[]): Map<string, Entry> {
+  const out = new Map<string, Entry>();
+  for (const e of entries) {
+    if (e.goalId !== goal.id) continue;
+    const day = goal.repeat ? toLocalDateValue(e.occurredAt) : goal.date;
+    const prev = out.get(day);
+    if (!prev || e.occurredAt < prev.occurredAt) out.set(day, e);
+  }
+  return out;
+}
+
+export async function listGoalsByDate(date: string): Promise<GoalOccurrence[]> {
+  // Hedef tablosu küçük; tekrar kuralı indeksle sorulamadığı için hepsi okunur
+  const all = await db.goals.toArray();
+  const goals = all.filter((g) => occursOn(g, date));
+  if (!goals.length) return [];
+  goals.sort(
+    (a, b) =>
+      (a.remindAt ?? "99").localeCompare(b.remindAt ?? "99") || a.createdAt - b.createdAt
+  );
+  const [hydrated, linked] = await Promise.all([
+    hydrateGoals(goals),
+    db.entries.where("goalId").anyOf(goals.map((g) => g.id)).toArray(),
+  ]);
+  const doneEntries = new Map<string, Entry>();
+  const weekDone = new Map<string, string[]>();
+  const week = new Set(weekOf(date));
+  for (const g of goals) {
+    const days = linkedByDay(g, linked);
+    const e = days.get(date);
+    if (e) doneEntries.set(g.id, e);
+    if (g.repeat) weekDone.set(g.id, [...days.keys()].filter((d) => week.has(d)));
+  }
+  const entries = await hydrateEntries([...doneEntries.values()]);
+  const entryById = new Map(entries.map((e) => [e.id, e]));
+  return hydrated.map((goal) => {
+    const e = doneEntries.get(goal.id);
+    return {
+      goal,
+      date,
+      entry: e ? entryById.get(e.id) : undefined,
+      ...(goal.repeat ? { weekDone: weekDone.get(goal.id) ?? [] } : {}),
+    };
+  });
+}
+
+/** Bütün hedefler ve yapılmış günleri (Hedefler sayfası) */
+export async function listAllGoals(): Promise<
+  { goal: GoalWithContext; doneDays: Set<string> }[]
+> {
+  const all = await db.goals.toArray();
+  if (!all.length) return [];
+  const [hydrated, linked] = await Promise.all([
+    hydrateGoals(all),
+    db.entries.where("goalId").anyOf(all.map((g) => g.id)).toArray(),
+  ]);
+  const byId = new Map(all.map((g) => [g.id, g]));
+  return hydrated.map((goal) => ({
+    goal,
+    doneDays: new Set(linkedByDay(byId.get(goal.id)!, linked).keys()),
+  }));
+}
+
+/** Hatırlatma planı için: hatırlatmalı hedefler, yapılmış günleri ve bildirim metni */
+export async function loadReminderState(): Promise<{
+  goals: Goal[];
+  done: Set<string>;
+  texts: Map<string, { title: string; body: string; direct: boolean }>;
+}> {
+  const goals = (await db.goals.toArray()).filter((g) => !!g.remindAt);
+  const done = new Set<string>();
+  const texts = new Map<string, { title: string; body: string; direct: boolean }>();
+  if (!goals.length) return { goals, done, texts };
+  const [hydrated, linked] = await Promise.all([
+    hydrateGoals(goals),
+    db.entries.where("goalId").anyOf(goals.map((g) => g.id)).toArray(),
+  ]);
+  for (const g of goals)
+    for (const day of linkedByDay(g, linked).keys()) done.add(`${g.id}|${day}`);
+  for (const g of hydrated) {
+    texts.set(g.id, {
+      title: goalTitle(g),
+      body: g.targets.map(goalTargetText).filter(Boolean).join(" · "),
+      direct: goalCompletesDirectly(g),
+    });
+  }
+  return { goals, done, texts };
+}
+
+/**
+ * Yerleşik akışın ekrandaki adı (Uyku, Ruh hali). Kayıttaki adları
+ * İngilizce sabit (bkz. BUILT_IN_CATEGORIES); hedefte ve bildirimde
+ * kullanıcının dilinde görünmeli.
+ */
+export function builtInTitle(category: Pick<Category, "isBuiltIn" | "builtInKey">): string | undefined {
+  if (!category.isBuiltIn) return undefined;
+  const key = category.builtInKey ?? "sleep";
+  if (key === "sleep") return translate("add.sleep");
+  if (key === "mood") return translate("add.mood");
+  return undefined;
+}
+
+/** Hedefin adı: kalem; kategori köküyse kategori; yerleşikse akışın adı */
+export function goalTitle(g: Pick<GoalWithContext, "subcategory" | "category">): string {
+  return builtInTitle(g.category) ?? (g.subcategory.isCategoryRoot ? g.category.name : g.subcategory.name);
+}
+
+/** Hedef değerinin düz yazısı — bildirim gövdesi ("15 km Mesafe · Efor 3") */
+export function goalTargetText(t: GoalTargetWithContext): string {
+  const vt = t.entryType.valueType ?? "number";
+  const name = t.mod?.name ?? t.entryType.name;
+  if (!t.targetValue) return "";
+  if (vt === "datetime-range") {
+    let start = "";
+    let end = "";
+    try {
+      const v = JSON.parse(t.targetValue) as { start?: string; end?: string };
+      start = v?.start?.split("T")[1]?.slice(0, 5) ?? "";
+      end = v?.end?.split("T")[1]?.slice(0, 5) ?? "";
+    } catch {
+      return "";
+    }
+    return start || end ? `${name} ${start}–${end}` : "";
+  }
+  if (vt === "boolean") return t.targetValue === "true" ? name : "";
+  if (vt === "number")
+    return `${t.targetValue}${t.entryType.unit ? ` ${t.entryType.unit}` : ""} · ${name}`;
+  return `${name} ${t.targetValue}`;
+}
+
+/**
+ * "Yaptım" tek dokunuşla girdiye dönüşebilir mi. Ruh hali ve saati
+ * verilmemiş uyku dönüşemez: girdinin asıl içeriği (nasıl hissettin, kaçta
+ * yattın) o an sorulur, kendi penceresi açılır.
+ */
+export function goalCompletesDirectly(
+  g: Pick<GoalWithContext, "category" | "targets">
+): boolean {
+  const key = g.category.isBuiltIn ? g.category.builtInKey ?? "sleep" : undefined;
+  if (key === "mood") return false;
+  if (key === "sleep") return g.targets.some((t) => !!t.targetValue);
+  return true;
 }
 
 async function hydrateGoals(goals: Goal[]): Promise<GoalWithContext[]> {
@@ -2481,9 +2656,23 @@ async function hydrateGoals(goals: Goal[]): Promise<GoalWithContext[]> {
   return results;
 }
 
-export async function completeGoal(goalId: string): Promise<void> {
+/** Hedefin bu gününü yerine getiren girdi (varsa) */
+async function goalEntryOn(goal: Goal, date: string): Promise<Entry | undefined> {
+  const linked = await db.entries.where("goalId").equals(goal.id).toArray();
+  return linkedByDay(goal, linked).get(date);
+}
+
+/**
+ * Hedefin bu günü yapıldı: planlanan değerlerle bir girdi açılır ve hedefe
+ * bağlanır. Tekrar eden hedefte saat aralıkları (uyku) o güne taşınır.
+ * Girdinin zamanı: bugünse şimdi, başka günse o günün şimdiki saati; uyku
+ * girdisinde (her yerde olduğu gibi) uyanma saati.
+ */
+export async function completeGoal(goalId: string, date: string): Promise<Entry | undefined> {
   const goal = await db.goals.get(goalId);
-  if (!goal || goal.completedEntryId) return;
+  if (!goal) return undefined;
+  const existing = await goalEntryOn(goal, date);
+  if (existing) return existing;
 
   // Support legacy goals with single entryTypeId/targetValue
   const raw = goal as Goal & { entryTypeId?: string; targetValue?: string };
@@ -2505,48 +2694,118 @@ export async function completeGoal(goalId: string): Promise<void> {
     resolvedModIds.set(t, modId);
   }
 
-  const [year, month, day] = goal.date.split("-").map(Number);
+  const [year, month, day] = date.split("-").map(Number);
   const d = new Date(year, month - 1, day);
   const n = new Date();
   d.setHours(n.getHours(), n.getMinutes(), 0, 0);
 
-  const entry = await createEntry({
+  const mods = await db.mods.bulkGet(
+    targets.map((t) => resolvedModIds.get(t)).filter((x): x is string => !!x)
+  );
+  const isRange = (modId?: string) =>
+    !!modId && mods.some((m) => m?.id === modId && m.valueType === "datetime-range");
+  let occurredAt = d.getTime();
+  const typeValues = targets
+    .filter((t) => t.targetValue !== "")
+    .map((t) => {
+      const modId = resolvedModIds.get(t);
+      let value = t.targetValue;
+      if (isRange(modId)) {
+        // Planlanan saatler hedefin gününe; girdinin zamanı uyanma (bitiş)
+        if (goal.repeat) value = shiftRange(value, daysBetween(goal.date, date));
+        try {
+          const end = (JSON.parse(value) as { end?: string }).end;
+          if (end) occurredAt = new Date(end).getTime();
+        } catch {
+          /* bozuk aralık — zaman günün şimdiki saati kalır */
+        }
+      }
+      return { entryTypeId: t.entryTypeId, modId, value };
+    });
+
+  return createEntry({
     subcategoryId: goal.subcategoryId,
-    typeValues: targets.map((t) => ({
-      entryTypeId: t.entryTypeId,
-      modId: resolvedModIds.get(t),
-      value: t.targetValue,
-    })),
-    occurredAt: d.getTime(),
+    typeValues,
+    occurredAt,
+    notes: goal.note,
+    goalId,
   });
-
-  await db.goals.update(goalId, { completedEntryId: entry.id });
 }
 
-export async function uncompleteGoal(goalId: string): Promise<void> {
+/**
+ * Yapıldı işaretini geri al. Girdi hedeften doğduysa silinir (geri alma
+ * günlüğüyle); kullanıcının kendi açtığı girdi bağlandıysa yalnız bağ
+ * çözülür, girdi yerinde kalır.
+ */
+export async function uncompleteGoal(goalId: string, date: string): Promise<void> {
   const goal = await db.goals.get(goalId);
-  if (!goal?.completedEntryId) return;
-  await deleteEntry(goal.completedEntryId);
-  const updated = { ...goal };
-  delete updated.completedEntryId;
-  await db.goals.put(updated);
+  if (!goal) return;
+  const entry = await goalEntryOn(goal, date);
+  if (!entry) return;
+  if (entry.goalAuto) {
+    await db.entries.update(entry.id, { goalId: undefined, goalAuto: undefined });
+  } else {
+    await deleteEntry(entry.id);
+  }
+  if (goal.completedEntryId === entry.id) {
+    await db.goals.update(goalId, { completedEntryId: undefined });
+  }
 }
 
+/** Değeri undefined olan alan kayıttan silinir (Dexie) — tekrarı ya da hatırlatmayı kapatmak böyle */
 export async function updateGoal(
   goalId: string,
-  patch: { targets: GoalTarget[] }
+  patch: Partial<Pick<Goal, "date" | "targets" | "note" | "repeat" | "until" | "remindAt">>
 ): Promise<void> {
   await db.goals.update(goalId, patch);
 }
 
+/**
+ * Hedefi sil. Onunla açılmış girdiler KALIR: hedef bir plandı, girdiler
+ * yapılanın kaydı — planı silmek yapılanı silmemeli. Bağları da durur ki
+ * geri alınınca hedef geçmişiyle birlikte dönsün.
+ */
 export async function deleteGoal(goalId: string): Promise<string> {
-  const batchId = newBatchId();
+  return deleteGoals([goalId], newBatchId());
+}
+
+/**
+ * Tekrar eden hedefi bitir: geçmiş günleri (yapılanlar ve yapılmayanlar)
+ * kalır, bundan sonra çıkmaz. Bugün yapıldıysa bugün son gün, değilse dün.
+ * Hiç başlamamış (ilk günü bugün ya da ileride, hiç yapılmamış) hedef silinir.
+ */
+export async function stopGoal(goalId: string): Promise<"stopped" | "deleted"> {
   const goal = await db.goals.get(goalId);
-  // Hedefi tamamlayan girdi de gider — ikisi tek grupta, geri alma bütün döner
-  if (goal?.completedEntryId) {
-    await deleteEntries([goal.completedEntryId], batchId);
+  if (!goal) return "deleted";
+  const today = toLocalDateValue();
+  const linked = await db.entries.where("goalId").equals(goalId).toArray();
+  const days = linkedByDay(goal, linked);
+  if (goal.date >= today && days.size === 0) {
+    await deleteGoal(goalId);
+    return "deleted";
   }
-  return deleteGoals([goalId], batchId);
+  const until = days.has(today) ? today : addDays(today, -1);
+  await db.goals.update(goalId, { until: until < goal.date ? goal.date : until });
+  return "stopped";
+}
+
+/**
+ * Kullanıcı bir yere kendisi kayıt açtı: o günün o yerdeki bekleyen
+ * hedefi varsa ona bağlanır. "Her sabah uykunu gir" hedefi Ekle › Uyku'dan
+ * girilen uykuyla da yapılmış sayılmalı; yoksa hedefi ayrıca işaretlemek
+ * ikinci bir uyku girdisi açardı.
+ */
+async function autoLinkGoal(entry: Entry): Promise<string | undefined> {
+  const goals = await db.goals.where("subcategoryId").equals(entry.subcategoryId).toArray();
+  if (!goals.length) return undefined;
+  const day = toLocalDateValue(entry.occurredAt);
+  const candidates = goals
+    .filter((g) => occursOn(g, day))
+    .sort((a, b) => a.createdAt - b.createdAt);
+  for (const g of candidates) {
+    if (!(await goalEntryOn(g, day))) return g.id;
+  }
+  return undefined;
 }
 
 export interface SearchFilters {

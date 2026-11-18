@@ -106,7 +106,8 @@ function weekdayLong(d: Date, tag: string): string {
 export function CalendarDayPage({
   params,
 }: {
-  params: { date: string };
+  /** goal: bildirimden gelinen hedef (kart dikkat çeker); celebrate: "Yaptım"la gelindi */
+  params: { date: string; goal?: string; celebrate?: boolean };
 }) {
   const { date } = params;
   const t = useT();
@@ -149,7 +150,8 @@ export function CalendarDayPage({
     ...sleepEntries.map((e) => dayItemKey("entry", e.id)),
     ...moodEntries.map((e) => dayItemKey("entry", e.id)),
     ...otherEntries.map((e) => dayItemKey("entry", e.id)),
-    ...(goals ?? []).map((g) => dayItemKey("goal", g.id)),
+    // Tekrar eden hedef bir güne ait değil — seçilip taşınmaz, silinmez
+    ...(goals ?? []).filter((o) => !o.goal.repeat).map((o) => dayItemKey("goal", o.goal.id)),
     ...(notes ?? []).map((n) => dayItemKey("note", n.id)),
   ];
   const allSelected =
@@ -205,7 +207,26 @@ export function CalendarDayPage({
   // Sayılar eylemleri sayar; nesne girdileri (durum) analizde görünmez
   const actionEntries = otherEntries.filter((e) => e.category.builtInKey !== "objects");
   const dayCategories = [...new Map(actionEntries.map((e) => [e.category.id, e.category])).values()];
-  const goalsDone = (goals ?? []).filter((g) => g.completedEntryId).length;
+  const goalsDone = (goals ?? []).filter((o) => o.entry).length;
+  const goalCards = (goals ?? []).map((o) => (
+    <GoalCard
+      key={o.goal.id}
+      occ={o}
+      selection={o.goal.repeat ? undefined : selectionFor([`goal:${o.goal.id}`])}
+      highlight={params.goal === o.goal.id}
+      celebrate={!!params.celebrate && params.goal === o.goal.id}
+    />
+  ));
+  const allGoalsLink = (
+    <Link
+      href="/goals"
+      data-all-goals=""
+      className="mt-2 flex items-center justify-center gap-1 rounded-xl py-2 text-[12.5px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+    >
+      {t("goal.all")}
+      <ArrowRight className="h-3.5 w-3.5" />
+    </Link>
+  );
   // Günün girdileri bloğu kendi içindekileri sayar: uyku, ruh hali ve
   // akıştaki kartlar (paralel grup tek kart). Özetin Girdi sayısı günün
   // her şeyini: girdiler, uyku, ruh hali ve notlar
@@ -250,18 +271,11 @@ export function CalendarDayPage({
               Hedefler
             </h2>
             <span className="text-xs text-muted-foreground/60">
-              · {goals.filter((g) => g.completedEntryId).length}/{goals.length}
+              · {goalsDone}/{goals.length}
             </span>
           </div>
-          <div className="flex flex-col gap-2">
-            {goals.map((goal) => (
-              <GoalCard
-                key={goal.id}
-                goal={goal}
-                selection={selectionFor([`goal:${goal.id}`])}
-              />
-            ))}
-          </div>
+          <div className="flex flex-col gap-2">{goalCards}</div>
+          {allGoalsLink}
         </div>
       )}
     </>
@@ -547,9 +561,8 @@ export function CalendarDayPage({
               stats={[]}
             >
               <div className="flex flex-col gap-2 bg-white p-3">
-                {goals.map((goal) => (
-                  <GoalCard key={goal.id} goal={goal} selection={selectionFor([`goal:${goal.id}`])} />
-                ))}
+                {goalCards}
+                {allGoalsLink}
               </div>
             </SummaryBlock>
           )}
