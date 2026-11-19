@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Bell, CalendarDays, Repeat } from "lucide-react";
 import type { Goal, GoalRepeat } from "@/types";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { useSkin } from "@/lib/skin";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import {
@@ -73,6 +74,26 @@ export function inkOn(hex: string): string {
 }
 
 /** Tekrarın kısa adı: Her gün / Hafta içi / Hafta sonu / Pzt, Çar, Cum */
+const BUILT_IN_MOD_LABELS: Record<string, MessageKey> = {
+  "Sleep Duration": "sleep.duration",
+  "Sleep Quality": "sleep.quality",
+  Happiness: "mood.level",
+  Emotions: "mood.emotions",
+};
+
+/**
+ * Özelliğin ekrandaki adı: yerleşik özellikler kayıtta İngilizce kanonik adla
+ * duruyor (bkz. BUILT_IN_CATEGORIES); hedef formunda "SLEEP DURATION"
+ * yazıyordu. Kullanıcının kendi özellikleri olduğu gibi.
+ */
+export function useModLabel(): (name: string) => string {
+  const t = useT();
+  return (name) => {
+    const key = BUILT_IN_MOD_LABELS[name];
+    return key ? t(key) : name;
+  };
+}
+
 export function useRepeatLabel(): (repeat: GoalRepeat) => string {
   const t = useT();
   const tag = intlTag(useLocale());

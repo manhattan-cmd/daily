@@ -385,9 +385,10 @@ function PendingCard({
  * İkisinde de künyenin sağında Yaptım dairesi, tekrar ediyorsa en altta
  * haftanın şeridi.
  *
- * Daire "Yaptım": hedef o an girdiye dönüşür (planlanan değerlerle), ses ve
- * kıvılcımlar onu kutlar. Ruh hali ve saati verilmemiş uyku hedefinde daire
- * kendi penceresini açar; kaydedince yine kutlanır. Bekleyene dokunmak
+ * Daire "Yaptım": düz hedef o an girdiye dönüşür, ses ve kıvılcımlar onu
+ * kutlar. Değerli hedefte önce özellikleri sorulur (form, planlanan
+ * değerler dolu, gerçekte ne yaptıysan onu yazarsın); ruh hali ve saati verilmemiş uyku kendi penceresini açar.
+ * Kaydedince yine kutlanır. Bekleyene dokunmak
  * hedefi düzenler, yapılmışa dokunmak girdinin kendisini açar (gerçekte
  * 12 km koştuysan düzelt).
  *
@@ -417,7 +418,7 @@ export function GoalCard({
 
   const [optimistic, setOptimistic] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [sheet, setSheet] = useState<"mood" | "sleep" | "goal" | null>(null);
+  const [sheet, setSheet] = useState<"mood" | "sleep" | "goal" | "done" | null>(null);
   const [burst, setBurst] = useState(celebrate ? 1 : 0);
   const shown = done || optimistic;
 
@@ -451,8 +452,10 @@ export function GoalCard({
       }
       return;
     }
+    // Özellikli hedefte özellikler sorulur (form, planlananlar dolu); ruh
+    // hali ve saatsiz uyku kendi penceresinde
     if (!goalCompletesDirectly(goal)) {
-      setSheet(builtIn === "mood" ? "mood" : "sleep");
+      setSheet(builtIn === "mood" ? "mood" : builtIn === "sleep" ? "sleep" : "done");
       return;
     }
     // Anında: ses, dolan daire ve kıvılcım dokunuşla birlikte; kayıt arkadan
@@ -517,6 +520,9 @@ export function GoalCard({
       </div>
 
       {sheet === "goal" && <DayEntrySheet date={date} open onClose={() => setSheet(null)} editGoal={goal} />}
+      {sheet === "done" && (
+        <DayEntrySheet date={date} open onClose={() => setSheet(null)} doneGoal={{ goal, date }} />
+      )}
       <MoodSheet date={date} open={sheet === "mood"} onClose={() => setSheet(null)} goal={{ id: goal.id, date }} />
       <SleepSheet date={date} open={sheet === "sleep"} onClose={() => setSheet(null)} goal={{ id: goal.id, date }} />
     </>

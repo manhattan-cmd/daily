@@ -61,8 +61,10 @@ import {
   planFromGoal,
   planToGoal,
   planValid,
+  useModLabel,
   type GoalPlanState,
 } from "@/components/goals/goal-plan";
+import { daysBetween, shiftRange } from "@/lib/goals";
 import { requestReminderPermission, invalidateReminderPlan, syncGoalReminders } from "@/lib/goal-reminders";
 import { confirmDialog } from "@/components/ui/confirm";
 import type { GoalWithContext } from "@/types";
@@ -97,6 +99,13 @@ function entryModRow(m: ModWithType, subId: string): CategoryModifierWithType {
   };
 }
 
+/** Hedefin özelliklerinin form anahtarları (bkz. valueKey) */
+function goalKeysOf(goal?: GoalWithContext | null): Set<string> {
+  return new Set(
+    (goal?.targets ?? []).map((tg) => tg.modId ?? tg.entryTypeId ?? "").filter(Boolean)
+  );
+}
+
 interface DayEntrySheetProps {
   date: string;
   open: boolean;
@@ -124,6 +133,12 @@ interface DayEntrySheetProps {
   goalMode?: boolean;
   /** Var olan hedefi düzenle: form onun değerleri ve zamanıyla açılır */
   editGoal?: GoalWithContext | null;
+  /**
+   * Hedefi YAP ("Yaptım"): form hedefin yalnız kendi özellikleriyle açılır,
+   * planlanan değerler dolu, boş bırakılanlar o an sorulur. Kayıt hedefin
+   * bu gününe bağlanır; düğmenin adı "Yaptım".
+   */
+  doneGoal?: { goal: GoalWithContext; date: string } | null;
 }
 
 type Step =
@@ -160,6 +175,7 @@ function DayEntrySheetBody({
   focusCategory,
   goalMode: goalModeProp,
   editGoal,
+  doneGoal,
 }: DayEntrySheetProps) {
   const router = useRouter();
   const goalMode = !!goalModeProp || !!editGoal;
@@ -219,6 +235,8 @@ function DayEntrySheetBody({
         setStep({ type: "activity-name" });
       } else if (editGoal) {
         openGoalForEdit(editGoal);
+      } else if (doneGoal) {
+        openGoalForDone(doneGoal.goal);
       } else if (presetSub) {
         setOccurredAt(nowOnDay(date));
         setStep({ type: "form", sub: presetSub });
@@ -274,31 +292,46 @@ function DayEntrySheetBody({
    */
   const [extraMods, setExtraMods] = useState<CategoryModifierWithType[]>([]);
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(() => new Set());
+  /*
+   * Hedefi YAPARKEN form yalnız hedefin kendi özellikleriyle açılır (kalemin
+   * öteki özellikleri gelmez; istenirse "Özellik ekle" ile eklenir). Seçili
+   * olanlar burada. Hedef kurarken form girdi formunun aynısı.
+   */
+  const planGoal = editGoal ?? doneGoal?.goal ?? null;
+  const pickFeatures = !!doneGoal;
+  const [goalPicked, setGoalPicked] = useState<Set<string>>(() => goalKeysOf(planGoal));
   const [extrasFor, setExtrasFor] = useState(currentSubId);
   if (extrasFor !== currentSubId) {
     setExtrasFor(currentSubId);
     setExtraMods([]);
     setHiddenKeys(new Set());
+    setGoalPicked(planGoal && planGoal.subcategoryId === currentSubId ? goalKeysOf(planGoal) : new Set());
   }
-  // Düzenlenen hedefin, kaleme takılı olmayan özellikleri (hedefe özel eklenmiş)
+  // Hedefin, kaleme takılı olmayan özellikleri (hedefe özel eklenmiş)
   const goalExtras = useMemo(() => {
-    if (!editGoal || editGoal.subcategoryId !== currentSubId) return [];
-    return editGoal.targets
+    if (!planGoal || planGoal.subcategoryId !== currentSubId) return [];
+    return planGoal.targets
       .filter((tg) => tg.mod)
       .map((tg) => entryModRow({ ...tg.mod!, entryType: tg.entryType }, currentSubId));
-  }, [editGoal, currentSubId]);
+  }, [planGoal, currentSubId]);
   const activeMods = useMemo(() => {
-    const base = formMods.filter((m) => !hiddenKeys.has(valueKey(m)));
+    const picked = (m: CategoryModifierWithType) => !pickFeatures || goalPicked.has(valueKey(m));
+    const base = formMods.filter((m) => !hiddenKeys.has(valueKey(m)) && picked(m));
     const seen = new Set(base.map(valueKey));
-    const extras = [...goalExtras, ...extraMods].filter((m) => {
+    const extras = [...goalExtras.filter(picked), ...extraMods].filter((m) => {
       if (seen.has(valueKey(m)) || hiddenKeys.has(valueKey(m))) return false;
       seen.add(valueKey(m));
       return true;
     });
     return [...base, ...extras];
-  }, [formMods, extraMods, goalExtras, hiddenKeys]);
-
+  }, [formMods, extraMods, goalExtras, hiddenKeys, pickFeatures, goalPicked]);
   function addEntryMods(picked: ModWithType[]) {
+    if (pickFeatures)
+      setGoalPicked((prev) => {
+        const next = new Set(prev);
+        picked.forEach((m) => next.add(m.id));
+        return next;
+      });
     const attachedIds = new Set(formMods.map((m) => m.modId));
     const unhide: string[] = [];
     const extras: CategoryModifierWithType[] = [];
@@ -327,6 +360,13 @@ function DayEntrySheetBody({
     const key = valueKey(mod);
     if (mod.id.startsWith("entry-") && extraMods.some((m) => m.id === mod.id))
       setExtraMods((prev) => prev.filter((m) => m.id !== mod.id));
+    // Hedefi yaparken: hedefin özelliğini bu kayıttan çıkar
+    else if (pickFeatures && goalPicked.has(key))
+      setGoalPicked((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
     else setHiddenKeys((prev) => new Set(prev).add(key));
     // Değeri de bırakma — gizlenen özellik kayda yazılmasın
     setValues((prev) => {
@@ -378,6 +418,27 @@ function DayEntrySheetBody({
     setNotes(goal.note ?? "");
     setPlan(planFromGoal(goal, goal.date));
     setOccurredAt(nowOnDay(goal.date));
+    setStep({ type: "form", sub: goal.subcategory });
+  }
+
+  /**
+   * Hedefi yap: formda hedefin özellikleri planlanan değerleriyle, zaman
+   * şimdi (hedefin gününde). Tekrar eden hedefte saat aralıkları o güne taşınır.
+   */
+  function openGoalForDone(goal: GoalWithContext) {
+    const vals: Record<string, string> = {};
+    for (const tg of goal.targets) {
+      const key = tg.modId ?? tg.entryTypeId;
+      if (!key) continue;
+      vals[key] =
+        goal.repeat && tg.targetValue && tg.entryType.valueType === "datetime-range"
+          ? shiftRange(tg.targetValue, daysBetween(goal.date, date))
+          : tg.targetValue;
+    }
+    setValues(vals);
+    setThingVals({});
+    setNotes(goal.note ?? "");
+    setOccurredAt(nowOnDay(date));
     setStep({ type: "form", sub: goal.subcategory });
   }
 
@@ -469,7 +530,8 @@ function DayEntrySheetBody({
     vals: Record<string, string>,
     groupId?: string,
     entryNotes?: string,
-    withThings?: AttachedThing[]
+    withThings?: AttachedThing[],
+    goalId?: string
   ) {
     const typeValues = mods
       .filter((m) => (vals[valueKey(m)] ?? "") !== "")
@@ -493,6 +555,7 @@ function DayEntrySheetBody({
       linkedGroupId: groupId,
       activityId: activity?.id,
       things: withThings,
+      goalId,
     });
   }
 
@@ -569,6 +632,17 @@ function DayEntrySheetBody({
         await saveGoal(step.sub);
         return;
       }
+      // Hedef yapıldı: kayıt hedefin bu gününe bağlanır; kart kutlar, sayfa değişmez
+      if (doneGoal && step.type === "form") {
+        const things = collectThings(
+          activeMods.map((m) => ({ valueType: m.entryType.valueType, value: values[valueKey(m)] })),
+          thingVals
+        );
+        await persistEntry(step.sub.id, activeMods, values, undefined, undefined, things, doneGoal.goal.id);
+        playEntrySound("goal");
+        onClose();
+        return;
+      }
       if (step.type === "form") {
         const groupId = selectedParallels.length > 0 ? nanoid(12) : undefined;
         const things = collectThings(
@@ -643,7 +717,7 @@ function DayEntrySheetBody({
   }
 
   function handleBack() {
-    if (editGoal) {
+    if (editGoal || doneGoal) {
       onClose();
       return;
     }
@@ -697,7 +771,7 @@ function DayEntrySheetBody({
                 builtIns={builtIns.map((b) => ({ key: b.key, label: builtInTitle(b.category) ?? b.sub.name, onPick: () => handlePick(b.sub) }))}
               />
             )}
-            {editGoal ? null : picker ? (
+            {editGoal || doneGoal ? null : picker ? (
               picker(handlePick)
             ) : (
             <PickStep
@@ -728,7 +802,11 @@ function DayEntrySheetBody({
                     entryDate: date,
                   }}
                 >
-                <FormFrame layout={picker || editGoal ? "raf" : layout} key={step.sub.id} onDismiss={leaveForm}>
+                <FormFrame
+                  layout={picker || editGoal || doneGoal ? "raf" : layout}
+                  key={step.sub.id}
+                  onDismiss={editGoal || doneGoal ? onClose : leaveForm}
+                >
                   <FormStep
             key={step.sub.id}
             sub={step.sub}
@@ -738,7 +816,8 @@ function DayEntrySheetBody({
             onAddMods={addEntryMods}
             onRemoveMod={removeEntryMod}
             currentCategoryId={step.sub.categoryId}
-            hideParallels={!!activity || goalMode}
+            hideParallels={!!activity || goalMode || !!doneGoal}
+            confirmGoal={!!doneGoal}
             goal={
               goalMode
                 ? {
@@ -809,7 +888,9 @@ function DayEntrySheetBody({
        çubukta — standart çarpı gizli. */
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent hideClose aria-describedby={undefined} className={ENTRY_SCREEN}>
-        <DialogTitle className="sr-only">{t(goalMode ? (editGoal ? "goal.edit" : "goal.add") : "home.addEntry")}</DialogTitle>
+        <DialogTitle className="sr-only">
+          {t(doneGoal ? "goal.markComplete" : goalMode ? (editGoal ? "goal.edit" : "goal.add") : "home.addEntry")}
+        </DialogTitle>
         {surface}
       </DialogContent>
     </Dialog>
@@ -1131,7 +1212,10 @@ function FormStep({
   saving,
   entryDate,
   goal,
+  confirmGoal,
 }: {
+  /** Hedef yapılıyor: düğmenin adı "Yaptım", seri kayıt yok */
+  confirmGoal?: boolean;
   /** Hedef hali: zaman çipi yerine "Hedef" işareti, özelliklerin altında
    *  Ne zaman / Hatırlat, Ekle yerine "Hedefi kur" */
   goal?: {
@@ -1174,6 +1258,7 @@ function FormStep({
   entryDate: string;
 }) {
   const t = useT();
+  const modLabel = useModLabel();
   const [modPickerOpen, setModPickerOpen] = useState(false);
   const [parallelPickerOpen, setParallelPickerOpen] = useState(false);
   const [panel, setPanel] = useState<Panel | null>(null);
@@ -1202,7 +1287,9 @@ function FormStep({
   const moodGoal = !!goal && builtInKey === "mood";
   const saveLabel = saving
     ? t("entry.saving")
-    : goal
+    : confirmGoal
+      ? t("goal.confirm")
+      : goal
       ? t(goal.editing ? "action.save" : "goal.create")
       : parallelContext
       ? parallelContext.index < parallelContext.total
@@ -1211,8 +1298,49 @@ function FormStep({
       : hasParallelSelected
         ? t("action.saveAndContinue")
         : t("entry.addNow");
-  const canStay = !goal && !!onSaveStay && !parallelContext && !hasParallelSelected && !activityName;
+  const canStay = !goal && !confirmGoal && !!onSaveStay && !parallelContext && !hasParallelSelected && !activityName;
   const saveDisabled = saving || (!!goal && !planValid(goal.plan));
+
+  /** Özellik alanları — başlık karosundan inen iple, sonunda "Özellik ekle" */
+  const ledgerStack = () => (
+    <div data-ledger-stack="" className="relative ml-[20px] flex flex-col gap-2 pl-3">
+      {/* İp — başlık karosundan iner, özellikleri kaleme bağlar */}
+      <span
+        aria-hidden
+        data-rope=""
+        className="absolute -top-14 bottom-4 left-0 w-[2px] -translate-x-1/2 rounded-full"
+        style={{ background: `${accent}59` }}
+      />
+      {mods.map((mod) => (
+        <LedgerField
+          key={mod.id}
+          mod={mod}
+          label={modLabel(mod.name ?? mod.entryType.name)}
+          icon={modAtomIcon(mod)}
+          color={modColor(mod.mod ?? { name: mod.name ?? mod.entryType.name })}
+          value={values[valueKey(mod)] ?? ""}
+          onChange={(v) => onValueChange(valueKey(mod), v)}
+          recent={recent[mod.modId ?? mod.entryTypeId ?? ""] ?? []}
+          isLocked={lockedTypeIds.has(sharedKey(mod))}
+          entryDate={entryDate}
+          entryOnly={mod.id.startsWith("entry-")}
+          dense={mods.length >= 5}
+          onRemove={() => onRemoveMod(mod)}
+          autoFocus={mod.modId === focusModId}
+        />
+      ))}
+      {/* Bu girdiye özellik ekle — alanların sonunda, sessiz */}
+      <button
+        type="button"
+        data-add-feature=""
+        onClick={() => setModPickerOpen(true)}
+        className="flex h-9 items-center gap-1.5 self-start rounded-full px-3 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
+      >
+        <Plus className="h-4 w-4" />
+        {t("entry.addFeature")}
+      </button>
+    </div>
+  );
 
   return (
     <>
@@ -1350,42 +1478,7 @@ function FormStep({
             </span>
           </button>
         ) : (
-          <div data-ledger-stack="" className="relative ml-[20px] flex flex-col gap-2 pl-3">
-            {/* İp — başlık karosundan iner, özellikleri kaleme bağlar */}
-            <span
-              aria-hidden
-              data-rope=""
-              className="absolute -top-14 bottom-4 left-0 w-[2px] -translate-x-1/2 rounded-full"
-              style={{ background: `${accent}59` }}
-            />
-            {mods.map((mod) => (
-              <LedgerField
-                key={mod.id}
-                mod={mod}
-                icon={modAtomIcon(mod)}
-                color={modColor(mod.mod ?? { name: mod.name ?? mod.entryType.name })}
-                value={values[valueKey(mod)] ?? ""}
-                onChange={(v) => onValueChange(valueKey(mod), v)}
-                recent={recent[mod.modId ?? mod.entryTypeId ?? ""] ?? []}
-                isLocked={lockedTypeIds.has(sharedKey(mod))}
-                entryDate={entryDate}
-                entryOnly={mod.id.startsWith("entry-")}
-                dense={mods.length >= 5}
-                onRemove={() => onRemoveMod(mod)}
-                autoFocus={mod.modId === focusModId}
-              />
-            ))}
-            {/* Bu girdiye özellik ekle — alanların sonunda, sessiz */}
-            <button
-              type="button"
-              data-add-feature=""
-              onClick={() => setModPickerOpen(true)}
-              className="flex h-9 items-center gap-1.5 self-start rounded-full px-3 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
-            >
-              <Plus className="h-4 w-4" />
-              {t("entry.addFeature")}
-            </button>
-          </div>
+          ledgerStack()
         )}
 
         {panel === "parallel" && showParallelOption && (
