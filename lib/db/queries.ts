@@ -2584,11 +2584,9 @@ export function goalTargetText(t: GoalTargetWithContext): string {
 }
 
 /**
- * "Yaptım" tek dokunuşla girdiye dönüşebilir mi. Yalnız düz hedef (özelliği
- * olmayan) dönüşür. Özellikli hedefte özellikler o an sorulur — planlanan
- * değerler dolu gelir, gerçekte ne yaptıysan onu yazarsın. Ruh hali ve saati
- * verilmemiş uyku da dönüşemez: kendi pencereleri açılır. Bildirimdeki
- * "Yaptım" düğmesi de yalnız tek dokunuşluk hedefte çıkar.
+ * "Yaptım" tek dokunuşla girdiye dönüşebilir mi. Ruh hali ve saati
+ * verilmemiş uyku dönüşemez: girdinin asıl içeriği (nasıl hissettin, kaçta
+ * yattın) o an sorulur, kendi penceresi açılır.
  */
 export function goalCompletesDirectly(
   g: Pick<GoalWithContext, "category" | "targets">
@@ -2596,7 +2594,7 @@ export function goalCompletesDirectly(
   const key = g.category.isBuiltIn ? g.category.builtInKey ?? "sleep" : undefined;
   if (key === "mood") return false;
   if (key === "sleep") return g.targets.some((t) => !!t.targetValue);
-  return g.targets.length === 0;
+  return true;
 }
 
 async function hydrateGoals(goals: Goal[]): Promise<GoalWithContext[]> {
