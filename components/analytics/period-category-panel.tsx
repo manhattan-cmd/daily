@@ -197,6 +197,7 @@ export function PeriodCategoryPanel({
     const { subById } = data;
     const {
       aggregate,
+      shareOf,
       sumOf,
       averageOf,
       filledCount,
@@ -321,7 +322,9 @@ export function PeriodCategoryPanel({
       }
     }
 
-    // Alt kategori kırılımı — iç içe altlar en üst ataya toplanır
+    // Alt kategori kırılımı — iç içe altlar en üst ataya toplanır. Rakam
+    // ölçünün kendi okumasıyla (shareOf): ilk grafik çizgi diye harcama
+    // satırları ortalamaya dönmez, toplamları Toplam kutusunu tutar
     const bySubEntries = new Map<string, Entry[]>();
     for (const e of entries) {
       // Odaklıysak bir kademe altını grupla; değilse kategorinin kök dalları
@@ -332,7 +335,7 @@ export function PeriodCategoryPanel({
       bySubEntries.set(topId, list);
     }
     const shareRows: ShareRow[] = [...bySubEntries.entries()]
-      .map(([id, list]) => ({ id, value: aggregate(list), outOf: filledCount(list) }))
+      .map(([id, list]) => ({ id, value: shareOf(list), outOf: filledCount(list) }))
       .filter((r) => (isRate || scale ? r.outOf > 0 : r.value > 0))
       .map(({ id, value, outOf }) => {
         const s = subById.get(id)!;
@@ -644,7 +647,7 @@ export function PeriodCategoryPanel({
               overline: translate("an.subBreakdown"),
               value: String(computed.shareRows.filter((r) => r.drillable).length),
               unit: t("struct.subs.unit"),
-              hint: compute.aggregateNote || undefined,
+              hint: compute.shareNote || undefined,
             }}
             stats={[]}
           >
@@ -834,7 +837,7 @@ export function PeriodCategoryPanel({
       {computed.hasBreakdown && (
         <Layer
           label={translate("an.subBreakdown")}
-          extra={compute.aggregateNote ? `(${compute.aggregateNote})` : undefined}
+          extra={compute.shareNote ? `(${compute.shareNote})` : undefined}
           className="mb-0"
         >
         {/* Brütalde katmanın kendisi kutu — içte ikinci çerçeve yok */}
@@ -842,8 +845,8 @@ export function PeriodCategoryPanel({
           {!brutal && (
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {translate("an.subBreakdown")}
-            {compute.aggregateNote && (
-              <span className="normal-case font-normal text-muted-foreground/60"> ({compute.aggregateNote})</span>
+            {compute.shareNote && (
+              <span className="normal-case font-normal text-muted-foreground/60"> ({compute.shareNote})</span>
             )}
           </h3>
           )}

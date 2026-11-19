@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Pencil, Sigma } from "lucide-react";
-import { fmtPct } from "@/lib/analytics";
+import { fmtNum, fmtPct } from "@/lib/analytics";
 import { fmtInsightDate, partOfHour, weekdayNames } from "@/lib/insights";
 import { intlTag, useT, type MessageKey } from "@/lib/i18n";
 import { cn, dateFormatter, numberFormatter } from "@/lib/utils";
@@ -128,15 +128,8 @@ export function AnalysisInsights({
   const tint = (pct: number) =>
     brutal ? `color-mix(in srgb, ${color} ${pct}%, #fff)` : `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
-  /** Sayılar uygulamanın dilinde — Türkçede 3.957 ve 1,3; milyondan
-   *  büyükse kısa (1,2 Mn). Eskiden en-US ve 10 binden büyükte "10.8K" */
-  const num = (n: number) => {
-    const abs = Math.abs(n);
-    return numberFormatter(
-      intlTag(),
-      abs >= 1e6 ? { notation: "compact", maximumFractionDigits: 1 } : { maximumFractionDigits: abs >= 100 ? 0 : 1 }
-    ).format(n);
-  };
+  /** Sayılar uygulamanın dilinde (bkz. fmtNum) — Türkçede 3.957 ve 1,3 */
+  const num = fmtNum;
   const fv = (v: number) => (data.rate ? fmtPct(v) : `${num(v)}${unit ? ` ${unit}` : ""}`);
   /** Yön — yarım birimden (yüzde ya da puan) küçük fark "değişmedi" */
   const dirOf = (n: number | null): "up" | "down" | "flat" =>

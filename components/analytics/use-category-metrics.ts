@@ -22,7 +22,7 @@ import {
   SERIES_FOR,
   STATS_FOR,
   CHARTS_FOR,
-  presetOf,
+  measureReadingOf,
   type FormContext,
   dayKey,
   textToNumber,
@@ -94,8 +94,14 @@ const insightPrefsOf = (views: Map<string, { insights?: InsightKey[] }>) =>
 export interface MetricCompute {
   /** Girdi başına seçili metriğin değeri — yalnızca değeri olan girdiler haritada */
   valueByEntry: Map<string, number>;
-  /** Kovanın ve kırılımın rakamı — seri okumasına UYAR (toplam ya da ortalama) */
+  /** Kovanın rakamı — seri okumasına UYAR (toplam ya da ortalama) */
   aggregate: (subset: Entry[]) => number;
+  /**
+   * Alt kategori kırılımının rakamı — panodaki grafikten bağımsız, ölçünün
+   * kendi okumasıyla (bkz. measureReadingOf): harcamada toplam, kiloda
+   * ortalama. Satırlar böylece Toplam kutusunu tutar.
+   */
+  shareOf: (subset: Entry[]) => number;
   /**
    * Alt kümenin gerçek toplamı — seri okumasından bağımsız.
    *
@@ -121,8 +127,9 @@ export interface MetricCompute {
   kind: ModKind | "choice";
   unit: string;
   displayMode: DisplayMode | undefined;
-  /** Başlıklardaki parantez içi not — "(ortalama)" / "(toplam)" / "(evet)" */
-  aggregateNote: string | undefined;
+  /** Kırılım başlığındaki parantez içi not — "(ortalama)" / "(toplam)" /
+   *  "(evet)"; shareOf ile aynı okumadan */
+  shareNote: string | undefined;
   /** Oran metriği mi — panellerde KPI ve kırılım biçimini belirler */
   isRate: boolean;
   /** Dağılım metriği mi — kırılım kutusunun yerini seçenek dağılımı alır */
@@ -556,6 +563,9 @@ export function useCategoryMetrics({
     const rawMod = metric.type === "count" ? undefined : data.rawMods.get(metric.mod.id);
     const optionKind = analysisKindOf(rawMod?.valueType, rawMod?.choices);
     const reading: ModReading = metric.type === "mod" ? metric.mod.reading : "flow";
+    // Ölçünün kendi okuması — kırılım buna bakar, ilk grafiğe değil
+    const levelMeasure =
+      metric.type === "mod" && measureReadingOf(optionKind, metric.mod.analysis) === "level";
     const valuesOf = (subset: Entry[]) =>
       subset
         .map((e) => valueByEntry.get(e.id))
@@ -583,6 +593,10 @@ export function useCategoryMetrics({
             ? choicesOf(subset).filter((c) => c === choiceFilter).length
             : choicesOf(subset).length
           : sumOrAvg(valuesOf(subset), kind as ModKind, reading);
+    const shareOf = (subset: Entry[]): number =>
+      metric.type === "mod"
+        ? sumOrAvg(valuesOf(subset), kind as ModKind, levelMeasure ? "level" : "flow")
+        : aggregate(subset);
     const averageOf = (subset: Entry[]): number => average(valuesOf(subset));
     const statsFor = (subset: Entry[]): StatBag => {
       const nums = valuesOf(subset);
@@ -662,6 +676,7 @@ export function useCategoryMetrics({
     return {
       valueByEntry,
       aggregate,
+      shareOf,
       sumOf,
       averageOf,
       filledCount,
@@ -676,12 +691,12 @@ export function useCategoryMetrics({
           : isChoice
             ? "choice"
             : undefined,
-      aggregateNote:
+      shareNote:
         metric.type === "count"
           ? undefined
           : isChoice
             ? (choiceFilter ?? t("list.entry"))
-            : kind === "scale" || reading === "level"
+            : kind === "scale" || levelMeasure
               ? t("stat.average")
               : isRate
                 ? t("entry.yes")
@@ -703,7 +718,7 @@ export function useCategoryMetrics({
       chartForms: spec.chartForms ?? {},
       formCtx: {
         kind: optionKind,
-        levelMeasure: metric.type === "mod" && presetOf(optionKind, metric.mod.analysis) === "level",
+        levelMeasure,
         // Duygular: aynı özellikten bir girdide birden çok değer
         multi: [...choicesByEntry.values()].some((l) => l.length > 1),
       },

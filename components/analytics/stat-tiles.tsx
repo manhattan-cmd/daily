@@ -153,7 +153,9 @@ export function StatCell({
         <b
           className={cn(
             "mt-0.5 block truncate font-mono font-bold leading-6 tabular-nums",
-            wordValue ? "text-[15px]" : "text-[19px]"
+            // Altı haneli tutar (439.084) dar hücrede kesilmesin: yazı küçülür,
+            // satır yüksekliği komşularla aynı kalır (alt yazılar hizada)
+            wordValue ? "text-[15px]" : value.length >= 7 ? "h-[29px] pt-1 text-[15px]" : "text-[19px]"
           )}
         >
           {value}

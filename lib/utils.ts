@@ -87,7 +87,7 @@ export function formatDateTime(timestamp: number): string {
 }
 
 export function formatNumber(n: number): string {
-  return numberFormatter("en-US").format(n);
+  return numberFormatter(intlTag()).format(n);
 }
 
 export function formatMoney(amount: number, currency: string = "TL"): string {

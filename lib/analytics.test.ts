@@ -30,6 +30,7 @@ import {
   MAX_STATS,
   CHARTS_FOR,
   resolveView,
+  measureReadingOf,
   SERIES_FOR,
   STATS_FOR,
   sumOrAvg,
@@ -158,10 +159,13 @@ describe("bucketAncestorId — kırılım gruplaması", () => {
 });
 
 describe("sayı biçimi", () => {
-  it("büyük sayılar kompaktlaşır ama küçükler bozulmaz", () => {
+  it("milyona kadar tam yazılır, milyondan büyükse kısalır", () => {
+    // Testte dil İngilizce (pencere yok); Türkçede binlik nokta: 43.900
     expect(fmtNum(42)).toBe("42");
     expect(fmtNum(1234)).toMatch(/1[.,]?2/);
     expect(fmtNum(0)).toBe("0");
+    expect(fmtNum(43900)).toBe("43,900");
+    expect(fmtNum(1250000)).toBe("1.3M");
   });
 
   it("parseNumeric virgüllü ve boş değerleri kaldırır", () => {
@@ -322,6 +326,15 @@ describe("kapsam görünümü — aynı özellik, başka kalemde başka okuma", 
     expect(resolveView("number", undefined, { charts: ["bar"] }).reading).toBe("flow");
     expect(resolveView("number", undefined, { charts: ["line"] }).reading).toBe("level");
     expect(resolveView("number", undefined, { charts: ["cumulative"] }).reading).toBe("flow");
+  });
+
+  it("kırılımın okuması ölçünün kendisinden — ilk grafik değiştirmez", () => {
+    // Harcamada ilk grafik çizgi olsa da kırılım toplar (Toplam kutusunu tutar)
+    expect(measureReadingOf("number")).toBe("flow");
+    expect(measureReadingOf("duration")).toBe("flow");
+    // Düzey ölçüsü (kilo) ortalanır
+    expect(measureReadingOf("number", { preset: "level" })).toBe("level");
+    expect(measureReadingOf("number", { reading: "level" })).toBe("level");
   });
 
   it("tek seçenekli ölçülerde menü çıkmaz", () => {

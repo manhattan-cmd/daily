@@ -121,7 +121,7 @@ export function ShareBars({
                       ? `${fmtNum(r.value)}/${fmtNum(r.outOf ?? 0)}`
                       : isLevel
                         ? fmtNum(r.outOf ?? 0)
-                        : `%${pct < 1 ? pct.toFixed(1) : Math.round(pct)}`}
+                        : `%${pct < 1 ? fmtNum(pct) : Math.round(pct)}`}
                   </span>
                 </span>
                 <span
@@ -214,7 +214,7 @@ export function ShareBars({
                   ? `${fmtNum(r.value)}/${fmtNum(r.outOf ?? 0)}`
                   : isLevel
                     ? fmtNum(r.outOf ?? 0)
-                    : `%${pct < 1 ? pct.toFixed(1) : Math.round(pct)}`}
+                    : `%${pct < 1 ? fmtNum(pct) : Math.round(pct)}`}
               </span>
             </div>
             <div data-share-track="" className="h-1.5 rounded-full bg-muted overflow-hidden">

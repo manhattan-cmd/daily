@@ -90,7 +90,8 @@ export function StatTile({
         <span
           className={cn(
             "min-w-0 truncate font-semibold leading-none",
-            wordValue ? "text-base" : "text-xl"
+            // Altı haneli tutar (439.084) kesilmesin: yazı küçülür
+            wordValue || value.length >= 7 ? "text-base" : "text-xl"
           )}
         >
           {value}

@@ -370,18 +370,20 @@ export function computeStreaks(
   return { current, best };
 }
 
-/** Etkin dilin sayı biçimi; büyük sayılar kompakt (12.9K) */
+/**
+ * Sayılar uygulamanın dilinde — Türkçede binlik nokta, ondalık virgül
+ * (43.900 ve 3,5); milyondan büyükse kısa (1,3 Mn). Eskiden hep en-US ve
+ * 10 binden büyükte kısaydı: "43.9K" ve "5,350" Türkçe okununca yanlış
+ * anlaşılıyordu (5,350 beş virgül üç gibi).
+ */
 export function fmtNum(n: number): string {
   const abs = Math.abs(n);
-  if (abs >= 10000) {
-    return numberFormatter("en-US", {
-      notation: "compact",
-      maximumFractionDigits: 1,
-    }).format(n);
-  }
-  return numberFormatter("en-US", {
-    maximumFractionDigits: abs >= 100 ? 0 : 1,
-  }).format(n);
+  return numberFormatter(
+    intlTag(),
+    abs >= 1e6
+      ? { notation: "compact", maximumFractionDigits: 1 }
+      : { maximumFractionDigits: abs >= 100 ? 0 : 1 }
+  ).format(n);
 }
 
 export function parseNumeric(value: string): number {
@@ -724,6 +726,16 @@ export function presetOf(
 
 export const specOf = (kind: ModKindForAnalysis, analysis?: ModAnalysis): PresetSpec =>
   PRESETS[presetOf(kind, analysis)];
+
+/**
+ * Ölçünün KENDİ okuması — panodaki grafikten bağımsız: düzey ölçüsü (kilo)
+ * ortalanır, ötekiler toplanır. Bir bütünün payları (alt kategori kırılımı)
+ * buna bakar. Eskiden kırılım ilk grafiğin okumasını alıyordu: harcamada ilk
+ * grafik çizgi ya da tek tek olunca satırlar kalemin ortalamasını yazıyor,
+ * toplamları Toplam kutusunu tutmuyordu.
+ */
+export const measureReadingOf = (kind: ModKindForAnalysis, analysis?: ModAnalysis): ModReading =>
+  presetOf(kind, analysis) === "level" ? "level" : "flow";
 
 /** Ölçüden analiz türünü çıkar — kaydedilmiş bir Mod olmadan da çalışır */
 export function analysisKindOf(
