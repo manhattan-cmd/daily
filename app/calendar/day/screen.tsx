@@ -1,13 +1,13 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Layer, PageSheet } from "@/components/ui/layer";
 import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import { WeekStrip } from "@/components/calendar/week-strip";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, ArrowRight, BarChart3, CalendarDays, ChevronLeft, ChevronRight, NotebookPen, Target } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, CalendarDays, ChevronLeft, ChevronRight, NotebookPen } from "lucide-react";
 import { db } from "@/lib/db";
 import {
   prefetchDay,
@@ -28,6 +28,7 @@ import { GoalCard } from "@/components/goals/goal-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CardListSkeleton } from "@/components/ui/skeleton";
 import type { EntryWithContext } from "@/types";
+import type { GoalOccurrence } from "@/lib/db/queries";
 import { AddButton } from "@/components/calendar/add-menu";
 import { useDayAdd } from "@/components/calendar/day-add";
 import { SleepCard } from "@/components/calendar/sleep-card";
@@ -45,12 +46,34 @@ import { routes } from "@/lib/routes";
 type EntryItem =
   | { type: "single"; entry: EntryWithContext }
   | { type: "group"; entries: EntryWithContext[] }
-  | { type: "activity"; activityId: string; entries: EntryWithContext[] };
+  | { type: "activity"; activityId: string; entries: EntryWithContext[] }
+  /** Hedef — bekleyen ya da yapılmış; `at` akıştaki yeri (null: saatsiz, başta) */
+  | { type: "goal"; occ: GoalOccurrence; at: number | null };
 
-/** Önce aktiviteye, sonra paralel gruba (linkedGroupId) göre katlar */
-/** Öğenin zamanı — zaman akışındaki saat damgası için */
-function itemTime(item: EntryItem): number {
+/** Öğenin zamanı — akıştaki sırası ve saat damgası için; saatsiz hedefte yok */
+function itemTime(item: EntryItem): number | null {
+  if (item.type === "goal") return item.at;
   return item.type === "single" ? item.entry.occurredAt : item.entries[0].occurredAt;
+}
+
+/**
+ * Hedefin akıştaki zamanı: yapıldıysa (girdisi bu gündeyse) girdisinin anı,
+ * değilse hatırlatma saati; ikisi de yoksa saatsiz — listenin başında,
+ * günün yapılacakları olarak.
+ */
+function goalTime(o: GoalOccurrence, entryHere: boolean): number | null {
+  if (o.entry && entryHere) return o.entry.occurredAt;
+  if (!o.goal.remindAt) return null;
+  const [y, m, d] = o.date.split("-").map(Number);
+  const [hh, mm] = o.goal.remindAt.split(":").map(Number);
+  return new Date(y, m - 1, d, hh, mm).getTime();
+}
+
+/** Uyku / ruh hali hedefi — kendi yuvasında, o kartların yanında */
+function isBuiltInGoal(o: GoalOccurrence): boolean {
+  if (!o.goal.category.isBuiltIn) return false;
+  const key = o.goal.category.builtInKey ?? "sleep";
+  return key === "sleep" || key === "mood";
 }
 /** "21:00" — saat başı damga */
 function hourLabel(ts: number): string {
@@ -142,6 +165,33 @@ export function CalendarDayPage({
     (e) => !e.category.isBuiltIn || e.category.builtInKey === "objects"
   );
 
+  /*
+   * Hedefler girdilerle AYNI listede — ayrı bir blokları yok. Yapılmış hedef
+   * girdisinin yerinde durur (girdi ayrıca çizilmez, kart girdinin kendi
+   * kartı); bekleyen hatırlatma saatinde, saatsizse listenin başında. Uyku ve
+   * ruh hali hedefleri o kartların yuvasında. Kart her durumda aynı
+   * anahtarla aynı listede kalır: yapılınca yer değiştirse de kutlaması
+   * kesilmez (bkz. GoalCard).
+   */
+  const dayEntryIds = new Set((entries ?? []).map((e) => e.id));
+  const shownEntry = (o: GoalOccurrence) =>
+    !!o.entry && dayEntryIds.has(o.entry.id) && !o.entry.linkedGroupId && !o.entry.activityId;
+  const goalById = new Map((goals ?? []).map((o) => [o.goal.id, o]));
+  // Hedefe bağlı girdi hedefin kartıyla çizilir. Hedef listesi girdilerden
+  // bir an geç tazelenebilir; bağ girdinin kendisinden de okunur ki girdi o
+  // arada ikinci bir kart olarak çıkmasın
+  const hiddenEntryIds = new Set(
+    (entries ?? [])
+      .filter((e) => {
+        const o = e.goalId && !e.linkedGroupId && !e.activityId ? goalById.get(e.goalId) : undefined;
+        return !!o && (!o.entry || o.entry.id === e.id);
+      })
+      .map((e) => e.id)
+  );
+  const builtInGoals = (goals ?? []).filter(isBuiltInGoal);
+  const flowGoals = (goals ?? []).filter((o) => !isBuiltInGoal(o));
+  const sleepMoodRest = [...sleepEntries, ...moodEntries].filter((e) => !hiddenEntryIds.has(e.id));
+
   // Kart → seçim durumu. Günün her öğesi (girdi, uyku, hedef, not) seçilebilir;
   // tür önekli anahtarla tutulur çünkü ayrı tablolarda yaşıyorlar. Bir kart
   // birden çok girdi taşıyorsa (paralel grup, aktivite) hepsi birlikte seçilir.
@@ -150,8 +200,9 @@ export function CalendarDayPage({
     ...sleepEntries.map((e) => dayItemKey("entry", e.id)),
     ...moodEntries.map((e) => dayItemKey("entry", e.id)),
     ...otherEntries.map((e) => dayItemKey("entry", e.id)),
-    // Tekrar eden hedef bir güne ait değil — seçilip taşınmaz, silinmez
-    ...(goals ?? []).filter((o) => !o.goal.repeat).map((o) => dayItemKey("goal", o.goal.id)),
+    // Yapılmış hedef girdisiyle seçilir (yukarıda). Tekrar eden hedef bir
+    // güne ait değil — seçilip taşınmaz, silinmez
+    ...(goals ?? []).filter((o) => !o.goal.repeat && !shownEntry(o)).map((o) => dayItemKey("goal", o.goal.id)),
     ...(notes ?? []).map((n) => dayItemKey("note", n.id)),
   ];
   const allSelected =
@@ -208,15 +259,21 @@ export function CalendarDayPage({
   const actionEntries = otherEntries.filter((e) => e.category.builtInKey !== "objects");
   const dayCategories = [...new Map(actionEntries.map((e) => [e.category.id, e.category])).values()];
   const goalsDone = (goals ?? []).filter((o) => o.entry).length;
-  const goalCards = (goals ?? []).map((o) => (
+  const goalCard = (o: GoalOccurrence) => (
     <GoalCard
-      key={o.goal.id}
+      key={`g-${o.goal.id}`}
       occ={o}
-      selection={o.goal.repeat ? undefined : selectionFor([`goal:${o.goal.id}`])}
+      selection={
+        shownEntry(o)
+          ? selectionFor([dayItemKey("entry", o.entry!.id)])
+          : o.goal.repeat
+            ? undefined
+            : selectionFor([dayItemKey("goal", o.goal.id)])
+      }
       highlight={params.goal === o.goal.id}
       celebrate={!!params.celebrate && params.goal === o.goal.id}
     />
-  ));
+  );
   const allGoalsLink = (
     <Link
       href="/goals"
@@ -238,44 +295,18 @@ export function CalendarDayPage({
   // tek katmana dizilir
   const sleepMoodSlot = (
     <>
-      {/* Yerleşik akış yuvaları — yalnızca kayıt varsa. Ruh hali günde birden
-          çok kez girilebiliyor, o yüzden kartlar sırayla dizilir. */}
-      {(sleepEntries.length > 0 || moodEntries.length > 0) && (
+      {/* Yerleşik akış yuvaları — uyku ve ruh hali hedefleri, kayıtları.
+          Ruh hali günde birden çok kez girilebiliyor, kartlar sırayla dizilir. */}
+      {(builtInGoals.length > 0 || sleepMoodRest.length > 0) && (
         <div className="mb-5 flex flex-col gap-2">
-          {sleepEntries.map((e) => (
-            <SleepCard
-              key={e.id}
-              entry={e}
-              selection={selectionFor([`entry:${e.id}`])}
-            />
-          ))}
-          {moodEntries.map((e) => (
-            <MoodCard
-              key={e.id}
-              entry={e}
-              selection={selectionFor([`entry:${e.id}`])}
-            />
-          ))}
-        </div>
-      )}
-    </>
-  );
-  const goalsSlot = (
-    <>
-      {/* Hedef yuvası — yalnızca hedef varsa */}
-      {goals && goals.length > 0 && (
-        <div className="mb-5">
-          <div className="flex items-center gap-1.5 mb-2.5 px-1">
-            <Target className="h-3.5 w-3.5 text-amber-400/80" />
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Hedefler
-            </h2>
-            <span className="text-xs text-muted-foreground/60">
-              · {goalsDone}/{goals.length}
-            </span>
-          </div>
-          <div className="flex flex-col gap-2">{goalCards}</div>
-          {allGoalsLink}
+          {builtInGoals.map(goalCard)}
+          {sleepMoodRest.map((e) =>
+            builtInKeyOf(e) === "sleep" ? (
+              <SleepCard key={e.id} entry={e} selection={selectionFor([`entry:${e.id}`])} />
+            ) : (
+              <MoodCard key={e.id} entry={e} selection={selectionFor([`entry:${e.id}`])} />
+            )
+          )}
         </div>
       )}
     </>
@@ -307,15 +338,66 @@ export function CalendarDayPage({
       )}
     </>
   );
+  // Akış: girdiler ve hedefler birlikte, yeniden eskiye; saatsiz hedef başta
+  const flowItems: EntryItem[] = [
+    ...flowGoals.map((o): EntryItem => ({ type: "goal", occ: o, at: goalTime(o, shownEntry(o)) })),
+    ...groupEntries(otherEntries.filter((e) => !hiddenEntryIds.has(e.id))),
+  ].sort((a, b) => (itemTime(b) ?? Infinity) - (itemTime(a) ?? Infinity));
+  const flowCard = (item: EntryItem) =>
+    item.type === "goal" ? (
+      goalCard(item.occ)
+    ) : item.type === "single" ? (
+      <EntryCard
+        key={item.entry.id}
+        entry={item.entry}
+        selection={selectionFor([`entry:${item.entry.id}`])}
+      />
+    ) : item.type === "activity" ? (
+      <ActivityCard
+        key={item.activityId}
+        activity={activityById.get(item.activityId)}
+        entries={item.entries}
+        onAddEntries={(a) => add.openEntry({ presetActivity: { id: a.id, name: a.name } })}
+        selection={selectionFor(item.entries.map((e) => `entry:${e.id}`))}
+      />
+    ) : (
+      <LinkedEntryCard
+        key={item.entries[0].linkedGroupId}
+        entries={item.entries}
+        selection={selectionFor(item.entries.map((e) => `entry:${e.id}`))}
+      />
+    );
+  // Brütal: saat değişince siyah saat damgası. Damga kartı sarmaz, yanına
+  // dizilir: kart anahtarı listede sabit kalsın (yer değiştirse de)
+  const flowNodes: ReactNode[] = [];
+  let lastStamp: string | null = null;
+  for (const item of flowItems) {
+    const ts = itemTime(item);
+    const stamp = ts === null ? null : hourLabel(ts);
+    if (brutal && stamp && stamp !== lastStamp)
+      flowNodes.push(
+        <span key={`h-${stamp}`} className="mt-2 flex items-center gap-2">
+          <span className="rounded-md border-2 border-[#111] bg-white px-2 py-0.5 font-mono text-[12.5px] font-bold text-[#111] shadow-[2px_2px_0_#111]">
+            {stamp}
+          </span>
+          <span className="h-[2px] flex-1 bg-[#111]" />
+        </span>
+      );
+    lastStamp = stamp;
+    flowNodes.push(flowCard(item));
+  }
+  // Renk özeti: günün girdilerinin benzersiz kategorileri (görülme sırasıyla)
+  const dayCats = [...new Map(otherEntries.map((e) => [e.category.id, e.category])).values()];
+
   const entriesSlot = (
     <>
-      {/* Girdiler */}
+      {/* Girdiler ve hedefler */}
       {entries === undefined ? (
         <CardListSkeleton rows={3} />
-      ) : otherEntries.length === 0 ? (
-        sleepEntries.length === 0 &&
-        moodEntries.length === 0 &&
-        (brutal || ((!goals || goals.length === 0) && (!notes || notes.length === 0))) ? (
+      ) : flowItems.length === 0 ? (
+        sleepMoodRest.length === 0 &&
+        builtInGoals.length === 0 &&
+        (brutal || !notes || notes.length === 0) ? (
           <EmptyState
             icon={CalendarDays}
             title={t("day.empty.title")}
@@ -324,85 +406,32 @@ export function CalendarDayPage({
         ) : null
       ) : (
         <div className="flex flex-col gap-2">
-          {(() => {
-            const items = groupEntries(otherEntries);
-            // Renk özeti: günün girdilerinin benzersiz kategorileri (görülme sırasıyla)
-            const dayCats = [
-              ...new Map(
-                otherEntries.map((e) => [e.category.id, e.category])
-              ).values(),
-            ];
-            return (
-              <>
-                {brutal ? null : (
-                <div className="mb-1 flex items-center gap-2 px-1">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {items.length} girdi
-                  </p>
-                  <span className="flex items-center gap-1">
-                    {dayCats.map((c) => (
-                      <span
-                        key={c.id}
-                        className="h-1.5 w-1.5 rounded-full"
-                        style={{ backgroundColor: c.color }}
-                        title={c.name}
-                      />
-                    ))}
-                  </span>
-                  {!selectionActive && (
-                    <span className="ml-auto text-[10px] text-muted-foreground/50">
-                      {t("day.holdToSelect")}
-                    </span>
-                  )}
-                </div>
-                )}
-                {items.map((item, idx) => {
-                  // Brütal: saat değişince siyah saat damgası
-                  const stamp =
-                    brutal && (idx === 0 || hourLabel(itemTime(items[idx - 1])) !== hourLabel(itemTime(item)));
-                  const card = item.type === "single" ? (
-                    <EntryCard
-                      key={item.entry.id}
-                      entry={item.entry}
-                      selection={selectionFor([`entry:${item.entry.id}`])}
-                    />
-                  ) : item.type === "activity" ? (
-                    <ActivityCard
-                      key={item.activityId}
-                      activity={activityById.get(item.activityId)}
-                      entries={item.entries}
-                      onAddEntries={(a) => add.openEntry({ presetActivity: { id: a.id, name: a.name } })}
-                      selection={selectionFor(
-                        item.entries.map((e) => `entry:${e.id}`)
-                      )}
-                    />
-                  ) : (
-                    <LinkedEntryCard
-                      key={item.entries[0].linkedGroupId}
-                      entries={item.entries}
-                      selection={selectionFor(
-                        item.entries.map((e) => `entry:${e.id}`)
-                      )}
-                    />
-                  );
-                  if (!stamp) return card;
-                  return (
-                    <Fragment key={`h-${idx}`}>
-                      <span className="mt-2 flex items-center gap-2">
-                        <span className="rounded-md border-2 border-[#111] bg-white px-2 py-0.5 font-mono text-[12.5px] font-bold text-[#111] shadow-[2px_2px_0_#111]">
-                          {hourLabel(itemTime(item))}
-                        </span>
-                        <span className="h-[2px] flex-1 bg-[#111]" />
-                      </span>
-                      {card}
-                    </Fragment>
-                  );
-                })}
-              </>
-            );
-          })()}
+          {brutal ? null : (
+            <div className="mb-1 flex items-center gap-2 px-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {groupEntries(otherEntries).length} girdi
+              </p>
+              <span className="flex items-center gap-1">
+                {dayCats.map((c) => (
+                  <span
+                    key={c.id}
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ backgroundColor: c.color }}
+                    title={c.name}
+                  />
+                ))}
+              </span>
+              {!selectionActive && (
+                <span className="ml-auto text-[10px] text-muted-foreground/50">
+                  {t("day.holdToSelect")}
+                </span>
+              )}
+            </div>
+          )}
+          {flowNodes}
         </div>
       )}
+      {(goals?.length ?? 0) > 0 && allGoalsLink}
     </>
   );
 
@@ -519,38 +548,14 @@ export function CalendarDayPage({
       {/* Divider */}
       {!brutal && <div className="h-px bg-border mb-5" />}
 
-      {/* Brütal: ana sayfanın blok dili — varsa Hedefler en üstte (günün
-          yapılacakları), sonra Günün girdileri (uyku, ruh hali ve saat damgalı
-          akış), varsa Notlar; her biri kendi bloğunda,
+      {/* Brütal: ana sayfanın blok dili — Günün girdileri (uyku, ruh hali,
+          hedefler ve saat damgalı akış birlikte), varsa Notlar kendi bloğunda,
           yanlarında ekleme karoları. Ötekilerde tek katman.
           Başlar ince ve tek satır (compact + dense): solda ad, sağda sayı
           beyaz etikette. Eskiden üstte küçük ad, altında iri "22 girdi" —
           listenin başı gün özetinin kendisi kadar kalın duruyordu. */}
       {brutal ? (
         <>
-          {/* Hedefler önce: günün yapılacakları, yapılanların üstünde.
-              Yalnız o gün hedef varsa çıkar. */}
-          {goals && goals.length > 0 && (
-            <SummaryBlock
-              className="mb-4"
-              compact
-              dense
-              lead={{
-                kind: "count",
-                color: "#ff9ecd",
-                overline: t("day.goals.title"),
-                value: `${goalsDone}/${goals.length}`,
-                unit: t("day.goals.unit"),
-              }}
-              action={<SummaryTile compact dense color="#7ae582" icon={Target} label={t("day.goals.add")} onClick={add.openGoal} />}
-              stats={[]}
-            >
-              <div className="flex flex-col gap-2 bg-white p-3">
-                {goalCards}
-                {allGoalsLink}
-              </div>
-            </SummaryBlock>
-          )}
           <SummaryBlock
             className="mb-4"
             compact
@@ -603,7 +608,6 @@ export function CalendarDayPage({
         </>
       ) : (
       <Layer label={t("day.entriesLayer")} count={dayItemCount}>
-      {goalsSlot}
       {sleepMoodSlot}
       {notesSlot}
       {entriesSlot}

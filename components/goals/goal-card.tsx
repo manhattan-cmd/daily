@@ -32,7 +32,8 @@ import { MoodCard } from "@/components/calendar/mood-card";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { MoodSheet } from "@/components/calendar/mood-sheet";
 import { SleepSheet } from "@/components/calendar/sleep-sheet";
-import { inkOn, useRepeatLabel } from "./goal-plan";
+import { modAtomIcon } from "@/components/structure/mod-atom";
+import { inkOn, useModLabel, useRepeatLabel } from "./goal-plan";
 import { GoalBurst } from "./goal-burst";
 
 /** Uyku / ruh hali / sıradan */
@@ -214,6 +215,36 @@ function WeekRow({ occ, color, brutal }: { occ: GoalOccurrence; color: string; b
 }
 
 /**
+ * Değeri planlanmamış özellikler — yapınca sorulacak olanlar: kesik çizgili
+ * kapsül, özelliğin simgesi ve adı ("Mesafe · yapınca sorulur").
+ */
+function AskedRow({ goal, color, brutal }: { goal: GoalWithContext; color: string; brutal: boolean }) {
+  const t = useT();
+  const modLabel = useModLabel();
+  const asked = goal.targets.filter((tg) => !tg.targetValue);
+  if (!asked.length) return null;
+  return (
+    <div data-goal-asked="" className="flex flex-wrap items-center gap-1">
+      {asked.map((tg) => {
+        const name = tg.mod?.name ?? tg.entryType.name;
+        const Icon = modAtomIcon({ name, entryType: tg.entryType });
+        return (
+          <span
+            key={tg.modId ?? tg.entryTypeId}
+            className="inline-flex items-center gap-1 rounded-full border-[1.5px] border-dashed px-2 py-[3px] text-[11px] font-bold leading-none"
+            style={{ borderColor: brutal ? "#111" : `${color}99`, color: brutal ? "#111" : undefined }}
+          >
+            <Icon className="h-3 w-3 shrink-0" style={{ color: brutal ? "#111" : color }} strokeWidth={2.25} />
+            {modLabel(name)}
+          </span>
+        );
+      })}
+      <span className="text-[10.5px] font-semibold text-muted-foreground">{t("goal.features.ask")}</span>
+    </div>
+  );
+}
+
+/**
  * Bekleyen hedef — girdi kartının iskeleti: künye (simge, ad, kategori),
  * altında planlanan değerler, not ve tekrarın haftası. Brütalde künye
  * kategorinin renginde ÇİZGİLİ, öteki temalarda çerçeve kesik çizgi:
@@ -245,6 +276,7 @@ function PendingCard({
   const name = goalTitle(goal);
   const sub = goal.subcategory.isCategoryRoot || builtIn ? undefined : goal.category.name;
   const values = plannedValues(goal.targets);
+  const asks = goal.targets.some((tg) => !tg.targetValue);
   const note = goal.note;
 
   const root = {
@@ -297,9 +329,10 @@ function PendingCard({
             </>
           }
         />
-        {values.length > 0 && (
-          <EntryBlockCell>
-            <ValueCapsuleRow values={values} color={color} />
+        {(values.length > 0 || asks) && (
+          <EntryBlockCell className="flex flex-col gap-1.5">
+            {values.length > 0 && <ValueCapsuleRow values={values} color={color} />}
+            {asks && <AskedRow goal={goal} color={color} brutal />}
           </EntryBlockCell>
         )}
         {note && (
@@ -360,9 +393,10 @@ function PendingCard({
         {remind && <span className="shrink-0 whitespace-nowrap text-[10px] leading-none tabular-nums text-muted-foreground/70">{remind}</span>}
         {check}
       </div>
-      {(values.length > 0 || note || week) && (
+      {(values.length > 0 || asks || note || week) && (
         <div className="mt-2 flex flex-col gap-2 border-t border-[var(--ln-1)] pt-2">
           {values.length > 0 && <ValueCapsuleRow values={values} color={color} />}
+          {asks && <AskedRow goal={goal} color={color} brutal={false} />}
           {note && (
             <div className="flex items-start gap-1.5 text-muted-foreground">
               <NotebookPen className="mt-[1px] h-3 w-3 shrink-0" strokeWidth={2} />
@@ -385,9 +419,10 @@ function PendingCard({
  * İkisinde de künyenin sağında Yaptım dairesi, tekrar ediyorsa en altta
  * haftanın şeridi.
  *
- * Daire "Yaptım": hedef o an girdiye dönüşür (planlanan değerlerle), ses ve
- * kıvılcımlar onu kutlar. Ruh hali ve saati verilmemiş uyku hedefinde daire
- * kendi penceresini açar; kaydedince yine kutlanır. Bekleyene dokunmak
+ * Daire "Yaptım": düz hedef o an girdiye dönüşür, ses ve kıvılcımlar onu
+ * kutlar. Özellikli hedefte önce özellikleri sorulur (form, planlanan
+ * değerler dolu); ruh hali ve saati verilmemiş uyku kendi penceresini açar.
+ * Kaydedince yine kutlanır. Bekleyene dokunmak
  * hedefi düzenler, yapılmışa dokunmak girdinin kendisini açar (gerçekte
  * 12 km koştuysan düzelt).
  *
@@ -417,7 +452,7 @@ export function GoalCard({
 
   const [optimistic, setOptimistic] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [sheet, setSheet] = useState<"mood" | "sleep" | "goal" | null>(null);
+  const [sheet, setSheet] = useState<"mood" | "sleep" | "goal" | "done" | null>(null);
   const [burst, setBurst] = useState(celebrate ? 1 : 0);
   const shown = done || optimistic;
 
@@ -451,8 +486,10 @@ export function GoalCard({
       }
       return;
     }
+    // Özellikli hedefte özellikler sorulur (form, planlananlar dolu); ruh
+    // hali ve saatsiz uyku kendi penceresinde
     if (!goalCompletesDirectly(goal)) {
-      setSheet(builtIn === "mood" ? "mood" : "sleep");
+      setSheet(builtIn === "mood" ? "mood" : builtIn === "sleep" ? "sleep" : "done");
       return;
     }
     // Anında: ses, dolan daire ve kıvılcım dokunuşla birlikte; kayıt arkadan
@@ -517,6 +554,9 @@ export function GoalCard({
       </div>
 
       {sheet === "goal" && <DayEntrySheet date={date} open onClose={() => setSheet(null)} editGoal={goal} />}
+      {sheet === "done" && (
+        <DayEntrySheet date={date} open onClose={() => setSheet(null)} doneGoal={{ goal, date }} />
+      )}
       <MoodSheet date={date} open={sheet === "mood"} onClose={() => setSheet(null)} goal={{ id: goal.id, date }} />
       <SleepSheet date={date} open={sheet === "sleep"} onClose={() => setSheet(null)} goal={{ id: goal.id, date }} />
     </>
