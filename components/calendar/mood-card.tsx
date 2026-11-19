@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Smile } from "lucide-react";
 import type { EntryWithContext } from "@/types";
 import { EditEntryModal } from "@/components/forms/edit-entry-modal";
@@ -42,10 +42,16 @@ export function MoodCard({
   entry,
   selection,
   dateLabel = formatDateTime(entry.occurredAt),
+  headExtra,
+  footer,
 }: {
   entry: EntryWithContext;
   selection?: EntrySelection;
   dateLabel?: string;
+  /** Hedef kartı: künyenin sağına, tarihten sonra (Yaptım dairesi) */
+  headExtra?: ReactNode;
+  /** Hedef kartı: kartın en altına bir bölüm (tekrarın hafta şeridi) */
+  footer?: ReactNode;
 }) {
   const t = useT();
   const [editOpen, setEditOpen] = useState(false);
@@ -136,9 +142,17 @@ export function MoodCard({
             color={color}
             icon={hasLevel ? <ScaleFace index={levelIdx} total={levelMax} size={17} /> : <Smile className="h-3.5 w-3.5" strokeWidth={2.25} />}
             title={t("mood.title")}
-            right={dateLabel ? <EntryBlockTime>{dateLabel}</EntryBlockTime> : undefined}
+            right={
+              dateLabel || headExtra ? (
+                <>
+                  {dateLabel && <EntryBlockTime>{dateLabel}</EntryBlockTime>}
+                  {headExtra}
+                </>
+              ) : undefined
+            }
           />
           <EntryBlockCell color={color} className="flex flex-wrap items-center gap-1.5">{body}</EntryBlockCell>
+          {footer && <EntryBlockCell color={color}>{footer}</EntryBlockCell>}
           {selection?.active && (
             <SelectionLayer selected={selection.selected} onToggle={selection.onToggle} label={t("mood.select")} />
           )}
@@ -196,12 +210,14 @@ export function MoodCard({
               {dateLabel}
             </span>
           )}
+          {headExtra}
         </div>
 
         {/* Alt bölüm — mutluluk ve duygu kapsülleri */}
         <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-[var(--ln-1)] pt-2">
           {body}
         </div>
+        {footer && <div className="mt-2 border-t border-[var(--ln-1)] pt-2">{footer}</div>}
 
         {selection?.active && (
           <SelectionLayer

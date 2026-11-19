@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useT } from "@/lib/i18n";
 import type { EntryWithContext } from "@/types";
 import { cn, formatDate, formatDateTime } from "@/lib/utils";
@@ -34,10 +34,17 @@ import { MoodCard } from "@/components/calendar/mood-card";
 export function EntryCard({
   entry,
   selection,
+  headExtra,
+  footer,
 }: {
   entry: EntryWithContext;
   selection?: EntrySelection;
+  /** Hedef kartı: künyenin sağına, tarihten sonra (Yaptım dairesi) */
+  headExtra?: ReactNode;
+  /** Hedef kartı: kartın en altına bir bölüm (tekrarın hafta şeridi) */
+  footer?: ReactNode;
 }) {
+  const slots = { headExtra, footer };
   // Anahtarı doldurulmamış tek yerleşik = eski kurulumdaki Uyku
   const builtInKey = entry.category.isBuiltIn
     ? entry.category.builtInKey ?? "sleep"
@@ -50,18 +57,20 @@ export function EntryCard({
         entry={entry}
         selection={selection}
         dateLabel={formatDate(entry.occurredAt)}
+        {...slots}
       />
     );
-  if (builtInKey === "objects") return <PlainEntryCard entry={entry} selection={selection} />;
+  if (builtInKey === "objects") return <PlainEntryCard entry={entry} selection={selection} {...slots} />;
   if (builtInKey === "mood")
     return (
       <MoodCard
         entry={entry}
         selection={selection}
         dateLabel={formatDate(entry.occurredAt)}
+        {...slots}
       />
     );
-  return <PlainEntryCard entry={entry} selection={selection} />;
+  return <PlainEntryCard entry={entry} selection={selection} {...slots} />;
 }
 
 /**
@@ -94,9 +103,15 @@ export function EntryCard({
 function PlainEntryCard({
   entry,
   selection,
+  headExtra,
+  footer,
 }: {
   entry: EntryWithContext;
   selection?: EntrySelection;
+  /** Hedef kartı: künyenin sağına, tarihten sonra (Yaptım dairesi) */
+  headExtra?: ReactNode;
+  /** Hedef kartı: kartın en altına bir bölüm (tekrarın hafta şeridi) */
+  footer?: ReactNode;
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const brutal = useSkin() === "brutal";
@@ -125,6 +140,8 @@ function PlainEntryCard({
           isRoot={isRoot}
           onOpen={() => setEditOpen(true)}
           longPress={selection && !selection.active ? longPress : undefined}
+          headExtra={headExtra}
+          footer={footer}
         />
         {editOpen && <EditEntryModal entry={entry} open={editOpen} onOpenChange={setEditOpen} />}
       </>
@@ -182,6 +199,7 @@ function PlainEntryCard({
           <span className="shrink-0 whitespace-nowrap text-[10px] leading-none tabular-nums text-muted-foreground/70">
             {formatDateTime(entry.occurredAt)}
           </span>
+          {headExtra}
         </div>
 
         {/* Alt bölüm — künyeden saç teli çizgiyle ayrılır ve tam genişlik
@@ -206,6 +224,8 @@ function PlainEntryCard({
             )}
           </div>
         )}
+
+        {footer && <div className="mt-2 border-t border-[var(--ln-1)] pt-2">{footer}</div>}
 
         {selection?.active && (
           <SelectionLayer
@@ -245,6 +265,8 @@ function BrutEntryCard({
   isRoot,
   onOpen,
   longPress,
+  headExtra,
+  footer,
 }: {
   entry: EntryWithContext;
   selection?: EntrySelection;
@@ -253,6 +275,8 @@ function BrutEntryCard({
   isRoot: boolean;
   onOpen: () => void;
   longPress?: ReturnType<typeof useLongPress>;
+  headExtra?: ReactNode;
+  footer?: ReactNode;
 }) {
   const color = entry.category.color;
   const icon = entry.subcategory.icon || entry.category.icon;
@@ -280,7 +304,12 @@ function BrutEntryCard({
         icon={icon && <SymbolIcon name={icon} size={14} style={{ color: "#111" }} />}
         title={title}
         sub={!isRoot ? catName : undefined}
-        right={<EntryBlockTime>{formatDateTime(entry.occurredAt)}</EntryBlockTime>}
+        right={
+          <>
+            <EntryBlockTime>{formatDateTime(entry.occurredAt)}</EntryBlockTime>
+            {headExtra}
+          </>
+        }
       />
       {(typedValues.length > 0 || thingIds.length > 0) && (
         <EntryBlockCell color={color}>
@@ -298,6 +327,7 @@ function BrutEntryCard({
           <p className="line-clamp-3 min-w-0 text-[11px] font-medium leading-snug text-[#111]/75">{entry.notes}</p>
         </EntryBlockCell>
       )}
+      {footer && <EntryBlockCell color={color}>{footer}</EntryBlockCell>}
       {selection?.active && (
         <SelectionLayer
           selected={selection.selected}
