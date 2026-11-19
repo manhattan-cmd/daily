@@ -132,16 +132,57 @@ export function weekOf(key: string): string[] {
   return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 }
 
-/** Yapıldı bilgisinin anahtarı: hedef × gün */
-export const doneKey = (goalId: string, date: string) => `${goalId}|${date}`;
+/**
+ * Planın gün içindeki saatleri, sıralı ve tekrarsız. Eski kayıtlarda tek
+ * remindAt vardı; okuma buradan geçer ki iki biçim de aynı davransın.
+ */
+export function goalTimes(g: Pick<Goal, "times" | "remindAt">): string[] {
+  const list = g.times?.length ? g.times : g.remindAt ? [g.remindAt] : [];
+  return [...new Set(list)].sort();
+}
+
+/** Günün anları: her saat bir an; saatsiz planda tek an ("") */
+export function goalSlots(g: Pick<Goal, "times" | "remindAt">): string[] {
+  const times = goalTimes(g);
+  return times.length ? times : [""];
+}
 
 /**
- * Bildirim kimliği: hedef × gün için sabit, pozitif 31 bit tam sayı.
- * Android bildirim kimliği int; aynı gün yeniden planlanınca aynı kimlik
+ * Bir günün girdilerini anlara dağıt. Önce anını taşıyan girdi kendi anına;
+ * kalanlar (anı yok — eski kayıt, Ekle'den kendiliğinden bağlanan — ya da
+ * saati sonradan değişmiş) boş anlara, erken girdi erken ana. Anı dolu
+ * olmayan girdi artakalır, hiçbir anı karşılamaz.
+ */
+export function assignSlots<E extends { occurredAt: number; goalSlot?: string }>(
+  slots: string[],
+  entries: E[]
+): Map<string, E> {
+  const out = new Map<string, E>();
+  const rest: E[] = [];
+  for (const e of [...entries].sort((a, b) => a.occurredAt - b.occurredAt)) {
+    const own = e.goalSlot ?? "";
+    if (slots.includes(own) && !out.has(own)) out.set(own, e);
+    else rest.push(e);
+  }
+  for (const slot of slots) {
+    if (out.has(slot)) continue;
+    const e = rest.shift();
+    if (!e) break;
+    out.set(slot, e);
+  }
+  return out;
+}
+
+/** Yapıldı bilgisinin anahtarı: plan × gün × an */
+export const doneKey = (goalId: string, date: string, slot = "") => `${goalId}|${date}|${slot}`;
+
+/**
+ * Bildirim kimliği: plan × gün × an için sabit, pozitif 31 bit tam sayı.
+ * Android bildirim kimliği int; aynı an yeniden planlanınca aynı kimlik
  * eskisinin yerine geçer.
  */
-export function reminderId(goalId: string, date: string): number {
-  const s = `${goalId}|${date}`;
+export function reminderId(goalId: string, date: string, slot = ""): number {
+  const s = `${goalId}|${date}${slot ? `|${slot}` : ""}`;
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
     h ^= s.charCodeAt(i);
@@ -161,12 +202,14 @@ export interface PlannedReminder {
   id: number;
   goalId: string;
   date: string;
+  /** Günün hangi anı ("HH:mm") */
+  slot: string;
   at: number;
 }
 
 /**
  * Kurulacak hatırlatmalar: bugünden itibaren `horizonDays` gün, saati
- * geçmemiş ve henüz yapılmamış her hedef günü. Tekrar eden hedefte
+ * geçmemiş ve henüz yapılmamış her an (plan × gün × saat). Tekrar eden hedefte
  * işletim sisteminin "her gün" alarmı kullanılmıyor — yapılmış günün
  * bildirimi gelmesin diye günler tek tek kuruluyor; uygulama her açılışta
  * pencereyi ileri taşıyor.
@@ -174,7 +217,7 @@ export interface PlannedReminder {
  * `limit`: Android uygulama başına 500 alarmla sınırlı; en yakınlar kalır.
  */
 export function planReminders(
-  goals: Pick<Goal, "id" | "date" | "repeat" | "until" | "remindAt">[],
+  goals: Pick<Goal, "id" | "date" | "repeat" | "until" | "times" | "remindAt">[],
   done: Set<string>,
   now: number,
   horizonDays = 21,
@@ -184,13 +227,16 @@ export function planReminders(
   const last = addDays(today, horizonDays - 1);
   const out: PlannedReminder[] = [];
   for (const g of goals) {
-    if (!g.remindAt) continue;
+    const times = goalTimes(g);
+    if (!times.length) continue;
     for (const date of occurrencesBetween(g, today, last)) {
-      if (done.has(doneKey(g.id, date))) continue;
-      const at = atTime(date, g.remindAt);
-      // Geçmiş saat kurulmaz: eklenti onu hemen çalıyor
-      if (at <= now + 30_000) continue;
-      out.push({ id: reminderId(g.id, date), goalId: g.id, date, at });
+      for (const slot of times) {
+        if (done.has(doneKey(g.id, date, slot))) continue;
+        const at = atTime(date, slot);
+        // Geçmiş saat kurulmaz: eklenti onu hemen çalıyor
+        if (at <= now + 30_000) continue;
+        out.push({ id: reminderId(g.id, date, slot), goalId: g.id, date, slot, at });
+      }
     }
   }
   out.sort((a, b) => a.at - b.at);

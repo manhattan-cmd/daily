@@ -368,7 +368,7 @@ export function DataSection() {
                   ["Girdi", summary.counts.entries],
                   ["Value", summary.counts.entryValues],
                   ["Not", summary.counts.notes],
-                  ["Hedef", summary.counts.goals],
+                  ["Planlı girdi", summary.counts.goals],
                   ["Özellik", summary.counts.mods],
                   ["Aktivite", summary.counts.activities],
                 ] as const

@@ -121,7 +121,7 @@ export default function HomePage() {
     goals && goals.length > 0 ? (
       <div data-home-goals="" className="flex flex-col gap-2">
         {goals.map((o) => (
-          <GoalCard key={o.goal.id} occ={o} />
+          <GoalCard key={`${o.goal.id}-${o.slot}`} occ={o} />
         ))}
       </div>
     ) : null;

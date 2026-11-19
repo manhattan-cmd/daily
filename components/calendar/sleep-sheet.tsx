@@ -10,6 +10,7 @@ import { EntryShell } from "@/components/forms/entry-shell";
 import { LedgerField } from "@/components/forms/ledger-field";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { builtInName } from "@/lib/i18n/built-in-names";
 import { NoteEditorView } from "@/components/forms/note-editor";
 import { modAtomIcon } from "@/components/structure/mod-atom";
 import { useSheetPresence } from "@/lib/use-sheet-presence";
@@ -26,7 +27,16 @@ interface SleepSheetProps {
   /** Ekle ekranının sekmesinde (bkz. AddScreen, SheetFrame) */
   embedded?: boolean;
   /** Hedef kartından açıldı: kayıt bu hedefin o günü olur (bkz. GoalCard) */
-  goal?: { id: string; date: string };
+  goal?: {
+    id: string;
+    date: string;
+    /** Planın hangi anı ("HH:mm") */
+    slot?: string;
+    /** Planlanan saat aralığı (o güne taşınmış) — son uykunun saatleri yerine */
+    range?: string;
+    /** Planlanan kalite */
+    quality?: string;
+  };
 }
 
 /** Yerleşik Uyku akışı: Ekle → Uyku. Gece Uykusu altına süre + kalite kaydeder. */
@@ -43,7 +53,7 @@ function SleepSheetBody({ date, open, onClose, embedded, goal }: SleepSheetProps
   const t = useT();
   // null = kullanıcı saatlere dokunmadı → son uykunun saatleri gösterilir
   const [range, setRange] = useState<string | null>(null);
-  const [quality, setQuality] = useState("");
+  const [quality, setQuality] = useState(goal?.quality ?? "");
   const [notes, setNotes] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -100,7 +110,7 @@ function SleepSheetBody({ date, open, onClose, embedded, goal }: SleepSheetProps
     () => (target?.lastRange ? carryDTR(target.lastRange, date) : ""),
     [target?.lastRange, date]
   );
-  const rangeValue = range ?? carried;
+  const rangeValue = range ?? (goal?.range || carried);
 
   async function handleSave() {
     if (!target) return;
@@ -141,6 +151,7 @@ function SleepSheetBody({ date, open, onClose, embedded, goal }: SleepSheetProps
         occurredAt,
         notes: notes.trim() || undefined,
         goalId: goal?.id,
+        goalSlot: goal?.slot,
       });
       // Bir hedefi yerine getirdiyse hedefin sesi (kutlama kartta)
       playEntrySound(created.goalId ? "goal" : "sleep");
@@ -168,7 +179,7 @@ function SleepSheetBody({ date, open, onClose, embedded, goal }: SleepSheetProps
           notes={notes}
           onOpenNote={() => setNoteOpen(true)}
           onSave={handleSave}
-          saveLabel={saving ? t("entry.saving") : t("action.add")}
+          saveLabel={saving ? t("entry.saving") : t(goal ? "goal.confirm" : "action.add")}
           saveDisabled={saving || !target}
         >
           {target === null ? (
@@ -180,6 +191,7 @@ function SleepSheetBody({ date, open, onClose, embedded, goal }: SleepSheetProps
               {target.rangeMod && (
                 <LedgerField
                   mod={target.rangeMod}
+                  label={builtInName(target.rangeMod.mod?.name ?? target.rangeMod.name ?? target.rangeMod.entryType.name, t)}
                   icon={modAtomIcon(target.rangeMod)}
                   color={ACCENT}
                   value={rangeValue}
@@ -190,6 +202,7 @@ function SleepSheetBody({ date, open, onClose, embedded, goal }: SleepSheetProps
               {target.qualityMod && (
                 <LedgerField
                   mod={target.qualityMod}
+                  label={builtInName(target.qualityMod.mod?.name ?? target.qualityMod.name ?? target.qualityMod.entryType.name, t)}
                   icon={modAtomIcon(target.qualityMod)}
                   color={ACCENT}
                   value={quality}

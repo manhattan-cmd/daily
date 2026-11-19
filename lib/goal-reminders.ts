@@ -2,20 +2,21 @@
 
 import { liveQuery } from "dexie";
 import { db } from "@/lib/db";
-import { completeGoal, loadReminderState } from "@/lib/db/queries";
-import { planReminders, type PlannedReminder } from "@/lib/goals";
+import { loadReminderState } from "@/lib/db/queries";
+import { doneKey, planReminders, type PlannedReminder } from "@/lib/goals";
 import { translate } from "@/lib/i18n";
 import { isNative } from "@/lib/native";
 import { routes } from "@/lib/routes";
-import { playEntrySound } from "@/lib/sound";
 
 /**
- * Hedef hatırlatmaları.
+ * Planlı girdi hatırlatmaları.
  *
  * Mobil uygulamada (Android) işletim sisteminin zamanlanmış bildirimleri:
  * uygulama kapalıyken de gelir, telefon yeniden başlasa da kalır (eklenti
- * kendisi yeniden kurar). Bildirimde "Yaptım" düğmesi var; dokununca
- * uygulama açılır ve hedef girdiye dönüşür.
+ * kendisi yeniden kurar). Bildirime dokununca uygulama planlı girdinin
+ * gününde açılır ve tamamlama formu kendiliğinden gelir (`fill=1`):
+ * tamamlama her zaman doldurarak. Eskiden bildirimde formsuz kaydeden bir
+ * "Yaptım" düğmesi vardı.
  *
  * Web'de sunucu olmadığı için kapalı sekmeye bildirim gönderilemez; yalnız
  * uygulama açıkken, saati gelen hatırlatma tarayıcı bildirimi olarak çıkar.
@@ -27,7 +28,6 @@ import { playEntrySound } from "@/lib/sound";
  */
 
 const KIND = "logbit-goal";
-const ACTION_TYPE = "goal-done";
 const CHANNEL = "goals";
 /** Bildirimin küçük simgesi — android/app/src/main/res/drawable */
 const SMALL_ICON = "ic_stat_logbit";
@@ -35,7 +35,11 @@ const ICON_COLOR = "#ffd23f";
 
 export type ReminderPermission = "granted" | "denied" | "prompt" | "unsupported";
 
-type Extra = { kind: typeof KIND; goalId: string; date: string };
+type Extra = { kind: typeof KIND; goalId: string; date: string; slot?: string };
+
+/** Bildirime dokununca: planın günü, anı ve tamamlama formu */
+const fillUrl = (goalId: string, date: string, slot?: string) =>
+  `${routes.day(date)}&goal=${encodeURIComponent(goalId)}${slot ? `&slot=${encodeURIComponent(slot)}` : ""}&fill=1`;
 
 const plugin = () => import("@capacitor/local-notifications").then((m) => m.LocalNotifications);
 
@@ -75,7 +79,6 @@ export async function requestReminderPermission(): Promise<ReminderPermission> {
 interface Texts {
   title: string;
   body: string;
-  direct: boolean;
 }
 
 function textOf(p: PlannedReminder, texts: Map<string, Texts>) {
@@ -83,7 +86,6 @@ function textOf(p: PlannedReminder, texts: Map<string, Texts>) {
   return {
     title: t?.title ?? translate("goal.notify.fallback"),
     body: t?.body ? t.body : translate("goal.notify.body"),
-    direct: t?.direct ?? false,
   };
 }
 
@@ -144,9 +146,6 @@ async function prepareNative(): Promise<void> {
       importance: 4,
       vibration: true,
     });
-    await ln.registerActionTypes({
-      types: [{ id: ACTION_TYPE, actions: [{ id: "done", title: translate("goal.notify.done") }] }],
-    });
   })();
   return nativeReady;
 }
@@ -160,8 +159,8 @@ async function scheduleNative(plan: PlannedReminder[], texts: Map<string, Texts>
   if (!plan.length) return;
   await ln.schedule({
     notifications: plan.map((p) => {
-      const { title, body, direct } = textOf(p, texts);
-      const extra: Extra = { kind: KIND, goalId: p.goalId, date: p.date };
+      const { title, body } = textOf(p, texts);
+      const extra: Extra = { kind: KIND, goalId: p.goalId, date: p.date, slot: p.slot };
       return {
         id: p.id,
         title,
@@ -171,7 +170,6 @@ async function scheduleNative(plan: PlannedReminder[], texts: Map<string, Texts>
         iconColor: ICON_COLOR,
         schedule: { at: new Date(p.at), allowWhileIdle: true },
         extra,
-        ...(direct ? { actionTypeId: ACTION_TYPE } : {}),
       };
     }),
   });
@@ -192,9 +190,9 @@ function scheduleWeb(plan: PlannedReminder[], texts: Map<string, Texts>) {
 async function showWeb(p: PlannedReminder, texts: Map<string, Texts>) {
   // Saati gelene kadar yapılmış olabilir
   const state = await loadReminderState();
-  if (state.done.has(`${p.goalId}|${p.date}`)) return;
+  if (state.done.has(doneKey(p.goalId, p.date, p.slot))) return;
   const { title, body } = textOf(p, state.texts.size ? state.texts : texts);
-  const url = `${routes.day(p.date)}&goal=${encodeURIComponent(p.goalId)}`;
+  const url = fillUrl(p.goalId, p.date, p.slot);
   const options: NotificationOptions = {
     body,
     tag: `${KIND}-${p.id}`,
@@ -263,14 +261,7 @@ export function startGoalReminders(navigate: (url: string) => void): () => void 
         .addListener("localNotificationActionPerformed", async (action) => {
           const extra = action.notification.extra as Extra | undefined;
           if (extra?.kind !== KIND) return;
-          const base = `${routes.day(extra.date)}&goal=${encodeURIComponent(extra.goalId)}`;
-          if (action.actionId === "done") {
-            const entry = await completeGoal(extra.goalId, extra.date);
-            if (entry) playEntrySound("goal");
-            navigate(`${base}&celebrate=1`);
-          } else {
-            navigate(base);
-          }
+          navigate(fillUrl(extra.goalId, extra.date, extra.slot));
         })
         .then((h) => {
           if (cancelled) void h.remove();

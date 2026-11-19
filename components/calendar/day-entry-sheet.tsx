@@ -99,13 +99,6 @@ function entryModRow(m: ModWithType, subId: string): CategoryModifierWithType {
   };
 }
 
-/** Hedefin özelliklerinin form anahtarları (bkz. valueKey) */
-function goalKeysOf(goal?: GoalWithContext | null): Set<string> {
-  return new Set(
-    (goal?.targets ?? []).map((tg) => tg.modId ?? tg.entryTypeId ?? "").filter(Boolean)
-  );
-}
-
 interface DayEntrySheetProps {
   date: string;
   open: boolean;
@@ -134,11 +127,11 @@ interface DayEntrySheetProps {
   /** Var olan hedefi düzenle: form onun değerleri ve zamanıyla açılır */
   editGoal?: GoalWithContext | null;
   /**
-   * Hedefi YAP ("Yaptım"): form hedefin yalnız kendi özellikleriyle açılır,
-   * planlanan değerler dolu, boş bırakılanlar o an sorulur. Kayıt hedefin
-   * bu gününe bağlanır; düğmenin adı "Yaptım".
+   * Planlı girdiyi TAMAMLA ("Yaptım"): girdi formu kalemin bütün
+   * özellikleriyle açılır, planlanan değerler dolu; boş bırakılanlar kayda
+   * yazılmaz. Kayıt planın bu gününe bağlanır; düğmenin adı "Yaptım".
    */
-  doneGoal?: { goal: GoalWithContext; date: string } | null;
+  doneGoal?: { goal: GoalWithContext; date: string; slot: string } | null;
 }
 
 type Step =
@@ -292,22 +285,15 @@ function DayEntrySheetBody({
    */
   const [extraMods, setExtraMods] = useState<CategoryModifierWithType[]>([]);
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(() => new Set());
-  /*
-   * Hedefi YAPARKEN form yalnız hedefin kendi özellikleriyle açılır (kalemin
-   * öteki özellikleri gelmez; istenirse "Özellik ekle" ile eklenir). Seçili
-   * olanlar burada. Hedef kurarken form girdi formunun aynısı.
-   */
+  // Düzenlenen ya da tamamlanan planlı girdi
   const planGoal = editGoal ?? doneGoal?.goal ?? null;
-  const pickFeatures = !!doneGoal;
-  const [goalPicked, setGoalPicked] = useState<Set<string>>(() => goalKeysOf(planGoal));
   const [extrasFor, setExtrasFor] = useState(currentSubId);
   if (extrasFor !== currentSubId) {
     setExtrasFor(currentSubId);
     setExtraMods([]);
     setHiddenKeys(new Set());
-    setGoalPicked(planGoal && planGoal.subcategoryId === currentSubId ? goalKeysOf(planGoal) : new Set());
   }
-  // Hedefin, kaleme takılı olmayan özellikleri (hedefe özel eklenmiş)
+  // Planın, kaleme takılı olmayan özellikleri (plana özel eklenmiş)
   const goalExtras = useMemo(() => {
     if (!planGoal || planGoal.subcategoryId !== currentSubId) return [];
     return planGoal.targets
@@ -315,23 +301,16 @@ function DayEntrySheetBody({
       .map((tg) => entryModRow({ ...tg.mod!, entryType: tg.entryType }, currentSubId));
   }, [planGoal, currentSubId]);
   const activeMods = useMemo(() => {
-    const picked = (m: CategoryModifierWithType) => !pickFeatures || goalPicked.has(valueKey(m));
-    const base = formMods.filter((m) => !hiddenKeys.has(valueKey(m)) && picked(m));
+    const base = formMods.filter((m) => !hiddenKeys.has(valueKey(m)));
     const seen = new Set(base.map(valueKey));
-    const extras = [...goalExtras.filter(picked), ...extraMods].filter((m) => {
+    const extras = [...goalExtras, ...extraMods].filter((m) => {
       if (seen.has(valueKey(m)) || hiddenKeys.has(valueKey(m))) return false;
       seen.add(valueKey(m));
       return true;
     });
     return [...base, ...extras];
-  }, [formMods, extraMods, goalExtras, hiddenKeys, pickFeatures, goalPicked]);
+  }, [formMods, extraMods, goalExtras, hiddenKeys]);
   function addEntryMods(picked: ModWithType[]) {
-    if (pickFeatures)
-      setGoalPicked((prev) => {
-        const next = new Set(prev);
-        picked.forEach((m) => next.add(m.id));
-        return next;
-      });
     const attachedIds = new Set(formMods.map((m) => m.modId));
     const unhide: string[] = [];
     const extras: CategoryModifierWithType[] = [];
@@ -351,7 +330,7 @@ function DayEntrySheetBody({
       const next = { ...prev };
       for (const m of picked)
         if (!(m.id in next))
-          next[m.id] = m.entryType.valueType === "boolean" ? "false" : "";
+          next[m.id] = m.entryType.valueType === "boolean" ? boolDefault : "";
       return next;
     });
   }
@@ -360,13 +339,6 @@ function DayEntrySheetBody({
     const key = valueKey(mod);
     if (mod.id.startsWith("entry-") && extraMods.some((m) => m.id === mod.id))
       setExtraMods((prev) => prev.filter((m) => m.id !== mod.id));
-    // Hedefi yaparken: hedefin özelliğini bu kayıttan çıkar
-    else if (pickFeatures && goalPicked.has(key))
-      setGoalPicked((prev) => {
-        const next = new Set(prev);
-        next.delete(key);
-        return next;
-      });
     else setHiddenKeys((prev) => new Set(prev).add(key));
     // Değeri de bırakma — gizlenen özellik kayda yazılmasın
     setValues((prev) => {
@@ -376,6 +348,10 @@ function DayEntrySheetBody({
       return next;
     });
   }
+
+  // Evet/hayırın ilk değeri: girdide "false"; planlı girdiyi tamamlarken boş —
+  // dokunulmazsa kayda yazılmaz (yoksa "Yaptım" deyince "Yapıldı: Hayır" yazıyordu)
+  const boolDefault = doneGoal ? "" : "false";
 
   // Yeni özellik eklendiğinde values'a ilk değerini otomatik ekle.
   // NOT: Bu bilerek effect olarak kaldı. Türetilmiş değere çevirmek denendi
@@ -389,13 +365,13 @@ function DayEntrySheetBody({
       let changed = false;
       for (const m of formMods) {
         if (!(valueKey(m) in next)) {
-          next[valueKey(m)] = m.entryType.valueType === "boolean" ? "false" : "";
+          next[valueKey(m)] = m.entryType.valueType === "boolean" ? boolDefault : "";
           changed = true;
         }
       }
       return changed ? next : prev;
     });
-  }, [formMods, currentSubId]);
+  }, [formMods, currentSubId, boolDefault]);
 
   /** Varsayılan: sayfanın günü + şu anki saat ("YYYY-MM-DDTHH:mm") */
   function defaultOccurredAt(): string {
@@ -422,8 +398,8 @@ function DayEntrySheetBody({
   }
 
   /**
-   * Hedefi yap: formda hedefin özellikleri planlanan değerleriyle, zaman
-   * şimdi (hedefin gününde). Tekrar eden hedefte saat aralıkları o güne taşınır.
+   * Planlı girdiyi tamamla: formda kalemin özellikleri, planlananlar dolu;
+   * zaman şimdi (planın gününde). Tekrar edende saat aralıkları o güne taşınır.
    */
   function openGoalForDone(goal: GoalWithContext) {
     const vals: Record<string, string> = {};
@@ -452,6 +428,7 @@ function DayEntrySheetBody({
     const patch = {
       date: when.date,
       repeat: when.repeat,
+      times: when.times,
       remindAt: when.remindAt,
       targets,
       note: notes.trim() || undefined,
@@ -460,7 +437,7 @@ function DayEntrySheetBody({
     else await createGoal({ subcategoryId: sub.id, ...patch });
     playEntrySound("plan");
     // Hatırlatma açıldıysa izin tam şimdi istenir; verilince plan kurulur
-    if (when.remindAt) {
+    if (when.times?.length) {
       void requestReminderPermission().then(() => {
         invalidateReminderPlan();
         void syncGoalReminders();
@@ -531,7 +508,8 @@ function DayEntrySheetBody({
     groupId?: string,
     entryNotes?: string,
     withThings?: AttachedThing[],
-    goalId?: string
+    goalId?: string,
+    goalSlot?: string
   ) {
     const typeValues = mods
       .filter((m) => (vals[valueKey(m)] ?? "") !== "")
@@ -556,6 +534,7 @@ function DayEntrySheetBody({
       activityId: activity?.id,
       things: withThings,
       goalId,
+      goalSlot,
     });
   }
 
@@ -638,7 +617,7 @@ function DayEntrySheetBody({
           activeMods.map((m) => ({ valueType: m.entryType.valueType, value: values[valueKey(m)] })),
           thingVals
         );
-        await persistEntry(step.sub.id, activeMods, values, undefined, undefined, things, doneGoal.goal.id);
+        await persistEntry(step.sub.id, activeMods, values, undefined, undefined, things, doneGoal.goal.id, doneGoal.slot);
         playEntrySound("goal");
         onClose();
         return;

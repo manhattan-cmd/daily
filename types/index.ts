@@ -544,6 +544,10 @@ export interface Entry {
    *  günün bekleyen hedefine bağlandı. İşaret geri alınınca girdi silinmez,
    *  yalnız bağ çözülür. */
   goalAuto?: boolean;
+  /** Planlı girdinin hangi anını karşıladı ("HH:mm") — günde birden çok saati
+   *  olan planda (sabah ilacı, akşam ilacı). Boşsa günün ilk boş anına
+   *  yerleşir (bkz. lib/goals assignSlots). */
+  goalSlot?: string;
 }
 
 export interface EntryValue {
@@ -624,7 +628,13 @@ export interface Goal {
   repeat?: GoalRepeat;
   /** Tekrarın son günü (YYYY-MM-DD, dahil) */
   until?: string;
-  /** Hatırlatma saati ("HH:mm"); boşsa hatırlatma yok */
+  /**
+   * Gün içindeki saatler ("HH:mm"). Her saat ayrı bir an: ayrı kart, ayrı
+   * işaret, ayrı bildirim. Boşsa plan günde bir kez ve saatsiz, bildirim yok.
+   * Okurken lib/goals goalTimes — eski kayıtlarda tek remindAt.
+   */
+  times?: string[];
+  /** @deprecated v25 öncesi tek hatırlatma saati; yeni kayıtlar times yazar */
   remindAt?: string;
   createdAt: number;
   updatedAt: number;

@@ -2,7 +2,7 @@ import { nanoid } from "nanoid";
 import { db } from "./index";
 import { logDeletions, newBatchId } from "./deletions";
 import { toLocalDateValue } from "@/lib/utils";
-import { addDays, daysBetween, occursOn, shiftRange, weekOf } from "@/lib/goals";
+import { addDays, assignSlots, doneKey, goalSlots, goalTimes, occursOn, weekOf } from "@/lib/goals";
 import { matchesSearch, normalizeSearch } from "@/lib/search";
 import type {
   Activity,
@@ -1767,6 +1767,8 @@ export async function createEntry(input: {
   things?: AttachedThing[];
   /** Girdi bu hedefin yapıldısı (Yaptım ya da hedefin açtığı pencere) */
   goalId?: string;
+  /** Planın hangi anı ("HH:mm") — günde birden çok saati olan planda */
+  goalSlot?: string;
 }): Promise<Entry> {
   const entry: Entry = {
     id: id(),
@@ -1783,6 +1785,7 @@ export async function createEntry(input: {
   };
   if (input.goalId) {
     entry.goalId = input.goalId;
+    if (input.goalSlot) entry.goalSlot = input.goalSlot;
   } else {
     const auto = await autoLinkGoal(entry);
     if (auto) {
@@ -2421,10 +2424,14 @@ export interface GoalOccurrence {
   goal: GoalWithContext;
   /** Hedefin bu günü (YYYY-MM-DD) */
   date: string;
-  /** Bu günü yerine getiren girdi */
+  /** Günün hangi anı ("HH:mm"); saatsiz planda "" — günde iki saat = iki an */
+  slot: string;
+  /** Bu anı yerine getiren girdi */
   entry?: EntryWithContext;
-  /** Tekrar eden hedefte bu haftanın yapılmış günleri */
+  /** Tekrar eden hedefte bu haftanın bütün anları yapılmış günleri */
   weekDone?: string[];
+  /** …ve anlarından bir kısmı yapılmış günleri (sabah ilacı içildi, akşamki değil) */
+  weekPart?: string[];
 }
 
 export async function createGoal(input: {
@@ -2434,7 +2441,7 @@ export async function createGoal(input: {
   note?: string;
   repeat?: GoalRepeat;
   until?: string;
-  remindAt?: string;
+  times?: string[];
 }): Promise<Goal> {
   const goal: Goal = {
     id: id(),
@@ -2444,7 +2451,7 @@ export async function createGoal(input: {
     ...(input.note ? { note: input.note } : {}),
     ...(input.repeat ? { repeat: input.repeat } : {}),
     ...(input.until ? { until: input.until } : {}),
-    ...(input.remindAt ? { remindAt: input.remindAt } : {}),
+    ...(input.times?.length ? { times: input.times } : {}),
     createdAt: now(),
     updatedAt: now(),
   };
@@ -2452,16 +2459,22 @@ export async function createGoal(input: {
   return goal;
 }
 
-/** Hedefi yerine getiren girdiler, gün → girdi. Tek günlük hedefte gün hedefin kendi günü. */
-function linkedByDay(goal: Goal, entries: Entry[]): Map<string, Entry> {
-  const out = new Map<string, Entry>();
+/** Hedefe bağlı girdiler, gün → girdiler. Tek günlük hedefte gün hedefin kendi günü. */
+function linkedByDay(goal: Goal, entries: Entry[]): Map<string, Entry[]> {
+  const out = new Map<string, Entry[]>();
   for (const e of entries) {
     if (e.goalId !== goal.id) continue;
     const day = goal.repeat ? toLocalDateValue(e.occurredAt) : goal.date;
-    const prev = out.get(day);
-    if (!prev || e.occurredAt < prev.occurredAt) out.set(day, e);
+    const list = out.get(day);
+    if (list) list.push(e);
+    else out.set(day, [e]);
   }
   return out;
+}
+
+/** Planın bir gününde an → onu karşılayan girdi (bkz. lib/goals assignSlots) */
+function slotsOn(goal: Goal, dayEntries: Entry[] | undefined): Map<string, Entry> {
+  return assignSlots(goalSlots(goal), dayEntries ?? []);
 }
 
 export async function listGoalsByDate(date: string): Promise<GoalOccurrence[]> {
@@ -2469,34 +2482,50 @@ export async function listGoalsByDate(date: string): Promise<GoalOccurrence[]> {
   const all = await db.goals.toArray();
   const goals = all.filter((g) => occursOn(g, date));
   if (!goals.length) return [];
-  goals.sort(
-    (a, b) =>
-      (a.remindAt ?? "99").localeCompare(b.remindAt ?? "99") || a.createdAt - b.createdAt
-  );
   const [hydrated, linked] = await Promise.all([
     hydrateGoals(goals),
     db.entries.where("goalId").anyOf(goals.map((g) => g.id)).toArray(),
   ]);
-  const doneEntries = new Map<string, Entry>();
+  const byId = new Map(goals.map((g) => [g.id, g]));
+  const today = new Map<string, Map<string, Entry>>();
   const weekDone = new Map<string, string[]>();
+  const weekPart = new Map<string, string[]>();
   const week = new Set(weekOf(date));
   for (const g of goals) {
     const days = linkedByDay(g, linked);
-    const e = days.get(date);
-    if (e) doneEntries.set(g.id, e);
-    if (g.repeat) weekDone.set(g.id, [...days.keys()].filter((d) => week.has(d)));
+    today.set(g.id, slotsOn(g, days.get(date)));
+    if (!g.repeat) continue;
+    const full: string[] = [];
+    const part: string[] = [];
+    for (const [day, list] of days) {
+      if (!week.has(day)) continue;
+      const filled = slotsOn(g, list).size;
+      if (filled >= goalSlots(g).length) full.push(day);
+      else if (filled > 0) part.push(day);
+    }
+    weekDone.set(g.id, full);
+    weekPart.set(g.id, part);
   }
-  const entries = await hydrateEntries([...doneEntries.values()]);
+  const entries = await hydrateEntries([...today.values()].flatMap((m) => [...m.values()]));
   const entryById = new Map(entries.map((e) => [e.id, e]));
-  return hydrated.map((goal) => {
-    const e = doneEntries.get(goal.id);
-    return {
-      goal,
-      date,
-      entry: e ? entryById.get(e.id) : undefined,
-      ...(goal.repeat ? { weekDone: weekDone.get(goal.id) ?? [] } : {}),
-    };
-  });
+  const out: GoalOccurrence[] = [];
+  for (const goal of hydrated) {
+    for (const slot of goalSlots(byId.get(goal.id)!)) {
+      const e = today.get(goal.id)?.get(slot);
+      out.push({
+        goal,
+        date,
+        slot,
+        entry: e ? entryById.get(e.id) : undefined,
+        ...(goal.repeat ? { weekDone: weekDone.get(goal.id) ?? [], weekPart: weekPart.get(goal.id) ?? [] } : {}),
+      });
+    }
+  }
+  // Saate göre; saatsiz en sonda, eşitlikte kuruluş sırası
+  out.sort(
+    (a, b) => (a.slot || "99").localeCompare(b.slot || "99") || a.goal.createdAt - b.goal.createdAt
+  );
+  return out;
 }
 
 /** Bütün hedefler ve yapılmış günleri (Hedefler sayfası) */
@@ -2510,33 +2539,36 @@ export async function listAllGoals(): Promise<
     db.entries.where("goalId").anyOf(all.map((g) => g.id)).toArray(),
   ]);
   const byId = new Map(all.map((g) => [g.id, g]));
-  return hydrated.map((goal) => ({
-    goal,
-    doneDays: new Set(linkedByDay(byId.get(goal.id)!, linked).keys()),
-  }));
+  // Yapılmış gün: bütün anları dolu gün
+  return hydrated.map((goal) => {
+    const g = byId.get(goal.id)!;
+    const n = goalSlots(g).length;
+    const days = [...linkedByDay(g, linked)].filter(([, list]) => slotsOn(g, list).size >= n);
+    return { goal, doneDays: new Set(days.map(([day]) => day)) };
+  });
 }
 
 /** Hatırlatma planı için: hatırlatmalı hedefler, yapılmış günleri ve bildirim metni */
 export async function loadReminderState(): Promise<{
   goals: Goal[];
   done: Set<string>;
-  texts: Map<string, { title: string; body: string; direct: boolean }>;
+  texts: Map<string, { title: string; body: string }>;
 }> {
-  const goals = (await db.goals.toArray()).filter((g) => !!g.remindAt);
+  const goals = (await db.goals.toArray()).filter((g) => goalTimes(g).length > 0);
   const done = new Set<string>();
-  const texts = new Map<string, { title: string; body: string; direct: boolean }>();
+  const texts = new Map<string, { title: string; body: string }>();
   if (!goals.length) return { goals, done, texts };
   const [hydrated, linked] = await Promise.all([
     hydrateGoals(goals),
     db.entries.where("goalId").anyOf(goals.map((g) => g.id)).toArray(),
   ]);
   for (const g of goals)
-    for (const day of linkedByDay(g, linked).keys()) done.add(`${g.id}|${day}`);
+    for (const [day, list] of linkedByDay(g, linked))
+      for (const slot of slotsOn(g, list).keys()) done.add(doneKey(g.id, day, slot));
   for (const g of hydrated) {
     texts.set(g.id, {
       title: goalTitle(g),
       body: g.targets.map(goalTargetText).filter(Boolean).join(" · "),
-      direct: goalCompletesDirectly(g),
     });
   }
   return { goals, done, texts };
@@ -2581,22 +2613,6 @@ export function goalTargetText(t: GoalTargetWithContext): string {
   if (vt === "number")
     return `${t.targetValue}${t.entryType.unit ? ` ${t.entryType.unit}` : ""} · ${name}`;
   return `${name} ${t.targetValue}`;
-}
-
-/**
- * "Yaptım" tek dokunuşla girdiye dönüşebilir mi. Yalnız düz hedef (özelliği
- * olmayan) dönüşür. Özellikli hedefte özellikler o an sorulur — planlanan
- * değerler dolu gelir, gerçekte ne yaptıysan onu yazarsın. Ruh hali ve saati
- * verilmemiş uyku da dönüşemez: kendi pencereleri açılır. Bildirimdeki
- * "Yaptım" düğmesi de yalnız tek dokunuşluk hedefte çıkar.
- */
-export function goalCompletesDirectly(
-  g: Pick<GoalWithContext, "category" | "targets">
-): boolean {
-  const key = g.category.isBuiltIn ? g.category.builtInKey ?? "sleep" : undefined;
-  if (key === "mood") return false;
-  if (key === "sleep") return g.targets.some((t) => !!t.targetValue);
-  return g.targets.length === 0;
 }
 
 async function hydrateGoals(goals: Goal[]): Promise<GoalWithContext[]> {
@@ -2658,91 +2674,16 @@ async function hydrateGoals(goals: Goal[]): Promise<GoalWithContext[]> {
   return results;
 }
 
-/** Hedefin bu gününü yerine getiren girdi (varsa) */
-async function goalEntryOn(goal: Goal, date: string): Promise<Entry | undefined> {
-  const linked = await db.entries.where("goalId").equals(goal.id).toArray();
-  return linkedByDay(goal, linked).get(date);
-}
-
-/**
- * Hedefin bu günü yapıldı: planlanan değerlerle bir girdi açılır ve hedefe
- * bağlanır. Tekrar eden hedefte saat aralıkları (uyku) o güne taşınır.
- * Girdinin zamanı: bugünse şimdi, başka günse o günün şimdiki saati; uyku
- * girdisinde (her yerde olduğu gibi) uyanma saati.
- */
-export async function completeGoal(goalId: string, date: string): Promise<Entry | undefined> {
-  const goal = await db.goals.get(goalId);
-  if (!goal) return undefined;
-  const existing = await goalEntryOn(goal, date);
-  if (existing) return existing;
-
-  // Support legacy goals with single entryTypeId/targetValue
-  const raw = goal as Goal & { entryTypeId?: string; targetValue?: string };
-  const targets = raw.targets ?? (raw.entryTypeId ? [{ entryTypeId: raw.entryTypeId, targetValue: raw.targetValue ?? "" }] : []);
-
-  // Her hedefin modunu çöz (eski hedeflerde ölçüden havuz modu bul) ve alt kategoriye ata
-  const resolvedModIds = new Map<GoalTarget, string | undefined>();
-  for (const t of targets) {
-    let modId = t.modId;
-    if (!modId) {
-      const poolMod = await db.mods
-        .filter((m) => m.entryTypeId === t.entryTypeId)
-        .first();
-      modId = poolMod?.id;
-    }
-    if (modId) {
-      await attachMod("subcategory", goal.subcategoryId, modId);
-    }
-    resolvedModIds.set(t, modId);
-  }
-
-  const [year, month, day] = date.split("-").map(Number);
-  const d = new Date(year, month - 1, day);
-  const n = new Date();
-  d.setHours(n.getHours(), n.getMinutes(), 0, 0);
-
-  const mods = await db.mods.bulkGet(
-    targets.map((t) => resolvedModIds.get(t)).filter((x): x is string => !!x)
-  );
-  const isRange = (modId?: string) =>
-    !!modId && mods.some((m) => m?.id === modId && m.valueType === "datetime-range");
-  let occurredAt = d.getTime();
-  const typeValues = targets
-    .filter((t) => t.targetValue !== "")
-    .map((t) => {
-      const modId = resolvedModIds.get(t);
-      let value = t.targetValue;
-      if (isRange(modId)) {
-        // Planlanan saatler hedefin gününe; girdinin zamanı uyanma (bitiş)
-        if (goal.repeat) value = shiftRange(value, daysBetween(goal.date, date));
-        try {
-          const end = (JSON.parse(value) as { end?: string }).end;
-          if (end) occurredAt = new Date(end).getTime();
-        } catch {
-          /* bozuk aralık — zaman günün şimdiki saati kalır */
-        }
-      }
-      return { entryTypeId: t.entryTypeId, modId, value };
-    });
-
-  return createEntry({
-    subcategoryId: goal.subcategoryId,
-    typeValues,
-    occurredAt,
-    notes: goal.note,
-    goalId,
-  });
-}
-
 /**
  * Yapıldı işaretini geri al. Girdi hedeften doğduysa silinir (geri alma
  * günlüğüyle); kullanıcının kendi açtığı girdi bağlandıysa yalnız bağ
  * çözülür, girdi yerinde kalır.
  */
-export async function uncompleteGoal(goalId: string, date: string): Promise<void> {
+export async function uncompleteGoal(goalId: string, date: string, slot = ""): Promise<void> {
   const goal = await db.goals.get(goalId);
   if (!goal) return;
-  const entry = await goalEntryOn(goal, date);
+  const linked = await db.entries.where("goalId").equals(goalId).toArray();
+  const entry = slotsOn(goal, linkedByDay(goal, linked).get(date)).get(slot);
   if (!entry) return;
   if (entry.goalAuto) {
     await db.entries.update(entry.id, { goalId: undefined, goalAuto: undefined });
@@ -2757,7 +2698,7 @@ export async function uncompleteGoal(goalId: string, date: string): Promise<void
 /** Değeri undefined olan alan kayıttan silinir (Dexie) — tekrarı ya da hatırlatmayı kapatmak böyle */
 export async function updateGoal(
   goalId: string,
-  patch: Partial<Pick<Goal, "date" | "targets" | "note" | "repeat" | "until" | "remindAt">>
+  patch: Partial<Pick<Goal, "date" | "targets" | "note" | "repeat" | "until" | "times" | "remindAt">>
 ): Promise<void> {
   await db.goals.update(goalId, patch);
 }
@@ -2804,8 +2745,10 @@ async function autoLinkGoal(entry: Entry): Promise<string | undefined> {
   const candidates = goals
     .filter((g) => occursOn(g, day))
     .sort((a, b) => a.createdAt - b.createdAt);
+  // Boş anı olan ilk plan; girdi o günün ilk boş anına yerleşir (assignSlots)
   for (const g of candidates) {
-    if (!(await goalEntryOn(g, day))) return g.id;
+    const linked = await db.entries.where("goalId").equals(g.id).toArray();
+    if (slotsOn(g, linkedByDay(g, linked).get(day)).size < goalSlots(g).length) return g.id;
   }
   return undefined;
 }

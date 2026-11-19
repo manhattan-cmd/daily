@@ -4,14 +4,11 @@ import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } fro
 import { Bell, Check, MoonStar, NotebookPen, Repeat, Smile, Target } from "lucide-react";
 import type { EntryValueWithType, GoalTargetWithContext, GoalWithContext } from "@/types";
 import {
-  completeGoal,
-  goalCompletesDirectly,
   goalTitle,
   uncompleteGoal,
   type GoalOccurrence,
 } from "@/lib/db/queries";
-import { occursOn, weekOf } from "@/lib/goals";
-import { playEntrySound } from "@/lib/sound";
+import { daysBetween, occursOn, shiftRange, weekOf } from "@/lib/goals";
 import { useSkin } from "@/lib/skin";
 import { SymbolIcon } from "@/lib/icons";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
@@ -165,6 +162,7 @@ function WeekRow({ occ, color, brutal }: { occ: GoalOccurrence; color: string; b
   const today = toLocalDateValue();
   const days = weekOf(occ.date);
   const done = new Set(occ.weekDone ?? []);
+  const part = new Set(occ.weekPart ?? []);
   const scheduled = days.filter((d) => occursOn(occ.goal, d));
   const line = brutal ? "#111" : color;
   return (
@@ -175,19 +173,27 @@ function WeekRow({ occ, color, brutal }: { occ: GoalOccurrence; color: string; b
           const letter = new Date(y, m - 1, dd).toLocaleDateString(tag, { weekday: "narrow" });
           const on = occursOn(occ.goal, d);
           const isDone = done.has(d);
+          const isPart = part.has(d);
           const isThis = d === occ.date;
           const past = d < today;
           return (
             <span
               key={d}
               title={d}
-              data-day={isDone ? "done" : !on ? "off" : isThis ? "this" : past ? "missed" : "next"}
+              data-day={isDone ? "done" : isPart ? "part" : !on ? "off" : isThis ? "this" : past ? "missed" : "next"}
               className="flex h-[18px] w-[18px] items-center justify-center rounded-full text-[9px] font-extrabold leading-none"
               style={
                 !on
                   ? { color: "var(--muted-foreground)", opacity: 0.45 }
                   : isDone
                     ? { background: color, color: brutal ? "#111" : inkOn(color), boxShadow: brutal ? "inset 0 0 0 1.5px #111" : undefined }
+                    : isPart
+                      ? {
+                          // Yarım: alt yarısı dolu
+                          background: `linear-gradient(to top, ${color} 50%, ${brutal ? "#fff" : "transparent"} 50%)`,
+                          color: brutal ? "#111" : undefined,
+                          boxShadow: `inset 0 0 0 ${isThis ? 2 : 1.5}px ${brutal ? "#111" : color}`,
+                        }
                     : isThis
                       ? { background: brutal ? "#fff" : "transparent", color: brutal ? "#111" : color, boxShadow: `inset 0 0 0 2px ${line}` }
                       : past
@@ -221,19 +227,19 @@ function WeekRow({ occ, color, brutal }: { occ: GoalOccurrence; color: string; b
  */
 function PendingCard({
   goal,
+  slot,
   color,
   brutal,
-  filled,
   check,
   week,
   selection,
   onOpen,
 }: {
   goal: GoalWithContext;
+  /** Günün anı ("HH:mm"; saatsizde "") */
+  slot: string;
   color: string;
   brutal: boolean;
-  /** "Yaptım"a basıldı, kayıt yazılıyor — künye şimdiden dolsun */
-  filled: boolean;
   check: ReactNode;
   week: ReactNode;
   selection?: EntrySelection;
@@ -261,10 +267,10 @@ function PendingCard({
   const selectionLayer = selection?.active && (
     <SelectionLayer selected={selection.selected} onToggle={selection.onToggle} label={t("goal.select", { name })} />
   );
-  const remind = goal.remindAt && (
+  const remind = slot && (
     <span className="inline-flex items-center gap-1">
       <Bell className="h-2.5 w-2.5" strokeWidth={2.75} />
-      {goal.remindAt}
+      {slot}
     </span>
   );
 
@@ -286,7 +292,7 @@ function PendingCard({
         className={cn(ENTRY_BLOCK_CLS, "cursor-pointer transition-transform active:scale-[0.99]", selection?.selected && selectedCardClass)}
       >
         <EntryBlockHead
-          color={filled ? color : `repeating-linear-gradient(-45deg, ${stripe} 0 5px, #fff 5px 11px)`}
+          color={`repeating-linear-gradient(-45deg, ${stripe} 0 5px, #fff 5px 11px)`}
           icon={icon}
           title={name}
           sub={sub}
@@ -324,9 +330,7 @@ function PendingCard({
       // Kenarlık satır içi: globals.css `*` kuralı sınıfla verilen rengi eziyor (bkz. sleep-card)
       style={{
         borderColor: `${color}8c`,
-        background: filled
-          ? `linear-gradient(135deg, ${color}24, ${color}0d 45%, transparent), var(--card)`
-          : `repeating-linear-gradient(-45deg, ${color}12 0 5px, transparent 5px 11px), var(--card)`,
+        background: `repeating-linear-gradient(-45deg, ${color}12 0 5px, transparent 5px 11px), var(--card)`,
       }}
     >
       <div data-sel-head="" className="flex items-center gap-2">
@@ -378,58 +382,62 @@ function PendingCard({
 }
 
 /**
- * Hedef kartı — günün bekleyen girdisi. Girdi kartlarıyla aynı boyda ve
- * aynı yerleşimde: bekleyen hedef girdi kartının iskeleti (bkz.
- * PendingCard), yapılmış hedef GİRDİNİN KENDİ KARTI (girdi, uyku, ruh hali)
- * — skala, duygular, uyku aralığı orada nasıl çiziliyorsa burada da öyle.
- * İkisinde de künyenin sağında Yaptım dairesi, tekrar ediyorsa en altta
- * haftanın şeridi.
+ * Planlı girdi kartı (kodda "goal") — günün bekleyen girdisi. Girdi
+ * kartlarıyla aynı boyda ve yerleşimde: bekleyen plan girdi kartının
+ * iskeleti (bkz. PendingCard), tamamlanmış plan GİRDİNİN KENDİ KARTI
+ * (girdi, uyku, ruh hali). İkisinde de künyenin sağında daire, tekrar
+ * ediyorsa en altta haftanın şeridi.
  *
- * Daire "Yaptım": düz hedef o an girdiye dönüşür, ses ve kıvılcımlar onu
- * kutlar. Değerli hedefte önce özellikleri sorulur (form, planlanan
- * değerler dolu, gerçekte ne yaptıysan onu yazarsın); ruh hali ve saati verilmemiş uyku kendi penceresini açar.
- * Kaydedince yine kutlanır. Bekleyene dokunmak
- * hedefi düzenler, yapılmışa dokunmak girdinin kendisini açar (gerçekte
- * 12 km koştuysan düzelt).
+ * Daire "tamamla": tamamlama her zaman DOLDURARAK. Sıradan planda girdi
+ * formu açılır — kalemin bütün özellikleri, planlanan değerler dolu, boş
+ * bırakılanlar kayda yazılmaz; uyku ve ruh hali kendi pencerelerinde
+ * (uykuda planlanan saatler ve kalite dolu). Kaydedince ses ve kıvılcım.
+ * Bekleyene dokunmak planı düzenler, tamamlanmışa dokunmak girdiyi açar.
  *
- * Yapıldı durumu verinin kendisinden: girdi silinirse hedef yeniden bekler,
- * aynı yere başka yoldan girilen kayıt da hedefi yapılmış sayar.
+ * Tamamlandı durumu verinin kendisinden: girdi silinirse plan yeniden
+ * bekler, aynı yere başka yoldan girilen kayıt da planı tamamlanmış sayar.
  */
 export function GoalCard({
   occ,
   selection,
-  celebrate = false,
+  fill = false,
   highlight = false,
 }: {
   occ: GoalOccurrence;
   /** Yalnız tek günlük hedefte: basılı tutmak toplu seçimi başlatır */
   selection?: EntrySelection;
-  /** Açılır açılmaz kutla (bildirimdeki "Yaptım"dan gelindi) */
-  celebrate?: boolean;
+  /** Bildirime dokunuldu: tamamlama formu kendiliğinden açılsın (bir kez) */
+  fill?: boolean;
   /** Bildirimden gelindi: kart bir an dikkat çeker */
   highlight?: boolean;
 }) {
   const t = useT();
   const brutal = useSkin() === "brutal";
-  const { goal, entry, date } = occ;
+  const { goal, entry, date, slot } = occ;
   const color = colorOf(goal);
   const builtIn = builtInOf(goal);
   const done = !!entry;
 
-  const [optimistic, setOptimistic] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sheet, setSheet] = useState<"mood" | "sleep" | "goal" | "done" | null>(null);
-  const [burst, setBurst] = useState(celebrate ? 1 : 0);
-  const shown = done || optimistic;
+  const [burst, setBurst] = useState(0);
+  const shown = done;
+  // Tamamlama penceresi: uyku ve ruh hali kendi penceresinde, gerisi girdi formunda
+  const fillSheet = builtIn === "mood" ? "mood" : builtIn === "sleep" ? "sleep" : "done";
 
-  // Yapılmadan yapıldıya her geçiş kutlanır — dokunuşla, pencereyle ya da
-  // aynı yere başka yoldan girilen kayıtla (çizim sırasında ayarlanır)
+  // Bekleyenden tamamlanmışa her geçiş kutlanır — pencereyle ya da aynı yere
+  // başka yoldan girilen kayıtla (çizim sırasında ayarlanır)
   const [seen, setSeen] = useState(shown);
   if (shown !== seen) {
     setSeen(shown);
     if (shown) setBurst((b) => b + 1);
   }
-  if (optimistic && done) setOptimistic(false);
+  // Bildirimden gelindi: form bir kez kendiliğinden açılır
+  const [filled, setFilled] = useState(false);
+  if (fill && !filled) {
+    setFilled(true);
+    if (!done) setSheet(fillSheet);
+  }
 
   // Bildirimden gelindiyse kart görünüme gelsin (bir kez)
   const scrolled = useRef(false);
@@ -445,32 +453,22 @@ export function GoalCard({
     if (shown) {
       setBusy(true);
       try {
-        setOptimistic(false);
-        await uncompleteGoal(goal.id, date);
+        await uncompleteGoal(goal.id, date, slot);
       } finally {
         setBusy(false);
       }
       return;
     }
-    // Özellikli hedefte özellikler sorulur (form, planlananlar dolu); ruh
-    // hali ve saatsiz uyku kendi penceresinde
-    if (!goalCompletesDirectly(goal)) {
-      setSheet(builtIn === "mood" ? "mood" : builtIn === "sleep" ? "sleep" : "done");
-      return;
-    }
-    // Anında: ses, dolan daire ve kıvılcım dokunuşla birlikte; kayıt arkadan
-    setOptimistic(true);
-    playEntrySound("goal");
-    setBusy(true);
-    try {
-      const created = await completeGoal(goal.id, date);
-      if (!created) setOptimistic(false);
-    } catch {
-      setOptimistic(false);
-    } finally {
-      setBusy(false);
-    }
+    setSheet(fillSheet);
   }
+
+  // Uyku planının saatleri (o güne taşınmış) ve kalitesi — pencere dolu açılsın
+  const planned = (vt: string) => goal.targets.find((tg) => tg.entryType.valueType === vt && tg.targetValue)?.targetValue;
+  const sleepRange = builtIn === "sleep" ? planned("datetime-range") : undefined;
+  const sleepPlan = {
+    range: sleepRange && goal.repeat ? shiftRange(sleepRange, daysBetween(goal.date, date)) : sleepRange,
+    quality: builtIn === "sleep" ? planned("select") : undefined,
+  };
 
   const check = (
     <GoalCheck
@@ -507,9 +505,9 @@ export function GoalCard({
         ) : (
           <PendingCard
             goal={goal}
+            slot={occ.slot}
             color={color}
             brutal={brutal}
-            filled={shown}
             check={check}
             week={week}
             selection={selection}
@@ -521,10 +519,10 @@ export function GoalCard({
 
       {sheet === "goal" && <DayEntrySheet date={date} open onClose={() => setSheet(null)} editGoal={goal} />}
       {sheet === "done" && (
-        <DayEntrySheet date={date} open onClose={() => setSheet(null)} doneGoal={{ goal, date }} />
+        <DayEntrySheet date={date} open onClose={() => setSheet(null)} doneGoal={{ goal, date, slot }} />
       )}
-      <MoodSheet date={date} open={sheet === "mood"} onClose={() => setSheet(null)} goal={{ id: goal.id, date }} />
-      <SleepSheet date={date} open={sheet === "sleep"} onClose={() => setSheet(null)} goal={{ id: goal.id, date }} />
+      <MoodSheet date={date} open={sheet === "mood"} onClose={() => setSheet(null)} goal={{ id: goal.id, date, slot }} />
+      <SleepSheet date={date} open={sheet === "sleep"} onClose={() => setSheet(null)} goal={{ id: goal.id, date, slot, ...sleepPlan }} />
     </>
   );
 }

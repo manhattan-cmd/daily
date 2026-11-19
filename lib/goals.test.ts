@@ -11,6 +11,9 @@ import {
   repeatFromDays,
   repeatShape,
   weekOf,
+  assignSlots,
+  goalSlots,
+  goalTimes,
 } from "./goals";
 
 // 2026-11-16 pazartesi
@@ -72,7 +75,7 @@ describe("hedef takvimi", () => {
 
 describe("hatırlatmalar", () => {
   const now = new Date(2026, 10, 16, 9, 0).getTime(); // pazartesi 09:00
-  const goal = { id: "g1", date: MON, repeat: { kind: "daily" as const }, remindAt: "10:00" };
+  const goal = { id: "g1", date: MON, repeat: { kind: "daily" as const }, times: ["10:00"] };
 
   it("her gün için ayrı bildirim, saati geçen gün yok", () => {
     const plan = planReminders([goal], new Set(), now, 3);
@@ -85,12 +88,12 @@ describe("hatırlatmalar", () => {
   });
 
   it("yapılmış günün bildirimi kurulmaz", () => {
-    const plan = planReminders([goal], new Set([doneKey("g1", MON)]), now, 2);
+    const plan = planReminders([goal], new Set([doneKey("g1", MON, "10:00")]), now, 2);
     expect(plan.map((p) => p.date)).toEqual(["2026-11-17"]);
   });
 
   it("hatırlatması olmayan hedef ve sınır", () => {
-    const quiet = { ...goal, id: "g2", remindAt: undefined };
+    const quiet = { ...goal, id: "g2", times: undefined };
     expect(planReminders([quiet], new Set(), now, 5)).toHaveLength(0);
     expect(planReminders([goal], new Set(), now, 30, 4)).toHaveLength(4);
   });
@@ -101,5 +104,48 @@ describe("hatırlatmalar", () => {
     expect(a).toBeGreaterThan(0);
     expect(a).toBeLessThan(2 ** 31);
     expect(reminderId("g1", addDays(MON, 1))).not.toBe(a);
+    expect(reminderId("g1", MON, "08:00")).not.toBe(reminderId("g1", MON, "21:00"));
+  });
+
+  it("günde iki saat: her an ayrı bildirim, yapılan an kurulmaz", () => {
+    const pills = { ...goal, id: "g3", times: ["21:00", "08:00"] };
+    const early = new Date(2026, 10, 16, 7, 0).getTime();
+    const plan = planReminders([pills], new Set([doneKey("g3", MON, "08:00")]), early, 2);
+    expect(plan.map((p) => `${p.date} ${p.slot}`)).toEqual([
+      "2026-11-16 21:00",
+      "2026-11-17 08:00",
+      "2026-11-17 21:00",
+    ]);
+  });
+
+  it("eski tek saatli kayıt (remindAt) da okunur", () => {
+    const legacy = { id: "g4", date: MON, remindAt: "10:00" };
+    expect(goalTimes(legacy)).toEqual(["10:00"]);
+    expect(planReminders([legacy], new Set(), now, 1).map((p) => p.slot)).toEqual(["10:00"]);
+  });
+});
+
+describe("anlar", () => {
+  const e = (h: number, goalSlot?: string) => ({ occurredAt: new Date(2026, 10, 16, h).getTime(), goalSlot });
+
+  it("saatsiz planda tek an; saatler sıralı", () => {
+    expect(goalSlots({})).toEqual([""]);
+    expect(goalSlots({ times: ["21:00", "08:00", "08:00"] })).toEqual(["08:00", "21:00"]);
+  });
+
+  it("anını taşıyan girdi kendi anına, kalan ilk boş ana", () => {
+    const evening = e(21, "21:00");
+    const loose = e(9);
+    const got = assignSlots(["08:00", "21:00"], [evening, loose]);
+    expect(got.get("21:00")).toBe(evening);
+    expect(got.get("08:00")).toBe(loose);
+  });
+
+  it("saati değişmiş an ve fazla girdi", () => {
+    const old = e(9, "09:00");
+    const extra = e(10);
+    const got = assignSlots(["08:00"], [old, extra]);
+    expect(got.get("08:00")).toBe(old);
+    expect(got.size).toBe(1);
   });
 });

@@ -23,8 +23,9 @@ export default function Page() {
 function Route() {
   const q = useSearchParams();
   const date = q.get("d") ?? "";
-  // Bildirimden gelindiyse: hangi hedef, "Yaptım"la mı
+  // Bildirimden gelindiyse: hangi planlı girdi; fill=1 tamamlama formu açılsın
   const goal = q.get("goal") ?? undefined;
-  const celebrate = q.get("celebrate") === "1";
-  return <CalendarDayPage key={`${date}`} params={{ date, goal, celebrate }} />;
+  const slot = q.get("slot") ?? undefined;
+  const fill = q.get("fill") === "1";
+  return <CalendarDayPage key={`${date}`} params={{ date, goal, slot, fill }} />;
 }

@@ -63,9 +63,9 @@ function itemTime(item: EntryItem): number | null {
  */
 function goalTime(o: GoalOccurrence, entryHere: boolean): number | null {
   if (o.entry && entryHere) return o.entry.occurredAt;
-  if (!o.goal.remindAt) return null;
+  if (!o.slot) return null;
   const [y, m, d] = o.date.split("-").map(Number);
-  const [hh, mm] = o.goal.remindAt.split(":").map(Number);
+  const [hh, mm] = o.slot.split(":").map(Number);
   return new Date(y, m - 1, d, hh, mm).getTime();
 }
 
@@ -129,8 +129,8 @@ function weekdayLong(d: Date, tag: string): string {
 export function CalendarDayPage({
   params,
 }: {
-  /** goal: bildirimden gelinen hedef (kart dikkat çeker); celebrate: "Yaptım"la gelindi */
-  params: { date: string; goal?: string; celebrate?: boolean };
+  /** goal: bildirimden gelinen planlı girdi (kart dikkat çeker); fill: tamamlama formu açılsın */
+  params: { date: string; goal?: string; slot?: string; fill?: boolean };
 }) {
   const { date } = params;
   const t = useT();
@@ -176,15 +176,17 @@ export function CalendarDayPage({
   const dayEntryIds = new Set((entries ?? []).map((e) => e.id));
   const shownEntry = (o: GoalOccurrence) =>
     !!o.entry && dayEntryIds.has(o.entry.id) && !o.entry.linkedGroupId && !o.entry.activityId;
-  const goalById = new Map((goals ?? []).map((o) => [o.goal.id, o]));
-  // Hedefe bağlı girdi hedefin kartıyla çizilir. Hedef listesi girdilerden
-  // bir an geç tazelenebilir; bağ girdinin kendisinden de okunur ki girdi o
-  // arada ikinci bir kart olarak çıkmasın
+  // Planın anları (günde iki saat = iki an)
+  const occsByGoal = new Map<string, GoalOccurrence[]>();
+  for (const o of goals ?? []) occsByGoal.set(o.goal.id, [...(occsByGoal.get(o.goal.id) ?? []), o]);
+  // Plana bağlı girdi planın kartıyla çizilir. Plan listesi girdilerden bir
+  // an geç tazelenebilir; bağ girdinin kendisinden de okunur ki girdi o
+  // arada ikinci bir kart olarak çıkmasın (boş anı varsa oraya yerleşecek)
   const hiddenEntryIds = new Set(
     (entries ?? [])
       .filter((e) => {
-        const o = e.goalId && !e.linkedGroupId && !e.activityId ? goalById.get(e.goalId) : undefined;
-        return !!o && (!o.entry || o.entry.id === e.id);
+        const occs = e.goalId && !e.linkedGroupId && !e.activityId ? occsByGoal.get(e.goalId) : undefined;
+        return !!occs && occs.some((o) => !o.entry || o.entry.id === e.id);
       })
       .map((e) => e.id)
   );
@@ -259,9 +261,16 @@ export function CalendarDayPage({
   const actionEntries = otherEntries.filter((e) => e.category.builtInKey !== "objects");
   const dayCategories = [...new Map(actionEntries.map((e) => [e.category.id, e.category])).values()];
   const goalsDone = (goals ?? []).filter((o) => o.entry).length;
+  // Bildirimden gelinen an. Bağlantıda an yoksa (eski bildirim) planın ilk
+  // bekleyen anı, o da yoksa ilki
+  const linkedOccs = (goals ?? []).filter((o) => o.goal.id === params.goal);
+  const linked =
+    params.slot !== undefined
+      ? linkedOccs.find((o) => o.slot === params.slot)
+      : (linkedOccs.find((o) => !o.entry) ?? linkedOccs[0]);
   const goalCard = (o: GoalOccurrence) => (
     <GoalCard
-      key={`g-${o.goal.id}`}
+      key={`g-${o.goal.id}-${o.slot}`}
       occ={o}
       selection={
         shownEntry(o)
@@ -270,8 +279,8 @@ export function CalendarDayPage({
             ? undefined
             : selectionFor([dayItemKey("goal", o.goal.id)])
       }
-      highlight={params.goal === o.goal.id}
-      celebrate={!!params.celebrate && params.goal === o.goal.id}
+      highlight={o === linked}
+      fill={!!params.fill && o === linked}
     />
   );
   const allGoalsLink = (

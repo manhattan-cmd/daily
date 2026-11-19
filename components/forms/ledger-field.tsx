@@ -438,7 +438,8 @@ export function LedgerField({
         // Brütal: iki büyük yarım — seçilen dolu
         <div className="grid grid-cols-2 overflow-hidden rounded-xl border-2 border-[#111] shadow-[2px_2px_0_#111]">
           {(["true", "false"] as const).map((v) => {
-            const on = (value === "true") === (v === "true");
+            // Boş değer (henüz seçilmedi — planlı girdiyi tamamlarken) hiçbirini seçmez
+            const on = value !== "" && (value === "true") === (v === "true");
             return (
               <button
                 key={v}

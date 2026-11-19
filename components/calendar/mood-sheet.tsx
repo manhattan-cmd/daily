@@ -26,7 +26,7 @@ interface MoodSheetProps {
   /** Ekle ekranının sekmesinde (bkz. AddScreen, SheetFrame) */
   embedded?: boolean;
   /** Hedef kartından açıldı: kayıt bu hedefin o günü olur (bkz. GoalCard) */
-  goal?: { id: string; date: string };
+  goal?: { id: string; date: string; slot?: string };
 }
 
 const ACCENT = "#f472b6";
@@ -149,6 +149,7 @@ function MoodSheetBody({ date, open, onClose, embedded, goal }: MoodSheetProps) 
         occurredAt: new Date(occurredAt).getTime(),
         notes: notes.trim() || undefined,
         goalId: goal?.id,
+        goalSlot: goal?.slot,
       });
       // Bir hedefi yerine getirdiyse hedefin sesi (kutlama kartta)
       playEntrySound(created.goalId ? "goal" : "mood");
@@ -184,7 +185,7 @@ function MoodSheetBody({ date, open, onClose, embedded, goal }: MoodSheetProps) 
           notes={notes}
           onOpenNote={() => setNoteOpen(true)}
           onSave={handleSave}
-          saveLabel={saving ? t("entry.saving") : t("action.add")}
+          saveLabel={saving ? t("entry.saving") : t(goal ? "goal.confirm" : "action.add")}
           saveDisabled={saving || !target || nothingPicked}
         >
           {target === null ? (

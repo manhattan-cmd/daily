@@ -17,6 +17,7 @@ import { isNative } from "@/lib/native";
 import { useSkin } from "@/lib/skin";
 import { useT } from "@/lib/i18n";
 import { cn, toLocalDateValue } from "@/lib/utils";
+import { goalTimes } from "@/lib/goals";
 
 /**
  * Hedef hatırlatmaları: izin durumu, deneme bildirimi ve hedeflere geçit.
@@ -29,7 +30,7 @@ export function ReminderSection() {
   const [permission, setPermission] = useState<ReminderPermission | null>(null);
   const [tested, setTested] = useState<"ok" | "fail" | null>(null);
   const withReminder = useLiveQuery(
-    async () => (await db.goals.toArray()).filter((g) => g.remindAt && (!g.until || g.until >= toLocalDateValue())).length,
+    async () => (await db.goals.toArray()).filter((g) => goalTimes(g).length > 0 && (!g.until || g.until >= toLocalDateValue())).length,
     []
   );
 

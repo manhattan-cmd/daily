@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Bell, CalendarDays, Plus, Repeat, Target } from "lucide-react";
 import { listAllGoals, goalTitle } from "@/lib/db/queries";
-import { occursOn, weekOf } from "@/lib/goals";
+import { goalTimes, occursOn, weekOf } from "@/lib/goals";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { useSkin } from "@/lib/skin";
 import { cn, toLocalDateValue } from "@/lib/utils";
@@ -153,10 +153,10 @@ function GoalRow({ row, today, onOpen }: { row: Row; today: string; onOpen: () =
         <span className="block truncate text-[15px] font-semibold">{goalTitle(goal)}</span>
         <span className="mt-0.5 flex flex-wrap items-center gap-x-2.5 text-[12px] text-muted-foreground">
           <span>{goal.repeat ? repeatLabel(goal.repeat) : dateLabel(goal.date)}</span>
-          {goal.remindAt && (
+          {goalTimes(goal).length > 0 && (
             <span className="inline-flex items-center gap-1">
               <Bell className="h-3 w-3" />
-              {goal.remindAt}
+              {goalTimes(goal).join(" · ")}
             </span>
           )}
           {goal.repeat && goal.until && goal.until < today && (

@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react";
 import type { EntryValueWithType } from "@/types";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { builtInName } from "@/lib/i18n/built-in-names";
 import { modAtomIcon } from "@/components/structure/mod-atom";
 import { parseDTR } from "@/components/forms/datetime-range-input";
 import { splitChoiceLevel } from "@/lib/choice-level";
@@ -132,7 +133,7 @@ export function ValueCapsule({
   useThingNames();
   const t = useT();
   const et = v.entryType!;
-  const label = v.mod?.name ?? et.name;
+  const label = builtInName(v.mod?.name ?? et.name, t);
   const icon = createElement(modAtomIcon({ name: v.mod?.name, entryType: et }), {
     className: "h-3 w-3",
     style: { color: c },

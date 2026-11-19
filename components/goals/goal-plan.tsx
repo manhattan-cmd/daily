@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, CalendarDays, Repeat } from "lucide-react";
+import { Bell, CalendarDays, Plus, Repeat, X } from "lucide-react";
 import type { Goal, GoalRepeat } from "@/types";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
-import type { MessageKey } from "@/lib/i18n/messages";
+import { builtInName } from "@/lib/i18n/built-in-names";
 import { useSkin } from "@/lib/skin";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import {
@@ -15,6 +15,7 @@ import {
   repeatDays,
   repeatFromDays,
   repeatShape,
+  goalTimes,
 } from "@/lib/goals";
 import { TimeWheel } from "@/components/ui/time-wheel";
 import { isNative } from "@/lib/native";
@@ -30,33 +31,52 @@ export interface GoalPlanState {
   date: string;
   /** Tekrarın günleri (getDay sırası) */
   days: number[];
-  /** "HH:mm"; null = hatırlatma yok */
-  remindAt: string | null;
+  /**
+   * Gün içindeki saatler ("HH:mm", sıralı); boş = saatsiz, bildirim yok.
+   * Her saat ayrı bir an: sabah ilacı ve akşam ilacı ayrı işaretlenir.
+   */
+  times: string[];
 }
 
 export const DEFAULT_REMIND_AT = "10:00";
 
 export function planFromGoal(goal: Goal | undefined, base: string): GoalPlanState {
-  if (!goal) return { mode: "once", date: base, days: [0, 1, 2, 3, 4, 5, 6], remindAt: null };
+  if (!goal) return { mode: "once", date: base, days: [0, 1, 2, 3, 4, 5, 6], times: [] };
   return {
     mode: goal.repeat ? "repeat" : "once",
     date: goal.date,
     days: goal.repeat ? repeatDays(goal.repeat) : [0, 1, 2, 3, 4, 5, 6],
-    remindAt: goal.remindAt ?? null,
+    times: goalTimes(goal),
   };
 }
 
-/** Kayda gidecek alanlar; undefined = alan silinsin */
+/** Kayda gidecek alanlar; undefined = alan silinsin (eski tek saat remindAt da silinir) */
 export function planToGoal(plan: GoalPlanState): {
   date: string;
   repeat: GoalRepeat | undefined;
-  remindAt: string | undefined;
+  times: string[] | undefined;
+  remindAt: undefined;
 } {
+  const times = [...new Set(plan.times)].sort();
   return {
     date: plan.date,
     repeat: plan.mode === "repeat" ? repeatFromDays(plan.days) : undefined,
-    remindAt: plan.remindAt ?? undefined,
+    times: times.length ? times : undefined,
+    remindAt: undefined,
   };
+}
+
+/** Yeni saat: sonuncudan altı saat sonra (gece yarısını geçmez), alınmışsa bir saat ileri */
+function nextTime(times: string[]): string {
+  if (!times.length) return DEFAULT_REMIND_AT;
+  const last = [...times].sort().at(-1)!;
+  let h = Math.min(Number(last.slice(0, 2)) + 6, 22);
+  let out = `${String(h).padStart(2, "0")}:00`;
+  while (times.includes(out) && h < 23) {
+    h += 1;
+    out = `${String(h).padStart(2, "0")}:00`;
+  }
+  return out;
 }
 
 export const planValid = (p: GoalPlanState) => p.mode === "once" || p.days.length > 0;
@@ -74,24 +94,10 @@ export function inkOn(hex: string): string {
 }
 
 /** Tekrarın kısa adı: Her gün / Hafta içi / Hafta sonu / Pzt, Çar, Cum */
-const BUILT_IN_MOD_LABELS: Record<string, MessageKey> = {
-  "Sleep Duration": "sleep.duration",
-  "Sleep Quality": "sleep.quality",
-  Happiness: "mood.level",
-  Emotions: "mood.emotions",
-};
-
-/**
- * Özelliğin ekrandaki adı: yerleşik özellikler kayıtta İngilizce kanonik adla
- * duruyor (bkz. BUILT_IN_CATEGORIES); hedef formunda "SLEEP DURATION"
- * yazıyordu. Kullanıcının kendi özellikleri olduğu gibi.
- */
+/** Özelliğin ekrandaki adı — yerleşikler kullanıcının dilinde (bkz. builtInName) */
 export function useModLabel(): (name: string) => string {
   const t = useT();
-  return (name) => {
-    const key = BUILT_IN_MOD_LABELS[name];
-    return key ? t(key) : name;
-  };
+  return (name) => builtInName(name, t);
 }
 
 export function useRepeatLabel(): (repeat: GoalRepeat) => string {
@@ -129,7 +135,11 @@ export function GoalPlanFields({
   const t = useT();
   const tag = intlTag(useLocale());
   const brutal = useSkin() === "brutal";
-  const [wheelOpen, setWheelOpen] = useState(false);
+  // Çarkta düzenlenen saatin sırası; null = çark kapalı
+  const [wheelAt, setWheelAt] = useState<number | null>(null);
+  const times = plan.times;
+  const on = times.length > 0;
+  const setTimes = (next: string[]) => set({ times: next });
   const set = (patch: Partial<GoalPlanState>) => onChange({ ...plan, ...patch });
   // Brütalde renkli zeminde yazı hep siyah (kategori bantlarıyla aynı)
   const ink = brutal ? "#111" : inkOn(accent);
@@ -306,65 +316,118 @@ export function GoalPlanFields({
         <div className="flex min-h-[60px] items-center gap-3 px-3.5">
           <span
             className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full", brutal && "border-2 border-[#111]")}
-            style={{ background: plan.remindAt ? accent : brutal ? "#fff" : "var(--sf-3)", color: plan.remindAt ? ink : undefined }}
+            style={{ background: on ? accent : brutal ? "#fff" : "var(--sf-3)", color: on ? ink : undefined }}
           >
             <Bell className="h-4 w-4" strokeWidth={2.4} />
           </span>
           <div className="min-w-0 flex-1 leading-tight">
             <div className="text-[15px] font-semibold">{t("goal.plan.remind")}</div>
             <div className="text-[12px] text-muted-foreground">
-              {plan.remindAt
-                ? t(plan.mode === "repeat" ? "goal.plan.remindEach" : "goal.plan.remindAt")
-                : t("goal.plan.remindOff")}
+              {!on
+                ? t("goal.plan.remindOff")
+                : times.length > 1
+                  ? t("goal.plan.timesEach", { n: times.length })
+                  : t(plan.mode === "repeat" ? "goal.plan.remindEach" : "goal.plan.remindAt")}
             </div>
           </div>
-          {plan.remindAt && (
-            <button
-              type="button"
-              data-remind-time=""
-              onClick={() => setWheelOpen((o) => !o)}
-              className={cn(
-                "h-9 shrink-0 rounded-full px-3 font-mono text-[15px] font-bold tabular-nums",
-                brutal ? "border-2 border-[#111] bg-white text-[#111]" : "bg-[var(--sf-3)]"
-              )}
-              aria-expanded={wheelOpen}
-            >
-              {plan.remindAt}
-            </button>
-          )}
           <button
             type="button"
             role="switch"
-            aria-checked={!!plan.remindAt}
+            aria-checked={on}
             aria-label={t("goal.plan.remind")}
             data-remind-switch=""
             onClick={() => {
-              const next = plan.remindAt ? null : DEFAULT_REMIND_AT;
-              set({ remindAt: next });
-              setWheelOpen(false);
+              setTimes(on ? [] : [DEFAULT_REMIND_AT]);
+              setWheelAt(null);
             }}
             className={cn(
               "relative h-7 w-12 shrink-0 rounded-full transition-colors",
               brutal ? "border-2 border-[#111]" : "",
-              !plan.remindAt && (brutal ? "bg-white" : "bg-muted-foreground/30")
+              !on && (brutal ? "bg-white" : "bg-muted-foreground/30")
             )}
-            style={plan.remindAt ? { background: accent } : undefined}
+            style={on ? { background: accent } : undefined}
           >
             <span
               className={cn(
                 "absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow transition-all",
                 brutal && "border-2 border-[#111]",
-                plan.remindAt ? "right-1" : "left-1"
+                on ? "right-1" : "left-1"
               )}
             />
           </button>
         </div>
-        {plan.remindAt && wheelOpen && (
+        {/* Saatler — her biri ayrı an; dokununca çark, çarpı siler, + yeni saat */}
+        {on && (
+          <div data-remind-times="" className="flex flex-wrap items-center gap-1.5 px-3.5 pb-3">
+            {times.map((time, i) => (
+              <span
+                key={`${time}-${i}`}
+                className={cn(
+                  "flex h-9 shrink-0 items-center overflow-hidden rounded-full",
+                  brutal ? "border-2 border-[#111] bg-white text-[#111]" : "bg-[var(--sf-3)]",
+                  wheelAt === i && (brutal ? "shadow-[2px_2px_0_#111]" : "ring-2 ring-inset")
+                )}
+                style={wheelAt === i && !brutal ? ({ "--tw-ring-color": accent } as React.CSSProperties) : undefined}
+              >
+                <button
+                  type="button"
+                  data-remind-time={time}
+                  onClick={() => setWheelAt((cur) => (cur === i ? null : i))}
+                  aria-expanded={wheelAt === i}
+                  className={cn("h-full font-mono text-[15px] font-bold tabular-nums", times.length > 1 ? "pl-3 pr-1.5" : "px-3")}
+                >
+                  {time}
+                </button>
+                {times.length > 1 && (
+                  <button
+                    type="button"
+                    data-remind-remove={time}
+                    onClick={() => {
+                      setTimes(times.filter((_, j) => j !== i));
+                      setWheelAt(null);
+                    }}
+                    aria-label={t("goal.plan.removeTime", { time })}
+                    className="flex h-full items-center pl-0.5 pr-2.5 text-muted-foreground"
+                  >
+                    <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+                  </button>
+                )}
+              </span>
+            ))}
+            {times.length < 6 && (
+              <button
+                type="button"
+                data-remind-add=""
+                onClick={() => {
+                  const next = [...times, nextTime(times)];
+                  setTimes(next);
+                  setWheelAt(next.length - 1);
+                }}
+                className={cn(
+                  "flex h-9 shrink-0 items-center gap-1 rounded-full px-3 text-[13px] font-semibold",
+                  brutal ? "border-2 border-dashed border-[#111] bg-white text-[#111]" : "border border-dashed border-[var(--ln-3)] text-muted-foreground"
+                )}
+              >
+                <Plus className="h-3.5 w-3.5" strokeWidth={2.75} />
+                {t("goal.plan.addTime")}
+              </button>
+            )}
+          </div>
+        )}
+        {on && wheelAt !== null && times[wheelAt] && (
           <div className={cn("px-3 pb-3 pt-1", brutal ? "border-t-2 border-[#111]" : "border-t border-[var(--ln-1)]")}>
-            <TimeWheel value={plan.remindAt} onChange={(v) => set({ remindAt: v })} accent={accent} />
+            <TimeWheel
+              value={times[wheelAt]}
+              onChange={(v) => setTimes(times.map((x, j) => (j === wheelAt ? v : x)))}
+              accent={accent}
+            />
             <button
               type="button"
-              onClick={() => setWheelOpen(false)}
+              onClick={() => {
+                // Kapanınca sıraya dizilir (aynı saat iki kez olmaz)
+                setTimes([...new Set(times)].sort());
+                setWheelAt(null);
+              }}
               className={cn(
                 "mt-2 h-10 w-full rounded-xl text-[14px] font-semibold",
                 brutal && "border-2 border-[#111]"
@@ -375,7 +438,7 @@ export function GoalPlanFields({
             </button>
           </div>
         )}
-        {plan.remindAt && !isNative() && (
+        {on && !isNative() && (
           <p className="px-3.5 pb-3 text-[11.5px] leading-4 text-muted-foreground">{t("goal.plan.webHint")}</p>
         )}
       </div>
