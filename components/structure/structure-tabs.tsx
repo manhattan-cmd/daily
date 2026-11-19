@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Circle, Diamond, Map as MapIcon, Square, StickyNote, type LucideIcon } from "lucide-react";
+import { Circle, Diamond, Map as MapIcon, Rows3, Square, StickyNote, type LucideIcon } from "lucide-react";
 import { useRoutePath } from "@/lib/use-route-path";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,8 @@ export const STRUCTURE_TABS: { href: string; key: MessageKey; icon: LucideIcon }
   { href: "/structure", key: "structure.categories", icon: Square },
   { href: "/structure/mods", key: "structure.features", icon: Circle },
   { href: "/structure/objects", key: "structure.objects", icon: Diamond },
+  // Girdiler: bütün girdiler ve planlı girdiler (satır satır kayıtlar)
+  { href: "/structure/entries", key: "structure.entries", icon: Rows3 },
   // Ölçüler sekmesi v18'de kalktı — ölçüm artık özelliğin kendi içinde
   { href: "/structure/notes", key: "structure.notes", icon: StickyNote },
   { href: "/structure/galaxy", key: "structure.map", icon: MapIcon },
@@ -104,8 +106,8 @@ export function StructureTabs() {
         {activeIndex >= 0 && (
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-[3px] left-[3px] w-[calc((100%-6px)/5)] rounded-xl bg-primary/15 ring-1 ring-inset ring-primary/30 transition-transform duration-200 ease-out motion-reduce:transition-none"
-            style={{ transform: `translateX(${activeIndex * 100}%)` }}
+            className="pointer-events-none absolute inset-y-[3px] left-[3px] rounded-xl bg-primary/15 ring-1 ring-inset ring-primary/30 transition-transform duration-200 ease-out motion-reduce:transition-none"
+            style={{ width: `calc((100% - 6px) / ${STRUCTURE_TABS.length})`, transform: `translateX(${activeIndex * 100}%)` }}
           />
         )}
         {STRUCTURE_TABS.map((tab, i) => {
@@ -126,7 +128,8 @@ export function StructureTabs() {
               <tab.icon
                 className={cn("shrink-0", tab.icon === Diamond ? "h-[15px] w-[15px]" : "h-3.5 w-3.5")}
                 strokeWidth={2.4}
-                fill={on ? "currentColor" : "none"}
+                // Satırlar (Girdiler) dolunca kareye dönüyor, kategoriyle karışıyordu
+                fill={on && tab.icon !== Rows3 ? "currentColor" : "none"}
               />
             </span>
             <span className="w-full whitespace-nowrap text-center text-[10.5px] font-semibold leading-none tracking-[-0.01em]">

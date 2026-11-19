@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Layers, Square } from "lucide-react";
 import { listCategoryTree, listUserCategories } from "@/lib/db/queries";
+import { db } from "@/lib/db";
+import { matchesSearch, normalizeSearch } from "@/lib/search";
+import { StructureSearch } from "@/components/structure/structure-search";
 import { BrutCategoryTree, useIsBrutal } from "@/components/structure/brutal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CategoryForm } from "@/components/structure/category-form";
@@ -27,6 +30,18 @@ export default function StructurePage() {
   // Brütal temada kategoriler ağaç: alt kategoriler ve girdi sayılarıyla
   const brutal = useIsBrutal();
   const tree = useLiveQuery(() => (brutal ? listCategoryTree() : undefined), [brutal]);
+  // Arama kategorinin ve alt kategorilerinin adında: "koşu" yazınca Spor
+  // kalır. Alt kategoriler hafif okunur (ağaç sorgusu bütün girdileri sayar)
+  const [query, setQuery] = useState("");
+  const allSubs = useLiveQuery(() => db.subcategories.toArray(), []);
+  const q = normalizeSearch(query.trim());
+  const shown = !q
+    ? categories
+    : categories?.filter(
+        (c) =>
+          matchesSearch(c.name, q) ||
+          (allSubs ?? []).some((s) => s.categoryId === c.id && !s.isCategoryRoot && matchesSearch(s.name, q))
+      );
 
   // Kategori ekleme girdi ekleme ekranındakiyle AYNI pencere (CategoryForm).
   // Eskiden burada açılır küçük bir menü vardı: hazır listeye dokununca
@@ -53,8 +68,11 @@ export default function StructurePage() {
       }
     >
 
+      {!!categories?.length && (
+        <StructureSearch value={query} onChange={setQuery} placeholder={t("structure.searchCategories")} />
+      )}
       {/* Kategori kalmadıysa "Bu kategoriler örnek" boş pencerenin üstünde yanlış */}
-      {!!categories?.length && <ExampleHint />}
+      {!!categories?.length && !q && <ExampleHint />}
 
       {/* Brütal: hiç kategori yoksa boş pencere — yazı ve ufak Oluştur */}
       {categories === undefined ? null : categories.length === 0 ? (
@@ -73,9 +91,11 @@ export default function StructurePage() {
           description={t("structure.empty.body")}
         />
         )
+      ) : shown && shown.length === 0 ? (
+        <p className="px-1 text-[13px] font-medium text-muted-foreground">{t("structure.noMatch")}</p>
       ) : brutal ? (
         <BrutCategoryTree
-          categories={categories}
+          categories={shown ?? categories}
           subs={tree?.subs ?? []}
           counts={tree?.counts}
           onAddSub={(c) => {
@@ -86,7 +106,7 @@ export default function StructurePage() {
       ) : (
         /* Kategori rafları — atomlarla aynı ızgara, kare karolar */
         <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
-          {categories.map((cat) => (
+          {(shown ?? categories).map((cat) => (
             <CategoryTile
               key={cat.id}
               href={routes.structureCategory(cat.id)}

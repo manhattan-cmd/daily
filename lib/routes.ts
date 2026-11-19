@@ -30,6 +30,9 @@ export const routes = {
     `/structure/collection?${q({ id: collectionId })}`,
   /** Yapı: tek nesne */
   structureThing: (thingId: string) => `/structure/thing?${q({ id: thingId })}`,
+  /** Yapı › Girdiler; "planned" = Planlı girdiler görünümü */
+  structureEntries: (view?: "planned") =>
+    view ? `/structure/entries?${q({ view })}` : "/structure/entries",
   /** Yapı: alt kategori (kalem) ayrıntısı */
   structureSub: (categoryId: string, subcategoryId: string) =>
     `/structure/sub?${q({ cat: categoryId, id: subcategoryId })}`,

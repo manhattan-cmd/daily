@@ -14,6 +14,7 @@ import {
   type ReminderPermission,
 } from "@/lib/goal-reminders";
 import { isNative } from "@/lib/native";
+import { routes } from "@/lib/routes";
 import { useSkin } from "@/lib/skin";
 import { useT } from "@/lib/i18n";
 import { cn, toLocalDateValue } from "@/lib/utils";
@@ -98,7 +99,7 @@ export function ReminderSection() {
             {t("settings.remind.test")}
           </button>
         )}
-        <Link href="/goals" className={cn(pill, "inline-flex items-center gap-1")}>
+        <Link href={routes.structureEntries("planned")} className={cn(pill, "inline-flex items-center gap-1")}>
           {t("goal.pageTitle")}
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>

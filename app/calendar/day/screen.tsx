@@ -283,13 +283,14 @@ export function CalendarDayPage({
       fill={!!params.fill && o === linked}
     />
   );
-  const allGoalsLink = (
+  // Günün altında: bütün girdiler Yapı › Girdiler'de (planlılar da orada)
+  const allEntriesLink = (
     <Link
-      href="/goals"
-      data-all-goals=""
+      href={routes.structureEntries()}
+      data-all-entries-link=""
       className="mt-2 flex items-center justify-center gap-1 rounded-xl py-2 text-[12.5px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
     >
-      {t("goal.all")}
+      {t("day.allEntries")}
       <ArrowRight className="h-3.5 w-3.5" />
     </Link>
   );
@@ -440,7 +441,7 @@ export function CalendarDayPage({
           {flowNodes}
         </div>
       )}
-      {(goals?.length ?? 0) > 0 && allGoalsLink}
+      {allEntriesLink}
     </>
   );
 

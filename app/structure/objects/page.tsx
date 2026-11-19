@@ -22,6 +22,8 @@ import { PageSheet } from "@/components/ui/layer";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { useIsBrutal } from "@/components/structure/brutal";
 import type { Thing } from "@/types";
+import { matchesSearch, normalizeSearch } from "@/lib/search";
+import { StructureSearch } from "@/components/structure/structure-search";
 
 /** Listenin bloğunda gösterilen nesne sayısı — fazlası "+N" */
 const THING_PREVIEW = 10;
@@ -50,6 +52,19 @@ export default function ObjectsPage() {
       return { c, total: mine.length, active: live.length, live };
     });
   }, []);
+  // Arama listenin ve nesnelerin adında: liste adı uyarsa bütün nesneleri,
+  // yalnız nesne uyarsa o nesneler görünür
+  const [query, setQuery] = useState("");
+  const q = normalizeSearch(query.trim());
+  const shown = !q
+    ? data
+    : data
+        ?.map((d) => {
+          const own = matchesSearch(d.c.name, q);
+          const live = own ? d.live : d.live.filter((th) => matchesSearch(th.name, q));
+          return own || live.length ? { ...d, live } : null;
+        })
+        .filter((d): d is NonNullable<typeof d> => !!d);
 
   return (
     <PageSheet
@@ -74,8 +89,14 @@ export default function ObjectsPage() {
         />
       }
     >
+      {!!data?.length && (
+        <StructureSearch value={query} onChange={setQuery} placeholder={t("structure.searchObjects")} />
+      )}
+      {data !== undefined && data.length > 0 && shown?.length === 0 && (
+        <p className="px-1 text-[13px] font-medium text-muted-foreground">{t("structure.noMatch")}</p>
+      )}
 
-      {data === undefined ? null : brutal ? (
+      {data === undefined || shown === undefined ? null : brutal ? (
         data.length === 0 ? (
           <SummaryBlock
             compact
@@ -86,7 +107,7 @@ export default function ObjectsPage() {
           </SummaryBlock>
         ) : (
           <div className="flex flex-col gap-4 pb-6 pt-1">
-            {data.map(({ c, total, active, live }) => {
+            {shown.map(({ c, total, active, live }) => {
               const color = c.color ?? "#94a3b8";
               const more = live.length - THING_PREVIEW;
               return (
@@ -148,7 +169,7 @@ export default function ObjectsPage() {
         <EmptyState icon={Boxes} title={t("objects.emptyTitle")} description={t("objects.emptyBody")} />
       ) : (
         <div className="flex flex-col gap-4 pb-6 pt-1">
-          {data.map(({ c, total, active }) => {
+          {shown.map(({ c, total, active }) => {
             const color = c.color ?? "#94a3b8";
             return (
               <Link
