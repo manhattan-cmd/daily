@@ -78,14 +78,14 @@ export function DrillLevel({
       compute.isChoice ||
       (!compute.isRate &&
         !compute.scale &&
-        [...by.values()].every((l) => compute.shareOf(l) === 0));
+        [...by.values()].every((l) => compute.aggregate(l) === 0));
     // Mercek rengi — özellik seçiliyse çubuklar onun renginde (bakılan göz
     // her kartta aynı renkle okunur), girdi sayısında kategorinin
     const raw = metric.type !== "count" ? data.rawMods.get(metric.mod.id) : undefined;
     const barColor = !byCount && raw ? modColor(raw) : category.color;
     const rows: ShareRow[] = [...by.entries()].map(([id, list]) => {
-      // Ölçünün kendi okumasıyla — ilk grafiğe bağlı değil (bkz. shareOf)
-      const value = byCount ? list.length : compute.shareOf(list);
+      // Ölçünün okumasıyla — panodaki grafik seçimine bağlı değil
+      const value = byCount ? list.length : compute.aggregate(list);
       const outOf = byCount ? list.length : compute.filledCount(list);
       const sub = data.subById.get(id)!;
       // Kademenin KENDİ doğrudan girdileri (kategori kökü ya da üst kalemin

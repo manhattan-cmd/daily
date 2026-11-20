@@ -267,10 +267,12 @@ describe("kapsam görünümü — aynı özellik, başka kalemde başka okuma", 
     expect(v.reading).toBe("level");
   });
 
-  it("kapsam tercihi özelliğin varsayılanını ezer", () => {
+  it("kapsam tercihi grafiği ezer, ölçünün okumasını değil", () => {
     const v = resolveView("number", { preset: "level" }, { series: "sum" });
     expect(v.series).toBe("sum");
-    expect(v.reading).toBe("flow");
+    expect(v.chart).toBe("bar");
+    // Kilo sütunla çizilse de ortalanır
+    expect(v.reading).toBe("level");
   });
 
   it("aynı özellik iki kapsamda bağımsız okunur", () => {
@@ -322,14 +324,16 @@ describe("kapsam görünümü — aynı özellik, başka kalemde başka okuma", 
     expect(resolveView("number", undefined, { series: "sum" }).charts).toEqual(["bar"]);
   });
 
-  it("grafiğin okuması kovayı belirler: çubuk toplar, çizgi ortalar", () => {
-    expect(resolveView("number", undefined, { charts: ["bar"] }).reading).toBe("flow");
-    expect(resolveView("number", undefined, { charts: ["line"] }).reading).toBe("level");
-    expect(resolveView("number", undefined, { charts: ["cumulative"] }).reading).toBe("flow");
+  it("grafik seçimi okumayı değiştirmez — harcama hep toplanır", () => {
+    // Eskiden ilk grafik Ortalama ya da Tek tek olunca kırılım ve İçgörüler
+    // girdi başına ortalamaya dönüyordu, Toplam kutusuyla çelişiyordu
+    for (const charts of [["bar"], ["line"], ["points"], ["cumulative"], ["line", "bar"]] as const) {
+      expect(resolveView("number", undefined, { charts: [...charts] }).reading).toBe("flow");
+    }
+    expect(resolveView("number", { preset: "level" }, { charts: ["points"] }).reading).toBe("level");
   });
 
-  it("kırılımın okuması ölçünün kendisinden — ilk grafik değiştirmez", () => {
-    // Harcamada ilk grafik çizgi olsa da kırılım toplar (Toplam kutusunu tutar)
+  it("ölçünün okuması: düzey ölçüsü ortalanır, ötekiler toplanır", () => {
     expect(measureReadingOf("number")).toBe("flow");
     expect(measureReadingOf("duration")).toBe("flow");
     // Düzey ölçüsü (kilo) ortalanır

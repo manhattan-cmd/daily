@@ -728,11 +728,14 @@ export const specOf = (kind: ModKindForAnalysis, analysis?: ModAnalysis): Preset
   PRESETS[presetOf(kind, analysis)];
 
 /**
- * Ölçünün KENDİ okuması — panodaki grafikten bağımsız: düzey ölçüsü (kilo)
- * ortalanır, ötekiler toplanır. Bir bütünün payları (alt kategori kırılımı)
- * buna bakar. Eskiden kırılım ilk grafiğin okumasını alıyordu: harcamada ilk
- * grafik çizgi ya da tek tek olunca satırlar kalemin ortalamasını yazıyor,
- * toplamları Toplam kutusunu tutmuyordu.
+ * Ölçünün KENDİ okuması — panodaki grafiklerden bağımsız: düzey ölçüsü
+ * (kilo) ortalanır, ötekiler (harcama, süre) toplanır. Kırılım, İçgörüler ve
+ * gün görünümünün hafta karşılaştırması buna bakar; grafikler kendi
+ * okumalarını kovanın ham toplamından/ortalamasından alır.
+ *
+ * Eskiden okuma ilk grafikten geliyordu: harcamada ilk grafik Ortalama ya da
+ * Tek tek olunca kırılım satırları ve "Öncekine göre" girdi başına ortalamaya
+ * dönüyor ("2.958 puan arttı"), Toplam kutusuyla çelişiyordu.
  */
 export const measureReadingOf = (kind: ModKindForAnalysis, analysis?: ModAnalysis): ModReading =>
   presetOf(kind, analysis) === "level" ? "level" : "flow";
@@ -766,7 +769,7 @@ export type ResolvedView = {
   stats: StatKey[];
   /** Panodaki grafikler, sırasıyla */
   charts: ChartKind[];
-  /** Geriye dönük: ilk grafiğin okuması (kova toplanır mı ortalanır mı) */
+  /** Ölçünün okuması (bkz. measureReadingOf) — grafik seçiminden bağımsız */
   reading: ModReading;
   /** Değerler etiket olarak mı okunuyor (dağılım borusu) */
   asChoice: boolean;
@@ -844,14 +847,6 @@ export const CHARTS_FOR: Record<ModKindForAnalysis, ChartKind[]> = {
   choice: ["distribution", "bar"],
 };
 
-/** Grafiğin kovayı nasıl okuduğu — biri toplar, biri ortalar */
-export const CHART_READING: Record<ChartKind, ModReading> = {
-  bar: "flow",
-  cumulative: "flow",
-  line: "level",
-  points: "level",
-  distribution: "flow",
-};
 
 /**
  * Grafiğin çizileceği bağlam — biçimlerin bir kısmı ölçüye, bir kısmı
@@ -961,7 +956,8 @@ export function resolveView(
   return {
     stats,
     charts,
-    reading: CHART_READING[first] ?? "flow",
+    // Okuma ölçünün kendisinden, ilk grafikten değil (bkz. measureReadingOf)
+    reading: measureReadingOf(kind, modAnalysis),
     asChoice: charts.includes("distribution") || !!base.asChoice,
     series: first === "line" || first === "points" ? "average" : first === "distribution" ? "distribution" : "sum",
     chart: first,

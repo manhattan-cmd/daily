@@ -197,7 +197,6 @@ export function PeriodCategoryPanel({
     const { subById } = data;
     const {
       aggregate,
-      shareOf,
       sumOf,
       averageOf,
       filledCount,
@@ -323,8 +322,8 @@ export function PeriodCategoryPanel({
     }
 
     // Alt kategori kırılımı — iç içe altlar en üst ataya toplanır. Rakam
-    // ölçünün kendi okumasıyla (shareOf): ilk grafik çizgi diye harcama
-    // satırları ortalamaya dönmez, toplamları Toplam kutusunu tutar
+    // ölçünün okumasıyla (aggregate): harcamada satırların toplamı Toplam
+    // kutusunu tutar, panodaki grafik seçimi bunu değiştirmez
     const bySubEntries = new Map<string, Entry[]>();
     for (const e of entries) {
       // Odaklıysak bir kademe altını grupla; değilse kategorinin kök dalları
@@ -335,7 +334,7 @@ export function PeriodCategoryPanel({
       bySubEntries.set(topId, list);
     }
     const shareRows: ShareRow[] = [...bySubEntries.entries()]
-      .map(([id, list]) => ({ id, value: shareOf(list), outOf: filledCount(list) }))
+      .map(([id, list]) => ({ id, value: aggregate(list), outOf: filledCount(list) }))
       .filter((r) => (isRate || scale ? r.outOf > 0 : r.value > 0))
       .map(({ id, value, outOf }) => {
         const s = subById.get(id)!;
