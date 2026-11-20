@@ -58,10 +58,10 @@ const RECENT_LIMIT = 20;
  * Yukarıdan aşağı: Başlarken (yeni kullanıcıyı yapıya, ilk girdiye, hedefe
  * ve yedeğe götüren liste; bitince kalkar), Bugün (sayının neyin sayısı
  * olduğu yazılı, yanında gün sayfasındakiyle aynı genel Ekle — girdi,
- * aktivite, hedef, not, uyku, ruh hali, nesne), Kategorilerin (Bugün'ün eşi:
- * girdilerle dolan kareler, Kategori yarat, yapıya giden kapı), Yine ekle
- * (son 30 günün en sık kalemleri, tek dokunuşla formu açar), son 7 gün ve
- * son girdiler.
+ * aktivite, hedef, not, uyku, ruh hali, nesne), Yine ekle (son 30 günün en
+ * sık kalemleri, tek dokunuşla formu açar), Kategorilerin (Bugün'ün eşi:
+ * girdilerle dolan kareler, Kategori yarat, yapıya giden kapı), son 7 gün,
+ * bugünün planlı girdileri ve son girdiler.
  *
  * Eskiden "8 girdi" yazıyordu ama bugünün mü belli değildi; ekleme düğmesi
  * yalnız girdi açıyordu, uyku ya da hedef için güne gitmek gerekiyordu.
@@ -254,6 +254,16 @@ export default function HomePage() {
             goalsDone={doneGoals}
             onAdd={add.open}
           />
+          {/* Önce en sık eklenenler (tek dokunuşla form), sonra kategoriler */}
+          {home && home.frequent.length > 0 && (
+            <FrequentBlock items={home.frequent} onPick={(sub) => add.openEntry({ presetSub: sub })} />
+          )}
+          {/* Girdilerin gittiği yer, yapıya giden kapı — Bugün'ün eşi */}
+          {home && <CategoriesBlock snapshot={home} onNew={() => setCatFormOpen(true)} />}
+          {/* Hiç girdisi olmayana boş çubuklar bir şey söylemiyor */}
+          {home && home.totalEntries > 0 && week && <BrutWeek week={week} today={today} />}
+          {/* Bugünün planlı girdileri son girdilerin hemen üstünde: biri
+              yapılınca girdisi hemen altındaki listeye düşer */}
           {todayGoals && (
             <SummaryBlock
               className="mb-4"
@@ -271,21 +281,12 @@ export default function HomePage() {
               <div className="bg-white p-3">{todayGoals}</div>
             </SummaryBlock>
           )}
-          {/* Girdilerin gittiği yer, yapıya giden kapı — Bugün'ün eşi */}
-          {home && <CategoriesBlock snapshot={home} onNew={() => setCatFormOpen(true)} />}
-          {home && home.frequent.length > 0 && (
-            <FrequentBlock items={home.frequent} onPick={(sub) => add.openEntry({ presetSub: sub })} />
-          )}
-          {/* Hiç girdisi olmayana boş çubuklar bir şey söylemiyor */}
-          {home && home.totalEntries > 0 && week && <BrutWeek week={week} today={today} />}
         </>
       ) : (
       <>
       <Layer label={t("home.today")}>
       {start}
       {!showStart && <BackupReminder />}
-
-      {todayGoals && <div className="mb-4">{todayGoals}</div>}
 
       {/* Bugün — günün özeti + doğrudan girdi ekleme */}
       <section data-home-today="" className="mb-4 overflow-hidden rounded-2xl border border-border bg-card">
@@ -380,6 +381,8 @@ export default function HomePage() {
         </Layer>
       )}
 
+      {/* Bugünün planlı girdileri — son girdilerin hemen üstünde */}
+      {todayGoals && <div className="mb-4">{todayGoals}</div>}
       </>
       )}
 
