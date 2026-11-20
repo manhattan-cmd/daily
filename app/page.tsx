@@ -848,12 +848,15 @@ const HOME_MENU = "#a9b0ff";
  * Ana sayfanın üst menüsü (Brütal) — uygulamanın başlığı: gün sayfasınınki
  * gibi (bkz. WeekStrip) kenardan kenara şerit, altında tek kalın siyah
  * çizgi; rengi alt menüde Ana Sayfa sekmesinin rengi. Durum çubuğu da aynı
- * renk (bkz. statusBarColor): ekranın tepesinden tek parça. Şeridin
- * üzerinde yalnız iki şey: solda kelime logosu ("logbit", i'nin noktası sarı
- * bit) ve o'nun arkasında onu tutan Kutu maskotu — logo karosu yok, logo
- * yazının kendisi; sağda alt menünün sekmeleri gibi sönük Ayarlar simgesi.
- * Yapışkan. Maskotun yüzü yazının üstüne çıktığı için şerit 80 px ve yazı
- * tabana yaslı.
+ * renk (bkz. statusBarColor): ekranın tepesinden tek parça. Solda kelime
+ * logosu ("logbit", i'nin noktası sarı bit) ve o'nun arkasında onu tutan
+ * Kutu maskotu — logo karosu yok, logo yazının kendisi; sağda iki beyaz
+ * yuvarlak brütal düğme: Ara ve Ayarlar. Yapışkan. Maskotun yüzü yazının
+ * üstüne çıktığı için şerit 80 px ve yazı tabana yaslı.
+ *
+ * Düğmeler 2026-11-20 galerisinden (V2, Instagram / WhatsApp kalıbı: solda
+ * ad, sağda eylemler). Eskiden sağda yalnız sönük bir dişli vardı; arama da
+ * sayfanın en altında, Son girdiler bloğunun köşesindeydi.
  *
  * Ad ve logo belli olunca (Logbit) beyaz kapsül kalktı: içi arama kutusu
  * gibi okunuyordu; marka artık şeridin kendisinde.
@@ -872,6 +875,10 @@ const HOME_MENU = "#a9b0ff";
  */
 function HomeMenu() {
   const t = useT();
+  // Beyaz yuvarlak brütal düğme. Çerçeve rengi satır içi: katmansız
+  // "* { border-color }" kuralı sınıfı eziyor (bkz. StructureTabs)
+  const btn =
+    "flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full border-2 bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none";
   return (
     <header
       data-home-nav=""
@@ -879,19 +886,32 @@ function HomeMenu() {
       className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]"
       style={{ background: HOME_MENU }}
     >
-      <div data-home-brand="" className="flex h-[80px] items-end gap-3 pb-[13px] pl-4 pr-2">
+      <div data-home-brand="" className="flex h-[80px] items-end gap-2.5 pb-[13px] pl-4 pr-3.5">
         <h1 className="min-w-0 flex-1">
           <LogbitWordmark mascot className="text-[34px]" />
         </h1>
-        <Link
-          href="/settings"
-          prefetch={false}
-          aria-label={t("nav.settings")}
-          title={t("nav.settings")}
-          className="flex h-10 w-10 shrink-0 items-center justify-center self-center rounded-full text-[#111]/65 active:bg-[#111]/10 active:text-[#111]"
-        >
-          <Settings className="h-[22px] w-[22px]" strokeWidth={2.25} />
-        </Link>
+        <div className="flex shrink-0 items-center gap-2.5 self-center">
+          <Link
+            href="/search"
+            prefetch={false}
+            aria-label={t("search.title")}
+            title={t("search.title")}
+            className={btn}
+            style={{ borderColor: "#111" }}
+          >
+            <Search className="h-[19px] w-[19px]" strokeWidth={2.8} />
+          </Link>
+          <Link
+            href="/settings"
+            prefetch={false}
+            aria-label={t("nav.settings")}
+            title={t("nav.settings")}
+            className={btn}
+            style={{ borderColor: "#111" }}
+          >
+            <Settings className="h-[19px] w-[19px]" strokeWidth={2.5} />
+          </Link>
+        </div>
       </div>
     </header>
   );
