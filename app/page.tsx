@@ -852,7 +852,11 @@ const HOME_MENU = "#a9b0ff";
  * logosu ("logbit", i'nin noktası sarı bit) ve o'nun arkasında onu tutan
  * Kutu maskotu — logo karosu yok, logo yazının kendisi; sağda iki beyaz
  * yuvarlak brütal düğme: Ara ve Ayarlar. Yapışkan. Maskotun yüzü yazının
- * üstüne çıktığı için şerit 80 px ve yazı tabana yaslı.
+ * üstüne çıktığı için yazı tabana yaslı; şerit 68 px: maskotun tepesinden
+ * ve g'nin kuyruğundan bantın kenarına ~11 px. Düğmeler harflerle aynı
+ * hizada: ortaları harflerin ortasında (tabandan l, b, t'nin tepesine).
+ * Eskiden şerit 80 px'ti ve düğmeler bantta ortalıydı — harflerden 7 px
+ * yukarıda.
  *
  * Düğmeler 2026-11-20 galerisinden (V2, Instagram / WhatsApp kalıbı: solda
  * ad, sağda eylemler). Eskiden sağda yalnız sönük bir dişli vardı; arama da
@@ -886,11 +890,13 @@ function HomeMenu() {
       className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]"
       style={{ background: HOME_MENU }}
     >
-      <div data-home-brand="" className="flex h-[80px] items-end gap-2.5 pb-[13px] pl-4 pr-3.5">
+      <div data-home-brand="" className="flex h-[68px] items-end gap-2.5 pb-[6px] pl-4 pr-3.5">
         <h1 className="min-w-0 flex-1">
           <LogbitWordmark mascot className="text-[34px]" />
         </h1>
-        <div className="flex shrink-0 items-center gap-2.5 self-center">
+        {/* Taban h1'in altından 14 px yukarıda; 7.5 px pay düğmenin ortasını
+            harflerin ortasına (tabandan 12.5 px yukarı) getirir */}
+        <div className="mb-[7.5px] flex shrink-0 items-center gap-2.5">
           <Link
             href="/search"
             prefetch={false}
