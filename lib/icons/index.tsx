@@ -6,7 +6,13 @@ export { ICON_GROUPS, ICON_NAMES, isIconName } from "./vocabulary";
 export type { IconGroupKey, IconName } from "./vocabulary";
 export { ICON_SETS, ACTIVE_SET_ID, activeSet } from "./sets";
 
-/** Sözlükteki tek sembol — etkin setin çiziminden. Renk currentColor'dan gelir. */
+/**
+ * Sözlükteki tek sembol — etkin setin çiziminden. Renk currentColor'dan gelir.
+ *
+ * Çizim kutunun ortasına oturur: viewBox, ölçülmüş kaçıklık kadar kayar (bkz.
+ * IconSet.centers). Elle yerleştirilen çizimlerin yarısı kaçıktı; karolarda
+ * (Sık ekledikleriniz, seçici) kimi sembol ortada, kimi kenarda duruyordu.
+ */
 export function LifeIcon({
   name,
   className,
@@ -16,11 +22,13 @@ export function LifeIcon({
   className?: string;
   style?: React.CSSProperties;
 }) {
-  const glyph = activeSet().glyphs[name];
+  const set = activeSet();
+  const glyph = set.glyphs[name];
   if (!glyph) return null;
+  const [dx, dy] = set.centers?.[name] ?? [0, 0];
   return (
     <svg
-      viewBox="0 0 24 24"
+      viewBox={`${dx} ${dy} 24 24`}
       fill="currentColor"
       className={className}
       style={style}

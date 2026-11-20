@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { IconName } from "../vocabulary";
 import { SET_1 } from "./set-1";
+import { SET_1_CENTERS } from "./set-1-centers";
 
 /**
  * Sembol setleri.
@@ -15,10 +16,15 @@ export type IconSet = {
   /** Ayarlarda görünecek ad */
   label: string;
   glyphs: Record<IconName, ReactNode>;
+  /**
+   * Çizimin 24×24 kutunun ortasından kaçıklığı ([x, y] birim) — ölçülür,
+   * elle yazılmaz (bkz. scripts/icon-centers.mjs). LifeIcon bununla ortalar.
+   */
+  centers?: Partial<Record<IconName, readonly [number, number]>>;
 };
 
 export const ICON_SETS: Record<string, IconSet> = {
-  "set-1": { id: "set-1", label: "Set 1", glyphs: SET_1 },
+  "set-1": { id: "set-1", label: "Set 1", glyphs: SET_1, centers: SET_1_CENTERS },
 };
 
 /** Şu an çizilen set. İkinci bir set yazıldığında burası (ya da bir kullanıcı

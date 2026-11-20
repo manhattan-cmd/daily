@@ -517,7 +517,10 @@ function FrequentBlock({ items, onPick }: { items: FrequentItem[]; onPick: (sub:
               )}
             >
               <span className="h-1.5 shrink-0" style={{ background: it.category.color }} />
-              <span className="flex min-w-0 items-center gap-2 px-2.5 py-2">
+              {/* flex-1: hücre sıradaki komşusu kadar uzar (adı iki satır
+                  olan); içerik onun ortasında — eskiden tepeye yapışıyor,
+                  aynı sırada sembolün biri yukarıda biri aşağıda kalıyordu */}
+              <span className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-2">
                 <span
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111]"
                   style={{ background: it.category.color }}
