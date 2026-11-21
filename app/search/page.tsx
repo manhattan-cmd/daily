@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Search, X } from "lucide-react";
@@ -72,6 +72,19 @@ function initialPeriod(key: string | null): Period | null {
   return p && p.kind !== "all" && p.kind !== "custom" ? p : null;
 }
 
+/**
+ * Sonuçtan gün sayfasına giderken kaydırma yeri ve açık kart sayısı ("Daha
+ * fazla göster" ile açılanlar) — aramanın adres anahtarıyla. Geri gelince
+ * liste o kadar kartla kurulur, sonra kaydedilen yere kaydırılır; yalnız
+ * kaydırma yetmez, 30 kartlık liste 60. karta kadar inmez.
+ *
+ * Bellekte (modül düzeyi): uygulama açıkken geri tuşu için. Kaydırma ana
+ * kapta (bkz. app-shell, data-app-main), pencerede değil; tarayıcının kendi
+ * geri yüklemesi orada işlemiyor.
+ */
+const scrollMemory = new Map<string, { top: number; visible: number }>();
+const appMain = () => document.querySelector<HTMLElement>("[data-app-main]");
+
 function SearchPageContent() {
   const t = useT();
   const brutal = useSkin() === "brutal";
@@ -84,16 +97,28 @@ function SearchPageContent() {
   const [kind, setKind] = useState<TimeKind>(() => (period ? (period.kind as TimeKind) : "all"));
   const locale = useLocale();
 
-  // Durum → adres (bkz. üstteki not). Next'in kendi geçmiş kaydı korunur
-  useEffect(() => {
+  // Aramanın adres sorgusu — adrese yazılır, kaydırma hafızasının da anahtarı
+  const urlKey = useMemo(() => {
     const p = new URLSearchParams();
     if (query) p.set("q", query);
     if (categoryId) p.set("cat", categoryId);
     if (period) p.set("t", period.key);
-    const s = p.toString();
-    if (s === window.location.search.slice(1)) return;
-    window.history.replaceState(window.history.state, "", `${window.location.pathname}${s ? `?${s}` : ""}`);
+    return p.toString();
   }, [query, categoryId, period]);
+
+  // Durum → adres (bkz. üstteki not). Next'in kendi geçmiş kaydı korunur
+  useEffect(() => {
+    if (urlKey === window.location.search.slice(1)) return;
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${urlKey ? `?${urlKey}` : ""}`);
+  }, [urlKey]);
+
+  // Gün sayfasından geri gelindiyse kaldığı yer (bkz. scrollMemory) —
+  // açılıştaki aramanın, bir kez
+  const [restore] = useState(() => scrollMemory.get(urlKey) ?? null);
+  const restored = useRef(false);
+  function rememberScroll(visible: number) {
+    scrollMemory.set(urlKey, { top: appMain()?.scrollTop ?? 0, visible });
+  }
   function pickKind(k: TimeKind) {
     setKind(k);
     const now = Date.now();
@@ -129,6 +154,17 @@ function SearchPageContent() {
   );
 
   const searching = !!(trimmed || categoryId);
+
+  // Sonuçlar çizilince kaldığı yere — sonuçlar veritabanından sonra geliyor,
+  // ilk çizimde liste yok; kare sonrası: kartlar yerleşsin
+  useEffect(() => {
+    if (!restore || restored.current || !results?.length) return;
+    const id = requestAnimationFrame(() => {
+      restored.current = true;
+      appMain()?.scrollTo({ top: restore.top });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [restore, results]);
 
   /*
    * Brütal: üst menü şerit (bkz. SubPageMenu) — ortada "Ara" ve altında
@@ -203,6 +239,8 @@ function SearchPageContent() {
               key={`${trimmed}|${categoryId}|${period?.key ?? "all"}`}
               entries={results}
               hint={[timeLabel, catLabel].filter(Boolean).join(" · ")}
+              initialVisible={restore?.visible}
+              onOpenDay={rememberScroll}
             />
             {results.length >= LIMIT && (
               <p className="-mt-2 px-1 text-[11px] font-bold text-[#111]/55">

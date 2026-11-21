@@ -295,10 +295,22 @@ export function SearchNoResults({ onWiden }: { onWiden?: () => void }) {
  * "Harcamalar · Kira"; renk ve simge yoktu, girdiler uygulamanın geri
  * kalanındaki gibi görünmüyordu. Başı da 170 px'lik iri bir sayıydı.
  */
-export function SearchResults({ entries, hint }: { entries: EntryWithContext[]; hint?: string }) {
+export function SearchResults({
+  entries,
+  hint,
+  initialVisible,
+  onOpenDay,
+}: {
+  entries: EntryWithContext[];
+  hint?: string;
+  /** Geri gelindiğinde açık kart sayısı (bkz. app/search scrollMemory) */
+  initialVisible?: number;
+  /** Tarihe dokununca, gün sayfasına geçmeden — açık kart sayısıyla */
+  onOpenDay?: (visible: number) => void;
+}) {
   const t = useT();
   const tag = intlTag(useLocale());
-  const [visible, setVisible] = useState(PAGE_SIZE);
+  const [visible, setVisible] = useState(() => Math.max(PAGE_SIZE, initialVisible ?? 0));
   const shown = entries.slice(0, visible);
   const remaining = entries.length - shown.length;
 
@@ -349,13 +361,15 @@ export function SearchResults({ entries, hint }: { entries: EntryWithContext[]; 
       {/* Tarih satırı gün sayfasına gider (bkz. routes.day): o günün
           bütününe — öbür girdilerine, uykusuna, notlarına — bakmak için.
           Dokunma alanı satırın tamamı (etiket tek başına 22 px, parmağa
-          küçük). Geri dönünce arama yerinde: sorgu adreste (bkz. app/search) */}
+          küçük). Geri dönünce arama yerinde: sorgu adreste, kaydırma yeri
+          ve açık kart sayısı bellekte (bkz. app/search) */}
       {days.map((d) => (
         <section key={d.key} aria-label={dayLabel(d.key)} className="flex flex-col gap-2 bg-white px-2.5 pb-2.5 pt-2 text-[#111]">
           <Link
             href={routes.day(d.key)}
             prefetch={false}
             data-search-day={d.key}
+            onClick={() => onOpenDay?.(visible)}
             aria-label={t("search.openDay", { day: dayLabel(d.key) })}
             className="-mx-1.5 -my-1 flex items-center gap-2 rounded-[12px] px-1.5 py-1 active:bg-[#111]/[0.06]"
           >
