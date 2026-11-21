@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ShieldAlert, ArrowRight, X } from "lucide-react";
+import { ShieldAlert, ArrowRight, Download, X } from "lucide-react";
 import { db } from "@/lib/db";
 import {
   agoLabel,
@@ -11,6 +11,8 @@ import {
   useLastBackupAt,
 } from "@/lib/storage-health";
 import { useT } from "@/lib/i18n";
+import { useSkin } from "@/lib/skin";
+import { SummaryBlock } from "@/components/ui/summary-block";
 
 /**
  * Yedek hatırlatıcısı — ana sayfada, yalnızca kaybedilecek bir şey varken.
@@ -24,9 +26,38 @@ export function BackupReminder() {
   // Kaybedilecek bir şey yoksa hatırlatma anlamsız
   const entryCount = useLiveQuery(() => db.entries.count(), []);
   const noteCount = useLiveQuery(() => db.notes.count(), []);
+  const brutal = useSkin() === "brutal";
 
   const worthProtecting = (entryCount ?? 0) + (noteCount ?? 0) >= 5;
   if (state === "hidden" || !worthProtecting) return null;
+
+  const title =
+    state === "never" || lastBackupAt === null
+      ? t("backup.reminder.never")
+      : t("backup.reminder.stale", { when: agoLabel(lastBackupAt) });
+
+  // Brütal: ana sayfanın öbür blokları gibi (bkz. SummaryBlock) — mercan
+  // başta "Veri ve Yedek · Verinin yedeği yok" ve açıklama, köşede kapat;
+  // altta Ayarlar'daki Veri ve Yedek bloğunun şeftalisinde Yedek al bandı.
+  // Eskiden sarımsı çerçeveli düz bir karttı, blokların arasında sade
+  // temaların dilinde kalmıştı
+  if (brutal) {
+    return (
+      <SummaryBlock
+        className="animate-in mb-4"
+        lead={{
+          kind: "title",
+          color: "#ff8a7a",
+          overline: t("settings.dataSection"),
+          title,
+          hint: t("backup.reminder.body"),
+          close: { label: t("backup.reminder.dismiss"), onClick: snoozeBackupReminder },
+        }}
+        stats={[]}
+        link={{ href: "/settings", label: t("backup.reminder.action"), color: "#ffb38a", icon: Download }}
+      />
+    );
+  }
 
   return (
     <div className="animate-in mb-4 flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.07] p-3.5">
@@ -41,7 +72,7 @@ export function BackupReminder() {
           {t("backup.reminder.body")}
         </p>
         <Link
-          href="/structure/backup"
+          href="/settings"
           className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-amber-400 transition-opacity hover:opacity-80"
         >
           {t("backup.reminder.action")}

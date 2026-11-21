@@ -211,13 +211,18 @@ export function SummaryEmpty({
   );
 }
 
+/**
+ * z-10 şart: baştaki soluk üst yazı (opacity 0.6) kendi yığın bağlamını
+ * kuruyor ve DOM'da düğmeden sonra geldiği için üstüne çiziliyordu —
+ * dokunuşu yazı alıyor, kapat çalışmıyordu (Başlarken, örnek notu, yedek)
+ */
 function CloseButton({ close }: { close: { label: string; onClick: () => void } }) {
   return (
     <button
       type="button"
       onClick={close.onClick}
       aria-label={close.label}
-      className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-lg active:bg-[#111]/10"
+      className="absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-lg active:bg-[#111]/10"
     >
       <X className="h-4 w-4" strokeWidth={2.75} />
     </button>
