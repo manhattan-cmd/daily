@@ -1,8 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type HTMLAttributes, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronLeft, ChevronRight, type LucideIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, type LucideIcon } from "lucide-react";
 import { periodLabel, shiftPeriod, type Period } from "@/lib/period";
 import { routes } from "@/lib/routes";
 import { useLocale, useT, type MessageKey } from "@/lib/i18n";
@@ -20,16 +20,19 @@ const PERIOD_TINT = "#e4e9ff";
 const nowMs = () => Date.now();
 
 /** Şeridin ortak kabuğu — kenardan kenara Analiz mavisi, altında kalın çizgi */
-function Band({ sticky = false, children }: { sticky?: boolean; children: ReactNode }) {
+function Band({
+  sticky = false,
+  className,
+  children,
+  ...rest
+}: { sticky?: boolean; children: ReactNode } & HTMLAttributes<HTMLElement>) {
   return (
     <header
       data-an-nav=""
       // -mx-4: main'in kenar payını aşıp kenardan kenara (alt menü gibi)
-      className={
-        (sticky ? "sticky top-0 z-30 " : "relative ") +
-        "-mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]"
-      }
+      className={cn(sticky ? "sticky top-0 z-30" : "relative", "-mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]", className)}
       style={{ background: ANALYSIS_COLOR }}
+      {...rest}
     >
       {children}
     </header>
@@ -46,6 +49,9 @@ export function AnalysisMenu({ title }: { title: string }) {
     </Band>
   );
 }
+
+/** Kaydırarak aç/kapa için en kısa dikey yol (px) */
+const SWIPE_PX = 28;
 
 /** Daraltılmış mı — cihazda hatırlanır (bkz. useLocalPref) */
 const DECK_KEY = "routine:analysisDeckSmall";
@@ -72,10 +78,15 @@ const KIND_LABEL: Record<Period["kind"], MessageKey> = {
  *     gelecekteki döneme gitmez.
  *  3. Yer · Özellik — iki hücre (bkz. ScopePickers).
  *
- * Küçültülebilir: şeridin altından sarkan tutamak bloğu boyuna kapatıp
- * açar. Küçükken yalnız dönem satırı kalır — oklar yerinde, ortada dönemin
- * adı ve altında neye bakıldığı ("Hafta · Harcamalar · Para"); ortaya
- * dokunmak da açar. Seçim cihazda hatırlanır. Satırlar kayarak kapanır.
+ * Küçültülebilir: şeritte yukarı kaydırmak küçültür, aşağı kaydırmak
+ * büyütür; bloğun altındaki tutma çubuğuna dokunmak da. Küçükken yalnız
+ * dönem satırı kalır — oklar yerinde, ortada dönemin adı ve altında neye
+ * bakıldığı ("Hafta · Harcamalar · Para"); ortaya dokunmak da açar. Seçim
+ * cihazda hatırlanır. Satırlar kayarak kapanır. Tutamak önce şeridin alt
+ * çizgisinden sarkan oklu bir dildi — kullanıcıya göre fazla çıkıntılıydı.
+ *
+ * Şeritte sayfa kaydırılmaz (touch-action: none): parmak orada çekmeceyi
+ * tutar. Kaydırma bitince parmağın altındaki düğme basılmış sayılmaz.
  *
  * Analizlerde aşağı inerken ekranın üstünde kalır; altındaki beyaz zeminde
  * yalnız analizler. Bölümün adı yazmıyor — alt menü ve bloğun kendisi
@@ -121,6 +132,47 @@ export function AnalysisDeck({
   // Tamamen gelecekte kalan döneme gidilmez; "Tümü"nün yönü yok
   const nextDisabled = !next || next.start > nowMs();
   const toggle = () => setLocalPref(DECK_KEY, !small);
+
+  // Kaydırarak aç/kapa — şeritte basılan yerden bırakılan yere dikey yol.
+  // Bırakma şeridin dışında da olabilir: pencereden dinlenir (yakalama
+  // değil — yakalama, içteki düğmelerin tıklamasını şeride çalardı)
+  const drag = useRef<{ y: number; x: number; id: number } | null>(null);
+  const swiped = useRef(false);
+  const end = useRef<((e: PointerEvent) => void) | null>(null);
+  useEffect(() => () => {
+    if (end.current) {
+      window.removeEventListener("pointerup", end.current);
+      window.removeEventListener("pointercancel", end.current);
+    }
+  }, []);
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    drag.current = { y: e.clientY, x: e.clientX, id: e.pointerId };
+    swiped.current = false;
+    const finish = (ev: PointerEvent) => {
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+      end.current = null;
+      const d = drag.current;
+      drag.current = null;
+      if (!d || ev.pointerId !== d.id || ev.type === "pointercancel") return;
+      const dy = ev.clientY - d.y;
+      // Dikey ve yeterince uzun: yan kaydırma ya da titrek dokunuş sayılmaz
+      if (Math.abs(dy) < SWIPE_PX || Math.abs(dy) < Math.abs(ev.clientX - d.x) * 1.5) return;
+      swiped.current = true;
+      setLocalPref(DECK_KEY, dy < 0);
+    };
+    end.current = finish;
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
+  };
+  // Kaydırmanın sonunda gelen tıklama yutulur (bırakılan yerdeki düğme basılmasın)
+  const onClickCapture = (e: React.MouseEvent) => {
+    if (!swiped.current) return;
+    swiped.current = false;
+    e.preventDefault();
+    e.stopPropagation();
+  };
   const summary = [t(KIND_LABEL[period.kind]), scope].filter(Boolean).join(" · ");
 
   const label = (
@@ -131,9 +183,9 @@ export function AnalysisDeck({
   );
 
   return (
-    <Band sticky>
+    <Band sticky className="touch-none select-none" onPointerDown={onPointerDown} onClickCapture={onClickCapture}>
       <h1 className="sr-only">{t("nav.insights")}</h1>
-      <div className="px-2.5 pb-3 pt-2.5">
+      <div className="px-2.5 pt-2.5">
         <section
           data-an-deck=""
           data-small={small ? "" : undefined}
@@ -161,7 +213,8 @@ export function AnalysisDeck({
           </Fold>
         </section>
       </div>
-      {/* Tutamak — şeridin alt çizgisinden sarkan dil; bloğu boyuna kapatıp açar */}
+      {/* Tutma çubuğu — şeridin içinde, bloğun altında; dokununca da açar/kapar.
+          Dokunma alanı çubuktan geniş (64×18 px) */}
       <button
         type="button"
         onClick={toggle}
@@ -169,10 +222,9 @@ export function AnalysisDeck({
         aria-label={small ? t("an.deck.expand") : t("an.deck.collapse")}
         title={small ? t("an.deck.expand") : t("an.deck.collapse")}
         data-an-deck-toggle=""
-        className="absolute left-1/2 top-full z-10 flex h-[22px] w-[52px] -translate-x-1/2 -translate-y-[3px] items-center justify-center rounded-b-[12px] border-[3px] border-t-0 border-[#111] text-[#111] active:brightness-95"
-        style={{ background: ANALYSIS_COLOR }}
+        className="group mx-auto flex h-[18px] w-16 items-center justify-center"
       >
-        <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", !small && "rotate-180")} strokeWidth={3} />
+        <span className="h-[5px] w-9 rounded-full bg-[#111]/35 transition-colors group-active:bg-[#111]/60" />
       </button>
     </Band>
   );
