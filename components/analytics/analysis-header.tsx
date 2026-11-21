@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useRef, type HTMLAttributes, type ReactNode } from "react";
+import { useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, type LucideIcon } from "lucide-react";
 import { periodLabel, shiftPeriod, type Period } from "@/lib/period";
 import { routes } from "@/lib/routes";
 import { useLocale, useT, type MessageKey } from "@/lib/i18n";
-import { setLocalPref, useLocalPref } from "@/lib/local-flag";
 import { cn } from "@/lib/utils";
 import { PeriodTabs } from "./period-switcher";
 
@@ -53,8 +52,6 @@ export function AnalysisMenu({ title }: { title: string }) {
 /** Kaydırarak aç/kapa için en kısa dikey yol (px) */
 const SWIPE_PX = 28;
 
-/** Daraltılmış mı — cihazda hatırlanır (bkz. useLocalPref) */
-const DECK_KEY = "routine:analysisDeckSmall";
 
 /** Dönem türünün adı — daraltılmış başın özetinde */
 const KIND_LABEL: Record<Period["kind"], MessageKey> = {
@@ -81,8 +78,8 @@ const KIND_LABEL: Record<Period["kind"], MessageKey> = {
  * Küçültülebilir: şeritte yukarı kaydırmak küçültür, aşağı kaydırmak
  * büyütür; bloğun altındaki tutma çubuğuna dokunmak da. Küçükken yalnız
  * dönem satırı kalır — oklar yerinde, ortada dönemin adı ve altında neye
- * bakıldığı ("Hafta · Harcamalar · Para"); ortaya dokunmak da açar. Seçim
- * cihazda hatırlanır. Satırlar kayarak kapanır. Tutamak önce şeridin alt
+ * bakıldığı ("Hafta · Harcamalar · Para"); ortaya dokunmak da açar. Analiz
+ * her açılışta açık başlar. Satırlar kayarak kapanır. Tutamak önce şeridin alt
  * çizgisinden sarkan oklu bir dildi — kullanıcıya göre fazla çıkıntılıydı.
  *
  * Şeritte sayfa kaydırılmaz (touch-action: none): parmak orada çekmeceyi
@@ -121,7 +118,9 @@ export function AnalysisDeck({
   // Etiket bu dille — period.label sunucuyla tutmuyordu (bkz. periodLabel)
   const locale = useLocale();
   const router = useRouter();
-  const small = useLocalPref(DECK_KEY);
+  // Hep açık başlar; küçültmek yalnız bu ziyaret için. Bir ara cihazda
+  // hatırlanıyordu — kullanıcı her açılışta açık görmek istedi
+  const [small, setSmall] = useState(false);
   const go = (p: Period | null) => {
     if (!p) return;
     if (onPick) onPick(p);
@@ -131,7 +130,7 @@ export function AnalysisDeck({
   const next = shiftPeriod(period, 1);
   // Tamamen gelecekte kalan döneme gidilmez; "Tümü"nün yönü yok
   const nextDisabled = !next || next.start > nowMs();
-  const toggle = () => setLocalPref(DECK_KEY, !small);
+  const toggle = () => setSmall((v) => !v);
 
   // Kaydırarak aç/kapa — şeritte basılan yerden bırakılan yere dikey yol.
   // Bırakma şeridin dışında da olabilir: pencereden dinlenir (yakalama
@@ -160,7 +159,7 @@ export function AnalysisDeck({
       // Dikey ve yeterince uzun: yan kaydırma ya da titrek dokunuş sayılmaz
       if (Math.abs(dy) < SWIPE_PX || Math.abs(dy) < Math.abs(ev.clientX - d.x) * 1.5) return;
       swiped.current = true;
-      setLocalPref(DECK_KEY, dy < 0);
+      setSmall(dy < 0);
     };
     end.current = finish;
     window.addEventListener("pointerup", finish);
