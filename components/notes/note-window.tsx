@@ -78,10 +78,12 @@ function NoteWindowBody({
     };
   }, [embedded]);
 
-  // Yeni (boş) not doğrudan yazmaya açılır
+  // Yeni (boş) not doğrudan yazmaya açılır. Ekle ekranının sekmesinde
+  // (embedded) değil: sekmeye geçer geçmez klavye açılıp ekranı kapatıyordu,
+  // kullanıcı istemedi — yazı alanına dokununca açılıyor
   const isEmpty = !!d.loaded && !d.title && !d.body;
   useEffect(() => {
-    if (isEmpty) bodyRef.current?.focus();
+    if (isEmpty && !embedded) bodyRef.current?.focus();
     // yalnız yüklendiği an
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [d.loaded]);
