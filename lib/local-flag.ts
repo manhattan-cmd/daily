@@ -36,6 +36,36 @@ export function setLocalFlag(key: string, value = true): void {
   notify(key);
 }
 
+/**
+ * Tercih bayrağı (ör. Analiz'in üst bölümü daraltılmış mı) — sunucuda ve
+ * depolama açılamazsa `fallback`. useLocalFlag'den farkı: o "görüldü"
+ * bayrağı, sunucuda hep true; burada varsayılan çağıranın.
+ */
+export function useLocalPref(key: string, fallback = false): boolean {
+  return useSyncExternalStore(
+    subscribeTo(key),
+    () => {
+      try {
+        const v = window.localStorage.getItem(key);
+        return v === null ? fallback : v === "1";
+      } catch {
+        return fallback;
+      }
+    },
+    () => fallback
+  );
+}
+
+/** Tercihi yaz — depolama kapalıysa sessizce geçer, dinleyenler yine güncellenir */
+export function setLocalPref(key: string, value: boolean): void {
+  try {
+    window.localStorage.setItem(key, value ? "1" : "0");
+  } catch {
+    // Gizli pencere ya da kapalı depolama — tercih bu oturumda tutulmaz
+  }
+  notify(key);
+}
+
 /** [bayrak, işaretle] — sunucuda hep true sayılır (yanıp sönmeyi önler) */
 export function useLocalFlag(key: string): [boolean, () => void] {
   const value = useSyncExternalStore(

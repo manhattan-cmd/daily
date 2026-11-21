@@ -1,5 +1,6 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import type { Period } from "@/lib/period";
@@ -47,7 +48,17 @@ export async function loadPeriodData(period: Period): Promise<PeriodData> {
   return { periodKey: period.key, period, cats, subs, entries };
 }
 
+/** Değişmeyen abonelik — yalnız hydration ile sonrasını ayırmak için */
+const noSubscribe = () => () => {};
+
 export function usePeriodData(period: Period): PeriodData | undefined {
+  // Hydration sırasında önbellek yok sayılır: sunucu veriyi bilmiyor, iskelet
+  // çiziyor. Uygulama kabuğu bu haftayı arka planda önbelleğe alıyor
+  // (prefetchPeriod); sayfa ondan sonra hydrate olunca tarayıcı ilk çizimde
+  // tam sayfayı çizip "Hydration failed" veriyordu. Hydration biter bitmez
+  // (bir sonraki çizim) önbellek kullanılır; sayfa içi gezintide hiç
+  // beklemeden.
+  const hydrated = useSyncExternalStore(noSubscribe, () => true, () => false);
   const live = useLiveQuery(
     async () => {
       const v = await loadPeriodData(period);
@@ -56,9 +67,10 @@ export function usePeriodData(period: Period): PeriodData | undefined {
     },
     // period her çizimde yeni nesne olabilir; kimliği anahtar
     [period.key],
-    cache.get(period.key)
+    hydrated ? cache.get(period.key) : undefined
   );
   if (live?.periodKey === period.key) return live;
+  if (!hydrated) return live;
   // Yeni dönemin canlı sonucu henüz yok: önbellekteyse o, değilse önceki
   // dönemin verisi (kendi dönemiyle birlikte — görünüm tutarlı kalır)
   return cache.get(period.key) ?? live;

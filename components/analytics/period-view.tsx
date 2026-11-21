@@ -404,6 +404,18 @@ export function PeriodView({
       ? metricSel.id
       : carried?.metricId ?? "count"
     : "count";
+  // Küçültülmüş üst bölümün özeti — neye bakılıyor: yer ve özellik (bkz.
+  // AnalysisDeck). Yerleşiklerin (uyku, ruh hali) adı kayıtta İngilizce,
+  // çevrilir; ruh halinin özellik adları da öyle, onda özellik yazılmaz
+  const metricMod = useLiveQuery(() => (metricId !== "count" ? db.mods.get(metricId) : undefined), [metricId]);
+  const placeName = selectedCat
+    ? path.length
+      ? path[path.length - 1].name
+      : selectedCat.isBuiltIn
+        ? t(selectedCat.builtInKey === "mood" ? "mood.title" : "sleep.title")
+        : selectedCat.name
+    : t("structure.categories");
+  const deckScope = [placeName, selectedCat?.builtInKey !== "mood" ? metricMod?.name : undefined].filter(Boolean).join(" · ");
   /** Seçim değişince içerik baştan değişir — sayfa başına, kaydırma animasyonu yok */
   const toTop = () => {
     const main = document.querySelector("main");
@@ -609,6 +621,7 @@ export function PeriodView({
           /* Üst bölüm — dönem türü, dönem, Yer · Özellik tek blokta; yapışkan (bkz. AnalysisDeck) */
           <AnalysisDeck
             period={period}
+            scope={deckScope}
             sub={[
               `${fmt(entryCount)} ${t("home.entries")}`,
               showProgress && t("period.progress", { n: progress.elapsedDays, total: progress.totalDays }),
