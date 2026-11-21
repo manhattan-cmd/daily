@@ -259,7 +259,10 @@ export function CalendarDayPage({
   // Brütal başlığın sayıları
   // Sayılar eylemleri sayar; nesne girdileri (durum) analizde görünmez
   const actionEntries = otherEntries.filter((e) => e.category.builtInKey !== "objects");
-  const dayCategories = [...new Map(actionEntries.map((e) => [e.category.id, e.category])).values()];
+  // Kategori sayısı ve Gün Analizi şeridi uyku ile ruh halini de kapsar
+  // (ana sayfanın Günü aç şeridi gibi, bkz. loadHomeSnapshot)
+  const coloredEntries = [...actionEntries, ...sleepEntries, ...moodEntries];
+  const dayCategories = [...new Map(coloredEntries.map((e) => [e.category.id, e.category])).values()];
   const goalsDone = (goals ?? []).filter((o) => o.entry).length;
   // Bildirimden gelinen an. Bağlantıda an yoksa (eski bildirim) planın ilk
   // bekleyen anı, o da yoksa ilki
@@ -548,8 +551,8 @@ export function CalendarDayPage({
             bars: dayCategories.map((c) => ({
               key: c.id,
               color: c.color,
-              title: c.name,
-              weight: otherEntries.filter((e) => e.category.id === c.id).length,
+              title: c.builtInKey === "mood" ? t("mood.title") : c.isBuiltIn ? t("sleep.title") : c.name,
+              weight: coloredEntries.filter((e) => e.category.id === c.id).length,
             })),
           }}
         />

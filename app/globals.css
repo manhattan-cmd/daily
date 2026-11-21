@@ -795,7 +795,7 @@ input[type="number"] {
    koyulaşır (yazı büyüyüp komşularını itmesin) */
 :root[data-skin="brutal"] [data-bottom-nav] a { --nav-c: #ffd23f; }
 :root[data-skin="brutal"] [data-bottom-nav] a[href="/"] { --nav-c: #a9b0ff; }
-:root[data-skin="brutal"] [data-bottom-nav] a[href="/calendar"] { --nav-c: #7ae582; }
+:root[data-skin="brutal"] [data-bottom-nav] a[href="/calendar"] { --nav-c: #ffa94d; }
 :root[data-skin="brutal"] [data-bottom-nav] a[href="/analytics"] { --nav-c: #8ea6ff; }
 :root[data-skin="brutal"] [data-bottom-nav] a > svg {
   box-sizing: content-box; width: 18px; height: 18px; padding: 2px 10px; border-radius: 999px;
@@ -1266,7 +1266,7 @@ input[type="number"] {
    bandin renginde harf.  */
 :root[data-skin="brutal"] .yapi-band { --band-c: #ffd23f; }
 :root[data-skin="brutal"] .band-home { --band-c: #6366f1; }
-:root[data-skin="brutal"] .band-cal { --band-c: #7ae582; }
+:root[data-skin="brutal"] .band-cal { --band-c: #ffa94d; }
 :root[data-skin="brutal"] .band-an { --band-c: #8ea6ff; }
 :root[data-skin="brutal"] header.yapi-band[data-brut-header],
 :root[data-skin="brutal"] .band-home,

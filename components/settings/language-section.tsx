@@ -8,7 +8,12 @@ import {
   useLocale,
   useT,
 } from "@/lib/i18n";
+import { useSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
+import { SettingsBlock, SettingsChoices } from "./settings-block";
+
+/** Dil bloğunun rengi (Brütal) */
+const COLOR = "#8ea6ff";
 
 /**
  * Dil seçici. Seçim anında uygulanır (yeniden yükleme yok) çünkü metinler
@@ -18,6 +23,22 @@ import { cn } from "@/lib/utils";
 export function LanguageSection() {
   const locale = useLocale();
   const t = useT();
+  const brutal = useSkin() === "brutal";
+
+  // Brütal: blok — diller yan yana iki hücre, seçili olan bloğun renginde
+  if (brutal) {
+    return (
+      <SettingsBlock color={COLOR} icon={Languages} title={t("settings.language")} hint={t("settings.languageHint")}>
+        <SettingsChoices
+          options={LOCALES}
+          value={locale}
+          onPick={setLocale}
+          color={COLOR}
+          render={(code) => <span className="text-[14px] font-black">{LOCALE_LABELS[code]}</span>}
+        />
+      </SettingsBlock>
+    );
+  }
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card">

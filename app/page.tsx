@@ -472,8 +472,19 @@ function BrutTodayBlock({
             ]
           : []
       }
-      // Günün sarısı — gün sayfasının tarih kartı gibi
-      link={{ href: routes.day(today), label: t("home.openDay"), bars: snapshot?.today.bars, color: "#ffd23f", icon: CalendarDays }}
+      // Günün sarısı — gün sayfasının tarih kartı gibi. Şeritte uyku ve ruh
+      // hali de var; adları kayıtta İngilizce, burada çevrilir
+      link={{
+        href: routes.day(today),
+        label: t("home.openDay"),
+        bars: snapshot?.today.bars.map((b) =>
+          b.builtInKey === "sleep" || b.builtInKey === "mood"
+            ? { ...b, title: `${t(b.builtInKey === "sleep" ? "sleep.title" : "mood.title")} · ${b.weight}` }
+            : b
+        ),
+        color: "#ffd23f",
+        icon: CalendarDays,
+      }}
     />
   );
 }
@@ -592,7 +603,7 @@ function RecentBlock({ total, children }: { total: number | undefined; children:
 
 /**
  * Son 7 gün — Bugün, Kategorilerin ve Yine ekle'yle aynı birleşik blokta:
- * üstte yeşil "SON 7 GÜN · 107 girdi", altında tarih aralığı ve günlük
+ * üstte Takvim turuncusu "SON 7 GÜN · 107 girdi", altında tarih aralığı ve günlük
  * ortalama; ortada sütunlar (günün kategori kırılımıyla yığılı, tepesinde
  * sayısı, bugün en sağda — dokun, o güne git); altta Takvimi aç.
  */
@@ -608,16 +619,16 @@ function BrutWeek({ week, today }: { week: DayBar[]; today: string }) {
       className="mb-4"
       lead={{
         kind: "count",
-        // Takvim'in yeşili — sütunlar günler
-        color: "#7ae582",
+        // Takvim'in turuncusu — sütunlar günler
+        color: "#ffa94d",
         overline: t("home.last7Days"),
         value: cap(total),
         unit: t("home.entries"),
         hint: t("home.weekHint", { range: weekRange(week, tag), avg }),
       }}
       stats={[]}
-      // Takvim'in yeşili — bölümün bandı gibi
-      link={{ href: "/calendar", label: t("home.openCalendar"), color: "#7ae582", icon: CalendarRange }}
+      // Takvim'in turuncusu — bölümün bandı gibi
+      link={{ href: "/calendar", label: t("home.openCalendar"), color: "#ffa94d", icon: CalendarRange }}
     >
       <div className="flex items-end gap-1.5 bg-white px-3 pb-3 pt-3 text-[#111]">
         {week.map((d) => {

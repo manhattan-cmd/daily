@@ -19,6 +19,7 @@ import { useSkin } from "@/lib/skin";
 import { useT } from "@/lib/i18n";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import { goalTimes } from "@/lib/goals";
+import { SettingsBlock, SettingsCell, settingsPill } from "./settings-block";
 
 /**
  * Hedef hatırlatmaları: izin durumu, deneme bildirimi ve hedeflere geçit.
@@ -72,6 +73,42 @@ export function ReminderSection() {
       ? "border-2 border-[#111] bg-white text-[#111] active:translate-x-px active:translate-y-px"
       : "bg-[var(--sf-2)] hover:bg-[var(--sf-3)]"
   );
+
+  // Brütal: blok — durum başın altında, düğmeler beyaz hücrede, tarayıcı
+  // notu krem hücrede
+  if (brutal) {
+    return (
+      <SettingsBlock
+        color="#c9b8ff"
+        icon={permission === "denied" ? BellOff : Bell}
+        title={t("settings.remind")}
+        hint={permission ? status : "…"}
+      >
+        <SettingsCell className="flex flex-wrap items-center gap-1.5">
+          {permission === "prompt" && (
+            <button type="button" onClick={ask} className={settingsPill} style={{ background: "#7ae582" }}>
+              {t("settings.remind.allow")}
+            </button>
+          )}
+          {permission !== "unsupported" && permission !== "denied" && (
+            <button type="button" data-remind-test="" onClick={test} className={settingsPill}>
+              {t("settings.remind.test")}
+            </button>
+          )}
+          <Link href={routes.structureEntries("planned")} prefetch={false} className={settingsPill}>
+            {t("goal.pageTitle")}
+            <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.75} />
+          </Link>
+          {tested === "fail" && <span className="text-[12px] font-bold text-[#b42318]">{t("settings.remind.testFail")}</span>}
+        </SettingsCell>
+        {!isNative() && (
+          <SettingsCell className="bg-[#fff4dc] text-[11.5px] font-bold leading-snug text-[#111]/65">
+            {t("goal.plan.webHint")}
+          </SettingsCell>
+        )}
+      </SettingsBlock>
+    );
+  }
 
   return (
     <div data-reminder-section="" className="overflow-hidden rounded-2xl border border-border bg-card">

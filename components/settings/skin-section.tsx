@@ -4,6 +4,11 @@ import { Check, Palette } from "lucide-react";
 import { SKINS, SKIN_META, setSkin, useSkin } from "@/lib/skin";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { SmartText } from "@/components/ui/smart-text";
+import { SettingsBlock, SettingsChoices } from "./settings-block";
+
+/** Tema bloğunun rengi (Brütal) */
+const COLOR = "#ff9ecd";
 
 /**
  * Görüntü teması seçici.
@@ -16,6 +21,34 @@ import { cn } from "@/lib/utils";
 export function SkinSection() {
   const skin = useSkin();
   const t = useT();
+
+  // Brütal: blok — temalar iki sütun hücre; renk örneği, ad ve tek satır
+  // tarif; seçili olan bloğun renginde
+  if (skin === "brutal") {
+    return (
+      <SettingsBlock color={COLOR} icon={Palette} title={t("settings.skin")} hint={t("settings.skinHint")}>
+        <SettingsChoices
+          options={SKINS}
+          top
+          value={skin}
+          onPick={setSkin}
+          color={COLOR}
+          render={(id) => (
+            <>
+              <span className="mb-1.5 flex w-max overflow-hidden rounded-[6px] border-[1.5px] border-[#111]">
+                {SKIN_META[id].swatch.map((c) => (
+                  <span key={c} className="h-4 w-3.5" style={{ backgroundColor: c }} />
+                ))}
+              </span>
+              <span className="block truncate text-[13.5px] font-black leading-tight">{SKIN_META[id].name}</span>
+              {/* Tarif iki satıra sarar, sığmazsa kelime sonunda … (bkz. SmartText) */}
+              <SmartText text={SKIN_META[id].hint} lines={2} interactive className="text-[10.5px] font-bold leading-[13px] text-[#111]/55" />
+            </>
+          )}
+        />
+      </SettingsBlock>
+    );
+  }
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card">

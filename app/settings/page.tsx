@@ -14,6 +14,9 @@ import { SkinSection } from "@/components/settings/skin-section";
 import { SoundSection } from "@/components/settings/sound-section";
 import { ReminderSection } from "@/components/settings/reminder-section";
 import { PageSheet } from "@/components/ui/layer";
+import { SubPageMenu } from "@/components/ui/sub-page-menu";
+import { SettingsBlock, SettingsCell } from "@/components/settings/settings-block";
+import { useSkin } from "@/lib/skin";
 
 const APP_VERSION = "0.1.0";
 
@@ -34,6 +37,54 @@ export default function SettingsPage() {
   }, []);
 
   const heading = "mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
+  const brutal = useSkin() === "brutal";
+
+  /*
+   * Brütal: üst menü şerit (bkz. SubPageMenu), altında ayarlar ana sayfanın
+   * blok dilinde (bkz. SettingsBlock) — her ayar kendi renginde bir blok:
+   * Dil, Tema, Sesler, Hatırlatmalar, Veri ve yedek, Yapı, Başlarken.
+   * Büyük harfli bölüm adları (UYGULAMA, VERİ VE YEDEK) kalktı: blokların
+   * adları zaten söylüyor, ana sayfada da bölüm adı yok.
+   */
+  if (brutal) {
+    return (
+      <PageSheet top={<SubPageMenu title={t("settings.title")} sub={t("settings.lead")} />}>
+        <div className="pb-6">
+          <LanguageSection />
+          <SkinSection />
+          <SoundSection />
+          <ReminderSection />
+          <DataSection />
+          <SettingsBlock
+            color="#ffd23f"
+            icon={Layers}
+            title={t("settings.structureLink")}
+            href="/structure"
+            hint={
+              counts
+                ? t("settings.structureCounts", {
+                    categories: counts.categories,
+                    subcategories: counts.subcategories,
+                    features: counts.mods,
+                  })
+                : "…"
+            }
+          />
+          <SettingsBlock
+            color="#8ee0d6"
+            icon={Sparkles}
+            title={t("settings.showWelcome")}
+            hint={t("settings.showWelcomeHint")}
+            onClick={() => setLocalFlag(WELCOME_DISMISSED, false)}
+          >
+            <SettingsCell className="text-[11.5px] font-bold leading-snug text-[#111]/55">
+              {t("settings.about", { version: APP_VERSION })}
+            </SettingsCell>
+          </SettingsBlock>
+        </div>
+      </PageSheet>
+    );
+  }
 
   return (
     <PageSheet

@@ -18,15 +18,17 @@ export type FrequentItem = {
 
 export type HomeSnapshot = {
   /**
-   * Bugün — gün sayfasının özetiyle aynı sayım: uyku, ruh hali ve nesne
-   * durumları sayılmaz (onlar eylem değil). Eskiden ana sayfa bütün kayıtları
-   * sayıyordu, iki sayfa aynı gün için farklı sayı gösterebiliyordu.
+   * Bugün — gün sayfasının özetiyle aynı sayım: girdiler, uyku, ruh hali ve
+   * notlar; nesne durumları sayılmaz (eylem değil, analizde de görünmüyor).
+   * Uyku ve ruh hali eskiden dışarıdaydı: şeritte renkleri yoktu, sayıda
+   * yoklardı; gün sayfası onları sayarken ana sayfa saymıyordu.
    */
   today: {
     entries: number;
     categories: number;
-    /** Kategori renkleri ve payları — özet bloğunun alt şeridi */
-    bars: { key: string; color: string; weight: number; title: string }[];
+    /** Kategori renkleri ve payları — özet bloğunun alt şeridi. Uyku ve ruh
+     *  halinin adı kayıtta İngilizce: `builtInKey` ile çağıran çevirir */
+    bars: { key: string; color: string; weight: number; title: string; builtInKey?: string }[];
     lastAt?: number;
   };
   totalEntries: number;
@@ -59,7 +61,8 @@ export async function loadHomeSnapshot(now = new Date()): Promise<HomeSnapshot> 
   since.setDate(since.getDate() - (FREQUENT_WINDOW_DAYS - 1));
   since.setHours(0, 0, 0, 0);
 
-  const [occurred, recent, categories, subcategories, features, goalsEver] = await Promise.all([
+  const todayKey = toLocalDateValue(now.getTime());
+  const [occurred, recent, categories, subcategories, features, goalsEver, todayNotes] = await Promise.all([
     // Yalnız dizin anahtarları — kayıtları okumadan bütün geçmişin günleri
     db.entries.orderBy("occurredAt").keys(),
     db.entries.where("occurredAt").aboveOrEqual(since.getTime()).toArray(),
@@ -67,6 +70,7 @@ export async function loadHomeSnapshot(now = new Date()): Promise<HomeSnapshot> 
     db.subcategories.toArray(),
     db.mods.count(),
     db.goals.count(),
+    db.notes.where("date").equals(todayKey).count(),
   ]);
 
   const days = new Set((occurred as number[]).map((ms) => toLocalDateValue(ms)));
@@ -86,15 +90,15 @@ export async function loadHomeSnapshot(now = new Date()): Promise<HomeSnapshot> 
     if (frequent.length === FREQUENT_LIMIT) break;
   }
 
-  const todayKey = toLocalDateValue(now.getTime());
   const todayByCat = new Map<string, number>();
-  let todayEntries = 0;
+  let todayEntries = todayNotes;
   let lastAt: number | undefined;
   for (const e of recent) {
     if (toLocalDateValue(e.occurredAt) !== todayKey) continue;
     const sub = subById.get(e.subcategoryId);
     const category = sub && catById.get(sub.categoryId);
-    if (!category || category.isBuiltIn) continue;
+    // Uyku ve ruh hali sayılır, şeritte kendi renkleriyle; nesne durumu değil
+    if (!category || category.builtInKey === "objects") continue;
     todayEntries++;
     todayByCat.set(category.id, (todayByCat.get(category.id) ?? 0) + 1);
     if (lastAt === undefined || e.occurredAt > lastAt) lastAt = e.occurredAt;
@@ -103,7 +107,13 @@ export async function loadHomeSnapshot(now = new Date()): Promise<HomeSnapshot> 
     .sort((a, b) => b[1] - a[1])
     .map(([id, n]) => {
       const c = catById.get(id)!;
-      return { key: id, color: c.color, weight: n, title: `${c.name} · ${n}` };
+      return {
+        key: id,
+        color: c.color,
+        weight: n,
+        title: `${c.name} · ${n}`,
+        builtInKey: c.isBuiltIn ? c.builtInKey ?? "sleep" : undefined,
+      };
     });
 
   const userCats = categories.filter((c) => !c.isBuiltIn);

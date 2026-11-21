@@ -15,7 +15,7 @@ import { Layer, PageSheet } from "@/components/ui/layer";
 import { TodayMascot } from "@/components/calendar/today-mascot";
 
 /** Takvim'in rengi — alt menüdeki sekmesi, üst menüsü, durum çubuğu (bkz. statusBarColor) */
-const CAL_COLOR = "#7ae582";
+const CAL_COLOR = "#ffa94d";
 
 /** Ay ve gün adları uygulamanın dilinde (eskiden sabit İngilizce diziydi) */
 function monthName(i: number, tag: string): string {
@@ -212,8 +212,8 @@ export default function CalendarPage() {
         top={
       brutal ? (
         /* Brütal: üst menü şerit — Ana Sayfa, Gün, Analiz ve Yapı'nınki gibi
-           (bkz. AnalysisMenu, WeekStrip): kenardan kenara Takvim yeşili,
-           altında tek kalın siyah çizgi, durum çubuğu da yeşil (bkz.
+           (bkz. AnalysisMenu, WeekStrip): kenardan kenara Takvim turuncusu (Gün yeşil,
+           ikisi ayrılsın), altında tek kalın siyah çizgi, durum çubuğu da turuncu (bkz.
            statusBarColor). İki uçta sönük oklar, arada ay ve yıl, altında
            ayın özeti (kaç girdi, kaç günde) — ikisi içerikle birlikte kayar.
            Yapışkan. Eskiden ortak çizgili bir bloktu (beyaz ok sütunları,

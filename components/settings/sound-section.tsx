@@ -6,6 +6,7 @@ import { useSkin } from "@/lib/skin";
 import { useT } from "@/lib/i18n";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
+import { SettingsBlock, SettingsCell, SettingsSwitch, settingsPill } from "./settings-block";
 
 const PREVIEWS: { kind: EntrySoundKind; label: MessageKey }[] = [
   { kind: "add", label: "settings.soundAdd" },
@@ -23,6 +24,31 @@ export function SoundSection() {
   const t = useT();
   const on = useSoundOn();
   const brutal = useSkin() === "brutal";
+
+  // Brütal: blok — anahtar başın yanındaki karoda; açıkken altında sesleri
+  // dinleme kapsülleri
+  if (brutal) {
+    return (
+      <SettingsBlock
+        color="#7ae582"
+        icon={Volume2}
+        title={t("settings.sound")}
+        hint={t("settings.soundHint")}
+        action={<SettingsSwitch on={on} onChange={setSoundOn} label={t("settings.sound")} />}
+      >
+        {on && (
+          <SettingsCell className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[12px] font-bold text-[#111]/55">{t("settings.soundTry")}</span>
+            {PREVIEWS.map((p) => (
+              <button key={p.kind} type="button" onClick={() => playEntrySound(p.kind)} className={settingsPill}>
+                {t(p.label)}
+              </button>
+            ))}
+          </SettingsCell>
+        )}
+      </SettingsBlock>
+    );
+  }
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card">
