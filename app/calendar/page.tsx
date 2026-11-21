@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, type LucideIcon } from "lucide-react";
 import { getMonthDaySummary } from "@/lib/db/queries";
 import { cn } from "@/lib/utils";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
@@ -12,12 +12,33 @@ import { routes } from "@/lib/routes";
 import { prefetchDayOnPress } from "@/lib/db/day-cache";
 import { useSkin } from "@/lib/skin";
 import { Layer, PageSheet } from "@/components/ui/layer";
-import { HeaderBlock, HeaderTile, HeaderTitle } from "@/components/ui/header-block";
 import { TodayMascot } from "@/components/calendar/today-mascot";
+
+/** Takvim'in rengi — alt menüdeki sekmesi, üst menüsü, durum çubuğu (bkz. statusBarColor) */
+const CAL_COLOR = "#7ae582";
 
 /** Ay ve gün adları uygulamanın dilinde (eskiden sabit İngilizce diziydi) */
 function monthName(i: number, tag: string): string {
   return new Date(2026, i, 1).toLocaleDateString(tag, { month: "long" });
+}
+/** Üst menünün başlığı: "Kasım 2026" — Analiz'in ay döneminin adı gibi */
+function monthYear(year: number, month: number, tag: string): string {
+  return new Date(year, month, 1).toLocaleDateString(tag, { month: "long", year: "numeric" });
+}
+
+/** Komşu ay — alt menünün seçili olmayan simgesi gibi sönük ok (bkz. AnalysisMenu) */
+function MonthArrow({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="flex w-10 shrink-0 items-center justify-center text-[#111]/60 active:text-[#111]"
+    >
+      <Icon className="h-5 w-5" strokeWidth={2.5} />
+    </button>
+  );
 }
 /** Pazartesiden başlayan kısa gün adları — 5 Ocak 2026 bir pazartesi */
 function weekdaysShort(tag: string): string[] {
@@ -177,11 +198,12 @@ export default function CalendarPage() {
       // da kaydırılabilsin
       // Brütal: kap kenardan kenara (-mx-4 px-4) — ay gezintisi bölümün
       // bandı olarak ekranın iki yanına uzansın; overflow-hidden onu kesmesin
+      // overflow-x-clip, hidden değil: kayan ay yanlardan kesilsin ama kap
+      // kaydırma kabı olmasın — hidden üst menünün yapışkanlığını bozuyordu
       className={cn(
-        "flex min-h-full touch-pan-y select-none flex-col overflow-hidden",
+        "flex min-h-full touch-pan-y select-none flex-col overflow-x-clip",
         // Brütal: kap main'in alt payına da uzanır (-mb-4 + 1rem fazla boy) ki
-        // sayfa zemini alt menüye kadar insin — yoksa overflow-hidden zeminin
-        // alt 16 px'ini kesiyordu (bkz. PageSheet)
+        // sayfa zemini alt menüye kadar insin (bkz. PageSheet)
         brutal ? "-mx-4 -mb-4 min-h-[calc(100%+1rem)] px-4" : "pb-4 pt-10"
       )}
     >
@@ -189,35 +211,40 @@ export default function CalendarPage() {
       <PageSheet
         top={
       brutal ? (
-        /* Brütal: başlık bloğu (bkz. HeaderBlock) — Takvim'in yeşili; ortada
-           ay düz kalın yazı, yanında yıl siyah etikette, altında ayın özeti
-           (kaç girdi, kaç günde) — içerikle birlikte kayar; iki yanda ‹ ›.
-           İlk hali ay siyah kutuda ters yazıydı: kalın, kaba duruyordu */
-        <HeaderBlock
-          color="#7ae582"
-          sticky={false}
-          center
-          style={glideStyle}
-          leading={<HeaderTile icon={ChevronLeft} onClick={prevMonth} ariaLabel={t("selection.previousDay")} width={46} />}
-          trailing={<HeaderTile icon={ChevronRight} onClick={nextMonth} ariaLabel={t("selection.nextDay")} width={46} />}
+        /* Brütal: üst menü şerit — Ana Sayfa, Gün, Analiz ve Yapı'nınki gibi
+           (bkz. AnalysisMenu, WeekStrip): kenardan kenara Takvim yeşili,
+           altında tek kalın siyah çizgi, durum çubuğu da yeşil (bkz.
+           statusBarColor). İki uçta sönük oklar, arada ay ve yıl, altında
+           ayın özeti (kaç girdi, kaç günde) — ikisi içerikle birlikte kayar.
+           Yapışkan. Eskiden ortak çizgili bir bloktu (beyaz ok sütunları,
+           benekli hücre, yıl siyah etikette); öbür sayfalar şeride geçince
+           tek o krem döşemede asılı kalmıştı */
+        <header
+          data-cal-nav=""
+          // -mx-4: kabın kenar payını aşıp kenardan kenara (alt menü gibi)
+          className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]"
+          style={{ background: CAL_COLOR }}
         >
-          <div className="flex items-center justify-center gap-2">
-            <HeaderTitle size={26} center>{monthName(month, tag)}</HeaderTitle>
-            <span className="rounded-md bg-[#111] px-1.5 py-[2px] font-mono text-[11px] font-bold leading-tight text-[#7ae582] tabular-nums">
-              {year}
-            </span>
+          <div className="flex items-stretch px-1">
+            <MonthArrow icon={ChevronLeft} label={t("period.prevMonth")} onClick={prevMonth} />
+            <div className="flex min-w-0 flex-1 flex-col items-center justify-center pb-[11px] pt-3 text-center" style={glideStyle}>
+              <h1 className="max-w-full truncate text-[20px] font-black leading-none tracking-[-0.02em] text-[#111]">
+                {monthYear(year, month, tag)}
+              </h1>
+              <p className="mt-[6px] max-w-full truncate text-[11.5px] font-bold leading-none text-[#111]/65">
+                {summary === undefined
+                  ? " "
+                  : summary.size
+                    ? t("cal.monthStats", {
+                        entries: [...summary.values()].reduce((n, x) => n + x.count, 0),
+                        days: summary.size,
+                      })
+                    : t("cal.monthEmpty")}
+              </p>
+            </div>
+            <MonthArrow icon={ChevronRight} label={t("period.nextMonth")} onClick={nextMonth} />
           </div>
-          <p className="mt-1 text-[12px] font-bold leading-tight text-[#111]/70">
-            {summary === undefined
-              ? "\u00a0"
-              : summary.size
-                ? t("cal.monthStats", {
-                    entries: [...summary.values()].reduce((n, x) => n + x.count, 0),
-                    days: summary.size,
-                  })
-                : t("cal.monthEmpty")}
-          </p>
-        </HeaderBlock>
+        </header>
       ) : (
       /* Ay gezintisi — oklar sabit kalır, ay adı içerikle birlikte kayar */
       <div
