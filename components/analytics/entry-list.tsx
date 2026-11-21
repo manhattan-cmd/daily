@@ -179,13 +179,10 @@ export function EntryListBlock({
   emptyText,
   accent = DEFAULT_ACCENT,
   compact = false,
-  searchable = true,
 }: {
   title: string;
   /** İnce baş — yapı sayfaları (bkz. SummaryBlock compact) */
   compact?: boolean;
-  /** Liste içi arama karosu — Ara sayfasında yok: sonuç zaten bir arama */
-  searchable?: boolean;
   /** Bütün girdilerin sayısı — liste en çok 200 kayıt getiriyor */
   total?: number;
   hint?: string;
@@ -197,7 +194,7 @@ export function EntryListBlock({
   const tag = intlTag(useLocale());
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const canSearch = searchable && rows.length >= SEARCH_MIN_ROWS;
+  const canSearch = rows.length >= SEARCH_MIN_ROWS;
   const needle = canSearch && open ? normalizeSearch(query.trim()) : "";
   const shown = useMemo(
     () => (needle ? rows.filter((r) => matchesSearch(rowText(r), needle)) : rows),

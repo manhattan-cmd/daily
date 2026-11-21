@@ -8,19 +8,22 @@ import { searchEntries } from "@/lib/db/queries";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { useSkin } from "@/lib/skin";
 import { PageHeader } from "@/components/layout/page-header";
-import { EntryListBlock, EntryListSection, type EntryListRow } from "@/components/analytics/entry-list";
+import { EntryListSection, type EntryListRow } from "@/components/analytics/entry-list";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionNav, chipClass } from "@/components/ui/section-nav";
 import { Input } from "@/components/ui/input";
-import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { SubPageMenu } from "@/components/ui/sub-page-menu";
+import {
+  CategorySquare,
+  FilterChip,
+  SearchNoResults,
+  SearchResults,
+  SearchStart,
+} from "@/components/search/search-blocks";
 import { cn } from "@/lib/utils";
 import { PageSheet } from "@/components/ui/layer";
 
 const LIMIT = 100;
-
-/** Sonuç bloğunun rengi — Son girdiler bloklarının turuncusu (bkz. EntryListBlock) */
-const RESULTS_COLOR = "#ffb38a";
 
 type RangeKey = "all" | "year" | "month";
 
@@ -79,72 +82,26 @@ export default function SearchPage() {
     [trimmed, categoryId, from]
   );
 
-  // Uyku ve ruh halinin adları kayıtta İngilizce — arayüzün dilinde yazılır
-  const catName = (c: { name: string; builtInKey?: string }) =>
-    c.builtInKey === "sleep" ? t("sleep.title") : c.builtInKey === "mood" ? t("mood.title") : c.name;
-  const rows: EntryListRow[] = (results ?? []).map((e) => ({
-    id: e.id,
-    occurredAt: e.occurredAt,
-    title: e.title,
-    notes: e.notes,
-    subLabel:
-      e.subcategory.isCategoryRoot || e.category.isBuiltIn
-        ? catName(e.category)
-        : `${e.category.name} · ${e.subcategory.name}`,
-  }));
-
   const searching = !!(trimmed || categoryId);
 
-  const categoryChips = (
-    <SectionNav label={t("structure.categories")}>
-      <button
-        type="button"
-        onClick={() => setCategoryId(null)}
-        className={chipClass(categoryId === null)}
-      >
-        {t("search.allCategories")}
-      </button>
-      {(categories ?? []).map((c) => (
-        <button
-          key={c.id}
-          type="button"
-          onClick={() => setCategoryId(categoryId === c.id ? null : c.id)}
-          className={cn(chipClass(categoryId === c.id), "gap-1.5")}
-        >
-          <span
-            className="h-1.5 w-1.5 rounded-full"
-            style={{ backgroundColor: c.color }}
-          />
-          {c.name}
-        </button>
-      ))}
-    </SectionNav>
-  );
-
+  /*
+   * Brütal: üst menü şerit (bkz. SubPageMenu) — geri okunun yanında arama
+   * kutusu tek beyaz kartta (ayrı "Ara" başlığı yok, kutu kendini
+   * anlatıyor), altında tarih aralığı düz yazı sekmeler, seçili olan kalkık
+   * beyaz kapsülde (Analiz'in dönem türleri gibi). Yapışkan: kaydırırken kutu
+   * elde kalır. Altında kategori çipleri (kategorinin renginde kare, seçili
+   * olan kendi renginde), sonra arama başlamadan öneriler, sonuçlar ya da
+   * sonuç yok bloğu (bkz. search-blocks).
+   */
   if (brutal) {
     const rangeLabel = t(RANGES.find((r) => r.key === range)!.label);
     const catLabel = categories?.find((c) => c.id === categoryId)?.name;
-    /** Arama başlamadan ve sonuç yokken — sonuç bloğunun yerinde boş blok */
-    const emptyBlock = (title: string, text: string) => (
-      <SummaryBlock
-        compact
-        className="mb-4"
-        lead={{ kind: "title", overline: "", title, color: RESULTS_COLOR, glyph: Search }}
-        stats={[]}
-      >
-        <SummaryEmpty text={text} />
-      </SummaryBlock>
-    );
     return (
       <PageSheet
         top={
-          /* Üst menü şerit (bkz. SubPageMenu): adın altında arama kutusu
-             tek beyaz kartta (Analiz'in Yer · Özellik kartı gibi), en altta
-             tarih aralığı düz yazı sekmeler, seçili olan kalkık beyaz
-             kapsülde (Analiz'in dönem türleri gibi). Yapışkan: kaydırırken
-             kutu elde kalır */
-          <SubPageMenu title={t("search.title")} sub={t("search.lead")}>
-            <div className="px-2.5">
+          <SubPageMenu
+            title={t("search.title")}
+            center={
               <div
                 data-search-box=""
                 className="relative flex items-center rounded-[12px] border-2 bg-white shadow-[2px_2px_0_#111]"
@@ -170,8 +127,9 @@ export default function SearchPage() {
                   </button>
                 )}
               </div>
-            </div>
-            <div role="tablist" aria-label={t("insights.period")} className="grid grid-cols-3 items-center px-1.5 pb-2.5 pt-2">
+            }
+          >
+            <div role="tablist" aria-label={t("insights.period")} className="grid grid-cols-3 items-center px-1.5 pb-2.5 pt-0.5">
               {RANGES.map((r) => {
                 const on = range === r.key;
                 return (
@@ -201,23 +159,35 @@ export default function SearchPage() {
           </SubPageMenu>
         }
       >
-        {categoryChips}
+        <SectionNav label={t("structure.categories")}>
+          <FilterChip on={categoryId === null} onClick={() => setCategoryId(null)}>
+            {t("search.allCategories")}
+          </FilterChip>
+          {(categories ?? []).map((c) => (
+            <FilterChip
+              key={c.id}
+              on={categoryId === c.id}
+              color={c.color}
+              onClick={() => setCategoryId(categoryId === c.id ? null : c.id)}
+            >
+              <CategorySquare color={c.color} />
+              {c.name}
+            </FilterChip>
+          ))}
+        </SectionNav>
         {!searching ? (
-          emptyBlock(t("search.start"), t("search.startHint"))
-        ) : results === undefined ? null : rows.length === 0 ? (
-          emptyBlock(t("search.empty"), t("search.emptyHint"))
+          <SearchStart onPick={setQuery} />
+        ) : results === undefined ? null : results.length === 0 ? (
+          <SearchNoResults onWiden={range !== "all" ? () => setRange("all") : undefined} />
         ) : (
           <div className="pb-6">
-            {/* Sonuç bloğunda ikinci bir arama karosu yok — daraltma
-                yukarıdaki kutuyla yapılır */}
-            <EntryListBlock
-              title={t("search.results")}
-              rows={rows}
-              total={rows.length}
+            {/* Anahtar: süzgeç değişince sayfalama baştan */}
+            <SearchResults
+              key={`${trimmed}|${categoryId}|${range}`}
+              entries={results}
               hint={[rangeLabel, catLabel].filter(Boolean).join(" · ")}
-              searchable={false}
             />
-            {rows.length >= LIMIT && (
+            {results.length >= LIMIT && (
               <p className="-mt-2 px-1 text-[11px] font-bold text-[#111]/55">
                 {t("search.limitNote", { n: LIMIT })}
               </p>
@@ -227,6 +197,16 @@ export default function SearchPage() {
       </PageSheet>
     );
   }
+
+  const rows: EntryListRow[] = (results ?? []).map((e) => ({
+    id: e.id,
+    occurredAt: e.occurredAt,
+    title: e.title,
+    notes: e.notes,
+    subLabel: e.subcategory.isCategoryRoot
+      ? e.category.name
+      : `${e.category.name} · ${e.subcategory.name}`,
+  }));
 
   return (
     <PageSheet
@@ -261,7 +241,29 @@ export default function SearchPage() {
       </div>
 
       {/* Kategori süzgeci — renkli noktalarla, analiz çipleriyle aynı dilde */}
-      {categoryChips}
+      <SectionNav label={t("structure.categories")}>
+        <button
+          type="button"
+          onClick={() => setCategoryId(null)}
+          className={chipClass(categoryId === null)}
+        >
+          {t("search.allCategories")}
+        </button>
+        {(categories ?? []).map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => setCategoryId(categoryId === c.id ? null : c.id)}
+            className={cn(chipClass(categoryId === c.id), "gap-1.5")}
+          >
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: c.color }}
+            />
+            {c.name}
+          </button>
+        ))}
+      </SectionNav>
 
       <div className="mb-4 flex gap-1.5">
         {RANGES.map((r) => (

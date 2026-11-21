@@ -26,12 +26,19 @@ export function SubPageMenu({
   sub,
   back = "/",
   color = HOME_COLOR,
+  center,
   children,
 }: {
   title: string;
   sub?: ReactNode;
   back?: string;
   color?: string;
+  /**
+   * Verilirse okun yanında adın yerine bu durur (Ara: arama kutusu) — ad
+   * ekran okuyucuya kalır. Kutu kendini anlatıyor, üstünde "Ara" başlığı
+   * şeridi 50 px uzatıyordu
+   */
+  center?: ReactNode;
   /** Başlığın altındaki satırlar */
   children?: ReactNode;
 }) {
@@ -53,11 +60,20 @@ export function SubPageMenu({
         >
           <ArrowLeft className="h-5 w-5" strokeWidth={2.5} />
         </Link>
-        <div className="flex min-w-0 flex-1 flex-col items-center justify-center pb-[11px] pt-3 text-center">
-          <h1 className="max-w-full truncate text-[20px] font-black leading-none tracking-[-0.02em] text-[#111]">{title}</h1>
-          {sub && <p className="mt-[6px] max-w-full truncate text-[11.5px] font-bold leading-none text-[#111]/65">{sub}</p>}
-        </div>
-        <span aria-hidden className="w-10 shrink-0" />
+        {center ? (
+          <div className="min-w-0 flex-1 pb-2 pr-2.5 pt-2.5">
+            <h1 className="sr-only">{title}</h1>
+            {center}
+          </div>
+        ) : (
+          <>
+            <div className="flex min-w-0 flex-1 flex-col items-center justify-center pb-[11px] pt-3 text-center">
+              <h1 className="max-w-full truncate text-[20px] font-black leading-none tracking-[-0.02em] text-[#111]">{title}</h1>
+              {sub && <p className="mt-[6px] max-w-full truncate text-[11.5px] font-bold leading-none text-[#111]/65">{sub}</p>}
+            </div>
+            <span aria-hidden className="w-10 shrink-0" />
+          </>
+        )}
       </div>
       {children}
     </header>
