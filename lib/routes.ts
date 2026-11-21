@@ -30,6 +30,10 @@ export const routes = {
     `/structure/collection?${q({ id: collectionId })}`,
   /** Yapı: tek nesne */
   structureThing: (thingId: string) => `/structure/thing?${q({ id: thingId })}`,
+  /** Yapı › Özellikler; arama verilirse havuz o adla aranmış açılır (Ara'nın
+   *  özellik sonucu — özelliğin kendi sayfası yok, ayrıntısı havuzda) */
+  structureMods: (search?: string) =>
+    search ? `/structure/mods?${q({ q: search })}` : "/structure/mods",
   /** Yapı › Girdiler; "planned" = Planlı girdiler görünümü */
   structureEntries: (view?: "planned") =>
     view ? `/structure/entries?${q({ view })}` : "/structure/entries",

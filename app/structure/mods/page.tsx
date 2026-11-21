@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useIsBrutal } from "@/components/structure/brutal";
 import { Layer, PageSheet } from "@/components/ui/layer";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -77,8 +78,18 @@ type Usage = { count: number; places: Place[]; valueCount: number };
  * tek diziliş zaten cevap veriyor, aranan şeyi arayan yazıyor.
  */
 
+/** Adreste ?q= verilirse havuz o adla aranmış açılır — Ara'nın özellik sonucu (bkz. routes.structureMods) */
 export default function ModsHomePage() {
+  return (
+    <Suspense fallback={null}>
+      <ModsHome />
+    </Suspense>
+  );
+}
+
+function ModsHome() {
   const t = useT();
+  const params = useSearchParams();
   const brutal = useIsBrutal();
   const [kindFilter, setKindFilter] = useState<MeasureUiKind | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -103,7 +114,7 @@ export default function ModsHomePage() {
   const [placesOpen, setPlacesOpen] = useState(false);
   // Havuzda arama — kutu hep açık. Büyütecin arkasına saklamak, 22 atomla
   // gelen bir havuzda aranan şeye giden yolu bir dokunuş uzatıyordu.
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => params.get("q") ?? "");
 
   const mods = useLiveQuery(() => listMods(), []);
   // Havuzda kullanılan birimler — yeni özellikte önce bunlar önerilir ki

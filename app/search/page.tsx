@@ -6,6 +6,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { Search, X } from "lucide-react";
 import { db } from "@/lib/db";
 import { searchEntries } from "@/lib/db/queries";
+import { searchEverything } from "@/lib/db/search-all";
 import { intlTag, useLocale, useT, type MessageKey } from "@/lib/i18n";
 import { dayPeriod, monthPeriod, parsePeriodKey, periodLabel, weekPeriod, yearPeriod, type Period } from "@/lib/period";
 import { useSkin } from "@/lib/skin";
@@ -16,10 +17,20 @@ import { SectionNav, chipClass } from "@/components/ui/section-nav";
 import { Input } from "@/components/ui/input";
 import { SubPageMenu } from "@/components/ui/sub-page-menu";
 import {
+  PREVIEW_ENTRIES,
+  PREVIEW_ROWS,
+  RESULT_KINDS,
+  SearchFeatures,
   SearchFilters,
   SearchNoResults,
+  SearchNotes,
+  SearchPlaces,
+  SearchPlanned,
   SearchResults,
   SearchStart,
+  SearchThings,
+  SearchTypeBar,
+  type ResultKind,
   type TimeKind,
 } from "@/components/search/search-blocks";
 import { cn } from "@/lib/utils";
@@ -82,6 +93,11 @@ function initialPeriod(key: string | null): Period | null {
  * kapta (bkz. app-shell, data-app-main), pencerede değil; tarayıcının kendi
  * geri yüklemesi orada işlemiyor.
  */
+/** Adresteki sonuç türü — tanınmayan "Hepsi" */
+function initialType(v: string | null): ResultKind | "all" {
+  return RESULT_KINDS.find((k) => k.kind === v)?.kind ?? "all";
+}
+
 const scrollMemory = new Map<string, { top: number; visible: number }>();
 const appMain = () => document.querySelector<HTMLElement>("[data-app-main]");
 
@@ -95,6 +111,8 @@ function SearchPageContent() {
   // Brütal: zaman türü ve dönemi (bkz. SearchFilters) — sade temalar eski aralıkla
   const [period, setPeriod] = useState<Period | null>(() => initialPeriod(params.get("t")));
   const [kind, setKind] = useState<TimeKind>(() => (period ? (period.kind as TimeKind) : "all"));
+  // Sonuç türü (bkz. SearchTypeBar) — Hepsi ya da tek tür
+  const [type, setType] = useState<ResultKind | "all">(() => initialType(params.get("type")));
   const locale = useLocale();
 
   // Aramanın adres sorgusu — adrese yazılır, kaydırma hafızasının da anahtarı
@@ -103,8 +121,9 @@ function SearchPageContent() {
     if (query) p.set("q", query);
     if (categoryId) p.set("cat", categoryId);
     if (period) p.set("t", period.key);
+    if (type !== "all") p.set("type", type);
     return p.toString();
-  }, [query, categoryId, period]);
+  }, [query, categoryId, period, type]);
 
   // Durum → adres (bkz. üstteki not). Next'in kendi geçmiş kaydı korunur
   useEffect(() => {
@@ -118,6 +137,12 @@ function SearchPageContent() {
   const restored = useRef(false);
   function rememberScroll(visible: number) {
     scrollMemory.set(urlKey, { top: appMain()?.scrollTop ?? 0, visible });
+  }
+  // Tür değişince sayfa başa: "Tümünü gör" aşağıdaki bir bloktan basılıyor,
+  // liste o türe daralınca ekran boşlukta kalıyordu
+  function pickType(k: ResultKind | "all") {
+    setType(k);
+    appMain()?.scrollTo({ top: 0 });
   }
   function pickKind(k: TimeKind) {
     setKind(k);
@@ -153,26 +178,43 @@ function SearchPageContent() {
     [trimmed, categoryId, from, to]
   );
 
+  // Girdilerden başka her şey — notlar, planlı girdiler, nesneler, yapı,
+  // özellikler (bkz. searchEverything). Ana sayfadaki Ara genel arama: Yapı
+  // sayfalarının kendi aramaları var, burası hepsini birden arıyor
+  const everything = useLiveQuery(
+    () =>
+      brutal && (trimmed || categoryId)
+        ? searchEverything({ query: trimmed, categoryId: categoryId ?? undefined, from, to })
+        : Promise.resolve(undefined),
+    [brutal, trimmed, categoryId, from, to]
+  );
+
   const searching = !!(trimmed || categoryId);
 
   // Sonuçlar çizilince kaldığı yere — sonuçlar veritabanından sonra geliyor,
   // ilk çizimde liste yok; kare sonrası: kartlar yerleşsin
   useEffect(() => {
-    if (!restore || restored.current || !results?.length) return;
+    if (!restore || restored.current || !results || !everything) return;
     const id = requestAnimationFrame(() => {
       restored.current = true;
       appMain()?.scrollTo({ top: restore.top });
     });
     return () => cancelAnimationFrame(id);
-  }, [restore, results]);
+  }, [restore, results, everything]);
 
   /*
    * Brütal: üst menü şerit (bkz. SubPageMenu) — ortada "Ara" ve altında
-   * durum ("Girdilerini bul", aranırken "18 girdi bulundu"), altında arama
+   * durum ("Her şeyde ara", aranırken "18 sonuç bulundu"), altında arama
    * kutusu tek beyaz kartta. Yapışkan: kaydırırken kutu elde kalır.
    * Gövdede önce süzgeç bloğu (zaman türü, dönem, kategoriler — bkz.
    * SearchFilters), sonra arama başlamadan öneriler, sonuçlar ya da sonuç
    * yok bloğu (bkz. search-blocks).
+   *
+   * Genel arama: girdiler, notlar, planlı girdiler, nesneler, kategoriler ve
+   * özellikler, her tür kendi bloğunda. Birden çok tür bulunursa üstte tür
+   * çipleri; Hepsi'nde her blok ilk birkaçını gösterir ("Tümünü gör" o türe
+   * geçer). Eskiden yalnız girdileri arıyordu — Yapı sayfalarının da kendi
+   * aramaları olunca ana sayfadaki Ara onlardan farksız kalmıştı.
    *
    * İlk denemede şeritte başlık yoktu, kutu okun yanındaydı; kullanıcı
    * sayfanın bir başlığı olsun istedi.
@@ -181,10 +223,34 @@ function SearchPageContent() {
     const timeLabel = period ? periodLabel(period, locale) : t("search.rangeAll");
     const catLabel = categories?.find((c) => c.id === categoryId)?.name;
     const fmt = (n: number) => new Intl.NumberFormat(intlTag(locale)).format(n);
+    const entriesFull = !!results && results.length >= LIMIT;
+    // Türlerin sayısı — sonuçlar gelmeden yok
+    const counts: Record<ResultKind, number> | null =
+      results && everything
+        ? {
+            entries: results.length,
+            notes: everything.notes.length,
+            planned: everything.planned.length,
+            things: everything.things.length + everything.collections.length,
+            categories: everything.categories.length + everything.subs.length,
+            features: everything.features.length,
+          }
+        : null;
+    const kinds = counts ? RESULT_KINDS.filter((k) => counts[k.kind] > 0).map((k) => k.kind) : [];
+    const total = counts ? kinds.reduce((n, k) => n + counts[k], 0) : 0;
+    const countLabel = (k: ResultKind) =>
+      k === "entries" && entriesFull ? `${fmt(LIMIT)}+` : fmt(counts?.[k] ?? 0);
+    // Seçili türün sonucu kalmadıysa (arama değişti) Hepsi
+    const shownType = type !== "all" && kinds.includes(type) ? type : "all";
+    // Hepsi'nde birden çok tür varsa her blok önizleme: ilk birkaçı ve "Tümünü gör"
+    const preview = shownType === "all" && kinds.length > 1;
+    const show = (k: ResultKind) => kinds.includes(k) && (shownType === "all" || shownType === k);
     const sub =
-      searching && results
-        ? t("search.found", { n: results.length >= LIMIT ? `${fmt(LIMIT)}+` : fmt(results.length) })
-        : t("search.lead");
+      searching && counts
+        ? t("search.foundAll", { n: entriesFull ? `${fmt(total)}+` : fmt(total) })
+        : t("search.leadAll");
+    // Süzgeç değişince sayfalama baştan
+    const listKey = `${trimmed}|${categoryId}|${period?.key ?? "all"}|${shownType}`;
     return (
       <PageSheet
         top={
@@ -199,7 +265,7 @@ function SearchPageContent() {
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder={t("search.placeholder")}
+                  placeholder={t("search.placeholderAll")}
                   aria-label={t("search.title")}
                   enterKeyHint="search"
                   className="h-11 w-full rounded-[10px] bg-transparent pl-9 pr-10 text-[15px] font-bold text-[#111] placeholder:font-semibold placeholder:text-[#111]/40 focus:outline-none"
@@ -230,22 +296,67 @@ function SearchPageContent() {
         />
         {!searching ? (
           <SearchStart onPick={setQuery} />
-        ) : results === undefined ? null : results.length === 0 ? (
+        ) : !counts || !everything || !results ? null : total === 0 ? (
           <SearchNoResults onWiden={kind !== "all" ? () => pickKind("all") : undefined} />
         ) : (
           <div className="pb-6">
-            {/* Anahtar: süzgeç değişince sayfalama baştan */}
-            <SearchResults
-              key={`${trimmed}|${categoryId}|${period?.key ?? "all"}`}
-              entries={results}
-              hint={[timeLabel, catLabel].filter(Boolean).join(" · ")}
-              initialVisible={restore?.visible}
-              onOpenDay={rememberScroll}
-            />
-            {results.length >= LIMIT && (
-              <p className="-mt-2 px-1 text-[11px] font-bold text-[#111]/55">
-                {t("search.limitNote", { n: LIMIT })}
-              </p>
+            {kinds.length > 1 && (
+              <SearchTypeBar
+                counts={Object.fromEntries(kinds.map((k) => [k, countLabel(k)]))}
+                value={shownType}
+                onPick={pickType}
+              />
+            )}
+            {show("entries") && (
+              <>
+                <SearchResults
+                  key={listKey}
+                  entries={results}
+                  count={countLabel("entries")}
+                  hint={[timeLabel, catLabel].filter(Boolean).join(" · ")}
+                  cap={preview ? PREVIEW_ENTRIES : undefined}
+                  onAll={() => pickType("entries")}
+                  initialVisible={restore?.visible}
+                  onOpenDay={rememberScroll}
+                />
+                {entriesFull && !preview && (
+                  <p className="-mt-2 mb-4 px-1 text-[11px] font-bold text-[#111]/55">
+                    {t("search.limitNote", { n: LIMIT })}
+                  </p>
+                )}
+              </>
+            )}
+            {show("notes") && (
+              <SearchNotes
+                key={listKey}
+                notes={everything.notes}
+                cap={preview ? PREVIEW_ROWS : undefined}
+                onAll={() => pickType("notes")}
+                initialVisible={restore?.visible}
+                onOpenDay={rememberScroll}
+              />
+            )}
+            {show("planned") && (
+              <SearchPlanned rows={everything.planned} cap={preview ? PREVIEW_ROWS : undefined} onAll={() => pickType("planned")} />
+            )}
+            {show("things") && (
+              <SearchThings
+                collections={everything.collections}
+                things={everything.things}
+                cap={preview ? PREVIEW_ROWS : undefined}
+                onAll={() => pickType("things")}
+              />
+            )}
+            {show("categories") && (
+              <SearchPlaces
+                categories={everything.categories}
+                subs={everything.subs}
+                cap={preview ? PREVIEW_ROWS : undefined}
+                onAll={() => pickType("categories")}
+              />
+            )}
+            {show("features") && (
+              <SearchFeatures features={everything.features} cap={preview ? PREVIEW_ROWS : undefined} onAll={() => pickType("features")} />
             )}
           </div>
         )}

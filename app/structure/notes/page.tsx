@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { useLiveQuery } from "dexie-react-hooks";
 import { StickyNote } from "lucide-react";
@@ -17,18 +17,11 @@ import { PageSheet } from "@/components/ui/layer";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { StructureSearch } from "@/components/structure/structure-search";
 import { useIsBrutal } from "@/components/structure/brutal";
+import { DayCell, groupByDay, useDayLabel } from "@/components/ui/day-cell";
 
 /** Notların rengi — not kartının gül rengi (NOTE_COLOR), blokta açık tonu */
 const NOTES = "#fda4af";
 
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-function dateLabel(date: string): string {
-  const [y, m, d] = date.split("-").map(Number);
-  return `${d} ${MONTHS[m - 1]} ${y}`;
-}
 function todayStr(): string {
   const t = new Date();
   const p = (n: number) => String(n).padStart(2, "0");
@@ -49,12 +42,11 @@ export default function StructureNotesPage() {
     (n) => !query.trim() || norm(noteText(n)).includes(norm(query))
   );
 
-  const groups: { date: string; notes: Note[] }[] = [];
-  for (const n of filtered) {
-    const last = groups[groups.length - 1];
-    if (last && last.date === n.date) last.notes.push(n);
-    else groups.push({ date: n.date, notes: [n] });
-  }
+  // Gün gün — Ara ve Yapı › Girdiler ile aynı gün hücresi ve tarih yazılışı
+  // (bkz. DayCell). Eskiden sade temada tarih İngilizce ay adıyla yazılıyordu
+  const groups = groupByDay(filtered, (n) => n.date);
+  const dayLabel = useDayLabel();
+  const fmt = (n: number) => new Intl.NumberFormat(tag).format(n);
 
   // Yeni not pencerede açılır — kartlardaki notlar gibi
   const [newNoteId, setNewNoteId] = useState<string | null>(null);
@@ -63,10 +55,6 @@ export default function StructureNotesPage() {
     setNewNoteId(note.id);
   }
 
-  const dayLabel = (date: string) => {
-    const [y, m, d] = date.split("-").map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString(tag, { day: "numeric", month: "long", year: "numeric" });
-  };
 
   return (
     <PageSheet
@@ -94,8 +82,8 @@ export default function StructureNotesPage() {
       )}
 
       {/* Brütal: ana sayfanın blok dili (bkz. SummaryBlock) — gül renginde
-          "NOTLAR · 12 not" (aramada kaçta kaç), altında günler krem ara
-          satırda, notlar beyaz hücrede. Hiç not yoksa boş pencere: ince başta
+          "NOTLAR · 12 not" (aramada kaçta kaç), altında her gün bir
+          hücre (bkz. DayCell). Hiç not yoksa boş pencere: ince başta
           NOTLAR, altında "Henüz not yok" ve ufak Oluştur. */}
       {brutal ? (
         notes === undefined ? null : notes.length === 0 ? (
@@ -120,17 +108,14 @@ export default function StructureNotesPage() {
             stats={[]}
           >
             {filtered.length === 0 && <SummaryEmpty text={t("notes.noMatch")} />}
+            {/* Her gün tek hücre: tarih etiketi tepesinde (dokununca gün
+                sayfası), notları altında. Eskiden tarih krem ara satırdı */}
             {groups.map((g) => (
-              <Fragment key={g.date}>
-                <div className="bg-[#f5f1e8] px-3.5 py-1.5 text-[10.5px] font-black uppercase tracking-[0.08em] text-[#111]">
-                  {dayLabel(g.date)}
-                </div>
-                <div data-note-list="" className="flex flex-col gap-2 bg-white p-2">
-                  {g.notes.map((note) => (
-                    <NoteCard key={note.id} note={note} />
-                  ))}
-                </div>
-              </Fragment>
+              <DayCell key={g.key} day={g.key} label={dayLabel(g.key)} count={fmt(g.items.length)}>
+                {g.items.map((note) => (
+                  <NoteCard key={note.id} note={note} />
+                ))}
+              </DayCell>
             ))}
           </SummaryBlock>
         )
@@ -156,12 +141,12 @@ export default function StructureNotesPage() {
         ) : (
           <div className="flex flex-col gap-4">
             {groups.map((g) => (
-              <div key={g.date}>
+              <div key={g.key}>
                 <div className="mb-1.5 px-1 text-[11px] font-medium text-muted-foreground/70">
-                  {dateLabel(g.date)}
+                  {dayLabel(g.key)}
                 </div>
                 <div className="flex flex-col gap-2">
-                  {g.notes.map((note) => (
+                  {g.items.map((note) => (
                     <NoteCard key={note.id} note={note} />
                   ))}
                 </div>

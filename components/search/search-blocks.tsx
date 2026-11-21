@@ -3,7 +3,20 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { CalendarRange, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import {
+  Boxes,
+  CalendarRange,
+  ChevronLeft,
+  ChevronRight,
+  Circle,
+  Diamond,
+  Rows3,
+  Search,
+  Square,
+  StickyNote,
+  Target,
+  type LucideIcon,
+} from "lucide-react";
 import { db } from "@/lib/db";
 import { intlTag, useLocale, useT, type MessageKey } from "@/lib/i18n";
 import { periodLabel, shiftPeriod, type Period } from "@/lib/period";
@@ -12,7 +25,16 @@ import { cn, toLocalDateValue } from "@/lib/utils";
 import { HScroll } from "@/components/ui/h-scroll";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { EntryCard } from "@/components/dashboard/entry-card";
-import type { Category, EntryWithContext } from "@/types";
+import { NoteCard } from "@/components/notes/note-card";
+import { GoalRow, type Row as GoalRowData } from "@/components/goals/planned-list";
+import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
+import { modAtomIcon } from "@/components/structure/mod-atom";
+import { DayCell, groupByDay, useDayLabel } from "@/components/ui/day-cell";
+import { SymbolIcon } from "@/lib/icons";
+import { measureSummary } from "@/lib/measure-kinds";
+import { modColor } from "@/lib/mod-color";
+import type { ModWithType } from "@/lib/db/queries";
+import type { Category, Collection, EntryWithContext, Note, SubCategory, Thing } from "@/types";
 
 /**
  * Aramanın zaman süzgeci — Analiz'in dönem türleri, onunla aynı sırada:
@@ -40,13 +62,6 @@ const PAGE_SIZE = 30;
 /** Öneriler için geriye bakılan gün ve en çok kaç öneri */
 const SUGGEST_DAYS = 60;
 const SUGGEST_LIMIT = 8;
-
-/** Dünün anahtarı — bileşen dışında: çizim saf kalsın (yaz saatinde de doğru gün) */
-function yesterdayKey(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return toLocalDateValue(d.getTime());
-}
 
 /** Kategori karesi — şekil dili: kare = kategori (bkz. design-modular-boxes) */
 export function CategorySquare({ color }: { color: string }) {
@@ -243,7 +258,7 @@ export function SearchStart({ onPick }: { onPick: (q: string) => void }) {
     <SummaryBlock
       compact
       className="mb-4"
-      lead={{ kind: "title", overline: "", title: t("search.start"), hint: t("search.startHint"), color: SEARCH_COLOR, glyph: Search }}
+      lead={{ kind: "title", overline: "", title: t("search.startAll"), hint: t("search.startHintAll"), color: SEARCH_COLOR, glyph: Search }}
       stats={[]}
     >
       {suggestions && suggestions.length > 0 ? (
@@ -259,13 +274,13 @@ export function SearchStart({ onPick }: { onPick: (q: string) => void }) {
           </div>
         </div>
       ) : suggestions ? (
-        <SummaryEmpty text={t("search.startHint")} />
+        <SummaryEmpty text={t("search.startHintAll")} />
       ) : null}
     </SummaryBlock>
   );
 }
 
-/** Eşleşen girdi yok — dar aralıktaysa tek dokunuşla bütün zamanlarda ara */
+/** Hiçbir şey eşleşmedi — dar aralıktaysa tek dokunuşla bütün zamanlarda ara */
 export function SearchNoResults({ onWiden }: { onWiden?: () => void }) {
   const t = useT();
   return (
@@ -284,12 +299,180 @@ export function SearchNoResults({ onWiden }: { onWiden?: () => void }) {
 }
 
 /**
- * Sonuçlar — tek blok: ince başta "Sonuçlar · 11 girdi · Kasım 2026",
- * altında her gün bir hücre: tepesinde siyah tarih etiketi ("Bugün", "Dün",
- * "18 Kasım Salı"), altında o günün girdileri uygulamanın her yerindeki
- * girdi kartlarıyla (bkz. EntryCard) —
- * kategorinin rengi, simgesi, değerleri. Karta dokununca girdi açılır,
- * tarihe dokununca o günün sayfası.
+ * Sonuç türleri — genel aramanın (ana sayfadaki Ara) blokları ve tür
+ * çipleri bu sırada. Renkler her türün kendi sayfasındaki bloğun rengi:
+ * girdilerin şeftalisi, notların gülü, planlıların pembesi, Yapı'nın sarısı,
+ * özelliklerin menekşesi.
+ */
+export type ResultKind = "entries" | "notes" | "planned" | "things" | "categories" | "features";
+export const RESULT_KINDS: { kind: ResultKind; label: MessageKey; color: string; glyph: LucideIcon }[] = [
+  { kind: "entries", label: "structure.entries", color: SEARCH_COLOR, glyph: Rows3 },
+  { kind: "notes", label: "structure.notes", color: "#fda4af", glyph: StickyNote },
+  { kind: "planned", label: "goal.pageTitle", color: "#ff9ecd", glyph: Target },
+  { kind: "things", label: "structure.objects", color: "#8ee0d6", glyph: Diamond },
+  { kind: "categories", label: "structure.categories", color: "#ffd23f", glyph: Square },
+  { kind: "features", label: "structure.features", color: "#c9b8ff", glyph: Circle },
+];
+const KIND = Object.fromEntries(RESULT_KINDS.map((k) => [k.kind, k])) as Record<ResultKind, (typeof RESULT_KINDS)[number]>;
+
+/** "Hepsi"nde bir blokta en çok kaç satır/kart — fazlası "Tümünü gör" ile o türe geçer */
+export const PREVIEW_ROWS = 4;
+export const PREVIEW_ENTRIES = 6;
+
+/**
+ * Tür çipleri — Hepsi · Girdiler 22 · Notlar 3 · … Yalnız sonucu olan
+ * türler; birden çok tür varsa görünür. Seçili tür kendi renginde dolar.
+ * Çerçeveli şerit: çipler şeridin içinde kayar (bkz. SearchFilters).
+ */
+export function SearchTypeBar({
+  counts,
+  value,
+  onPick,
+}: {
+  counts: Partial<Record<ResultKind, string>>;
+  value: ResultKind | "all";
+  onPick: (k: ResultKind | "all") => void;
+}) {
+  const t = useT();
+  return (
+    <nav
+      data-search-types=""
+      aria-label={t("search.types")}
+      className="mb-4 overflow-hidden rounded-[14px] border-2 border-[#111] bg-white shadow-[3px_3px_0_#111]"
+    >
+      <HScroll className="gap-1.5 p-2">
+        <FilterChip on={value === "all"} onClick={() => onPick("all")}>
+          {t("search.allTypes")}
+        </FilterChip>
+        {RESULT_KINDS.filter((k) => counts[k.kind]).map((k) => (
+          <FilterChip key={k.kind} on={value === k.kind} color={k.color} onClick={() => onPick(k.kind)}>
+            {t(k.label)}
+            <span className="font-mono text-[11px] font-bold opacity-60">{counts[k.kind]}</span>
+          </FilterChip>
+        ))}
+      </HScroll>
+    </nav>
+  );
+}
+
+/** Bir türün bloğu — ince başta türün adı ve sayısı, altında satırlar */
+function KindBlock({ kind, count, hint, children }: { kind: ResultKind; count: string; hint?: string; children: ReactNode }) {
+  const t = useT();
+  const k = KIND[kind];
+  return (
+    <div data-search-kind={kind}>
+      <SummaryBlock
+        compact
+        className="mb-4"
+        lead={{ kind: "count", color: k.color, glyph: k.glyph, overline: t(k.label), value: count, unit: "", hint }}
+        stats={[]}
+      >
+        {children}
+      </SummaryBlock>
+    </div>
+  );
+}
+
+/** Bloğun alt satırı: "Tümünü gör (12)" — o türe geçer */
+function SeeAll({ n, onClick }: { n: string; onClick?: () => void }) {
+  const t = useT();
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex h-11 items-center justify-center gap-1 bg-white text-[13px] font-black text-[#111] active:bg-[#f5f1e8]"
+    >
+      {t("search.seeAll", { n })}
+      <ChevronRight className="h-4 w-4" strokeWidth={2.75} />
+    </button>
+  );
+}
+
+/** "Daha fazla göster (40)" — uzun listede sayfa sayfa */
+function ShowMore({ n, onClick }: { n: string; onClick: () => void }) {
+  const t = useT();
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex h-11 items-center justify-center bg-white text-[13px] font-black text-[#111] active:bg-[#f5f1e8]"
+    >
+      {t("list.showMore")} ({n})
+    </button>
+  );
+}
+
+/**
+ * Sonuç satırı — yapıdaki bir şeye giden bağlantı: solda türün şekliyle
+ * karo (kare = kategori, daire = özellik, baklava = nesne; bkz.
+ * design-modular-boxes), adı, altında nerede olduğu, sağda ok.
+ */
+function ResultRow({
+  href,
+  shape,
+  color,
+  icon,
+  glyph: Glyph,
+  title,
+  hint,
+}: {
+  href: string;
+  shape: "square" | "circle" | "diamond";
+  color: string;
+  /** Kullanıcının seçtiği sembol (kategori, kalem, liste) */
+  icon?: string;
+  glyph?: LucideIcon;
+  title: string;
+  hint?: string;
+}) {
+  return (
+    <Link
+      href={href}
+      prefetch={false}
+      data-search-row=""
+      className="flex min-h-[54px] items-center gap-3 bg-white px-3 py-2 text-[#111] active:bg-[#f5f1e8]"
+    >
+      {shape === "diamond" ? (
+        <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center">
+          <span className="h-[21px] w-[21px] rotate-45 rounded-[4px] border-[1.5px] border-[#111]" style={{ background: color }} />
+        </span>
+      ) : (
+        <span
+          aria-hidden
+          className={cn(
+            "flex h-8 w-8 shrink-0 items-center justify-center border-[1.5px] border-[#111]",
+            shape === "circle" ? "rounded-full" : "rounded-[9px]"
+          )}
+          style={{ background: color }}
+        >
+          {icon ? (
+            <SymbolIcon name={icon} size={17} style={{ color: "#111" }} />
+          ) : Glyph ? (
+            <Glyph className="h-4 w-4 text-[#111]" strokeWidth={2.5} />
+          ) : null}
+        </span>
+      )}
+      <span className="min-w-0 flex-1 leading-tight">
+        <span className="block truncate text-[14.5px] font-extrabold">{title}</span>
+        {hint && <span className="mt-0.5 block truncate text-[11.5px] font-bold text-[#111]/55">{hint}</span>}
+      </span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-[#111]/45" strokeWidth={2.75} />
+    </Link>
+  );
+}
+
+/** Ortak: önizlemede ilk `cap` tanesi ve "Tümünü gör", yoksa hepsi */
+function useCapped<T>(items: T[], cap?: number) {
+  const capped = cap !== undefined && items.length > cap;
+  return { shown: capped ? items.slice(0, cap) : items, capped };
+}
+
+/**
+ * Sonuçlar: girdiler — her gün bir hücre (bkz. DayCell): tepesinde siyah
+ * tarih etiketi ("Bugün", "Dün", "18 Kasım Salı"; dokununca gün sayfası),
+ * altında o günün girdileri uygulamanın her yerindeki girdi kartlarıyla
+ * (bkz. EntryCard) — kategorinin rengi, simgesi, değerleri. Karta dokununca
+ * girdi açılır.
  *
  * Eskiden sonuçlar düz bir tabloydu: solda soluk "Kas 21 · 06:27", yanında
  * "Harcamalar · Kira"; renk ve simge yoktu, girdiler uygulamanın geri
@@ -297,103 +480,221 @@ export function SearchNoResults({ onWiden }: { onWiden?: () => void }) {
  */
 export function SearchResults({
   entries,
+  count,
   hint,
+  cap,
+  onAll,
   initialVisible,
   onOpenDay,
 }: {
   entries: EntryWithContext[];
+  /** Başta yazan sayı ("100+") */
+  count: string;
   hint?: string;
+  /** "Hepsi"nde önizleme — ilk bu kadar kart ve "Tümünü gör" */
+  cap?: number;
+  onAll?: () => void;
   /** Geri gelindiğinde açık kart sayısı (bkz. app/search scrollMemory) */
   initialVisible?: number;
   /** Tarihe dokununca, gün sayfasına geçmeden — açık kart sayısıyla */
   onOpenDay?: (visible: number) => void;
 }) {
-  const t = useT();
   const tag = intlTag(useLocale());
+  const dayLabel = useDayLabel();
   const [visible, setVisible] = useState(() => Math.max(PAGE_SIZE, initialVisible ?? 0));
-  const shown = entries.slice(0, visible);
-  const remaining = entries.length - shown.length;
-
-  // Günlere böl — sonuçlar zaten yeniden eskiye sıralı
-  const days: { key: string; items: EntryWithContext[] }[] = [];
-  for (const e of shown) {
-    const key = toLocalDateValue(e.occurredAt);
-    const last = days[days.length - 1];
-    if (last && last.key === key) last.items.push(e);
-    else days.push({ key, items: [e] });
-  }
-  const today = toLocalDateValue();
-  const yesterday = yesterdayKey();
-  const thisYear = new Date().getFullYear();
-  const dayLabel = (key: string) => {
-    if (key === today) return t("datetime.today");
-    if (key === yesterday) return t("datetime.yesterday");
-    const [y, m, d] = key.split("-").map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString(tag, {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: y === thisYear ? undefined : "numeric",
-    });
-  };
+  const { shown: head, capped } = useCapped(entries, cap);
+  const shown = capped ? head : entries.slice(0, visible);
+  const remaining = capped ? 0 : entries.length - shown.length;
   const fmt = (n: number) => new Intl.NumberFormat(tag).format(n);
 
   return (
-    <SummaryBlock
-      compact
-      className="mb-4"
-      lead={{
-        kind: "count",
-        color: SEARCH_COLOR,
-        glyph: Search,
-        overline: t("search.results"),
-        value: fmt(entries.length),
-        unit: t("home.entries"),
-        hint,
-      }}
-      stats={[]}
-    >
-      {/* Her gün TEK hücre: tarih etiketi tepesinde, girdileri altında;
-          günler arasında bloğun kalın çizgisi. Eskiden tarih krem bir ara
-          satırdı, girdiler ayrı hücrede: iki tarih arasında tek girdi
-          kalınca hangi güne ait olduğu okunmuyordu, krem de soluk
-          duruyordu */}
-      {/* Tarih satırı gün sayfasına gider (bkz. routes.day): o günün
-          bütününe — öbür girdilerine, uykusuna, notlarına — bakmak için.
-          Dokunma alanı satırın tamamı (etiket tek başına 22 px, parmağa
-          küçük). Geri dönünce arama yerinde: sorgu adreste, kaydırma yeri
-          ve açık kart sayısı bellekte (bkz. app/search) */}
-      {days.map((d) => (
-        <section key={d.key} aria-label={dayLabel(d.key)} className="flex flex-col gap-2 bg-white px-2.5 pb-2.5 pt-2 text-[#111]">
-          <Link
-            href={routes.day(d.key)}
-            prefetch={false}
-            data-search-day={d.key}
-            onClick={() => onOpenDay?.(visible)}
-            aria-label={t("search.openDay", { day: dayLabel(d.key) })}
-            className="-mx-1.5 -my-1 flex items-center gap-2 rounded-[12px] px-1.5 py-1 active:bg-[#111]/[0.06]"
-          >
-            <span className="flex shrink-0 items-center gap-0.5 rounded-full bg-[#111] py-[5px] pl-2.5 pr-1.5 text-[11.5px] font-black leading-none text-[#fff4dc]">
-              {dayLabel(d.key)}
-              <ChevronRight aria-hidden className="h-3 w-3" strokeWidth={3} />
-            </span>
-            <span aria-hidden className="h-[1.5px] min-w-0 flex-1 rounded-full bg-[#111]/12" />
-            <span className="shrink-0 font-mono text-[11px] font-bold text-[#111]/45">{fmt(d.items.length)}</span>
-          </Link>
+    <KindBlock kind="entries" count={count} hint={hint}>
+      {groupByDay(shown, (e) => toLocalDateValue(e.occurredAt)).map((d) => (
+        <DayCell key={d.key} day={d.key} label={dayLabel(d.key)} count={fmt(d.items.length)} onOpen={() => onOpenDay?.(visible)}>
           {d.items.map((e) => (
             <EntryCard key={e.id} entry={e} />
           ))}
-        </section>
+        </DayCell>
       ))}
-      {remaining > 0 && (
-        <button
-          type="button"
-          onClick={() => setVisible((v) => v + PAGE_SIZE)}
-          className="flex h-11 items-center justify-center bg-white text-[13px] font-black text-[#111] active:bg-[#f5f1e8]"
-        >
-          {t("list.showMore")} ({fmt(remaining)})
-        </button>
-      )}
-    </SummaryBlock>
+      {capped && <SeeAll n={count} onClick={onAll} />}
+      {remaining > 0 && <ShowMore n={fmt(remaining)} onClick={() => setVisible((v) => v + PAGE_SIZE)} />}
+    </KindBlock>
+  );
+}
+
+/** Sonuçlar: notlar — girdiler gibi gün gün, not kartlarıyla (dokununca not penceresi) */
+export function SearchNotes({
+  notes,
+  cap,
+  onAll,
+  initialVisible,
+  onOpenDay,
+}: {
+  notes: Note[];
+  cap?: number;
+  onAll?: () => void;
+  initialVisible?: number;
+  onOpenDay?: (visible: number) => void;
+}) {
+  const tag = intlTag(useLocale());
+  const dayLabel = useDayLabel();
+  const [visible, setVisible] = useState(() => Math.max(PAGE_SIZE, initialVisible ?? 0));
+  const { shown: head, capped } = useCapped(notes, cap);
+  const shown = capped ? head : notes.slice(0, visible);
+  const remaining = capped ? 0 : notes.length - shown.length;
+  const fmt = (n: number) => new Intl.NumberFormat(tag).format(n);
+  return (
+    <KindBlock kind="notes" count={fmt(notes.length)}>
+      {groupByDay(shown, (n) => n.date).map((d) => (
+        <DayCell key={d.key} day={d.key} label={dayLabel(d.key)} count={fmt(d.items.length)} onOpen={() => onOpenDay?.(visible)}>
+          {d.items.map((n) => (
+            <NoteCard key={n.id} note={n} />
+          ))}
+        </DayCell>
+      ))}
+      {capped && <SeeAll n={fmt(notes.length)} onClick={onAll} />}
+      {remaining > 0 && <ShowMore n={fmt(remaining)} onClick={() => setVisible((v) => v + PAGE_SIZE)} />}
+    </KindBlock>
+  );
+}
+
+/** Sonuçlar: planlı girdiler — Yapı › Planlı girdiler'in satırları; dokununca düzenleme */
+export function SearchPlanned({ rows, cap, onAll }: { rows: GoalRowData[]; cap?: number; onAll?: () => void }) {
+  const tag = intlTag(useLocale());
+  const today = toLocalDateValue();
+  const [editing, setEditing] = useState<GoalRowData["goal"] | null>(null);
+  const { shown, capped } = useCapped(rows, cap);
+  const n = new Intl.NumberFormat(tag).format(rows.length);
+  return (
+    <KindBlock kind="planned" count={n}>
+      <div className="flex flex-col gap-2 bg-white p-2.5">
+        {shown.map((r) => (
+          <GoalRow key={r.goal.id} row={r} today={today} onOpen={() => setEditing(r.goal)} />
+        ))}
+      </div>
+      {capped && <SeeAll n={n} onClick={onAll} />}
+      {editing && <DayEntrySheet date={editing.date} open onClose={() => setEditing(null)} editGoal={editing} />}
+    </KindBlock>
+  );
+}
+
+/** Sonuçlar: nesneler ve listeler — önce listeler, sonra nesneler */
+export function SearchThings({
+  collections,
+  things,
+  cap,
+  onAll,
+}: {
+  collections: Collection[];
+  things: { thing: Thing; collection: Collection | undefined }[];
+  cap?: number;
+  onAll?: () => void;
+}) {
+  const t = useT();
+  const tag = intlTag(useLocale());
+  const rows = [
+    ...collections.map((c) => (
+      <ResultRow
+        key={c.id}
+        href={routes.structureCollection(c.id)}
+        shape="square"
+        color={c.color ?? "#94a3b8"}
+        icon={c.icon}
+        glyph={Boxes}
+        title={c.name}
+        hint={t("search.kind.list")}
+      />
+    )),
+    ...things.map(({ thing, collection }) => (
+      <ResultRow
+        key={thing.id}
+        href={routes.structureThing(thing.id)}
+        shape="diamond"
+        color={collection?.color ?? "#94a3b8"}
+        title={thing.name}
+        hint={[collection?.name, thing.archivedAt ? t("objects.archivedTag") : null].filter(Boolean).join(" · ")}
+      />
+    )),
+  ];
+  const { shown, capped } = useCapped(rows, cap);
+  const n = new Intl.NumberFormat(tag).format(rows.length);
+  return (
+    <KindBlock kind="things" count={n}>
+      {shown}
+      {capped && <SeeAll n={n} onClick={onAll} />}
+    </KindBlock>
+  );
+}
+
+/** Sonuçlar: kategoriler ve kalemler — dokununca Yapı'daki sayfası */
+export function SearchPlaces({
+  categories,
+  subs,
+  cap,
+  onAll,
+}: {
+  categories: Category[];
+  subs: { sub: SubCategory; category: Category }[];
+  cap?: number;
+  onAll?: () => void;
+}) {
+  const t = useT();
+  const tag = intlTag(useLocale());
+  const rows = [
+    ...categories.map((c) => (
+      <ResultRow
+        key={c.id}
+        href={routes.structureCategory(c.id)}
+        shape="square"
+        color={c.color}
+        icon={c.icon}
+        glyph={Square}
+        title={c.name}
+        hint={t("search.kind.category")}
+      />
+    )),
+    ...subs.map(({ sub, category }) => (
+      <ResultRow
+        key={sub.id}
+        href={routes.structureSub(category.id, sub.id)}
+        shape="square"
+        color={category.color}
+        icon={sub.icon ?? category.icon}
+        glyph={Square}
+        title={sub.name}
+        hint={category.name}
+      />
+    )),
+  ];
+  const { shown, capped } = useCapped(rows, cap);
+  const n = new Intl.NumberFormat(tag).format(rows.length);
+  return (
+    <KindBlock kind="categories" count={n}>
+      {shown}
+      {capped && <SeeAll n={n} onClick={onAll} />}
+    </KindBlock>
+  );
+}
+
+/** Sonuçlar: özellikler — dokununca Yapı › Özellikler bu adla aranmış açılır */
+export function SearchFeatures({ features, cap, onAll }: { features: ModWithType[]; cap?: number; onAll?: () => void }) {
+  const tag = intlTag(useLocale());
+  const { shown, capped } = useCapped(features, cap);
+  const n = new Intl.NumberFormat(tag).format(features.length);
+  return (
+    <KindBlock kind="features" count={n}>
+      {shown.map((m) => (
+        <ResultRow
+          key={m.id}
+          href={routes.structureMods(m.name)}
+          shape="circle"
+          color={modColor(m)}
+          glyph={modAtomIcon(m)}
+          title={m.name}
+          hint={measureSummary(m)}
+        />
+      ))}
+      {capped && <SeeAll n={n} onClick={onAll} />}
+    </KindBlock>
   );
 }

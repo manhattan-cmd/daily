@@ -15,7 +15,7 @@ import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { useRepeatLabel } from "@/components/goals/goal-plan";
 
-type Row = { goal: GoalWithContext; doneDays: Set<string> };
+export type Row = { goal: GoalWithContext; doneDays: Set<string> };
 
 /** Bölümlerin rengi — planlı girdilerin pembesi (gün özetindeki PLANLI) */
 const PLANNED = "#ff9ecd";
@@ -105,7 +105,8 @@ export function PlannedList({ query, onPlan }: { query: string; onPlan: () => vo
   );
 }
 
-function GoalRow({ row, today, onOpen }: { row: Row; today: string; onOpen: () => void }) {
+/** Planlı girdinin satırı — Ara da kullanıyor (bkz. SearchPlanned) */
+export function GoalRow({ row, today, onOpen }: { row: Row; today: string; onOpen: () => void }) {
   const t = useT();
   const tag = intlTag(useLocale());
   const brutal = useSkin() === "brutal";

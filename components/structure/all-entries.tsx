@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Rows3 } from "lucide-react";
 import { searchEntries } from "@/lib/db/queries";
@@ -11,6 +11,7 @@ import type { EntryWithContext } from "@/types";
 import { EntryCard } from "@/components/dashboard/entry-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
+import { DayCell, groupByDay, useDayLabel } from "@/components/ui/day-cell";
 
 /** Bir seferde okunan girdi — fazlası "Daha fazla göster" ile */
 const PAGE = 60;
@@ -32,17 +33,10 @@ export function AllEntries({ query, onAdd }: { query: string; onAdd: () => void 
   const q = query.trim();
   const entries = useLiveQuery(() => searchEntries({ query: q, limit }), [q, limit]);
 
-  const groups: { day: string; entries: EntryWithContext[] }[] = [];
-  for (const e of entries ?? []) {
-    const day = toLocalDateValue(e.occurredAt);
-    const last = groups[groups.length - 1];
-    if (last && last.day === day) last.entries.push(e);
-    else groups.push({ day, entries: [e] });
-  }
-  const dayLabel = (key: string) => {
-    const [y, m, d] = key.split("-").map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString(tag, { weekday: "short", day: "numeric", month: "long", year: "numeric" });
-  };
+  // Gün gün — Ara'yla aynı gün hücresi ve tarih yazılışı (bkz. DayCell)
+  const groups = groupByDay(entries ?? [], (e: EntryWithContext) => toLocalDateValue(e.occurredAt));
+  const dayLabel = useDayLabel();
+  const fmt = (n: number) => new Intl.NumberFormat(tag).format(n);
   // Sayfa doldu: belki daha fazlası var
   const more = !!entries && entries.length >= limit;
   const moreButton = more && (
@@ -91,17 +85,16 @@ export function AllEntries({ query, onAdd }: { query: string; onAdd: () => void 
           }}
           stats={[]}
         >
+          {/* Eskiden gün krem ara satırdı, girdiler ayrı beyaz hücrede: iki
+              tarih arasında tek girdi kalınca hangi güne ait olduğu
+              okunmuyordu. Artık Ara'daki gibi her gün tek hücre, tarihe
+              dokununca gün sayfası */}
           {groups.map((g) => (
-            <Fragment key={g.day}>
-              <div className="bg-[#f5f1e8] px-3.5 py-1.5 text-[10.5px] font-black uppercase tracking-[0.08em] text-[#111]">
-                {dayLabel(g.day)}
-              </div>
-              <div className="flex flex-col gap-2 bg-white p-2.5">
-                {g.entries.map((e) => (
-                  <EntryCard key={e.id} entry={e} />
-                ))}
-              </div>
-            </Fragment>
+            <DayCell key={g.key} day={g.key} label={dayLabel(g.key)} count={fmt(g.items.length)}>
+              {g.items.map((e) => (
+                <EntryCard key={e.id} entry={e} />
+              ))}
+            </DayCell>
           ))}
         </SummaryBlock>
         {moreButton}
@@ -112,10 +105,10 @@ export function AllEntries({ query, onAdd }: { query: string; onAdd: () => void 
   return (
     <div data-all-entries="" className="flex flex-col gap-4 pb-8">
       {groups.map((g) => (
-        <section key={g.day}>
-          <div className="mb-1.5 px-1 text-[11px] font-medium text-muted-foreground/70">{dayLabel(g.day)}</div>
+        <section key={g.key}>
+          <div className="mb-1.5 px-1 text-[11px] font-medium text-muted-foreground/70">{dayLabel(g.key)}</div>
           <div className="flex flex-col gap-2">
-            {g.entries.map((e) => (
+            {g.items.map((e) => (
               <EntryCard key={e.id} entry={e} />
             ))}
           </div>
