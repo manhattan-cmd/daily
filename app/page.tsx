@@ -39,6 +39,7 @@ import { AddButton } from "@/components/calendar/add-menu";
 import { useDayAdd } from "@/components/calendar/day-add";
 import { CategoryForm } from "@/components/structure/category-form";
 import { LogbitWordmark } from "@/components/ui/logbit-wordmark";
+import { SmartText } from "@/components/ui/smart-text";
 import { SymbolIcon } from "@/lib/icons";
 import { useLocalFlag } from "@/lib/local-flag";
 import { useLastBackupAt } from "@/lib/storage-health";
@@ -520,23 +521,27 @@ function FrequentBlock({ items, onPick }: { items: FrequentItem[]; onPick: (sub:
               {/* flex-1: hücre sıradaki komşusu kadar uzar (adı iki satır
                   olan); içerik onun ortasında — eskiden tepeye yapışıyor,
                   aynı sırada sembolün biri yukarıda biri aşağıda kalıyordu */}
-              <span className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-2">
+              <span className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-2">
+                {/* "+" sembolün köşesinde, adın yanında değil: ad satırının
+                    32 px'ini yiyor, uzun kelimeyi bölünmeye zorluyordu */}
                 <span
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111]"
+                  className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111]"
                   style={{ background: it.category.color }}
                 >
                   {icon && <SymbolIcon name={icon} size={17} style={{ color: "#111" }} />}
+                  <span className="absolute -bottom-[6px] -right-[6px] flex h-[15px] w-[15px] items-center justify-center rounded-full bg-[#111] text-white ring-2 ring-white">
+                    <Plus className="h-[10px] w-[10px]" strokeWidth={3.5} />
+                  </span>
                 </span>
-                {/* Ad iki satıra sarar — iki sütunda "Kahve / ç…" diye kesiliyordu;
-                    altında kategorisi (Beslenme › Su ile Faturalar › Su ayrılsın) */}
+                {/* Ad iki satıra sarar, kelime ortadan bölünmez; sığmayan uzun
+                    kelimede punto biraz küçülür (Correspondence), o da yetmezse
+                    kelime sonunda "…". Altında kategorisi (Beslenme › Su ile
+                    Faturalar › Su ayrılsın) */}
                 <span className="min-w-0 flex-1">
-                  <span className="line-clamp-2 break-words text-[13px] font-black leading-tight">{name}</span>
+                  <SmartText text={name} lines={2} minSize={11} interactive className="text-[13px] font-black leading-tight" />
                   <span className="block truncate text-[10.5px] font-bold text-[#111]/50">
                     {it.isRoot ? t("brut.category") : it.category.name}
                   </span>
-                </span>
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] bg-[#111] text-white">
-                  <Plus className="h-3.5 w-3.5" strokeWidth={3} />
                 </span>
               </span>
             </button>
