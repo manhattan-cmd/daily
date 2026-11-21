@@ -2,13 +2,27 @@
 
 import { useState, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { CalendarRange, Search } from "lucide-react";
+import { CalendarRange, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { db } from "@/lib/db";
-import { intlTag, useLocale, useT } from "@/lib/i18n";
-import { toLocalDateValue } from "@/lib/utils";
+import { intlTag, useLocale, useT, type MessageKey } from "@/lib/i18n";
+import { periodLabel, shiftPeriod, type Period } from "@/lib/period";
+import { cn, toLocalDateValue } from "@/lib/utils";
+import { HScroll } from "@/components/ui/h-scroll";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { EntryCard } from "@/components/dashboard/entry-card";
-import type { EntryWithContext } from "@/types";
+import type { Category, EntryWithContext } from "@/types";
+
+/** Aramanın zaman süzgeci — Analiz'in dönem türleri (gün yok: o günün sayfası var) */
+export type TimeKind = "all" | "week" | "month" | "year";
+export const TIME_KINDS: { kind: TimeKind; label: MessageKey }[] = [
+  { kind: "all", label: "insights.all" },
+  { kind: "week", label: "range.week" },
+  { kind: "month", label: "range.month" },
+  { kind: "year", label: "range.year" },
+];
+
+/** Şimdi — bileşen dışında: çizim saf kalsın */
+const nowMs = () => Date.now();
 
 /** Ara'nın bloklarının rengi — Son girdiler bloklarının şeftalisi */
 export const SEARCH_COLOR = "#ffb38a";
@@ -65,6 +79,126 @@ export function FilterChip({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * Süzgeç bloğu — zaman ve kategori tek çerçevede, ortak 2 px çizgilerle
+ * (bkz. SummaryBlock):
+ *
+ *  1. Zaman türü — dört eşit bölmeli anahtar (Tümü · Hafta · Ay · Yıl),
+ *     seçili bölme siyah. Eskiden şeritte düz yazı üç sekmeydi (Tüm
+ *     zamanlar · Bu yıl · Bu ay): "geçen ay" aranamıyordu, sekmeler de
+ *     hizasız duruyordu.
+ *  2. Dönem — tür seçiliyken: ‹ Kasım 2026 › ile geriye gidilir (Analiz'in
+ *     dönemi gibi; gelecekteki döneme geçilmez).
+ *  3. Kategoriler — çipler hücrenin İÇİNDE kayar; bloğun çerçevesi keser.
+ *     Eskiden sıra sayfa zemininin kenarına taşıyordu, kaydırınca çipler
+ *     pencerenin dışına çıkıyor gibi görünüyordu.
+ */
+export function SearchFilters({
+  kind,
+  period,
+  onKind,
+  onPeriod,
+  categories,
+  categoryId,
+  onCategory,
+}: {
+  kind: TimeKind;
+  period: Period | null;
+  onKind: (k: TimeKind) => void;
+  onPeriod: (p: Period) => void;
+  categories: Category[];
+  categoryId: string | null;
+  onCategory: (id: string | null) => void;
+}) {
+  const t = useT();
+  const locale = useLocale();
+  const prev = period ? shiftPeriod(period, -1) : null;
+  const next = period ? shiftPeriod(period, 1) : null;
+  const nextOff = !next || next.start > nowMs();
+  const arrow =
+    "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111] bg-white text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none disabled:opacity-25 disabled:shadow-none";
+  return (
+    <section
+      data-search-filters=""
+      aria-label={t("search.filters")}
+      className="mb-4 grid grid-cols-1 gap-[2px] overflow-hidden rounded-[18px] border-2 border-[#111] bg-[#111] shadow-[4px_4px_0_#111]"
+    >
+      <div className="bg-white p-2">
+        <div
+          role="tablist"
+          aria-label={t("insights.period")}
+          className="grid grid-cols-4 overflow-hidden rounded-[11px] border-[1.5px] border-[#111]"
+        >
+          {TIME_KINDS.map((k, i) => {
+            const on = kind === k.kind;
+            return (
+              <button
+                key={k.kind}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                onClick={() => onKind(k.kind)}
+                className={cn(
+                  "h-9 min-w-0 truncate px-1 text-[13px] font-extrabold transition-colors",
+                  i > 0 && "border-l-[1.5px] border-[#111]",
+                  on ? "bg-[#111] text-white" : "bg-white text-[#111]/70 active:bg-[#f5f1e8]"
+                )}
+              >
+                {t(k.label)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {period && (
+        <div className="flex items-center gap-2 bg-[#ffe7d6] px-2 py-1.5 text-[#111]">
+          <button
+            type="button"
+            onClick={() => prev && onPeriod(prev)}
+            disabled={!prev}
+            aria-label={t("insights.previousPeriod")}
+            title={t("insights.previousPeriod")}
+            className={arrow}
+          >
+            <ChevronLeft className="h-4 w-4" strokeWidth={2.75} />
+          </button>
+          <span className="min-w-0 flex-1 truncate text-center text-[15px] font-black leading-tight tracking-tight">
+            {periodLabel(period, locale)}
+          </span>
+          <button
+            type="button"
+            onClick={() => next && !nextOff && onPeriod(next)}
+            disabled={nextOff}
+            aria-label={t("insights.nextPeriod")}
+            title={t("insights.nextPeriod")}
+            className={arrow}
+          >
+            <ChevronRight className="h-4 w-4" strokeWidth={2.75} />
+          </button>
+        </div>
+      )}
+      <nav aria-label={t("structure.categories")} className="bg-white">
+        <HScroll className="gap-1.5 px-2 py-2">
+          <FilterChip on={categoryId === null} onClick={() => onCategory(null)}>
+            {t("search.allCategories")}
+          </FilterChip>
+          {categories.map((c) => (
+            <FilterChip
+              key={c.id}
+              on={categoryId === c.id}
+              color={c.color}
+              onClick={() => onCategory(categoryId === c.id ? null : c.id)}
+            >
+              <CategorySquare color={c.color} />
+              {c.name}
+            </FilterChip>
+          ))}
+        </HScroll>
+      </nav>
+    </section>
   );
 }
 
@@ -143,9 +277,10 @@ export function SearchNoResults({ onWiden }: { onWiden?: () => void }) {
 }
 
 /**
- * Sonuçlar — tek blok: ince başta "Sonuçlar · 11 girdi · Bu ay", altında
- * günler krem ara satırda ("Bugün", "Dün", "18 Kasım Salı"), her günün
- * girdileri uygulamanın her yerindeki girdi kartlarıyla (bkz. EntryCard) —
+ * Sonuçlar — tek blok: ince başta "Sonuçlar · 11 girdi · Kasım 2026",
+ * altında her gün bir hücre: tepesinde siyah tarih etiketi ("Bugün", "Dün",
+ * "18 Kasım Salı"), altında o günün girdileri uygulamanın her yerindeki
+ * girdi kartlarıyla (bkz. EntryCard) —
  * kategorinin rengi, simgesi, değerleri. Karta dokununca girdi açılır.
  *
  * Eskiden sonuçlar düz bir tabloydu: solda soluk "Kas 21 · 06:27", yanında
@@ -198,18 +333,24 @@ export function SearchResults({ entries, hint }: { entries: EntryWithContext[]; 
       }}
       stats={[]}
     >
+      {/* Her gün TEK hücre: tarih etiketi tepesinde, girdileri altında;
+          günler arasında bloğun kalın çizgisi. Eskiden tarih krem bir ara
+          satırdı, girdiler ayrı hücrede: iki tarih arasında tek girdi
+          kalınca hangi güne ait olduğu okunmuyordu, krem de soluk
+          duruyordu */}
       {days.map((d) => (
-        <div key={d.key} className="grid gap-[2px]">
-          <div className="flex items-center gap-2 bg-[#fff4dc] px-3 py-1.5 text-[#111]">
-            <span className="min-w-0 flex-1 truncate text-[12px] font-black leading-tight first-letter:uppercase">{dayLabel(d.key)}</span>
-            <span className="shrink-0 font-mono text-[11px] font-bold text-[#111]/55">{fmt(d.items.length)}</span>
+        <section key={d.key} aria-label={dayLabel(d.key)} className="flex flex-col gap-2 bg-white px-2.5 pb-2.5 pt-2 text-[#111]">
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 rounded-full bg-[#111] px-2.5 py-[5px] text-[11.5px] font-black leading-none text-[#fff4dc]">
+              {dayLabel(d.key)}
+            </span>
+            <span aria-hidden className="h-[1.5px] min-w-0 flex-1 rounded-full bg-[#111]/12" />
+            <span className="shrink-0 font-mono text-[11px] font-bold text-[#111]/45">{fmt(d.items.length)}</span>
           </div>
-          <div className="flex flex-col gap-2 bg-white p-2.5">
-            {d.items.map((e) => (
-              <EntryCard key={e.id} entry={e} />
-            ))}
-          </div>
-        </div>
+          {d.items.map((e) => (
+            <EntryCard key={e.id} entry={e} />
+          ))}
+        </section>
       ))}
       {remaining > 0 && (
         <button

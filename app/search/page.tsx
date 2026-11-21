@@ -5,7 +5,8 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { Search, X } from "lucide-react";
 import { db } from "@/lib/db";
 import { searchEntries } from "@/lib/db/queries";
-import { useT, type MessageKey } from "@/lib/i18n";
+import { intlTag, useLocale, useT, type MessageKey } from "@/lib/i18n";
+import { monthPeriod, periodLabel, weekPeriod, yearPeriod, type Period } from "@/lib/period";
 import { useSkin } from "@/lib/skin";
 import { PageHeader } from "@/components/layout/page-header";
 import { EntryListSection, type EntryListRow } from "@/components/analytics/entry-list";
@@ -14,11 +15,11 @@ import { SectionNav, chipClass } from "@/components/ui/section-nav";
 import { Input } from "@/components/ui/input";
 import { SubPageMenu } from "@/components/ui/sub-page-menu";
 import {
-  CategorySquare,
-  FilterChip,
+  SearchFilters,
   SearchNoResults,
   SearchResults,
   SearchStart,
+  type TimeKind,
 } from "@/components/search/search-blocks";
 import { cn } from "@/lib/utils";
 import { PageSheet } from "@/components/ui/layer";
@@ -57,6 +58,15 @@ export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [range, setRange] = useState<RangeKey>("all");
+  // Brütal: zaman türü ve dönemi (bkz. SearchFilters) — sade temalar eski aralıkla
+  const [kind, setKind] = useState<TimeKind>("all");
+  const [period, setPeriod] = useState<Period | null>(null);
+  const locale = useLocale();
+  function pickKind(k: TimeKind) {
+    setKind(k);
+    const now = Date.now();
+    setPeriod(k === "week" ? weekPeriod(now) : k === "month" ? monthPeriod(now) : k === "year" ? yearPeriod(now) : null);
+  }
 
   const categories = useLiveQuery(
     // Yerleşik akışlar (Uyku, Ruh hali) kategori süzgecinde yok — kullanıcıya
@@ -66,7 +76,8 @@ export default function SearchPage() {
   );
 
   const trimmed = query.trim();
-  const from = useMemo(() => rangeStart(range), [range]);
+  const from = useMemo(() => (brutal ? period?.start : rangeStart(range)), [brutal, period, range]);
+  const to = brutal ? period?.end : undefined;
 
   // Boş sorguda arama yapılmaz — tüm girdileri listelemek arama değil
   const results = useLiveQuery(
@@ -76,32 +87,39 @@ export default function SearchPage() {
             query: trimmed,
             categoryId: categoryId ?? undefined,
             from,
+            to,
             limit: LIMIT,
           })
         : Promise.resolve(undefined),
-    [trimmed, categoryId, from]
+    [trimmed, categoryId, from, to]
   );
 
   const searching = !!(trimmed || categoryId);
 
   /*
-   * Brütal: üst menü şerit (bkz. SubPageMenu) — geri okunun yanında arama
-   * kutusu tek beyaz kartta (ayrı "Ara" başlığı yok, kutu kendini
-   * anlatıyor), altında tarih aralığı düz yazı sekmeler, seçili olan kalkık
-   * beyaz kapsülde (Analiz'in dönem türleri gibi). Yapışkan: kaydırırken kutu
-   * elde kalır. Altında kategori çipleri (kategorinin renginde kare, seçili
-   * olan kendi renginde), sonra arama başlamadan öneriler, sonuçlar ya da
-   * sonuç yok bloğu (bkz. search-blocks).
+   * Brütal: üst menü şerit (bkz. SubPageMenu) — ortada "Ara" ve altında
+   * durum ("Girdilerini bul", aranırken "18 girdi bulundu"), altında arama
+   * kutusu tek beyaz kartta. Yapışkan: kaydırırken kutu elde kalır.
+   * Gövdede önce süzgeç bloğu (zaman türü, dönem, kategoriler — bkz.
+   * SearchFilters), sonra arama başlamadan öneriler, sonuçlar ya da sonuç
+   * yok bloğu (bkz. search-blocks).
+   *
+   * İlk denemede şeritte başlık yoktu, kutu okun yanındaydı; kullanıcı
+   * sayfanın bir başlığı olsun istedi.
    */
   if (brutal) {
-    const rangeLabel = t(RANGES.find((r) => r.key === range)!.label);
+    const timeLabel = period ? periodLabel(period, locale) : t("search.rangeAll");
     const catLabel = categories?.find((c) => c.id === categoryId)?.name;
+    const fmt = (n: number) => new Intl.NumberFormat(intlTag(locale)).format(n);
+    const sub =
+      searching && results
+        ? t("search.found", { n: results.length >= LIMIT ? `${fmt(LIMIT)}+` : fmt(results.length) })
+        : t("search.lead");
     return (
       <PageSheet
         top={
-          <SubPageMenu
-            title={t("search.title")}
-            center={
+          <SubPageMenu title={t("search.title")} sub={sub}>
+            <div className="px-2.5 pb-2.5">
               <div
                 data-search-box=""
                 className="relative flex items-center rounded-[12px] border-2 bg-white shadow-[2px_2px_0_#111]"
@@ -127,65 +145,30 @@ export default function SearchPage() {
                   </button>
                 )}
               </div>
-            }
-          >
-            <div role="tablist" aria-label={t("insights.period")} className="grid grid-cols-3 items-center px-1.5 pb-2.5 pt-0.5">
-              {RANGES.map((r) => {
-                const on = range === r.key;
-                return (
-                  <button
-                    key={r.key}
-                    type="button"
-                    role="tab"
-                    aria-selected={on}
-                    onClick={() => setRange(r.key)}
-                    className="flex min-w-0 justify-center"
-                  >
-                    <span
-                      className={cn(
-                        "rounded-full border-[1.5px] px-2.5 py-[6px] text-[12.5px] font-extrabold leading-none transition-transform",
-                        on ? "-translate-y-px bg-white text-[#111] shadow-[2px_2px_0_#111]" : "text-[#111]/65 active:text-[#111]"
-                      )}
-                      // Çerçeve rengi satır içi: globals.css'teki katmansız
-                      // "* { border-color }" kuralı border-transparent'ı eziyor
-                      style={{ borderColor: on ? "#111" : "transparent" }}
-                    >
-                      {t(r.label)}
-                    </span>
-                  </button>
-                );
-              })}
             </div>
           </SubPageMenu>
         }
       >
-        <SectionNav label={t("structure.categories")}>
-          <FilterChip on={categoryId === null} onClick={() => setCategoryId(null)}>
-            {t("search.allCategories")}
-          </FilterChip>
-          {(categories ?? []).map((c) => (
-            <FilterChip
-              key={c.id}
-              on={categoryId === c.id}
-              color={c.color}
-              onClick={() => setCategoryId(categoryId === c.id ? null : c.id)}
-            >
-              <CategorySquare color={c.color} />
-              {c.name}
-            </FilterChip>
-          ))}
-        </SectionNav>
+        <SearchFilters
+          kind={kind}
+          period={period}
+          onKind={pickKind}
+          onPeriod={setPeriod}
+          categories={categories ?? []}
+          categoryId={categoryId}
+          onCategory={setCategoryId}
+        />
         {!searching ? (
           <SearchStart onPick={setQuery} />
         ) : results === undefined ? null : results.length === 0 ? (
-          <SearchNoResults onWiden={range !== "all" ? () => setRange("all") : undefined} />
+          <SearchNoResults onWiden={kind !== "all" ? () => pickKind("all") : undefined} />
         ) : (
           <div className="pb-6">
             {/* Anahtar: süzgeç değişince sayfalama baştan */}
             <SearchResults
-              key={`${trimmed}|${categoryId}|${range}`}
+              key={`${trimmed}|${categoryId}|${period?.key ?? "all"}`}
               entries={results}
-              hint={[rangeLabel, catLabel].filter(Boolean).join(" · ")}
+              hint={[timeLabel, catLabel].filter(Boolean).join(" · ")}
             />
             {results.length >= LIMIT && (
               <p className="-mt-2 px-1 text-[11px] font-bold text-[#111]/55">

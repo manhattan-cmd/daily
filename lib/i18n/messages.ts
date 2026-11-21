@@ -1265,6 +1265,8 @@ export const en = {
   "search.start": "Search your entries",
   "search.startHint": "Search by title, note, category or subcategory name.",
   "search.limitNote": "Showing the {n} most recent matches",
+  "search.found": "{n} found",
+  "search.filters": "Filters",
 
   // ── Onaylar ──────────────────────────────────────────────────────────
   "confirm.deleteNote": "Delete this note?",
@@ -2630,6 +2632,8 @@ export const tr: Record<MessageKey, string> = {
   "search.start": "Girdilerinde ara",
   "search.startHint": "Başlık, not, kategori ya da alt kategori adıyla ara.",
   "search.limitNote": "En yeni {n} eşleşme gösteriliyor",
+  "search.found": "{n} girdi bulundu",
+  "search.filters": "Süzgeçler",
 
   "confirm.deleteNote": "Bu not silinsin mi?",
   "confirm.deleteNoteBody": "Not ve içindeki bağlar kaldırılır.",
