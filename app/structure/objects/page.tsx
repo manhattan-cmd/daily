@@ -3,16 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Boxes, ChevronRight, Diamond } from "lucide-react";
+import { Boxes, ChevronRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { listCollections } from "@/lib/db/things";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CollectionForm } from "@/components/structure/collection-form";
-import {
-  StructureAddButton,
-  StructureHeader,
-  StructureHere,
-} from "@/components/structure/structure-header";
+import { StructureAddButton, StructureHeader } from "@/components/structure/structure-header";
+import { StructureHead } from "@/components/structure/structure-head";
 import { SymbolIcon } from "@/lib/icons";
 import { SmartText } from "@/components/ui/smart-text";
 import { useT } from "@/lib/i18n";
@@ -70,42 +67,41 @@ export default function ObjectsPage() {
     <PageSheet
       top={
         <StructureHeader
-          below={
-            brutal ? (
-              <StructureHere
-                text={
-                  data &&
-                  t("struct.lists.count", {
-                    n: data.length,
-                    things: data.reduce((n, d) => n + d.active, 0),
-                  })
-                }
-              />
-            ) : undefined
-          }
           action={
-            <StructureAddButton labelKey="objects.addCollection" onClick={() => setAddOpen(true)} />
+            brutal ? undefined : <StructureAddButton labelKey="objects.addCollection" onClick={() => setAddOpen(true)} />
           }
         />
       }
     >
-      {!!data?.length && (
-        <StructureSearch value={query} onChange={setQuery} placeholder={t("structure.searchObjects")} />
+      {/* Brütal: sayfa başı (bkz. StructureHead); hiç liste yoksa boş pencere başın içinde */}
+      {brutal ? (
+        <StructureHead
+          count={
+            data &&
+            t("struct.lists.count", {
+              n: data.length,
+              things: data.reduce((n, d) => n + d.active, 0),
+            })
+          }
+          add={{ label: t("objects.addCollection"), onClick: () => setAddOpen(true) }}
+          search={data?.length ? { value: query, onChange: setQuery, placeholder: t("structure.searchObjects") } : undefined}
+          rows={
+            data?.length === 0 ? (
+              <SummaryEmpty text={t("objects.emptyTitle")} action={{ label: t("action.create"), onClick: () => setAddOpen(true) }} />
+            ) : undefined
+          }
+        />
+      ) : (
+        !!data?.length && (
+          <StructureSearch value={query} onChange={setQuery} placeholder={t("structure.searchObjects")} />
+        )
       )}
       {data !== undefined && data.length > 0 && shown?.length === 0 && (
         <p className="px-1 text-[13px] font-medium text-muted-foreground">{t("structure.noMatch")}</p>
       )}
 
       {data === undefined || shown === undefined ? null : brutal ? (
-        data.length === 0 ? (
-          <SummaryBlock
-            compact
-            lead={{ kind: "count", color: "#ffd23f", glyph: Diamond, overline: t("structure.objects"), value: "0", unit: "" }}
-            stats={[]}
-          >
-            <SummaryEmpty text={t("objects.emptyTitle")} action={{ label: t("action.create"), onClick: () => setAddOpen(true) }} />
-          </SummaryBlock>
-        ) : (
+        data.length === 0 ? null : (
           <div className="flex flex-col gap-4 pb-6 pt-1">
             {shown.map(({ c, total, active, live }) => {
               const color = c.color ?? "#94a3b8";

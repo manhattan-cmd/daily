@@ -26,6 +26,11 @@ function KindIcon({ kind, className }: { kind: MeasureUiKind | null; className?:
  * açılıyor, uzun adlar ("Çoktan seçmeli") sıkışmıyor. Seçili tür kapsülün
  * ucunda siyah zeminde sarı simgesiyle — hangi süzgecin açık olduğu bakar
  * bakmaz belli, düğmenin genişliği değişmiyor.
+ *
+ * `inline`: Yapı › Özellikler'in sayfa başının arama satırı (bkz.
+ * StructureHead) — çerçevesiz, çizgisi bloğun; türler aşağı açılan menü
+ * yerine satırın altında çip çip (blok köşeleri için kırpıyor, açılır menü
+ * kesilirdi).
  */
 export function FeatureFilter({
   search,
@@ -33,6 +38,8 @@ export function FeatureFilter({
   kinds,
   active,
   onActive,
+  inline = false,
+  autoFocus = false,
 }: {
   search: string;
   onSearch: (q: string) => void;
@@ -40,6 +47,9 @@ export function FeatureFilter({
   kinds: KindCount[];
   active: MeasureUiKind | null;
   onActive: (k: MeasureUiKind | null) => void;
+  /** Sayfa başının satırı — çerçevesiz, türler satırın altında */
+  inline?: boolean;
+  autoFocus?: boolean;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -55,11 +65,16 @@ export function FeatureFilter({
   }, [open]);
 
   return (
-    <div data-feature-filter="" className="relative mb-5 mt-1">
+    <div data-feature-filter="" className={inline ? "relative bg-white" : "relative mb-5 mt-1"}>
       {/* Gölge yalnız aramaya yazarken: focus-within tür düğmesine
           dokununca da yakıyordu, menü her açılışta bar büyüyüp seçince
           küçülüyor gibi görünüyordu */}
-      <div className="flex h-11 items-stretch overflow-hidden rounded-full border-[1.5px] border-[#111] bg-white transition-shadow has-[input:focus]:shadow-[2px_2px_0_#111]">
+      <div
+        className={cn(
+          "flex h-11 items-stretch overflow-hidden bg-white",
+          !inline && "rounded-full border-[1.5px] border-[#111] transition-shadow has-[input:focus]:shadow-[2px_2px_0_#111]"
+        )}
+      >
         <label className="relative flex min-w-0 flex-1 items-center">
           <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-[#111]/45" strokeWidth={2} />
           <input
@@ -67,7 +82,12 @@ export function FeatureFilter({
             onChange={(e) => onSearch(e.target.value)}
             placeholder={t("features.searchPlaceholder")}
             aria-label={t("features.searchPlaceholder")}
-            className="h-full w-full bg-transparent pl-10 pr-10 text-[14px] font-medium text-[#111] outline-none placeholder:font-normal placeholder:text-[#111]/40"
+            autoFocus={autoFocus}
+            enterKeyHint="search"
+            className={cn(
+              "h-full w-full bg-transparent pl-10 pr-10 text-[#111] outline-none placeholder:text-[#111]/40",
+              inline ? "text-[14.5px] font-bold placeholder:font-semibold" : "text-[14px] font-medium placeholder:font-normal"
+            )}
           />
           {search && (
             <button
@@ -103,7 +123,34 @@ export function FeatureFilter({
           <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 transition-transform", open && "rotate-180")} strokeWidth={2.6} />
         </button>
       </div>
-      {open && (
+      {open && inline && (
+        <div role="menu" aria-label={t("features.filterByKind")} className="flex flex-wrap gap-1.5 border-t-2 border-[#111] bg-white p-2">
+          {kinds.map((k) => {
+            const on = active === k.kind;
+            return (
+              <button
+                key={k.kind ?? "all"}
+                type="button"
+                role="menuitemradio"
+                aria-checked={on}
+                onClick={() => {
+                  onActive(k.kind);
+                  setOpen(false);
+                }}
+                className={cn(
+                  "inline-flex h-8 items-center gap-1.5 rounded-full border-[1.5px] border-[#111] px-2.5 text-[12.5px] font-extrabold",
+                  on ? "bg-[#111] text-[#fff4dc]" : "bg-white text-[#111]"
+                )}
+              >
+                <KindIcon kind={k.kind} className={cn("h-3.5 w-3.5 shrink-0", on ? "text-[#ffd23f]" : "text-[#111]/60")} />
+                {k.label}
+                <span className={cn("font-mono text-[11px] font-bold", on ? "text-[#ffd23f]" : "text-[#111]/40")}>{k.n}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {open && !inline && (
         <>
           {/* Boşluğa dokununca kapanır */}
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />

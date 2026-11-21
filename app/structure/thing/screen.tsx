@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Archive, ArchiveRestore, ChevronRight, Plus, X } from "lucide-react";
+import { Archive, ArchiveRestore, ChevronRight, Diamond, Plus, X } from "lucide-react";
 import { db } from "@/lib/db";
 import {
   addThingExtraMod,
@@ -17,7 +17,10 @@ import {
   thingEntries,
 } from "@/lib/db/things";
 import { measureOf } from "@/lib/db/queries";
-import { BrutHeroCard, BrutTopStrip } from "@/components/structure/brutal";
+import { BrutThingSummary } from "@/components/structure/brutal";
+import { StructureHeader } from "@/components/structure/structure-header";
+import { StructureHead, useRootCount } from "@/components/structure/structure-head";
+import { ObjectTrail } from "@/components/structure/structure-trail";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { modAtomIcon } from "@/components/structure/mod-atom";
 import { ThingEntrySheet } from "@/components/forms/thing-entry-sheet";
@@ -44,6 +47,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
   const [pickOpen, setPickOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+  const rootCount = useRootCount("objects");
 
   const data = useLiveQuery(async () => {
     const th = await db.things.get(thingId);
@@ -96,7 +100,12 @@ export function ThingScreen({ thingId }: { thingId: string }) {
   }, [thingId]);
 
   if (data === undefined) return null;
-  if (data === null) return <PageSheet top={<BrutTopStrip back="/structure/objects" />} />;
+  if (data === null)
+    return (
+      <PageSheet top={<StructureHeader />}>
+        <StructureHead upHref="/structure/objects" count={rootCount} />
+      </PageSheet>
+    );
   const { th, c, mods, entries, total, facts, subs, cats } = data;
   const { current } = data;
   const color = c?.color ?? "#94a3b8";
@@ -123,18 +132,23 @@ export function ThingScreen({ thingId }: { thingId: string }) {
   }
 
   return (
-    <PageSheet
-      top={
-        <BrutTopStrip
-          back={back}
-          trail={c?.name}
-          analyticsHref={routes.analyticsThing(thingId)}
-          onEdit={() => setRenameOpen(true)}
-          onDelete={onDelete}
-        />
-      }
-    >
-      <BrutHeroCard color={color} icon={c?.icon} overline={c?.name ?? ""} title={th.name} />
+    // Yapı'nın şeridi ve sayfa başı (bkz. StructureHead) — konum yolunda
+    // liste › nesne; analiz · düzenle · sil özet bloğunda (bkz. liste sayfası)
+    <PageSheet top={<StructureHeader />}>
+      <StructureHead upHref="/structure/objects" count={rootCount} rows={<ObjectTrail collection={c} thing={th} />} />
+      <BrutThingSummary
+        color={color}
+        icon={c?.icon}
+        glyph={Diamond}
+        overline={c?.name ?? ""}
+        title={th.name}
+        tools={{
+          analyticsHref: routes.analyticsThing(thingId),
+          onEdit: () => setRenameOpen(true),
+          onDelete,
+        }}
+        className="mb-6"
+      />
 
       {/* Arşiv durumu */}
       <div className="-mt-2 mb-6 flex items-center gap-3">

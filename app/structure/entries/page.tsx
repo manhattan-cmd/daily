@@ -10,11 +10,8 @@ import { useSkin } from "@/lib/skin";
 import { routes } from "@/lib/routes";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import { PageSheet } from "@/components/ui/layer";
-import {
-  StructureAddButton,
-  StructureHeader,
-  StructureHere,
-} from "@/components/structure/structure-header";
+import { StructureAddButton, StructureHeader } from "@/components/structure/structure-header";
+import { StructureHead } from "@/components/structure/structure-head";
 import { StructureSearch } from "@/components/structure/structure-search";
 import { AllEntries } from "@/components/structure/all-entries";
 import { PlannedList } from "@/components/goals/planned-list";
@@ -55,33 +52,42 @@ function EntriesView({ view }: { view: View }) {
     <PageSheet
       top={
         <StructureHeader
-          below={
-            brutal ? (
-              <StructureHere
-                text={
-                  counts &&
-                  (planned
-                    ? t("struct.planned.count", { n: counts.planned })
-                    : t("struct.entries.count", { n: counts.entries }))
-                }
-              />
-            ) : undefined
-          }
           action={
-            <StructureAddButton
-              labelKey={planned ? "structure.addPlanned" : "structure.addEntry"}
-              onClick={planned ? add.openGoal : () => add.openEntry()}
-            />
+            brutal ? undefined : (
+              <StructureAddButton
+                labelKey={planned ? "structure.addPlanned" : "structure.addEntry"}
+                onClick={planned ? add.openGoal : () => add.openEntry()}
+              />
+            )
           }
         />
       }
     >
-      <ViewSwitch view={view} />
-      <StructureSearch
-        value={query}
-        onChange={setQuery}
-        placeholder={planned ? t("goal.searchList") : t("entries.searchPlaceholder")}
-      />
+      {/* Brütal: sayfa başı (bkz. StructureHead) — görünüm anahtarı başın
+          ikinci satırı, arama Ara karosunun ardında */}
+      {brutal ? (
+        <StructureHead
+          count={
+            counts &&
+            (planned ? t("struct.planned.count", { n: counts.planned }) : t("struct.entries.count", { n: counts.entries }))
+          }
+          add={{
+            label: t(planned ? "structure.addPlanned" : "structure.addEntry"),
+            onClick: planned ? add.openGoal : () => add.openEntry(),
+          }}
+          search={{ value: query, onChange: setQuery, placeholder: planned ? t("goal.searchList") : t("entries.searchPlaceholder") }}
+          rows={<ViewSwitch view={view} />}
+        />
+      ) : (
+        <>
+          <ViewSwitch view={view} />
+          <StructureSearch
+            value={query}
+            onChange={setQuery}
+            placeholder={planned ? t("goal.searchList") : t("entries.searchPlaceholder")}
+          />
+        </>
+      )}
       {planned ? (
         <PlannedList query={query} onPlan={add.openGoal} />
       ) : (
@@ -92,7 +98,12 @@ function EntriesView({ view }: { view: View }) {
   );
 }
 
-/** Girdiler | Planlı girdiler — sayfanın kendi menüsü (adres değişir, geçmiş şişmez) */
+/**
+ * Girdiler | Planlı girdiler — sayfanın kendi menüsü (adres değişir, geçmiş
+ * şişmez). Brütalde sayfa başının ikinci satırı: iki hücre, aralarında
+ * bloğun çizgisi; seçili olan başın sarısında, başa bağlı sekme gibi.
+ * Siyah denendi: alt köşede bloğun çerçevesine karışıp köşeyi siliyordu.
+ */
 function ViewSwitch({ view }: { view: View }) {
   const t = useT();
   const brutal = useSkin() === "brutal";
@@ -100,6 +111,29 @@ function ViewSwitch({ view }: { view: View }) {
     { key: "all", label: t("entries.view.all"), href: routes.structureEntries() },
     { key: "planned", label: t("entries.view.planned"), href: routes.structureEntries("planned") },
   ];
+  if (brutal) {
+    return (
+      <nav aria-label={t("structure.entries")} data-entries-switch="" className="grid grid-cols-2 gap-[2px]">
+        {items.map((it) => {
+          const on = it.key === view;
+          return (
+            <Link
+              key={it.key}
+              href={it.href}
+              replace
+              aria-current={on ? "page" : undefined}
+              className={cn(
+                "flex h-10 items-center justify-center text-[13.5px] font-extrabold transition-colors",
+                on ? "bg-[#ffd23f] font-black text-[#111]" : "bg-white text-[#111]/60 active:bg-[#f5f1e8]"
+              )}
+            >
+              {it.label}
+            </Link>
+          );
+        })}
+      </nav>
+    );
+  }
   return (
     <nav
       aria-label={t("structure.entries")}

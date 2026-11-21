@@ -21,6 +21,7 @@ import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { BrutSubsBlock, BrutThingSummary, useIsBrutal } from "@/components/structure/brutal";
 import { StructureHeader } from "@/components/structure/structure-header";
 import { StructureTrail } from "@/components/structure/structure-trail";
+import { StructureHead, useRootCount } from "@/components/structure/structure-head";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
@@ -51,6 +52,7 @@ export function CategoryDetailPage({
   const [entryOpen, setEntryOpen] = useState(false);
   const [entrySub, setEntrySub] = useState<SubCategory | null>(null);
   const [today] = useState(() => toLocalDateValue());
+  const rootCount = useRootCount("categories");
 
   // Brütal tema: renkli başlık kartı ve sayılar
   const brutal = useIsBrutal();
@@ -86,12 +88,10 @@ export function CategoryDetailPage({
           kaplayan sayfa zemininde (bkz. PageSheet) */}
       <PageSheet
         top={brutal ? (
-          /* Yapı → Kategoriler'in başlığı (bkz. StructureHeader): konum yolu
-             üç sayfada aynı hizada; analiz · düzenle · sil özet bloğunda. Ekle
-             düğmesi yok — Alt kategoriler bloğunun yeşil karosu ekliyor */
-          <StructureHeader
-            below={<StructureTrail categoryId={categoryId} />}
-          />
+          /* Yapı'nın şeridi; sayfa başı ve konum yolu gövdede (bkz.
+             StructureHead). Analiz · düzenle · sil özet bloğunda; ekle karosu
+             yok — Alt kategoriler bloğunun yeşil karosu ekliyor */
+          <StructureHeader />
         ) : (
       <PageHeader
         title={category?.name ?? "..."}
@@ -132,6 +132,9 @@ export function CategoryDetailPage({
       />
         )}
       >
+      {brutal && (
+        <StructureHead upHref="/structure" count={rootCount} rows={<StructureTrail categoryId={categoryId} />} />
+      )}
       {/* Brütal: başlık ve sayılar tek blokta (bkz. BrutThingSummary) */}
       {brutal && category && (
         <BrutThingSummary

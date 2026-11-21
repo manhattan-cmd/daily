@@ -11,6 +11,7 @@ import { getSubCategory, getCategory, listCategoryTree, structureSummary } from 
 import { BrutSubsBlock, BrutThingSummary, useIsBrutal } from "@/components/structure/brutal";
 import { StructureHeader } from "@/components/structure/structure-header";
 import { StructureTrail } from "@/components/structure/structure-trail";
+import { StructureHead, useRootCount } from "@/components/structure/structure-head";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { toLocalDateValue } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ export function SubCategoryDetailPage({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [entryOpen, setEntryOpen] = useState(false);
   const [today] = useState(() => toLocalDateValue());
+  const rootCount = useRootCount("categories");
 
   // Brütal tema: büyük başlık, üç renkli kutu, altta "Girdi ekle"
   const brutal = useIsBrutal();
@@ -81,13 +83,10 @@ export function SubCategoryDetailPage({
           kaplayan sayfa zemininde (bkz. PageSheet) */}
       <PageSheet
         top={brutal ? (
-          /* Yapı → Kategoriler'in başlığı (bkz. StructureHeader): konum yolu
-             üç sayfada aynı hizada, üstler yolda; analiz · düzenle · sil özet
-             bloğunda. Ekle düğmesi yok — Alt kategoriler bloğunun yeşil
-             karosu ekliyor */
-          <StructureHeader
-            below={<StructureTrail categoryId={categoryId} subId={subcategoryId} />}
-          />
+          /* Yapı'nın şeridi; sayfa başı ve konum yolu gövdede (bkz.
+             StructureHead), üstler yolda. Analiz · düzenle · sil özet
+             bloğunda; ekle karosu yok — Alt kategoriler bloğu ekliyor */
+          <StructureHeader />
         ) : (
       <PageHeader
         title={subcategory?.name ?? "..."}
@@ -131,6 +130,13 @@ export function SubCategoryDetailPage({
       />
         )}
       >
+      {brutal && (
+        <StructureHead
+          upHref="/structure"
+          count={rootCount}
+          rows={<StructureTrail categoryId={categoryId} subId={subcategoryId} />}
+        />
+      )}
       {/* Brütal: başlık ve sayılar tek blokta (bkz. BrutThingSummary) */}
       {brutal && subcategory && (
         <BrutThingSummary

@@ -3,13 +3,9 @@
 import { useState } from "react";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { useLiveQuery } from "dexie-react-hooks";
-import { StickyNote } from "lucide-react";
 import { createNote, listAllNotes } from "@/lib/db/queries";
-import {
-  StructureAddButton,
-  StructureHeader,
-  StructureHere,
-} from "@/components/structure/structure-header";
+import { StructureAddButton, StructureHeader } from "@/components/structure/structure-header";
+import { StructureHead } from "@/components/structure/structure-head";
 import { NoteCard } from "@/components/notes/note-card";
 import { NoteWindow } from "@/components/notes/note-window";
 import type { Note } from "@/types";
@@ -60,25 +56,27 @@ export default function StructureNotesPage() {
     <PageSheet
       top={
         <StructureHeader
-          below={
-            brutal ? (
-              <StructureHere text={notes && t("struct.notes.count", { n: notes.length })} />
-            ) : undefined
-          }
-          action={
-            <StructureAddButton
-              labelKey="structure.addNote"
-              onClick={handleNewNote}
-            />
-          }
+          action={brutal ? undefined : <StructureAddButton labelKey="structure.addNote" onClick={handleNewNote} />}
         />
       }
     >
 
       {/* Arama çubuğu hep açık — Yapı sayfalarının ortak çubuğu (bkz.
           StructureSearch). Eskiden brütalde Ara karosuyla açılıyordu. */}
-      {!!notes?.length && (
-        <StructureSearch value={query} onChange={setQuery} placeholder={t("note.searchNotes")} />
+      {/* Brütal: sayfa başı (bkz. StructureHead); hiç not yoksa boş pencere başın içinde */}
+      {brutal ? (
+        <StructureHead
+          count={notes && t("struct.notes.count", { n: notes.length })}
+          add={{ label: t("structure.addNote"), onClick: handleNewNote }}
+          search={notes?.length ? { value: query, onChange: setQuery, placeholder: t("note.searchNotes") } : undefined}
+          rows={
+            notes?.length === 0 ? (
+              <SummaryEmpty text={t("notes.none")} action={{ label: t("action.create"), onClick: handleNewNote }} />
+            ) : undefined
+          }
+        />
+      ) : (
+        !!notes?.length && <StructureSearch value={query} onChange={setQuery} placeholder={t("note.searchNotes")} />
       )}
 
       {/* Brütal: ana sayfanın blok dili (bkz. SummaryBlock) — gül renginde
@@ -86,16 +84,7 @@ export default function StructureNotesPage() {
           hücre (bkz. DayCell). Hiç not yoksa boş pencere: ince başta
           NOTLAR, altında "Henüz not yok" ve ufak Oluştur. */}
       {brutal ? (
-        notes === undefined ? null : notes.length === 0 ? (
-          <SummaryBlock
-            className="mb-6"
-            compact
-            lead={{ kind: "count", color: NOTES, glyph: StickyNote, overline: t("structure.notes"), value: "0", unit: "" }}
-            stats={[]}
-          >
-            <SummaryEmpty text={t("notes.none")} action={{ label: t("action.create"), onClick: handleNewNote }} />
-          </SummaryBlock>
-        ) : (
+        notes === undefined || notes.length === 0 ? null : (
           <SummaryBlock
             className="mb-6"
             lead={{

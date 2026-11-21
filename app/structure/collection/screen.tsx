@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { Boxes, ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { db } from "@/lib/db";
 import {
   addCollectionMod,
@@ -15,7 +15,10 @@ import {
   thingUsage,
 } from "@/lib/db/things";
 import { measureOf } from "@/lib/db/queries";
-import { BrutHeroCard, BrutTopStrip } from "@/components/structure/brutal";
+import { BrutThingSummary } from "@/components/structure/brutal";
+import { StructureHeader } from "@/components/structure/structure-header";
+import { StructureHead, useRootCount } from "@/components/structure/structure-head";
+import { ObjectTrail } from "@/components/structure/structure-trail";
 import { CollectionForm } from "@/components/structure/collection-form";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { ModAtom, ModAtomAdd, modAtomIcon } from "@/components/structure/mod-atom";
@@ -37,6 +40,7 @@ export function CollectionScreen({ collectionId }: { collectionId: string }) {
   const [pickOpen, setPickOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const rootCount = useRootCount("objects");
 
   const data = useLiveQuery(async () => {
     const c = await db.collections.get(collectionId);
@@ -52,7 +56,11 @@ export function CollectionScreen({ collectionId }: { collectionId: string }) {
 
   if (data === undefined) return null;
   if (data === null) {
-    return <PageSheet top={<BrutTopStrip back="/structure/objects" />} />;
+    return (
+      <PageSheet top={<StructureHeader />}>
+        <StructureHead upHref="/structure/objects" count={rootCount} />
+      </PageSheet>
+    );
   }
   const { c, mods, things, usage } = data;
   const color = c.color ?? "#94a3b8";
@@ -106,22 +114,24 @@ export function CollectionScreen({ collectionId }: { collectionId: string }) {
   };
 
   return (
-    <PageSheet
-      top={
-        <BrutTopStrip
-          back="/structure/objects"
-          trail={t("structure.objects")}
-          analyticsHref={routes.analyticsCollection(collectionId)}
-          onEdit={() => setEditOpen(true)}
-          onDelete={onDelete}
-        />
-      }
-    >
-      <BrutHeroCard
+    // Yapı'nın şeridi ve sayfa başı (bkz. StructureHead) — Nesneler sekmesinin
+    // içi, konum yolunda liste. Eskiden kendi üst menüsü vardı (geri karosu,
+    // "YAPI · Nesneler", analiz · düzenle · sil karoları); kategori
+    // sayfalarındaki gibi analiz · düzenle · sil artık özet bloğunda
+    <PageSheet top={<StructureHeader />}>
+      <StructureHead upHref="/structure/objects" count={rootCount} rows={<ObjectTrail collection={c} />} />
+      <BrutThingSummary
         color={color}
         icon={c.icon}
+        glyph={Boxes}
         overline={t("objects.count", { n: things.length, active: active.length })}
         title={c.name}
+        tools={{
+          analyticsHref: routes.analyticsCollection(collectionId),
+          onEdit: () => setEditOpen(true),
+          onDelete,
+        }}
+        className="mb-6"
       />
 
       {/* Her nesnenin özellikleri */}

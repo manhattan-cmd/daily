@@ -44,11 +44,8 @@ import {
 } from "@/components/structure/measure-editor";
 import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
 import { FeatureFilter, type KindCount } from "@/components/structure/feature-filter";
-import {
-  StructureAddButton,
-  StructureHeader,
-  StructureHere,
-} from "@/components/structure/structure-header";
+import { StructureAddButton, StructureHeader } from "@/components/structure/structure-header";
+import { StructureHead } from "@/components/structure/structure-head";
 import {
   FormActions,
   FormSection,
@@ -307,30 +304,34 @@ function ModsHome() {
            satıra taşınca başlık uzuyor ve sekme şeridi aşağı kayıyordu.
            Uzun anlatım sekmelerin altına indi. */
         <StructureHeader
-          below={
-            brutal ? (
-              <StructureHere text={mods && t("struct.features.count", { n: mods.length })} />
-            ) : undefined
-          }
           action={
-            <StructureAddButton
-              labelKey="structure.addFeature"
-              onClick={() => setCreateOpen(true)}
-            />
+            brutal ? undefined : (
+              <StructureAddButton labelKey="structure.addFeature" onClick={() => setCreateOpen(true)} />
+            )
           }
         />
       }
     >
 
-      {/* Brütal: ince çerçeveli arama kapsülü, tür süzgeci kapsülün ucunda —
-          katmanların ağır çerçevesiyle yarışmasın diye gölgesiz ve hafif */}
+      {/* Brütal: sayfa başı (bkz. StructureHead) — Ara'ya basınca tür
+          süzgeçli arama başın içinde açılır; kapatınca arama da tür de sıfır */}
       {brutal ? (
-        <FeatureFilter
-          search={search}
-          onSearch={setSearch}
-          kinds={kindCounts}
-          active={activeKind}
-          onActive={setKindFilter}
+        <StructureHead
+          count={mods && t("struct.features.count", { n: mods.length })}
+          add={{ label: t("structure.addFeature"), onClick: () => setCreateOpen(true) }}
+          search={{ value: search, onChange: setSearch, placeholder: t("features.searchPlaceholder") }}
+          onCloseSearch={() => setKindFilter(null)}
+          searchRow={(autoFocus) => (
+            <FeatureFilter
+              inline
+              autoFocus={autoFocus}
+              search={search}
+              onSearch={setSearch}
+              kinds={kindCounts}
+              active={activeKind}
+              onActive={setKindFilter}
+            />
+          )}
         />
       ) : (
       <div className="relative mb-5 mt-1">

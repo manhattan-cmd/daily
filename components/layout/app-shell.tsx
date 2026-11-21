@@ -23,6 +23,7 @@ import { warmSheetData } from "@/lib/db/live-cache";
 import { prefetchPeriod } from "@/components/analytics/period-data";
 import { weekPeriod } from "@/lib/period";
 import { whenIdle } from "@/lib/db/day-cache";
+import { useRoutePath } from "@/lib/use-route-path";
 import { applyStatusBarColor, statusBarColor } from "@/lib/skin-boot";
 import { startGoalReminders } from "@/lib/goal-reminders";
 
@@ -198,7 +199,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 const KEEP_SCROLL_ON_QUERY = new Set(["/analytics", "/search"]);
 
 function ScrollReset({ target }: { target: React.RefObject<HTMLElement | null> }) {
-  const pathname = usePathname();
+  // Mobil derlemede yol "/search/" gelir (trailingSlash, bkz. useRoutePath)
+  const pathname = useRoutePath();
   const query = useSearchParams().toString();
   const last = useRef(pathname);
   useEffect(() => {

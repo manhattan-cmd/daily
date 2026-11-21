@@ -12,7 +12,6 @@ import { routes } from "@/lib/routes";
 import { SmartText } from "@/components/ui/smart-text";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { TopBar, TopBarButton } from "@/components/ui/top-bar";
 import { SummaryBlock, SummaryEmpty, SummaryTile, type SummaryStat } from "@/components/ui/summary-block";
 
 /**
@@ -21,121 +20,14 @@ import { SummaryBlock, SummaryEmpty, SummaryTile, type SummaryStat } from "@/com
  * Yapı ekranları için 21 yönlü öneri sayfasındaki "P · Brütal" yerleşimi:
  * kategoriler düz renkli, kalın çerçeveli kartlar; kategori ve alt kategori
  * sayfasının tepesinde renkli büyük bir kart ve özet kutuları; altta tek
- * ana eylem. Başlığın hizasında simge yok — analiz, düzenle, sil üst
- * şeritte kare düğmeler. Diğer temalarda bu parçalar hiç çizilmez.
+ * ana eylem. Analiz, düzenle, sil özet bloğunun alt satırında (bkz.
+ * BrutThingSummary). Diğer temalarda bu parçalar hiç çizilmez.
  */
 export function useIsBrutal(): boolean {
   return useSkin() === "brutal";
 }
 
 const fmt = (n: number) => n.toLocaleString("tr-TR", { maximumFractionDigits: 0 });
-
-/** Kare düğme — ortak üst menünün düğmesi (bkz. components/ui/top-bar) */
-export function BrutIconButton({
-  icon,
-  label,
-  href,
-  onClick,
-  danger,
-}: {
-  icon: LucideIcon;
-  label: string;
-  href?: string;
-  onClick?: () => void;
-  danger?: boolean;
-}) {
-  return <TopBarButton icon={icon} label={label} href={href} onClick={onClick} tone={danger ? "danger" : undefined} />;
-}
-
-/** Yapı sayfalarının üst menüsü: solda geri, sağda alt kategori ekle · analiz · düzenle · sil */
-export function BrutTopStrip({
-  back,
-  analyticsHref,
-  onEdit,
-  onDelete,
-  onAddSub,
-  trail,
-  nav,
-}: {
-  back: string;
-  /** Bloğun alt satırı — konum yolu (bkz. StructureTrail) */
-  nav?: React.ReactNode;
-  /** Başlıkta etiketin altında: geri karosunun döndüğü yer */
-  trail?: string;
-  analyticsHref?: string;
-  onEdit?: () => void;
-  onDelete?: () => void;
-  /** Bulunulan yerin altına alt kategori aç */
-  onAddSub?: () => void;
-}) {
-  const t = useT();
-  return (
-    <TopBar back={back} label={t("nav.structure")} trail={trail} rows={nav}>
-      {onAddSub && <TopBarButton icon={Plus} label={t("entry.addSub")} onClick={onAddSub} tone="add" />}
-      {analyticsHref && <TopBarButton icon={BarChart3} label={t("nav.insights")} href={analyticsHref} />}
-      {onEdit && <TopBarButton icon={Pencil} label={t("action.edit")} onClick={onEdit} />}
-      {onDelete && <TopBarButton icon={Trash2} label={t("action.delete")} onClick={onDelete} tone="danger" />}
-    </TopBar>
-  );
-}
-
-/** Kategori sayfasının büyük kartı — renkli zemin, beyaz karo, ad, sayılar, damga */
-export function BrutHeroCard({
-  color,
-  icon,
-  overline,
-  title,
-  summary,
-  className,
-}: {
-  color: string;
-  icon?: string;
-  overline: string;
-  title: string;
-  summary?: StructureSummary;
-  className?: string;
-}) {
-  const t = useT();
-  // Damga: bağlı sayısal özelliklerin toplamı; dokundukça sıradaki özellik
-  const metrics = summary?.metrics ?? [];
-  const [mi, setMi] = useState(0);
-  const metric = metrics.length ? metrics[mi % metrics.length] : undefined;
-  return (
-    <div
-      className={cn("relative mb-6 flex items-center gap-3 rounded-2xl border-2 border-[#111] p-4 shadow-[5px_5px_0_#111]", className)}
-      style={{ background: color }}
-    >
-      <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-[#111] bg-white">
-        {icon ? <SymbolIcon name={icon} size={28} style={{ color: "#111" }} /> : null}
-      </span>
-      <div className="min-w-0 flex-1 text-[#111]">
-        <div className="text-[11px] font-extrabold uppercase tracking-wider opacity-80">{overline}</div>
-        <div className="break-words text-[26px] font-black leading-[1.05] tracking-tight">{title}</div>
-        {summary && (
-          <div className="mt-1 text-[12.5px] font-bold">
-            {t("brut.subsAndEntries", { subs: summary.subs, entries: summary.entries })}
-          </div>
-        )}
-      </div>
-      {/* Damga — düz; bağlı sayısal özelliklerin toplamı, dokundukça sıradaki */}
-      {metric && (
-        <button
-          type="button"
-          onClick={() => setMi((i) => i + 1)}
-          aria-label={`${metric.name}: ${fmt(metric.total)} ${metric.unit}`}
-          className="absolute -right-2 -top-3 flex items-center gap-1.5 rounded-lg border-2 border-[#111] bg-[#ff6b6b] px-2 py-0.5 text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-        >
-          <span className="text-[14px] font-black tabular-nums">
-            {fmt(metric.total)}{metric.unit ? ` ${metric.unit}` : ""}
-          </span>
-          {metrics.length > 1 && (
-            <span className="text-[10px] font-extrabold uppercase opacity-80">{metric.name}</span>
-          )}
-        </button>
-      )}
-    </div>
-  );
-}
 
 /**
  * Kategori / alt kategori sayfasının tepesi — tek blokta (bkz. SummaryBlock):
@@ -150,6 +42,7 @@ export function BrutHeroCard({
 export function BrutThingSummary({
   color,
   icon,
+  glyph,
   overline,
   title,
   summary,
@@ -158,6 +51,8 @@ export function BrutThingSummary({
 }: {
   color: string;
   icon?: string;
+  /** Sembol yoksa karodaki şekil (nesne: baklava, liste: kutular) */
+  glyph?: LucideIcon;
   overline: string;
   title: string;
   summary?: StructureSummary;
@@ -179,7 +74,7 @@ export function BrutThingSummary({
     <SummaryBlock
       className={className}
       compact
-      lead={{ kind: "thing", color, icon, overline, title }}
+      lead={{ kind: "thing", color, icon, glyph: icon ? undefined : glyph, overline, title }}
       stats={stats}
     >
       {tools && (

@@ -20,14 +20,16 @@ export const STRUCTURE_TABS: { href: string; key: MessageKey; icon: LucideIcon }
 ];
 
 /**
- * Seçili sekme — kategori ve alt kategori sayfaları Kategoriler sekmesinin
- * içi: Brütalde üçünün başlığı aynı (bkz. StructureHeader), aşağı indikçe
- * yalnız altındaki konum yolu değişir.
+ * Seçili sekme — kategori ve alt kategori sayfaları Kategoriler sekmesinin,
+ * liste ve nesne sayfaları Nesneler sekmesinin içi: sayfa başı aynı (bkz.
+ * StructureHead), aşağı indikçe yalnız altındaki konum yolu değişir.
  */
 export function structureTabIndex(path: string): number {
   const i = STRUCTURE_TABS.findIndex((tab) => tab.href === path);
   if (i >= 0) return i;
-  return /^\/structure\/(category|sub)(\/|$)/.test(path) ? 0 : -1;
+  if (/^\/structure\/(category|sub)(\/|$)/.test(path)) return 0;
+  if (/^\/structure\/(collection|thing)(\/|$)/.test(path)) return 2;
+  return -1;
 }
 
 /**

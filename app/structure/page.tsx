@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Layers, Square } from "lucide-react";
+import { Layers } from "lucide-react";
 import { listCategoryTree, listUserCategories } from "@/lib/db/queries";
 import { db } from "@/lib/db";
 import { matchesSearch, normalizeSearch } from "@/lib/search";
@@ -17,11 +17,11 @@ import {
   StructureHeader,
 } from "@/components/structure/structure-header";
 import { ExampleHint } from "@/components/structure/example-hint";
-import { StructureTrail } from "@/components/structure/structure-trail";
+import { StructureHead } from "@/components/structure/structure-head";
 import { useT } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
 import { PageSheet } from "@/components/ui/layer";
-import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
+import { SummaryEmpty } from "@/components/ui/summary-block";
 import type { Category } from "@/types";
 
 export default function StructurePage() {
@@ -56,35 +56,43 @@ export default function StructurePage() {
     <PageSheet
       top={
         <StructureHeader
-          // Konum yolunun başı — kategori ve alt kategori sayfalarıyla aynı hizada
-          below={brutal ? <StructureTrail /> : undefined}
           action={
-            <StructureAddButton
-              labelKey="structure.addCategory"
-              onClick={() => setAddOpen(true)}
-            />
+            brutal ? undefined : (
+              <StructureAddButton labelKey="structure.addCategory" onClick={() => setAddOpen(true)} />
+            )
           }
         />
       }
     >
 
-      {!!categories?.length && (
-        <StructureSearch value={query} onChange={setQuery} placeholder={t("structure.searchCategories")} />
+      {/* Brütal: sayfa başı (bkz. StructureHead) — ad, sayı, Ara ve Ekle;
+          hiç kategori yoksa boş pencere başın içinde */}
+      {brutal ? (
+        <StructureHead
+          count={categories && t("struct.cats.count", { n: categories.length })}
+          add={{ label: t("structure.addCategory"), onClick: () => setAddOpen(true) }}
+          search={
+            categories?.length
+              ? { value: query, onChange: setQuery, placeholder: t("structure.searchCategories") }
+              : undefined
+          }
+          rows={
+            categories?.length === 0 ? (
+              <SummaryEmpty text={t("structure.empty.title")} action={{ label: t("action.create"), onClick: () => setAddOpen(true) }} />
+            ) : undefined
+          }
+        />
+      ) : (
+        !!categories?.length && (
+          <StructureSearch value={query} onChange={setQuery} placeholder={t("structure.searchCategories")} />
+        )
       )}
       {/* Kategori kalmadıysa "Bu kategoriler örnek" boş pencerenin üstünde yanlış */}
       {!!categories?.length && !q && <ExampleHint />}
 
       {/* Brütal: hiç kategori yoksa boş pencere — yazı ve ufak Oluştur */}
       {categories === undefined ? null : categories.length === 0 ? (
-        brutal ? (
-          <SummaryBlock
-            compact
-            lead={{ kind: "count", glyph: Square, overline: t("structure.categories"), value: "0", unit: "" }}
-            stats={[]}
-          >
-            <SummaryEmpty text={t("structure.empty.title")} action={{ label: t("action.create"), onClick: () => setAddOpen(true) }} />
-          </SummaryBlock>
-        ) : (
+        brutal ? null : (
         <EmptyState
           icon={Layers}
           title={t("structure.empty.title")}
