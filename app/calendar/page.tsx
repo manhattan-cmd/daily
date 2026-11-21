@@ -289,9 +289,34 @@ export default function CalendarPage() {
         }
       >
 
-      {/* Brütal: ay kendi katmanında (bkz. Layer) */}
-      <Layer style={glideStyle}>
+      {/* Brütal: gün adları pencerenin başlık çubuğu — sayfa zemininin
+          tepesine kenardan kenara, benekli Takvim turuncusu, altında kalın
+          çizgi (Gün ve Yapı sayfalarının başı gibi). Ay kaymaz, ızgara kayar.
+          Sütunlar ızgarayla aynı genişlikte: çubuk zeminin iç payını aşar
+          (-mx-1.5) ama aynı payı içeriden geri verir (px-1.5); sütun arası da
+          ızgaranınki (5 px, bkz. globals.css data-cal-grid). Eskiden adlar
+          ızgarayla birlikte krem çerçeveli katmandaydı */}
+      {brutal && (
+        <div
+          data-cal-head=""
+          className="-mx-1.5 -mt-3 mb-3 grid grid-cols-7 gap-x-[5px] rounded-t-[18px] border-b-[3px] border-[#111] px-1.5"
+          style={{
+            backgroundColor: CAL_COLOR,
+            backgroundImage: "radial-gradient(rgba(17, 17, 17, 0.16) 1.2px, transparent 1.5px)",
+            backgroundSize: "11px 11px",
+          }}
+        >
+          {weekdaysShort(tag).map((d, i) => (
+            <div key={i} className="flex items-center justify-center py-3 text-[11.5px] font-black uppercase tracking-wider text-[#111]">
+              {d}
+            </div>
+          ))}
+        </div>
+      )}
+      {/* Sade temalar: ay kendi katmanında (bkz. Layer); Brütalde ızgara zeminde */}
+      <Layer style={glideStyle} bare={brutal}>
       {/* Weekday headers */}
+      {!brutal && (
       <div className="grid grid-cols-7 mb-1">
         {weekdaysShort(tag).map((d, i) => (
           <div
@@ -303,6 +328,7 @@ export default function CalendarPage() {
           </div>
         ))}
       </div>
+      )}
 
       {/* Day grid */}
       <div data-cal-grid="" className="grid grid-cols-7 gap-y-1">

@@ -245,9 +245,10 @@ export default function HomePage() {
 
       {brutal ? (
         <>
-          {start}
-          {/* Başlarken açıkken yedek orada bir adım — iki kez söylenmesin */}
-          {!showStart && <BackupReminder />}
+          {/* Bugün pencerenin başlık çubuğu (bkz. SummaryBlock head) — hep en
+              üstte; Başlarken ve yedek hatırlatması altında. Eskiden yedek
+              hatırlatması ve Başlarken Bugün'ün üstündeydi, Bugün de öbür
+              bloklar gibi çerçeveli bir bloktu */}
           <BrutTodayBlock
             today={today}
             snapshot={home}
@@ -255,6 +256,9 @@ export default function HomePage() {
             goalsDone={doneGoals}
             onAdd={add.open}
           />
+          {start}
+          {/* Başlarken açıkken yedek orada bir adım — iki kez söylenmesin */}
+          {!showStart && <BackupReminder />}
           {/* Önce en sık eklenenler (tek dokunuşla form), sonra kategoriler */}
           {home && home.frequent.length > 0 && (
             <FrequentBlock items={home.frequent} onPick={(sub) => add.openEntry({ presetSub: sub })} />
@@ -445,7 +449,7 @@ function BrutTodayBlock({
   const lastAt = snapshot?.today.lastAt;
   return (
     <SummaryBlock
-      className="mb-4"
+      head
       lead={{
         kind: "count",
         overline: t("home.today"),

@@ -261,7 +261,10 @@ function Lead({
     return <CompactLead lead={lead} linked={linked} expanded={expanded} centered={centered} dense={dense} />;
   if (lead.kind === "title") {
     return (
-      <div className="relative flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-[#111]" style={{ background: lead.color }}>
+      <div
+        className="relative flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-[#111]"
+        style={banded ? bandDots(lead.color) : { background: lead.color }}
+      >
         {lead.close && <CloseButton close={lead.close} />}
         <Overline text={lead.overline} />
         <span className="mt-0.5 text-[17px] font-extrabold leading-tight tracking-tight">{lead.title}</span>
@@ -273,7 +276,7 @@ function Lead({
     return (
       <div
         className="relative flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-[#111]"
-        style={{ background: lead.color ?? "#ffd23f" }}
+        style={banded ? bandDots(lead.color ?? "#ffd23f") : { background: lead.color ?? "#ffd23f" }}
       >
         {lead.close && <CloseButton close={lead.close} />}
         <Overline text={lead.overline} />
@@ -491,10 +494,10 @@ export function SummaryBlock({
    */
   compact?: boolean;
   /**
-   * Pencerenin başlık çubuğu (gün sayfasının özeti) — beyaz sayfa zemininin
+   * Pencerenin başlık çubuğu (gün sayfasının özeti, ana sayfanın Bugün'ü) — beyaz sayfa zemininin
    * (bkz. PageSheet) tepesine kenardan kenara oturur: kendi çerçevesi ve
    * gölgesi yok, köşeleri zeminin üst köşeleriyle bir, altında şeritteki
-   * gibi 3 px kalın çizgi; tarih başı bölüm bantları gibi benekli. Altındaki
+   * gibi 3 px kalın çizgi; baş hücresi bölüm bantları gibi benekli. Altındaki
    * bloklardan ayrı okunsun diye (Yapı'nın sayfa başı da böyle — bkz.
    * StructureHead). Eskiden altındaki bloklarla aynı çerçeveli bir bloktu.
    */
