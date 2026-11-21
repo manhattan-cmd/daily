@@ -60,7 +60,7 @@ export function PeriodTabs({
   /** Verilirse dönem URL'ye gitmek yerine buraya bildirilir (sayfa içi
    *  seçici); özel aralık takvimi o zaman gösterilmez */
   onPick?: (p: Period) => void;
-  /** Brütal üst menünün satırı (bkz. AnalysisMenu) — düz yazı sekmeler,
+  /** Brütal: Analiz penceresinin üst bölümünün satırı (bkz. AnalysisHead) — düz yazı sekmeler,
    *  seçili olan kalkık beyaz kapsülde (Gün sayfasının seçili günü gibi) */
   strip?: boolean;
 }) {
