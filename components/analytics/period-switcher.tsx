@@ -55,6 +55,7 @@ export function PeriodTabs({
   period,
   onPick,
   strip = false,
+  deck = false,
 }: {
   period: Period;
   /** Verilirse dönem URL'ye gitmek yerine buraya bildirilir (sayfa içi
@@ -63,6 +64,9 @@ export function PeriodTabs({
   /** Brütal: Analiz penceresinin üst bölümünün satırı (bkz. AnalysisHead) — düz yazı sekmeler,
    *  seçili olan kalkık beyaz kapsülde (Gün sayfasının seçili günü gibi) */
   strip?: boolean;
+  /** Analiz'in kontrol bloğunda (bkz. AnalysisDeck) — Ara'nın zaman anahtarı
+   *  gibi eşit bölmeli çerçeve, seçili bölme siyah; sonda takvim bölmesi */
+  deck?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -85,6 +89,43 @@ export function PeriodTabs({
     if (next.key === period.key) return;
     if (onPick) onPick(next);
     else router.push(routes.period(next.key), { scroll: false });
+  }
+
+  if (deck) {
+    return (
+      <div
+        role="tablist"
+        aria-label={t("insights.period")}
+        data-period-deck=""
+        className="grid overflow-hidden rounded-[11px] border-[1.5px]"
+        style={{
+          borderColor: "#111",
+          gridTemplateColumns: `repeat(${KINDS.length}, minmax(0, 1fr))${onPick ? "" : " 42px"}`,
+        }}
+      >
+        {KINDS.map(({ kind, label }, i) => {
+          const on = period.kind === kind;
+          return (
+            <button
+              key={kind}
+              type="button"
+              role="tab"
+              aria-selected={on}
+              onClick={() => pickKind(kind)}
+              className={cn(
+                "h-9 min-w-0 truncate px-1 text-[13px] font-extrabold transition-colors",
+                i > 0 && "border-l-[1.5px]",
+                on ? "bg-[#111] text-white" : "bg-white text-[#111]/70 active:bg-[#f5f1e8]"
+              )}
+              style={i > 0 ? { borderLeftColor: "#111" } : undefined}
+            >
+              {t(label)}
+            </button>
+          );
+        })}
+        {!onPick && <PeriodJump activeKey={period.key} deck />}
+      </div>
+    );
   }
 
   if (strip) {

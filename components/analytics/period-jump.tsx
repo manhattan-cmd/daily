@@ -58,12 +58,15 @@ export function PeriodJump({
   activeKey,
   segment = false,
   strip = false,
+  deck = false,
 }: {
   activeKey?: string;
   /** Zaman seçicinin bölmesi olarak — yalnız takvim simgesi */
   segment?: boolean;
   /** Brütal üst menüde dönem sekmelerinin sonuncusu (bkz. PeriodTabs strip) */
   strip?: boolean;
+  /** Analiz'in kontrol bloğunda zaman anahtarının son bölmesi (bkz. PeriodTabs deck) */
+  deck?: boolean;
 }) {
   // Özel bir dönemdeyken çip vurgulu, pencere o aralıkla açılır
   const current = activeKey?.startsWith("c-") ? parsePeriodKey(activeKey) : null;
@@ -185,7 +188,12 @@ export function PeriodJump({
         type="button"
         onClick={openPicker}
         className={
-          strip
+          deck
+            ? cn(
+                "flex h-9 items-center justify-center border-l-[1.5px] transition-colors",
+                current ? "bg-[#111] text-white" : "bg-white text-[#111]/70 active:bg-[#f5f1e8]"
+              )
+            : strip
             ? cn(
                 "flex h-[27px] w-[34px] items-center justify-center justify-self-center rounded-full border-[1.5px] transition-transform",
                 current ? "-translate-y-px bg-white text-[#111] shadow-[2px_2px_0_#111]" : "text-[#111]/65 active:text-[#111]"
@@ -201,12 +209,12 @@ export function PeriodJump({
             : cn(chipClass(!!current), "flex shrink-0 items-center gap-1.5")
         }
         aria-current={current ? "page" : undefined}
-        aria-label={segment || strip ? t("period.custom") : undefined}
-        title={segment || strip ? t("period.custom") : undefined}
-        style={strip ? { borderColor: current ? "#111" : "transparent" } : undefined}
+        aria-label={segment || strip || deck ? t("period.custom") : undefined}
+        title={segment || strip || deck ? t("period.custom") : undefined}
+        style={deck ? { borderLeftColor: "#111" } : strip ? { borderColor: current ? "#111" : "transparent" } : undefined}
       >
-        <CalendarRange className={strip ? "h-4 w-4" : "h-3.5 w-3.5"} strokeWidth={strip ? 2.5 : 2} />
-        {!segment && !strip && t("period.custom")}
+        <CalendarRange className={strip || deck ? "h-4 w-4" : "h-3.5 w-3.5"} strokeWidth={strip || deck ? 2.5 : 2} />
+        {!segment && !strip && !deck && t("period.custom")}
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>

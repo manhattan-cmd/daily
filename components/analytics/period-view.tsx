@@ -49,7 +49,7 @@ import {
   EntryListSection,
   type EntryListRow,
 } from "@/components/analytics/entry-list";
-import { ANALYSIS_COLOR, AnalysisHead, AnalysisMenu } from "@/components/analytics/analysis-header";
+import { ANALYSIS_COLOR, AnalysisDeck, AnalysisMenu } from "@/components/analytics/analysis-header";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { CategoryForm } from "@/components/structure/category-form";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
@@ -177,8 +177,8 @@ export function PeriodView({
         main.removeEventListener("scrollend", realign);
         clearTimeout(timer);
         if (scrollTarget === "top") return;
-        // Brütalde yapışkan olan pencerenin üst bölümü (bkz. AnalysisHead)
-        const header = main.querySelector("[data-an-head]") ?? main.querySelector("header");
+        // Brütalde yapışkan üst bölüm (bkz. AnalysisDeck)
+        const header = main.querySelector("header");
         const want = (header?.getBoundingClientRect().bottom ?? 0) + 12;
         const off = el.getBoundingClientRect().top - want;
         if (Math.abs(off) > 2) main.scrollBy({ top: off, behavior: "smooth" });
@@ -544,8 +544,7 @@ export function PeriodView({
   if (!data) {
     if (brutal) {
       return (
-        <PageSheet top={<AnalysisMenu title={t("nav.insights")} />}>
-          <AnalysisHead period={requestedPeriod} />
+        <PageSheet top={<AnalysisDeck period={requestedPeriod} />}>
           <div className="flex flex-col gap-4 pb-6">
             <Skeleton className="h-[220px] rounded-[18px]" />
             <Skeleton className="h-[140px] rounded-[18px]" />
@@ -606,24 +605,25 @@ export function PeriodView({
     const entryCount = computed?.entryCount ?? 0;
     return (
       <PageSheet
-        top={<AnalysisMenu title={t("nav.insights")} />}
+        top={
+          /* Üst bölüm — dönem türü, dönem, Yer · Özellik tek blokta; yapışkan (bkz. AnalysisDeck) */
+          <AnalysisDeck
+            period={period}
+            sub={[
+              `${fmt(entryCount)} ${t("home.entries")}`,
+              showProgress && t("period.progress", { n: progress.elapsedDays, total: progress.totalDays }),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          >
+            {pickers}
+          </AnalysisDeck>
+        }
       >
-        {/* Pencerenin üst bölümü — dönem, türleri, Yer · Özellik; yapışkan (bkz. AnalysisHead) */}
-        <AnalysisHead
-          period={period}
-          sub={[
-            `${fmt(entryCount)} ${t("home.entries")}`,
-            showProgress && t("period.progress", { n: progress.elapsedDays, total: progress.totalDays }),
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-        >
-          {pickers}
-        </AnalysisHead>
         <div className="flex flex-col gap-4 pb-6">
           {/* Dönem boşsa boş pencere: "Bu dönemde girdi yok" ve Tümünü gör */}
           {!selectedCat && (
-            <div data-section="top" className="scroll-mt-[172px]">
+            <div data-section="top" className="scroll-mt-[190px]">
               <SummaryBlock
                 compact={catRows.length === 0}
                 lead={{

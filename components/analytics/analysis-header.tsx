@@ -1,72 +1,75 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, type LucideIcon } from "lucide-react";
 import { periodLabel, shiftPeriod, type Period } from "@/lib/period";
 import { routes } from "@/lib/routes";
 import { useLocale, useT } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
 import { PeriodTabs } from "./period-switcher";
 
 /** Analiz'in rengi — alt menüdeki sekmesi, üst menüsü, durum çubuğu (bkz. statusBarColor) */
 export const ANALYSIS_COLOR = "#8ea6ff";
 
+/** Dönem satırının zemini — Analiz mavisinin açığı (Ara'daki dönem satırının şeftalisi gibi) */
+const PERIOD_TINT = "#e4e9ff";
+
 /** Şu an — bileşen dışında: çizim saf kalsın */
 const nowMs = () => Date.now();
 
-/**
- * Analizlerin üst menüsü (Brütal) — Ana Sayfa ve Gün sayfasınınki gibi
- * şerit: kenardan kenara Analiz mavisi, altında tek kalın siyah çizgi;
- * durum çubuğu da aynı mavi. İçinde yalnız bölümün adı. Yapışkan değil:
- * kaydırınca ekranın üstünde pencerenin üst bölümü kalır (dönem, dönem
- * türleri, Yer · Özellik — bkz. AnalysisHead).
- *
- * Önce dönem ve türleri burada, seçiciler en alt satırdaydı (155 px,
- * yapışkan); kullanıcı tarih ve yer seçiminin pencerenin ayrı üst bölümünde
- * toplanmasını istedi.
- */
-export function AnalysisMenu({ title }: { title: string }) {
+/** Şeridin ortak kabuğu — kenardan kenara Analiz mavisi, altında kalın çizgi */
+function Band({ sticky = false, children }: { sticky?: boolean; children: ReactNode }) {
   return (
     <header
       data-an-nav=""
       // -mx-4: main'in kenar payını aşıp kenardan kenara (alt menü gibi)
-      className="-mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]"
+      className={
+        (sticky ? "sticky top-0 z-30 " : "") +
+        "-mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]"
+      }
       style={{ background: ANALYSIS_COLOR }}
     >
-      <div className="flex items-center justify-center pb-[13px] pt-3.5">
-        <h1 className="truncate text-[20px] font-black leading-none tracking-[-0.02em] text-[#111]">{title}</h1>
-      </div>
+      {children}
     </header>
   );
 }
 
-/** Bölüm bantlarının tram benekleri (bkz. SummaryBlock link) */
-const BAND = {
-  backgroundColor: ANALYSIS_COLOR,
-  backgroundImage: "radial-gradient(rgba(17, 17, 17, 0.16) 1.2px, transparent 1.5px)",
-  backgroundSize: "11px 11px",
-};
+/** Hiç girdi yokken (dönem yok) — yalnız bölümün adı */
+export function AnalysisMenu({ title }: { title: string }) {
+  return (
+    <Band>
+      <div className="flex items-center justify-center pb-[13px] pt-3.5">
+        <h1 className="truncate text-[20px] font-black leading-none tracking-[-0.02em] text-[#111]">{title}</h1>
+      </div>
+    </Band>
+  );
+}
 
 /**
- * Analiz penceresinin üst bölümü (Brütal) — Gün sayfasının ve Ana Sayfa'nın
- * başlık çubuğu gibi, beyaz sayfa zemininin (bkz. PageSheet) tepesinde
- * kenardan kenara; benekli Analiz mavisi, altında 3 px kalın çizgi. İçinde
- * analizlerde gezinmenin hepsi:
+ * Analizlerin üst bölümü (Brütal) — kontrol bloğu. Kenardan kenara Analiz
+ * mavisinde yapışkan şerit (durum çubuğu da mavi); içinde Ara'nın süzgeç
+ * bloğunun dilinde tek çerçeveli blok, satırları arasında ortak 2 px çizgi:
  *
- *  1. ‹ dönemin adı › — altında kısa özeti ("10 girdi · 6/7. gün"); ileri
- *     ok tamamen gelecekteki döneme gitmez.
- *  2. Dönem türleri (Gün · Hafta · Ay · Yıl · Tümü) ve tarihe atlama.
- *  3. Yer · Özellik seçicileri beyaz kartta.
+ *  1. Dönem türü — eşit bölmeli anahtar (Gün · Hafta · Ay · Yıl · Tümü),
+ *     seçili bölme siyah; sonda takvim bölmesi (tarihe ya da aralığa atla).
+ *  2. Dönem — açık mavi satırda çerçeveli ‹ › düğmeleri, ortada dönemin adı
+ *     ve kısa özeti ("38 girdi · 6/7. gün"); ileri düğme tamamen
+ *     gelecekteki döneme gitmez.
+ *  3. Yer · Özellik — iki hücre (bkz. ScopePickers).
  *
- * Yapışkan: analizlerde aşağı inerken ekranın üstünde kalır. Yerinde
- * dururken köşeleri pencereninkiyle bir; yapışınca düz — yuvarlak köşelerin
- * arkasından kayan kartlar görünmesin.
+ * Analizlerde aşağı inerken ekranın üstünde kalır; altındaki beyaz zeminde
+ * yalnız analizler. Bölümün adı yazmıyor — alt menü ve bloğun kendisi
+ * nerede olunduğunu söylüyor (okuyucu için gizli başlık var).
  *
- * `children` yokken (yüklenirken) seçicilerin yerinde aynı boyda boş kart:
- * baş gelince sayfa zıplamasın.
+ * Önceki denemeler: şeritte dönem + türler + seçiciler (155 px); seçiciler
+ * pencerenin benekli başlık çubuğunda; üstte "Analiz" şeridi, altında
+ * benekli çubukta soluk oklar, kapsül sekmeler ve gölgeli kart — üç ayrı
+ * dil üst üste, kullanıcı beğenmedi.
+ *
+ * `children` yokken (yüklenirken) seçicilerin yerinde aynı boyda boş satır:
+ * seçiciler gelince blok zıplamasın.
  */
-export function AnalysisHead({
+export function AnalysisDeck({
   period,
   onPick,
   sub,
@@ -94,56 +97,34 @@ export function AnalysisHead({
   // Tamamen gelecekte kalan döneme gidilmez; "Tümü"nün yönü yok
   const nextDisabled = !next || next.start > nowMs();
 
-  // Yapıştı mı — başın hemen üstündeki işaret (zeminin üst payı) ekranın
-  // tepesinden çıkınca baş yapışmıştır
-  const mark = useRef<HTMLDivElement>(null);
-  const [stuck, setStuck] = useState(false);
-  useEffect(() => {
-    const el = mark.current;
-    const root = document.querySelector("[data-app-main]");
-    if (!el || !root) return;
-    const io = new IntersectionObserver(
-      ([e]) => setStuck(!e.isIntersecting && e.boundingClientRect.top < (e.rootBounds?.top ?? 0)),
-      { root, threshold: 0 }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
   return (
-    <>
-      {/* Zeminin üst payı (12 px) — başın yapıştığını söyleyen işaret */}
-      <div ref={mark} aria-hidden className="-mt-3 h-3" />
-      <div
-        data-an-head=""
-        data-stuck={stuck ? "" : undefined}
-        // Zeminin yan payını (6 px) aşıp kenardan kenara
-        className={cn(
-          "sticky top-0 z-20 -mx-1.5 mb-4 border-b-[3px] border-[#111] text-[#111]",
-          stuck ? "rounded-none" : "rounded-t-[18px]"
-        )}
-        style={BAND}
-      >
-        <div className="flex items-stretch px-1">
-          <Arrow icon={ChevronLeft} label={t("insights.previousPeriod")} disabled={!prev} onClick={() => go(prev)} />
-          <div className="flex min-w-0 flex-1 flex-col items-center justify-center pb-0.5 pt-3 text-center">
-            <h2 className="max-w-full truncate text-[19px] font-black leading-none tracking-[-0.02em]">
-              {periodLabel(period, locale)}
-            </h2>
-            <p className="mt-[6px] h-3 max-w-full truncate text-[11.5px] font-bold leading-3 text-[#111]/65">{sub}</p>
+    <Band sticky>
+      <h1 className="sr-only">{t("nav.insights")}</h1>
+      <div className="px-2.5 pb-2.5 pt-2.5">
+        <section
+          data-an-deck=""
+          aria-label={t("insights.period")}
+          className="grid grid-cols-1 gap-[2px] overflow-hidden rounded-[16px] border-2 border-[#111] bg-[#111] text-[#111] shadow-[3px_3px_0_#111]"
+        >
+          <div className="bg-white p-1.5">
+            <PeriodTabs period={period} onPick={onPick} deck />
           </div>
-          <Arrow icon={ChevronRight} label={t("insights.nextPeriod")} disabled={nextDisabled} onClick={() => go(next)} />
-        </div>
-        <PeriodTabs period={period} onPick={onPick} strip />
-        <div className="px-2.5 pb-2.5">
-          {children ?? <div className="h-[46px] rounded-[12px] border-2 border-[#111] bg-white shadow-[2px_2px_0_#111]" />}
-        </div>
+          <div className="flex items-center gap-2 px-1.5 py-1.5" style={{ background: PERIOD_TINT }}>
+            <Arrow icon={ChevronLeft} label={t("insights.previousPeriod")} disabled={!prev} onClick={() => go(prev)} />
+            <div className="min-w-0 flex-1 text-center">
+              <h2 className="truncate text-[16px] font-black leading-tight tracking-tight">{periodLabel(period, locale)}</h2>
+              <p className="h-[14px] truncate text-[11px] font-bold leading-[14px] text-[#111]/60">{sub}</p>
+            </div>
+            <Arrow icon={ChevronRight} label={t("insights.nextPeriod")} disabled={nextDisabled} onClick={() => go(next)} />
+          </div>
+          {children ?? <div className="h-[48px] bg-white" />}
+        </section>
       </div>
-    </>
+    </Band>
   );
 }
 
-/** Komşu dönem — alt menünün seçili olmayan simgesi gibi sönük ok */
+/** Komşu dönem — çerçeveli kare düğme (Ara'nın dönem okları gibi) */
 function Arrow({
   icon: Icon,
   label,
@@ -162,9 +143,9 @@ function Arrow({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="flex w-10 shrink-0 items-center justify-center pt-1.5 text-[#111]/60 active:text-[#111] disabled:text-[#111]/20"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border-[1.5px] border-[#111] bg-white text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none disabled:opacity-25 disabled:shadow-none"
     >
-      <Icon className="h-5 w-5" strokeWidth={2.5} />
+      <Icon className="h-[18px] w-[18px]" strokeWidth={2.75} />
     </button>
   );
 }

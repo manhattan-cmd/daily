@@ -239,16 +239,13 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
   return (
     <>
       {brutal ? (
-        /* Brütal: pencerenin başlık çubuğunda (bkz. AnalysisHead) — tek beyaz
-           kart, iki yarısı arasında siyah çizgi. Solda yerin karosu (kare =
-           kategori), sağda özelliğin dairesi; seçimsizken Analiz'in mavisinde */
+        /* Brütal: Analiz'in kontrol bloğunun son satırı (bkz. AnalysisDeck) —
+           iki hücre, arasında bloğun 2 px çizgisi; çerçeveyi blok çiziyor.
+           Solda yerin karosu (kare = kategori), sağda özelliğin dairesi;
+           seçimsizken Analiz'in mavisinde */
         <div
           data-scope-cells=""
-          className={cn(
-            "grid overflow-hidden rounded-[12px] border-2 bg-white shadow-[2px_2px_0_#111]",
-            hideMetric ? "grid-cols-1" : "grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)]"
-          )}
-          style={{ borderColor: "#111" }}
+          className={cn("grid bg-white", hideMetric ? "grid-cols-1" : "grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)]")}
         >
           <button
             type="button"
@@ -257,7 +254,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
               setOpen("yer");
             }}
             aria-label="Yer seç"
-            className="flex min-w-0 items-center gap-2 px-2.5 py-[7px] text-left text-[#111] active:bg-[#f5f1e8]"
+            className="flex min-w-0 items-center gap-2 px-2.5 py-2 text-left text-[#111] active:bg-[#f5f1e8]"
           >
             <span
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-2"
@@ -288,7 +285,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
             type="button"
             onClick={() => setOpen("ne")}
             aria-label="Özellik seç"
-            className="flex min-w-0 items-center gap-2 border-l-2 px-2.5 py-[7px] text-left text-[#111] active:bg-[#f5f1e8]"
+            className="flex min-w-0 items-center gap-2 border-l-2 px-2.5 py-2 text-left text-[#111] active:bg-[#f5f1e8]"
             style={{ borderLeftColor: "#111" }}
           >
             <span
