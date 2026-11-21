@@ -21,7 +21,6 @@ import { StructureHead } from "@/components/structure/structure-head";
 import { useT } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
 import { PageSheet } from "@/components/ui/layer";
-import { SummaryEmpty } from "@/components/ui/summary-block";
 import type { Category } from "@/types";
 
 export default function StructurePage() {
@@ -76,11 +75,7 @@ export default function StructurePage() {
               ? { value: query, onChange: setQuery, placeholder: t("structure.searchCategories") }
               : undefined
           }
-          rows={
-            categories?.length === 0 ? (
-              <SummaryEmpty text={t("structure.empty.title")} action={{ label: t("action.create"), onClick: () => setAddOpen(true) }} />
-            ) : undefined
-          }
+          empty={categories?.length === 0 ? { text: t("structure.empty.title"), action: { label: t("action.create"), onClick: () => setAddOpen(true) } } : undefined}
         />
       ) : (
         !!categories?.length && (

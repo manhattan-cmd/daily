@@ -8,30 +8,44 @@ import { db } from "@/lib/db";
 import { listUserCategories } from "@/lib/db/queries";
 import { useT } from "@/lib/i18n";
 import { useRoutePath } from "@/lib/use-route-path";
-import { SummaryTile } from "@/components/ui/summary-block";
+import { SummaryEmpty } from "@/components/ui/summary-block";
 import { STRUCTURE_TABS, structureTabIndex } from "./structure-tabs";
 
 /** Yapı'nın sarısı — şerit, sayfa başı ve sekmenin şekli */
 const YAPI = "#ffd23f";
 
+/** Bölüm bantlarının tram benekleri (bkz. SummaryBlock link, globals.css) */
+const BAND = {
+  backgroundColor: YAPI,
+  backgroundImage: "radial-gradient(rgba(17, 17, 17, 0.16) 1.2px, transparent 1.5px)",
+  backgroundSize: "11px 11px",
+};
+
+/** Bantta duran kare düğme — Ara ve Ekle aynı boyda */
+const HEAD_BTN =
+  "flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none";
+
 /**
  * Yapı sayfalarının başı (Brütal) — Harita dışındaki bütün Yapı sayfalarında
- * aynı: gövdenin tepesinde, altındaki pencerelerin dilinde tek blok (bkz.
- * SummaryBlock compact):
+ * aynı: beyaz pencerenin (bkz. PageSheet) başlık çubuğu. Pencerenin
+ * tepesine kenardan kenara oturur, köşeleri pencereninkiyle bir; altında
+ * şeritteki gibi kalın siyah çizgi. İçerik blokları onun altında başlar.
  *
- *  - Baş satırı: Yapı sarısında sekmenin şekli (kare = kategori, daire =
- *    özellik…), sayfanın adı ve kaç tane olduğu ("26 özellik"); sağda eşit
- *    boyda kare karolar — Ara (beyaz) ve Ekle (yeşil, artı). Altındaki
- *    pencerelerin ekle karosunun aynısı.
+ *  - Baş satırı: bölüm bantlarının benekli Yapı sarısında sekmenin şekli
+ *    (kare = kategori, daire = özellik…), sayfanın adı ve kaç tane olduğu
+ *    ("26 özellik"); sağda bandın üstünde aynı boyda iki kare düğme — Ara
+ *    (beyaz) ve Ekle (yeşil, artı). Ana sayfa şeridinin düğmeleri gibi.
  *  - Konum yolu (kategori, alt kategori, liste, nesne sayfaları): baş
  *    satırının altında "↳ Harcamalar › Alışveriş › ■ Ev eşyası". Baş satırı
  *    o sayfalarda sekmenin köküne çıkar.
  *  - Ara'ya basınca arama satırı açılır; kapatınca arama silinir.
+ *  - Hiç kayıt yoksa boş pencere başın altında ayrı durur.
  *
- * Eskiden bu satır sarı üst menünün içinde beyaz bir karttı: menü 117 px
- * tutuyordu (ana sayfanınki 71, Takvim'inki 64). Ekle düğmesi yazılı
- * kapsüldü ("+ Özellik", "+ Yeni liste") — her sayfada başka boyda. Arama
- * kutusu da sayfanın başında hep açıktı.
+ * İlk hali içerik bloklarıyla aynı çerçeveli, gölgeli bir bloktu (sağında
+ * tam boy karolar): kullanıcıya göre başı pencerenin geri kalanından ayıran
+ * bir şey yoktu. Daha önce de sarı üst menünün içinde beyaz bir karttı —
+ * menü 117 px tutuyordu; ekle düğmesi yazılı kapsüldü ("+ Özellik", "+ Yeni
+ * liste"), her sayfada başka boyda; arama kutusu hep açıktı.
  */
 export function StructureHead({
   count,
@@ -41,28 +55,31 @@ export function StructureHead({
   searchRow,
   onCloseSearch,
   rows,
+  empty,
 }: {
   /** Başın alt satırı — "26 özellik"; yüklenirken boş */
   count?: string;
   /** Verilirse baş satırı sekmenin köküne bağlantı (alt sayfalar) */
   upHref?: string;
-  /** Ekle karosu — label ekran okuyucuya ne ekleneceğini söyler */
+  /** Ekle düğmesi — label ekran okuyucuya ne ekleneceğini söyler */
   add?: { label: string; onClick: () => void };
-  /** Verilirse Ara karosu ve arama satırı */
+  /** Verilirse Ara düğmesi ve arama satırı */
   search?: { value: string; onChange: (q: string) => void; placeholder: string };
   /** Arama satırı yerine (Özellikler: tür süzgeçli arama) — autoFocus alır */
   searchRow?: (autoFocus: boolean) => ReactNode;
   /** Arama kapanınca (Özellikler: tür süzgeci de sıfırlanır — gizli kalmasın) */
   onCloseSearch?: () => void;
-  /** Baş satırının altındaki satırlar (konum yolu, görünüm anahtarı, boş pencere) */
+  /** Baş satırının altındaki satırlar (konum yolu, görünüm anahtarı) */
   rows?: ReactNode;
+  /** Hiç kayıt yok — başın altında küçük boş pencere */
+  empty?: { text: string; action: { label: string; onClick: () => void } };
 }) {
   const t = useT();
   const path = useRoutePath();
   const tab = STRUCTURE_TABS[structureTabIndex(path)];
   // Adresten aranmış gelindiyse (Ara'nın özellik sonucu) açık başlar
   const [open, setOpen] = useState(() => !!search?.value);
-  // Karoyla açıldıysa kutuya odaklan; açılışta açıksa klavye kendiliğinden açılmasın
+  // Düğmeyle açıldıysa kutuya odaklan; açılışta açıksa klavye kendiliğinden açılmasın
   const [focus, setFocus] = useState(false);
   const searching = !!search && (open || !!search.value);
 
@@ -78,59 +95,81 @@ export function StructureHead({
   }
 
   const title = t(tab?.key ?? "structure.title");
-  const lead = (
-    <div className="flex h-full min-h-[58px] items-center gap-2.5 px-3 py-2 text-[#111]" style={{ background: YAPI }}>
-      {upHref && <ChevronLeft aria-hidden className="-ml-1 -mr-1 h-4 w-4 shrink-0 opacity-60" strokeWidth={3} />}
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border-[1.5px] border-[#111] bg-white">
-        {tab && <tab.icon aria-hidden className="h-[18px] w-[18px]" strokeWidth={2.6} fill={YAPI} />}
+  const name = (
+    <>
+      {upHref && <ChevronLeft aria-hidden className="-ml-1 -mr-1.5 h-4 w-4 shrink-0 opacity-60" strokeWidth={3} />}
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white">
+        {tab && <tab.icon aria-hidden className="h-5 w-5" strokeWidth={2.6} fill={YAPI} />}
       </span>
-      <div className="min-w-0 flex-1">
-        <h1 className="truncate text-[17px] font-black leading-tight tracking-tight">{title}</h1>
+      <span className="min-w-0 flex-1">
+        <h1 className="truncate text-[19px] font-black leading-tight tracking-tight">{title}</h1>
         {/* Sayı yüklenene dek yer tutar, baş zıplamasın */}
-        <div className="h-[15px] truncate text-[11.5px] font-bold leading-[15px] opacity-65">{count}</div>
-      </div>
-    </div>
+        <span className="block h-4 truncate text-[12px] font-bold leading-4 opacity-65">{count}</span>
+      </span>
+    </>
   );
 
   return (
-    <section
-      data-structure-head=""
-      aria-label={title}
-      className="mb-4 grid grid-cols-1 gap-[2px] overflow-hidden rounded-[18px] border-2 border-[#111] bg-[#111] shadow-[4px_4px_0_#111]"
-    >
-      <div className="flex gap-[2px]">
-        {upHref ? (
-          <Link href={upHref} prefetch={false} aria-label={title} className="block min-w-0 flex-1 active:brightness-95">
-            {lead}
-          </Link>
-        ) : (
-          <div className="min-w-0 flex-1">{lead}</div>
-        )}
-        {search && (
-          <div className="w-[52px] shrink-0">
-            <SummaryTile
-              compact
-              color="#ffffff"
-              icon={searching ? X : Search}
-              label={searching ? t("action.close") : t("action.search")}
+    <>
+      <section
+        data-structure-head=""
+        aria-label={title}
+        // Pencerenin iç payını (yanlarda 6, üstte 12 px) aşıp kenardan kenara
+        className="-mx-1.5 -mt-3 mb-4 grid grid-cols-1 gap-[2px] overflow-hidden rounded-t-[18px] border-b-[3px] border-[#111] bg-[#111]"
+      >
+        <div className="flex min-h-[66px] items-center gap-2 py-2.5 pl-3 pr-2.5 text-[#111]" style={BAND}>
+          {upHref ? (
+            <Link
+              href={upHref}
+              prefetch={false}
+              aria-label={title}
+              className="-my-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-[12px] py-1 active:bg-[#111]/[0.06]"
+            >
+              {name}
+            </Link>
+          ) : (
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">{name}</div>
+          )}
+          {search && (
+            <button
+              type="button"
               onClick={toggleSearch}
-            />
-          </div>
-        )}
-        {add && (
-          <div className="w-[52px] shrink-0">
-            <SummaryTile compact color="#7ae582" icon={Plus} label={`${t("action.add")}: ${add.label}`} onClick={add.onClick} />
-          </div>
-        )}
-      </div>
-      {rows}
-      {searching &&
-        (searchRow ? (
-          searchRow(focus)
-        ) : (
-          <HeadSearch value={search.value} onChange={search.onChange} placeholder={search.placeholder} autoFocus={focus} />
-        ))}
-    </section>
+              aria-label={searching ? t("action.close") : t("action.search")}
+              title={searching ? t("action.close") : t("action.search")}
+              aria-pressed={searching}
+              className={HEAD_BTN}
+              style={{ background: searching ? "#111" : "#ffffff", color: searching ? "#ffffff" : "#111" }}
+            >
+              {searching ? <X className="h-[18px] w-[18px]" strokeWidth={2.75} /> : <Search className="h-[18px] w-[18px]" strokeWidth={2.75} />}
+            </button>
+          )}
+          {add && (
+            <button
+              type="button"
+              onClick={add.onClick}
+              aria-label={`${t("action.add")}: ${add.label}`}
+              title={`${t("action.add")}: ${add.label}`}
+              className={HEAD_BTN}
+              style={{ background: "#7ae582" }}
+            >
+              <Plus className="h-5 w-5" strokeWidth={3} />
+            </button>
+          )}
+        </div>
+        {rows}
+        {searching &&
+          (searchRow ? (
+            searchRow(focus)
+          ) : (
+            <HeadSearch value={search.value} onChange={search.onChange} placeholder={search.placeholder} autoFocus={focus} />
+          ))}
+      </section>
+      {empty && (
+        <div className="mb-4 overflow-hidden rounded-[18px] border-2 border-[#111] shadow-[4px_4px_0_#111]">
+          <SummaryEmpty text={empty.text} action={empty.action} />
+        </div>
+      )}
+    </>
   );
 }
 

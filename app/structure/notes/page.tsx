@@ -69,11 +69,7 @@ export default function StructureNotesPage() {
           count={notes && t("struct.notes.count", { n: notes.length })}
           add={{ label: t("structure.addNote"), onClick: handleNewNote }}
           search={notes?.length ? { value: query, onChange: setQuery, placeholder: t("note.searchNotes") } : undefined}
-          rows={
-            notes?.length === 0 ? (
-              <SummaryEmpty text={t("notes.none")} action={{ label: t("action.create"), onClick: handleNewNote }} />
-            ) : undefined
-          }
+          empty={notes?.length === 0 ? { text: t("notes.none"), action: { label: t("action.create"), onClick: handleNewNote } } : undefined}
         />
       ) : (
         !!notes?.length && <StructureSearch value={query} onChange={setQuery} placeholder={t("note.searchNotes")} />

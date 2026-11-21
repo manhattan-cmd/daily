@@ -85,11 +85,7 @@ export default function ObjectsPage() {
           }
           add={{ label: t("objects.addCollection"), onClick: () => setAddOpen(true) }}
           search={data?.length ? { value: query, onChange: setQuery, placeholder: t("structure.searchObjects") } : undefined}
-          rows={
-            data?.length === 0 ? (
-              <SummaryEmpty text={t("objects.emptyTitle")} action={{ label: t("action.create"), onClick: () => setAddOpen(true) }} />
-            ) : undefined
-          }
+          empty={data?.length === 0 ? { text: t("objects.emptyTitle"), action: { label: t("action.create"), onClick: () => setAddOpen(true) } } : undefined}
         />
       ) : (
         !!data?.length && (
