@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { CalendarRange, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { db } from "@/lib/db";
 import { intlTag, useLocale, useT, type MessageKey } from "@/lib/i18n";
 import { periodLabel, shiftPeriod, type Period } from "@/lib/period";
+import { routes } from "@/lib/routes";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import { HScroll } from "@/components/ui/h-scroll";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
@@ -286,7 +288,8 @@ export function SearchNoResults({ onWiden }: { onWiden?: () => void }) {
  * altında her gün bir hücre: tepesinde siyah tarih etiketi ("Bugün", "Dün",
  * "18 Kasım Salı"), altında o günün girdileri uygulamanın her yerindeki
  * girdi kartlarıyla (bkz. EntryCard) —
- * kategorinin rengi, simgesi, değerleri. Karta dokununca girdi açılır.
+ * kategorinin rengi, simgesi, değerleri. Karta dokununca girdi açılır,
+ * tarihe dokununca o günün sayfası.
  *
  * Eskiden sonuçlar düz bir tabloydu: solda soluk "Kas 21 · 06:27", yanında
  * "Harcamalar · Kira"; renk ve simge yoktu, girdiler uygulamanın geri
@@ -343,15 +346,26 @@ export function SearchResults({ entries, hint }: { entries: EntryWithContext[]; 
           satırdı, girdiler ayrı hücrede: iki tarih arasında tek girdi
           kalınca hangi güne ait olduğu okunmuyordu, krem de soluk
           duruyordu */}
+      {/* Tarih satırı gün sayfasına gider (bkz. routes.day): o günün
+          bütününe — öbür girdilerine, uykusuna, notlarına — bakmak için.
+          Dokunma alanı satırın tamamı (etiket tek başına 22 px, parmağa
+          küçük). Geri dönünce arama yerinde: sorgu adreste (bkz. app/search) */}
       {days.map((d) => (
         <section key={d.key} aria-label={dayLabel(d.key)} className="flex flex-col gap-2 bg-white px-2.5 pb-2.5 pt-2 text-[#111]">
-          <div className="flex items-center gap-2">
-            <span className="shrink-0 rounded-full bg-[#111] px-2.5 py-[5px] text-[11.5px] font-black leading-none text-[#fff4dc]">
+          <Link
+            href={routes.day(d.key)}
+            prefetch={false}
+            data-search-day={d.key}
+            aria-label={t("search.openDay", { day: dayLabel(d.key) })}
+            className="-mx-1.5 -my-1 flex items-center gap-2 rounded-[12px] px-1.5 py-1 active:bg-[#111]/[0.06]"
+          >
+            <span className="flex shrink-0 items-center gap-0.5 rounded-full bg-[#111] py-[5px] pl-2.5 pr-1.5 text-[11.5px] font-black leading-none text-[#fff4dc]">
               {dayLabel(d.key)}
+              <ChevronRight aria-hidden className="h-3 w-3" strokeWidth={3} />
             </span>
             <span aria-hidden className="h-[1.5px] min-w-0 flex-1 rounded-full bg-[#111]/12" />
             <span className="shrink-0 font-mono text-[11px] font-bold text-[#111]/45">{fmt(d.items.length)}</span>
-          </div>
+          </Link>
           {d.items.map((e) => (
             <EntryCard key={e.id} entry={e} />
           ))}

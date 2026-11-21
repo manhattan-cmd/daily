@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Search, X } from "lucide-react";
 import { db } from "@/lib/db";
 import { searchEntries } from "@/lib/db/queries";
 import { intlTag, useLocale, useT, type MessageKey } from "@/lib/i18n";
-import { dayPeriod, monthPeriod, periodLabel, weekPeriod, yearPeriod, type Period } from "@/lib/period";
+import { dayPeriod, monthPeriod, parsePeriodKey, periodLabel, weekPeriod, yearPeriod, type Period } from "@/lib/period";
 import { useSkin } from "@/lib/skin";
 import { PageHeader } from "@/components/layout/page-header";
 import { EntryListSection, type EntryListRow } from "@/components/analytics/entry-list";
@@ -51,17 +52,48 @@ function rangeStart(key: RangeKey): number | undefined {
  * Arama kutusu açılışta odaklanmaz: telefonda klavye kendiliğinden açılıp
  * ekranın yarısını kapatıyordu, süzgeçler ve sonuçlar görünmüyordu.
  * Kullanıcı kutuya dokununca açılır.
+ *
+ * Arama adreste de durur (?q=…&cat=…&t=d-2026-11-21): sonuçtaki tarihe
+ * dokunup gün sayfasına gidince geri tuşu aramayı silinmiş bulmasın. Adres
+ * yalnız açılışta okunur, sonra durum adrese yazılır (replaceState — her harf
+ * geçmişe yeni adım eklemesin). Ana sayfadan açılan Ara yine boş.
  */
 export default function SearchPage() {
+  return (
+    <Suspense fallback={null}>
+      <SearchPageContent />
+    </Suspense>
+  );
+}
+
+/** Adresteki dönem — Ara'nın zaman türlerinden biriyse (özel aralık ve Tümü yok) */
+function initialPeriod(key: string | null): Period | null {
+  const p = key ? parsePeriodKey(key) : null;
+  return p && p.kind !== "all" && p.kind !== "custom" ? p : null;
+}
+
+function SearchPageContent() {
   const t = useT();
   const brutal = useSkin() === "brutal";
-  const [query, setQuery] = useState("");
-  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const params = useSearchParams();
+  const [query, setQuery] = useState(() => params.get("q") ?? "");
+  const [categoryId, setCategoryId] = useState<string | null>(() => params.get("cat"));
   const [range, setRange] = useState<RangeKey>("all");
   // Brütal: zaman türü ve dönemi (bkz. SearchFilters) — sade temalar eski aralıkla
-  const [kind, setKind] = useState<TimeKind>("all");
-  const [period, setPeriod] = useState<Period | null>(null);
+  const [period, setPeriod] = useState<Period | null>(() => initialPeriod(params.get("t")));
+  const [kind, setKind] = useState<TimeKind>(() => (period ? (period.kind as TimeKind) : "all"));
   const locale = useLocale();
+
+  // Durum → adres (bkz. üstteki not). Next'in kendi geçmiş kaydı korunur
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (query) p.set("q", query);
+    if (categoryId) p.set("cat", categoryId);
+    if (period) p.set("t", period.key);
+    const s = p.toString();
+    if (s === window.location.search.slice(1)) return;
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${s ? `?${s}` : ""}`);
+  }, [query, categoryId, period]);
   function pickKind(k: TimeKind) {
     setKind(k);
     const now = Date.now();

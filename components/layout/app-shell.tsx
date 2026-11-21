@@ -191,8 +191,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
  * görünüm yerinde kalıyor (bkz. app/analytics/page). Aşağıdaki istatistiklere
  * bakarken zamanı ileri geri oynatan her dokunuşta başa fırlatılıyordu;
  * Analiz içinde yalnız sorgu değişince kaydırma olduğu yerde kalır.
+ *
+ * Ara da öyle: arama adreste (?q=, bkz. app/search), her harfte ya da
+ * süzgeçte başa atmasın.
  */
-const KEEP_SCROLL_ON_QUERY = new Set(["/analytics"]);
+const KEEP_SCROLL_ON_QUERY = new Set(["/analytics", "/search"]);
 
 function ScrollReset({ target }: { target: React.RefObject<HTMLElement | null> }) {
   const pathname = usePathname();
