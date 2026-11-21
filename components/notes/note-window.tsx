@@ -78,15 +78,9 @@ function NoteWindowBody({
     };
   }, [embedded]);
 
-  // Yeni (boş) not doğrudan yazmaya açılır. Ekle ekranının sekmesinde
-  // (embedded) değil: sekmeye geçer geçmez klavye açılıp ekranı kapatıyordu,
-  // kullanıcı istemedi — yazı alanına dokununca açılıyor
-  const isEmpty = !!d.loaded && !d.title && !d.body;
-  useEffect(() => {
-    if (isEmpty && !embedded) bodyRef.current?.focus();
-    // yalnız yüklendiği an
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [d.loaded]);
+  // Yeni not da kendiliğinden yazmaya açılmaz: klavye açılıp ekranı
+  // kapatıyordu, kullanıcı istemedi (Ekle sekmesi, Yapı › Notlar). Yazı
+  // alanına dokununca açılıyor.
 
   const close = async () => {
     finishedRef.current = true;
@@ -110,7 +104,7 @@ function NoteWindowBody({
       open
       onClose={() => void close()}
       className={cn(ENTRY_WINDOW_LARGE, "gap-0 overflow-hidden p-0")}
-      // İlk odak yazı alanında olsun (boşsa); Radix ilk düğmeye veriyordu
+      // Açılışta hiçbir şey odaklanmasın; Radix ilk düğmeye veriyordu
       onOpenAutoFocus={(e) => e.preventDefault()}
     >
       {d.loaded === null ? (
