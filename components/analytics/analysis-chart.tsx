@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment } from "react";
-import { AreaChart, BarChart3, BarChartHorizontal, LineChart, Pencil, PieChart, Plus, ScatterChart, type LucideIcon } from "lucide-react";
+import { AreaChart, BarChart3, BarChartHorizontal, LineChart, Maximize2, Pencil, PieChart, Plus, ScatterChart, type LucideIcon } from "lucide-react";
 import { SummaryBlock, SummaryTile } from "@/components/ui/summary-block";
 import {
   chartFormsFor,
@@ -88,6 +88,11 @@ const VARIANT: Record<ChartForm, "bar" | "line" | "area" | "dots"> = {
   donut: "bar",
 };
 
+/** İnceleme ekranında grafiğin çizimi — "Tek tek" orada günlük noktalar */
+export function explorerVariantOf(kind: ChartKind, form: ChartForm): "bar" | "line" | "area" | "dots" {
+  return kind === "points" ? "dots" : VARIANT[form];
+}
+
 /** Noktalı grafikte en fazla kaç girdi — daha fazlası okunmuyor, kaydırıyor */
 const MAX_POINTS = 60;
 
@@ -102,7 +107,7 @@ const ahead = (b: DayBucket, now: number) => b.start !== undefined && b.start > 
  * kesilir; gelecekteki kova hiçbirinde çizilmez. Eskiden boş haftanın
  * iki yanı birleştiriliyor, grafik o hafta hiç yokmuş gibi akıyordu.
  */
-function seriesOf(kind: ChartKind, buckets: DayBucket[], emptyAsZero = false, scale = false): DayBucket[] {
+export function seriesOf(kind: ChartKind, buckets: DayBucket[], emptyAsZero = false, scale = false): DayBucket[] {
   const now = Date.now();
   if (kind === "line") {
     // "Boş günler 0": kovanın değeri gün başına — kaydı olmayan gün 0, çizgi
@@ -229,7 +234,14 @@ export function AnalysisCharts({
   title,
   emptyAsZero,
   block,
+  onExplore,
 }: {
+  /**
+   * Verilirse zaman grafiklerinin başının sağ köşesinde büyütme düğmesi:
+   * grafik tam ekran inceleme ekranında açılır (bkz. ChartExplorer). Dağılımda
+   * yok — zamanı yok, kaydırılacak bir şey yok.
+   */
+  onExplore?: (kind: ChartKind) => void;
   /**
    * Brütal: grafikler tek blokta (bkz. SummaryBlock) — ince mavi başta
    * yalnız "Grafikler" (sayı yok), yanında dar yeşil + karosu; her grafiğin
@@ -310,6 +322,27 @@ export function AnalysisCharts({
       )}
     </ViewMenu>
   );
+
+  /** Köşedeki büyütme düğmesi — siyah karo, başın en sağında */
+  const exploreButton = (kind: ChartKind) =>
+    onExplore && kind !== "distribution" ? (
+      <button
+        type="button"
+        data-chart-explore=""
+        onClick={() => onExplore(kind)}
+        aria-label={t("explore.open")}
+        title={t("explore.open")}
+        className={
+          brutal
+            ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] bg-[#111] text-white shadow-[1.5px_1.5px_0_rgba(17,17,17,0.35)] active:translate-x-px active:translate-y-px active:shadow-none"
+            : "-mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--sf-2)] text-muted-foreground transition-colors hover:bg-[var(--sf-3)] hover:text-foreground"
+        }
+        // Çerçeve rengi satır içi: globals.css'teki katmansız "* { border-color }" kuralı sınıfı eziyor
+        style={brutal ? { borderColor: "#111" } : undefined}
+      >
+        <Maximize2 className="h-3.5 w-3.5" strokeWidth={2.5} />
+      </button>
+    ) : null;
 
   // Biçimin bağlamı: dağılımdaki ayrı değer sayısı çizim anında belli
   const ctx: FormContext = { ...(formCtx ?? { kind: "number" }), slices: distribution.length };
@@ -433,6 +466,7 @@ export function AnalysisCharts({
                 <span className="flex-1" />
                 {formMenu(kind)}
                 {canEdit && editMenu(kind, slot)}
+                {exploreButton(kind)}
               </div>
               {chartOf(kind, true)}
             </div>
@@ -462,6 +496,7 @@ export function AnalysisCharts({
               </div>
               {formMenu(kind)}
               {editMenu(kind, slot)}
+              {exploreButton(kind)}
             </div>
           )}
         <div className="rounded-2xl border border-border bg-card p-4">
@@ -482,6 +517,7 @@ export function AnalysisCharts({
             </div>
             {formMenu(kind)}
             {editMenu(kind, slot)}
+            {exploreButton(kind)}
           </div>
           )}
 

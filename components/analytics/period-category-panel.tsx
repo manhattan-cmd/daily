@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useT, translate } from "@/lib/i18n";
 import Link from "next/link";
 import { ArrowRight, Layers } from "lucide-react";
@@ -14,6 +14,7 @@ import {
   dayKey,
   fmtNum,
   fmtPct,
+  formOf,
   framePeriodSeries,
   GRANULARITY_TITLES,
   startOfDayMs,
@@ -35,6 +36,7 @@ import { StatTile } from "./stat-tile";
 import { StatCell, StatTiles } from "./stat-tiles";
 import { ShareBars, type ShareRow } from "./share-bars";
 import { AnalysisCharts } from "./analysis-chart";
+import { CategoryChartExplorer } from "./category-chart-explorer";
 import { EntryListBlock, EntryListSection, type EntryListRow } from "./entry-list";
 import { SummaryBlock, SummaryEmpty, SummaryTile } from "@/components/ui/summary-block";
 import { RegularToggle, useExcludeRegular } from "./regular-toggle";
@@ -96,6 +98,8 @@ export function PeriodCategoryPanel({
   );
 
   const [excludeRegular, setExcludeRegular] = useExcludeRegular();
+  // Tam ekranda incelenen grafik (köşedeki düğme) — kapanınca panel olduğu yerde
+  const [exploring, setExploring] = useState<ChartKind | null>(null);
   const {
     data,
     metric,
@@ -488,6 +492,26 @@ export function PeriodCategoryPanel({
 
   if (!data || !compute || !computed) return null;
   const unit = compute.unit || undefined;
+  const explorerEl = exploring && (
+    <CategoryChartExplorer
+      category={category}
+      rootSubId={focus?.id}
+      title={focus ? focus.name : category.name}
+      metricId={shownMetric}
+      metricName={metric.type === "count" ? translate("an.entriesUnit") : metric.mod.name}
+      excludeRegular={excludeRegular}
+      choiceFilter={choiceFilter}
+      kind={exploring}
+      form={formOf(exploring, compute.chartForms, { ...compute.formCtx, slices: computed.distribution.length })}
+      color={lensColor}
+      unit={metric.type === "count" ? translate("an.entriesUnit") : unit}
+      scale={compute.scale}
+      emptyAsZero={compute.emptyAsZero}
+      stacked={compute.isRate}
+      period={period}
+      onClose={() => setExploring(null)}
+    />
+  );
   const insightsEl = insightData && (
     <AnalysisInsights
       block={brutal}
@@ -683,6 +707,7 @@ export function PeriodCategoryPanel({
             emptyAsZero={compute.emptyAsZero}
             stack={compute.isRate ? { valueLabel: t("entry.yes"), restLabel: t("entry.no") } : undefined}
             title={chartTitle}
+            onExplore={setExploring}
           />
         )}
 
@@ -696,6 +721,7 @@ export function PeriodCategoryPanel({
             rows={computed.entryRows}
           />
         )}
+        {explorerEl}
       </div>
     );
   }
@@ -897,6 +923,7 @@ export function PeriodCategoryPanel({
               </>
             ),
           })}
+          onExplore={setExploring}
         />
         </Layer>
       )}
@@ -918,6 +945,7 @@ export function PeriodCategoryPanel({
         }
       />
       </Layer>
+      {explorerEl}
     </div>
   );
 }

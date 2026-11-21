@@ -175,7 +175,9 @@ export function bucketKeyOf(t: number, g: Granularity): string {
 export function buildSeriesBuckets(
   startMs: number,
   endMs: number,
-  g: Granularity
+  g: Granularity,
+  /** Güvenlik sınırı — grafik inceleme ekranı bütün geçmişi günlük ister */
+  maxBuckets = 1000
 ): DayBucket[] {
   const out: DayBucket[] = [];
   const first = new Date(startMs);
@@ -188,7 +190,7 @@ export function buildSeriesBuckets(
   let lastMonth = -1;
   let lastYear = -1;
   let guard = 0;
-  while (cur < endMs && guard++ < 1000) {
+  while (cur < endMs && guard++ < maxBuckets) {
     const d = new Date(cur);
     let next: number;
     if (g === "month") {
