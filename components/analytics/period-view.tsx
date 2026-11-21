@@ -49,7 +49,7 @@ import {
   EntryListSection,
   type EntryListRow,
 } from "@/components/analytics/entry-list";
-import { ANALYSIS_COLOR, AnalysisMenu } from "@/components/analytics/analysis-header";
+import { ANALYSIS_COLOR, AnalysisHead, AnalysisMenu } from "@/components/analytics/analysis-header";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { CategoryForm } from "@/components/structure/category-form";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
@@ -544,6 +544,7 @@ export function PeriodView({
     if (brutal) {
       return (
         <PageSheet top={<AnalysisMenu period={requestedPeriod} sub={" "} />}>
+          <AnalysisHead />
           <div className="flex flex-col gap-4 pb-6">
             <Skeleton className="h-[220px] rounded-[18px]" />
             <Skeleton className="h-[140px] rounded-[18px]" />
@@ -613,10 +614,11 @@ export function PeriodView({
             ]
               .filter(Boolean)
               .join(" · ")}
-            below={pickers}
           />
         }
       >
+        {/* Yer · Özellik seçicileri pencerenin başlık çubuğunda (bkz. AnalysisHead) */}
+        <AnalysisHead>{pickers}</AnalysisHead>
         <div className="flex flex-col gap-4 pb-6">
           {/* Dönem boşsa boş pencere: "Bu dönemde girdi yok" ve Tümünü gör */}
           {!selectedCat && (

@@ -20,8 +20,9 @@ const nowMs = () => Date.now();
  * mavisinde şerit, altında tek kalın siyah çizgi; durum çubuğu da aynı mavi.
  * Üstte iki uçta sönük ‹ › (önceki / sonraki dönem), arada dönemin adı ve
  * kısa özeti; altında dönem türleri düz yazı, seçili olan alt menünün seçili
- * sekmesi gibi kalkık beyaz kapsülde; en altta verilen satır (Yer · Özellik
- * seçicileri ya da konum yolu) tek beyaz kartta. Yapışkan.
+ * sekmesi gibi kalkık beyaz kapsülde; verilirse en altta bir satır tek
+ * beyaz kartta. Yapışkan. Yer · Özellik seçicileri şeritte değil, pencerenin
+ * başlık çubuğunda (bkz. AnalysisHead).
  *
  * Önce Takvim'inki gibi ortak çizgili bir bloktu: ‹ › iki uzun beyaz sütun,
  * sekmeler ve seçiciler hücre hücre — kaba ve uzun duruyordu, üstündeki
@@ -88,6 +89,35 @@ export function AnalysisMenu({
       )}
       {below && <div className="px-2.5 pb-2.5">{below}</div>}
     </header>
+  );
+}
+
+/**
+ * Analiz penceresinin başlık çubuğu (Brütal) — Yer · Özellik seçicileri.
+ * Beyaz sayfa zemininin (bkz. PageSheet) tepesine kenardan kenara oturur:
+ * bölüm bantları gibi benekli Analiz mavisi, köşeleri zeminin üst
+ * köşeleriyle bir, altında şeritteki gibi 3 px kalın çizgi; seçiciler
+ * üstünde beyaz kartta. Ana Sayfa, Takvim, Gün ve Yapı sayfalarının başı
+ * gibi — üst kısım pencerenin geri kalanından ayrı okunsun.
+ *
+ * Eskiden seçiciler şeridin en alt satırıydı: şerit 155 px tutuyordu, ilk
+ * blok (Kategori dağılımı) da öbür bloklardan farksız duruyordu.
+ * `children` yokken (yüklenirken) aynı boyda boş kart: baş gelince sayfa
+ * zıplamasın.
+ */
+export function AnalysisHead({ children }: { children?: ReactNode }) {
+  return (
+    <div
+      data-an-head=""
+      className="-mx-1.5 -mt-3 mb-4 rounded-t-[18px] border-b-[3px] border-[#111] px-2.5 py-2.5"
+      style={{
+        backgroundColor: ANALYSIS_COLOR,
+        backgroundImage: "radial-gradient(rgba(17, 17, 17, 0.16) 1.2px, transparent 1.5px)",
+        backgroundSize: "11px 11px",
+      }}
+    >
+      {children ?? <div className="h-[46px] rounded-[12px] border-2 border-[#111] bg-white shadow-[2px_2px_0_#111]" />}
+    </div>
   );
 }
 

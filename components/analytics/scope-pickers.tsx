@@ -239,7 +239,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
   return (
     <>
       {brutal ? (
-        /* Brütal: üst menünün son satırı (bkz. AnalysisMenu) — tek beyaz
+        /* Brütal: pencerenin başlık çubuğunda (bkz. AnalysisHead) — tek beyaz
            kart, iki yarısı arasında siyah çizgi. Solda yerin karosu (kare =
            kategori), sağda özelliğin dairesi; seçimsizken Analiz'in mavisinde */
         <div
