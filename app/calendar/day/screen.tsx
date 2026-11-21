@@ -69,12 +69,6 @@ function goalTime(o: GoalOccurrence, entryHere: boolean): number | null {
   return new Date(y, m - 1, d, hh, mm).getTime();
 }
 
-/** Uyku / ruh hali hedefi — kendi yuvasında, o kartların yanında */
-function isBuiltInGoal(o: GoalOccurrence): boolean {
-  if (!o.goal.category.isBuiltIn) return false;
-  const key = o.goal.category.builtInKey ?? "sleep";
-  return key === "sleep" || key === "mood";
-}
 /** "21:00" — saat başı damga */
 function hourLabel(ts: number): string {
   return `${String(new Date(ts).getHours()).padStart(2, "0")}:00`;
@@ -155,7 +149,7 @@ export function CalendarDayPage({
   const activities = useLiveQuery(() => db.activities.toArray(), []);
   const activityById = new Map((activities ?? []).map((a) => [a.id, a]));
 
-  // Yerleşik akışların girdileri kendi zarif yuvalarında gösterilir
+  // Uyku ve ruh hali kendi kartlarıyla çizilir, akıştaki yerleri zamanlarından
   const builtInKeyOf = (e: { category: { isBuiltIn?: boolean; builtInKey?: string } }) =>
     e.category.isBuiltIn ? e.category.builtInKey ?? "sleep" : undefined;
   const sleepEntries = (entries ?? []).filter((e) => builtInKeyOf(e) === "sleep");
@@ -169,7 +163,8 @@ export function CalendarDayPage({
    * Hedefler girdilerle AYNI listede — ayrı bir blokları yok. Yapılmış hedef
    * girdisinin yerinde durur (girdi ayrıca çizilmez, kart girdinin kendi
    * kartı); bekleyen hatırlatma saatinde, saatsizse listenin başında. Uyku ve
-   * ruh hali hedefleri o kartların yuvasında. Kart her durumda aynı
+   * ruh hali (kayıtları da hedefleri de) aynı akışta, zamanlarının yerinde —
+   * eskiden listenin üstünde ayrı yuvadaydılar. Kart her durumda aynı
    * anahtarla aynı listede kalır: yapılınca yer değiştirse de kutlaması
    * kesilmez (bkz. GoalCard).
    */
@@ -190,8 +185,6 @@ export function CalendarDayPage({
       })
       .map((e) => e.id)
   );
-  const builtInGoals = (goals ?? []).filter(isBuiltInGoal);
-  const flowGoals = (goals ?? []).filter((o) => !isBuiltInGoal(o));
   const sleepMoodRest = [...sleepEntries, ...moodEntries].filter((e) => !hiddenEntryIds.has(e.id));
 
   // Kart → seçim durumu. Günün her öğesi (girdi, uyku, hedef, not) seçilebilir;
@@ -306,24 +299,6 @@ export function CalendarDayPage({
 
   // Günün girdileri bölümünün parçaları — brütalde bloklara, ötekilerde
   // tek katmana dizilir
-  const sleepMoodSlot = (
-    <>
-      {/* Yerleşik akış yuvaları — uyku ve ruh hali hedefleri, kayıtları.
-          Ruh hali günde birden çok kez girilebiliyor, kartlar sırayla dizilir. */}
-      {(builtInGoals.length > 0 || sleepMoodRest.length > 0) && (
-        <div className="mb-5 flex flex-col gap-2">
-          {builtInGoals.map(goalCard)}
-          {sleepMoodRest.map((e) =>
-            builtInKeyOf(e) === "sleep" ? (
-              <SleepCard key={e.id} entry={e} selection={selectionFor([`entry:${e.id}`])} />
-            ) : (
-              <MoodCard key={e.id} entry={e} selection={selectionFor([`entry:${e.id}`])} />
-            )
-          )}
-        </div>
-      )}
-    </>
-  );
   const notesSlot = (
     <>
       {/* Not yuvası — nota özgü kartlar (başlık + ilk satırlar), dokununca editör */}
@@ -351,14 +326,20 @@ export function CalendarDayPage({
       )}
     </>
   );
-  // Akış: girdiler ve hedefler birlikte, yeniden eskiye; saatsiz hedef başta
+  // Akış: girdiler, uyku, ruh hali ve hedefler birlikte, yeniden eskiye;
+  // saatsiz hedef başta. Uykunun zamanı uyanma anı (bkz. SleepSheet)
   const flowItems: EntryItem[] = [
-    ...flowGoals.map((o): EntryItem => ({ type: "goal", occ: o, at: goalTime(o, shownEntry(o)) })),
+    ...(goals ?? []).map((o): EntryItem => ({ type: "goal", occ: o, at: goalTime(o, shownEntry(o)) })),
+    ...sleepMoodRest.map((e): EntryItem => ({ type: "single", entry: e })),
     ...groupEntries(otherEntries.filter((e) => !hiddenEntryIds.has(e.id))),
   ].sort((a, b) => (itemTime(b) ?? Infinity) - (itemTime(a) ?? Infinity));
   const flowCard = (item: EntryItem) =>
     item.type === "goal" ? (
       goalCard(item.occ)
+    ) : item.type === "single" && builtInKeyOf(item.entry) === "sleep" ? (
+      <SleepCard key={item.entry.id} entry={item.entry} selection={selectionFor([`entry:${item.entry.id}`])} />
+    ) : item.type === "single" && builtInKeyOf(item.entry) === "mood" ? (
+      <MoodCard key={item.entry.id} entry={item.entry} selection={selectionFor([`entry:${item.entry.id}`])} />
     ) : item.type === "single" ? (
       <EntryCard
         key={item.entry.id}
@@ -400,17 +381,17 @@ export function CalendarDayPage({
     flowNodes.push(flowCard(item));
   }
   // Renk özeti: günün girdilerinin benzersiz kategorileri (görülme sırasıyla)
-  const dayCats = [...new Map(otherEntries.map((e) => [e.category.id, e.category])).values()];
+  const dayCats = [
+    ...new Map([...otherEntries, ...sleepEntries, ...moodEntries].map((e) => [e.category.id, e.category])).values(),
+  ];
 
   const entriesSlot = (
     <>
-      {/* Girdiler ve hedefler */}
+      {/* Girdiler, uyku, ruh hali ve hedefler — tek akış */}
       {entries === undefined ? (
         <CardListSkeleton rows={3} />
       ) : flowItems.length === 0 ? (
-        sleepMoodRest.length === 0 &&
-        builtInGoals.length === 0 &&
-        (brutal || !notes || notes.length === 0) ? (
+        brutal || !notes || notes.length === 0 ? (
           <EmptyState
             icon={CalendarDays}
             title={t("day.empty.title")}
@@ -422,7 +403,7 @@ export function CalendarDayPage({
           {brutal ? null : (
             <div className="mb-1 flex items-center gap-2 px-1">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {groupEntries(otherEntries).length} girdi
+                {groupEntries(otherEntries).length + sleepMoodCount} girdi
               </p>
               <span className="flex items-center gap-1">
                 {dayCats.map((c) => (
@@ -584,7 +565,6 @@ export function CalendarDayPage({
             stats={[]}
           >
             <div className="bg-white p-3">
-              {sleepMoodSlot}
               {entriesSlot}
             </div>
           </SummaryBlock>
@@ -622,7 +602,6 @@ export function CalendarDayPage({
         </>
       ) : (
       <Layer label={t("day.entriesLayer")} count={dayItemCount}>
-      {sleepMoodSlot}
       {notesSlot}
       {entriesSlot}
       </Layer>
