@@ -12,13 +12,18 @@ import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { EntryCard } from "@/components/dashboard/entry-card";
 import type { Category, EntryWithContext } from "@/types";
 
-/** Aramanın zaman süzgeci — Analiz'in dönem türleri (gün yok: o günün sayfası var) */
-export type TimeKind = "all" | "week" | "month" | "year";
+/**
+ * Aramanın zaman süzgeci — Analiz'in dönem türleri, onunla aynı sırada:
+ * yakından uzağa (Gün · Hafta · Ay · Yıl · Tümü). İlk hali Tümü'yle
+ * başlıyordu ve gün yoktu; kullanıcı Analiz'deki sırayı istedi.
+ */
+export type TimeKind = "day" | "week" | "month" | "year" | "all";
 export const TIME_KINDS: { kind: TimeKind; label: MessageKey }[] = [
-  { kind: "all", label: "insights.all" },
+  { kind: "day", label: "range.day" },
   { kind: "week", label: "range.week" },
   { kind: "month", label: "range.month" },
   { kind: "year", label: "range.year" },
+  { kind: "all", label: "insights.all" },
 ];
 
 /** Şimdi — bileşen dışında: çizim saf kalsın */
@@ -86,8 +91,8 @@ export function FilterChip({
  * Süzgeç bloğu — zaman ve kategori tek çerçevede, ortak 2 px çizgilerle
  * (bkz. SummaryBlock):
  *
- *  1. Zaman türü — dört eşit bölmeli anahtar (Tümü · Hafta · Ay · Yıl),
- *     seçili bölme siyah. Eskiden şeritte düz yazı üç sekmeydi (Tüm
+ *  1. Zaman türü — beş eşit bölmeli anahtar (Gün · Hafta · Ay · Yıl ·
+ *     Tümü), seçili bölme siyah. Eskiden şeritte düz yazı üç sekmeydi (Tüm
  *     zamanlar · Bu yıl · Bu ay): "geçen ay" aranamıyordu, sekmeler de
  *     hizasız duruyordu.
  *  2. Dönem — tür seçiliyken: ‹ Kasım 2026 › ile geriye gidilir (Analiz'in
@@ -130,7 +135,7 @@ export function SearchFilters({
         <div
           role="tablist"
           aria-label={t("insights.period")}
-          className="grid grid-cols-4 overflow-hidden rounded-[11px] border-[1.5px] border-[#111]"
+          className="grid grid-cols-5 overflow-hidden rounded-[11px] border-[1.5px] border-[#111]"
         >
           {TIME_KINDS.map((k, i) => {
             const on = kind === k.kind;

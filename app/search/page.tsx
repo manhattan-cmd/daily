@@ -6,7 +6,7 @@ import { Search, X } from "lucide-react";
 import { db } from "@/lib/db";
 import { searchEntries } from "@/lib/db/queries";
 import { intlTag, useLocale, useT, type MessageKey } from "@/lib/i18n";
-import { monthPeriod, periodLabel, weekPeriod, yearPeriod, type Period } from "@/lib/period";
+import { dayPeriod, monthPeriod, periodLabel, weekPeriod, yearPeriod, type Period } from "@/lib/period";
 import { useSkin } from "@/lib/skin";
 import { PageHeader } from "@/components/layout/page-header";
 import { EntryListSection, type EntryListRow } from "@/components/analytics/entry-list";
@@ -65,7 +65,9 @@ export default function SearchPage() {
   function pickKind(k: TimeKind) {
     setKind(k);
     const now = Date.now();
-    setPeriod(k === "week" ? weekPeriod(now) : k === "month" ? monthPeriod(now) : k === "year" ? yearPeriod(now) : null);
+    setPeriod(
+      k === "day" ? dayPeriod(now) : k === "week" ? weekPeriod(now) : k === "month" ? monthPeriod(now) : k === "year" ? yearPeriod(now) : null
+    );
   }
 
   const categories = useLiveQuery(
