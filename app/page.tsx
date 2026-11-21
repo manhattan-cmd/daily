@@ -607,7 +607,7 @@ function RecentBlock({ total, children }: { total: number | undefined; children:
 
 /**
  * Son 7 gün — Bugün, Kategorilerin ve Yine ekle'yle aynı birleşik blokta:
- * üstte Takvim turuncusu "SON 7 GÜN · 107 girdi", altında tarih aralığı ve günlük
+ * üstte Takvim turkuazı "SON 7 GÜN · 107 girdi", altında tarih aralığı ve günlük
  * ortalama; ortada sütunlar (günün kategori kırılımıyla yığılı, tepesinde
  * sayısı, bugün en sağda — dokun, o güne git); altta Takvimi aç.
  */
@@ -623,16 +623,16 @@ function BrutWeek({ week, today }: { week: DayBar[]; today: string }) {
       className="mb-4"
       lead={{
         kind: "count",
-        // Takvim'in turuncusu — sütunlar günler
-        color: "#ffa94d",
+        // Takvim'in turkuazı — sütunlar günler
+        color: "#5eead4",
         overline: t("home.last7Days"),
         value: cap(total),
         unit: t("home.entries"),
         hint: t("home.weekHint", { range: weekRange(week, tag), avg }),
       }}
       stats={[]}
-      // Takvim'in turuncusu — bölümün bandı gibi
-      link={{ href: "/calendar", label: t("home.openCalendar"), color: "#ffa94d", icon: CalendarRange }}
+      // Takvim'in turkuazı — bölümün bandı gibi
+      link={{ href: "/calendar", label: t("home.openCalendar"), color: "#5eead4", icon: CalendarRange }}
     >
       <div className="flex items-end gap-1.5 bg-white px-3 pb-3 pt-3 text-[#111]">
         {week.map((d) => {

@@ -49,7 +49,8 @@ import {
   EntryListSection,
   type EntryListRow,
 } from "@/components/analytics/entry-list";
-import { ANALYSIS_COLOR, AnalysisDeck, AnalysisMenu } from "@/components/analytics/analysis-header";
+import { ANALYSIS_COLOR, AnalysisDeck, AnalysisMenu, type DeckScope } from "@/components/analytics/analysis-header";
+import { modColor } from "@/lib/mod-color";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { CategoryForm } from "@/components/structure/category-form";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
@@ -415,7 +416,11 @@ export function PeriodView({
         ? t(selectedCat.builtInKey === "mood" ? "mood.title" : "sleep.title")
         : selectedCat.name
     : t("structure.categories");
-  const deckScope = [placeName, selectedCat?.builtInKey !== "mood" ? metricMod?.name : undefined].filter(Boolean).join(" · ");
+  const deckScope: DeckScope = {
+    place: { name: placeName, color: selectedCat?.color ?? ANALYSIS_COLOR },
+    feature:
+      metricMod && selectedCat?.builtInKey !== "mood" ? { name: metricMod.name, color: modColor(metricMod) } : undefined,
+  };
   /** Seçim değişince içerik baştan değişir — sayfa başına, kaydırma animasyonu yok */
   const toTop = () => {
     const main = document.querySelector("main");

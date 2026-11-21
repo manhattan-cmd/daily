@@ -21,12 +21,16 @@ import { cn } from "@/lib/utils";
  *
  * Sayfanın kendi sarmalayıcısı flex sütunsa (Takvim) flex-1 ile dolar.
  *
+ * `fit`: zemin içeriğinin boyunda, alt menüye kadar inmez — dört kenarı
+ * çerçeveli, köşeleri yuvarlak bir pencere (Takvim: pencere ayın
+ * ızgarasıyla biter; eskiden altında ekranın sonuna kadar boş beyazlık vardı).
+ *
  * --bleed: kenardan kenara uzanan kaydırmalı şeritlerin (çipler, kutu
  * sıraları) taşma payı. Zeminsiz sayfada main'in kenar payı (1rem); zeminde
  * zeminin iç payı — yoksa şerit zeminin çerçevesini aşıp sayfayı yana
  * kaydırıyordu. Katmanın içinde eskisi gibi 1rem.
  */
-export function PageSheet({ top, children }: { top?: ReactNode; children?: ReactNode }) {
+export function PageSheet({ top, fit = false, children }: { top?: ReactNode; fit?: boolean; children?: ReactNode }) {
   const brutal = useSkin() === "brutal";
   if (!brutal) {
     return (
@@ -41,7 +45,10 @@ export function PageSheet({ top, children }: { top?: ReactNode; children?: React
       {top}
       <div
         data-page-sheet=""
-        className="-mb-4 -ml-[6px] -mr-[12px] flex-1 rounded-t-[20px] border-2 border-b-0 border-[#111] bg-white px-1.5 pb-8 pt-3 [--bleed:6px]"
+        className={cn(
+          "-ml-[6px] -mr-[12px] border-2 border-[#111] bg-white px-1.5 pt-3 [--bleed:6px]",
+          fit ? "rounded-[20px] pb-1" : "-mb-4 flex-1 rounded-t-[20px] border-b-0 pb-8"
+        )}
       >
         {children}
       </div>

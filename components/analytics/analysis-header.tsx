@@ -109,8 +109,8 @@ export function AnalysisDeck({
   onPick?: (p: Period) => void;
   /** Dönemin adının altındaki satır */
   sub?: ReactNode;
-  /** Küçükken özette: neye bakılıyor ("Harcamalar · Para") */
-  scope?: string;
+  /** Küçükken özette: neye bakılıyor — yer (kategorinin rengiyle) ve varsa özellik */
+  scope?: DeckScope;
   /** Yer · Özellik seçicileri */
   children?: ReactNode;
 }) {
@@ -172,12 +172,29 @@ export function AnalysisDeck({
     e.preventDefault();
     e.stopPropagation();
   };
-  const summary = [t(KIND_LABEL[period.kind]), scope].filter(Boolean).join(" · ");
+  // Küçükken özet renkli: siyah tür etiketi, yerin kapsülü kategorinin
+  // renginde (kare = kategori), özelliğinki özelliğin renginde (daire =
+  // özellik) — düz "Ay · Harcamalar · Para" yazısıydı
+  const summary = (
+    <span className="flex min-w-0 items-center justify-center gap-1">
+      <span className="shrink-0 rounded-[5px] bg-[#111] px-1.5 py-[3px] text-[10px] font-black leading-none text-white">
+        {t(KIND_LABEL[period.kind])}
+      </span>
+      {scope && <ScopeChip name={scope.place.name} color={scope.place.color} shape="square" />}
+      {scope?.feature && <ScopeChip name={scope.feature.name} color={scope.feature.color} shape="circle" />}
+    </span>
+  );
 
   const label = (
     <>
       <h2 className="truncate text-[16px] font-black leading-tight tracking-tight">{periodLabel(period, locale)}</h2>
-      <p className="h-[14px] truncate text-[11px] font-bold leading-[14px] text-[#111]/60">{small ? summary : sub}</p>
+      {small ? (
+        <div data-an-deck-summary="" className="mt-[3px] flex h-[18px] justify-center">
+          {summary}
+        </div>
+      ) : (
+        <p className="h-[14px] truncate text-[11px] font-bold leading-[14px] text-[#111]/60">{sub}</p>
+      )}
     </>
   );
 
@@ -226,6 +243,29 @@ export function AnalysisDeck({
         <span className="h-[5px] w-9 rounded-full bg-[#111]/35 transition-colors group-active:bg-[#111]/60" />
       </button>
     </Band>
+  );
+}
+
+/** Küçük bloğun özeti — neye bakılıyor */
+export type DeckScope = {
+  place: { name: string; color: string };
+  feature?: { name: string; color: string };
+};
+
+/** Özetin kapsülü — rengin açık tonunda zemin, önünde rengin kendisiyle şekli */
+function ScopeChip({ name, color, shape }: { name: string; color: string; shape: "square" | "circle" }) {
+  return (
+    <span
+      className="flex min-w-0 items-center gap-1 rounded-full border-[1.5px] py-[1px] pl-1 pr-1.5 text-[11px] font-extrabold leading-[14px] text-[#111]"
+      style={{ borderColor: "#111", background: `color-mix(in srgb, ${color} 38%, white)` }}
+    >
+      <span
+        aria-hidden
+        className={cn("h-2.5 w-2.5 shrink-0 border-[1.5px]", shape === "circle" ? "rounded-full" : "rounded-[3px]")}
+        style={{ background: color, borderColor: "#111" }}
+      />
+      <span className="truncate">{name}</span>
+    </span>
   );
 }
 

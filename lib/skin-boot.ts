@@ -29,7 +29,7 @@ export const BASE_SKIN: Skin = "gece";
  * Telefonun durum çubuğunun rengi (<meta name="theme-color">) — Brütal'de
  * ekranın tepesindekiyle aynı, sayfa tepeden tek parça dursun: üst menüsü
  * kenardan kenara şerit olan sayfalarda şeridin rengi (Ana Sayfa'nın
- * moru, Takvim'in turuncusu, Gün'ün yeşili, Analiz'in mavisi, Yapı'nın sarısı — alt menüde sekmelerinin
+ * moru, Takvim'in turkuazı, Gün'ün yeşili, Analiz'in mavisi, Yapı'nın sarısı — alt menüde sekmelerinin
  * renkleri), ötekilerde
  * başlık bloğunun durduğu krem döşeme. Diğer temalarda null —
  * çağıran temanın zemin rengini (--background) kullanır.
@@ -45,7 +45,7 @@ export function statusBarColor(path: string, skin: string): string | null {
   const p = path.replace(/\/+$/, "") || "/";
   // Ara ve Ayarlar ana sayfanın başlığından açılır, onun şeridinde (bkz. SubPageMenu)
   if (p === "/" || p === "/search" || p === "/settings") return "#a9b0ff";
-  if (p === "/calendar") return "#ffa94d";
+  if (p === "/calendar") return "#5eead4";
   if (p === "/calendar/day") return "#7ae582";
   if (p === "/analytics") return "#8ea6ff";
   if (p === "/structure" || p.indexOf("/structure/") === 0) return "#ffd23f";

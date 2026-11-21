@@ -14,8 +14,11 @@ import { useSkin } from "@/lib/skin";
 import { Layer, PageSheet } from "@/components/ui/layer";
 import { TodayMascot } from "@/components/calendar/today-mascot";
 
-/** Takvim'in rengi — alt menüdeki sekmesi, üst menüsü, durum çubuğu (bkz. statusBarColor) */
-const CAL_COLOR = "#ffa94d";
+/** Takvim'in rengi — alt menüdeki sekmesi, üst menüsü, durum çubuğu (bkz. statusBarColor).
+ *  Önce yeşildi (Gün sayfasıyla karışıyordu), sonra turuncu; kullanıcı
+ *  başka bir renk istedi — turkuaz: Gün'ün yeşilinden, Analiz'in mavisinden
+ *  ve bugünün pembe karesinden ayrı */
+const CAL_COLOR = "#5eead4";
 
 /** Ay ve gün adları uygulamanın dilinde (eskiden sabit İngilizce diziydi) */
 function monthName(i: number, tag: string): string {
@@ -208,12 +211,14 @@ export default function CalendarPage() {
       )}
     >
       {/* Brütal: bant krem döşemede, ay önündeki sayfa zemininde (bkz. PageSheet) */}
+      {/* fit: pencere ayın boyunda, alt menüye kadar inmez */}
       <PageSheet
+        fit
         top={
       brutal ? (
         /* Brütal: üst menü şerit — Ana Sayfa, Gün, Analiz ve Yapı'nınki gibi
-           (bkz. AnalysisMenu, WeekStrip): kenardan kenara Takvim turuncusu (Gün yeşil,
-           ikisi ayrılsın), altında tek kalın siyah çizgi, durum çubuğu da turuncu (bkz.
+           (bkz. AnalysisMenu, WeekStrip): kenardan kenara Takvim turkuazı (Gün yeşil,
+           ikisi ayrılsın), altında tek kalın siyah çizgi, durum çubuğu da turkuaz (bkz.
            statusBarColor). İki uçta sönük oklar, arada ay ve yıl, altında
            ayın özeti (kaç girdi, kaç günde) — ikisi içerikle birlikte kayar.
            Yapışkan. Eskiden ortak çizgili bir bloktu (beyaz ok sütunları,
@@ -290,7 +295,7 @@ export default function CalendarPage() {
       >
 
       {/* Brütal: gün adları pencerenin başlık çubuğu — sayfa zemininin
-          tepesine kenardan kenara, benekli Takvim turuncusu, altında kalın
+          tepesine kenardan kenara, benekli Takvim turkuazı, altında kalın
           çizgi (Gün ve Yapı sayfalarının başı gibi). Ay kaymaz, ızgara kayar.
           Sütunlar ızgarayla aynı genişlikte: çubuk zeminin iç payını aşar
           (-mx-1.5) ama aynı payı içeriden geri verir (px-1.5); sütun arası da

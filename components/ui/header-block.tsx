@@ -16,7 +16,7 @@ export const bandDots = (color: string): CSSProperties => ({
 const BANDS: [string, string][] = [
   ["yapi-band", "#ffd23f"],
   ["band-an", "#8ea6ff"],
-  ["band-cal", "#ffa94d"],
+  ["band-cal", "#5eead4"],
   ["band-home", "#6366f1"],
 ];
 export const bandColor = (className?: string): string =>
