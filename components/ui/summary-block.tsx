@@ -246,6 +246,7 @@ function Lead({
   expanded,
   centered = false,
   dense = false,
+  banded = false,
 }: {
   lead: SummaryLead;
   linked?: boolean;
@@ -253,6 +254,8 @@ function Lead({
   expanded?: boolean;
   centered?: boolean;
   dense?: boolean;
+  /** Pencere başında (bkz. SummaryBlock head): bölüm bantlarının benekleri */
+  banded?: boolean;
 }) {
   if (compact && lead.kind !== "date")
     return <CompactLead lead={lead} linked={linked} expanded={expanded} centered={centered} dense={dense} />;
@@ -284,7 +287,10 @@ function Lead({
   }
   if (lead.kind === "date") {
     return (
-      <div className="flex h-full min-w-0 flex-col justify-center bg-[#ffd23f] px-3.5 py-2.5 text-[#111]">
+      <div
+        className="flex h-full min-w-0 flex-col justify-center bg-[#ffd23f] px-3.5 py-2.5 text-[#111]"
+        style={banded ? bandDots("#ffd23f") : undefined}
+      >
         <div className="flex items-center gap-1.5">
           <span className="text-[11px] font-black uppercase tracking-wider">{lead.weekday}</span>
           {lead.today && (
@@ -452,6 +458,7 @@ export function SummaryBlock({
   children,
   className,
   compact = false,
+  head = false,
 }: {
   lead: SummaryLead;
   /** Verilirse ad hücresi bağlantı (Yapı → Kategoriler: kategorinin sayfası) */
@@ -483,6 +490,15 @@ export function SummaryBlock({
    * başlarındaki etiket, sayı ve açıklamayla doluyor, bunlarınki boştu
    */
   compact?: boolean;
+  /**
+   * Pencerenin başlık çubuğu (gün sayfasının özeti) — beyaz sayfa zemininin
+   * (bkz. PageSheet) tepesine kenardan kenara oturur: kendi çerçevesi ve
+   * gölgesi yok, köşeleri zeminin üst köşeleriyle bir, altında şeritteki
+   * gibi 3 px kalın çizgi; tarih başı bölüm bantları gibi benekli. Altındaki
+   * bloklardan ayrı okunsun diye (Yapı'nın sayfa başı da böyle — bkz.
+   * StructureHead). Eskiden altındaki bloklarla aynı çerçeveli bir bloktu.
+   */
+  head?: boolean;
 }) {
   // Hücreler arası 2 px siyah: zemin siyah, hücreler arası boşluk 2 px.
   // grid-cols-1 (minmax(0, 1fr)): sütun kabın genişliğinde — yoksa tek
@@ -491,9 +507,13 @@ export function SummaryBlock({
   return (
     <div
       data-summary=""
+      data-summary-head={head ? "" : undefined}
       className={cn(
-        "grid grid-cols-1 gap-[2px] overflow-hidden border-2 border-[#111] bg-[#111]",
-        dense ? "rounded-[13px] shadow-[3px_3px_0_#111]" : "rounded-[18px] shadow-[4px_4px_0_#111]",
+        "grid grid-cols-1 gap-[2px] overflow-hidden bg-[#111]",
+        head
+          ? // Zeminin iç payını (yanlarda 6, üstte 12 px) aşıp kenardan kenara
+            "-mx-1.5 -mt-3 mb-4 rounded-t-[18px] border-b-[3px] border-[#111]"
+          : cn("border-2 border-[#111]", dense ? "rounded-[13px] shadow-[3px_3px_0_#111]" : "rounded-[18px] shadow-[4px_4px_0_#111]"),
         className
       )}
     >
@@ -514,7 +534,7 @@ export function SummaryBlock({
           </button>
         ) : (
           <div className="min-w-0 flex-1">
-            <Lead lead={lead} compact={compact} dense={dense} />
+            <Lead lead={lead} compact={compact} dense={dense} banded={head} />
           </div>
         )}
         {/* Satır boyunca uzar: ad iki satıra taşınca altında siyah boşluk kalmasın */}

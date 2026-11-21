@@ -524,9 +524,10 @@ export function CalendarDayPage({
         )}
       >
       {brutal && (
-        /* Gün özeti — tarih, Ekle, sayılar ve gün analizi tek blokta (bkz. SummaryBlock) */
+        /* Gün özeti — tarih, Ekle, sayılar ve gün analizi tek blokta;
+           pencerenin başlık çubuğu, altındaki bloklardan ayrı (bkz. SummaryBlock head) */
         <SummaryBlock
-          className="mb-4"
+          head
           lead={{
             kind: "date",
             weekday: weekdayLong(d, tag),
