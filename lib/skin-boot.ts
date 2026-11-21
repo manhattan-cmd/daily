@@ -45,8 +45,8 @@ export function statusBarColor(path: string, skin: string): string | null {
   const p = path.replace(/\/+$/, "") || "/";
   // Ara ve Ayarlar ana sayfanın başlığından açılır, onun şeridinde (bkz. SubPageMenu)
   if (p === "/" || p === "/search" || p === "/settings") return "#a9b0ff";
-  if (p === "/calendar") return "#5eead4";
-  if (p === "/calendar/day") return "#7ae582";
+  // Takvim ve gün sayfası aynı turkuaz (gün sayfası Takvim sekmesinin altında)
+  if (p === "/calendar" || p === "/calendar/day") return "#5eead4";
   if (p === "/analytics") return "#8ea6ff";
   if (p === "/structure" || p.indexOf("/structure/") === 0) return "#ffd23f";
   return "#fff4dc";

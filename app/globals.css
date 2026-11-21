@@ -1262,7 +1262,7 @@ input[type="number"] {
 
 /* Brutal: bolum bantlari — her ana bolumun ustu kendi renginde, soluk tram
    benekli, kalin alt cizgili. Yapi sari, Ana Sayfa uygulamanin kendi moru
-   (ikonun rengi), Takvim yesil, Analiz mavi. Baslik ters etiket: siyah kutu,
+   (ikonun rengi), Takvim turkuaz, Analiz mavi. Baslik ters etiket: siyah kutu,
    bandin renginde harf.  */
 :root[data-skin="brutal"] .yapi-band { --band-c: #ffd23f; }
 :root[data-skin="brutal"] .band-home { --band-c: #6366f1; }

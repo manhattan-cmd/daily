@@ -14,10 +14,11 @@ import { useSkin } from "@/lib/skin";
 import { Layer, PageSheet } from "@/components/ui/layer";
 import { TodayMascot } from "@/components/calendar/today-mascot";
 
-/** Takvim'in rengi — alt menüdeki sekmesi, üst menüsü, durum çubuğu (bkz. statusBarColor).
- *  Önce yeşildi (Gün sayfasıyla karışıyordu), sonra turuncu; kullanıcı
- *  başka bir renk istedi — turkuaz: Gün'ün yeşilinden, Analiz'in mavisinden
- *  ve bugünün pembe karesinden ayrı */
+/** Takvim'in rengi — alt menüdeki sekmesi, üst menüsü, durum çubuğu (bkz.
+ *  statusBarColor); gün sayfasının şeridi (WeekStrip) ve ana sayfadaki Son 7
+ *  gün bloğu da bu renkte. Önce yeşildi, sonra turuncu; kullanıcı başka bir
+ *  renk istedi — turkuaz: Analiz'in mavisinden, Ekle'nin yeşilinden ve bugünün
+ *  pembe karesinden ayrı */
 const CAL_COLOR = "#5eead4";
 
 /** Ay ve gün adları uygulamanın dilinde (eskiden sabit İngilizce diziydi) */

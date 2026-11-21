@@ -12,8 +12,9 @@ import { cn, toLocalDateValue } from "@/lib/utils";
 /**
  * Gün sayfasının üst menüsü (Brütal) — başlık değil, yalnız gezinme; alt
  * menünün aynası: kenardan kenara şerit, altında tek kalın siyah çizgi,
- * hücre çerçevesi yok. Rengi Takvim'in yeşili (alt menüde sekmesinin rengi;
- * durum çubuğu da, bkz. statusBarColor). İki uçta önceki / sonraki gün,
+ * hücre çerçevesi yok. Rengi Takvim'in rengi, turkuaz (alt menüde sekmesinin
+ * rengi; durum çubuğu da, bkz. statusBarColor) — Takvim yeşilken burası da
+ * yeşildi; Takvim renk değiştirince burası da onunla değişiyor. İki uçta önceki / sonraki gün,
  * aralarında haftanın yedi günü (kısa adı, numarası, altında o gün girdi
  * alan kategorilerin renkleri). Açık günün numarası alt menünün seçili
  * sekmesi gibi çerçeveli, kalkık küçük beyaz kapsülde; bugün yalnız
@@ -43,7 +44,7 @@ export function WeekStrip({ date }: { date: string }) {
     <header
       data-day-nav=""
       // -mx-4: main'in kenar payını aşıp kenardan kenara (alt menü gibi)
-      className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] bg-[#7ae582] pt-[env(safe-area-inset-top,0px)]"
+      className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] bg-[#5eead4] pt-[env(safe-area-inset-top,0px)]"
     >
       <nav data-week-strip="" aria-label={t("nav.calendar")} className="flex items-stretch px-1">
         <Arrow icon={ChevronLeft} date={shift(-1)} label={t("day.prev")} />
@@ -88,7 +89,7 @@ export function WeekStrip({ date }: { date: string }) {
                   {x.getDate()}
                 </span>
                 {/* Girdi alan kategoriler — boş günde yer tutucu, satır zıplamasın;
-                    yeşil zeminde yeşil kategori kaybolmasın diye siyah halkalı */}
+                    şeridin renginde bir kategori zeminde kaybolmasın diye siyah halkalı */}
                 <span className="flex h-[6px] items-center gap-[2px]">
                   {colors.map((c, i) => (
                     <span key={i} className="h-[6px] w-[6px] rounded-full border" style={{ background: c, borderColor: "#111" }} />

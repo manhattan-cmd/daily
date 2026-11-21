@@ -80,7 +80,7 @@ export type SummaryLink = {
   /**
    * Verilirse satır gittiği yerin bandı gibi çizilir: o renkte tram benekli
    * zemin, düz koyu ad, iki yanında küçük kare düğmeler (simge ve ok). Ana
-   * sayfada Günü aç günün sarısı, Takvimi aç Takvim'in yeşili, Yapıya git
+   * sayfada Günü aç günün sarısı, Takvimi aç Takvim'in turkuazı, Yapıya git
    * Yapı'nın sarısı; gün sayfasında Gün Analizi Analiz'in mavisi. Eskiden ad
    * siyah kutuda iri ters yazıydı — bağırıyordu. Verilmezse sade beyaz satır.
    */
