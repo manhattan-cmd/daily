@@ -11,11 +11,11 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
-import { ArrowRight, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ENTRY_SCREEN } from "@/components/ui/entry-window";
 import { useIsBrutal } from "@/components/structure/brutal";
-import { fmtNum, type DayBucket, type Granularity, type ScaleRange } from "@/lib/analytics";
+import { fmtNum, GRANULARITY_TITLES, type DayBucket, type Granularity, type ScaleRange } from "@/lib/analytics";
 import { intlTag, useLocale, useT, type MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -77,9 +77,10 @@ const PRESETS: { key: PresetKey; g: Granularity; span: number; label: MessageKey
 const GRAN_DEFAULT: Record<Granularity, number> = { day: 31, week: 13, month: Infinity };
 const GRAN_LABEL: Record<Granularity, MessageKey> = { day: "explore.g.day", week: "explore.g.week", month: "explore.g.month" };
 const UNIT_KEY: Record<Granularity, MessageKey> = { day: "explore.u.day", week: "explore.u.week", month: "explore.u.month" };
-const AVG_KEY: Record<Granularity, MessageKey> = { day: "explore.avg.day", week: "explore.avg.week", month: "explore.avg.month" };
-const PREV_KEY: Record<Granularity, MessageKey> = { day: "explore.vsPrev.day", week: "explore.vsPrev.week", month: "explore.vsPrev.month" };
-const STEP_KEY: Record<Granularity, MessageKey> = { day: "explore.step.day", week: "explore.step.week", month: "explore.step.month" };
+const AVG_KEY: Record<Granularity, MessageKey> = { day: "explore.c.avg.day", week: "explore.c.avg.week", month: "explore.c.avg.month" };
+const REC_KEY: Record<Granularity, MessageKey> = { day: "explore.c.recorded.day", week: "explore.c.recorded.week", month: "explore.c.recorded.month" };
+const STEP_KEY: Record<Granularity, MessageKey> = { day: "explore.c.step.day", week: "explore.c.step.week", month: "explore.c.step.month" };
+const READ_KEY: Record<ExplorerReading, MessageKey> = { total: "explore.reading.total", average: "explore.reading.average", cumulative: "explore.reading.cumulative" };
 const OPEN_KEY: Record<Granularity, MessageKey> = { day: "explore.open.day", week: "explore.open.week", month: "explore.open.month" };
 const SWITCH_KEY: Record<Granularity, MessageKey> = { day: "explore.toDaily", week: "explore.toWeekly", month: "explore.toMonthly" };
 /** Basılı tutma süresi — bundan sonra tarama başlar */
@@ -373,7 +374,7 @@ function ExplorerBody({
 
   const fmt = useMemo(
     () => ({
-      day: new Intl.DateTimeFormat(tag, { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+      weekday: new Intl.DateTimeFormat(tag, { weekday: "long" }),
       range: new Intl.DateTimeFormat(tag, { day: "numeric", month: "long", year: "numeric" }),
       month: new Intl.DateTimeFormat(tag, { month: "long", year: "numeric" }),
       shortDay: new Intl.DateTimeFormat(tag, { day: "numeric", month: "short" }),
@@ -383,12 +384,6 @@ function ExplorerBody({
     }),
     [tag]
   );
-  const fullLabel = (b: DayBucket, g: Granularity) => {
-    const [s, e] = bounds(b);
-    if (g === "day") return fmt.day.format(s);
-    if (g === "month") return fmt.month.format(s);
-    return fmt.range.formatRange(s, e - 1);
-  };
   const shortLabel = (b: DayBucket, g: Granularity) => {
     const s = b.start ?? 0;
     if (g === "month") return new Date(s).getMonth() === 0 ? fmt.shortMonthYear.format(s) : fmt.shortMonth.format(s);
@@ -462,7 +457,8 @@ function ExplorerBody({
     if (i >= vv.start && i + 1 <= vv.start + vv.span) return;
     animateTo(center ? i + 0.5 - vv.span / 2 : i < vv.start ? i : i + 1 - vv.span);
   };
-  const step = (d: number) => {
+  /** Bir kova ileri/geri — klavyede Shift ile */
+  const stepBucket = (d: number) => {
     stopAnim();
     const cur = live.current;
     const len = series[cur.g].length;
@@ -471,7 +467,12 @@ function ExplorerBody({
     const i = cur.sel === null ? b : clamp(cur.sel + d, 0, len - 1);
     keepVisible({ ...cur, sel: i }, i, false);
   };
-  const jump = (d: number) => {
+  /**
+   * Kayıttan kayda — okuma kutusunun iki yanındaki ‹ › ve klavyede oklar.
+   * Kaydı olmayan kovaları atlar. Eskiden ‹ › kova kova, « » kayıt kayıt
+   * gidiyordu; veri sık olunca ikisi aynı işi yapıyordu, tek çift kaldı.
+   */
+  const stepEntry = (d: number) => {
     stopAnim();
     const cur = live.current;
     const list = series[cur.g];
@@ -645,12 +646,12 @@ function ExplorerBody({
   const onKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (e.key === "ArrowLeft") {
       e.preventDefault();
-      if (e.shiftKey) jump(-1);
-      else step(-1);
+      if (e.shiftKey) stepBucket(-1);
+      else stepEntry(-1);
     } else if (e.key === "ArrowRight") {
       e.preventDefault();
-      if (e.shiftKey) jump(1);
-      else step(1);
+      if (e.shiftKey) stepBucket(1);
+      else stepEntry(1);
     } else if (e.key === "+" || e.key === "=") {
       e.preventDefault();
       zoomBy(0.8);
@@ -707,66 +708,72 @@ function ExplorerBody({
     hi = Math.max(hi, x + (stacked ? (b.rest ?? 0) : 0));
   }
   const visAvg = reading === "total" ? (cnt ? sum / cnt : 0) : drawnCnt ? drawnSum / drawnCnt : 0;
-  const recText = t("explore.recorded", { n: rec, m: cnt, u: t(UNIT_KEY[v.g]) });
 
+  // Okuma kutusu: üst satır (gün adı ya da "Görünen aralık"), başlık (tarih),
+  // büyük rakam (birim yanında küçük) ve en altta en fazla üç bilgi hücresi.
+  // Eskiden noktalarla ayrılmış tek uzun cümleydi; ikinci satırda kesiliyordu
+  const pctFmt = new Intl.NumberFormat(tag, { style: "percent", signDisplay: "exceptZero", maximumFractionDigits: 0 });
+  const u = t(UNIT_KEY[v.g]);
   let over = "";
-  let big = "";
-  let sub = "";
+  let title = "";
+  let bigNum: string | null = null;
+  let bigText = "";
+  const cells: { v: string; l: string }[] = [];
   const sel = v.sel !== null && v.sel < n ? arr[v.sel] : null;
+  const findEntry = (from: number, d: number) => {
+    for (let j = from + d; j >= 0 && j < n; j += d) if (hasEntries(arr[j])) return j;
+    return -1;
+  };
+  const prevEntry = findEntry(v.sel ?? vb + 1, -1);
+  const nextEntry = findEntry(v.sel ?? va - 1, 1);
   if (!n) {
-    big = t("explore.empty");
+    bigText = t("explore.empty");
   } else if (sel && v.sel !== null) {
-    over = fullLabel(sel, v.g);
+    const [s, e] = bounds(sel);
+    over = v.g === "day" ? fmt.weekday.format(s) : t(GRAN_LABEL[v.g]);
+    title = v.g === "day" ? fmt.range.format(s) : v.g === "month" ? fmt.month.format(s) : fmt.range.formatRange(s, e - 1);
     const selV = valOf(v.sel);
     const empty = reading === "cumulative" ? false : !hasEntries(sel) && (reading === "average" || selV === 0);
     if (empty) {
-      big = t("explore.noData");
-      let p = -1;
-      let q = -1;
-      for (let j = v.sel - 1; j >= 0; j--) if (hasEntries(arr[j])) { p = j; break; }
-      for (let j = v.sel + 1; j < n; j++) if (hasEntries(arr[j])) { q = j; break; }
-      const parts: string[] = [];
-      const u = t(UNIT_KEY[v.g]);
-      if (p >= 0) parts.push(t("explore.prevAgo", { n: v.sel - p, u }));
-      if (q >= 0) parts.push(t("explore.nextIn", { n: q - v.sel, u }));
-      sub = parts.length ? parts.join(" · ") : t("explore.noneHere");
+      bigText = t("explore.noData");
+      if (prevEntry >= 0) cells.push({ v: t("explore.c.ago", { n: v.sel - prevEntry, u }), l: t("explore.c.prevEntry") });
+      if (nextEntry >= 0) cells.push({ v: t("explore.c.in", { n: nextEntry - v.sel, u }), l: t("explore.c.nextEntry") });
+      if (!cells.length) cells.push({ v: "–", l: t("explore.noneHere") });
     } else {
-      big = valText(selV);
-      const parts: string[] = [];
-      if (hasEntries(sel)) parts.push(t("explore.entries", { n: sel.count ?? 0 }));
+      bigNum = fmtNum(selV);
+      if (hasEntries(sel)) cells.push({ v: fmtNum(sel.count ?? 0), l: t("explore.c.entries") });
       if (reading === "cumulative") {
-        parts.push(t(STEP_KEY[v.g], { v: signed(sel.sum ?? 0) }));
+        cells.push({ v: signed(sel.sum ?? 0), l: t(STEP_KEY[v.g]) });
       } else {
-        if (visAvg > 0) {
-          const pct = Math.round(((selV - visAvg) / visAvg) * 100);
-          parts.push(
-            pct === 0
-              ? t("explore.vsAvgSame")
-              : t(pct > 0 ? "explore.vsAvgAbove" : "explore.vsAvgBelow", { p: Math.abs(pct) })
-          );
-        }
+        // Eksi işareti öteki farklarla aynı karakter (Intl düz kısa çizgi veriyor)
+        if (visAvg > 0) cells.push({ v: pctFmt.format((selV - visAvg) / visAvg).replace("-", "−"), l: t("explore.c.vsAvg") });
         const prev = v.sel > 0 ? arr[v.sel - 1] : null;
         if (prev && drawn(prev) && (reading === "total" || hasEntries(prev))) {
-          parts.push(t(PREV_KEY[v.g], { d: signed(selV - valOf(v.sel - 1)) }));
+          cells.push({ v: signed(selV - valOf(v.sel - 1)), l: t("explore.c.vsPrev") });
         }
       }
-      sub = parts.join(" · ");
     }
   } else {
-    const a = arr[va];
-    const z = arr[vb];
-    over = t("explore.visible", { range: fmt.span.formatRange(bounds(a)[0], bounds(z)[1] - 1) });
-    const maxText = maxI >= 0 ? t("explore.max", { v: valText(maxV), when: shortLabel(arr[maxI], v.g) }) : null;
+    over = t("explore.visibleRange");
+    title = fmt.range.formatRange(bounds(arr[va])[0], bounds(arr[vb])[1] - 1);
+    const maxCell = maxI >= 0 ? { v: valText(maxV), l: t("explore.c.max", { when: shortLabel(arr[maxI], v.g) }) } : null;
+    const recCell = { v: `${rec}/${cnt}`, l: t(REC_KEY[v.g]) };
     if (reading === "total") {
-      big = valText(sum);
-      sub = [t(AVG_KEY[v.g], { v: valText(visAvg) }), maxText, recText].filter(Boolean).join(" · ");
+      bigNum = fmtNum(sum);
+      cells.push({ v: valText(visAvg), l: t(AVG_KEY[v.g]) });
+      if (maxCell) cells.push(maxCell);
+      cells.push(recCell);
     } else if (reading === "cumulative") {
       const end = valOf(vb);
-      big = valText(end);
-      sub = [t(AVG_KEY[v.g], { v: valText(cnt ? end / cnt : 0) }), recText].join(" · ");
+      bigNum = fmtNum(end);
+      cells.push({ v: valText(cnt ? end / cnt : 0), l: t(AVG_KEY[v.g]) }, recCell);
     } else {
-      big = drawnCnt ? valText(visAvg) : t("explore.noData");
-      sub = [t("explore.average"), maxText, recText].filter(Boolean).join(" · ");
+      if (drawnCnt) bigNum = fmtNum(visAvg);
+      else bigText = t("explore.noData");
+      let entCount = 0;
+      for (let i = va; i <= vb; i++) entCount += arr[i].count ?? 0;
+      if (maxCell) cells.push(maxCell);
+      cells.push(recCell, { v: fmtNum(entCount), l: t("explore.c.entries") });
     }
   }
 
@@ -939,83 +946,163 @@ function ExplorerBody({
     );
   };
 
-  const seg = brutal ? "border-2 bg-white" : "border border-border bg-card";
+  const line = brutal ? { borderColor: "#111" } : undefined;
+  const hair = brutal ? "rgba(17,17,17,0.14)" : "var(--border)";
+  const muted = brutal ? "text-[#111]/55" : "text-muted-foreground";
+  const sideBtn = cn(
+    "flex w-10 shrink-0 items-center justify-center transition-colors disabled:opacity-25",
+    brutal ? "bg-white text-[#111] active:bg-[#111]/[0.06]" : "text-foreground active:bg-[var(--sf-2)]"
+  );
   const segBtn = (on: boolean) =>
     cn(
-      "flex-1 text-[12.5px] font-extrabold transition-colors",
-      on ? (brutal ? "bg-[#111] text-white" : "bg-foreground text-background") : brutal ? "text-[#111]/70 active:bg-[#111]/5" : "text-muted-foreground"
+      "font-extrabold transition-colors",
+      on ? (brutal ? "bg-[#111] text-white" : "bg-foreground text-background") : brutal ? "text-[#111]/65 active:bg-[#111]/5" : "text-muted-foreground"
     );
-  const stepBtn = cn(
-    "flex h-10 flex-1 items-center justify-center gap-0.5 text-[11.5px] font-extrabold",
-    brutal
-      ? "rounded-[11px] border-2 bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
-      : "rounded-xl border border-border bg-card text-foreground"
-  );
-  const line = brutal ? { borderColor: "#111" } : undefined;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2.5 px-3 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-3">
-      {/* Okuma paneli — seçim yokken görünen aralığın özeti */}
+    <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-3">
+      {/* Okuma kutusu — iki yanında tam boy ‹ ›: kayıttan kayda (Analiz'in
+          üst bölümündeki ‹ dönem › satırının dili) */}
       <div
         aria-live="polite"
         data-explore-readout=""
         className={cn(
-          "flex h-[106px] shrink-0 flex-col overflow-hidden px-3 pb-2 pt-1.5",
-          brutal ? "rounded-[14px] border-2 bg-white text-[#111] shadow-[3px_3px_0_#111]" : "rounded-2xl border border-border bg-card"
+          "flex h-[136px] shrink-0 overflow-hidden",
+          brutal ? "rounded-[16px] border-2 bg-white text-[#111] shadow-[3px_3px_0_#111]" : "rounded-2xl border border-border bg-card"
         )}
         style={line}
       >
-        <div className="flex min-h-[26px] items-center gap-1.5">
-          <span className={cn("min-w-0 flex-1 truncate text-[11.5px] font-extrabold", brutal ? "text-[#111]/60" : "text-muted-foreground")}>{over}</span>
-          {sel && sel.periodKey && onOpenPeriod && (
-            <button
-              type="button"
-              onClick={() => onOpenPeriod(sel.periodKey!)}
-              className={cn(
-                "flex h-6 shrink-0 items-center gap-0.5 rounded-full pl-2.5 pr-1.5 text-[11.5px] font-extrabold",
-                brutal ? "border-[1.5px] bg-[#ffd23f] text-[#111]" : "bg-[var(--sf-2)]"
-              )}
-              style={line}
-            >
-              {t(OPEN_KEY[v.g])}
-              <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.75} />
-            </button>
-          )}
-          {sel && (
-            <button
-              type="button"
-              onClick={() => commit({ ...live.current, sel: null })}
-              aria-label={t("explore.clear")}
-              className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full", brutal ? "border-[1.5px] bg-white" : "bg-[var(--sf-2)]")}
-              style={line}
-            >
-              <X className="h-3 w-3" strokeWidth={3} />
-            </button>
-          )}
+        <button
+          type="button"
+          onClick={() => stepEntry(-1)}
+          disabled={prevEntry < 0}
+          aria-label={t("explore.prevEntry")}
+          className={cn(sideBtn, brutal ? "border-r-2" : "border-r border-border")}
+          style={line}
+        >
+          <ChevronLeft className="h-5 w-5" strokeWidth={2.75} />
+        </button>
+        <div className="flex min-w-0 flex-1 flex-col px-3 pb-2 pt-1.5">
+          <div className="flex h-6 items-center gap-1.5">
+            <span className={cn("min-w-0 flex-1 truncate text-[10.5px] font-extrabold uppercase tracking-[0.08em]", muted)}>{over}</span>
+            {sel && sel.periodKey && onOpenPeriod && (
+              <button
+                type="button"
+                onClick={() => onOpenPeriod(sel.periodKey!)}
+                className={cn(
+                  "flex h-6 shrink-0 items-center gap-0.5 rounded-full pl-2.5 pr-1.5 text-[11px] font-extrabold",
+                  brutal ? "border-[1.5px] bg-[#ffd23f] text-[#111] active:translate-y-px" : "bg-[var(--sf-2)]"
+                )}
+                style={line}
+              >
+                {t(OPEN_KEY[v.g])}
+                <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.75} />
+              </button>
+            )}
+            {sel && (
+              <button
+                type="button"
+                onClick={() => commit({ ...live.current, sel: null })}
+                aria-label={t("explore.clear")}
+                className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full", brutal ? "border-[1.5px] bg-white" : "bg-[var(--sf-2)]")}
+                style={line}
+              >
+                <X className="h-3 w-3" strokeWidth={3} />
+              </button>
+            )}
+          </div>
+          <div className="truncate text-[15px] font-extrabold leading-tight tracking-[-0.01em]">{title}</div>
+          <div className="mt-1 flex min-w-0 items-baseline gap-1.5">
+            {bigNum !== null ? (
+              <>
+                <span className="truncate font-mono text-[30px] font-extrabold leading-none tracking-[-0.04em] tabular-nums">{bigNum}</span>
+                {unit && <span className={cn("shrink-0 text-[15px] font-extrabold", muted)}>{unit}</span>}
+              </>
+            ) : (
+              <span className={cn("truncate text-[22px] font-extrabold leading-none tracking-[-0.02em]", brutal ? "text-[#111]/40" : "text-muted-foreground")}>
+                {bigText}
+              </span>
+            )}
+          </div>
+          {/* Hücreler içerik kadar geniş, artan yer eşit dağılır — eşit
+              sütunlarda "en yüksek · 2 Kas" kesiliyordu */}
+          <div className="mt-auto flex border-t pt-1.5" style={{ borderTopColor: hair }}>
+            {cells.map((c, k) => (
+              <div
+                key={k}
+                className={cn("min-w-0 flex-[1_1_auto] leading-tight", k > 0 && "border-l pl-2", k < cells.length - 1 && "pr-1.5")}
+                style={k > 0 ? { borderLeftColor: hair } : undefined}
+              >
+                <div className="truncate font-mono text-[12.5px] font-extrabold tabular-nums">{c.v}</div>
+                <div className={cn("truncate text-[10px] font-bold", muted)}>{c.l}</div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="truncate font-mono text-[25px] font-extrabold leading-[1.15] tracking-[-0.02em] tabular-nums">{big}</div>
-        <div className={cn("line-clamp-2 text-[12px] font-semibold leading-[1.35]", brutal ? "text-[#111]/70" : "text-muted-foreground")}>{sub}</div>
+        <button
+          type="button"
+          onClick={() => stepEntry(1)}
+          disabled={nextEntry < 0}
+          aria-label={t("explore.nextEntry")}
+          className={cn(sideBtn, brutal ? "border-l-2" : "border-l border-border")}
+          style={line}
+        >
+          <ChevronRight className="h-5 w-5" strokeWidth={2.75} />
+        </button>
       </div>
 
-      {/* Grafik */}
+      {/* Grafik penceresi — başlık şeridinde neye bakıldığı ve kova seçimi
+          (panelin grafik başı gibi: rengin açık tonu, altında ince çizgi) */}
       <div
-        ref={boxRef}
-        tabIndex={0}
-        role="group"
-        aria-label={t("explore.chartLabel")}
-        data-explore-chart=""
-        onPointerDown={onDown}
-        onPointerMove={onMove}
-        onPointerUp={onUp}
-        onPointerCancel={onUp}
-        onContextMenu={(e) => e.preventDefault()}
-        onKeyDown={onKey}
-        className={cn(
-          "relative min-h-0 flex-1 cursor-crosshair touch-none select-none overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-[#8ea6ff]",
-          brutal ? "rounded-[14px] border-2 bg-white" : "rounded-2xl border border-border bg-card"
-        )}
-        style={{ ...line, WebkitTouchCallout: "none" }}
+        className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", brutal ? "rounded-[16px] border-2 bg-white" : "rounded-2xl border border-border bg-card")}
+        style={line}
       >
+        <div
+          className="flex h-10 shrink-0 items-center gap-2 pl-3 pr-1.5"
+          style={
+            brutal
+              ? { backgroundColor: "#fff", backgroundImage: `linear-gradient(${color}2e, ${color}2e)`, borderBottom: `1.5px solid ${color}66` }
+              : { borderBottom: "1px solid var(--border)" }
+          }
+        >
+          <span className="min-w-0 flex-1 truncate text-[12.5px] font-extrabold tracking-[-0.01em]">
+            {GRANULARITY_TITLES[v.g]} {t(READ_KEY[reading])}
+          </span>
+          <div
+            role="group"
+            aria-label={t("explore.bucket")}
+            className={cn("flex h-7 shrink-0 overflow-hidden rounded-[9px]", brutal ? "border-[1.5px] bg-white" : "border border-border bg-card")}
+            style={line}
+          >
+            {(["day", "week", "month"] as Granularity[]).map((gg, k) => (
+              <button
+                key={gg}
+                type="button"
+                aria-pressed={v.g === gg}
+                onClick={() => pickG(gg)}
+                className={cn(segBtn(v.g === gg), "px-2.5 text-[11.5px]", k > 0 && "border-l-[1.5px]")}
+                style={k > 0 ? { borderLeftColor: brutal ? "#111" : "var(--border)" } : undefined}
+              >
+                {t(GRAN_LABEL[gg])}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div
+          ref={boxRef}
+          tabIndex={0}
+          role="group"
+          aria-label={t("explore.chartLabel")}
+          data-explore-chart=""
+          onPointerDown={onDown}
+          onPointerMove={onMove}
+          onPointerUp={onUp}
+          onPointerCancel={onUp}
+          onContextMenu={(e) => e.preventDefault()}
+          onKeyDown={onKey}
+          className="relative min-h-0 flex-1 cursor-crosshair touch-none select-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8ea6ff]"
+          style={{ WebkitTouchCallout: "none" }}
+        >
         {ready ? (
           <svg className="absolute inset-0 h-full w-full" style={{ color: INK }} aria-hidden>
             <defs>
@@ -1113,52 +1200,28 @@ function ExplorerBody({
             </span>
           </div>
         )}
+        </div>
       </div>
 
-      {/* Aralık — kovayı da seçer */}
-      <div role="group" aria-label={t("explore.range")} className={cn("flex h-9 shrink-0 overflow-hidden rounded-[11px]", seg)} style={line}>
+      {/* Aralık — kovayı da seçer (1A günlük, 1Y haftalık, Tümü aylık) */}
+      <div
+        role="group"
+        aria-label={t("explore.range")}
+        className={cn("flex h-10 shrink-0 overflow-hidden rounded-[12px]", brutal ? "border-2 bg-white shadow-[2px_2px_0_#111]" : "border border-border bg-card")}
+        style={line}
+      >
         {PRESETS.map((p, k) => (
           <button
             key={p.key}
             type="button"
             aria-pressed={v.preset === p.key}
             onClick={() => applyPreset(p)}
-            className={cn(segBtn(v.preset === p.key), k > 0 && "border-l-[1.5px]")}
-            style={k > 0 ? (brutal ? { borderLeftColor: "#111" } : { borderLeftColor: "var(--border)" }) : undefined}
+            className={cn(segBtn(v.preset === p.key), "flex-1 text-[13px]", k > 0 && "border-l-[1.5px]")}
+            style={k > 0 ? { borderLeftColor: brutal ? "#111" : "var(--border)" } : undefined}
           >
             {t(p.label)}
           </button>
         ))}
-      </div>
-
-      {/* Kova ve adımlar */}
-      <div className="flex shrink-0 items-center gap-2">
-        <div role="group" aria-label={t("explore.bucket")} className={cn("flex h-10 w-[148px] shrink-0 overflow-hidden rounded-[11px]", seg)} style={line}>
-          {(["day", "week", "month"] as Granularity[]).map((gg, k) => (
-            <button
-              key={gg}
-              type="button"
-              aria-pressed={v.g === gg}
-              onClick={() => pickG(gg)}
-              className={cn(segBtn(v.g === gg), k > 0 && "border-l-[1.5px]")}
-              style={k > 0 ? (brutal ? { borderLeftColor: "#111" } : { borderLeftColor: "var(--border)" }) : undefined}
-            >
-              {t(GRAN_LABEL[gg])}
-            </button>
-          ))}
-        </div>
-        <button type="button" onClick={() => jump(-1)} aria-label={t("explore.jumpPrev")} className={stepBtn} style={line}>
-          <ChevronsLeft className="h-4 w-4" strokeWidth={2.75} />
-        </button>
-        <button type="button" onClick={() => step(-1)} aria-label={t("explore.prev")} className={stepBtn} style={line}>
-          <ChevronLeft className="h-4 w-4" strokeWidth={2.75} />
-        </button>
-        <button type="button" onClick={() => step(1)} aria-label={t("explore.next")} className={stepBtn} style={line}>
-          <ChevronRight className="h-4 w-4" strokeWidth={2.75} />
-        </button>
-        <button type="button" onClick={() => jump(1)} aria-label={t("explore.jumpNext")} className={stepBtn} style={line}>
-          <ChevronsRight className="h-4 w-4" strokeWidth={2.75} />
-        </button>
       </div>
     </div>
   );
