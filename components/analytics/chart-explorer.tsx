@@ -11,8 +11,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
-import { BarChart3, Check, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
-import { SummaryTile } from "@/components/ui/summary-block";
+import { ArrowRight, BarChart3, Check, ChevronDown, ChevronLeft, ChevronRight, Pointer, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ENTRY_SCREEN } from "@/components/ui/entry-window";
 import { useIsBrutal } from "@/components/structure/brutal";
@@ -89,6 +88,11 @@ const HOLD_MS = 320;
 const SLOP_PX = 8;
 /** Okuma kutusunun sayı bantları — gün özetinin sırası */
 const STAT_COLORS = ["#8ea6ff", "#7ae582", "#ff9ecd"];
+/** Analiz satırının küçük kare karoları (simge ve ok) — SummaryBlock bağlantı satırı gibi */
+const LINK_SQ =
+  "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] bg-white text-[#111] shadow-[1.5px_1.5px_0_#111]";
+/** Seçimsizken analiz satırındaki ipucu */
+const PICK_KEY: Record<Granularity, MessageKey> = { day: "explore.pick.day", week: "explore.pick.week", month: "explore.pick.month" };
 /** Bölüm bantlarının tram benekleri (bkz. summary-block bandDots) */
 const bandDots = (c: string) => ({
   backgroundColor: c,
@@ -956,7 +960,7 @@ function ExplorerBody({
     const [s, e] = bounds(sel);
     over =
       v.g === "day"
-        ? // Bu yılın gününde yıl yazılmaz (gün analizi karosunun yanında sığsın)
+        ? // Bu yılın gününde yıl yazılmaz (iki okun arasında sığsın)
           `${fmt.weekday.format(s)} · ${(new Date(s).getFullYear() === new Date(arr[n - 1].start ?? 0).getFullYear() ? fmt.dayMonth : fmt.range).format(s)}`
         : v.g === "month"
           ? fmt.month.format(s)
@@ -1234,11 +1238,6 @@ function ExplorerBody({
             </div>
             <StepArrow brutal={brutal} dir={1} disabled={nextEntry < 0} label={t("explore.nextEntry")} onClick={() => stepEntry(1)} />
           </div>
-          {sel && sel.periodKey && onOpenPeriod && (
-            <div className="w-[66px] shrink-0">
-              <SummaryTile color="#8ea6ff" icon={BarChart3} label={t(OPEN_KEY[v.g])} onClick={() => onOpenPeriod(sel.periodKey!)} />
-            </div>
-          )}
         </div>
         {cells.length > 0 && (
           <div className={cn("grid", brutal ? "gap-[2px]" : "gap-px")} style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }}>
@@ -1253,6 +1252,38 @@ function ExplorerBody({
             ))}
           </div>
         )}
+        {/* Gün analizi — gün sayfasının özetindeki Gün Analizi şeridinin yeri
+            ve dili: bloğun en altında Analiz'in mavisinde benekli satır.
+            Eskiden başın sağında karoydu, tarihi sıkıştırıyordu. Satır hep
+            yerinde: seçimsizken ipucu yazar, gün seçince grafik zıplamaz */}
+        {onOpenPeriod &&
+          (sel && sel.periodKey ? (
+            <button
+              type="button"
+              onClick={() => onOpenPeriod(sel.periodKey!)}
+              data-explore-open=""
+              className={cn("flex h-[44px] min-w-0 items-center gap-2.5 px-3 text-left", brutal ? "text-[#111] active:brightness-95" : "bg-[var(--sf-2)]")}
+              style={brutal ? bandDots("#8ea6ff") : undefined}
+            >
+              <span className={LINK_SQ} style={brutal ? { borderColor: "#111" } : undefined}>
+                <BarChart3 className="h-4 w-4" strokeWidth={2.5} />
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[14.5px] font-extrabold leading-none tracking-tight">{t(OPEN_KEY[v.g])}</span>
+              <span className={LINK_SQ} style={brutal ? { borderColor: "#111" } : undefined}>
+                <ArrowRight className="h-4 w-4" strokeWidth={2.75} />
+              </span>
+            </button>
+          ) : (
+            <div
+              className={cn(
+                "flex h-[44px] min-w-0 items-center gap-2 px-3 text-[12px] font-bold",
+                brutal ? "bg-white text-[#111]/45" : "bg-card text-muted-foreground"
+              )}
+            >
+              <Pointer className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+              <span className="min-w-0 truncate">{t(PICK_KEY[v.g])}</span>
+            </div>
+          ))}
       </div>
 
       {/* Grafik penceresi — başlık şeridinde neye bakıldığı ve kova seçimi
