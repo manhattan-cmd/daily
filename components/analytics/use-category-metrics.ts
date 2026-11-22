@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { COUNT_VIEW, resolveAnalysisViews, setAnalysisView } from "@/lib/db/queries";
@@ -49,7 +49,7 @@ export type StatBag = {
   distinct: number;
   filled: number;
 };
-import { useT } from "@/lib/i18n";
+import { translate, useLocale, type MessageKey } from "@/lib/i18n";
 import type { Category, Entry, EntryValue, Mod, SubCategory } from "@/types";
 
 export interface CategoryMetricsData {
@@ -410,7 +410,14 @@ export function useCategoryMetrics({
   /** Düzenli/sabit işaretli alt ağaçların girdilerini pencereden çıkar */
   excludeRegular?: boolean;
 }) {
-  const t = useT();
+  // Dile bağlı SABİT çeviri: useT her çizimde yeni fonksiyon veriyor, compute
+  // (bağımlılığında t var) her çizimde baştan kuruluyordu. Grafik inceleme
+  // ekranı veriyi compute kimliğine bağlıyor; panel de boşuna hesaplıyordu
+  const locale = useLocale();
+  const t = useCallback(
+    (key: MessageKey, vars?: Parameters<typeof translate>[1]) => translate(key, vars, locale),
+    [locale]
+  );
   // null = kullanıcı henüz seçmedi → varsayılan render sırasında senkron türetilir,
   // effect'le sonradan set edilirse "Girdi" bir an seçili görünüp titreme yaratıyor
   const [metricChoice, setMetricChoice] = useState<Metric | null>(null);

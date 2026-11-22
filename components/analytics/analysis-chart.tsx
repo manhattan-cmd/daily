@@ -62,7 +62,7 @@ export const FORM_LABEL: Record<ChartForm, MessageKey> = {
   hbar: "form.hbar",
   donut: "form.donut",
 };
-const FORM_HINT: Record<ChartForm, MessageKey> = {
+export const FORM_HINT: Record<ChartForm, MessageKey> = {
   column: "form.columnHint",
   line: "form.lineHint",
   area: "form.areaHint",
@@ -70,7 +70,7 @@ const FORM_HINT: Record<ChartForm, MessageKey> = {
   hbar: "form.hbarHint",
   donut: "form.donutHint",
 };
-const FORM_ICON: Record<ChartForm, LucideIcon> = {
+export const FORM_ICON: Record<ChartForm, LucideIcon> = {
   column: BarChart3,
   line: LineChart,
   area: AreaChart,

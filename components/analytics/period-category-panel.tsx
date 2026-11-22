@@ -496,18 +496,11 @@ export function PeriodCategoryPanel({
     <CategoryChartExplorer
       category={category}
       rootSubId={focus?.id}
-      title={focus ? focus.name : category.name}
       metricId={shownMetric}
-      metricName={metric.type === "count" ? translate("an.entriesUnit") : metric.mod.name}
       excludeRegular={excludeRegular}
       choiceFilter={choiceFilter}
       kind={exploring}
       form={formOf(exploring, compute.chartForms, { ...compute.formCtx, slices: computed.distribution.length })}
-      color={lensColor}
-      unit={metric.type === "count" ? translate("an.entriesUnit") : unit}
-      scale={compute.scale}
-      emptyAsZero={compute.emptyAsZero}
-      stacked={compute.isRate}
       period={period}
       onClose={() => setExploring(null)}
     />

@@ -11,7 +11,8 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
-import { ArrowRight, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { BarChart3, Check, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { SummaryTile } from "@/components/ui/summary-block";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ENTRY_SCREEN } from "@/components/ui/entry-window";
 import { useIsBrutal } from "@/components/structure/brutal";
@@ -80,13 +81,20 @@ const UNIT_KEY: Record<Granularity, MessageKey> = { day: "explore.u.day", week: 
 const AVG_KEY: Record<Granularity, MessageKey> = { day: "explore.c.avg.day", week: "explore.c.avg.week", month: "explore.c.avg.month" };
 const REC_KEY: Record<Granularity, MessageKey> = { day: "explore.c.recorded.day", week: "explore.c.recorded.week", month: "explore.c.recorded.month" };
 const STEP_KEY: Record<Granularity, MessageKey> = { day: "explore.c.step.day", week: "explore.c.step.week", month: "explore.c.step.month" };
-const READ_KEY: Record<ExplorerReading, MessageKey> = { total: "explore.reading.total", average: "explore.reading.average", cumulative: "explore.reading.cumulative" };
 const OPEN_KEY: Record<Granularity, MessageKey> = { day: "explore.open.day", week: "explore.open.week", month: "explore.open.month" };
 const SWITCH_KEY: Record<Granularity, MessageKey> = { day: "explore.toDaily", week: "explore.toWeekly", month: "explore.toMonthly" };
 /** Basılı tutma süresi — bundan sonra tarama başlar */
 const HOLD_MS = 320;
 /** Bu kadar kayan dokunuş kaydırmadır (parmağın hafif yuvarlanması dokunuş sayılır) */
 const SLOP_PX = 8;
+/** Okuma kutusunun sayı bantları — gün özetinin sırası */
+const STAT_COLORS = ["#8ea6ff", "#7ae582", "#ff9ecd"];
+/** Bölüm bantlarının tram benekleri (bkz. summary-block bandDots) */
+const bandDots = (c: string) => ({
+  backgroundColor: c,
+  backgroundImage: "radial-gradient(rgba(17, 17, 17, 0.16) 1.2px, transparent 1.5px)",
+  backgroundSize: "11px 11px",
+});
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
@@ -209,20 +217,45 @@ function geo(w: number, h: number, span: number) {
 
 /* ——— Ekran ——— */
 
+/**
+ * Başlık şeridindeki seçici — neye bakıldığı (yer ve özellik) ve grafiğin
+ * türü. Dokununca ekranın içinde alttan panel açılır (üst üste pencere
+ * açılmaz — bkz. stacked dialogs). Analiz'in Yer | Özellik hücrelerinin dili.
+ */
+export type ExplorerPicker = {
+  key: string;
+  /** Küçük üst etiket */
+  label: string;
+  /** Seçili olan, kalın */
+  value: string;
+  /** Hücrenin solundaki karo */
+  tile: ReactNode;
+  /** Göreli genişlik */
+  grow?: number;
+  /** Panelin başlığı */
+  title: string;
+  /** Panelin içi; seçim bitince close() */
+  render: (close: () => void) => ReactNode;
+};
+
 export function ChartExplorer({
   open,
   onClose,
   title,
-  subtitle,
   color,
+  pickers,
   ...rest
 }: {
   open: boolean;
   onClose: () => void;
+  /** Ekran okuyucu başlığı */
   title: string;
-  subtitle?: string;
   /** Mercek rengi — grafiğin kendi rengi */
   color: string;
+  pickers?: ExplorerPicker[];
+  /** Grafik başının adı ("Para" → "Günlük Para") ve türü ("Toplam") */
+  seriesLabel: string;
+  kindLabel: string;
   unit?: string;
   reading: ExplorerReading;
   variant: ExplorerVariant;
@@ -237,55 +270,88 @@ export function ChartExplorer({
 }) {
   const t = useT();
   const brutal = useIsBrutal();
+  const [sheet, setSheet] = useState<string | null>(null);
+  const active = pickers?.find((p) => p.key === sheet) ?? null;
+  const closeSheet = () => setSheet(null);
+  const line = brutal ? { borderColor: "#111" } : undefined;
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (o) return;
+        // Geri tuşu / Esc açık paneli kapatır, ekranı değil. Kapanma isteği
+        // burada yakalanıyor: Android'in geri tuşunun belgeye gönderdiği Esc
+        // iptal edilemez (cancelable değil), preventDefault işe yaramıyordu
+        if (sheet) closeSheet();
+        else onClose();
+      }}
+    >
       <DialogContent hideClose aria-describedby={undefined} className={ENTRY_SCREEN}>
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <div
           data-chart-explorer=""
-          className="entry-screen-in flex h-full min-h-0 flex-col overflow-hidden bg-background md:rounded-[3rem]"
+          className="entry-screen-in relative flex h-full min-h-0 flex-col overflow-hidden bg-background md:rounded-[3rem]"
         >
-          {/* Başlık — Analiz'in mavisinde benekli ince şerit; solda kapat,
-              grafiğin renginde küçük kare, adı ve neye bakıldığı */}
+          {/* Başlık şeridi — Analiz'in mavisinde benekli; solda kapat, yanında
+              seçiciler (yer · özellik | grafik) tek çerçevede */}
           <header
             className={cn("shrink-0 pt-[env(safe-area-inset-top,0px)]", brutal ? "border-b-[3px]" : "border-b")}
-            style={
-              brutal
-                ? {
-                    borderColor: "#111",
-                    backgroundColor: "#8ea6ff",
-                    backgroundImage: "radial-gradient(rgba(17,17,17,0.16) 1.2px, transparent 1.5px)",
-                    backgroundSize: "11px 11px",
-                  }
-                : undefined
-            }
+            style={brutal ? { borderColor: "#111", ...bandDots("#8ea6ff") } : undefined}
           >
-            <div className="flex h-14 items-center gap-2.5 px-3">
+            <div className="flex items-center gap-2.5 px-3 py-2.5">
               <button
                 type="button"
                 onClick={onClose}
                 aria-label={t("action.close")}
                 className={cn(
-                  "flex h-9 w-9 shrink-0 items-center justify-center",
+                  "flex h-10 w-10 shrink-0 items-center justify-center",
                   brutal
-                    ? "rounded-[10px] border-2 bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
+                    ? "rounded-[11px] border-2 bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
                     : "rounded-full bg-[var(--sf-2)] text-foreground"
                 )}
-                style={brutal ? { borderColor: "#111" } : undefined}
+                style={line}
               >
-                <X className="h-4 w-4" strokeWidth={2.75} />
+                <X className="h-[18px] w-[18px]" strokeWidth={2.75} />
               </button>
-              <span
-                aria-hidden
-                className={cn("h-3.5 w-3.5 shrink-0 rounded-[4px]", brutal && "border-2")}
-                style={{ background: color, borderColor: brutal ? "#111" : undefined }}
-              />
-              <div className="min-w-0 flex-1 leading-tight">
-                <div className={cn("truncate text-[17px] font-extrabold tracking-[-0.02em]", brutal && "text-[#111]")}>{title}</div>
-                {subtitle && (
-                  <div className={cn("truncate text-[11.5px] font-bold", brutal ? "text-[#111]/60" : "text-muted-foreground")}>{subtitle}</div>
-                )}
-              </div>
+              {pickers && pickers.length > 0 && (
+                <div
+                  data-explore-pickers=""
+                  className={cn(
+                    "flex min-w-0 flex-1 overflow-hidden",
+                    brutal ? "rounded-[12px] border-2 bg-white shadow-[2px_2px_0_#111]" : "rounded-2xl border border-border bg-card"
+                  )}
+                  style={line}
+                >
+                  {pickers.map((p, k) => (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => setSheet(p.key)}
+                      aria-label={p.title}
+                      className={cn(
+                        "flex min-w-0 items-center gap-2 py-1.5 pl-2 pr-1.5 text-left",
+                        brutal ? "text-[#111] active:bg-[#f5f1e8]" : "active:bg-[var(--sf-2)]",
+                        k > 0 && (brutal ? "border-l-2" : "border-l border-border")
+                      )}
+                      style={{ flex: `${p.grow ?? 1} 1 0%`, ...(k > 0 && brutal ? { borderLeftColor: "#111" } : {}) }}
+                    >
+                      {p.tile}
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className={cn(
+                            "block truncate text-[9.5px] font-black uppercase leading-none tracking-[0.1em]",
+                            brutal ? "text-[#111]/55" : "text-muted-foreground"
+                          )}
+                        >
+                          {p.label}
+                        </span>
+                        <span className="mt-[3px] block truncate text-[13.5px] font-black leading-tight">{p.value}</span>
+                      </span>
+                      <ChevronDown className="h-4 w-4 shrink-0" strokeWidth={2.75} />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </header>
           {rest.series ? (
@@ -295,9 +361,135 @@ export function ChartExplorer({
               {t("explore.loading")}
             </div>
           )}
+          {active && (
+            <ExplorerSheet brutal={brutal} title={active.title} onClose={closeSheet}>
+              {active.render(closeSheet)}
+            </ExplorerSheet>
+          )}
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Seçicinin paneli — ekranın içinde, alttan; karartmaya dokununca kapanır */
+function ExplorerSheet({
+  brutal,
+  title,
+  onClose,
+  children,
+}: {
+  brutal: boolean;
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const t = useT();
+  return (
+    <div className="absolute inset-0 z-20 flex flex-col justify-end" role="dialog" aria-label={title}>
+      <button
+        type="button"
+        aria-label={t("action.close")}
+        onClick={onClose}
+        className="animate-in absolute inset-0 bg-black/45"
+      />
+      <div
+        data-explore-sheet=""
+        className={cn(
+          "entry-screen-in relative flex max-h-[80%] min-h-0 flex-col overflow-hidden rounded-t-[22px] bg-background",
+          brutal ? "border-2 border-b-0 shadow-[0_-3px_0_#111]" : "border-t border-border"
+        )}
+        style={brutal ? { borderColor: "#111" } : undefined}
+      >
+        <div
+          className={cn("flex shrink-0 items-center gap-2 py-2.5 pl-4 pr-2.5", brutal ? "border-b-2" : "border-b border-border")}
+          style={brutal ? { borderColor: "#111", ...bandDots("#8ea6ff") } : undefined}
+        >
+          <span className={cn("min-w-0 flex-1 truncate text-[17px] font-extrabold tracking-[-0.02em]", brutal && "text-[#111]")}>{title}</span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("action.close")}
+            className={cn(
+              "flex h-9 w-9 shrink-0 items-center justify-center",
+              brutal ? "rounded-[10px] border-[1.5px] bg-white text-[#111] shadow-[1.5px_1.5px_0_#111]" : "rounded-full bg-[var(--sf-2)]"
+            )}
+            style={brutal ? { borderColor: "#111" } : undefined}
+          >
+            <X className="h-4 w-4" strokeWidth={2.75} />
+          </button>
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-3 pb-[max(18px,env(safe-area-inset-bottom,0px))] pt-3">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Paneldeki bölüm — küçük büyük harfli başlık, altında satırlar */
+export function ExplorerSection({ title, children }: { title: string; children: ReactNode }) {
+  const brutal = useIsBrutal();
+  return (
+    <section className="flex flex-col gap-1">
+      {/* div: brütalin genel h3 kuralı başlığı siyah hapa çeviriyordu */}
+      <div
+        className={cn(
+          "px-1 pb-0.5 text-[10.5px] font-black uppercase tracking-[0.1em]",
+          brutal ? "text-[#111]/55" : "text-muted-foreground"
+        )}
+      >
+        {title}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Paneldeki seçenek satırı — seçiliyken siyah zeminde krem yazı (Analiz'in yer ağacı gibi) */
+export function ExplorerOption({
+  selected,
+  onClick,
+  tile,
+  label,
+  hint,
+  depth = 0,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  tile?: ReactNode;
+  label: string;
+  hint?: string;
+  /** Ağaçta girinti (alt kategoriler) */
+  depth?: number;
+}) {
+  const brutal = useIsBrutal();
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={cn(
+        "flex w-full items-center gap-2.5 rounded-[12px] px-2.5 py-2 text-left transition-colors",
+        selected
+          ? brutal
+            ? "bg-[#111] text-[#fff4dc]"
+            : "bg-[var(--sf-3)]"
+          : brutal
+            ? "text-[#111] active:bg-[#111]/[0.06]"
+            : "active:bg-[var(--sf-2)]"
+      )}
+      style={depth ? { paddingLeft: 10 + depth * 18 } : undefined}
+    >
+      {tile}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[14px] font-extrabold leading-tight">{label}</span>
+        {hint && (
+          <span className={cn("mt-0.5 block text-[11.5px] font-semibold leading-snug", selected ? "opacity-70" : "opacity-60")}>{hint}</span>
+        )}
+      </span>
+      {selected && <Check className="h-4 w-4 shrink-0" strokeWidth={3} />}
+    </button>
   );
 }
 
@@ -312,8 +504,12 @@ function ExplorerBody({
   stacked,
   initial,
   onOpenPeriod,
+  seriesLabel,
+  kindLabel,
 }: {
   brutal: boolean;
+  seriesLabel: string;
+  kindLabel: string;
   color: string;
   unit?: string;
   reading: ExplorerReading;
@@ -338,6 +534,32 @@ function ExplorerBody({
     live.current = v;
     setView(v);
   };
+  // Veri değişince (başka yer, özellik, grafik türü ya da yeni kayıt) görünen
+  // zaman aralığı ve seçili an korunur — kovalar ilk kayıttan başladığı için
+  // sıra numaraları kayıyor
+  const [prevSeries, setPrevSeries] = useState(series);
+  if (prevSeries !== series) {
+    setPrevSeries(series);
+    const old = prevSeries[view.g];
+    const now = series[view.g];
+    if (old.length && now.length) {
+      const t0 = timeAt(old, view.start);
+      const t1 = timeAt(old, view.start + view.span);
+      const selT = view.sel !== null ? old[view.sel]?.start : undefined;
+      const a = floatAtTime(now, t0);
+      setView(
+        fit(series, {
+          ...view,
+          start: a,
+          span: Math.max(0.5, floatAtTime(now, t1) - a),
+          sel: selT !== undefined ? indexAtTime(now, selT) : null,
+        })
+      );
+    }
+  }
+  useEffect(() => {
+    live.current = view;
+  }, [view]);
 
   const boxRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
@@ -375,6 +597,7 @@ function ExplorerBody({
   const fmt = useMemo(
     () => ({
       weekday: new Intl.DateTimeFormat(tag, { weekday: "long" }),
+      dayMonth: new Intl.DateTimeFormat(tag, { day: "numeric", month: "long" }),
       range: new Intl.DateTimeFormat(tag, { day: "numeric", month: "long", year: "numeric" }),
       month: new Intl.DateTimeFormat(tag, { month: "long", year: "numeric" }),
       shortDay: new Intl.DateTimeFormat(tag, { day: "numeric", month: "short" }),
@@ -691,6 +914,7 @@ function ExplorerBody({
   let maxI = -1;
   let lo = 0;
   let hi = 0;
+  let allInt = true;
   for (let i = va; i <= vb && n; i++) {
     const b = arr[i];
     const x = valOf(i);
@@ -704,6 +928,7 @@ function ExplorerBody({
       maxV = x;
       maxI = i;
     }
+    if (!Number.isInteger(x)) allInt = false;
     lo = Math.min(lo, x);
     hi = Math.max(hi, x + (stacked ? (b.rest ?? 0) : 0));
   }
@@ -715,7 +940,6 @@ function ExplorerBody({
   const pctFmt = new Intl.NumberFormat(tag, { style: "percent", signDisplay: "exceptZero", maximumFractionDigits: 0 });
   const u = t(UNIT_KEY[v.g]);
   let over = "";
-  let title = "";
   let bigNum: string | null = null;
   let bigText = "";
   const cells: { v: string; l: string }[] = [];
@@ -730,8 +954,13 @@ function ExplorerBody({
     bigText = t("explore.empty");
   } else if (sel && v.sel !== null) {
     const [s, e] = bounds(sel);
-    over = v.g === "day" ? fmt.weekday.format(s) : t(GRAN_LABEL[v.g]);
-    title = v.g === "day" ? fmt.range.format(s) : v.g === "month" ? fmt.month.format(s) : fmt.range.formatRange(s, e - 1);
+    over =
+      v.g === "day"
+        ? // Bu yılın gününde yıl yazılmaz (gün analizi karosunun yanında sığsın)
+          `${fmt.weekday.format(s)} · ${(new Date(s).getFullYear() === new Date(arr[n - 1].start ?? 0).getFullYear() ? fmt.dayMonth : fmt.range).format(s)}`
+        : v.g === "month"
+          ? fmt.month.format(s)
+          : `${t(GRAN_LABEL[v.g])} · ${fmt.span.formatRange(s, e - 1)}`;
     const selV = valOf(v.sel);
     const empty = reading === "cumulative" ? false : !hasEntries(sel) && (reading === "average" || selV === 0);
     if (empty) {
@@ -754,8 +983,7 @@ function ExplorerBody({
       }
     }
   } else {
-    over = t("explore.visibleRange");
-    title = fmt.range.formatRange(bounds(arr[va])[0], bounds(arr[vb])[1] - 1);
+    over = `${t("explore.visibleShort")} · ${fmt.span.formatRange(bounds(arr[va])[0], bounds(arr[vb])[1] - 1)}`;
     const maxCell = maxI >= 0 ? { v: valText(maxV), l: t("explore.c.max", { when: shortLabel(arr[maxI], v.g) }) } : null;
     const recCell = { v: `${rec}/${cnt}`, l: t(REC_KEY[v.g]) };
     if (reading === "total") {
@@ -786,11 +1014,13 @@ function ExplorerBody({
     y1 = scale.max;
   }
   if (y1 - y0 <= 0) y1 = y0 + 1;
-  const yStep = scale
+  let yStep = scale
     ? y1 - y0 <= 6
       ? 1
       : niceStep((y1 - y0) / 4)
     : niceStep((y1 - y0) / 4);
+  // Değerler tamsa (girdi adedi) eksen de tam — "2,5 girdi" çizgisi olmaz
+  if (!scale && allInt && yStep < 1) yStep = 1;
   if (!scale) {
     y0 = Math.floor(y0 / yStep) * yStep;
     y1 = Math.ceil((y1 * 1.04) / yStep) * yStep;
@@ -947,12 +1177,6 @@ function ExplorerBody({
   };
 
   const line = brutal ? { borderColor: "#111" } : undefined;
-  const hair = brutal ? "rgba(17,17,17,0.14)" : "var(--border)";
-  const muted = brutal ? "text-[#111]/55" : "text-muted-foreground";
-  const sideBtn = cn(
-    "flex w-10 shrink-0 items-center justify-center transition-colors disabled:opacity-25",
-    brutal ? "bg-white text-[#111] active:bg-[#111]/[0.06]" : "text-foreground active:bg-[var(--sf-2)]"
-  );
   const segBtn = (on: boolean) =>
     cn(
       "font-extrabold transition-colors",
@@ -961,94 +1185,74 @@ function ExplorerBody({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-3">
-      {/* Okuma kutusu — iki yanında tam boy ‹ ›: kayıttan kayda (Analiz'in
-          üst bölümündeki ‹ dönem › satırının dili) */}
+      {/* Okuma kutusu — ana sayfanın Bugün bloğunun dili: üstte grafiğin
+          renginde benekli baş (iki yanında Analiz'in ok karoları; seçiliyken
+          sağda gün analizi karosu), altında renk bantlı sayılar. Hücreler
+          arası bloğun 2 px siyahı */}
       <div
         aria-live="polite"
         data-explore-readout=""
         className={cn(
-          "flex h-[136px] shrink-0 overflow-hidden",
-          brutal ? "rounded-[16px] border-2 bg-white text-[#111] shadow-[3px_3px_0_#111]" : "rounded-2xl border border-border bg-card"
+          "grid shrink-0 grid-cols-1 overflow-hidden",
+          brutal ? "gap-[2px] rounded-[16px] border-2 bg-[#111] shadow-[3px_3px_0_#111]" : "gap-px rounded-2xl border border-border bg-border"
         )}
         style={line}
       >
-        <button
-          type="button"
-          onClick={() => stepEntry(-1)}
-          disabled={prevEntry < 0}
-          aria-label={t("explore.prevEntry")}
-          className={cn(sideBtn, brutal ? "border-r-2" : "border-r border-border")}
-          style={line}
-        >
-          <ChevronLeft className="h-5 w-5" strokeWidth={2.75} />
-        </button>
-        <div className="flex min-w-0 flex-1 flex-col px-3 pb-2 pt-1.5">
-          <div className="flex h-6 items-center gap-1.5">
-            <span className={cn("min-w-0 flex-1 truncate text-[10.5px] font-extrabold uppercase tracking-[0.08em]", muted)}>{over}</span>
-            {sel && sel.periodKey && onOpenPeriod && (
-              <button
-                type="button"
-                onClick={() => onOpenPeriod(sel.periodKey!)}
-                className={cn(
-                  "flex h-6 shrink-0 items-center gap-0.5 rounded-full pl-2.5 pr-1.5 text-[11px] font-extrabold",
-                  brutal ? "border-[1.5px] bg-[#ffd23f] text-[#111] active:translate-y-px" : "bg-[var(--sf-2)]"
+        <div className="flex h-[76px] gap-[2px]">
+          <div
+            className={cn("flex min-w-0 flex-1 items-center gap-2 px-2", brutal ? "text-[#111]" : "bg-card")}
+            style={brutal ? bandDots(color) : undefined}
+          >
+            <StepArrow brutal={brutal} dir={-1} disabled={prevEntry < 0} label={t("explore.prevEntry")} onClick={() => stepEntry(-1)} />
+            <div className="min-w-0 flex-1 text-center">
+              <div className="flex min-w-0 items-center justify-center gap-1.5">
+                <span className="truncate text-[11px] font-black uppercase tracking-[0.08em] opacity-70">{over}</span>
+                {sel && (
+                  <button
+                    type="button"
+                    onClick={() => commit({ ...live.current, sel: null })}
+                    aria-label={t("explore.clear")}
+                    className={cn(
+                      "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full",
+                      brutal ? "bg-[#111] text-white" : "bg-foreground text-background"
+                    )}
+                  >
+                    <X className="h-2.5 w-2.5" strokeWidth={3.5} />
+                  </button>
                 )}
-                style={line}
-              >
-                {t(OPEN_KEY[v.g])}
-                <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.75} />
-              </button>
-            )}
-            {sel && (
-              <button
-                type="button"
-                onClick={() => commit({ ...live.current, sel: null })}
-                aria-label={t("explore.clear")}
-                className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full", brutal ? "border-[1.5px] bg-white" : "bg-[var(--sf-2)]")}
-                style={line}
-              >
-                <X className="h-3 w-3" strokeWidth={3} />
-              </button>
-            )}
+              </div>
+              <div className="mt-1 flex min-w-0 items-baseline justify-center gap-1.5">
+                {bigNum !== null ? (
+                  <>
+                    <b className="truncate font-mono text-[27px] font-bold leading-none tracking-[-0.02em] tabular-nums">{bigNum}</b>
+                    {unit && <span className="shrink-0 text-[14px] font-extrabold leading-none">{unit}</span>}
+                  </>
+                ) : (
+                  <span className="truncate text-[20px] font-black leading-none tracking-[-0.02em] opacity-55">{bigText}</span>
+                )}
+              </div>
+            </div>
+            <StepArrow brutal={brutal} dir={1} disabled={nextEntry < 0} label={t("explore.nextEntry")} onClick={() => stepEntry(1)} />
           </div>
-          <div className="truncate text-[15px] font-extrabold leading-tight tracking-[-0.01em]">{title}</div>
-          <div className="mt-1 flex min-w-0 items-baseline gap-1.5">
-            {bigNum !== null ? (
-              <>
-                <span className="truncate font-mono text-[30px] font-extrabold leading-none tracking-[-0.04em] tabular-nums">{bigNum}</span>
-                {unit && <span className={cn("shrink-0 text-[15px] font-extrabold", muted)}>{unit}</span>}
-              </>
-            ) : (
-              <span className={cn("truncate text-[22px] font-extrabold leading-none tracking-[-0.02em]", brutal ? "text-[#111]/40" : "text-muted-foreground")}>
-                {bigText}
-              </span>
-            )}
-          </div>
-          {/* Hücreler içerik kadar geniş, artan yer eşit dağılır — eşit
-              sütunlarda "en yüksek · 2 Kas" kesiliyordu */}
-          <div className="mt-auto flex border-t pt-1.5" style={{ borderTopColor: hair }}>
+          {sel && sel.periodKey && onOpenPeriod && (
+            <div className="w-[66px] shrink-0">
+              <SummaryTile color="#8ea6ff" icon={BarChart3} label={t(OPEN_KEY[v.g])} onClick={() => onOpenPeriod(sel.periodKey!)} />
+            </div>
+          )}
+        </div>
+        {cells.length > 0 && (
+          <div className={cn("grid", brutal ? "gap-[2px]" : "gap-px")} style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }}>
             {cells.map((c, k) => (
-              <div
-                key={k}
-                className={cn("min-w-0 flex-[1_1_auto] leading-tight", k > 0 && "border-l pl-2", k < cells.length - 1 && "pr-1.5")}
-                style={k > 0 ? { borderLeftColor: hair } : undefined}
-              >
-                <div className="truncate font-mono text-[12.5px] font-extrabold tabular-nums">{c.v}</div>
-                <div className={cn("truncate text-[10px] font-bold", muted)}>{c.l}</div>
+              <div key={k} className={cn("flex min-w-0 flex-col", brutal ? "bg-white text-[#111]" : "bg-card")}>
+                <span className="h-1.5 shrink-0" style={{ background: STAT_COLORS[k % STAT_COLORS.length] }} />
+                <span className="min-w-0 px-2.5 pb-1.5 pt-1">
+                  <span className={cn("block truncate text-[9.5px] font-black uppercase", brutal ? "text-[#111]/60" : "text-muted-foreground")}>{c.l}</span>
+                  <b className="block truncate font-mono text-[16px] font-bold leading-6 tabular-nums">{c.v}</b>
+                </span>
               </div>
             ))}
           </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => stepEntry(1)}
-          disabled={nextEntry < 0}
-          aria-label={t("explore.nextEntry")}
-          className={cn(sideBtn, brutal ? "border-l-2" : "border-l border-border")}
-          style={line}
-        >
-          <ChevronRight className="h-5 w-5" strokeWidth={2.75} />
-        </button>
+        )}
       </div>
 
       {/* Grafik penceresi — başlık şeridinde neye bakıldığı ve kova seçimi
@@ -1065,9 +1269,19 @@ function ExplorerBody({
               : { borderBottom: "1px solid var(--border)" }
           }
         >
-          <span className="min-w-0 flex-1 truncate text-[12.5px] font-extrabold tracking-[-0.01em]">
-            {GRANULARITY_TITLES[v.g]} {t(READ_KEY[reading])}
+          <span className="min-w-0 truncate text-[12.5px] font-extrabold tracking-[-0.01em]">
+            {GRANULARITY_TITLES[v.g]} {seriesLabel}
           </span>
+          <span
+            className={cn(
+              "flex h-5 shrink-0 items-center rounded-full border px-2 text-[10.5px] font-bold",
+              brutal ? "bg-white text-[#111]/70" : "bg-[var(--sf-2)] text-muted-foreground"
+            )}
+            style={{ borderColor: brutal ? "rgba(17,17,17,0.22)" : "var(--border)" }}
+          >
+            {kindLabel}
+          </span>
+          <span className="flex-1" />
           <div
             role="group"
             aria-label={t("explore.bucket")}
@@ -1224,6 +1438,41 @@ function ExplorerBody({
         ))}
       </div>
     </div>
+  );
+}
+
+/** Okuma kutusunun ok karosu — Analiz'in üst bölümündeki ‹ dönem › okları gibi */
+function StepArrow({
+  brutal,
+  dir,
+  disabled,
+  label,
+  onClick,
+}: {
+  brutal: boolean;
+  dir: -1 | 1;
+  disabled: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  const Icon = dir < 0 ? ChevronLeft : ChevronRight;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className={cn(
+        "flex h-9 w-9 shrink-0 items-center justify-center disabled:opacity-25 disabled:shadow-none",
+        brutal
+          ? "rounded-[10px] border-[1.5px] bg-white text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
+          : "rounded-full bg-[var(--sf-2)] text-foreground"
+      )}
+      style={brutal ? { borderColor: "#111" } : undefined}
+    >
+      <Icon className="h-[18px] w-[18px]" strokeWidth={2.75} />
+    </button>
   );
 }
 
