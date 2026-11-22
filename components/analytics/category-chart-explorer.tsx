@@ -1,10 +1,8 @@
 "use client";
 
-import { createElement, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ListOrdered } from "lucide-react";
 import { translate, useT } from "@/lib/i18n";
-import { SymbolIcon } from "@/lib/icons";
 import { modColor } from "@/lib/mod-color";
 import {
   bucketKeyOf,
@@ -18,8 +16,7 @@ import {
 } from "@/lib/analytics";
 import type { Period } from "@/lib/period";
 import { routes } from "@/lib/routes";
-import { modAtomIcon } from "@/components/structure/mod-atom";
-import type { Category, ChartForm, ChartKind, Entry, Mod, SubCategory } from "@/types";
+import type { Category, ChartForm, ChartKind, Entry, SubCategory } from "@/types";
 import { CHART_LABEL, FORM_ICON, FORM_LABEL, explorerVariantOf, seriesOf } from "./analysis-chart";
 import {
   ChartExplorer,
@@ -44,12 +41,10 @@ const READING: Record<TimeKind, ExplorerReading> = {
 /** İnceleme ekranının çizebildiği biçimler (yatay çubuk ve halka zamanı çizmiyor) */
 const DRAWABLE: ChartForm[] = ["column", "line", "area", "dots"];
 
-const atomIcon = (m: Mod) => modAtomIcon({ name: m.name, entryType: { valueType: m.valueType } as never });
-
 /**
  * Grafik inceleme ekranı, kategori panelinden açılınca. Neye bakıldığı (yer
- * ve özellik) panelinkiyle aynı, burada değişmez — başlık şeridinde kendi
- * renklerinde etiketlerde yazar. Grafiğin ne gösterdiği (Toplam, Ortalama,
+ * ve özellik) panelinkiyle aynı, burada değişmez — başlık şeridinde ufak
+ * renkli kapsüllerde yazar. Grafiğin ne gösterdiği (Toplam, Ortalama,
  * Birikimli, Tek tek) ve nasıl çizildiği (sütun, çizgi, alan, nokta) burada
  * seçilir; panelin kayıtlı grafiklerine dokunmaz.
  *
@@ -170,19 +165,8 @@ export function CategoryChartExplorer({
   const metricName = metric.type === "count" ? t("insights.entries") : metric.mod.name;
   const identity = (
     <>
-      <ExplorerTag
-        color={category.color}
-        shape="square"
-        icon={<SymbolIcon name={focus?.icon ?? category.icon} size={17} style={{ color: "#111" }} />}
-        label={focus ? focus.name : catName}
-        overline={focus ? catName : undefined}
-      />
-      <ExplorerTag
-        color={featureColor}
-        shape="circle"
-        icon={createElement(rawMod ? atomIcon(rawMod) : ListOrdered, { className: "h-4 w-4 text-[#111]", strokeWidth: 2.5 })}
-        label={metricName}
-      />
+      <ExplorerTag color={category.color} shape="square" label={focus ? `${catName} › ${focus.name}` : catName} />
+      <ExplorerTag color={featureColor} shape="circle" label={metricName} />
     </>
   );
 

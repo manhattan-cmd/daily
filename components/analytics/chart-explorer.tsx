@@ -90,7 +90,7 @@ const SLOP_PX = 8;
 const STAT_COLORS = ["#8ea6ff", "#7ae582", "#ff9ecd"];
 /** Analiz satırının küçük kare karoları (simge ve ok) — SummaryBlock bağlantı satırı gibi */
 const LINK_SQ =
-  "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] bg-white text-[#111] shadow-[1.5px_1.5px_0_#111]";
+  "flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] bg-white text-[#111] shadow-[1.5px_1.5px_0_#111]";
 /** Bölüm bantlarının tram benekleri (bkz. summary-block bandDots) */
 const bandDots = (c: string) => ({
   backgroundColor: c,
@@ -210,9 +210,9 @@ const hasEntries = (b: DayBucket) => (b.count ?? 0) > 0;
 /** Çizimin ölçüleri: solda pay, sağda değer ekseni, altta zaman ekseni */
 function geo(w: number, h: number, span: number) {
   const L = 10;
-  const R = Math.max(L + 10, w - 52);
-  const T = 24;
-  const B = Math.max(T + 10, h - 30);
+  const R = Math.max(L + 10, w - 46);
+  const T = 18;
+  const B = Math.max(T + 10, h - 28);
   const pw = R - L;
   return { L, R, T, B, pw, bw: pw / Math.max(span, 0.001) };
 }
@@ -279,22 +279,22 @@ export function ChartExplorer({
             className={cn("shrink-0 pt-[env(safe-area-inset-top,0px)]", brutal ? "border-b-[3px]" : "border-b")}
             style={brutal ? { borderColor: "#111", ...bandDots("#8ea6ff") } : undefined}
           >
-            <div className="flex min-h-[62px] items-center gap-2.5 px-3 py-2.5">
+            <div className="flex min-h-[46px] items-center gap-2 px-3 py-2">
               <button
                 type="button"
                 onClick={onClose}
                 aria-label={t("action.close")}
                 className={cn(
-                  "flex h-10 w-10 shrink-0 items-center justify-center",
+                  "flex h-8 w-8 shrink-0 items-center justify-center",
                   brutal
-                    ? "rounded-[11px] border-2 bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
+                    ? "rounded-[9px] border-2 bg-white text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
                     : "rounded-full bg-[var(--sf-2)] text-foreground"
                 )}
                 style={brutal ? { borderColor: "#111" } : undefined}
               >
-                <X className="h-[18px] w-[18px]" strokeWidth={2.75} />
+                <X className="h-4 w-4" strokeWidth={2.75} />
               </button>
-              <div data-explore-identity="" className="flex min-w-0 flex-1 items-center gap-2">
+              <div data-explore-identity="" className="flex min-w-0 flex-1 items-center gap-1.5">
                 {identity}
               </div>
             </div>
@@ -313,48 +313,24 @@ export function ChartExplorer({
 }
 
 /**
- * Başlık şeridindeki renkli etiket — yer kare karoyla, özellik daireyle
- * (şekil dili: kare = kategori, daire = özellik). Kendi renginde zemin,
- * beyaz karoda simge, kalın ad. Dokunulmaz: seçim panelde.
+ * Başlık şeridindeki ufak renkli kapsül — Analiz'in üst bölümü küçülünce
+ * çıkan özetin kapsülü gibi (bkz. analysis-header ScopeChip): rengin açık
+ * tonunda zemin, önünde rengin kendisiyle şekli — kare = kategori, daire =
+ * özellik. Dokunulmaz. Eskiden iri simgeli etiketti, grafiğin yerini yiyordu.
  */
-export function ExplorerTag({
-  color,
-  shape,
-  icon,
-  label,
-  overline,
-}: {
-  color: string;
-  shape: "square" | "circle";
-  icon: ReactNode;
-  label: string;
-  /** Alt kalemde üst kategorinin adı, küçük */
-  overline?: string;
-}) {
+export function ExplorerTag({ color, shape, label }: { color: string; shape: "square" | "circle"; label: string }) {
   const brutal = useIsBrutal();
   return (
     <span
-      className={cn(
-        "flex min-w-0 items-center gap-2 py-1 pl-1 text-[#111]",
-        shape === "circle" ? "rounded-full pr-3.5" : "rounded-[12px] pr-3",
-        brutal ? "border-2 shadow-[2px_2px_0_#111]" : "border border-border"
-      )}
-      style={{ background: color, borderColor: brutal ? "#111" : undefined }}
+      className="flex min-w-0 items-center gap-1.5 rounded-full border-[1.5px] py-[3px] pl-1.5 pr-2.5 text-[12px] font-extrabold leading-[15px] text-[#111]"
+      style={{ borderColor: brutal ? "#111" : "var(--border)", background: `color-mix(in srgb, ${color} 38%, white)` }}
     >
       <span
-        className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center bg-white",
-          shape === "circle" ? "rounded-full" : "rounded-[8px]",
-          brutal && "border-[1.5px]"
-        )}
-        style={brutal ? { borderColor: "#111" } : undefined}
-      >
-        {icon}
-      </span>
-      <span className="min-w-0 leading-tight">
-        {overline && <span className="block truncate text-[9.5px] font-black uppercase tracking-[0.08em] opacity-65">{overline}</span>}
-        <span className="block truncate text-[14.5px] font-extrabold tracking-tight">{label}</span>
-      </span>
+        aria-hidden
+        className={cn("h-3 w-3 shrink-0 border-[1.5px]", shape === "circle" ? "rounded-full" : "rounded-[3px]")}
+        style={{ background: color, borderColor: "#111" }}
+      />
+      <span className="truncate">{label}</span>
     </span>
   );
 }
@@ -588,13 +564,6 @@ function ExplorerBody({
         preset: p.key,
       })
     );
-  };
-  const pickG = (gg: Granularity) => {
-    const cur = live.current;
-    if (gg === cur.g) return;
-    stopAnim();
-    const center = timeAt(series[cur.g], cur.start + cur.span / 2);
-    commit(switchG(series, cur, gg, GRAN_DEFAULT[gg], center, 0.5));
   };
   const zoomBy = (factor: number) => {
     stopAnim();
@@ -1047,93 +1016,67 @@ function ExplorerBody({
     );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-3">
-      {/* Kontrol bloğu — Analiz'in üst bölümünün dili: üstte grafiğin ne
-          gösterdiği (sekmeler, seçili siyah), altında açık mavi satırda nasıl
-          çizildiği (simge karoları) ve kova */}
-      <div
-        data-explore-controls=""
-        className={cn(
-          "shrink-0 overflow-hidden",
-          brutal ? "rounded-[14px] border-2 bg-white shadow-[3px_3px_0_#111]" : "rounded-2xl border border-border bg-card"
-        )}
-        style={line}
-      >
-        {controls && controls.kinds.length > 0 && (
-          <div role="group" aria-label={t("board.chartType")} className="flex h-10">
+    <div className="flex min-h-0 flex-1 flex-col gap-2 px-3 pb-[max(10px,env(safe-area-inset-bottom,0px))] pt-2">
+      {/* Kontrol bloğu — tek satır, tek çerçeve: solda grafiğin ne gösterdiği
+          (sekmeler, seçili siyah), sağda nasıl çizildiği (simge hücreleri).
+          Kova seçimi yok: aralık düğmeleri ve iki parmak kovayı da değiştiriyor.
+          Eskiden iki satırdı, grafiğe yer kalmıyordu */}
+      {controls && (
+        <div
+          data-explore-controls=""
+          className={cn(
+            "flex h-9 shrink-0 overflow-hidden",
+            brutal ? "rounded-[11px] border-2 bg-white shadow-[2px_2px_0_#111]" : "rounded-xl border border-border bg-card"
+          )}
+          style={line}
+        >
+          <div role="group" aria-label={t("board.chartType")} className="flex min-w-0 flex-1">
             {controls.kinds.map((k, i) => (
               <button
                 key={k.key}
                 type="button"
                 aria-pressed={k.key === controls.kind}
                 onClick={() => controls.onKind(k.key)}
-                className={cn(segBtn(k.key === controls.kind), "min-w-0 flex-1 truncate px-1 text-[13px]", i > 0 && "border-l-[1.5px]")}
+                className={cn(segBtn(k.key === controls.kind), "min-w-0 flex-[1_1_auto] truncate px-1 text-[12px]", i > 0 && "border-l-[1.5px]")}
                 style={i > 0 ? { borderLeftColor: brutal ? "#111" : "var(--border)" } : undefined}
               >
                 {k.label}
               </button>
             ))}
           </div>
-        )}
-        <div
-          className={cn(
-            "flex items-center justify-between gap-2 px-2 py-1.5",
-            controls && controls.kinds.length > 0 && (brutal ? "border-t-2" : "border-t border-border"),
-            brutal ? "bg-[#e4e9ff]" : "bg-[var(--sf-1)]"
+          {controls.forms.length > 0 && (
+            <div
+              role="group"
+              aria-label={t("board.chartForm")}
+              className={cn("flex shrink-0", brutal ? "border-l-2 bg-[#e4e9ff]" : "border-l border-border")}
+              style={brutal ? { borderLeftColor: "#111" } : undefined}
+            >
+              {controls.forms.map((f, i) => {
+                const on = f.key === controls.form;
+                const Icon = f.icon;
+                return (
+                  <button
+                    key={f.key}
+                    type="button"
+                    aria-pressed={on}
+                    aria-label={f.label}
+                    title={f.label}
+                    onClick={() => controls.onForm(f.key)}
+                    className={cn(
+                      "flex w-8 items-center justify-center transition-colors",
+                      on ? (brutal ? "bg-[#111] text-white" : "bg-foreground text-background") : brutal ? "text-[#111] active:bg-[#111]/10" : "text-foreground",
+                      i > 0 && "border-l-[1.5px]"
+                    )}
+                    style={i > 0 ? { borderLeftColor: brutal ? "#111" : "var(--border)" } : undefined}
+                  >
+                    <Icon className="h-4 w-4" strokeWidth={2.5} />
+                  </button>
+                );
+              })}
+            </div>
           )}
-          style={brutal ? { borderTopColor: "#111" } : undefined}
-        >
-          <div role="group" aria-label={t("board.chartForm")} className="flex min-w-0 gap-1.5">
-            {controls?.forms.map((f) => {
-              const on = f.key === controls.form;
-              const Icon = f.icon;
-              return (
-                <button
-                  key={f.key}
-                  type="button"
-                  aria-pressed={on}
-                  aria-label={f.label}
-                  title={f.label}
-                  onClick={() => controls.onForm(f.key)}
-                  className={cn(
-                    "flex h-8 w-8 shrink-0 items-center justify-center",
-                    brutal
-                      ? cn(
-                          "rounded-[9px] border-[1.5px]",
-                          on
-                            ? "bg-[#111] text-white"
-                            : "bg-white text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
-                        )
-                      : cn("rounded-lg", on ? "bg-foreground text-background" : "bg-card text-foreground")
-                  )}
-                  style={brutal ? { borderColor: "#111" } : undefined}
-                >
-                  <Icon className="h-4 w-4" strokeWidth={2.5} />
-                </button>
-              );
-            })}
-          </div>
-          <div
-            role="group"
-            aria-label={t("explore.bucket")}
-            className={cn("flex h-8 shrink-0 overflow-hidden rounded-[9px]", brutal ? "border-[1.5px] bg-white" : "border border-border bg-card")}
-            style={line}
-          >
-            {(["day", "week", "month"] as Granularity[]).map((gg, k) => (
-              <button
-                key={gg}
-                type="button"
-                aria-pressed={v.g === gg}
-                onClick={() => pickG(gg)}
-                className={cn(segBtn(v.g === gg), "px-2.5 text-[12px]", k > 0 && "border-l-[1.5px]")}
-                style={k > 0 ? { borderLeftColor: brutal ? "#111" : "var(--border)" } : undefined}
-              >
-                {t(GRAN_LABEL[gg])}
-              </button>
-            ))}
-          </div>
         </div>
-      </div>
+      )}
 
       {/* Okuma kutusu — ana sayfanın Bugün bloğunun dili: üstte grafiğin
           renginde benekli baş (iki yanında Analiz'in ok karoları; seçiliyken
@@ -1148,7 +1091,7 @@ function ExplorerBody({
         )}
         style={line}
       >
-        <div className="flex h-[76px] gap-[2px]">
+        <div className="flex h-[58px] gap-[2px]">
           <div
             className={cn("flex min-w-0 flex-1 items-center gap-2 px-2", brutal ? "text-[#111]" : "bg-card")}
             style={brutal ? bandDots(color) : undefined}
@@ -1171,14 +1114,14 @@ function ExplorerBody({
                   </button>
                 )}
               </div>
-              <div className="mt-1 flex min-w-0 items-baseline justify-center gap-1.5">
+              <div className="mt-0.5 flex min-w-0 items-baseline justify-center gap-1.5">
                 {bigNum !== null ? (
                   <>
-                    <b className="truncate font-mono text-[27px] font-bold leading-none tracking-[-0.02em] tabular-nums">{bigNum}</b>
-                    {unit && <span className="shrink-0 text-[14px] font-extrabold leading-none">{unit}</span>}
+                    <b className="truncate font-mono text-[23px] font-bold leading-none tracking-[-0.02em] tabular-nums">{bigNum}</b>
+                    {unit && <span className="shrink-0 text-[13px] font-extrabold leading-none">{unit}</span>}
                   </>
                 ) : (
-                  <span className="truncate text-[20px] font-black leading-none tracking-[-0.02em] opacity-55">{bigText}</span>
+                  <span className="truncate text-[17px] font-black leading-none tracking-[-0.02em] opacity-55">{bigText}</span>
                 )}
               </div>
             </div>
@@ -1189,10 +1132,10 @@ function ExplorerBody({
           <div className={cn("grid", brutal ? "gap-[2px]" : "gap-px")} style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }}>
             {cells.map((c, k) => (
               <div key={k} className={cn("flex min-w-0 flex-col", brutal ? "bg-white text-[#111]" : "bg-card")}>
-                <span className="h-1.5 shrink-0" style={{ background: STAT_COLORS[k % STAT_COLORS.length] }} />
+                <span className="h-1 shrink-0" style={{ background: STAT_COLORS[k % STAT_COLORS.length] }} />
                 {/* Etiket tam yazılır, gerekirse iki satıra iner ("ORTALAMAYA
                     GÖRE" kesiliyordu); rakam hücrenin altında hizalı */}
-                <span className="flex min-w-0 flex-1 flex-col px-2.5 pb-1.5 pt-1">
+                <span className="flex min-w-0 flex-1 flex-col px-2.5 pb-1 pt-[3px]">
                   <span
                     className={cn(
                       "block text-[9.5px] font-black uppercase leading-[1.2] [overflow-wrap:anywhere]",
@@ -1201,7 +1144,7 @@ function ExplorerBody({
                   >
                     {c.l}
                   </span>
-                  <b className="mt-auto block truncate font-mono text-[16px] font-bold leading-6 tabular-nums">{c.v}</b>
+                  <b className="mt-auto block truncate font-mono text-[14px] font-bold leading-5 tabular-nums">{c.v}</b>
                 </span>
               </div>
             ))}
@@ -1226,13 +1169,13 @@ function ExplorerBody({
                 disabled={!openRow}
                 tabIndex={openRow ? 0 : -1}
                 data-explore-open=""
-                className={cn("flex h-[44px] w-full min-w-0 items-center gap-2.5 px-3 text-left", brutal ? "text-[#111] active:brightness-95" : "bg-[var(--sf-2)]")}
+                className={cn("flex h-[38px] w-full min-w-0 items-center gap-2.5 px-3 text-left", brutal ? "text-[#111] active:brightness-95" : "bg-[var(--sf-2)]")}
                 style={brutal ? bandDots("#8ea6ff") : undefined}
               >
                 <span className={LINK_SQ} style={brutal ? { borderColor: "#111" } : undefined}>
                   <BarChart3 className="h-4 w-4" strokeWidth={2.5} />
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[14.5px] font-extrabold leading-none tracking-tight">{t(OPEN_KEY[v.g])}</span>
+                <span className="min-w-0 flex-1 truncate text-[14px] font-extrabold leading-none tracking-tight">{t(OPEN_KEY[v.g])}</span>
                 <span className={LINK_SQ} style={brutal ? { borderColor: "#111" } : undefined}>
                   <ArrowRight className="h-4 w-4" strokeWidth={2.75} />
                 </span>
@@ -1353,7 +1296,7 @@ function ExplorerBody({
       <div
         role="group"
         aria-label={t("explore.range")}
-        className={cn("flex h-10 shrink-0 overflow-hidden rounded-[12px]", brutal ? "border-2 bg-white shadow-[2px_2px_0_#111]" : "border border-border bg-card")}
+        className={cn("flex h-9 shrink-0 overflow-hidden rounded-[11px]", brutal ? "border-2 bg-white shadow-[2px_2px_0_#111]" : "border border-border bg-card")}
         style={line}
       >
         {PRESETS.map((p, k) => (
@@ -1362,7 +1305,7 @@ function ExplorerBody({
             type="button"
             aria-pressed={v.preset === p.key}
             onClick={() => applyPreset(p)}
-            className={cn(segBtn(v.preset === p.key), "flex-1 text-[13px]", k > 0 && "border-l-[1.5px]")}
+            className={cn(segBtn(v.preset === p.key), "flex-1 text-[12.5px]", k > 0 && "border-l-[1.5px]")}
             style={k > 0 ? { borderLeftColor: brutal ? "#111" : "var(--border)" } : undefined}
           >
             {t(p.label)}
@@ -1396,7 +1339,7 @@ function StepArrow({
       aria-label={label}
       title={label}
       className={cn(
-        "flex h-9 w-9 shrink-0 items-center justify-center disabled:opacity-25 disabled:shadow-none",
+        "flex h-8 w-8 shrink-0 items-center justify-center disabled:opacity-25 disabled:shadow-none",
         brutal
           ? "rounded-[10px] border-[1.5px] bg-white text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
           : "rounded-full bg-[var(--sf-2)] text-foreground"
