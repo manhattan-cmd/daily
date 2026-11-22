@@ -78,7 +78,6 @@ const GRAN_DEFAULT: Record<Granularity, number> = { day: 31, week: 13, month: In
 const GRAN_LABEL: Record<Granularity, MessageKey> = { day: "explore.g.day", week: "explore.g.week", month: "explore.g.month" };
 const UNIT_KEY: Record<Granularity, MessageKey> = { day: "explore.u.day", week: "explore.u.week", month: "explore.u.month" };
 const AVG_KEY: Record<Granularity, MessageKey> = { day: "explore.c.avg.day", week: "explore.c.avg.week", month: "explore.c.avg.month" };
-const REC_KEY: Record<Granularity, MessageKey> = { day: "explore.c.recorded.day", week: "explore.c.recorded.week", month: "explore.c.recorded.month" };
 const STEP_KEY: Record<Granularity, MessageKey> = { day: "explore.c.step.day", week: "explore.c.step.week", month: "explore.c.step.month" };
 const OPEN_KEY: Record<Granularity, MessageKey> = { day: "explore.open.day", week: "explore.open.week", month: "explore.open.month" };
 const SWITCH_KEY: Record<Granularity, MessageKey> = { day: "explore.toDaily", week: "explore.toWeekly", month: "explore.toMonthly" };
@@ -208,10 +207,10 @@ const drawn = (b: DayBucket) => b.hasData !== false;
 const hasEntries = (b: DayBucket) => (b.count ?? 0) > 0;
 
 /** Çizimin ölçüleri: solda pay, sağda değer ekseni, altta zaman ekseni */
-function geo(w: number, h: number, span: number) {
+function geo(w: number, h: number, span: number, top = 18) {
   const L = 10;
   const R = Math.max(L + 10, w - 46);
-  const T = 18;
+  const T = top;
   const B = Math.max(T + 10, h - 28);
   const pw = R - L;
   return { L, R, T, B, pw, bw: pw / Math.max(span, 0.001) };
@@ -333,35 +332,30 @@ export function ChartExplorer({
           data-chart-explorer=""
           className="entry-screen-in relative flex h-full min-h-0 flex-col overflow-hidden bg-background md:rounded-[3rem]"
         >
-          {/* Başlık şeridi — Analiz'in mavisinde benekli. Üstte kapat ve neye
-              bakıldığı (ufak kapsüller), altında iki seçici: GÖSTER (veri
-              türü) ve GRAFİK (grafik türü) */}
+          {/* Başlık şeridi — Analiz'in mavisinde benekli, tek satır: kapat ve iki
+              seçici, GÖSTER (veri türü) ve GRAFİK (grafik türü). Neye bakıldığı
+              grafiğin lejantında (sol üst köşe) */}
           <header
             className={cn("relative z-20 shrink-0 pt-[env(safe-area-inset-top,0px)]", brutal ? "border-b-[3px]" : "border-b")}
             style={brutal ? { borderColor: "#111", ...bandDots("#8ea6ff") } : undefined}
           >
-            <div className="flex flex-col gap-2 px-3 pb-2.5 pt-2">
-              <div className="flex min-h-8 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  aria-label={t("action.close")}
-                  className={cn(
-                    "flex h-8 w-8 shrink-0 items-center justify-center",
-                    brutal
-                      ? "rounded-[9px] border-2 bg-white text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
-                      : "rounded-full bg-[var(--sf-2)] text-foreground"
-                  )}
-                  style={line}
-                >
-                  <X className="h-4 w-4" strokeWidth={2.75} />
-                </button>
-                <div data-explore-identity="" className="flex min-w-0 flex-1 items-center gap-1.5">
-                  {identity}
-                </div>
-              </div>
+            <div className="flex items-center gap-2 px-3 py-2">
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label={t("action.close")}
+                className={cn(
+                  "flex h-10 w-10 shrink-0 items-center justify-center",
+                  brutal
+                    ? "rounded-[11px] border-2 bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
+                    : "rounded-full bg-[var(--sf-2)] text-foreground"
+                )}
+                style={line}
+              >
+                <X className="h-[18px] w-[18px]" strokeWidth={2.75} />
+              </button>
               {controls && (
-                <div data-explore-controls="" className="flex gap-2">
+                <div data-explore-controls="" className="flex min-w-0 flex-1 gap-2">
                   {picker("reading", t("explore.show"), controls.readings, controls.reading)}
                   {picker("chart", t("explore.chartKind"), controls.charts, controls.chart)}
                 </div>
@@ -431,7 +425,7 @@ export function ChartExplorer({
             />
           )}
           {rest.series ? (
-            <ExplorerBody brutal={brutal} color={color} {...rest} series={rest.series} />
+            <ExplorerBody brutal={brutal} color={color} identity={identity} {...rest} series={rest.series} />
           ) : (
             <div className="flex flex-1 items-center justify-center text-[13px] font-bold text-muted-foreground">
               {t("explore.loading")}
@@ -453,7 +447,7 @@ export function ExplorerTag({ color, shape, label }: { color: string; shape: "sq
   const brutal = useIsBrutal();
   return (
     <span
-      className="flex min-w-0 items-center gap-1.5 rounded-full border-[1.5px] py-[3px] pl-1.5 pr-2.5 text-[12px] font-extrabold leading-[15px] text-[#111]"
+      className="flex min-w-0 items-center gap-1.5 rounded-full border-[1.5px] py-[2px] pl-1.5 pr-2 text-[11.5px] font-extrabold leading-[15px] text-[#111]"
       style={{ borderColor: brutal ? "#111" : "var(--border)", background: `color-mix(in srgb, ${color} 38%, white)` }}
     >
       <span
@@ -477,8 +471,10 @@ function ExplorerBody({
   stacked,
   initial,
   onOpenPeriod,
+  identity,
 }: {
   brutal: boolean;
+  identity?: ReactNode;
   color: string;
   unit?: string;
   reading: ExplorerReading;
@@ -532,6 +528,8 @@ function ExplorerBody({
 
   const boxRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
+  // Lejant (yer ve özellik) çizimin üstündeki payda durur
+  const topPad = identity ? 34 : 18;
   useLayoutEffect(() => {
     const el = boxRef.current;
     if (!el) return;
@@ -592,7 +590,7 @@ function ExplorerBody({
   const v = fit(series, view);
   const arr = series[v.g];
   const n = arr.length;
-  const g = geo(size.w, size.h, v.span);
+  const g = geo(size.w, size.h, v.span, topPad);
 
   const stopAnim = () => {
     if (raf.current) {
@@ -601,7 +599,7 @@ function ExplorerBody({
     }
   };
   const idxAt = (vv: View, x: number) => {
-    const gg = geo(size.w, size.h, vv.span);
+    const gg = geo(size.w, size.h, vv.span, topPad);
     return clamp(Math.floor(vv.start + (x - gg.L) / gg.bw), 0, series[vv.g].length - 1);
   };
   const selectAt = (x: number) => {
@@ -713,7 +711,7 @@ function ExplorerBody({
   const startPinch = () => {
     const [a, b] = [...ptrs.current.values()];
     const cur = live.current;
-    const gg = geo(size.w, size.h, cur.span);
+    const gg = geo(size.w, size.h, cur.span, topPad);
     const mid = (a.x + b.x) / 2;
     gest.current = { type: "pinch", d0: Math.max(24, Math.abs(a.x - b.x)), span0: cur.span, anchor: cur.start + (mid - gg.L) / gg.bw };
   };
@@ -750,7 +748,7 @@ function ExplorerBody({
     }
     if (gs.type === "pan") {
       const cur = live.current;
-      const gg = geo(size.w, size.h, cur.span);
+      const gg = geo(size.w, size.h, cur.span, topPad);
       commit(fit(series, { ...cur, start: gs.start0 - (p.x - gs.x0) / gg.bw, preset: null }));
       samples.current.push({ t: e.timeStamp, x: p.x });
       while (samples.current.length > 2 && e.timeStamp - samples.current[0].t > 90) samples.current.shift();
@@ -758,7 +756,7 @@ function ExplorerBody({
       selectAt(p.x);
     } else if (gs.type === "pinch" && ptrs.current.size >= 2) {
       const [a, b] = [...ptrs.current.values()];
-      const gg = geo(size.w, size.h, live.current.span);
+      const gg = geo(size.w, size.h, live.current.span, topPad);
       const d = Math.max(24, Math.abs(a.x - b.x));
       const frac = ((a.x + b.x) / 2 - gg.L) / gg.pw;
       const r = zoomTo(series, live.current, (gs.span0 * gs.d0) / d, frac, gs.anchor);
@@ -789,7 +787,7 @@ function ExplorerBody({
       const s1 = samples.current[samples.current.length - 1];
       const dt = s1.t - s0.t;
       if (dt > 0 && e.timeStamp - s1.t < 60) {
-        const vel = -((s1.x - s0.x) / geo(size.w, size.h, live.current.span).bw) / dt;
+        const vel = -((s1.x - s0.x) / geo(size.w, size.h, live.current.span, topPad).bw) / dt;
         if (Math.abs(vel) > 0.002) glide(vel);
       }
     }
@@ -803,7 +801,7 @@ function ExplorerBody({
   useEffect(() => {
     wheelRef.current = (e: WheelEvent) => {
       const cur = live.current;
-      const gg = geo(size.w, size.h, cur.span);
+      const gg = geo(size.w, size.h, cur.span, topPad);
       const x = pt(e).x;
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
@@ -867,11 +865,12 @@ function ExplorerBody({
   const valOf = (i: number) => (reading === "cumulative" ? (i < va ? 0 : (cum.get(i) ?? 0)) : arr[i].value);
   let sum = 0;
   let cnt = 0;
-  let rec = 0;
   let drawnCnt = 0;
   let drawnSum = 0;
   let maxV = -Infinity;
   let maxI = -1;
+  let minV = Infinity;
+  let minI = -1;
   let lo = 0;
   let hi = 0;
   let allInt = true;
@@ -880,7 +879,6 @@ function ExplorerBody({
     const x = valOf(i);
     cnt++;
     sum += x;
-    if (hasEntries(b)) rec++;
     if (!drawn(b)) continue;
     drawnCnt++;
     drawnSum += x;
@@ -888,16 +886,42 @@ function ExplorerBody({
       maxV = x;
       maxI = i;
     }
+    if (x < minV && (reading !== "total" || hasEntries(b))) {
+      minV = x;
+      minI = i;
+    }
     if (!Number.isInteger(x)) allInt = false;
     lo = Math.min(lo, x);
     hi = Math.max(hi, x + (stacked ? (b.rest ?? 0) : 0));
   }
   const visAvg = reading === "total" ? (cnt ? sum / cnt : 0) : drawnCnt ? drawnSum / drawnCnt : 0;
 
-  // Okuma kutusu: üst satır (gün adı ya da "Görünen aralık"), başlık (tarih),
-  // büyük rakam (birim yanında küçük) ve en altta en fazla üç bilgi hücresi.
-  // Eskiden noktalarla ayrılmış tek uzun cümleydi; ikinci satırda kesiliyordu
+  // Önceki aynı uzunluktaki aralık — özetin karşılaştırması. Toplamda ve
+  // birikimlide yüzde, ortalamada fark (skala gibi ortalamalarda yüzde yanıltıcı)
+  let prevVal: number | null = null;
+  if (cnt && va - cnt >= 0) {
+    let s2 = 0;
+    let c2 = 0;
+    for (let i = va - cnt; i < va; i++) {
+      const b = arr[i];
+      if (reading === "average") {
+        if (drawn(b)) {
+          s2 += b.value;
+          c2++;
+        }
+      } else s2 += reading === "cumulative" ? (b.sum ?? 0) : b.value;
+    }
+    prevVal = reading === "average" ? (c2 ? s2 / c2 : null) : s2;
+  }
+  const curVal = reading === "average" ? (drawnCnt ? visAvg : null) : reading === "cumulative" ? valOf(vb) : sum;
+
+  // Okuma kutusu: üst satır (gün · tarih ya da Görünen · aralık), büyük rakam
+  // ve en fazla üç bilgi hücresi. Kayıt adedi ve kayıtlı gün kalktı — kullanıcı
+  // anlamlı bilgilere yer istedi: karşılaştırmalar ve pay
   const pctFmt = new Intl.NumberFormat(tag, { style: "percent", signDisplay: "exceptZero", maximumFractionDigits: 0 });
+  const shareFmt = new Intl.NumberFormat(tag, { style: "percent", maximumFractionDigits: 1 });
+  // Eksi işareti öteki farklarla aynı karakter (Intl düz kısa çizgi veriyor)
+  const pct = (x: number) => pctFmt.format(x).replace("-", "−");
   const u = t(UNIT_KEY[v.g]);
   let over = "";
   let bigNum: string | null = null;
@@ -931,38 +955,44 @@ function ExplorerBody({
       if (!cells.length) cells.push({ v: "–", l: t("explore.noneHere") });
     } else {
       bigNum = fmtNum(selV);
-      if (hasEntries(sel)) cells.push({ v: fmtNum(sel.count ?? 0), l: t("explore.c.entries") });
       if (reading === "cumulative") {
         cells.push({ v: signed(sel.sum ?? 0), l: t(STEP_KEY[v.g]) });
+        const end = valOf(vb);
+        if (end > 0) cells.push({ v: shareFmt.format(selV / end), l: t("explore.c.ofTotal") });
       } else {
-        // Eksi işareti öteki farklarla aynı karakter (Intl düz kısa çizgi veriyor)
-        if (visAvg > 0) cells.push({ v: pctFmt.format((selV - visAvg) / visAvg).replace("-", "−"), l: t("explore.c.vsAvg") });
+        if (visAvg > 0) cells.push({ v: pct((selV - visAvg) / visAvg), l: t("explore.c.vsAvg") });
         const prev = v.sel > 0 ? arr[v.sel - 1] : null;
         if (prev && drawn(prev) && (reading === "total" || hasEntries(prev))) {
           cells.push({ v: signed(selV - valOf(v.sel - 1)), l: t("explore.c.vsPrev") });
         }
+        // Toplamda kovanın görünen aralıktaki payı
+        if (reading === "total" && sum > 0) cells.push({ v: shareFmt.format(selV / sum), l: t("explore.c.share") });
       }
     }
   } else {
     over = `${t("explore.visibleShort")} · ${fmt.span.formatRange(bounds(arr[va])[0], bounds(arr[vb])[1] - 1)}`;
     const maxCell = maxI >= 0 ? { v: valText(maxV), l: t("explore.c.max"), s: shortLabel(arr[maxI], v.g) } : null;
-    const recCell = { v: `${rec}/${cnt}`, l: t(REC_KEY[v.g]) };
+    const minCell = minI >= 0 ? { v: valText(minV), l: t("explore.c.min"), s: shortLabel(arr[minI], v.g) } : null;
+    const prevCell =
+      prevVal !== null && curVal !== null && (reading === "average" || prevVal > 0)
+        ? { v: reading === "average" ? signed(curVal - prevVal) : pct((curVal - prevVal) / prevVal), l: t("explore.c.prevRange") }
+        : null;
     if (reading === "total") {
       bigNum = fmtNum(sum);
       cells.push({ v: valText(visAvg), l: t(AVG_KEY[v.g]) });
       if (maxCell) cells.push(maxCell);
-      cells.push(recCell);
+      if (prevCell) cells.push(prevCell);
     } else if (reading === "cumulative") {
       const end = valOf(vb);
       bigNum = fmtNum(end);
-      cells.push({ v: valText(cnt ? end / cnt : 0), l: t(AVG_KEY[v.g]) }, recCell);
+      cells.push({ v: valText(cnt ? end / cnt : 0), l: t(AVG_KEY[v.g]) });
+      if (prevCell) cells.push(prevCell);
     } else {
       if (drawnCnt) bigNum = fmtNum(visAvg);
       else bigText = t("explore.noData");
-      let entCount = 0;
-      for (let i = va; i <= vb; i++) entCount += arr[i].count ?? 0;
       if (maxCell) cells.push(maxCell);
-      cells.push(recCell, { v: fmtNum(entCount), l: t("explore.c.entries") });
+      if (minCell && minI !== maxI) cells.push(minCell);
+      if (prevCell) cells.push(prevCell);
     }
   }
 
@@ -1313,7 +1343,7 @@ function ExplorerBody({
             {v.sel === null && reading !== "cumulative" && maxI >= 0 && maxV > 0 && (
               <text
                 x={clamp(xc(maxI), g.L + 30, g.R - 30)}
-                y={Math.max(g.T - 6, yS(maxV + (stacked ? (arr[maxI].rest ?? 0) : 0)) - 8)}
+                y={Math.max(g.T - 2, yS(maxV + (stacked ? (arr[maxI].rest ?? 0) : 0)) - 8)}
                 textAnchor="middle"
                 className="text-[10px] font-extrabold"
                 style={{ fill: INK, stroke: PAPER, strokeWidth: 3, paintOrder: "stroke", strokeLinejoin: "round" }}
@@ -1353,6 +1383,12 @@ function ExplorerBody({
           n === 0 && (
             <div className="absolute inset-0 flex items-center justify-center text-[13px] font-bold text-muted-foreground">{t("explore.empty")}</div>
           )
+        )}
+        {/* Lejant — neyin çizildiği: yer ve özellik ufak renkli kapsüllerde */}
+        {identity && (
+          <div data-explore-identity="" className="pointer-events-none absolute left-2 top-2 z-10 flex max-w-[calc(100%-60px)] items-center gap-1">
+            {identity}
+          </div>
         )}
         {toast && (
           <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center">
