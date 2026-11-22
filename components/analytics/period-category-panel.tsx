@@ -495,7 +495,7 @@ export function PeriodCategoryPanel({
   const explorerEl = exploring && (
     <CategoryChartExplorer
       category={category}
-      rootSubId={focus?.id}
+      focus={focus}
       metricId={shownMetric}
       excludeRegular={excludeRegular}
       choiceFilter={choiceFilter}

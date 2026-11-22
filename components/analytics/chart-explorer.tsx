@@ -11,11 +11,11 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
-import { ArrowRight, BarChart3, Check, ChevronDown, ChevronLeft, ChevronRight, Pointer, X } from "lucide-react";
+import { ArrowRight, BarChart3, ChevronLeft, ChevronRight, X, type LucideIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ENTRY_SCREEN } from "@/components/ui/entry-window";
 import { useIsBrutal } from "@/components/structure/brutal";
-import { fmtNum, GRANULARITY_TITLES, type DayBucket, type Granularity, type ScaleRange } from "@/lib/analytics";
+import { fmtNum, type DayBucket, type Granularity, type ScaleRange } from "@/lib/analytics";
 import { intlTag, useLocale, useT, type MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -91,8 +91,6 @@ const STAT_COLORS = ["#8ea6ff", "#7ae582", "#ff9ecd"];
 /** Analiz satırının küçük kare karoları (simge ve ok) — SummaryBlock bağlantı satırı gibi */
 const LINK_SQ =
   "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] bg-white text-[#111] shadow-[1.5px_1.5px_0_#111]";
-/** Seçimsizken analiz satırındaki ipucu */
-const PICK_KEY: Record<Granularity, MessageKey> = { day: "explore.pick.day", week: "explore.pick.week", month: "explore.pick.month" };
 /** Bölüm bantlarının tram benekleri (bkz. summary-block bandDots) */
 const bandDots = (c: string) => ({
   backgroundColor: c,
@@ -222,24 +220,18 @@ function geo(w: number, h: number, span: number) {
 /* ——— Ekran ——— */
 
 /**
- * Başlık şeridindeki seçici — neye bakıldığı (yer ve özellik) ve grafiğin
- * türü. Dokununca ekranın içinde alttan panel açılır (üst üste pencere
- * açılmaz — bkz. stacked dialogs). Analiz'in Yer | Özellik hücrelerinin dili.
+ * Grafiğin ne gösterdiği (Toplam, Ortalama…) ve nasıl çizildiği (sütun,
+ * çizgi…) — gövdenin tepesindeki kontrol bloğunda doğrudan seçilir
+ * (Analiz'in üst bölümünün dili). Neye bakıldığı (yer, özellik) burada
+ * seçilmez; başlık şeridinde renkli etiketlerde yazar.
  */
-export type ExplorerPicker = {
-  key: string;
-  /** Küçük üst etiket */
-  label: string;
-  /** Seçili olan, kalın */
-  value: string;
-  /** Hücrenin solundaki karo */
-  tile: ReactNode;
-  /** Göreli genişlik */
-  grow?: number;
-  /** Panelin başlığı */
-  title: string;
-  /** Panelin içi; seçim bitince close() */
-  render: (close: () => void) => ReactNode;
+export type ExplorerControls = {
+  kinds: { key: string; label: string }[];
+  kind: string;
+  onKind: (key: string) => void;
+  forms: { key: string; label: string; icon: LucideIcon }[];
+  form: string;
+  onForm: (key: string) => void;
 };
 
 export function ChartExplorer({
@@ -247,7 +239,7 @@ export function ChartExplorer({
   onClose,
   title,
   color,
-  pickers,
+  identity,
   ...rest
 }: {
   open: boolean;
@@ -256,10 +248,9 @@ export function ChartExplorer({
   title: string;
   /** Mercek rengi — grafiğin kendi rengi */
   color: string;
-  pickers?: ExplorerPicker[];
-  /** Grafik başının adı ("Para" → "Günlük Para") ve türü ("Toplam") */
-  seriesLabel: string;
-  kindLabel: string;
+  /** Başlık şeridinde neye bakıldığı — renkli etiketler (bkz. ExplorerTag) */
+  identity?: ReactNode;
+  controls?: ExplorerControls;
   unit?: string;
   reading: ExplorerReading;
   variant: ExplorerVariant;
@@ -274,22 +265,8 @@ export function ChartExplorer({
 }) {
   const t = useT();
   const brutal = useIsBrutal();
-  const [sheet, setSheet] = useState<string | null>(null);
-  const active = pickers?.find((p) => p.key === sheet) ?? null;
-  const closeSheet = () => setSheet(null);
-  const line = brutal ? { borderColor: "#111" } : undefined;
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (o) return;
-        // Geri tuşu / Esc açık paneli kapatır, ekranı değil. Kapanma isteği
-        // burada yakalanıyor: Android'in geri tuşunun belgeye gönderdiği Esc
-        // iptal edilemez (cancelable değil), preventDefault işe yaramıyordu
-        if (sheet) closeSheet();
-        else onClose();
-      }}
-    >
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent hideClose aria-describedby={undefined} className={ENTRY_SCREEN}>
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <div
@@ -297,12 +274,12 @@ export function ChartExplorer({
           className="entry-screen-in relative flex h-full min-h-0 flex-col overflow-hidden bg-background md:rounded-[3rem]"
         >
           {/* Başlık şeridi — Analiz'in mavisinde benekli; solda kapat, yanında
-              seçiciler (yer · özellik | grafik) tek çerçevede */}
+              neye bakıldığı: yer ve özellik kendi renklerinde etiketlerde */}
           <header
             className={cn("shrink-0 pt-[env(safe-area-inset-top,0px)]", brutal ? "border-b-[3px]" : "border-b")}
             style={brutal ? { borderColor: "#111", ...bandDots("#8ea6ff") } : undefined}
           >
-            <div className="flex items-center gap-2.5 px-3 py-2.5">
+            <div className="flex min-h-[62px] items-center gap-2.5 px-3 py-2.5">
               <button
                 type="button"
                 onClick={onClose}
@@ -313,49 +290,13 @@ export function ChartExplorer({
                     ? "rounded-[11px] border-2 bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
                     : "rounded-full bg-[var(--sf-2)] text-foreground"
                 )}
-                style={line}
+                style={brutal ? { borderColor: "#111" } : undefined}
               >
                 <X className="h-[18px] w-[18px]" strokeWidth={2.75} />
               </button>
-              {pickers && pickers.length > 0 && (
-                <div
-                  data-explore-pickers=""
-                  className={cn(
-                    "flex min-w-0 flex-1 overflow-hidden",
-                    brutal ? "rounded-[12px] border-2 bg-white shadow-[2px_2px_0_#111]" : "rounded-2xl border border-border bg-card"
-                  )}
-                  style={line}
-                >
-                  {pickers.map((p, k) => (
-                    <button
-                      key={p.key}
-                      type="button"
-                      onClick={() => setSheet(p.key)}
-                      aria-label={p.title}
-                      className={cn(
-                        "flex min-w-0 items-center gap-2 py-1.5 pl-2 pr-1.5 text-left",
-                        brutal ? "text-[#111] active:bg-[#f5f1e8]" : "active:bg-[var(--sf-2)]",
-                        k > 0 && (brutal ? "border-l-2" : "border-l border-border")
-                      )}
-                      style={{ flex: `${p.grow ?? 1} 1 0%`, ...(k > 0 && brutal ? { borderLeftColor: "#111" } : {}) }}
-                    >
-                      {p.tile}
-                      <span className="min-w-0 flex-1">
-                        <span
-                          className={cn(
-                            "block truncate text-[9.5px] font-black uppercase leading-none tracking-[0.1em]",
-                            brutal ? "text-[#111]/55" : "text-muted-foreground"
-                          )}
-                        >
-                          {p.label}
-                        </span>
-                        <span className="mt-[3px] block truncate text-[13.5px] font-black leading-tight">{p.value}</span>
-                      </span>
-                      <ChevronDown className="h-4 w-4 shrink-0" strokeWidth={2.75} />
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div data-explore-identity="" className="flex min-w-0 flex-1 items-center gap-2">
+                {identity}
+              </div>
             </div>
           </header>
           {rest.series ? (
@@ -365,135 +306,56 @@ export function ChartExplorer({
               {t("explore.loading")}
             </div>
           )}
-          {active && (
-            <ExplorerSheet brutal={brutal} title={active.title} onClose={closeSheet}>
-              {active.render(closeSheet)}
-            </ExplorerSheet>
-          )}
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-/** Seçicinin paneli — ekranın içinde, alttan; karartmaya dokununca kapanır */
-function ExplorerSheet({
-  brutal,
-  title,
-  onClose,
-  children,
+/**
+ * Başlık şeridindeki renkli etiket — yer kare karoyla, özellik daireyle
+ * (şekil dili: kare = kategori, daire = özellik). Kendi renginde zemin,
+ * beyaz karoda simge, kalın ad. Dokunulmaz: seçim panelde.
+ */
+export function ExplorerTag({
+  color,
+  shape,
+  icon,
+  label,
+  overline,
 }: {
-  brutal: boolean;
-  title: string;
-  onClose: () => void;
-  children: ReactNode;
+  color: string;
+  shape: "square" | "circle";
+  icon: ReactNode;
+  label: string;
+  /** Alt kalemde üst kategorinin adı, küçük */
+  overline?: string;
 }) {
-  const t = useT();
+  const brutal = useIsBrutal();
   return (
-    <div className="absolute inset-0 z-20 flex flex-col justify-end" role="dialog" aria-label={title}>
-      <button
-        type="button"
-        aria-label={t("action.close")}
-        onClick={onClose}
-        className="animate-in absolute inset-0 bg-black/45"
-      />
-      <div
-        data-explore-sheet=""
+    <span
+      className={cn(
+        "flex min-w-0 items-center gap-2 py-1 pl-1 text-[#111]",
+        shape === "circle" ? "rounded-full pr-3.5" : "rounded-[12px] pr-3",
+        brutal ? "border-2 shadow-[2px_2px_0_#111]" : "border border-border"
+      )}
+      style={{ background: color, borderColor: brutal ? "#111" : undefined }}
+    >
+      <span
         className={cn(
-          "entry-screen-in relative flex max-h-[80%] min-h-0 flex-col overflow-hidden rounded-t-[22px] bg-background",
-          brutal ? "border-2 border-b-0 shadow-[0_-3px_0_#111]" : "border-t border-border"
+          "flex h-8 w-8 shrink-0 items-center justify-center bg-white",
+          shape === "circle" ? "rounded-full" : "rounded-[8px]",
+          brutal && "border-[1.5px]"
         )}
         style={brutal ? { borderColor: "#111" } : undefined}
       >
-        <div
-          className={cn("flex shrink-0 items-center gap-2 py-2.5 pl-4 pr-2.5", brutal ? "border-b-2" : "border-b border-border")}
-          style={brutal ? { borderColor: "#111", ...bandDots("#8ea6ff") } : undefined}
-        >
-          <span className={cn("min-w-0 flex-1 truncate text-[17px] font-extrabold tracking-[-0.02em]", brutal && "text-[#111]")}>{title}</span>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("action.close")}
-            className={cn(
-              "flex h-9 w-9 shrink-0 items-center justify-center",
-              brutal ? "rounded-[10px] border-[1.5px] bg-white text-[#111] shadow-[1.5px_1.5px_0_#111]" : "rounded-full bg-[var(--sf-2)]"
-            )}
-            style={brutal ? { borderColor: "#111" } : undefined}
-          >
-            <X className="h-4 w-4" strokeWidth={2.75} />
-          </button>
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-3 pb-[max(18px,env(safe-area-inset-bottom,0px))] pt-3">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** Paneldeki bölüm — küçük büyük harfli başlık, altında satırlar */
-export function ExplorerSection({ title, children }: { title: string; children: ReactNode }) {
-  const brutal = useIsBrutal();
-  return (
-    <section className="flex flex-col gap-1">
-      {/* div: brütalin genel h3 kuralı başlığı siyah hapa çeviriyordu */}
-      <div
-        className={cn(
-          "px-1 pb-0.5 text-[10.5px] font-black uppercase tracking-[0.1em]",
-          brutal ? "text-[#111]/55" : "text-muted-foreground"
-        )}
-      >
-        {title}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-/** Paneldeki seçenek satırı — seçiliyken siyah zeminde krem yazı (Analiz'in yer ağacı gibi) */
-export function ExplorerOption({
-  selected,
-  onClick,
-  tile,
-  label,
-  hint,
-  depth = 0,
-}: {
-  selected: boolean;
-  onClick: () => void;
-  tile?: ReactNode;
-  label: string;
-  hint?: string;
-  /** Ağaçta girinti (alt kategoriler) */
-  depth?: number;
-}) {
-  const brutal = useIsBrutal();
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={selected}
-      className={cn(
-        "flex w-full items-center gap-2.5 rounded-[12px] px-2.5 py-2 text-left transition-colors",
-        selected
-          ? brutal
-            ? "bg-[#111] text-[#fff4dc]"
-            : "bg-[var(--sf-3)]"
-          : brutal
-            ? "text-[#111] active:bg-[#111]/[0.06]"
-            : "active:bg-[var(--sf-2)]"
-      )}
-      style={depth ? { paddingLeft: 10 + depth * 18 } : undefined}
-    >
-      {tile}
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[14px] font-extrabold leading-tight">{label}</span>
-        {hint && (
-          <span className={cn("mt-0.5 block text-[11.5px] font-semibold leading-snug", selected ? "opacity-70" : "opacity-60")}>{hint}</span>
-        )}
+        {icon}
       </span>
-      {selected && <Check className="h-4 w-4 shrink-0" strokeWidth={3} />}
-    </button>
+      <span className="min-w-0 leading-tight">
+        {overline && <span className="block truncate text-[9.5px] font-black uppercase tracking-[0.08em] opacity-65">{overline}</span>}
+        <span className="block truncate text-[14.5px] font-extrabold tracking-tight">{label}</span>
+      </span>
+    </span>
   );
 }
 
@@ -508,12 +370,10 @@ function ExplorerBody({
   stacked,
   initial,
   onOpenPeriod,
-  seriesLabel,
-  kindLabel,
+  controls,
 }: {
   brutal: boolean;
-  seriesLabel: string;
-  kindLabel: string;
+  controls?: ExplorerControls;
   color: string;
   unit?: string;
   reading: ExplorerReading;
@@ -575,7 +435,6 @@ function ExplorerBody({
     return () => ro.disconnect();
   }, []);
 
-  const [hint, setHint] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
   const toastT = useRef<number | null>(null);
   const showToast = (msg: string) => {
@@ -763,7 +622,6 @@ function ExplorerBody({
   const onDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    if (hint) setHint(false);
     stopAnim();
     const p = pt(e);
     ptrs.current.set(e.pointerId, p);
@@ -948,6 +806,7 @@ function ExplorerBody({
   let bigText = "";
   const cells: { v: string; l: string }[] = [];
   const sel = v.sel !== null && v.sel < n ? arr[v.sel] : null;
+  const openRow = !!sel?.periodKey;
   const findEntry = (from: number, d: number) => {
     for (let j = from + d; j >= 0 && j < n; j += d) if (hasEntries(arr[j])) return j;
     return -1;
@@ -1189,6 +1048,93 @@ function ExplorerBody({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-3">
+      {/* Kontrol bloğu — Analiz'in üst bölümünün dili: üstte grafiğin ne
+          gösterdiği (sekmeler, seçili siyah), altında açık mavi satırda nasıl
+          çizildiği (simge karoları) ve kova */}
+      <div
+        data-explore-controls=""
+        className={cn(
+          "shrink-0 overflow-hidden",
+          brutal ? "rounded-[14px] border-2 bg-white shadow-[3px_3px_0_#111]" : "rounded-2xl border border-border bg-card"
+        )}
+        style={line}
+      >
+        {controls && controls.kinds.length > 0 && (
+          <div role="group" aria-label={t("board.chartType")} className="flex h-10">
+            {controls.kinds.map((k, i) => (
+              <button
+                key={k.key}
+                type="button"
+                aria-pressed={k.key === controls.kind}
+                onClick={() => controls.onKind(k.key)}
+                className={cn(segBtn(k.key === controls.kind), "min-w-0 flex-1 truncate px-1 text-[13px]", i > 0 && "border-l-[1.5px]")}
+                style={i > 0 ? { borderLeftColor: brutal ? "#111" : "var(--border)" } : undefined}
+              >
+                {k.label}
+              </button>
+            ))}
+          </div>
+        )}
+        <div
+          className={cn(
+            "flex items-center justify-between gap-2 px-2 py-1.5",
+            controls && controls.kinds.length > 0 && (brutal ? "border-t-2" : "border-t border-border"),
+            brutal ? "bg-[#e4e9ff]" : "bg-[var(--sf-1)]"
+          )}
+          style={brutal ? { borderTopColor: "#111" } : undefined}
+        >
+          <div role="group" aria-label={t("board.chartForm")} className="flex min-w-0 gap-1.5">
+            {controls?.forms.map((f) => {
+              const on = f.key === controls.form;
+              const Icon = f.icon;
+              return (
+                <button
+                  key={f.key}
+                  type="button"
+                  aria-pressed={on}
+                  aria-label={f.label}
+                  title={f.label}
+                  onClick={() => controls.onForm(f.key)}
+                  className={cn(
+                    "flex h-8 w-8 shrink-0 items-center justify-center",
+                    brutal
+                      ? cn(
+                          "rounded-[9px] border-[1.5px]",
+                          on
+                            ? "bg-[#111] text-white"
+                            : "bg-white text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
+                        )
+                      : cn("rounded-lg", on ? "bg-foreground text-background" : "bg-card text-foreground")
+                  )}
+                  style={brutal ? { borderColor: "#111" } : undefined}
+                >
+                  <Icon className="h-4 w-4" strokeWidth={2.5} />
+                </button>
+              );
+            })}
+          </div>
+          <div
+            role="group"
+            aria-label={t("explore.bucket")}
+            className={cn("flex h-8 shrink-0 overflow-hidden rounded-[9px]", brutal ? "border-[1.5px] bg-white" : "border border-border bg-card")}
+            style={line}
+          >
+            {(["day", "week", "month"] as Granularity[]).map((gg, k) => (
+              <button
+                key={gg}
+                type="button"
+                aria-pressed={v.g === gg}
+                onClick={() => pickG(gg)}
+                className={cn(segBtn(v.g === gg), "px-2.5 text-[12px]", k > 0 && "border-l-[1.5px]")}
+                style={k > 0 ? { borderLeftColor: brutal ? "#111" : "var(--border)" } : undefined}
+              >
+                {t(GRAN_LABEL[gg])}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Okuma kutusu — ana sayfanın Bugün bloğunun dili: üstte grafiğin
           renginde benekli baş (iki yanında Analiz'in ok karoları; seçiliyken
           sağda gün analizi karosu), altında renk bantlı sayılar. Hücreler
@@ -1244,95 +1190,63 @@ function ExplorerBody({
             {cells.map((c, k) => (
               <div key={k} className={cn("flex min-w-0 flex-col", brutal ? "bg-white text-[#111]" : "bg-card")}>
                 <span className="h-1.5 shrink-0" style={{ background: STAT_COLORS[k % STAT_COLORS.length] }} />
-                <span className="min-w-0 px-2.5 pb-1.5 pt-1">
-                  <span className={cn("block truncate text-[9.5px] font-black uppercase", brutal ? "text-[#111]/60" : "text-muted-foreground")}>{c.l}</span>
-                  <b className="block truncate font-mono text-[16px] font-bold leading-6 tabular-nums">{c.v}</b>
+                {/* Etiket tam yazılır, gerekirse iki satıra iner ("ORTALAMAYA
+                    GÖRE" kesiliyordu); rakam hücrenin altında hizalı */}
+                <span className="flex min-w-0 flex-1 flex-col px-2.5 pb-1.5 pt-1">
+                  <span
+                    className={cn(
+                      "block text-[9.5px] font-black uppercase leading-[1.2] [overflow-wrap:anywhere]",
+                      brutal ? "text-[#111]/60" : "text-muted-foreground"
+                    )}
+                  >
+                    {c.l}
+                  </span>
+                  <b className="mt-auto block truncate font-mono text-[16px] font-bold leading-6 tabular-nums">{c.v}</b>
                 </span>
               </div>
             ))}
           </div>
         )}
         {/* Gün analizi — gün sayfasının özetindeki Gün Analizi şeridinin yeri
-            ve dili: bloğun en altında Analiz'in mavisinde benekli satır.
-            Eskiden başın sağında karoydu, tarihi sıkıştırıyordu. Satır hep
-            yerinde: seçimsizken ipucu yazar, gün seçince grafik zıplamaz */}
-        {onOpenPeriod &&
-          (sel && sel.periodKey ? (
-            <button
-              type="button"
-              onClick={() => onOpenPeriod(sel.periodKey!)}
-              data-explore-open=""
-              className={cn("flex h-[44px] min-w-0 items-center gap-2.5 px-3 text-left", brutal ? "text-[#111] active:brightness-95" : "bg-[var(--sf-2)]")}
-              style={brutal ? bandDots("#8ea6ff") : undefined}
-            >
-              <span className={LINK_SQ} style={brutal ? { borderColor: "#111" } : undefined}>
-                <BarChart3 className="h-4 w-4" strokeWidth={2.5} />
-              </span>
-              <span className="min-w-0 flex-1 truncate text-[14.5px] font-extrabold leading-none tracking-tight">{t(OPEN_KEY[v.g])}</span>
-              <span className={LINK_SQ} style={brutal ? { borderColor: "#111" } : undefined}>
-                <ArrowRight className="h-4 w-4" strokeWidth={2.75} />
-              </span>
-            </button>
-          ) : (
-            <div
-              className={cn(
-                "flex h-[44px] min-w-0 items-center gap-2 px-3 text-[12px] font-bold",
-                brutal ? "bg-white text-[#111]/45" : "bg-card text-muted-foreground"
-              )}
-            >
-              <Pointer className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-              <span className="min-w-0 truncate">{t(PICK_KEY[v.g])}</span>
+            ve dili: bloğun en altında Analiz'in mavisinde benekli satır. Yalnız
+            bir kova seçiliyken kayarak açılır; seçimsizken yer kaplamaz, ipucu
+            yazısı yok. Kapalıyken -2 px: bloğun hücre arası çizgisi iki kat
+            kalın görünmesin */}
+        {onOpenPeriod && (
+          <div
+            className={cn(
+              "grid transition-[grid-template-rows,margin] duration-200 ease-out motion-reduce:transition-none",
+              openRow ? "grid-rows-[1fr]" : "-mt-[2px] grid-rows-[0fr]"
+            )}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => sel?.periodKey && onOpenPeriod(sel.periodKey)}
+                disabled={!openRow}
+                tabIndex={openRow ? 0 : -1}
+                data-explore-open=""
+                className={cn("flex h-[44px] w-full min-w-0 items-center gap-2.5 px-3 text-left", brutal ? "text-[#111] active:brightness-95" : "bg-[var(--sf-2)]")}
+                style={brutal ? bandDots("#8ea6ff") : undefined}
+              >
+                <span className={LINK_SQ} style={brutal ? { borderColor: "#111" } : undefined}>
+                  <BarChart3 className="h-4 w-4" strokeWidth={2.5} />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[14.5px] font-extrabold leading-none tracking-tight">{t(OPEN_KEY[v.g])}</span>
+                <span className={LINK_SQ} style={brutal ? { borderColor: "#111" } : undefined}>
+                  <ArrowRight className="h-4 w-4" strokeWidth={2.75} />
+                </span>
+              </button>
             </div>
-          ))}
+          </div>
+        )}
       </div>
 
-      {/* Grafik penceresi — başlık şeridinde neye bakıldığı ve kova seçimi
-          (panelin grafik başı gibi: rengin açık tonu, altında ince çizgi) */}
+      {/* Grafik penceresi — yalnız çizim; ne gösterdiği ve kova yukarıdaki kontrol bloğunda */}
       <div
         className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", brutal ? "rounded-[16px] border-2 bg-white" : "rounded-2xl border border-border bg-card")}
         style={line}
       >
-        <div
-          className="flex h-10 shrink-0 items-center gap-2 pl-3 pr-1.5"
-          style={
-            brutal
-              ? { backgroundColor: "#fff", backgroundImage: `linear-gradient(${color}2e, ${color}2e)`, borderBottom: `1.5px solid ${color}66` }
-              : { borderBottom: "1px solid var(--border)" }
-          }
-        >
-          <span className="min-w-0 truncate text-[12.5px] font-extrabold tracking-[-0.01em]">
-            {GRANULARITY_TITLES[v.g]} {seriesLabel}
-          </span>
-          <span
-            className={cn(
-              "flex h-5 shrink-0 items-center rounded-full border px-2 text-[10.5px] font-bold",
-              brutal ? "bg-white text-[#111]/70" : "bg-[var(--sf-2)] text-muted-foreground"
-            )}
-            style={{ borderColor: brutal ? "rgba(17,17,17,0.22)" : "var(--border)" }}
-          >
-            {kindLabel}
-          </span>
-          <span className="flex-1" />
-          <div
-            role="group"
-            aria-label={t("explore.bucket")}
-            className={cn("flex h-7 shrink-0 overflow-hidden rounded-[9px]", brutal ? "border-[1.5px] bg-white" : "border border-border bg-card")}
-            style={line}
-          >
-            {(["day", "week", "month"] as Granularity[]).map((gg, k) => (
-              <button
-                key={gg}
-                type="button"
-                aria-pressed={v.g === gg}
-                onClick={() => pickG(gg)}
-                className={cn(segBtn(v.g === gg), "px-2.5 text-[11.5px]", k > 0 && "border-l-[1.5px]")}
-                style={k > 0 ? { borderLeftColor: brutal ? "#111" : "var(--border)" } : undefined}
-              >
-                {t(GRAN_LABEL[gg])}
-              </button>
-            ))}
-          </div>
-        </div>
         <div
           ref={boxRef}
           tabIndex={0}
@@ -1424,19 +1338,6 @@ function ExplorerBody({
           n === 0 && (
             <div className="absolute inset-0 flex items-center justify-center text-[13px] font-bold text-muted-foreground">{t("explore.empty")}</div>
           )
-        )}
-        {/* İlk açılışta ne yapılabileceği — ilk dokunuşta kaybolur */}
-        {hint && ready && (
-          <div className="pointer-events-none absolute inset-x-2 bottom-9 flex justify-center">
-            <span
-              className={cn(
-                "max-w-full rounded-2xl px-3 py-1 text-center text-[11px] font-bold leading-snug",
-                brutal ? "bg-[#111] text-white" : "bg-foreground text-background"
-              )}
-            >
-              {t("explore.hint")}
-            </span>
-          </div>
         )}
         {toast && (
           <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center">
