@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { CircleDot, Divide, Sigma, TrendingUp, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { translate, useT } from "@/lib/i18n";
 import { modColor } from "@/lib/mod-color";
@@ -17,7 +18,7 @@ import {
 import type { Period } from "@/lib/period";
 import { routes } from "@/lib/routes";
 import type { Category, ChartForm, ChartKind, Entry, SubCategory } from "@/types";
-import { CHART_LABEL, FORM_ICON, FORM_LABEL, explorerVariantOf, seriesOf } from "./analysis-chart";
+import { CHART_HINT, CHART_LABEL, FORM_HINT, FORM_ICON, FORM_LABEL, explorerVariantOf, seriesOf } from "./analysis-chart";
 import {
   ChartExplorer,
   ExplorerTag,
@@ -37,6 +38,13 @@ const READING: Record<TimeKind, ExplorerReading> = {
   line: "average",
   points: "average",
   cumulative: "cumulative",
+};
+/** Veri türlerinin simgeleri (GÖSTER seçicisi) */
+const READ_ICON: Record<TimeKind, LucideIcon> = {
+  bar: Sigma,
+  line: Divide,
+  cumulative: TrendingUp,
+  points: CircleDot,
 };
 /** İnceleme ekranının çizebildiği biçimler (yatay çubuk ve halka zamanı çizmiyor) */
 const DRAWABLE: ChartForm[] = ["column", "line", "area", "dots"];
@@ -178,12 +186,12 @@ export function CategoryChartExplorer({
       color={lensColor}
       identity={identity}
       controls={{
-        kinds: kindOptions.map((k) => ({ key: k, label: t(CHART_LABEL[k]) })),
-        kind: kindR,
-        onKind: (k) => setKindSel(k as ChartKind),
-        forms: formOptions.map((f) => ({ key: f, label: t(FORM_LABEL[f]), icon: FORM_ICON[f] })),
-        form: kindR === "points" ? "dots" : formR,
-        onForm: (f) => setFormSel(f as ChartForm),
+        readings: kindOptions.map((k) => ({ key: k, label: t(CHART_LABEL[k]), hint: t(CHART_HINT[k]), icon: READ_ICON[k] })),
+        reading: kindR,
+        onReading: (k) => setKindSel(k as ChartKind),
+        charts: formOptions.map((f) => ({ key: f, label: t(FORM_LABEL[f]), hint: t(FORM_HINT[f]), icon: FORM_ICON[f] })),
+        chart: kindR === "points" ? "dots" : formR,
+        onChart: (f) => setFormSel(f as ChartForm),
       }}
       unit={metric.type === "count" ? translate("an.entriesUnit") : compute?.unit || undefined}
       reading={READING[kindR]}

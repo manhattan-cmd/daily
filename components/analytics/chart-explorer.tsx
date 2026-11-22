@@ -11,7 +11,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
-import { ArrowRight, BarChart3, ChevronLeft, ChevronRight, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, BarChart3, Check, ChevronDown, ChevronLeft, ChevronRight, X, type LucideIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ENTRY_SCREEN } from "@/components/ui/entry-window";
 import { useIsBrutal } from "@/components/structure/brutal";
@@ -220,18 +220,23 @@ function geo(w: number, h: number, span: number) {
 /* ——— Ekran ——— */
 
 /**
- * Grafiğin ne gösterdiği (Toplam, Ortalama…) ve nasıl çizildiği (sütun,
- * çizgi…) — gövdenin tepesindeki kontrol bloğunda doğrudan seçilir
- * (Analiz'in üst bölümünün dili). Neye bakıldığı (yer, özellik) burada
- * seçilmez; başlık şeridinde renkli etiketlerde yazar.
+ * Seçicilerin bir seçeneği — simge, ad, kısa açıklama. Yeni bir veri türü ya
+ * da grafik türü eklemek listeye bir satır eklemek demek.
+ */
+export type ExplorerOptionDef = { key: string; label: string; hint?: string; icon: LucideIcon };
+
+/**
+ * Başlık şeridindeki iki seçici, ayrı ayrı: GÖSTER — verinin ne okunduğu
+ * (Toplam, Ortalama, Birikimli, Tek tek); GRAFİK — nasıl çizildiği (Sütun,
+ * Çizgi, Alan, Nokta). Neye bakıldığı (yer, özellik) burada seçilmez.
  */
 export type ExplorerControls = {
-  kinds: { key: string; label: string }[];
-  kind: string;
-  onKind: (key: string) => void;
-  forms: { key: string; label: string; icon: LucideIcon }[];
-  form: string;
-  onForm: (key: string) => void;
+  readings: ExplorerOptionDef[];
+  reading: string;
+  onReading: (key: string) => void;
+  charts: ExplorerOptionDef[];
+  chart: string;
+  onChart: (key: string) => void;
 };
 
 export function ChartExplorer({
@@ -240,6 +245,7 @@ export function ChartExplorer({
   title,
   color,
   identity,
+  controls,
   ...rest
 }: {
   open: boolean;
@@ -248,7 +254,7 @@ export function ChartExplorer({
   title: string;
   /** Mercek rengi — grafiğin kendi rengi */
   color: string;
-  /** Başlık şeridinde neye bakıldığı — renkli etiketler (bkz. ExplorerTag) */
+  /** Başlık şeridinde neye bakıldığı — ufak kapsüller (bkz. ExplorerTag) */
   identity?: ReactNode;
   controls?: ExplorerControls;
   unit?: string;
@@ -265,40 +271,165 @@ export function ChartExplorer({
 }) {
   const t = useT();
   const brutal = useIsBrutal();
+  const [menu, setMenu] = useState<"reading" | "chart" | null>(null);
+  const line = brutal ? { borderColor: "#111" } : undefined;
+
+  /** Seçici düğmesi — karo, küçük etiket, seçili olanın adı, ok */
+  const picker = (which: "reading" | "chart", label: string, opts: ExplorerOptionDef[], cur: string) => {
+    const o = opts.find((x) => x.key === cur) ?? opts[0];
+    const Icon = o?.icon;
+    const isOpen = menu === which;
+    return (
+      <button
+        type="button"
+        onClick={() => setMenu(isOpen ? null : which)}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        aria-label={label}
+        data-explore-picker={which}
+        className={cn(
+          "flex h-10 min-w-0 flex-1 items-center gap-2 pl-1.5 pr-2 text-left transition-colors",
+          brutal
+            ? cn(
+                "rounded-[11px] border-2 shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none",
+                isOpen ? "bg-[#111] text-[#fff4dc]" : "bg-white text-[#111]"
+              )
+            : cn("rounded-xl border border-border", isOpen ? "bg-[var(--sf-3)]" : "bg-card")
+        )}
+        style={line}
+      >
+        <span
+          className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] text-[#111]", brutal && "border-[1.5px]")}
+          style={{ background: which === "reading" ? color : "#fff", borderColor: brutal ? "#111" : undefined }}
+        >
+          {Icon && <Icon className="h-4 w-4" strokeWidth={2.5} />}
+        </span>
+        <span className="min-w-0 flex-1 leading-none">
+          {/* Satır yüksekliği yazıdan büyük: kırpılan (truncate) satırda Ö ve İ noktaları kesiliyordu */}
+          <span className={cn("block truncate text-[9px] font-black uppercase leading-[12px] tracking-[0.1em]", isOpen ? "opacity-70" : "opacity-55")}>{label}</span>
+          <span className="mt-px block truncate text-[13.5px] font-black leading-[17px]">{o?.label}</span>
+        </span>
+        <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", isOpen && "rotate-180")} strokeWidth={2.75} />
+      </button>
+    );
+  };
+  const menuOpts = controls ? (menu === "reading" ? controls.readings : menu === "chart" ? controls.charts : []) : [];
+  const menuCur = controls ? (menu === "reading" ? controls.reading : controls.chart) : "";
+
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (o) return;
+        // Geri tuşu / Esc açık menüyü kapatır, ekranı değil (Android'in
+        // gönderdiği Esc iptal edilemiyor; kapanma isteği burada yakalanır)
+        if (menu) setMenu(null);
+        else onClose();
+      }}
+    >
       <DialogContent hideClose aria-describedby={undefined} className={ENTRY_SCREEN}>
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <div
           data-chart-explorer=""
           className="entry-screen-in relative flex h-full min-h-0 flex-col overflow-hidden bg-background md:rounded-[3rem]"
         >
-          {/* Başlık şeridi — Analiz'in mavisinde benekli; solda kapat, yanında
-              neye bakıldığı: yer ve özellik kendi renklerinde etiketlerde */}
+          {/* Başlık şeridi — Analiz'in mavisinde benekli. Üstte kapat ve neye
+              bakıldığı (ufak kapsüller), altında iki seçici: GÖSTER (veri
+              türü) ve GRAFİK (grafik türü) */}
           <header
-            className={cn("shrink-0 pt-[env(safe-area-inset-top,0px)]", brutal ? "border-b-[3px]" : "border-b")}
+            className={cn("relative z-20 shrink-0 pt-[env(safe-area-inset-top,0px)]", brutal ? "border-b-[3px]" : "border-b")}
             style={brutal ? { borderColor: "#111", ...bandDots("#8ea6ff") } : undefined}
           >
-            <div className="flex min-h-[46px] items-center gap-2 px-3 py-2">
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label={t("action.close")}
-                className={cn(
-                  "flex h-8 w-8 shrink-0 items-center justify-center",
-                  brutal
-                    ? "rounded-[9px] border-2 bg-white text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
-                    : "rounded-full bg-[var(--sf-2)] text-foreground"
-                )}
-                style={brutal ? { borderColor: "#111" } : undefined}
-              >
-                <X className="h-4 w-4" strokeWidth={2.75} />
-              </button>
-              <div data-explore-identity="" className="flex min-w-0 flex-1 items-center gap-1.5">
-                {identity}
+            <div className="flex flex-col gap-2 px-3 pb-2.5 pt-2">
+              <div className="flex min-h-8 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label={t("action.close")}
+                  className={cn(
+                    "flex h-8 w-8 shrink-0 items-center justify-center",
+                    brutal
+                      ? "rounded-[9px] border-2 bg-white text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
+                      : "rounded-full bg-[var(--sf-2)] text-foreground"
+                  )}
+                  style={line}
+                >
+                  <X className="h-4 w-4" strokeWidth={2.75} />
+                </button>
+                <div data-explore-identity="" className="flex min-w-0 flex-1 items-center gap-1.5">
+                  {identity}
+                </div>
               </div>
+              {controls && (
+                <div data-explore-controls="" className="flex gap-2">
+                  {picker("reading", t("explore.show"), controls.readings, controls.reading)}
+                  {picker("chart", t("explore.chartKind"), controls.charts, controls.chart)}
+                </div>
+              )}
             </div>
+            {/* Seçicinin menüsü — düğmenin altında; seçenekler simgeli, açıklamalı */}
+            {controls && menu && (
+              <div
+                role="listbox"
+                aria-label={t(menu === "reading" ? "board.chartType" : "board.chartForm")}
+                data-explore-menu={menu}
+                className={cn(
+                  "animate-in absolute top-full z-30 mt-2 w-[min(320px,calc(100%-24px))] p-1.5",
+                  menu === "reading" ? "left-3" : "right-3",
+                  brutal ? "rounded-[14px] border-2 bg-white text-[#111] shadow-[3px_3px_0_#111]" : "rounded-2xl border border-border bg-card shadow-lg"
+                )}
+                style={line}
+              >
+                <div className={cn("px-2 pb-1.5 pt-1 text-[10px] font-black uppercase tracking-[0.1em]", brutal ? "text-[#111]/55" : "text-muted-foreground")}>
+                  {t(menu === "reading" ? "board.chartType" : "board.chartForm")}
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {menuOpts.map((o) => {
+                    const on = o.key === menuCur;
+                    const Icon = o.icon;
+                    return (
+                      <button
+                        key={o.key}
+                        type="button"
+                        role="option"
+                        aria-selected={on}
+                        onClick={() => {
+                          if (menu === "reading") controls.onReading(o.key);
+                          else controls.onChart(o.key);
+                          setMenu(null);
+                        }}
+                        className={cn(
+                          "flex w-full items-center gap-2.5 rounded-[10px] px-2 py-2 text-left transition-colors",
+                          on ? (brutal ? "bg-[#111] text-[#fff4dc]" : "bg-[var(--sf-3)]") : brutal ? "active:bg-[#111]/[0.06]" : "active:bg-[var(--sf-2)]"
+                        )}
+                      >
+                        <span
+                          className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-[#111]", brutal && "border-[1.5px]")}
+                          style={{ background: menu === "reading" ? color : "#fff", borderColor: brutal ? "#111" : undefined }}
+                        >
+                          <Icon className="h-4 w-4" strokeWidth={2.5} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[14px] font-extrabold leading-tight">{o.label}</span>
+                          {o.hint && <span className="mt-0.5 block text-[11.5px] font-semibold leading-snug opacity-60">{o.hint}</span>}
+                        </span>
+                        {on && <Check className="h-4 w-4 shrink-0" strokeWidth={3} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </header>
+          {/* Menü açıkken dışına dokununca kapanır */}
+          {menu && (
+            <button
+              type="button"
+              aria-label={t("action.close")}
+              onClick={() => setMenu(null)}
+              className="absolute inset-0 z-10 cursor-default bg-black/10"
+            />
+          )}
           {rest.series ? (
             <ExplorerBody brutal={brutal} color={color} {...rest} series={rest.series} />
           ) : (
@@ -346,10 +477,8 @@ function ExplorerBody({
   stacked,
   initial,
   onOpenPeriod,
-  controls,
 }: {
   brutal: boolean;
-  controls?: ExplorerControls;
   color: string;
   unit?: string;
   reading: ExplorerReading;
@@ -773,7 +902,7 @@ function ExplorerBody({
   let over = "";
   let bigNum: string | null = null;
   let bigText = "";
-  const cells: { v: string; l: string }[] = [];
+  const cells: { v: string; l: string; s?: string }[] = [];
   const sel = v.sel !== null && v.sel < n ? arr[v.sel] : null;
   const openRow = !!sel?.periodKey;
   const findEntry = (from: number, d: number) => {
@@ -816,7 +945,7 @@ function ExplorerBody({
     }
   } else {
     over = `${t("explore.visibleShort")} · ${fmt.span.formatRange(bounds(arr[va])[0], bounds(arr[vb])[1] - 1)}`;
-    const maxCell = maxI >= 0 ? { v: valText(maxV), l: t("explore.c.max", { when: shortLabel(arr[maxI], v.g) }) } : null;
+    const maxCell = maxI >= 0 ? { v: valText(maxV), l: t("explore.c.max"), s: shortLabel(arr[maxI], v.g) } : null;
     const recCell = { v: `${rec}/${cnt}`, l: t(REC_KEY[v.g]) };
     if (reading === "total") {
       bigNum = fmtNum(sum);
@@ -1017,67 +1146,6 @@ function ExplorerBody({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 px-3 pb-[max(10px,env(safe-area-inset-bottom,0px))] pt-2">
-      {/* Kontrol bloğu — tek satır, tek çerçeve: solda grafiğin ne gösterdiği
-          (sekmeler, seçili siyah), sağda nasıl çizildiği (simge hücreleri).
-          Kova seçimi yok: aralık düğmeleri ve iki parmak kovayı da değiştiriyor.
-          Eskiden iki satırdı, grafiğe yer kalmıyordu */}
-      {controls && (
-        <div
-          data-explore-controls=""
-          className={cn(
-            "flex h-9 shrink-0 overflow-hidden",
-            brutal ? "rounded-[11px] border-2 bg-white shadow-[2px_2px_0_#111]" : "rounded-xl border border-border bg-card"
-          )}
-          style={line}
-        >
-          <div role="group" aria-label={t("board.chartType")} className="flex min-w-0 flex-1">
-            {controls.kinds.map((k, i) => (
-              <button
-                key={k.key}
-                type="button"
-                aria-pressed={k.key === controls.kind}
-                onClick={() => controls.onKind(k.key)}
-                className={cn(segBtn(k.key === controls.kind), "min-w-0 flex-[1_1_auto] truncate px-1 text-[12px]", i > 0 && "border-l-[1.5px]")}
-                style={i > 0 ? { borderLeftColor: brutal ? "#111" : "var(--border)" } : undefined}
-              >
-                {k.label}
-              </button>
-            ))}
-          </div>
-          {controls.forms.length > 0 && (
-            <div
-              role="group"
-              aria-label={t("board.chartForm")}
-              className={cn("flex shrink-0", brutal ? "border-l-2 bg-[#e4e9ff]" : "border-l border-border")}
-              style={brutal ? { borderLeftColor: "#111" } : undefined}
-            >
-              {controls.forms.map((f, i) => {
-                const on = f.key === controls.form;
-                const Icon = f.icon;
-                return (
-                  <button
-                    key={f.key}
-                    type="button"
-                    aria-pressed={on}
-                    aria-label={f.label}
-                    title={f.label}
-                    onClick={() => controls.onForm(f.key)}
-                    className={cn(
-                      "flex w-8 items-center justify-center transition-colors",
-                      on ? (brutal ? "bg-[#111] text-white" : "bg-foreground text-background") : brutal ? "text-[#111] active:bg-[#111]/10" : "text-foreground",
-                      i > 0 && "border-l-[1.5px]"
-                    )}
-                    style={i > 0 ? { borderLeftColor: brutal ? "#111" : "var(--border)" } : undefined}
-                  >
-                    <Icon className="h-4 w-4" strokeWidth={2.5} />
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Okuma kutusu — ana sayfanın Bugün bloğunun dili: üstte grafiğin
           renginde benekli baş (iki yanında Analiz'in ok karoları; seçiliyken
           sağda gün analizi karosu), altında renk bantlı sayılar. Hücreler
@@ -1091,7 +1159,7 @@ function ExplorerBody({
         )}
         style={line}
       >
-        <div className="flex h-[58px] gap-[2px]">
+        <div className="flex h-[52px] gap-[2px]">
           <div
             className={cn("flex min-w-0 flex-1 items-center gap-2 px-2", brutal ? "text-[#111]" : "bg-card")}
             style={brutal ? bandDots(color) : undefined}
@@ -1117,11 +1185,11 @@ function ExplorerBody({
               <div className="mt-0.5 flex min-w-0 items-baseline justify-center gap-1.5">
                 {bigNum !== null ? (
                   <>
-                    <b className="truncate font-mono text-[23px] font-bold leading-none tracking-[-0.02em] tabular-nums">{bigNum}</b>
+                    <b className="truncate font-mono text-[21px] font-bold leading-none tracking-[-0.02em] tabular-nums">{bigNum}</b>
                     {unit && <span className="shrink-0 text-[13px] font-extrabold leading-none">{unit}</span>}
                   </>
                 ) : (
-                  <span className="truncate text-[17px] font-black leading-none tracking-[-0.02em] opacity-55">{bigText}</span>
+                  <span className="truncate text-[16px] font-black leading-none tracking-[-0.02em] opacity-55">{bigText}</span>
                 )}
               </div>
             </div>
@@ -1131,20 +1199,24 @@ function ExplorerBody({
         {cells.length > 0 && (
           <div className={cn("grid", brutal ? "gap-[2px]" : "gap-px")} style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }}>
             {cells.map((c, k) => (
-              <div key={k} className={cn("flex min-w-0 flex-col", brutal ? "bg-white text-[#111]" : "bg-card")}>
+              <div key={k} className={cn("flex h-[42px] min-w-0 flex-col", brutal ? "bg-white text-[#111]" : "bg-card")}>
                 <span className="h-1 shrink-0" style={{ background: STAT_COLORS[k % STAT_COLORS.length] }} />
-                {/* Etiket tam yazılır, gerekirse iki satıra iner ("ORTALAMAYA
-                    GÖRE" kesiliyordu); rakam hücrenin altında hizalı */}
-                <span className="flex min-w-0 flex-1 flex-col px-2.5 pb-1 pt-[3px]">
+                {/* Sabit boy: etiket kısa ve tek satır; tarih gibi değişen ek
+                    rakamın yanında küçük. "En yüksek · 2 Eylül" iki satıra inip
+                    kutuyu büyütüyordu */}
+                <span className="flex min-w-0 flex-1 flex-col justify-center px-2.5">
                   <span
                     className={cn(
-                      "block text-[9.5px] font-black uppercase leading-[1.2] [overflow-wrap:anywhere]",
+                      "block truncate whitespace-nowrap text-[9px] font-black uppercase leading-[12px] tracking-[0.02em]",
                       brutal ? "text-[#111]/60" : "text-muted-foreground"
                     )}
                   >
                     {c.l}
                   </span>
-                  <b className="mt-auto block truncate font-mono text-[14px] font-bold leading-5 tabular-nums">{c.v}</b>
+                  <span className="mt-px flex min-w-0 items-baseline gap-1">
+                    <b className="truncate font-mono text-[14px] font-bold leading-[18px] tabular-nums">{c.v}</b>
+                    {c.s && <span className={cn("shrink-0 text-[10.5px] font-bold", brutal ? "text-[#111]/55" : "text-muted-foreground")}>{c.s}</span>}
+                  </span>
                 </span>
               </div>
             ))}
@@ -1175,7 +1247,7 @@ function ExplorerBody({
                 <span className={LINK_SQ} style={brutal ? { borderColor: "#111" } : undefined}>
                   <BarChart3 className="h-4 w-4" strokeWidth={2.5} />
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[14px] font-extrabold leading-none tracking-tight">{t(OPEN_KEY[v.g])}</span>
+                <span className="min-w-0 flex-1 truncate text-[14px] font-extrabold leading-[18px] tracking-tight">{t(OPEN_KEY[v.g])}</span>
                 <span className={LINK_SQ} style={brutal ? { borderColor: "#111" } : undefined}>
                   <ArrowRight className="h-4 w-4" strokeWidth={2.75} />
                 </span>
