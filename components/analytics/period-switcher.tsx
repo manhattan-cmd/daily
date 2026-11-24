@@ -64,8 +64,10 @@ export function PeriodTabs({
   /** Brütal: Analiz penceresinin üst bölümünün satırı (bkz. AnalysisHead) — düz yazı sekmeler,
    *  seçili olan kalkık beyaz kapsülde (Gün sayfasının seçili günü gibi) */
   strip?: boolean;
-  /** Analiz'in kontrol bloğunda (bkz. AnalysisDeck) — Ara'nın zaman anahtarı
-   *  gibi eşit bölmeli çerçeve, seçili bölme siyah; sonda takvim bölmesi */
+  /** Analiz'in baş bloğunda (bkz. PeriodView renderHead) — bloğun hücreleri
+   *  gibi kenardan kenara eşit bölmeler, aralarında 2 px çizgi, seçili bölme
+   *  siyah; sonda takvim bölmesi. Eskiden üst şeritteki bloğun içinde kendi
+   *  çerçevesiyle duran bir anahtardı */
   deck?: boolean;
 }) {
   const t = useT();
@@ -97,13 +99,10 @@ export function PeriodTabs({
         role="tablist"
         aria-label={t("insights.period")}
         data-period-deck=""
-        className="grid overflow-hidden rounded-[11px] border-[1.5px]"
-        style={{
-          borderColor: "#111",
-          gridTemplateColumns: `repeat(${KINDS.length}, minmax(0, 1fr))${onPick ? "" : " 42px"}`,
-        }}
+        className="grid gap-[2px] bg-[#111]"
+        style={{ gridTemplateColumns: `repeat(${KINDS.length}, minmax(0, 1fr))${onPick ? "" : " 46px"}` }}
       >
-        {KINDS.map(({ kind, label }, i) => {
+        {KINDS.map(({ kind, label }) => {
           const on = period.kind === kind;
           return (
             <button
@@ -113,11 +112,9 @@ export function PeriodTabs({
               aria-selected={on}
               onClick={() => pickKind(kind)}
               className={cn(
-                "h-9 min-w-0 truncate px-1 text-[13px] font-extrabold transition-colors",
-                i > 0 && "border-l-[1.5px]",
+                "h-11 min-w-0 truncate px-1 text-[13.5px] font-extrabold transition-colors",
                 on ? "bg-[#111] text-white" : "bg-white text-[#111]/70 active:bg-[#f5f1e8]"
               )}
-              style={i > 0 ? { borderLeftColor: "#111" } : undefined}
             >
               {t(label)}
             </button>

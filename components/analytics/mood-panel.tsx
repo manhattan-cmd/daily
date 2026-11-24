@@ -103,17 +103,19 @@ export function MoodPanel(props: {
   metricId: string;
   onDrill: (subId: string) => void;
   onResolved?: (metricId: string) => void;
+  /** Sayfanın baş bloğu (bkz. PeriodCategoryPanel renderHead) */
+  renderHead?: (body: ReactNode) => ReactNode;
 }) {
-  const { metricId } = props;
+  const { metricId, renderHead } = props;
   // Seçili özellik kişinin kendi eklediği bir özellikse (yerleşik Mutluluk
   // ve Duygular değil) o özelliğin genel analizi
   const metricMod = useLiveQuery(
     async () => (metricId === "count" ? null : ((await db.mods.get(metricId)) ?? null)),
     [metricId]
   );
-  if (metricMod === undefined) return null;
+  if (metricMod === undefined) return renderHead ? <div className="flex flex-col gap-4">{renderHead(null)}</div> : null;
   if (metricMod && !isMoodModName(metricMod.name)) return <PeriodCategoryPanel {...props} />;
-  return <MoodBody category={props.category} period={props.period} focus={props.path[props.path.length - 1]} />;
+  return <MoodBody category={props.category} period={props.period} focus={props.path[props.path.length - 1]} renderHead={renderHead} />;
 }
 
 /** Karşılaştırma penceresi: günde o günü kapsayan hafta, takvim dönemlerinde bir önceki; Tümü ve özel aralıkta yok */
@@ -230,7 +232,17 @@ const LABEL = "block text-[9.5px] font-black uppercase leading-[11px] text-[#111
 /** Kayıtsız günün kesik çerçevesi (brütalde border-color sınıfı ezilir, satır içi) */
 const DASHED = { borderStyle: "dashed", borderColor: "rgba(17,17,17,0.32)" } as const;
 
-function MoodBody({ category, period, focus }: { category: Category; period: Period; focus?: SubCategory }) {
+function MoodBody({
+  category,
+  period,
+  focus,
+  renderHead,
+}: {
+  category: Category;
+  period: Period;
+  focus?: SubCategory;
+  renderHead?: (body: ReactNode) => ReactNode;
+}) {
   const t = useT();
   const locale = useLocale();
   const tag = intlTag(locale);
@@ -357,7 +369,7 @@ function MoodBody({ category, period, focus }: { category: Category; period: Per
     return { nights, qualityMax, rows, dayOthers };
   }, [view, ctx, period]);
 
-  if (!view) return null;
+  if (!view) return renderHead ? <div className="flex flex-col gap-4">{renderHead(null)}</div> : null;
   const { scale, named, cur, days, avg, refAvg, progress, counts } = view;
   const isDay = period.kind === "day";
   const catName = moodText(category.name, t);
@@ -382,18 +394,9 @@ function MoodBody({ category, period, focus }: { category: Category; period: Per
   const delta = avg !== null && refAvg !== null ? avg - refAvg : null;
   const refText =
     refAvg === null || !ref ? "" : isDay ? t("moodan.weekAvg", { n: nf1.format(refAvg) }) : `${ref.label} · ${nf1.format(refAvg)}`;
-  const head = (
-    <SummaryBlock
-      lead={{
-        kind: "thing",
-        color: category.color,
-        icon: focus?.icon ?? category.icon,
-        overline: focus ? `${catName} · ${periodShortLabel(period)}` : periodShortLabel(period),
-        title,
-      }}
-      action={<SummaryTile color="#ffd23f" icon={Layers} label={t("nav.structure")} href={structureHref} />}
-      stats={[]}
-    >
+  // Sayfanın baş bloğunda seçimlerin altında; baş verilmezse kendi bloğunda
+  const headBody = (
+    <>
       {empty ? (
         <SummaryEmpty
           text={t(all ? "brut.noEntries" : "insights.noEntriesInPeriod")}
@@ -462,6 +465,23 @@ function MoodBody({ category, period, focus }: { category: Category; period: Per
           </div>
         </>
       )}
+    </>
+  );
+  const head = renderHead ? (
+    renderHead(headBody)
+  ) : (
+    <SummaryBlock
+      lead={{
+        kind: "thing",
+        color: category.color,
+        icon: focus?.icon ?? category.icon,
+        overline: focus ? `${catName} · ${periodShortLabel(period)}` : periodShortLabel(period),
+        title,
+      }}
+      action={<SummaryTile color="#ffd23f" icon={Layers} label={t("nav.structure")} href={structureHref} />}
+      stats={[]}
+    >
+      {headBody}
     </SummaryBlock>
   );
   if (empty) return <div className="flex flex-col gap-4">{head}</div>;

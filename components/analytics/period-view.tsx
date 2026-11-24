@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ObjectsCard } from "@/components/analytics/objects-card";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,6 +8,8 @@ import { useLiveQuery } from "dexie-react-hooks";
 import {
   ArrowRight,
   BarChart3,
+  Layers,
+  LayoutGrid,
   PenLine,
 } from "lucide-react";
 import { db } from "@/lib/db";
@@ -51,7 +53,8 @@ import {
 } from "@/components/analytics/entry-list";
 import { ANALYSIS_COLOR, AnalysisDeck, AnalysisMenu, type DeckScope } from "@/components/analytics/analysis-header";
 import { modColor } from "@/lib/mod-color";
-import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
+import { SummaryBlock, SummaryEmpty, SummaryTile, type SummaryLead } from "@/components/ui/summary-block";
+import { StatCell } from "@/components/analytics/stat-tiles";
 import { CategoryForm } from "@/components/structure/category-form";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { listUserCategories } from "@/lib/db/queries";
@@ -68,7 +71,7 @@ import {
   setAnalysisPath,
   setAnalysisMetric,
 } from "@/components/analytics/analysis-selection";
-import { ScopePickers } from "@/components/analytics/scope-pickers";
+import { ScopePickers, type ScopeOpen } from "@/components/analytics/scope-pickers";
 import { MoodPanel } from "@/components/analytics/mood-panel";
 import { moodText } from "@/lib/icons/emotions";
 import type { SubCategory } from "@/types";
@@ -158,6 +161,8 @@ export function PeriodView({
    */
   const [drill, setDrill] = useState<{ catId: string; path: SubCategory[] } | null>(null);
   const [metricSel, setMetricSel] = useState<{ catId: string; id: string } | null>(null);
+  // Açık seçim listesi — yer başın ad hücresinden, özellik kendi hücresinden
+  const [scopeOpen, setScopeOpen] = useState<ScopeOpen>(null);
   // Seçimden sonra hangi karta kayılacak — yeni kart çizildikten sonra
   const [scrollTarget, setScrollTarget] = useState<string | null>(null);
   useEffect(() => {
@@ -409,12 +414,18 @@ export function PeriodView({
   // AnalysisDeck). Yerleşiklerin (uyku, ruh hali) adı kayıtta İngilizce,
   // çevrilir; ruh halinin özellik adları da öyle, onda özellik yazılmaz
   const metricMod = useLiveQuery(() => (metricId !== "count" ? db.mods.get(metricId) : undefined), [metricId]);
+  const catTitle = selectedCat
+    ? selectedCat.isBuiltIn
+      ? t(selectedCat.builtInKey === "mood" ? "mood.title" : "sleep.title")
+      : selectedCat.name
+    : "";
+  const focusSub = path[path.length - 1];
   const placeName = selectedCat
-    ? path.length
-      ? path[path.length - 1].name
-      : selectedCat.isBuiltIn
-        ? t(selectedCat.builtInKey === "mood" ? "mood.title" : "sleep.title")
-        : selectedCat.name
+    ? focusSub
+      ? selectedCat.builtInKey === "mood"
+        ? moodText(focusSub.name, t)
+        : focusSub.name
+      : catTitle
     : t("structure.categories");
   const deckScope: DeckScope = {
     place: { name: placeName, color: selectedCat?.color ?? ANALYSIS_COLOR },
@@ -600,6 +611,7 @@ export function PeriodView({
     period.kind !== "all";
 
   const fmt = (n: number) => new Intl.NumberFormat(intlTag(locale)).format(n);
+  // Brütalde yalnız özellik hücresi: yer, başın ad hücresi (bkz. renderHead)
   const pickers = (
     <ScopePickers
       cats={data.cats}
@@ -610,7 +622,59 @@ export function PeriodView({
       metricId={metricId}
       onPlace={pickPlace}
       onMetric={pickMetric}
+      only="metric"
+      open={scopeOpen}
+      onOpenChange={setScopeOpen}
     />
+  );
+
+  /*
+   * Sayfanın başı (Brütal) — ana sayfanın Bugün'ü ve gün sayfasının özeti
+   * gibi beyaz zeminin tepesine kenardan kenara oturan başlık çubuğu;
+   * altındaki pencerelerden 3 px çizgiyle ayrı (bkz. SummaryBlock head).
+   * Neye bakıldığını ve neyin seçilebileceğini anlatmadan gösterir:
+   *  - Ad hücresi YER: Kategoriler (Analiz mavisi) ya da kategorinin /
+   *    alt kategorinin kendisi (kendi renginde); üstünde dönem. Dokununca
+   *    yer listesi açılır (sağdaki aşağı oklu karo). Yanında Yapı karosu.
+   *  - Dönem türü anahtarı (Gün · Hafta · Ay · Yıl · Tümü, takvim).
+   *  - Özellik hücresi.
+   *  - Altında sayılar: kategorilerde dönemin girdileri, yerde panelin
+   *    kendi sayıları (bkz. PeriodCategoryPanel renderHead).
+   * Eskiden bunların hepsi üstteki yapışkan şeridin içinde, küçültülebilen
+   * bir bloktaydı; şerit artık yalnız dönemi ve özeti taşıyor.
+   */
+  const shortLabel = periodShortLabel(period);
+  const headLead: SummaryLead = selectedCat
+    ? {
+        kind: "thing",
+        color: selectedCat.color,
+        icon: focusSub?.icon ?? selectedCat.icon,
+        overline: focusSub ? `${catTitle} · ${shortLabel}` : shortLabel,
+        title: placeName,
+      }
+    : { kind: "thing", color: ANALYSIS_COLOR, glyph: LayoutGrid, overline: shortLabel, title: t("structure.categories") };
+  const structureHref = selectedCat
+    ? focusSub
+      ? routes.structureSub(selectedCat.id, focusSub.id)
+      : routes.structureCategory(selectedCat.id)
+    : "/structure";
+  const renderHead = (body: ReactNode) => (
+    <SummaryBlock
+      head
+      className="mb-0"
+      lead={headLead}
+      onLead={() => setScopeOpen("yer")}
+      leadLabel="Yer seç"
+      leadExpanded={scopeOpen === "yer"}
+      action={<SummaryTile color="#ffd23f" icon={Layers} label={t("nav.structure")} href={structureHref} />}
+      stats={[]}
+    >
+      <div data-an-kinds="">
+        <PeriodTabs period={period} deck />
+      </div>
+      {pickers}
+      {body}
+    </SummaryBlock>
   );
 
   // Brütal: ana sayfanın blok dili — üst menü şerit (bkz. AnalysisMenu),
@@ -620,28 +684,64 @@ export function PeriodView({
   if (brutal) {
     const catRows = computed?.catShare ?? [];
     const entryCount = computed?.entryCount ?? 0;
+    // Kategorilerin başı: dönemin girdileri, aktif günler, günlük ortalama;
+    // en altta kategorilerin payı renk renk (ana sayfa ve gün başının
+    // alt şeridi gibi). Günde aktif gün anlamsız — orada kategori sayısı
+    const elapsed = Math.max(1, progress?.elapsedDays ?? 1);
+    const activeDays = computed?.activeDays ?? 0;
+    const pctFmt = new Intl.NumberFormat(intlTag(locale), { style: "percent", maximumFractionDigits: 0 });
+    const oneDay = period.kind === "day";
+    const landingBody = entryCount > 0 && (
+      <>
+        <div className="grid gap-[2px]" style={{ gridTemplateColumns: `repeat(${oneDay ? 2 : 3}, minmax(0, 1fr))` }}>
+          <StatCell color={ANALYSIS_COLOR} label={t("insights.entries")} value={fmt(entryCount)} sub={spanLabel} />
+          {oneDay ? (
+            <StatCell color={ANALYSIS_COLOR} label={t("insights.categoriesUsed")} value={fmt(computed?.catCount ?? 0)} sub={spanLabel} />
+          ) : (
+            <>
+              <StatCell
+                color={ANALYSIS_COLOR}
+                label={t("insights.activeDays")}
+                value={fmt(activeDays)}
+                unit={`/${elapsed}`}
+                sub={pctFmt.format(activeDays / elapsed)}
+              />
+              <StatCell
+                color={ANALYSIS_COLOR}
+                label={t("stat.dailyAverage")}
+                value={fmtNum(entryCount / elapsed)}
+                unit={translate("an.entriesUnit")}
+                sub={`${elapsed} ${t("stat.days")}`}
+              />
+            </>
+          )}
+        </div>
+        <div data-an-head-bars="" className="flex h-2.5 bg-white">
+          {[...catRows]
+            .sort((a, b) => b.value - a.value)
+            .map((r, i) => (
+              <span
+                key={r.id}
+                title={`${r.name} · ${r.value}`}
+                className={i ? "border-l-[1.5px]" : undefined}
+                style={{ background: r.color, flex: r.value, borderLeftColor: "#111" }}
+              />
+            ))}
+        </div>
+      </>
+    );
     return (
       <PageSheet
         top={
-          /* Üst bölüm — dönem türü, dönem, Yer · Özellik tek blokta; yapışkan (bkz. AnalysisDeck) */
-          <AnalysisDeck
-            period={period}
-            scope={deckScope}
-            sub={[
-              `${fmt(entryCount)} ${t("home.entries")}`,
-              showProgress && t("period.progress", { n: progress.elapsedDays, total: progress.totalDays }),
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          >
-            {pickers}
-          </AnalysisDeck>
+          /* Üst menü — ince şerit: ‹ dönem › ve neye bakıldığı (bkz. AnalysisDeck) */
+          <AnalysisDeck period={period} scope={deckScope} />
         }
       >
         <div className="flex flex-col gap-4 pb-6">
+          {!selectedCat && renderHead(landingBody)}
           {/* Dönem boşsa boş pencere: "Bu dönemde girdi yok" ve Tümünü gör */}
           {!selectedCat && (
-            <div data-section="top" className="scroll-mt-[190px]">
+            <div data-section="top" className="scroll-mt-24">
               <SummaryBlock
                 compact={catRows.length === 0}
                 lead={{
@@ -687,6 +787,7 @@ export function PeriodView({
                   metricId={metricId}
                   onDrill={drillTo}
                   onResolved={(id) => setMetricSel({ catId: selectedCat.id, id })}
+                  renderHead={renderHead}
                 />
               ) : (
                 <PeriodCategoryPanel
@@ -697,6 +798,7 @@ export function PeriodView({
                   metricId={metricId}
                   onDrill={drillTo}
                   onResolved={(id) => setMetricSel({ catId: selectedCat.id, id })}
+                  renderHead={renderHead}
                 />
               )}
             </HoldHeight>

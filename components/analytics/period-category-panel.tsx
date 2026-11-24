@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useT, translate } from "@/lib/i18n";
 import Link from "next/link";
 import { ArrowRight, Layers } from "lucide-react";
@@ -74,6 +74,7 @@ export function PeriodCategoryPanel({
   metricId,
   onDrill,
   onResolved,
+  renderHead,
 }: {
   category: Category;
   period: Period;
@@ -85,6 +86,12 @@ export function PeriodCategoryPanel({
   onDrill: (subId: string) => void;
   /** Panelin gerçekten gösterdiği özellik — seçici bunu yazsın */
   onResolved?: (metricId: string) => void;
+  /**
+   * Brütal: sayfanın baş bloğu (bkz. PeriodView) — yer, dönem türü ve
+   * özellik seçimleri onda; panel altına kendi satırlarını (sayılar) verir.
+   * Veri gelmeden de çizilir: seçimler dönem değişirken kaybolmasın
+   */
+  renderHead?: (body: ReactNode) => ReactNode;
 }) {
   const t = useT();
   const brutal = useIsBrutal();
@@ -490,7 +497,9 @@ export function PeriodCategoryPanel({
     });
   }, [computed, compute, prevCompute, prevData, prevMetric, metric, insightKeys, insightKind, insightLevel, period, win]);
 
-  if (!data || !compute || !computed) return null;
+  if (!data || !compute || !computed) {
+    return brutal && renderHead ? <div className="flex flex-col gap-4">{renderHead(null)}</div> : null;
+  }
   const unit = compute.unit || undefined;
   const explorerEl = exploring && (
     <CategoryChartExplorer
@@ -572,19 +581,10 @@ export function PeriodCategoryPanel({
       metric.type === "mod"
         ? t(all ? "an.noModDataYet" : "an.noModData", { name: metric.mod.name })
         : t(all ? "brut.noEntries" : "insights.noEntriesInPeriod");
-    return (
-      <div className="flex flex-col gap-4">
-        <SummaryBlock
-          lead={{
-            kind: "thing",
-            color: category.color,
-            icon: focus?.icon ?? category.icon,
-            overline: focus ? `${category.name} · ${periodShortLabel(period)}` : periodShortLabel(period),
-            title: focus ? focus.name : category.name,
-          }}
-          action={<SummaryTile color="#ffd23f" icon={Layers} label={t("nav.structure")} href={structureHref} />}
-          stats={[]}
-        >
+    // Yerin sayıları — sayfanın baş bloğunda seçimlerin altında; baş
+    // verilmezse (başka yerde kullanılırsa) kendi bloğunda
+    const headBody = (
+        <>
           {data.hasRegular && (
             <div className="bg-white px-3 py-2.5">
               <RegularToggle
@@ -653,7 +653,27 @@ export function PeriodCategoryPanel({
             />
           )}
           {!empty && weekLine && <p className="bg-white px-3.5 py-2.5 text-[12px] font-bold text-[#111]/70">{weekLine}</p>}
-        </SummaryBlock>
+        </>
+    );
+    return (
+      <div className="flex flex-col gap-4">
+        {renderHead ? (
+          renderHead(headBody)
+        ) : (
+          <SummaryBlock
+            lead={{
+              kind: "thing",
+              color: category.color,
+              icon: focus?.icon ?? category.icon,
+              overline: focus ? `${category.name} · ${periodShortLabel(period)}` : periodShortLabel(period),
+              title: focus ? focus.name : category.name,
+            }}
+            action={<SummaryTile color="#ffd23f" icon={Layers} label={t("nav.structure")} href={structureHref} />}
+            stats={[]}
+          >
+            {headBody}
+          </SummaryBlock>
+        )}
 
         {!empty && computed.hasBreakdown && (
           <SummaryBlock

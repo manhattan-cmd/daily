@@ -65,7 +65,7 @@ export function PeriodJump({
   segment?: boolean;
   /** Brütal üst menüde dönem sekmelerinin sonuncusu (bkz. PeriodTabs strip) */
   strip?: boolean;
-  /** Analiz'in kontrol bloğunda zaman anahtarının son bölmesi (bkz. PeriodTabs deck) */
+  /** Analiz'in baş bloğunda zaman anahtarının son bölmesi (bkz. PeriodTabs deck) */
   deck?: boolean;
 }) {
   // Özel bir dönemdeyken çip vurgulu, pencere o aralıkla açılır
@@ -190,7 +190,7 @@ export function PeriodJump({
         className={
           deck
             ? cn(
-                "flex h-9 items-center justify-center border-l-[1.5px] transition-colors",
+                "flex h-11 items-center justify-center transition-colors",
                 current ? "bg-[#111] text-white" : "bg-white text-[#111]/70 active:bg-[#f5f1e8]"
               )
             : strip
@@ -211,7 +211,7 @@ export function PeriodJump({
         aria-current={current ? "page" : undefined}
         aria-label={segment || strip || deck ? t("period.custom") : undefined}
         title={segment || strip || deck ? t("period.custom") : undefined}
-        style={deck ? { borderLeftColor: "#111" } : strip ? { borderColor: current ? "#111" : "transparent" } : undefined}
+        style={strip ? { borderColor: current ? "#111" : "transparent" } : undefined}
       >
         <CalendarRange className={strip || deck ? "h-4 w-4" : "h-3.5 w-3.5"} strokeWidth={strip || deck ? 2.5 : 2} />
         {!segment && !strip && !deck && t("period.custom")}

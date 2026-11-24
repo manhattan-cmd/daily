@@ -313,7 +313,10 @@ function Lead({
   }
   const Title = linked ? "h2" : "h1";
   return (
-    <div className="flex h-full min-w-0 items-center gap-3 px-3 py-2.5 text-[#111]" style={{ background: lead.color }}>
+    <div
+      className="flex h-full min-w-0 items-center gap-3 px-3 py-2.5 text-[#111]"
+      style={banded ? bandDots(lead.color) : { background: lead.color }}
+    >
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white">
         {lead.glyph ? (
           <lead.glyph className="h-[22px] w-[22px]" strokeWidth={2.5} />
@@ -328,7 +331,15 @@ function Lead({
         <Title className="line-clamp-2 break-words text-[22px] font-black leading-[1.05] tracking-tight">{lead.title}</Title>
         {lead.hint && <div className="mt-1 truncate text-[11.5px] font-bold leading-tight opacity-75">{lead.hint}</div>}
       </div>
-      {linked && <ChevronRight className="-mr-1 h-5 w-5 shrink-0 opacity-70" strokeWidth={2.75} />}
+      {/* Seçici baş (Analiz'in yeri): aşağı oklu beyaz karo — dokununca liste açılır */}
+      {linked &&
+        (expanded === undefined ? (
+          <ChevronRight className="-mr-1 h-5 w-5 shrink-0 opacity-70" strokeWidth={2.75} />
+        ) : (
+          <span className={SQ_SM}>
+            <ChevronDown className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} strokeWidth={2.75} />
+          </span>
+        ))}
     </div>
   );
 }
@@ -523,7 +534,7 @@ export function SummaryBlock({
       <div className="flex gap-[2px]">
         {leadHref ? (
           <Link href={leadHref} prefetch={false} className="block min-w-0 flex-1 active:brightness-95">
-            <Lead lead={lead} linked compact={compact} />
+            <Lead lead={lead} linked compact={compact} banded={head} />
           </Link>
         ) : onLead ? (
           <button
@@ -533,7 +544,7 @@ export function SummaryBlock({
             aria-expanded={leadExpanded}
             className="block min-w-0 flex-1 text-left active:brightness-95"
           >
-            <Lead lead={lead} linked compact={compact} expanded={leadExpanded} centered={leadCentered} dense={dense} />
+            <Lead lead={lead} linked compact={compact} expanded={leadExpanded} centered={leadCentered} dense={dense} banded={head} />
           </button>
         ) : (
           <div className="min-w-0 flex-1">
