@@ -52,18 +52,7 @@ type Props = {
   onPlace: (catId: string | null, pathIds: string[]) => void;
   /** Özellik seçildi — kategori seçili değilse en çok kullanıldığı kategoriyle */
   onMetric: (catId: string, metricId: string) => void;
-  /**
-   * Brütal: yalnız özellik hücresi — yer, Analiz'in baş bloğunun ad hücresi
-   * (bkz. PeriodView); liste oradan `open` ile açılır
-   */
-  only?: "metric";
-  /** Verilirse hangi listenin açık olduğu dışarıda tutulur */
-  open?: ScopeOpen;
-  onOpenChange?: (open: ScopeOpen) => void;
 };
-
-/** Açık seçim listesi: özellik ("ne") ya da yer */
-export type ScopeOpen = "ne" | "yer" | null;
 
 type TreeRow = {
   key: string;
@@ -79,19 +68,12 @@ type TreeRow = {
 
 const atomIcon = (m: Mod) => modAtomIcon({ name: m.name, entryType: { valueType: m.valueType } as never });
 
-export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId, onPlace, onMetric, only, open: openProp, onOpenChange }: Props) {
+export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId, onPlace, onMetric }: Props) {
   const t = useT();
   const brutal = useSkin() === "brutal";
-  const [openInner, setOpenInner] = useState<ScopeOpen>(null);
-  const open = openProp !== undefined ? openProp : openInner;
-  const setOpen = onOpenChange ?? setOpenInner;
-  // Yer listesinde özellik süzgecini kaldır — liste her açılışta süzgeçli başlar
+  const [open, setOpen] = useState<"ne" | "yer" | null>(null);
+  // Yer listesinde özellik süzgecini kaldır
   const [allPlaces, setAllPlaces] = useState(false);
-  const [prevOpen, setPrevOpen] = useState<ScopeOpen>(open);
-  if (prevOpen !== open) {
-    setPrevOpen(open);
-    if (open === "yer") setAllPlaces(false);
-  }
 
   const subById = useMemo(() => new Map(subs.map((s) => [s.id, s])), [subs]);
   const focus = path[path.length - 1] ?? null;
@@ -261,15 +243,16 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
            iki hücre, arasında bloğun 2 px çizgisi; çerçeveyi blok çiziyor.
            Solda yerin karosu (kare = kategori), sağda özelliğin dairesi;
            seçimsizken Analiz'in mavisinde */
-        only === "metric" && hideMetric ? null : (
         <div
           data-scope-cells=""
-          className={cn("grid bg-white", hideMetric || only === "metric" ? "grid-cols-1" : "grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)]")}
+          className={cn("grid bg-white", hideMetric ? "grid-cols-1" : "grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)]")}
         >
-          {only !== "metric" && (
           <button
             type="button"
-            onClick={() => setOpen("yer")}
+            onClick={() => {
+              setAllPlaces(false);
+              setOpen("yer");
+            }}
             aria-label="Yer seç"
             className="flex min-w-0 items-center gap-2 px-2.5 py-2 text-left text-[#111] active:bg-[#f5f1e8]"
           >
@@ -297,14 +280,13 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
             </span>
             <ChevronDown className="h-4 w-4 shrink-0" strokeWidth={2.75} />
           </button>
-          )}
           {!hideMetric && (
           <button
             type="button"
             onClick={() => setOpen("ne")}
             aria-label="Özellik seç"
-            className={cn("flex min-w-0 items-center gap-2 px-2.5 py-2 text-left text-[#111] active:bg-[#f5f1e8]", only !== "metric" && "border-l-2")}
-            style={only !== "metric" ? { borderLeftColor: "#111" } : undefined}
+            className="flex min-w-0 items-center gap-2 border-l-2 px-2.5 py-2 text-left text-[#111] active:bg-[#f5f1e8]"
+            style={{ borderLeftColor: "#111" }}
           >
             <span
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2"
@@ -320,7 +302,6 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
           </button>
           )}
         </div>
-        )
       ) : (
       /* Tek çerçeve, iki alan: YER | ÖZELLİK */
       <div
@@ -334,7 +315,10 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
       >
         <button
           type="button"
-          onClick={() => setOpen("yer")}
+          onClick={() => {
+            setAllPlaces(false);
+            setOpen("yer");
+          }}
           aria-label="Yer seç"
           className={cn(
             "flex min-w-0 flex-1 items-center gap-2 px-2.5 py-1.5 text-left",

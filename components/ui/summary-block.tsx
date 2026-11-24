@@ -331,15 +331,7 @@ function Lead({
         <Title className="line-clamp-2 break-words text-[22px] font-black leading-[1.05] tracking-tight">{lead.title}</Title>
         {lead.hint && <div className="mt-1 truncate text-[11.5px] font-bold leading-tight opacity-75">{lead.hint}</div>}
       </div>
-      {/* Seçici baş (Analiz'in yeri): aşağı oklu beyaz karo — dokununca liste açılır */}
-      {linked &&
-        (expanded === undefined ? (
-          <ChevronRight className="-mr-1 h-5 w-5 shrink-0 opacity-70" strokeWidth={2.75} />
-        ) : (
-          <span className={SQ_SM}>
-            <ChevronDown className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} strokeWidth={2.75} />
-          </span>
-        ))}
+      {linked && <ChevronRight className="-mr-1 h-5 w-5 shrink-0 opacity-70" strokeWidth={2.75} />}
     </div>
   );
 }
@@ -534,7 +526,7 @@ export function SummaryBlock({
       <div className="flex gap-[2px]">
         {leadHref ? (
           <Link href={leadHref} prefetch={false} className="block min-w-0 flex-1 active:brightness-95">
-            <Lead lead={lead} linked compact={compact} banded={head} />
+            <Lead lead={lead} linked compact={compact} />
           </Link>
         ) : onLead ? (
           <button
@@ -544,7 +536,7 @@ export function SummaryBlock({
             aria-expanded={leadExpanded}
             className="block min-w-0 flex-1 text-left active:brightness-95"
           >
-            <Lead lead={lead} linked compact={compact} expanded={leadExpanded} centered={leadCentered} dense={dense} banded={head} />
+            <Lead lead={lead} linked compact={compact} expanded={leadExpanded} centered={leadCentered} dense={dense} />
           </button>
         ) : (
           <div className="min-w-0 flex-1">

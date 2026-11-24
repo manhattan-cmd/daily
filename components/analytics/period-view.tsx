@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { createElement, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ObjectsCard } from "@/components/analytics/objects-card";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,8 +8,10 @@ import { useLiveQuery } from "dexie-react-hooks";
 import {
   ArrowRight,
   BarChart3,
+  CalendarDays,
   Layers,
   LayoutGrid,
+  ListOrdered,
   PenLine,
 } from "lucide-react";
 import { db } from "@/lib/db";
@@ -51,7 +53,9 @@ import {
   EntryListSection,
   type EntryListRow,
 } from "@/components/analytics/entry-list";
-import { ANALYSIS_COLOR, AnalysisDeck, AnalysisMenu, type DeckScope } from "@/components/analytics/analysis-header";
+import { ANALYSIS_COLOR, AnalysisDeck, AnalysisMenu, KIND_LABEL, type DeckScope } from "@/components/analytics/analysis-header";
+import { modAtomIcon } from "@/components/structure/mod-atom";
+import { isMoodModName } from "@/lib/mood-analytics";
 import { modColor } from "@/lib/mod-color";
 import { SummaryBlock, SummaryEmpty, SummaryTile, type SummaryLead } from "@/components/ui/summary-block";
 import { StatCell } from "@/components/analytics/stat-tiles";
@@ -71,7 +75,7 @@ import {
   setAnalysisPath,
   setAnalysisMetric,
 } from "@/components/analytics/analysis-selection";
-import { ScopePickers, type ScopeOpen } from "@/components/analytics/scope-pickers";
+import { ScopePickers } from "@/components/analytics/scope-pickers";
 import { MoodPanel } from "@/components/analytics/mood-panel";
 import { moodText } from "@/lib/icons/emotions";
 import type { SubCategory } from "@/types";
@@ -95,6 +99,23 @@ const SHOW_PERIOD_SUMMARY = false;
 export const ANALYSIS_HEADER =
   // band-an: Brütal temada bölümün mavi bandı (bkz. globals.css "bolum bantlari")
   "band-an rounded-b-[24px] border-[var(--ln-2)] bg-card pb-0 shadow-[0_12px_28px_-14px_rgba(0,0,0,0.75)]";
+
+/**
+ * Sayfa başının gösterge hücresi — seçilmiş dönem ya da özellik. Düğme
+ * değil (oku yok): seçim üst menüde, bu yalnız neye bakıldığını söyler.
+ */
+function HeadInfo({ label, value, sub, mark }: { label: string; value: string; sub?: string; mark: ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-center gap-2 bg-white px-2.5 py-2 text-[#111]">
+      {mark}
+      <div className="min-w-0 flex-1">
+        <span className="block truncate text-[9.5px] font-black uppercase leading-none tracking-[0.1em] text-[#111]/55">{label}</span>
+        <span className="mt-[3px] block truncate text-[13px] font-black leading-tight">{value}</span>
+        {sub && <span className="mt-px block truncate text-[10.5px] font-bold leading-tight text-[#111]/55">{sub}</span>}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Dönem analiz görünümü — herhangi bir zaman penceresinin (gün/hafta/ay/yıl/özel/tümü)
@@ -161,8 +182,6 @@ export function PeriodView({
    */
   const [drill, setDrill] = useState<{ catId: string; path: SubCategory[] } | null>(null);
   const [metricSel, setMetricSel] = useState<{ catId: string; id: string } | null>(null);
-  // Açık seçim listesi — yer başın ad hücresinden, özellik kendi hücresinden
-  const [scopeOpen, setScopeOpen] = useState<ScopeOpen>(null);
   // Seçimden sonra hangi karta kayılacak — yeni kart çizildikten sonra
   const [scrollTarget, setScrollTarget] = useState<string | null>(null);
   useEffect(() => {
@@ -611,7 +630,6 @@ export function PeriodView({
     period.kind !== "all";
 
   const fmt = (n: number) => new Intl.NumberFormat(intlTag(locale)).format(n);
-  // Brütalde yalnız özellik hücresi: yer, başın ad hücresi (bkz. renderHead)
   const pickers = (
     <ScopePickers
       cats={data.cats}
@@ -622,9 +640,6 @@ export function PeriodView({
       metricId={metricId}
       onPlace={pickPlace}
       onMetric={pickMetric}
-      only="metric"
-      open={scopeOpen}
-      onOpenChange={setScopeOpen}
     />
   );
 
@@ -632,27 +647,53 @@ export function PeriodView({
    * Sayfanın başı (Brütal) — ana sayfanın Bugün'ü ve gün sayfasının özeti
    * gibi beyaz zeminin tepesine kenardan kenara oturan başlık çubuğu;
    * altındaki pencerelerden 3 px çizgiyle ayrı (bkz. SummaryBlock head).
-   * Neye bakıldığını ve neyin seçilebileceğini anlatmadan gösterir:
+   * Neye bakıldığını GÖSTERİR, seçim üst menüde (bkz. AnalysisDeck —
+   * ekranla birlikte kaydığı için bakarken oradan hemen değiştirilebiliyor;
+   * kullanıcı seçimi orada istedi):
    *  - Ad hücresi YER: Kategoriler (Analiz mavisi) ya da kategorinin /
-   *    alt kategorinin kendisi (kendi renginde); üstünde dönem. Dokununca
-   *    yer listesi açılır (sağdaki aşağı oklu karo). Yanında Yapı karosu.
-   *  - Dönem türü anahtarı (Gün · Hafta · Ay · Yıl · Tümü, takvim).
-   *  - Özellik hücresi.
+   *    alt kategorinin kendisi (kendi renginde, benekli); alt kategoride
+   *    üstünde kategorisi. Yanında Yapı karosu.
+   *  - Dönem ve özellik hücreleri — seçilmiş olanın adı, oksuz (düğme değil).
    *  - Altında sayılar: kategorilerde dönemin girdileri, yerde panelin
    *    kendi sayıları (bkz. PeriodCategoryPanel renderHead).
-   * Eskiden bunların hepsi üstteki yapışkan şeridin içinde, küçültülebilen
-   * bir bloktaydı; şerit artık yalnız dönemi ve özeti taşıyor.
+   * Bir önceki denemede (1fbe5b3) seçimler başın içindeydi ve üst menü ince
+   * bir şeride inmişti; kullanıcı eski menüyü geri istedi.
    */
-  const shortLabel = periodShortLabel(period);
   const headLead: SummaryLead = selectedCat
     ? {
         kind: "thing",
         color: selectedCat.color,
         icon: focusSub?.icon ?? selectedCat.icon,
-        overline: focusSub ? `${catTitle} · ${shortLabel}` : shortLabel,
+        overline: focusSub ? catTitle : undefined,
         title: placeName,
       }
-    : { kind: "thing", color: ANALYSIS_COLOR, glyph: LayoutGrid, overline: shortLabel, title: t("structure.categories") };
+    : { kind: "thing", color: ANALYSIS_COLOR, glyph: LayoutGrid, title: t("structure.categories") };
+  // Gösterilen özellik: ruh halinin özel sayfasında yerleşikler birlikte (Hepsi)
+  const moodAll = selectedCat?.builtInKey === "mood" && (!metricMod || isMoodModName(metricMod.name));
+  const featureName = moodAll
+    ? t("moodan.allFeatures")
+    : metricMod
+      ? selectedCat?.builtInKey === "mood"
+        ? moodText(metricMod.name, t)
+        : metricMod.name
+      : t("insights.entries");
+  const featureMark = (
+    <span
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2"
+      style={{ background: metricMod && !moodAll ? modColor(metricMod) : ANALYSIS_COLOR, borderColor: "#111" }}
+    >
+      {createElement(
+        metricMod && !moodAll ? modAtomIcon({ name: metricMod.name, entryType: { valueType: metricMod.valueType } as never }) : ListOrdered,
+        { className: "h-4 w-4", strokeWidth: 2.5 }
+      )}
+    </span>
+  );
+  const periodSub = [
+    t(KIND_LABEL[period.kind]),
+    showProgress && t("period.progress", { n: progress.elapsedDays, total: progress.totalDays }),
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const structureHref = selectedCat
     ? focusSub
       ? routes.structureSub(selectedCat.id, focusSub.id)
@@ -663,16 +704,25 @@ export function PeriodView({
       head
       className="mb-0"
       lead={headLead}
-      onLead={() => setScopeOpen("yer")}
-      leadLabel="Yer seç"
-      leadExpanded={scopeOpen === "yer"}
       action={<SummaryTile color="#ffd23f" icon={Layers} label={t("nav.structure")} href={structureHref} />}
       stats={[]}
     >
-      <div data-an-kinds="">
-        <PeriodTabs period={period} deck />
+      <div data-an-head-scope="" className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-[2px]">
+        <HeadInfo
+          label={t("an.head.period")}
+          value={periodLabel(period, locale)}
+          sub={periodSub}
+          mark={
+            <span
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-2"
+              style={{ background: "#e4e9ff", borderColor: "#111" }}
+            >
+              <CalendarDays className="h-4 w-4" strokeWidth={2.5} />
+            </span>
+          }
+        />
+        <HeadInfo label={t("an.head.feature")} value={featureName} mark={featureMark} />
       </div>
-      {pickers}
       {body}
     </SummaryBlock>
   );
@@ -733,15 +783,26 @@ export function PeriodView({
     return (
       <PageSheet
         top={
-          /* Üst menü — ince şerit: ‹ dönem › ve neye bakıldığı (bkz. AnalysisDeck) */
-          <AnalysisDeck period={period} scope={deckScope} />
+          /* Üst bölüm — dönem türü, dönem, Yer · Özellik tek blokta; yapışkan (bkz. AnalysisDeck) */
+          <AnalysisDeck
+            period={period}
+            scope={deckScope}
+            sub={[
+              `${fmt(entryCount)} ${t("home.entries")}`,
+              showProgress && t("period.progress", { n: progress.elapsedDays, total: progress.totalDays }),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          >
+            {pickers}
+          </AnalysisDeck>
         }
       >
         <div className="flex flex-col gap-4 pb-6">
           {!selectedCat && renderHead(landingBody)}
           {/* Dönem boşsa boş pencere: "Bu dönemde girdi yok" ve Tümünü gör */}
           {!selectedCat && (
-            <div data-section="top" className="scroll-mt-24">
+            <div data-section="top" className="scroll-mt-[190px]">
               <SummaryBlock
                 compact={catRows.length === 0}
                 lead={{

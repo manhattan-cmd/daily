@@ -1,15 +1,19 @@
 "use client";
 
-import { type HTMLAttributes, type ReactNode } from "react";
+import { useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, type LucideIcon } from "lucide-react";
 import { periodLabel, shiftPeriod, type Period } from "@/lib/period";
 import { routes } from "@/lib/routes";
 import { useLocale, useT, type MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { PeriodTabs } from "./period-switcher";
 
 /** Analiz'in rengi — alt menüdeki sekmesi, üst menüsü, durum çubuğu (bkz. statusBarColor) */
 export const ANALYSIS_COLOR = "#8ea6ff";
+
+/** Dönem satırının zemini — Analiz mavisinin açığı (Ara'daki dönem satırının şeftalisi gibi) */
+const PERIOD_TINT = "#e4e9ff";
 
 /** Şu an — bileşen dışında: çizim saf kalsın */
 const nowMs = () => Date.now();
@@ -45,8 +49,12 @@ export function AnalysisMenu({ title }: { title: string }) {
   );
 }
 
-/** Dönem türünün adı — şeridin özetinde */
-const KIND_LABEL: Record<Period["kind"], MessageKey> = {
+/** Kaydırarak aç/kapa için en kısa dikey yol (px) */
+const SWIPE_PX = 28;
+
+
+/** Dönem türünün adı — daraltılmış başın özetinde ve sayfa başının dönem hücresinde */
+export const KIND_LABEL: Record<Period["kind"], MessageKey> = {
   day: "range.day",
   week: "range.week",
   month: "range.month",
@@ -56,35 +64,63 @@ const KIND_LABEL: Record<Period["kind"], MessageKey> = {
 };
 
 /**
- * Analizlerin üst menüsü (Brütal) — Takvim'in ve Gün'ün şeridi gibi ince:
- * kenardan kenara Analiz mavisi, altında kalın çizgi, yapışkan. İki uçta
- * sönük ‹ › (önceki / sonraki dönem; tamamen gelecekteki döneme gidilmez),
- * ortada dönemin adı, altında neye bakıldığı: siyah dönem türü etiketi,
- * yerin kapsülü (kare = kategori, kendi renginde) ve varsa özelliğinki
- * (daire = özellik).
+ * Analizlerin üst bölümü (Brütal) — kontrol bloğu. Kenardan kenara Analiz
+ * mavisinde yapışkan şerit (durum çubuğu da mavi); içinde Ara'nın süzgeç
+ * bloğunun dilinde tek çerçeveli blok, satırları arasında 2 px çizgi:
  *
- * Seçimler (yer, dönem türü, özellik) artık sayfanın başında (bkz.
- * PeriodView'in baş bloğu) — ana sayfa ve gün sayfası gibi: üstte ince
- * menü, beyaz zeminin tepesinde baş, altında pencereler. Eskiden hepsi bu
- * şeridin içinde, küçültülebilen tek çerçeveli bir bloktu (182 px, yapışkan);
- * küçükken kalan hali şimdiki şerit. Kaydırınca baş yukarıda kalır, şerit
- * neye bakıldığını söylemeye devam eder.
+ *  1. Dönem türü — eşit bölmeli anahtar (Gün · Hafta · Ay · Yıl · Tümü),
+ *     seçili bölme siyah; sonda takvim bölmesi (tarihe ya da aralığa atla).
+ *  2. Dönem — açık mavi satırda çerçeveli ‹ › düğmeleri, ortada dönemin adı
+ *     ve kısa özeti ("38 girdi · 6/7. gün"); ileri düğme tamamen
+ *     gelecekteki döneme gitmez.
+ *  3. Yer · Özellik — iki hücre (bkz. ScopePickers).
+ *
+ * Küçültülebilir: şeritte yukarı kaydırmak küçültür, aşağı kaydırmak
+ * büyütür; bloğun altındaki tutma çubuğuna dokunmak da. Küçükken yalnız
+ * dönem satırı kalır — oklar yerinde, ortada dönemin adı ve altında neye
+ * bakıldığı ("Hafta · Harcamalar · Para"); ortaya dokunmak da açar. Analiz
+ * her açılışta açık başlar. Satırlar kayarak kapanır. Tutamak önce şeridin alt
+ * çizgisinden sarkan oklu bir dildi — kullanıcıya göre fazla çıkıntılıydı.
+ *
+ * Şeritte sayfa kaydırılmaz (touch-action: none): parmak orada çekmeceyi
+ * tutar. Kaydırma bitince parmağın altındaki düğme basılmış sayılmaz.
+ *
+ * Analizlerde aşağı inerken ekranın üstünde kalır; altındaki beyaz zeminde
+ * yalnız analizler. Bölümün adı yazmıyor — alt menü ve bloğun kendisi
+ * nerede olunduğunu söylüyor (okuyucu için gizli başlık var).
+ *
+ * Önceki denemeler: şeritte dönem + türler + seçiciler (155 px); seçiciler
+ * pencerenin benekli başlık çubuğunda; üstte "Analiz" şeridi, altında
+ * benekli çubukta soluk oklar, kapsül sekmeler ve gölgeli kart — üç ayrı
+ * dil üst üste, kullanıcı beğenmedi.
+ *
+ * `children` yokken (yüklenirken) seçicilerin yerinde aynı boyda boş satır:
+ * seçiciler gelince blok zıplamasın.
  */
 export function AnalysisDeck({
   period,
   onPick,
+  sub,
   scope,
+  children,
 }: {
   period: Period;
   /** Verilirse dönem URL'ye gitmek yerine buraya bildirilir (sayfa içi seçici) */
   onPick?: (p: Period) => void;
-  /** Neye bakılıyor — yer (kategorinin rengiyle) ve varsa özellik */
+  /** Dönemin adının altındaki satır */
+  sub?: ReactNode;
+  /** Küçükken özette: neye bakılıyor — yer (kategorinin rengiyle) ve varsa özellik */
   scope?: DeckScope;
+  /** Yer · Özellik seçicileri */
+  children?: ReactNode;
 }) {
   const t = useT();
   // Etiket bu dille — period.label sunucuyla tutmuyordu (bkz. periodLabel)
   const locale = useLocale();
   const router = useRouter();
+  // Hep açık başlar; küçültmek yalnız bu ziyaret için. Bir ara cihazda
+  // hatırlanıyordu — kullanıcı her açılışta açık görmek istedi
+  const [small, setSmall] = useState(false);
   const go = (p: Period | null) => {
     if (!p) return;
     if (onPick) onPick(p);
@@ -94,31 +130,123 @@ export function AnalysisDeck({
   const next = shiftPeriod(period, 1);
   // Tamamen gelecekte kalan döneme gidilmez; "Tümü"nün yönü yok
   const nextDisabled = !next || next.start > nowMs();
+  const toggle = () => setSmall((v) => !v);
+
+  // Kaydırarak aç/kapa — şeritte basılan yerden bırakılan yere dikey yol.
+  // Bırakma şeridin dışında da olabilir: pencereden dinlenir (yakalama
+  // değil — yakalama, içteki düğmelerin tıklamasını şeride çalardı)
+  const drag = useRef<{ y: number; x: number; id: number } | null>(null);
+  const swiped = useRef(false);
+  const end = useRef<((e: PointerEvent) => void) | null>(null);
+  useEffect(() => () => {
+    if (end.current) {
+      window.removeEventListener("pointerup", end.current);
+      window.removeEventListener("pointercancel", end.current);
+    }
+  }, []);
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    drag.current = { y: e.clientY, x: e.clientX, id: e.pointerId };
+    swiped.current = false;
+    const finish = (ev: PointerEvent) => {
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+      end.current = null;
+      const d = drag.current;
+      drag.current = null;
+      if (!d || ev.pointerId !== d.id || ev.type === "pointercancel") return;
+      const dy = ev.clientY - d.y;
+      // Dikey ve yeterince uzun: yan kaydırma ya da titrek dokunuş sayılmaz
+      if (Math.abs(dy) < SWIPE_PX || Math.abs(dy) < Math.abs(ev.clientX - d.x) * 1.5) return;
+      swiped.current = true;
+      setSmall(dy < 0);
+    };
+    end.current = finish;
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
+  };
+  // Kaydırmanın sonunda gelen tıklama yutulur (bırakılan yerdeki düğme basılmasın)
+  const onClickCapture = (e: React.MouseEvent) => {
+    if (!swiped.current) return;
+    swiped.current = false;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  // Küçükken özet renkli: siyah tür etiketi, yerin kapsülü kategorinin
+  // renginde (kare = kategori), özelliğinki özelliğin renginde (daire =
+  // özellik) — düz "Ay · Harcamalar · Para" yazısıydı
+  const summary = (
+    <span className="flex min-w-0 items-center justify-center gap-1">
+      <span className="shrink-0 rounded-[5px] bg-[#111] px-1.5 py-[3px] text-[10px] font-black leading-none text-white">
+        {t(KIND_LABEL[period.kind])}
+      </span>
+      {scope && <ScopeChip name={scope.place.name} color={scope.place.color} shape="square" />}
+      {scope?.feature && <ScopeChip name={scope.feature.name} color={scope.feature.color} shape="circle" />}
+    </span>
+  );
+
+  const label = (
+    <>
+      <h2 className="truncate text-[16px] font-black leading-tight tracking-tight">{periodLabel(period, locale)}</h2>
+      {small ? (
+        <div data-an-deck-summary="" className="mt-[3px] flex h-[18px] justify-center">
+          {summary}
+        </div>
+      ) : (
+        <p className="h-[14px] truncate text-[11px] font-bold leading-[14px] text-[#111]/60">{sub}</p>
+      )}
+    </>
+  );
 
   return (
-    <Band sticky>
+    <Band sticky className="touch-none select-none" onPointerDown={onPointerDown} onClickCapture={onClickCapture}>
       <h1 className="sr-only">{t("nav.insights")}</h1>
-      <div className="flex items-stretch px-1">
-        <StripArrow icon={ChevronLeft} label={t("insights.previousPeriod")} disabled={!prev} onClick={() => go(prev)} />
-        <div className="flex min-w-0 flex-1 flex-col items-center justify-center pb-[10px] pt-[11px] text-center text-[#111]">
-          <h2 data-an-period="" className="max-w-full truncate text-[19px] font-black leading-none tracking-[-0.02em]">
-            {periodLabel(period, locale)}
-          </h2>
-          <div data-an-scope="" className="mt-[6px] flex h-[19px] max-w-full items-center justify-center gap-1">
-            <span className="shrink-0 rounded-[5px] bg-[#111] px-1.5 py-[3px] text-[10px] font-black leading-none text-white">
-              {t(KIND_LABEL[period.kind])}
-            </span>
-            {scope && <ScopeChip name={scope.place.name} color={scope.place.color} shape="square" />}
-            {scope?.feature && <ScopeChip name={scope.feature.name} color={scope.feature.color} shape="circle" />}
+      <div className="px-2.5 pt-2.5">
+        <section
+          data-an-deck=""
+          data-small={small ? "" : undefined}
+          aria-label={t("insights.period")}
+          className="flex flex-col overflow-hidden rounded-[16px] border-2 border-[#111] bg-white text-[#111] shadow-[3px_3px_0_#111]"
+        >
+          <Fold open={!small}>
+            <div className="border-b-2 border-[#111] bg-white p-1.5">
+              <PeriodTabs period={period} onPick={onPick} deck />
+            </div>
+          </Fold>
+          <div className="flex items-center gap-2 px-1.5 py-1.5" style={{ background: PERIOD_TINT }}>
+            <Arrow icon={ChevronLeft} label={t("insights.previousPeriod")} disabled={!prev} onClick={() => go(prev)} />
+            {small ? (
+              <button type="button" onClick={toggle} aria-label={t("an.deck.expand")} className="min-w-0 flex-1 text-center">
+                {label}
+              </button>
+            ) : (
+              <div className="min-w-0 flex-1 text-center">{label}</div>
+            )}
+            <Arrow icon={ChevronRight} label={t("insights.nextPeriod")} disabled={nextDisabled} onClick={() => go(next)} />
           </div>
-        </div>
-        <StripArrow icon={ChevronRight} label={t("insights.nextPeriod")} disabled={nextDisabled} onClick={() => go(next)} />
+          <Fold open={!small}>
+            <div className="border-t-2 border-[#111]">{children ?? <div className="h-[48px] bg-white" />}</div>
+          </Fold>
+        </section>
       </div>
+      {/* Tutma çubuğu — şeridin içinde, bloğun altında; dokununca da açar/kapar.
+          Dokunma alanı çubuktan geniş (64×18 px) */}
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={!small}
+        aria-label={small ? t("an.deck.expand") : t("an.deck.collapse")}
+        title={small ? t("an.deck.expand") : t("an.deck.collapse")}
+        data-an-deck-toggle=""
+        className="group mx-auto flex h-[18px] w-16 items-center justify-center"
+      >
+        <span className="h-[5px] w-9 rounded-full bg-[#111]/35 transition-colors group-active:bg-[#111]/60" />
+      </button>
     </Band>
   );
 }
 
-/** Şeridin özeti — neye bakılıyor */
+/** Küçük bloğun özeti — neye bakılıyor */
 export type DeckScope = {
   place: { name: string; color: string };
   feature?: { name: string; color: string };
@@ -141,8 +269,21 @@ function ScopeChip({ name, color, shape }: { name: string; color: string; shape:
   );
 }
 
-/** Komşu dönem — Takvim'in ay okları gibi sönük, çerçevesiz */
-function StripArrow({
+/** Boyuna açılıp kapanan satır — yüksekliği kayarak (grid satırı 0fr ↔ 1fr) */
+function Fold({ open, children }: { open: boolean; children: ReactNode }) {
+  return (
+    <div
+      className={cn("grid transition-[grid-template-rows] duration-200 ease-out", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}
+      // Kapalıyken içindekiler odak almasın, okuyucuya görünmesin
+      inert={!open}
+    >
+      <div className="min-h-0 overflow-hidden">{children}</div>
+    </div>
+  );
+}
+
+/** Komşu dönem — çerçeveli kare düğme (Ara'nın dönem okları gibi) */
+function Arrow({
   icon: Icon,
   label,
   disabled,
@@ -160,9 +301,9 @@ function StripArrow({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="flex w-10 shrink-0 items-center justify-center text-[#111]/60 active:text-[#111] disabled:opacity-30"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border-[1.5px] border-[#111] bg-white text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none disabled:opacity-25 disabled:shadow-none"
     >
-      <Icon className="h-5 w-5" strokeWidth={2.5} />
+      <Icon className="h-[18px] w-[18px]" strokeWidth={2.75} />
     </button>
   );
 }
