@@ -18,10 +18,9 @@ import type { SubCategory } from "@/types";
 import { toLocalDateValue } from "@/lib/utils";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
-import { BrutSubsBlock, BrutThingSummary, useIsBrutal } from "@/components/structure/brutal";
+import { BrutSubsBlock, summaryStats, useIsBrutal } from "@/components/structure/brutal";
 import { StructureHeader } from "@/components/structure/structure-header";
-import { StructureTrail } from "@/components/structure/structure-trail";
-import { StructureHead, useRootCount } from "@/components/structure/structure-head";
+import { StructureHead } from "@/components/structure/structure-head";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SubCategoryForm } from "@/components/structure/subcategory-form";
@@ -52,7 +51,6 @@ export function CategoryDetailPage({
   const [entryOpen, setEntryOpen] = useState(false);
   const [entrySub, setEntrySub] = useState<SubCategory | null>(null);
   const [today] = useState(() => toLocalDateValue());
-  const rootCount = useRootCount("categories");
 
   // Brütal tema: renkli başlık kartı ve sayılar
   const brutal = useIsBrutal();
@@ -132,23 +130,25 @@ export function CategoryDetailPage({
       />
         )}
       >
-      {brutal && (
-        <StructureHead upHref="/structure" count={rootCount} rows={<StructureTrail categoryId={categoryId} />} />
-      )}
-      {/* Brütal: başlık ve sayılar tek blokta (bkz. BrutThingSummary) */}
+      {/* Brütal: sayfa başı (bkz. StructureHead) — kategorinin renginde adı,
+          Düzenle ve Sil, sayıları; en altta Analiz bandı ve alt kategorilerin
+          girdi payı */}
       {brutal && category && (
-        <BrutThingSummary
-          color={category.color}
-          icon={category.icon}
-          overline={t("brut.category")}
-          title={category.name}
-          summary={summary}
-          tools={{
-            analyticsHref: routes.analyticsCategory(categoryId),
-            onEdit: () => setCatFormOpen(true),
-            onDelete: onDeleteCategory,
+        <StructureHead
+          lead={{ kind: "thing", color: category.color, icon: category.icon, overline: t("brut.category"), title: category.name }}
+          edit={() => setCatFormOpen(true)}
+          remove={onDeleteCategory}
+          stats={summaryStats(summary, t)}
+          link={{
+            href: routes.analyticsCategory(categoryId),
+            label: t("yhead.insights.category"),
+            color: "#8ea6ff",
+            icon: BarChart3,
+            bars: tree?.subs
+              .filter((s) => s.categoryId === categoryId && !s.parentId)
+              .map((s) => ({ key: s.id, color: category.color, title: s.name, weight: tree.counts.get(s.id) ?? 0 }))
+              .filter((b) => b.weight > 0),
           }}
-          className="mb-4"
         />
       )}
 

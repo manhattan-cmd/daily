@@ -1,84 +1,79 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import Link from "next/link";
-import { ChevronLeft, CornerDownRight, Plus, Search, X } from "lucide-react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
-import { listUserCategories } from "@/lib/db/queries";
+import { CornerDownRight, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { useRoutePath } from "@/lib/use-route-path";
-import { SummaryEmpty } from "@/components/ui/summary-block";
-import { STRUCTURE_TABS, structureTabIndex } from "./structure-tabs";
-import { blockFill, fillStyle } from "@/lib/fill";
+import {
+  SummaryBlock,
+  SummaryEmpty,
+  SummaryTile,
+  type SummaryLead,
+  type SummaryLink,
+  type SummaryStat,
+} from "@/components/ui/summary-block";
 
 /** Yapı'nın sarısı — şerit, sayfa başı ve sekmenin şekli */
-const YAPI = "#ffd23f";
-
-/** Bölüm bantlarının tram benekleri (bkz. SummaryBlock link, globals.css) */
-const BAND = {
-  ["--fc" as string]: YAPI,
-  backgroundColor: blockFill(YAPI),
-  backgroundImage: "radial-gradient(var(--dot) 1.2px, transparent 1.5px)",
-  backgroundSize: "11px 11px",
-};
-
-/** Bantta duran kare düğme — Ara ve Ekle aynı boyda */
-const HEAD_BTN =
-  "flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-line text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none";
+export const YAPI = "#ffd23f";
 
 /**
  * Yapı sayfalarının başı (Brütal) — Harita dışındaki bütün Yapı sayfalarında
- * aynı: beyaz pencerenin (bkz. PageSheet) başlık çubuğu. Pencerenin
- * tepesine kenardan kenara oturur, köşeleri pencereninkiyle bir; altında
- * şeritteki gibi kalın siyah çizgi. İçerik blokları onun altında başlar.
+ * ana sayfanın Bugün'ü ve gün sayfasının özetiyle AYNI blok (bkz.
+ * SummaryBlock head): beyaz pencerenin tepesine kenardan kenara oturan
+ * başlık; benekli ad hücresi, yanında adlı kare karolar, altında üç sayı,
+ * en altta gidilecek yerin bandı.
  *
- *  - Baş satırı: bölüm bantlarının benekli Yapı sarısında sekmenin şekli
- *    (kare = kategori, daire = özellik…), sayfanın adı ve kaç tane olduğu
- *    ("26 özellik"); sağda bandın üstünde aynı boyda iki kare düğme — Ara
- *    (beyaz) ve Ekle (yeşil, artı). Ana sayfa şeridinin düğmeleri gibi.
- *  - Konum yolu (kategori, alt kategori, liste, nesne sayfaları): baş
- *    satırının altında "↳ Harcamalar › Alışveriş › ■ Ev eşyası". Baş satırı
- *    o sayfalarda sekmenin köküne çıkar.
- *  - Ara'ya basınca arama satırı açılır; kapatınca arama silinir.
+ *  - Liste sayfaları (Kategoriler, Özellikler, Nesneler, Girdiler, Notlar):
+ *    ad hücresi Yapı sarısında "KATEGORİLER · 10 kategori"; karolar Ara
+ *    (beyaz; açıkken Kapat) ve Ekle (yeşil, ne ekleneceği yazılı).
+ *  - Kalem sayfaları (kategori, alt kategori, liste, nesne): ad hücresi
+ *    kalemin kendi renginde, simgesi ve adı; karolar Düzenle ve Sil; altında
+ *    "↳ Harcamalar › Ulaşım" (bunun içinde); en altta Analiz bandı.
+ *  - Ara'ya basınca arama satırı başın içinde açılır; kapatınca silinir.
  *  - Hiç kayıt yoksa boş pencere başın altında ayrı durur.
  *
- * İlk hali içerik bloklarıyla aynı çerçeveli, gölgeli bir bloktu (sağında
- * tam boy karolar): kullanıcıya göre başı pencerenin geri kalanından ayıran
- * bir şey yoktu. Daha önce de sarı üst menünün içinde beyaz bir karttı —
- * menü 117 px tutuyordu; ekle düğmesi yazılı kapsüldü ("+ Özellik", "+ Yeni
- * liste"), her sayfada başka boyda; arama kutusu hep açıktı.
+ * Önceki hali (2026-11-21) ince bir başlık çubuğuydu: sekmenin şekli, adı,
+ * sayısı ve 40 px kare Ara / + düğmeleri. Kalem sayfalarında çubuk sekmenin
+ * kökünü yazıyor, kalemin adı ve sayıları altındaki ikinci blokta
+ * duruyordu — iki baş üst üste. Kullanıcı Yapı'nın da ana sayfa ve gün
+ * sayfası gibi baştan başlamasını istedi (2026-11-25).
  */
 export function StructureHead({
-  count,
-  upHref,
+  lead,
+  stats = [],
   add,
+  edit,
+  remove,
   search,
   searchRow,
   onCloseSearch,
   rows,
+  link,
   empty,
 }: {
-  /** Başın alt satırı — "26 özellik"; yüklenirken boş */
-  count?: string;
-  /** Verilirse baş satırı sekmenin köküne bağlantı (alt sayfalar) */
-  upHref?: string;
-  /** Ekle düğmesi — label ekran okuyucuya ne ekleneceğini söyler */
+  /** Ad hücresi — liste sayfasında sayı (count), kalem sayfasında kalem (thing) */
+  lead: SummaryLead;
+  /** Üç sayı; yüklenirken boş (satır çizilmez) */
+  stats?: SummaryStat[];
+  /** Ekle karosu — label karonun adı ("Kategori ekle") */
   add?: { label: string; onClick: () => void };
-  /** Verilirse Ara düğmesi ve arama satırı */
+  /** Kalem sayfası: Düzenle karosu */
+  edit?: () => void;
+  /** Kalem sayfası: Sil karosu */
+  remove?: () => void;
+  /** Verilirse Ara karosu ve arama satırı */
   search?: { value: string; onChange: (q: string) => void; placeholder: string };
   /** Arama satırı yerine (Özellikler: tür süzgeçli arama) — autoFocus alır */
   searchRow?: (autoFocus: boolean) => ReactNode;
   /** Arama kapanınca (Özellikler: tür süzgeci de sıfırlanır — gizli kalmasın) */
   onCloseSearch?: () => void;
-  /** Baş satırının altındaki satırlar (konum yolu, görünüm anahtarı) */
+  /** Ad satırının altındaki satırlar (konum yolu, görünüm anahtarı) */
   rows?: ReactNode;
+  /** En alttaki band (Analiz, Takvim) ve dağılım şeridi */
+  link?: SummaryLink;
   /** Hiç kayıt yok — başın altında küçük boş pencere */
   empty?: { text: string; action: { label: string; onClick: () => void } };
 }) {
   const t = useT();
-  const path = useRoutePath();
-  const tab = STRUCTURE_TABS[structureTabIndex(path)];
   // Adresten aranmış gelindiyse (Ara'nın özellik sonucu) açık başlar
   const [open, setOpen] = useState(() => !!search?.value);
   // Düğmeyle açıldıysa kutuya odaklan; açılışta açıksa klavye kendiliğinden açılmasın
@@ -96,76 +91,42 @@ export function StructureHead({
     }
   }
 
-  const title = t(tab?.key ?? "structure.title");
-  const name = (
-    <>
-      {upHref && <ChevronLeft aria-hidden className="-ml-1 -mr-1.5 h-4 w-4 shrink-0 opacity-60" strokeWidth={3} />}
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-line bg-paper">
-        {tab && <tab.icon aria-hidden className="h-5 w-5" strokeWidth={2.6} fill={YAPI} />}
-      </span>
-      <span className="min-w-0 flex-1">
-        <h1 className="truncate text-[19px] font-black leading-tight tracking-tight">{title}</h1>
-        {/* Sayı yüklenene dek yer tutar, baş zıplamasın */}
-        <span className="block h-4 truncate text-[12px] font-bold leading-4 opacity-65">{count}</span>
-      </span>
-    </>
-  );
+  const actions: ReactNode[] = [];
+  if (search)
+    actions.push(
+      <SummaryTile
+        color="#ffffff"
+        icon={searching ? X : Search}
+        label={searching ? t("action.close") : t("action.search")}
+        pressed={searching}
+        onClick={toggleSearch}
+      />
+    );
+  if (add) actions.push(<SummaryTile color="#7ae582" icon={Plus} label={add.label} onClick={add.onClick} />);
+  if (edit) actions.push(<SummaryTile color="#ffffff" icon={Pencil} label={t("action.edit")} onClick={edit} />);
+  if (remove) actions.push(<SummaryTile color="#ff6b6b" icon={Trash2} label={t("action.delete")} onClick={remove} />);
 
   return (
     <>
-      <section
-        data-structure-head=""
-        aria-label={title}
-        // Pencerenin iç payını (yanlarda 6, üstte 12 px) aşıp kenardan kenara
-        className="-mx-1.5 -mt-3 mb-4 grid grid-cols-1 gap-[2px] overflow-hidden rounded-t-[18px] border-b-[3px] border-line bg-line"
-      >
-        <div className="flex min-h-[66px] items-center gap-2 py-2.5 pl-3 pr-2.5 text-ink" style={BAND}>
-          {upHref ? (
-            <Link
-              href={upHref}
-              prefetch={false}
-              aria-label={title}
-              className="-my-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-[12px] py-1 active:bg-ink/[0.06]"
-            >
-              {name}
-            </Link>
-          ) : (
-            <div className="flex min-w-0 flex-1 items-center gap-2.5">{name}</div>
-          )}
-          {search && (
-            <button
-              type="button"
-              onClick={toggleSearch}
-              aria-label={searching ? t("action.close") : t("action.search")}
-              title={searching ? t("action.close") : t("action.search")}
-              aria-pressed={searching}
-              className={HEAD_BTN}
-              style={{ background: searching ? "var(--well)" : "var(--paper)", color: searching ? "#ffffff" : "var(--ink)" }}
-            >
-              {searching ? <X className="h-[18px] w-[18px]" strokeWidth={2.75} /> : <Search className="h-[18px] w-[18px]" strokeWidth={2.75} />}
-            </button>
-          )}
-          {add && (
-            <button
-              type="button"
-              onClick={add.onClick}
-              aria-label={`${t("action.add")}: ${add.label}`}
-              title={`${t("action.add")}: ${add.label}`}
-              className={HEAD_BTN}
-              style={fillStyle("#7ae582")}
-            >
-              <Plus className="h-5 w-5" strokeWidth={3} />
-            </button>
-          )}
-        </div>
-        {rows}
-        {searching &&
-          (searchRow ? (
-            searchRow(focus)
-          ) : (
-            <HeadSearch value={search.value} onChange={search.onChange} placeholder={search.placeholder} autoFocus={focus} />
-          ))}
-      </section>
+      <SummaryBlock
+        head
+        className="mb-4"
+        lead={lead}
+        actions={actions}
+        below={
+          <>
+            {rows}
+            {searching &&
+              (searchRow ? (
+                searchRow(focus)
+              ) : (
+                <HeadSearch value={search.value} onChange={search.onChange} placeholder={search.placeholder} autoFocus={focus} />
+              ))}
+          </>
+        }
+        stats={stats}
+        link={link}
+      />
       {empty && (
         <div className="mb-4 overflow-hidden rounded-[18px] border-2 border-line shadow-[4px_4px_0_var(--shade)]">
           <SummaryEmpty text={empty.text} action={empty.action} />
@@ -214,23 +175,7 @@ function HeadSearch({
   );
 }
 
-/**
- * Sekme kökünün sayısı — alt sayfaların başı da kökünkini yazar
- * ("Kategoriler · 10 kategori" kategori sayfasında da)
- */
-export function useRootCount(root: "categories" | "objects"): string | undefined {
-  const t = useT();
-  // Sorgu yalnız sayıları döndürür: t her çizimde yeni işlev, bağımlılıkta döngü kurar
-  const n = useLiveQuery(async () => {
-    if (root === "categories") return { n: (await listUserCategories()).length, things: 0 };
-    const [cols, things] = await Promise.all([db.collections.count(), db.things.filter((th) => !th.archivedAt).count()]);
-    return { n: cols, things };
-  }, [root]);
-  if (!n) return undefined;
-  return root === "categories" ? t("struct.cats.count", { n: n.n }) : t("struct.lists.count", n);
-}
-
-/** Konum yolu satırı — baş satırının altında; önünde ↳: "bunun içinde" */
+/** Konum yolu satırı — ad satırının altında; önünde ↳: "bunun içinde" */
 export function HeadTrailRow({ children }: { children: ReactNode }) {
   return (
     <div data-structure-trail-row="" className="flex min-w-0 items-center bg-paper pl-2.5">
@@ -239,3 +184,15 @@ export function HeadTrailRow({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+/** Pazartesiden başlayan bu haftanın ve bu ayın ilk anı (yerel saat) */
+export function periodStarts(now = new Date()): { today: number; week: number; month: number } {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const dow = (now.getDay() + 6) % 7;
+  const week = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow).getTime();
+  const month = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  return { today, week, month };
+}
+
+/** Sayı — Türkçe biçimde, 3 basamağı aşan "999+" değil tam (başın sayıları) */
+export const headNum = (n: number) => n.toLocaleString("tr-TR", { maximumFractionDigits: 0 });

@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Archive, ArchiveRestore, ChevronRight, Diamond, Plus, X } from "lucide-react";
+import { Archive, ArchiveRestore, BarChart3, ChevronRight, Circle, Diamond, List as ListIcon, Plus, X } from "lucide-react";
+import { SummaryBlock, SummaryEmpty, SummaryTile } from "@/components/ui/summary-block";
 import { db } from "@/lib/db";
 import {
   addThingExtraMod,
@@ -17,9 +18,9 @@ import {
   thingEntries,
 } from "@/lib/db/things";
 import { measureOf } from "@/lib/db/queries";
-import { BrutThingSummary } from "@/components/structure/brutal";
+import { lastEntry } from "@/components/structure/brutal";
 import { StructureHeader } from "@/components/structure/structure-header";
-import { StructureHead, useRootCount } from "@/components/structure/structure-head";
+import { StructureHead, headNum, periodStarts } from "@/components/structure/structure-head";
 import { ObjectTrail } from "@/components/structure/structure-trail";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
 import { modAtomIcon } from "@/components/structure/mod-atom";
@@ -40,15 +41,12 @@ import type { Mod } from "@/types";
 import { PageSheet } from "@/components/ui/layer";
 import { blockInk, fillStyle } from "@/lib/fill";
 
-const H2 = "mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
-
 export function ThingScreen({ thingId }: { thingId: string }) {
   const t = useT();
   const router = useRouter();
   const [pickOpen, setPickOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
-  const rootCount = useRootCount("objects");
 
   const data = useLiveQuery(async () => {
     const th = await db.things.get(thingId);
@@ -94,6 +92,8 @@ export function ThingScreen({ thingId }: { thingId: string }) {
       current: values,
       entries: shown,
       total: entries.length,
+      month: entries.filter((e) => e.occurredAt >= periodStarts().month).length,
+      lastAt: entries[0]?.occurredAt as number | undefined,
       facts,
       subs: new Map(subs.map((s) => [s.id, s])),
       cats: new Map(cats.map((x) => [x.id, x])),
@@ -103,11 +103,9 @@ export function ThingScreen({ thingId }: { thingId: string }) {
   if (data === undefined) return null;
   if (data === null)
     return (
-      <PageSheet top={<StructureHeader />}>
-        <StructureHead upHref="/structure/objects" count={rootCount} />
-      </PageSheet>
+      <PageSheet top={<StructureHeader />}>{null}</PageSheet>
     );
-  const { th, c, mods, entries, total, facts, subs, cats } = data;
+  const { th, c, mods, entries, total, month, lastAt, facts, subs, cats } = data;
   const { current } = data;
   const color = c?.color ?? "#94a3b8";
   const back = c ? routes.structureCollection(c.id) : "/structure/objects";
@@ -136,19 +134,20 @@ export function ThingScreen({ thingId }: { thingId: string }) {
     // Yapı'nın şeridi ve sayfa başı (bkz. StructureHead) — konum yolunda
     // liste › nesne; analiz · düzenle · sil özet bloğunda (bkz. liste sayfası)
     <PageSheet top={<StructureHeader />}>
-      <StructureHead upHref="/structure/objects" count={rootCount} rows={<ObjectTrail collection={c} thing={th} />} />
-      <BrutThingSummary
-        color={color}
-        icon={c?.icon}
-        glyph={Diamond}
-        overline={c?.name ?? ""}
-        title={th.name}
-        tools={{
-          analyticsHref: routes.analyticsThing(thingId),
-          onEdit: () => setRenameOpen(true),
-          onDelete,
-        }}
-        className="mb-6"
+      {/* Sayfa başı (bkz. StructureHead) — nesnenin adı listesinin renginde,
+          Düzenle ve Sil; altında "↳ Kitaplarım" (bunun içinde), sayıları ve
+          Analiz bandı */}
+      <StructureHead
+        lead={{ kind: "thing", color, icon: c?.icon, glyph: c?.icon ? undefined : Diamond, overline: t("yhead.thing"), title: th.name }}
+        edit={() => setRenameOpen(true)}
+        remove={onDelete}
+        rows={<ObjectTrail collection={c} thing={th} ancestors />}
+        stats={[
+          { label: t("brut.entries"), value: headNum(total), color: "#8ea6ff" },
+          { label: t("brut.thisMonth"), value: headNum(month), color: "#7ae582" },
+          { label: t("brut.lastEntry"), ...lastEntry(lastAt, t), color: "#ffb38a" },
+        ]}
+        link={{ href: routes.analyticsThing(thingId), label: t("yhead.insights.thing"), color: "#8ea6ff", icon: BarChart3 }}
       />
 
       {/* Arşiv durumu */}
@@ -172,9 +171,25 @@ export function ThingScreen({ thingId }: { thingId: string }) {
 
       {/* Özellikler — güncel durum, son girdisinden; yeni değer "Durum gir"le
           girdi olarak yazılır (geçmişi kalır) */}
-      <section className="mb-6">
-        <h2 className={H2}>{t("objects.thingFeatures")}</h2>
-        <div className="flex flex-col gap-2">
+      <SummaryBlock
+        className="mb-4"
+        compact
+        lead={{
+          kind: "count",
+          color: "#c9b8ff",
+          glyph: Circle,
+          overline: t("objects.thingFeatures"),
+          value: String(mods.length),
+          unit: t("struct.features.unit"),
+        }}
+        action={<SummaryTile compact color="#7ae582" icon={Plus} label={t("entry.addFeature")} onClick={() => setPickOpen(true)} />}
+        stats={[]}
+      >
+        {mods.length === 0 && (
+          <SummaryEmpty text={t("struct.features.empty")} action={{ label: t("action.add"), onClick: () => setPickOpen(true) }} />
+        )}
+        {mods.length > 0 && (
+        <div data-thing-states="" className="flex flex-col gap-2 bg-paper p-2.5">
           {mods.map((m) => {
             const cur = current[m.id];
             const n = cur ? Number(cur.value) : NaN;
@@ -233,26 +248,28 @@ export function ThingScreen({ thingId }: { thingId: string }) {
               {t("objects.logState")}
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setPickOpen(true)}
-            className="flex h-9 items-center gap-1.5 self-start rounded-full px-3 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-[var(--sf-2)] hover:text-foreground"
-          >
-            <Plus className="h-4 w-4" />
-            {t("entry.addFeature")}
-          </button>
         </div>
-      </section>
+        )}
+      </SummaryBlock>
 
       {/* Bu nesnenin girdileri — kategoriden bağımsız tek zaman çizgisi */}
-      <section className="mb-8">
-        <h2 className={H2}>
-          {t("objects.entries")} · {total}
-        </h2>
+      <SummaryBlock
+        className="mb-8"
+        compact
+        lead={{
+          kind: "count",
+          color: "#ffb38a",
+          glyph: ListIcon,
+          overline: t("objects.entries"),
+          value: String(total),
+          unit: t("home.entries"),
+        }}
+        stats={[]}
+      >
         {entries.length === 0 ? (
-          <p className="px-1 text-[12px] text-muted-foreground">{t("objects.noEntries")}</p>
+          <SummaryEmpty text={t("objects.noEntries")} />
         ) : (
-          <div className="flex flex-col gap-1.5">
+          <div data-thing-entries="" className="flex flex-col gap-1.5 bg-paper p-2.5">
             {entries.map((e) => {
               const sub = subs.get(e.subcategoryId);
               const cat = sub ? cats.get(sub.categoryId) : undefined;
@@ -292,7 +309,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
             })}
           </div>
         )}
-      </section>
+      </SummaryBlock>
 
       <ThingEntrySheet open={logOpen} onClose={() => setLogOpen(false)} thingId={thingId} />
       <ModPickDialog

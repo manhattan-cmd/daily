@@ -9,7 +9,7 @@ import { listCollections } from "@/lib/db/things";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CollectionForm } from "@/components/structure/collection-form";
 import { StructureAddButton, StructureHeader } from "@/components/structure/structure-header";
-import { StructureHead } from "@/components/structure/structure-head";
+import { StructureHead, YAPI, headNum } from "@/components/structure/structure-head";
 import { SymbolIcon } from "@/lib/icons";
 import { SmartText } from "@/components/ui/smart-text";
 import { useT } from "@/lib/i18n";
@@ -50,6 +50,11 @@ export default function ObjectsPage() {
       return { c, total: mine.length, active: live.length, live };
     });
   }, []);
+  // Başın üçüncü sayısı: nesne iliştirilmiş girdi (bir girdi bir kez sayılır)
+  const uses = useLiveQuery(async () => {
+    const ids = (await db.things.toCollection().primaryKeys()) as string[];
+    return ids.length ? db.entries.where("thingIds").anyOf(ids).distinct().count() : 0;
+  }, []);
   // Arama listenin ve nesnelerin adında: liste adı uyarsa bütün nesneleri,
   // yalnız nesne uyarsa o nesneler görünür
   const [query, setQuery] = useState("");
@@ -77,12 +82,21 @@ export default function ObjectsPage() {
       {/* Brütal: sayfa başı (bkz. StructureHead); hiç liste yoksa boş pencere başın içinde */}
       {brutal ? (
         <StructureHead
-          count={
-            data &&
-            t("struct.lists.count", {
-              n: data.length,
-              things: data.reduce((n, d) => n + d.active, 0),
-            })
+          lead={{
+            kind: "count",
+            color: YAPI,
+            overline: t("structure.objects"),
+            value: data ? headNum(data.length) : "–",
+            unit: t("yhead.unit.lists"),
+          }}
+          stats={
+            data && uses !== undefined
+              ? [
+                  { label: t("yhead.stat.things"), value: headNum(data.reduce((n, d) => n + d.active, 0)), color: "#7ae582" },
+                  { label: t("yhead.stat.archived"), value: headNum(data.reduce((n, d) => n + d.total - d.active, 0)), color: "#c9b8ff" },
+                  { label: t("yhead.stat.uses"), value: headNum(uses), color: "#8ea6ff" },
+                ]
+              : []
           }
           add={{ label: t("objects.addCollection"), onClick: () => setAddOpen(true) }}
           search={data?.length ? { value: query, onChange: setQuery, placeholder: t("structure.searchObjects") } : undefined}

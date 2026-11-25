@@ -5,14 +5,15 @@ import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { useLiveQuery } from "dexie-react-hooks";
 import { createNote, listAllNotes } from "@/lib/db/queries";
 import { StructureAddButton, StructureHeader } from "@/components/structure/structure-header";
-import { StructureHead } from "@/components/structure/structure-head";
+import { StructureHead, YAPI, headNum, periodStarts } from "@/components/structure/structure-head";
 import { NoteCard } from "@/components/notes/note-card";
 import { NoteWindow } from "@/components/notes/note-window";
 import type { Note } from "@/types";
 import { PageSheet } from "@/components/ui/layer";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { StructureSearch } from "@/components/structure/structure-search";
-import { useIsBrutal } from "@/components/structure/brutal";
+import { lastEntry, useIsBrutal } from "@/components/structure/brutal";
+import { StickyNote } from "lucide-react";
 import { DayCell, groupByDay, useDayLabel } from "@/components/ui/day-cell";
 
 /** Notların rengi — not kartının gül rengi (NOTE_COLOR), blokta açık tonu */
@@ -44,6 +45,14 @@ export default function StructureNotesPage() {
   const dayLabel = useDayLabel();
   const fmt = (n: number) => new Intl.NumberFormat(tag).format(n);
 
+  // Başın sayıları — notun günü (YYYY-MM-DD) yerel saatle
+  const dayMs = (d: string) => {
+    const [y, m, dd] = d.split("-").map(Number);
+    return new Date(y, m - 1, dd).getTime();
+  };
+  const starts = periodStarts();
+  const lastNote = notes?.length ? Math.max(...notes.map((n) => dayMs(n.date))) : undefined;
+
   // Yeni not pencerede açılır — kartlardaki notlar gibi
   const [newNoteId, setNewNoteId] = useState<string | null>(null);
   async function handleNewNote() {
@@ -66,8 +75,24 @@ export default function StructureNotesPage() {
       {/* Brütal: sayfa başı (bkz. StructureHead); hiç not yoksa boş pencere başın içinde */}
       {brutal ? (
         <StructureHead
-          count={notes && t("struct.notes.count", { n: notes.length })}
-          add={{ label: t("structure.addNote"), onClick: handleNewNote }}
+          lead={{
+            kind: "count",
+            color: YAPI,
+            overline: t("structure.notes"),
+            value: notes ? headNum(notes.length) : "–",
+            unit: t("notes.unit"),
+          }}
+          stats={
+            notes
+              ? [
+                  { label: t("yhead.stat.week"), value: headNum(notes.filter((n) => dayMs(n.date) >= starts.week).length), color: "#7ae582" },
+                  { label: t("brut.thisMonth"), value: headNum(notes.filter((n) => dayMs(n.date) >= starts.month).length), color: "#8ea6ff" },
+                  // Notların gül rengi (bkz. NOTES)
+                  { label: t("yhead.stat.lastNote"), ...lastEntry(lastNote, t), color: NOTES },
+                ]
+              : []
+          }
+          add={{ label: t("yhead.add.note"), onClick: handleNewNote }}
           search={notes?.length ? { value: query, onChange: setQuery, placeholder: t("note.searchNotes") } : undefined}
           empty={notes?.length === 0 ? { text: t("notes.none"), action: { label: t("action.create"), onClick: handleNewNote } } : undefined}
         />
@@ -81,12 +106,17 @@ export default function StructureNotesPage() {
           NOTLAR, altında "Henüz not yok" ve ufak Oluştur. */}
       {brutal ? (
         notes === undefined || notes.length === 0 ? null : (
+          // İnce baş (gün sayfasının Günün girdileri gibi): adı ve sağda sayı
+          // etiketi — sayfanın başı zaten "NOTLAR · 4 not"
           <SummaryBlock
             className="mb-6"
+            compact
+            dense
             lead={{
               kind: "count",
               color: NOTES,
-              overline: query.trim() ? t("notes.results") : t("structure.notes"),
+              glyph: StickyNote,
+              overline: query.trim() ? t("notes.results") : t("yhead.recentNotes"),
               value: query.trim() ? `${filtered.length}/${notes.length}` : String(notes.length),
               unit: t("notes.unit"),
             }}

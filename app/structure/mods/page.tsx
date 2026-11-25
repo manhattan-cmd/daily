@@ -45,7 +45,7 @@ import {
 import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
 import { FeatureFilter, type KindCount } from "@/components/structure/feature-filter";
 import { StructureAddButton, StructureHeader } from "@/components/structure/structure-header";
-import { StructureHead } from "@/components/structure/structure-head";
+import { StructureHead, YAPI, headNum } from "@/components/structure/structure-head";
 import {
   FormActions,
   FormSection,
@@ -318,8 +318,28 @@ function ModsHome() {
           süzgeçli arama başın içinde açılır; kapatınca arama da tür de sıfır */}
       {brutal ? (
         <StructureHead
-          count={mods && t("struct.features.count", { n: mods.length })}
-          add={{ label: t("structure.addFeature"), onClick: () => setCreateOpen(true) }}
+          lead={{
+            kind: "count",
+            color: YAPI,
+            overline: t("structure.features"),
+            value: mods ? headNum(mods.length) : "–",
+            unit: t("struct.features.unit"),
+          }}
+          stats={
+            mods && usage
+              ? (() => {
+                  const used = mods.filter((m) => (usage.get(m.id)?.count ?? 0) > 0).length;
+                  const values = [...usage.values()].reduce((n, u) => n + u.valueCount, 0);
+                  return [
+                    // Bir yere bağlı olan · hiçbir yere bağlı olmayan · girilmiş değer
+                    { label: t("yhead.stat.used"), value: headNum(used), color: "#7ae582" },
+                    { label: t("yhead.stat.unused"), value: headNum(mods.length - used), color: "#ffb38a" },
+                    { label: t("yhead.stat.values"), value: headNum(values), color: "#8ea6ff" },
+                  ];
+                })()
+              : []
+          }
+          add={{ label: t("yhead.add.feature"), onClick: () => setCreateOpen(true) }}
           search={{ value: search, onChange: setSearch, placeholder: t("features.searchPlaceholder") }}
           onCloseSearch={() => setKindFilter(null)}
           searchRow={(autoFocus) => (

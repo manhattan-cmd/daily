@@ -35,7 +35,17 @@ export type TrailStep = { key: string; label: string; href: string; fill: string
  * şerit; sönük yazılı düz yol; beyaz satırda gölgeli oklar; krem zeminde
  * aşağı kayan oklar.
  */
-export function StructureTrail({ categoryId, subId }: { categoryId: string; subId?: string }) {
+export function StructureTrail({
+  categoryId,
+  subId,
+  ancestors = false,
+}: {
+  categoryId: string;
+  subId?: string;
+  /** Yalnız üstleri (sayfa başında kalemin adı ad hücresinde): bulunulan
+   *  yer yazılmaz, hepsi bağlantı; üstü yoksa satır hiç çizilmez */
+  ancestors?: boolean;
+}) {
   // Kategori ve alt kategorinin üst zinciri (kökten bulunulan yere)
   const steps = useLiveQuery(async () => {
     const cat = await db.categories.get(categoryId);
@@ -57,22 +67,34 @@ export function StructureTrail({ categoryId, subId }: { categoryId: string; subI
     });
     return out;
   }, [categoryId, subId]);
+  if (ancestors) return steps && steps.length > 1 ? <TrailRow steps={steps.slice(0, -1)} linksOnly /> : null;
   return <TrailRow steps={steps ?? []} />;
 }
 
 /** Nesneler sekmesinin yolu: "↳ Kitaplarım › ■ Sapiens" */
-export function ObjectTrail({ collection, thing }: { collection: Collection | undefined; thing?: { id: string; name: string } }) {
+export function ObjectTrail({
+  collection,
+  thing,
+  ancestors = false,
+}: {
+  collection: Collection | undefined;
+  thing?: { id: string; name: string };
+  /** Yalnız üstleri (bkz. StructureTrail) */
+  ancestors?: boolean;
+}) {
   const color = collection?.color ?? "#94a3b8";
   const steps: TrailStep[] = [];
   if (collection) steps.push({ key: collection.id, label: collection.name, href: routes.structureCollection(collection.id), fill: color });
   if (thing) steps.push({ key: thing.id, label: thing.name, href: routes.structureThing(thing.id), fill: `color-mix(in srgb, ${color} calc(55% * var(--fill-scale)), var(--paper))` });
+  if (ancestors) return steps.length > 1 ? <TrailRow steps={steps.slice(0, -1)} linksOnly /> : null;
   return <TrailRow steps={steps} />;
 }
 
 /** Yolun kendisi — duraklar, sondaki bulunulan yer, kenar solmaları */
-export function TrailRow({ steps }: { steps: TrailStep[] }) {
+export function TrailRow({ steps, linksOnly = false }: { steps: TrailStep[]; linksOnly?: boolean }) {
   const t = useT();
-  const here = steps[steps.length - 1];
+  const here = linksOnly ? undefined : steps[steps.length - 1];
+  const links = linksOnly ? steps : steps.slice(0, -1);
   const pathKey = steps.map((s) => s.key).join("/");
 
   // Sona yaslı aç (boyamadan önce, kaydırma görünmesin); kenar gölgeleri
@@ -104,7 +126,7 @@ export function TrailRow({ steps }: { steps: TrailStep[] }) {
           onScroll={measure}
           className="no-scrollbar flex h-11 min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain px-2"
         >
-          {steps.slice(0, -1).map((s) => (
+          {links.map((s, i) => (
             <li key={s.key} className="flex flex-none items-center gap-1">
               <Link
                 href={s.href}
@@ -114,7 +136,9 @@ export function TrailRow({ steps }: { steps: TrailStep[] }) {
               >
                 {s.label}
               </Link>
-              <ChevronRight aria-hidden className="h-3.5 w-3.5 shrink-0 text-ink/45" strokeWidth={3} />
+              {(!linksOnly || i < links.length - 1) && (
+                <ChevronRight aria-hidden className="h-3.5 w-3.5 shrink-0 text-ink/45" strokeWidth={3} />
+              )}
             </li>
           ))}
           {/* Bulunulan yer — kısa yolda satırın kalanını doldurur, uzunsa kendi boyunda */}

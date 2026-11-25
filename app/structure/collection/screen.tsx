@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Boxes, ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { BarChart3, Boxes, ChevronDown, ChevronRight, Circle, Diamond, Plus } from "lucide-react";
+import { SummaryBlock, SummaryEmpty, SummaryTile } from "@/components/ui/summary-block";
 import { db } from "@/lib/db";
 import {
   addCollectionMod,
@@ -15,13 +16,11 @@ import {
   thingUsage,
 } from "@/lib/db/things";
 import { measureOf } from "@/lib/db/queries";
-import { BrutThingSummary } from "@/components/structure/brutal";
 import { StructureHeader } from "@/components/structure/structure-header";
-import { StructureHead, useRootCount } from "@/components/structure/structure-head";
-import { ObjectTrail } from "@/components/structure/structure-trail";
+import { StructureHead, headNum } from "@/components/structure/structure-head";
 import { CollectionForm } from "@/components/structure/collection-form";
 import { ModPickDialog } from "@/components/structure/mod-pick-dialog";
-import { ModAtom, ModAtomAdd, modAtomIcon } from "@/components/structure/mod-atom";
+import { ModAtom, modAtomIcon } from "@/components/structure/mod-atom";
 import { SmartText } from "@/components/ui/smart-text";
 import { confirmDialog } from "@/components/ui/confirm";
 import { modColor } from "@/lib/mod-color";
@@ -31,8 +30,6 @@ import { useT } from "@/lib/i18n";
 import type { Thing } from "@/types";
 import { PageSheet } from "@/components/ui/layer";
 
-const H2 = "mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
-
 export function CollectionScreen({ collectionId }: { collectionId: string }) {
   const t = useT();
   const router = useRouter();
@@ -40,7 +37,6 @@ export function CollectionScreen({ collectionId }: { collectionId: string }) {
   const [pickOpen, setPickOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [archiveOpen, setArchiveOpen] = useState(false);
-  const rootCount = useRootCount("objects");
 
   const data = useLiveQuery(async () => {
     const c = await db.collections.get(collectionId);
@@ -57,9 +53,7 @@ export function CollectionScreen({ collectionId }: { collectionId: string }) {
   if (data === undefined) return null;
   if (data === null) {
     return (
-      <PageSheet top={<StructureHeader />}>
-        <StructureHead upHref="/structure/objects" count={rootCount} />
-      </PageSheet>
+      <PageSheet top={<StructureHeader />}>{null}</PageSheet>
     );
   }
   const { c, mods, things, usage } = data;
@@ -119,95 +113,136 @@ export function CollectionScreen({ collectionId }: { collectionId: string }) {
     // "YAPI · Nesneler", analiz · düzenle · sil karoları); kategori
     // sayfalarındaki gibi analiz · düzenle · sil artık özet bloğunda
     <PageSheet top={<StructureHeader />}>
-      <StructureHead upHref="/structure/objects" count={rootCount} rows={<ObjectTrail collection={c} />} />
-      <BrutThingSummary
-        color={color}
-        icon={c.icon}
-        glyph={Boxes}
-        overline={t("objects.count", { n: things.length, active: active.length })}
-        title={c.name}
-        tools={{
-          analyticsHref: routes.analyticsCollection(collectionId),
-          onEdit: () => setEditOpen(true),
-          onDelete,
+      {/* Sayfa başı (bkz. StructureHead) — listenin renginde adı, Düzenle ve
+          Sil, sayıları; en altta Analiz bandı ve nesnelerin kullanım payı */}
+      <StructureHead
+        lead={{ kind: "thing", color, icon: c.icon, glyph: c.icon ? undefined : Boxes, overline: t("yhead.list"), title: c.name }}
+        edit={() => setEditOpen(true)}
+        remove={onDelete}
+        stats={[
+          { label: t("yhead.stat.things"), value: headNum(active.length), color: "#7ae582" },
+          { label: t("yhead.stat.archived"), value: headNum(archived.length), color: "#c9b8ff" },
+          { label: t("yhead.stat.uses"), value: headNum([...usage.values()].reduce((n, u) => n + u.count, 0)), color: "#8ea6ff" },
+        ]}
+        link={{
+          href: routes.analyticsCollection(collectionId),
+          label: t("yhead.insights.list"),
+          color: "#8ea6ff",
+          icon: BarChart3,
+          bars: things
+            .map((th) => ({ key: th.id, color, title: th.name, weight: usage.get(th.id)?.count ?? 0 }))
+            .filter((x) => x.weight > 0),
         }}
-        className="mb-6"
       />
 
-      {/* Her nesnenin özellikleri */}
-      <section className="mb-6">
-        <h2 className={H2}>{t("objects.features")}</h2>
-        <div className="grid grid-cols-4 gap-x-1.5 gap-y-1">
-          {mods.map((m) => (
-            <ModAtom
-              key={m!.id}
-              icon={modAtomIcon({ name: m!.name, entryType: measureOf(m!) })}
-              name={m!.name}
-              color={modColor(m!)}
-              onClick={async () => {
-                const ok = await confirmDialog({
-                  title: m!.name,
-                  body: t("objects.removeFeatureBody"),
-                  confirmLabel: t("action.delete"),
-                  destructive: true,
-                });
-                if (ok) await removeCollectionMod(collectionId, m!.id);
-              }}
-            />
-          ))}
-          <ModAtomAdd label={t("entry.addFeature")} onClick={() => setPickOpen(true)} />
-        </div>
-        <p className="mt-1 px-1 text-[11.5px] text-muted-foreground">{t("objects.featuresHint")}</p>
-      </section>
+      {/* Her nesnenin özellikleri — kategori sayfasının Özellikler bloğu gibi:
+          menekşe baş, yanında yeşil ekle karosu, atomlar beyaz hücrede.
+          Dokununca özellik listeden çıkar (onaylı) */}
+      <SummaryBlock
+        className="mb-4"
+        compact
+        lead={{
+          kind: "count",
+          color: "#c9b8ff",
+          glyph: Circle,
+          overline: t("objects.features"),
+          value: String(mods.length),
+          unit: t("struct.features.unit"),
+          hint: mods.length ? t("yhead.featuresHint") : undefined,
+        }}
+        action={
+          mods.length ? (
+            <SummaryTile compact color="#7ae582" icon={Plus} label={t("entry.addFeature")} onClick={() => setPickOpen(true)} />
+          ) : undefined
+        }
+        stats={[]}
+      >
+        {mods.length > 0 ? (
+          <div data-feature-cell="" className="grid grid-cols-4 gap-x-1.5 gap-y-1 bg-paper p-2">
+            {mods.map((m) => (
+              <ModAtom
+                key={m!.id}
+                icon={modAtomIcon({ name: m!.name, entryType: measureOf(m!) })}
+                name={m!.name}
+                color={modColor(m!)}
+                onClick={async () => {
+                  const ok = await confirmDialog({
+                    title: m!.name,
+                    body: t("objects.removeFeatureBody"),
+                    confirmLabel: t("action.delete"),
+                    destructive: true,
+                  });
+                  if (ok) await removeCollectionMod(collectionId, m!.id);
+                }}
+              />
+            ))}
+          </div>
+        ) : (
+          <SummaryEmpty text={t("objects.featuresHint")} action={{ label: t("action.add"), onClick: () => setPickOpen(true) }} />
+        )}
+      </SummaryBlock>
 
-      {/* Nesneler */}
-      <section className="mb-6 flex flex-col gap-2">
-        <h2 className={cn(H2, "self-start")}>
-          {t("objects.active")} · {active.length}
-        </h2>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void addThing();
-          }}
-          className="flex gap-2"
-        >
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder={t("objects.add")}
-            aria-label={t("objects.add")}
-            className="h-11 min-w-0 flex-1 rounded-xl border-2 border-line bg-paper px-3 text-[15px] text-ink outline-none placeholder:text-ink/40"
-          />
-          <button
-            type="submit"
-            disabled={!draft.trim()}
-            aria-label={t("objects.add")}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-line bg-fill-[#7ae582] text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-40"
+      {/* Nesneler — yeşil baş (başın Nesne sayısının rengi), altında beyaz
+          hücrede ekleme satırı, aktif nesneler ve katlanır arşiv */}
+      <SummaryBlock
+        className="mb-6"
+        compact
+        lead={{
+          kind: "count",
+          color: "#7ae582",
+          glyph: Diamond,
+          overline: t("structure.objects"),
+          value: String(active.length),
+          unit: t("yhead.unit.active"),
+          hint: archived.length ? `${archived.length} ${t("yhead.unit.archived")}` : undefined,
+        }}
+        stats={[]}
+      >
+        <div data-things-cell="" className="flex flex-col gap-2 bg-paper p-2.5">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void addThing();
+            }}
+            className="flex gap-2"
           >
-            <Plus className="h-5 w-5" strokeWidth={3} />
-          </button>
-        </form>
-        {active.length === 0 && (
-          <p className="px-1 text-[12px] text-muted-foreground">{t("objects.empty")}</p>
-        )}
-        {active.map(row)}
-
-        {archived.length > 0 && (
-          <>
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder={t("objects.add")}
+              aria-label={t("objects.add")}
+              className="h-11 min-w-0 flex-1 rounded-xl border-2 border-line bg-paper px-3 text-[15px] text-ink outline-none placeholder:text-ink/40"
+            />
             <button
-              type="button"
-              onClick={() => setArchiveOpen((o) => !o)}
-              aria-expanded={archiveOpen}
-              className="mt-2 flex items-center gap-1.5 self-start px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+              type="submit"
+              disabled={!draft.trim()}
+              aria-label={t("objects.add")}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-line bg-fill-[#7ae582] text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-40"
             >
-              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", archiveOpen && "rotate-180")} />
-              {t("objects.archive")} · {archived.length}
+              <Plus className="h-5 w-5" strokeWidth={3} />
             </button>
-            {archiveOpen && archived.map(row)}
-          </>
-        )}
-      </section>
+          </form>
+          {active.length === 0 && (
+            <p className="px-1 py-1 text-[12.5px] font-semibold leading-snug text-ink/55">{t("objects.empty")}</p>
+          )}
+          {active.map(row)}
+
+          {archived.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setArchiveOpen((o) => !o)}
+                aria-expanded={archiveOpen}
+                className="mt-1 flex h-9 items-center gap-1.5 self-start rounded-[9px] px-2 text-[12.5px] font-extrabold text-ink/65 active:bg-ink/[0.06]"
+              >
+                <ChevronDown className={cn("h-4 w-4 transition-transform", archiveOpen && "rotate-180")} strokeWidth={2.75} />
+                {t("objects.archive")} · {archived.length}
+              </button>
+              {archiveOpen && archived.map(row)}
+            </>
+          )}
+        </div>
+      </SummaryBlock>
 
       <CollectionForm open={editOpen} onOpenChange={setEditOpen} collection={c} />
       <ModPickDialog

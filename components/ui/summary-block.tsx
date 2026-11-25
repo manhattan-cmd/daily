@@ -112,12 +112,15 @@ export function SummaryTile({
   href,
   compact = false,
   dense = false,
+  pressed,
 }: {
   color: string;
   icon: LucideIcon;
   label: string;
   onClick?: () => void;
   href?: string;
+  /** Aç/kapa karosu (Yapı'nın Ara'sı) — ekran okuyucuya durumu */
+  pressed?: boolean;
   /** İnce blok başı (Yapı'nın listeleri): yalnız simge, ad okuyucuya */
   compact?: boolean;
   /** Daha da ince baş (bkz. SummaryBlock dense): simge karosu küçük */
@@ -175,7 +178,7 @@ export function SummaryTile({
       {body}
     </Link>
   ) : (
-    <button type="button" onClick={onClick} className={cls} data-sum-tile="" style={fillStyle(color)}>
+    <button type="button" onClick={onClick} aria-pressed={pressed} className={cls} data-sum-tile="" style={fillStyle(color)}>
       {body}
     </button>
   );
@@ -462,6 +465,8 @@ export function SummaryBlock({
   dense = false,
   stats,
   action,
+  actions,
+  below,
   link,
   children,
   className,
@@ -488,6 +493,12 @@ export function SummaryBlock({
   children?: ReactNode;
   /** Ekle düğmesi (gün) — adın yanındaki kare hücreyi doldurur */
   action?: ReactNode;
+  /** Birden çok karo yan yana (Yapı'nın sayfa başı: Ara + Ekle, Düzenle +
+   *  Sil) — her biri kendi kare hücresinde */
+  actions?: ReactNode[];
+  /** Ad satırıyla sayılar arasındaki satırlar (Yapı: konum yolu, arama,
+   *  görünüm anahtarı) */
+  below?: ReactNode;
   link?: SummaryLink;
   className?: string;
   /**
@@ -549,7 +560,13 @@ export function SummaryBlock({
         {action && (
           <div className={compact ? (dense ? "w-[40px] shrink-0" : "w-[52px] shrink-0") : "min-h-[64px] w-[68px] shrink-0"}>{action}</div>
         )}
+        {actions?.map((a, i) => (
+          <div key={i} className="min-h-[64px] w-[68px] shrink-0">
+            {a}
+          </div>
+        ))}
       </div>
+      {below}
       {/* Sayı kadar sütun: bağlı sayısal özelliği olmayan kategoride iki;
           sayılar yüklenirken satır hiç yok */}
       {stats.length > 0 && (

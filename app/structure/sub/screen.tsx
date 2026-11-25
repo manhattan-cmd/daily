@@ -8,10 +8,10 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { BarChart3, List as ListIcon, Pencil, Trash2 } from "lucide-react";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { getSubCategory, getCategory, listCategoryTree, structureSummary } from "@/lib/db/queries";
-import { BrutSubsBlock, BrutThingSummary, useIsBrutal } from "@/components/structure/brutal";
+import { BrutSubsBlock, summaryStats, useIsBrutal } from "@/components/structure/brutal";
 import { StructureHeader } from "@/components/structure/structure-header";
 import { StructureTrail } from "@/components/structure/structure-trail";
-import { StructureHead, useRootCount } from "@/components/structure/structure-head";
+import { StructureHead, YAPI } from "@/components/structure/structure-head";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { toLocalDateValue } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,6 @@ export function SubCategoryDetailPage({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [entryOpen, setEntryOpen] = useState(false);
   const [today] = useState(() => toLocalDateValue());
-  const rootCount = useRootCount("categories");
 
   // Brütal tema: büyük başlık, üç renkli kutu, altta "Girdi ekle"
   const brutal = useIsBrutal();
@@ -130,30 +129,35 @@ export function SubCategoryDetailPage({
       />
         )}
       >
-      {brutal && (
-        <StructureHead
-          upHref="/structure"
-          count={rootCount}
-          rows={<StructureTrail categoryId={categoryId} subId={subcategoryId} />}
-        />
-      )}
-      {/* Brütal: başlık ve sayılar tek blokta (bkz. BrutThingSummary) */}
+      {/* Brütal: sayfa başı (bkz. StructureHead) — alt kategorinin adı
+          kategorinin renginde, üstünde bir üst katı; altında "↳ Harcamalar ›
+          Ulaşım" (bunun içinde), sayıları, Analiz bandı ve alt dallarının payı */}
       {brutal && subcategory && (
-        <BrutThingSummary
-          color={category?.color ?? "#ffd23f"}
-          icon={subcategory.icon ?? category?.icon}
-          overline={parentSub?.name ?? category?.name ?? ""}
-          title={subcategory.name}
-          summary={summary}
-          tools={{
-            analyticsHref: routes.analyticsSub(categoryId, subcategoryId),
-            onEdit: () => {
-              setEditingSelf(true);
-              setSubFormOpen(true);
-            },
-            onDelete: () => setDeleteOpen(true),
+        <StructureHead
+          lead={{
+            kind: "thing",
+            color: category?.color ?? YAPI,
+            icon: subcategory.icon ?? category?.icon,
+            overline: t("yhead.sub"),
+            title: subcategory.name,
           }}
-          className="mb-4"
+          edit={() => {
+            setEditingSelf(true);
+            setSubFormOpen(true);
+          }}
+          remove={() => setDeleteOpen(true)}
+          rows={<StructureTrail categoryId={categoryId} subId={subcategoryId} ancestors />}
+          stats={summaryStats(summary, t)}
+          link={{
+            href: routes.analyticsSub(categoryId, subcategoryId),
+            label: t("yhead.insights.sub"),
+            color: "#8ea6ff",
+            icon: BarChart3,
+            bars: tree?.subs
+              .filter((s) => s.parentId === subcategoryId)
+              .map((s) => ({ key: s.id, color: category?.color ?? YAPI, title: s.name, weight: tree.counts.get(s.id) ?? 0 }))
+              .filter((b) => b.weight > 0),
+          }}
         />
       )}
 

@@ -11,7 +11,9 @@ import { routes } from "@/lib/routes";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import { PageSheet } from "@/components/ui/layer";
 import { StructureAddButton, StructureHeader } from "@/components/structure/structure-header";
-import { StructureHead } from "@/components/structure/structure-head";
+import { StructureHead, YAPI, headNum, periodStarts } from "@/components/structure/structure-head";
+import { CalendarDays } from "lucide-react";
+import { occursOn } from "@/lib/goals";
 import { StructureSearch } from "@/components/structure/structure-search";
 import { AllEntries } from "@/components/structure/all-entries";
 import { PlannedList } from "@/components/goals/planned-list";
@@ -46,6 +48,21 @@ function EntriesView({ view }: { view: View }) {
   const [query, setQuery] = useState("");
   const add = useDayAdd(toLocalDateValue());
   const counts = useLiveQuery(async () => ({ entries: await db.entries.count(), planned: await db.goals.count() }), []);
+  // Başın sayıları — Girdiler'de bugün · bu hafta · bu ay; Planlı girdiler'de
+  // bugün olan · tekrar eden · tek seferlik
+  const stats = useLiveQuery(async () => {
+    const st = periodStarts();
+    const since = (ms: number) => db.entries.where("occurredAt").aboveOrEqual(ms).count();
+    const goals = await db.goals.toArray();
+    const today = toLocalDateValue();
+    return {
+      today: await since(st.today),
+      week: await since(st.week),
+      month: await since(st.month),
+      plannedToday: goals.filter((g) => occursOn(g, today)).length,
+      repeating: goals.filter((g) => !!g.repeat).length,
+    };
+  }, []);
   const planned = view === "planned";
 
   return (
@@ -67,12 +84,32 @@ function EntriesView({ view }: { view: View }) {
           ikinci satırı, arama Ara karosunun ardında */}
       {brutal ? (
         <StructureHead
-          count={
-            counts &&
-            (planned ? t("struct.planned.count", { n: counts.planned }) : t("struct.entries.count", { n: counts.entries }))
+          lead={{
+            kind: "count",
+            color: YAPI,
+            overline: planned ? t("entries.view.planned") : t("structure.entries"),
+            value: counts ? headNum(planned ? counts.planned : counts.entries) : "–",
+            unit: planned ? t("yhead.unit.planned") : t("home.entries"),
+          }}
+          stats={
+            counts && stats
+              ? planned
+                ? [
+                    { label: t("yhead.stat.today"), value: headNum(stats.plannedToday), color: "#ff9ecd" },
+                    { label: t("yhead.stat.repeating"), value: headNum(stats.repeating), color: "#c9b8ff" },
+                    { label: t("yhead.stat.once"), value: headNum(counts.planned - stats.repeating), color: "#ffb38a" },
+                  ]
+                : [
+                    { label: t("yhead.stat.today"), value: headNum(stats.today), color: "#ffd23f" },
+                    { label: t("yhead.stat.week"), value: headNum(stats.week), color: "#7ae582" },
+                    { label: t("brut.thisMonth"), value: headNum(stats.month), color: "#8ea6ff" },
+                  ]
+              : []
           }
+          // Girdiler günlerde yaşar — Takvim'in turkuazı (bkz. ana sayfa)
+          link={{ href: "/calendar", label: t("home.openCalendar"), color: "#5eead4", icon: CalendarDays }}
           add={{
-            label: t(planned ? "structure.addPlanned" : "structure.addEntry"),
+            label: planned ? t("structure.addPlanned") : t("yhead.add.entry"),
             onClick: planned ? add.openGoal : () => add.openEntry(),
           }}
           search={{ value: query, onChange: setQuery, placeholder: planned ? t("goal.searchList") : t("entries.searchPlaceholder") }}

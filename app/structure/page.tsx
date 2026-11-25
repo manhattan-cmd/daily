@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Layers } from "lucide-react";
+import { BarChart3, Layers } from "lucide-react";
 import { listCategoryTree, listUserCategories } from "@/lib/db/queries";
 import { db } from "@/lib/db";
 import { matchesSearch, normalizeSearch } from "@/lib/search";
@@ -17,7 +17,7 @@ import {
   StructureHeader,
 } from "@/components/structure/structure-header";
 import { ExampleHint } from "@/components/structure/example-hint";
-import { StructureHead } from "@/components/structure/structure-head";
+import { StructureHead, YAPI, headNum } from "@/components/structure/structure-head";
 import { useT } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
 import { PageSheet } from "@/components/ui/layer";
@@ -33,6 +33,12 @@ export default function StructurePage() {
   // kalır. Alt kategoriler hafif okunur (ağaç sorgusu bütün girdileri sayar)
   const [query, setQuery] = useState("");
   const allSubs = useLiveQuery(() => db.subcategories.toArray(), []);
+  const featureCount = useLiveQuery(() => db.mods.count(), []);
+  // Başın sayıları ve dağılımı — yalnız kullanıcının kategorileri (uyku, ruh
+  // hali yerleşik; Yapı'da görünmüyorlar)
+  const own = new Set((categories ?? []).map((c) => c.id));
+  const subTotal = tree ? tree.subs.filter((s) => own.has(s.categoryId)).length : undefined;
+  const entryTotal = tree ? (categories ?? []).reduce((n, c) => n + (tree.counts.get(`c:${c.id}`) ?? 0), 0) : undefined;
   const q = normalizeSearch(query.trim());
   const shown = !q
     ? categories
@@ -68,8 +74,41 @@ export default function StructurePage() {
           hiç kategori yoksa boş pencere başın içinde */}
       {brutal ? (
         <StructureHead
-          count={categories && t("struct.cats.count", { n: categories.length })}
-          add={{ label: t("structure.addCategory"), onClick: () => setAddOpen(true) }}
+          lead={{
+            kind: "count",
+            color: YAPI,
+            overline: t("structure.categories"),
+            value: categories ? headNum(categories.length) : "–",
+            unit: t("yhead.unit.categories"),
+          }}
+          stats={
+            categories && subTotal !== undefined && entryTotal !== undefined && featureCount !== undefined
+              ? [
+                  // Alt kategoriler bloğunun pembesi, Özellikler'in menekşesi, girdilerin mavisi
+                  { label: t("yhead.stat.subs"), value: headNum(subTotal), color: "#ff9ecd" },
+                  { label: t("yhead.stat.features"), value: headNum(featureCount), color: "#c9b8ff" },
+                  { label: t("brut.entries"), value: headNum(entryTotal), color: "#8ea6ff" },
+                ]
+              : []
+          }
+          // Analiz'in mavisi; şeritte kategorilerin girdi payı — ana sayfanın
+          // Bugün şeridi ve gün sayfasının Gün Analizi gibi
+          link={
+            categories?.length
+              ? {
+                  href: "/analytics",
+                  label: t("yhead.insights.categories"),
+                  color: "#8ea6ff",
+                  icon: BarChart3,
+                  bars: tree
+                    ? categories
+                        .map((c) => ({ key: c.id, color: c.color, title: c.name, weight: tree.counts.get(`c:${c.id}`) ?? 0 }))
+                        .filter((b) => b.weight > 0)
+                    : undefined,
+                }
+              : undefined
+          }
+          add={{ label: t("yhead.add.category"), onClick: () => setAddOpen(true) }}
           search={
             categories?.length
               ? { value: query, onChange: setQuery, placeholder: t("structure.searchCategories") }

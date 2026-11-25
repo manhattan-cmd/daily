@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { BarChart3, ChevronDown, Pencil, Plus, Square, Trash2 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ChevronDown, Plus, Square } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { useSkin, isBlockSkin } from "@/lib/skin";
 import type { StructureSummary } from "@/lib/db/queries";
@@ -21,8 +20,8 @@ import { blockInk, fillStyle } from "@/lib/fill";
  * Yapı ekranları için 21 yönlü öneri sayfasındaki "P · Brütal" yerleşimi:
  * kategoriler düz renkli, kalın çerçeveli kartlar; kategori ve alt kategori
  * sayfasının tepesinde renkli büyük bir kart ve özet kutuları; altta tek
- * ana eylem. Analiz, düzenle, sil özet bloğunun alt satırında (bkz.
- * BrutThingSummary). Diğer temalarda bu parçalar hiç çizilmez.
+ * ana eylem. Kalemin adı, sayıları, Analiz · Düzenle · Sil sayfa başında
+ * (bkz. StructureHead). Diğer temalarda bu parçalar hiç çizilmez.
  */
 export function useIsBrutal(): boolean {
   return isBlockSkin(useSkin());
@@ -30,40 +29,10 @@ export function useIsBrutal(): boolean {
 
 const fmt = (n: number) => n.toLocaleString("tr-TR", { maximumFractionDigits: 0 });
 
-/**
- * Kategori / alt kategori sayfasının tepesi — tek blokta (bkz. SummaryBlock):
- * üstte renkli şeritte karo, üst kategori ve ad; altında sayılar. Eskiden
- * kategoride damgalı tek kart, alt kategoride çıplak başlık ve üç ayrı kutu
- * vardı. Sayılar her yerde anlamlı olanlar: girdi · bu ay · son girdi.
- * Eskiden para varsa para · girdi · ortalama, yoksa bağlı sayısal özelliğin
- * toplamıydı — kullanıcıya göre bir özelliğin toplanarak mı ortalanarak mı
- * okunacağı henüz belli değilken ilk pencerede gerekmiyor (o seçim Analiz
- * bölümünde). En altta analiz · düzenle · sil.
- */
-export function BrutThingSummary({
-  color,
-  icon,
-  glyph,
-  overline,
-  title,
-  summary,
-  tools,
-  className,
-}: {
-  color: string;
-  icon?: string;
-  /** Sembol yoksa karodaki şekil (nesne: baklava, liste: kutular) */
-  glyph?: LucideIcon;
-  overline: string;
-  title: string;
-  summary?: StructureSummary;
-  /** En altta analiz · düzenle · sil satırı — kategori ve alt kategori
-   *  sayfasında eskiden üst menünün karolarıydı */
-  tools?: { analyticsHref: string; onEdit: () => void; onDelete: () => void };
-  className?: string;
-}) {
-  const t = useT();
-  const stats: SummaryStat[] = summary
+/** Kalemin sayıları — girdi · bu ay · son girdi (kategori, alt kategori
+ *  sayfalarının başı ve özet bloğu); yüklenirken boş */
+export function summaryStats(summary: StructureSummary | undefined, t: ReturnType<typeof useT>): SummaryStat[] {
+  return summary
     ? [
         { label: t("brut.entries"), value: fmt(summary.entries), color: "#8ea6ff" },
         { label: t("brut.thisMonth"), value: fmt(summary.month), color: "#7ae582" },
@@ -71,54 +40,6 @@ export function BrutThingSummary({
         { label: t("brut.lastEntry"), ...lastEntry(summary.lastAt, t), color: "#ffb38a" },
       ]
     : [];
-  return (
-    <SummaryBlock
-      className={className}
-      compact
-      lead={{ kind: "thing", color, icon, glyph: icon ? undefined : glyph, overline, title }}
-      stats={stats}
-    >
-      {tools && (
-        <div data-thing-tools="" className="grid grid-cols-3 gap-[2px]">
-          <ToolCell icon={BarChart3} label={t("nav.insights")} href={tools.analyticsHref} />
-          <ToolCell icon={Pencil} label={t("action.edit")} onClick={tools.onEdit} />
-          <ToolCell icon={Trash2} label={t("action.delete")} onClick={tools.onDelete} color="#ff6b6b" />
-        </div>
-      )}
-    </SummaryBlock>
-  );
-}
-
-/** Özet bloğunun alt satırındaki düğme — simge ve kısa ad; silme kırmızı */
-function ToolCell({
-  icon: Icon,
-  label,
-  href,
-  onClick,
-  color = "#ffffff",
-}: {
-  icon: LucideIcon;
-  label: string;
-  href?: string;
-  onClick?: () => void;
-  color?: string;
-}) {
-  const cls = "flex h-10 items-center justify-center gap-1.5 text-[12.5px] font-black text-ink active:brightness-95";
-  const body = (
-    <>
-      <Icon className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-      {label}
-    </>
-  );
-  return href ? (
-    <Link href={href} prefetch={false} className={cls} style={fillStyle(color)}>
-      {body}
-    </Link>
-  ) : (
-    <button type="button" onClick={onClick} className={cls} style={fillStyle(color)}>
-      {body}
-    </button>
-  );
 }
 
 /**
@@ -185,7 +106,7 @@ export function BrutSubsBlock({
 }
 
 /** Son girdi kaç gün önce — bugün, dün, "3 gün önce"; hiç yoksa – */
-function lastEntry(at: number | undefined, t: ReturnType<typeof useT>): { value: string; unit?: string } {
+export function lastEntry(at: number | undefined, t: ReturnType<typeof useT>): { value: string; unit?: string } {
   if (at === undefined) return { value: "–" };
   const day = (ms: number) => {
     const d = new Date(ms);
