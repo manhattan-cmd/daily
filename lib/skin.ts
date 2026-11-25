@@ -25,7 +25,7 @@ export { SKINS, isBlockSkin, type Skin };
 export const SKIN_META: Record<Skin, { name: string; hint: string; swatch: string[] }> = {
   gece: {
     name: "Gece",
-    hint: "İsli cam, kıl çizgi, yıldızlar; renkler ışık",
+    hint: "İsli cam, kıl çizgi; renkler ışık",
     swatch: ["#07080D", "#10121A", "#6366F1", "#E9EBF3"],
   },
   pastel: {

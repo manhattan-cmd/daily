@@ -19,8 +19,9 @@
  *    yayılan bir ışık, künyede eski Gece kartlarının çapraz renk sızıntısı,
  *    kenarda rengin kıl çizgisi. Simge, sayı ve küçük işaretler rengin
  *    yanan tonunda (OKLCH L 0.84).
- * 5. Yıldızlar. Brütal'in tram benekleri (gazete baskısı) Gece'de seyrek,
- *    farklı parlaklıkta yıldızlar — bölüm bantlarında.
+ * 5. Doku yok. Brütal'in tram benekleri (gazete baskısı) Gece'de kalkar;
+ *    bantlarda yalnız rengin ışığı. (Seyrek yıldızlar denendi, kişisel
+ *    zevke fazla hitap ediyordu — 2026-11-25 kaldırıldı.)
  * 6. Çivit. Uygulamanın kendi rengi ana eylemde parlar (EKLE, KAYDET,
  *    OLUŞTUR, Bugün dairesi); seçili sekme ve çipler çivit camı.
  * 7. Daire. Brütal'in kare düğmeleri Gece'de daire; kapsüller hap.
@@ -96,9 +97,6 @@
   --cta-glow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 10px 26px -10px rgba(99, 102, 241, 0.95), 0 0 0 1px rgba(129, 140, 248, 0.5);
   --sel-bg: rgba(99, 102, 241, 0.17);
   --sel-ring: inset 0 0 0 1px rgba(129, 140, 248, 0.5);
-
-  /* Yıldızlar: tek karo, farklı boy ve parlaklıkta seyrek noktalar */
-  --stars: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='190' height='120'%3E%3Cg fill='%23fff'%3E%3Ccircle cx='21' cy='17' r='.9' opacity='.7'/%3E%3Ccircle cx='96' cy='40' r='.6' opacity='.45'/%3E%3Ccircle cx='151' cy='13' r='1.1' opacity='.6'/%3E%3Ccircle cx='63' cy='87' r='.7' opacity='.4'/%3E%3Ccircle cx='132' cy='96' r='.9' opacity='.5'/%3E%3Ccircle cx='176' cy='66' r='.6' opacity='.35'/%3E%3Ccircle cx='38' cy='58' r='.5' opacity='.35'/%3E%3Ccircle cx='112' cy='6' r='.5' opacity='.3'/%3E%3Ccircle cx='8' cy='104' r='.6' opacity='.3'/%3E%3Cpath d='M170 28.2l.55 1.95 1.95.55-1.95.55-.55 1.95-.55-1.95-1.95-.55 1.95-.55z' opacity='.75'/%3E%3C/g%3E%3C/svg%3E");
 }
 
 /* ── Zemin: gece göğü ───────────────────────────────────────────────── */
@@ -168,19 +166,17 @@
 
 /* ── Renkler ışık: bantlar ──────────────────────────────────────────── */
 /* Bölüm bandı (bandDots; --fc rengi): zemin rengin çok hafif tonu, sol üst
-   köşeden rengin ışığı yayılır, üstünde yıldızlar; alt kenarında rengin
-   kıl çizgisi yanar */
+   köşeden rengin ışığı yayılır; alt kenarında rengin kıl çizgisi yanar */
 :root[data-skin="gece"][data-ui="block"] [style*="--fc"][style*="radial-gradient"] {
   background-color: color-mix(in oklab, var(--fc) 8%, var(--paper)) !important;
   background-image:
-    var(--stars),
     radial-gradient(120% 140% at 0% 0%, color-mix(in oklab, var(--fc) 34%, transparent) 0%, color-mix(in oklab, var(--fc) 10%, transparent) 42%, transparent 72%) !important;
-  background-size: 190px 120px, 100% 100% !important;
-  background-repeat: repeat, no-repeat !important;
+  background-size: 100% 100% !important;
+  background-repeat: no-repeat !important;
   box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--fc) 45%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
-/* Künye, karo, düz renkli baş (fillStyle ya da bg-fill-[renk] sınıfı;
-   yıldızsız): eski Gece kartlarının çapraz renk sızıntısı */
+/* Künye, karo, düz renkli baş (fillStyle ya da bg-fill-[renk] sınıfı):
+   eski Gece kartlarının çapraz renk sızıntısı */
 :root[data-skin="gece"][data-ui="block"] :is([style*="--fc"], [class*="bg-fill-"]):not([style*="radial-gradient"]) {
   background: linear-gradient(135deg, color-mix(in oklab, var(--fc) 24%, var(--paper)) 0%, color-mix(in oklab, var(--fc) 9%, var(--paper)) 62%, color-mix(in oklab, var(--fc) 5%, var(--paper)) 100%) !important;
   box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--fc) 38%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.04);
@@ -188,14 +184,13 @@
 
 /* Şeritler (sayfanın kenardan kenara üst menüsü): gece ufku — buğulu
    koyu cam, alttan bölümün rengi bir şehir ışığı gibi yükselir, alt
-   kenarı rengin kıl çizgisi; üstünde seyrek yıldızlar */
+   kenarı rengin kıl çizgisi */
 :root[data-skin="gece"][data-ui="block"] [data-strip][data-strip][data-strip] {
   background-color: rgba(8, 9, 14, 0.9) !important;
   background-image:
-    linear-gradient(to top, color-mix(in oklab, var(--fc) 20%, transparent), color-mix(in oklab, var(--fc) 4%, transparent) 70%, transparent),
-    var(--stars) !important;
-  background-size: 100% 100%, 190px 120px !important;
-  background-repeat: no-repeat, repeat !important;
+    linear-gradient(to top, color-mix(in oklab, var(--fc) 20%, transparent), color-mix(in oklab, var(--fc) 4%, transparent) 70%, transparent) !important;
+  background-size: 100% 100% !important;
+  background-repeat: no-repeat !important;
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
   border-bottom-color: color-mix(in oklab, var(--fc) 55%, transparent) !important;
@@ -266,14 +261,13 @@
 :root[data-skin="gece"][data-ui="block"] [data-cat-tile] > *,
 :root[data-skin="gece"][data-ui="block"] [data-atom] > * { color: oklch(from var(--tile-c) 0.84 calc(c * 0.9) h) !important; }
 
-/* Girdi ekranının başı (kalemin rengi): bant gibi ışık ve yıldız */
+/* Girdi ekranının başı (kalemin rengi): bant gibi köşeden ışık */
 :root[data-skin="gece"][data-ui="block"] [data-entry-hero] {
   background-color: color-mix(in oklab, var(--hero-c) 8%, var(--paper)) !important;
   background-image:
-    var(--stars),
     radial-gradient(120% 130% at 0% 0%, color-mix(in oklab, var(--hero-c) 34%, transparent), transparent 70%) !important;
-  background-size: 190px 120px, 100% 100%;
-  background-repeat: repeat, no-repeat;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   border-bottom-color: color-mix(in oklab, var(--hero-c) 45%, transparent) !important;
 }
 :root[data-skin="gece"][data-ui="block"] [data-entry-hero] > div > :is(span.h-11, button.h-11) {
