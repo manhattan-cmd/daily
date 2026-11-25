@@ -91,8 +91,15 @@ export function blockInk(color: string): string {
   return glow ? `color-mix(in srgb, var(--ink) var(--fill-k), ${glow})` : "var(--ink)";
 }
 
-/** Renkli yüzeyin zemini: Brütal'de renk, Gece'de gece tonu */
+/** Renk değil desen (çizgili, degrade, resim) — color-mix'e girerse bütün
+ *  zemin geçersiz olur, tarayıcı hiç çizmez ve arkadaki siyah görünür
+ *  (bekleyen planlı kartın çizgili künyesi böyle kararmıştı) */
+const isPattern = (bg: string) => /gradient\(|url\(/.test(bg);
+
+/** Renkli yüzeyin zemini: Brütal'de renk, Gece'de gece tonu. Desen
+ *  verilirse olduğu gibi döner. */
 export function blockFill(color: string): string {
+  if (isPattern(color)) return color;
   const night = nightTone(color);
   // Hex olmayan (değişken, saydam renk) — gecede kâğıda yüzdeyle karışır
   if (!night) return `color-mix(in srgb, ${color} calc(100% * var(--fill-scale)), var(--paper))`;
@@ -108,9 +115,14 @@ export const blockFillTint = (color: string, pct: number): string =>
  * Renkli yüzeyin stili: zemini blockFill, ayrıca rengin kendisi `--fc`
  * değişkeninde. Brütal --fc'yi okumaz (görünüş aynı); Gece bölüm başlarını,
  * künyeleri ve bantları bu renkle ışıtır — zeminin içine rengin ışığı sızar,
- * kenarında rengin kıl çizgisi yanar (bkz. app/gece.css).
+ * kenarında rengin kıl çizgisi yanar (bkz. app/gece.css). Desen verilirse
+ * --fc yazılmaz: Gece'nin ışık kuralları onu renk diye okuyup zemini
+ * geçersiz kılardı.
  */
-export const fillStyle = (color: string) => ({
-  background: blockFill(color),
-  ["--fc" as string]: color,
-});
+export const fillStyle = (color: string) =>
+  isPattern(color)
+    ? { background: color }
+    : {
+        background: blockFill(color),
+        ["--fc" as string]: color,
+      };

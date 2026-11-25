@@ -293,7 +293,7 @@ function PendingCard({
         className={cn(ENTRY_BLOCK_CLS, "cursor-pointer transition-transform active:scale-[0.99]", selection?.selected && selectedCardClass)}
       >
         <EntryBlockHead
-          color={`repeating-linear-gradient(-45deg, ${stripe} 0 5px, #fff 5px 11px)`}
+          color={`repeating-linear-gradient(-45deg, ${stripe} 0 5px, var(--paper) 5px 11px)`}
           icon={icon}
           title={name}
           sub={sub}
