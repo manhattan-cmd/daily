@@ -14,7 +14,7 @@ import { isScaleChoices } from "@/types";
 import { thingLabel, useThingNames } from "@/lib/db/thing-names";
 import { SymbolIcon } from "@/lib/icons";
 import { EMOTION_LOOKS, EmotionFace, emotionLook, emotionName } from "@/lib/icons/emotions";
-import { blockFill } from "@/lib/fill";
+import { blockFill, fillStyle } from "@/lib/fill";
 
 /**
  * Girdi kartlarının ortak parçaları — hem tek girdi kartı hem paralel girdi
@@ -191,7 +191,7 @@ export function ValueCapsule({
           >
             <span
               className="flex h-3.5 w-3.5 items-center justify-center rounded-[4px]"
-              style={yes ? { background: blockFill(c) } : { boxShadow: `inset 0 0 0 1.5px ${c}99` }}
+              style={yes ? fillStyle(c) : { boxShadow: `inset 0 0 0 1.5px ${c}99` }}
             >
               {yes ? (
                 <Check className="h-2.5 w-2.5" strokeWidth={3.5} style={{ color: "#fff" }} />

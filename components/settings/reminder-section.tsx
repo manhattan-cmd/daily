@@ -20,7 +20,7 @@ import { useT } from "@/lib/i18n";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import { goalTimes } from "@/lib/goals";
 import { SettingsBlock, SettingsCell, settingsPill } from "./settings-block";
-import { blockFill } from "@/lib/fill";
+import { fillStyle } from "@/lib/fill";
 
 /**
  * Hedef hatırlatmaları: izin durumu, deneme bildirimi ve hedeflere geçit.
@@ -87,7 +87,7 @@ export function ReminderSection() {
       >
         <SettingsCell className="flex flex-wrap items-center gap-1.5">
           {permission === "prompt" && (
-            <button type="button" onClick={ask} className={settingsPill} style={{ background: blockFill("#7ae582") }}>
+            <button type="button" onClick={ask} className={settingsPill} style={fillStyle("#7ae582")}>
               {t("settings.remind.allow")}
             </button>
           )}

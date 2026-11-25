@@ -37,7 +37,7 @@ import { useSkin, isBlockSkin } from "@/lib/skin";
 import { SymbolIcon } from "@/lib/icons";
 import { ValueCapsuleRow } from "@/components/dashboard/entry-parts";
 import { ENTRY_BLOCK_CLS, blockTint, EntryBlockCell, EntryBlockHead, EntryBlockTime } from "@/components/dashboard/entry-block";
-import { blockFill, blockInk } from "@/lib/fill";
+import { blockFill, blockInk, fillStyle } from "@/lib/fill";
 
 /** Aktivitenin rengi — kategorisi yok, kendi camgöbeği */
 const ACT = "#06b6d4";
@@ -279,7 +279,7 @@ export function ActivityCard({
                     <span className="flex min-w-0 items-center gap-2">
                       <span
                         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] border-line"
-                        style={{ background: blockFill(e.category.color) }}
+                        style={fillStyle(e.category.color)}
                       >
                         {icon && <SymbolIcon name={icon} size={13} style={{ color: blockInk(e.category.color) }} />}
                       </span>

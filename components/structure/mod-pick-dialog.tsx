@@ -53,7 +53,7 @@ import { SCALE_PRESETS, type EntryValueType } from "@/types";
 import { useT } from "@/lib/i18n";
 import { useSkin, isBlockSkin } from "@/lib/skin";
 import { BrutWhereStep, type WhereRow } from "@/components/structure/where-step";
-import { blockFill, blockInk } from "@/lib/fill";
+import { blockFill, blockInk, fillStyle } from "@/lib/fill";
 
 /** Özelliklerin rengi — Yapı › Özellikler'deki tür bloklarının menekşesi */
 const FEATURES = "#c9b8ff";
@@ -469,7 +469,7 @@ export function ModPickDialog({
         type="submit"
         disabled={disabled}
         className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl disabled:opacity-50"
-        style={{ background: blockFill("#ffd23f") }}
+        style={fillStyle("#ffd23f")}
       >
         <Check className="h-5 w-5 shrink-0" strokeWidth={2.75} />
         <span className="truncate">{label}</span>
@@ -657,7 +657,7 @@ export function ModPickDialog({
                               "relative flex h-[50px] w-[50px] items-center justify-center rounded-full border-2 border-line transition-transform",
                               on ? "translate-x-[2px] translate-y-[2px]" : "shadow-[2px_2px_0_var(--shade)]"
                             )}
-                            style={{ background: blockFill(c) }}
+                            style={fillStyle(c)}
                           >
                             <Icon style={{ color: blockInk(c) }} className="h-5 w-5 text-ink" strokeWidth={2.4} />
                             {on && (
@@ -895,7 +895,7 @@ export function ModPickDialog({
                               {on && (
                                 <span
                                   className="entry-tile-pop absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-white"
-                                  style={{ background: blockFill(c) }}
+                                  style={fillStyle(c)}
                                 >
                                   <Check className="h-3 w-3" strokeWidth={3} />
                                 </span>

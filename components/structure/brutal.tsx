@@ -13,7 +13,7 @@ import { SmartText } from "@/components/ui/smart-text";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { SummaryBlock, SummaryEmpty, SummaryTile, type SummaryStat } from "@/components/ui/summary-block";
-import { blockFill, blockInk } from "@/lib/fill";
+import { blockInk, fillStyle } from "@/lib/fill";
 
 /**
  * BRÜTAL YAPI SAYFALARI — yalnız Brütal tema seçiliyken (deneme).
@@ -111,11 +111,11 @@ function ToolCell({
     </>
   );
   return href ? (
-    <Link href={href} prefetch={false} className={cls} style={{ background: blockFill(color) }}>
+    <Link href={href} prefetch={false} className={cls} style={fillStyle(color)}>
       {body}
     </Link>
   ) : (
-    <button type="button" onClick={onClick} className={cls} style={{ background: blockFill(color) }}>
+    <button type="button" onClick={onClick} className={cls} style={fillStyle(color)}>
       {body}
     </button>
   );
@@ -219,7 +219,7 @@ export function BrutCategoryCard({
       href={href}
       prefetch={false}
       className="flex min-h-[112px] flex-col gap-1 rounded-2xl border-2 border-line p-3 text-ink shadow-[4px_4px_0_var(--shade)] transition-transform active:translate-x-[3px] active:translate-y-[3px] active:shadow-[1px_1px_0_var(--shade)]"
-      style={{ background: blockFill(color) }}
+      style={fillStyle(color)}
     >
       <span className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-line bg-paper">
         {icon ? <SymbolIcon name={icon} size={18} style={{ color: blockInk(color) }} /> : null}

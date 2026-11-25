@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { blockFill } from "@/lib/fill";
+import { fillStyle } from "@/lib/fill";
 
 /**
  * Brütal girdi kartlarının ortak çerçevesi — ana sayfanın blok dili küçük
@@ -38,7 +38,7 @@ export function EntryBlockHead({
 }) {
   return (
     // data-sel-head: seçim modunda sağında daireye yer açılır (bkz. SelectionLayer)
-    <div data-sel-head="edge" className="flex items-center gap-2 px-2.5 py-1.5" style={{ background: blockFill(color) }}>
+    <div data-sel-head="edge" className="flex items-center gap-2 px-2.5 py-1.5" style={fillStyle(color)}>
       <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[8px] bg-paper text-ink shadow-[inset_0_0_0_2px_var(--shade),1.5px_1.5px_0_var(--shade)]">
         {icon}
       </span>

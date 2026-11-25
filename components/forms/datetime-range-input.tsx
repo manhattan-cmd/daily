@@ -19,7 +19,7 @@ import {
   type FieldTone,
   type FieldToneSkin,
 } from "@/components/forms/field-tone";
-import { blockFill } from "@/lib/fill";
+import { blockFill, fillStyle } from "@/lib/fill";
 
 function shortDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
@@ -457,7 +457,7 @@ function BrutalSide({
     >
       <div
         className="flex items-center gap-1.5 border-b-2 border-line px-2 py-[3px]"
-        style={{ background: blockFill(BRUT_HEAD[side]) }}
+        style={fillStyle(BRUT_HEAD[side])}
       >
         <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.6} />
         <span className="truncate text-[10.5px] font-black uppercase leading-4 tracking-[0.08em]">

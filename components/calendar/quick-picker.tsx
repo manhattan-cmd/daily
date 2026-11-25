@@ -11,7 +11,7 @@ import { loadQuickAdd, type QuickCell } from "@/lib/db/quick";
 import type { Category, SubCategory } from "@/types";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { tabDef, type AddTab } from "@/components/calendar/add-tabs";
-import { blockFill, blockInk } from "@/lib/fill";
+import { blockFill, blockInk, fillStyle } from "@/lib/fill";
 
 /** Kategoriler bloğunun rengi — ana sayfanın Kategorilerin'i gibi pembe */
 const CATEGORIES_COLOR = "#ff9ecd";
@@ -246,11 +246,11 @@ function BrutCell({
       aria-label={label}
       className={cn("flex min-w-0 flex-col bg-paper text-left text-ink active:bg-paper-2", wide && "col-span-2")}
     >
-      <span className="h-1.5 shrink-0" style={{ background: color }} />
+      <span className="h-1.5 shrink-0" data-glow-bar="" style={{ background: color, ["--bc" as string]: color }} />
       <span className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-2">
         <span
           className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-line"
-          style={{ background: blockFill(color) }}
+          style={fillStyle(color)}
         >
           {icon}
           {done && <DoneBadge brutal />}

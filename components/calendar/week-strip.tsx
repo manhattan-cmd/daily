@@ -44,6 +44,8 @@ export function WeekStrip({ date }: { date: string }) {
     <header
       data-day-nav=""
       // -mx-4: main'in kenar payını aşıp kenardan kenara (alt menü gibi)
+      data-strip=""
+      style={{ ["--fc" as string]: "#5eead4" }}
       className="sticky top-0 z-30 -mx-4 border-b-[3px] border-line bg-fill-[#5eead4] pt-[env(safe-area-inset-top,0px)]"
     >
       <nav data-week-strip="" aria-label={t("nav.calendar")} className="flex items-stretch px-1">

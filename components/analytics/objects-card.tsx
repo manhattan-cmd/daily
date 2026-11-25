@@ -10,7 +10,7 @@ import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { Layer } from "@/components/ui/layer";
 import { SummaryBlock } from "@/components/ui/summary-block";
 import { useIsBrutal } from "@/components/structure/brutal";
-import { blockFill, blockInk } from "@/lib/fill";
+import { blockFill, blockInk, fillStyle } from "@/lib/fill";
 
 /** Nesneler bloğunun rengi (Brütal) */
 const OBJECTS = "#ffd23f";
@@ -111,7 +111,7 @@ export function ObjectsCard({ start, end }: { start: number; end: number }) {
           >
             <span
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-              style={{ background: blockFill(c.color ?? "#94a3b8") }}
+              style={fillStyle(c.color ?? "#94a3b8")}
             >
               {c.icon ? (
                 <SymbolIcon name={c.icon} size={16} style={{ color: blockInk(c.color ?? "#94a3b8") }} />

@@ -46,24 +46,25 @@ export const isBlockSkin = (skin: string | null | undefined): boolean =>
  * Eskiden sayfanın bandının rengiydi (Ana Sayfa mor, Takvim yeşil…);
  * bantlar bloğa dönünce renkli şerit krem döşemenin üstünde asılı kaldı.
  *
- * Gece'de aynı şeritlerin gece tonları (lib/fill nightTone ile hesaplandı:
- * #a9b0ff → #2f3252, #5eead4 → #004037, #8ea6ff → #293357, #ffd23f →
- * #453300), ötekilerde gece döşemesi.
+ * Gece'de her sayfada aynı koyu renk: şeritler orada buğulu koyu cam,
+ * bölümün rengi yalnız alttan yükselen ışık (bkz. app/gece.css).
  *
  * Kendi içinde kapalı olmalı (dışarıdan değişken yok): açılış betiğine
  * kaynağıyla gömülüyor.
  */
 export function statusBarColor(path: string, skin: string): string | null {
   if (skin !== "brutal" && skin !== "gece") return null;
-  const night = skin === "gece";
+  // Gece'de şeritler buğulu koyu cam (bkz. app/gece.css "Şeritler") — durum
+  // çubuğu her sayfada gecenin kendisi
+  if (skin === "gece") return "#0a0b12";
   const p = path.replace(/\/+$/, "") || "/";
   // Ara ve Ayarlar ana sayfanın başlığından açılır, onun şeridinde (bkz. SubPageMenu)
-  if (p === "/" || p === "/search" || p === "/settings") return night ? "#2f3252" : "#a9b0ff";
+  if (p === "/" || p === "/search" || p === "/settings") return "#a9b0ff";
   // Takvim ve gün sayfası aynı turkuaz (gün sayfası Takvim sekmesinin altında)
-  if (p === "/calendar" || p === "/calendar/day") return night ? "#004037" : "#5eead4";
-  if (p === "/analytics") return night ? "#293357" : "#8ea6ff";
-  if (p === "/structure" || p.indexOf("/structure/") === 0) return night ? "#453300" : "#ffd23f";
-  return night ? "#0d0f15" : "#fff4dc";
+  if (p === "/calendar" || p === "/calendar/day") return "#5eead4";
+  if (p === "/analytics") return "#8ea6ff";
+  if (p === "/structure" || p.indexOf("/structure/") === 0) return "#ffd23f";
+  return "#fff4dc";
 }
 
 /**

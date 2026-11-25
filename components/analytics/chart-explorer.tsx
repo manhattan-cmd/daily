@@ -93,6 +93,7 @@ const LINK_SQ =
   "flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] bg-paper text-ink shadow-[1.5px_1.5px_0_var(--shade)]";
 /** Bölüm bantlarının tram benekleri (bkz. summary-block bandDots) */
 const bandDots = (c: string) => ({
+  ["--fc" as string]: c,
   backgroundColor: blockFill(c),
   backgroundImage: "radial-gradient(var(--dot) 1.2px, transparent 1.5px)",
   backgroundSize: "11px 11px",
@@ -337,6 +338,7 @@ export function ChartExplorer({
               seçici, GÖSTER (veri türü) ve GRAFİK (grafik türü). Neye bakıldığı
               grafiğin lejantında (sol üst köşe) */}
           <header
+            data-strip=""
             className={cn("relative z-20 shrink-0 pt-[env(safe-area-inset-top,0px)]", brutal ? "border-b-[3px]" : "border-b")}
             style={brutal ? { borderColor: "var(--line)", ...bandDots("#8ea6ff") } : undefined}
           >

@@ -95,7 +95,7 @@ import { EntryTime } from "@/components/forms/entry-time";
 import { SmartText } from "@/components/ui/smart-text";
 import { SymbolIcon } from "@/lib/icons";
 import { modColor } from "@/lib/mod-color";
-import { blockFill } from "@/lib/fill";
+import { blockFill, fillStyle } from "@/lib/fill";
 
 interface EditEntryModalProps {
   entry: EntryWithContext;
@@ -851,7 +851,7 @@ export function EditEntryModal({
                   onClick={handleParallelStepSave}
                   disabled={pSaving}
                   className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-60"
-                  style={{ background: blockFill(PARALLEL_C) }}
+                  style={fillStyle(PARALLEL_C)}
                 >
                   {!pSaving && <Check className="h-5 w-5" strokeWidth={2.75} />}
                   {pSaving
@@ -1142,7 +1142,7 @@ export function EditEntryModal({
                   onClick={handleSave}
                   disabled={saving}
                   className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-60"
-                  style={{ background: blockFill(accent) }}
+                  style={fillStyle(accent)}
                 >
                   {!saving && <Check className="h-5 w-5" strokeWidth={2.75} />}
                   {saving

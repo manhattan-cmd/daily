@@ -28,7 +28,7 @@ import { useSkin, isBlockSkin } from "@/lib/skin";
 import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Mod } from "@/types";
-import { blockFill, blockInk } from "@/lib/fill";
+import { blockInk, fillStyle } from "@/lib/fill";
 
 const ACCENT = "#14b8a6";
 
@@ -232,7 +232,7 @@ export function ThingEntrySheet({
                                 "flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-extrabold",
                                 brutal ? "border-2 border-line text-ink" : on ? "text-ink" : "text-muted-foreground ring-1 ring-inset ring-[var(--ln-2)]"
                               )}
-                              style={on ? { background: blockFill(c.color ?? "#94a3b8") } : brutal ? { background: "var(--paper)" } : undefined}
+                              style={on ? fillStyle(c.color ?? "#94a3b8") : brutal ? { background: "var(--paper)" } : undefined}
                             >
                               {c.icon && <SymbolIcon name={c.icon} size={13} style={{ color: blockInk(c.color ?? "#94a3b8") }} />}
                               {c.name}

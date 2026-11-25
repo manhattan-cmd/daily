@@ -5,7 +5,7 @@ import { ArrowLeft, NotebookPen } from "lucide-react";
 import { FIELD_TONES, type FieldTone } from "@/components/forms/field-tone";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { blockFill } from "@/lib/fill";
+import { fillStyle } from "@/lib/fill";
 
 /**
  * Kayıt penceresindeki not alanı — yazılan yer değil, dokunulan yer.
@@ -193,7 +193,7 @@ export function NoteEditorView({
           "flex h-12 w-full shrink-0 items-center justify-center rounded-2xl text-sm font-semibold transition-opacity active:opacity-85",
           accent ? "text-white" : "bg-primary text-primary-foreground"
         )}
-        style={accent ? { background: blockFill(accent) } : undefined}
+        style={accent ? fillStyle(accent) : undefined}
       >
         {t("action.gotIt")}
       </button>

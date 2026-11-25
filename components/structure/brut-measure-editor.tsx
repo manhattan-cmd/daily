@@ -14,7 +14,7 @@ import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { isMeasureComplete, useMeasureEditor } from "./measure-editor-state";
 import type { MeasureEditorProps } from "./measure-editor";
-import { blockFill } from "@/lib/fill";
+import { fillStyle } from "@/lib/fill";
 
 /** Kutu biçimli yazı alanı — beyaz, kalın çerçeve, odakta sarı hale */
 const FIELD =
@@ -288,7 +288,7 @@ export function BrutMeasureEditor({
                       "flex h-11 items-center justify-center gap-1.5 rounded-[11px] border-2 border-line text-[14px] font-extrabold text-ink transition-transform",
                       on ? "translate-x-[2px] translate-y-[2px]" : "bg-paper shadow-[2px_2px_0_var(--shade)]"
                     )}
-                    style={on ? { background: blockFill(color) } : undefined}
+                    style={on ? fillStyle(color) : undefined}
                   >
                     <Icon className="h-4 w-4" strokeWidth={3} />
                     {t(v === "true" ? "entry.yes" : "entry.no")}

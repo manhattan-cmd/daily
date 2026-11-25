@@ -38,7 +38,7 @@ import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Category, SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
-import { blockFill } from "@/lib/fill";
+import { blockFill, fillStyle } from "@/lib/fill";
 
 export type NetGroup = {
   category: Category;
@@ -992,7 +992,7 @@ export function EntryPicker({
                               type="button"
                               onClick={() => onPick(s)}
                               className="min-w-[30%] max-w-full flex-auto rounded-lg border-2 border-line px-2 py-1.5 text-left text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-                              style={{ background: blockFill(bg[i]) }}
+                              style={fillStyle(bg[i])}
                             >
                               <SmartText text={s.name} className="text-[12px] font-black leading-[15px]" />
                               <span className="font-mono text-[11px] font-bold">{n}×</span>
@@ -1643,7 +1643,7 @@ function RailItem({
         "relative flex shrink-0 flex-col items-center gap-1 rounded-2xl px-0.5 transition-[background-color,transform] active:scale-95",
         compact ? "py-1.5" : "pb-1.5 pt-2"
       )}
-      style={active ? { background: blockFill(activeBg) } : undefined}
+      style={active ? fillStyle(activeBg) : undefined}
       data-rail-active={marker ? "" : undefined}
     >
       {marker && <RailMarker color={marker} />}

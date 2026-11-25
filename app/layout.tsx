@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+// Gece'nin malzemesi — globals'taki blok kurallarının üstüne (bkz. dosyanın başı)
+import "./gece.css";
 import { AppShell } from "@/components/layout/app-shell";
 import { APP_NAME } from "@/lib/brand";
 import { CSP_META } from "@/lib/security-policy";

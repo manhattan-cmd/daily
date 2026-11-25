@@ -6,7 +6,7 @@ import { SheetTitle, useEmbedded } from "@/components/ui/sheet-frame";
 import { SmartText } from "@/components/ui/smart-text";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { blockFill } from "@/lib/fill";
+import { blockFill, fillStyle } from "@/lib/fill";
 
 /**
  * KAYIT PENCERESİNİN KABUĞU — girdi formunun (açık defter) dili, yerleşik
@@ -145,7 +145,7 @@ export function EntryShell({
           onClick={onSave}
           disabled={saveDisabled}
           className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-50"
-          style={{ background: blockFill(accent) }}
+          style={fillStyle(accent)}
         >
           <Check className="h-5 w-5" strokeWidth={2.75} />
           {saveLabel}

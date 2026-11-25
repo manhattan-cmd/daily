@@ -13,7 +13,7 @@ import { prefetchDayOnPress } from "@/lib/db/day-cache";
 import { useSkin, isBlockSkin } from "@/lib/skin";
 import { Layer, PageSheet } from "@/components/ui/layer";
 import { TodayMascot } from "@/components/calendar/today-mascot";
-import { blockFill } from "@/lib/fill";
+import { blockFill, fillStyle } from "@/lib/fill";
 
 /** Takvim'in rengi — alt menüdeki sekmesi, üst menüsü, durum çubuğu (bkz.
  *  statusBarColor); gün sayfasının şeridi (WeekStrip) ve ana sayfadaki Son 7
@@ -228,9 +228,10 @@ export default function CalendarPage() {
            tek o krem döşemede asılı kalmıştı */
         <header
           data-cal-nav=""
+          data-strip=""
           // -mx-4: kabın kenar payını aşıp kenardan kenara (alt menü gibi)
           className="sticky top-0 z-30 -mx-4 border-b-[3px] border-line pt-[env(safe-area-inset-top,0px)]"
-          style={{ background: blockFill(CAL_COLOR) }}
+          style={fillStyle(CAL_COLOR)}
         >
           <div className="flex items-stretch px-1">
             <MonthArrow icon={ChevronLeft} label={t("period.prevMonth")} onClick={prevMonth} />
@@ -308,6 +309,7 @@ export default function CalendarPage() {
           data-cal-head=""
           className="-mx-1.5 -mt-3 mb-3 grid grid-cols-7 gap-x-[5px] rounded-t-[18px] border-b-[3px] border-line px-1.5"
           style={{
+            ["--fc" as string]: CAL_COLOR,
             backgroundColor: blockFill(CAL_COLOR),
             backgroundImage: "radial-gradient(var(--dot) 1.2px, transparent 1.5px)",
             backgroundSize: "11px 11px",

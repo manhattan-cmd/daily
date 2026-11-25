@@ -103,3 +103,14 @@ export function blockFill(color: string): string {
  *  aynı oran gece ölçeğiyle kâğıda */
 export const blockFillTint = (color: string, pct: number): string =>
   `color-mix(in srgb, ${color} calc(${pct}% * var(--fill-scale)), var(--paper))`;
+
+/**
+ * Renkli yüzeyin stili: zemini blockFill, ayrıca rengin kendisi `--fc`
+ * değişkeninde. Brütal --fc'yi okumaz (görünüş aynı); Gece bölüm başlarını,
+ * künyeleri ve bantları bu renkle ışıtır — zeminin içine rengin ışığı sızar,
+ * kenarında rengin kıl çizgisi yanar (bkz. app/gece.css).
+ */
+export const fillStyle = (color: string) => ({
+  background: blockFill(color),
+  ["--fc" as string]: color,
+});

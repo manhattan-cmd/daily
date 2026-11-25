@@ -1,0 +1,430 @@
+/**
+ * Gece — Brütal'in iskeleti, Gece'nin malzemesi.
+ *
+ * Yerleşim Brütal'in: bloklar, bantlar, bilet kartlar, etiketler, aynı
+ * bileşenler (isBlockSkin). Bu dosya yalnız MALZEMEYİ değiştirir; Brütal'e
+ * eklenen her yeni ekran Gece'de de kendiliğinden bu malzemeyle çizilir,
+ * çünkü kurallar Brütal'in kendi yapı taşlarına (kalın çizgi sınıfları, sert
+ * gölge sınıfları, renkli yüzeyin --fc rengi, data-* kancaları) bağlı.
+ *
+ * Eski Gece'nin imzası korunup büyütüldü:
+ *
+ * 1. İsli cam. Yüzeyler kâğıt değil gece mavisi isli cam: koyu, opak; üst
+ *    kenarında ince bir ışık çizgisi (camın kenarına vuran ay ışığı).
+ * 2. Kıl çizgi. Brütal'in 2–3 px siyah çizgisi 1 px yarı saydam beyaz.
+ *    Blok hücreleri yine ortak çizgiyle ayrılır; çizgi fısıldar.
+ * 3. Yumuşak derinlik. Sert ofset gölge yok (--shade saydam); bloklar uzun,
+ *    yumuşak bir gölgeyle zeminden kalkar. Basınca kaymaz, hafifçe küçülür.
+ * 4. Renkler ışık. Renk yüzeyi boyamaz, yüzeye sızar: bantta köşeden
+ *    yayılan bir ışık, künyede eski Gece kartlarının çapraz renk sızıntısı,
+ *    kenarda rengin kıl çizgisi. Simge, sayı ve küçük işaretler rengin
+ *    yanan tonunda (OKLCH L 0.84).
+ * 5. Yıldızlar. Brütal'in tram benekleri (gazete baskısı) Gece'de seyrek,
+ *    farklı parlaklıkta yıldızlar — bölüm bantlarında.
+ * 6. Çivit. Uygulamanın kendi rengi ana eylemde parlar (EKLE, KAYDET,
+ *    OLUŞTUR, Bugün dairesi); seçili sekme ve çipler çivit camı.
+ * 7. Daire. Brütal'in kare düğmeleri Gece'de daire; kapsüller hap.
+ * 8. Yazı. Brütal'in bir kademe kalın yazısı geri iner: başlık 800, gövde
+ *    500–600; etiketler küçük, geniş aralıklı, soluk büyük harf.
+ *
+ * Seçici öneki :root[data-skin="gece"][data-ui="block"] — Brütal'in
+ * :root[data-ui="block"] kurallarından bir kademe özgül, sıraya dayanmaz.
+ */
+
+/* ── Değişkenler ─────────────────────────────────────────────────────── */
+:root[data-skin="gece"] {
+  color-scheme: dark;
+  --background: #07080d;
+  --foreground: #e9ebf3;
+  --card: #10121a;
+  --card-foreground: #e9ebf3;
+  --muted: #171a25;
+  --muted-foreground: #878ca1;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: #0c0e15;
+  --ring: #818cf8;
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+  --accent: #171a25;
+  --accent-foreground: #e9ebf3;
+  --destructive: #ff5a5f;
+  --destructive-foreground: #ffffff;
+  --note-ground: #10121a;
+
+  /* Blok dili renkleri (bkz. globals.css "Blok dili renkleri") */
+  --ink: #e9ebf3;
+  --line: rgba(255, 255, 255, 0.08);
+  --shade: transparent;
+  --well: #1a1d29;
+  --paper: #10121a;
+  --paper-2: #171a25;
+  --floor: #07080d;
+  --dot: transparent;
+  --overlay: rgba(4, 5, 9, 0.6);
+  --warn-ink: #fbbf24;
+  --warn-ink-2: #fcd34d;
+  --danger-ink: #ff8f85;
+  --danger-ink-2: #ff8f85;
+  --blue-ink: #a5b4fc;
+  /* Renkli yüzey: gece tonu (lib/fill.ts); sınıfsız karışımlar kâğıda %22 */
+  --fill-scale: 0.22;
+  --fill-k: 0%;
+  --no-night: initial;
+
+  /* Kıl çizgi, basınca kayma yok */
+  --b1: 1px;
+  --b15: 1px;
+  --b2: 1px;
+  --b25: 1px;
+  --b3: 1px;
+  --p15: 0px;
+  --p2: 0px;
+  --p3: 0px;
+
+  /* Malzeme: camın üst kenarındaki ışık ve üç kademe yumuşak derinlik */
+  --glass-hi: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --lift-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --lift-2: 0 10px 22px -12px rgba(0, 0, 0, 0.95), 0 1px 2px rgba(0, 0, 0, 0.35);
+  --lift-3: 0 22px 46px -20px rgba(0, 0, 0, 1), 0 2px 8px -2px rgba(0, 0, 0, 0.55);
+  --brut-shadow: var(--glass-hi), var(--lift-2);
+  --brut-shadow-lg: var(--glass-hi), var(--lift-3);
+
+  /* Çivit: ana eylem */
+  --indigo: #6366f1;
+  --indigo-hi: #c7d2fe;
+  --cta: linear-gradient(180deg, #7f82fa 0%, #5b5ef0 100%);
+  --cta-glow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 10px 26px -10px rgba(99, 102, 241, 0.95), 0 0 0 1px rgba(129, 140, 248, 0.5);
+  --sel-bg: rgba(99, 102, 241, 0.17);
+  --sel-ring: inset 0 0 0 1px rgba(129, 140, 248, 0.5);
+
+  /* Yıldızlar: tek karo, farklı boy ve parlaklıkta seyrek noktalar */
+  --stars: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='190' height='120'%3E%3Cg fill='%23fff'%3E%3Ccircle cx='21' cy='17' r='.9' opacity='.7'/%3E%3Ccircle cx='96' cy='40' r='.6' opacity='.45'/%3E%3Ccircle cx='151' cy='13' r='1.1' opacity='.6'/%3E%3Ccircle cx='63' cy='87' r='.7' opacity='.4'/%3E%3Ccircle cx='132' cy='96' r='.9' opacity='.5'/%3E%3Ccircle cx='176' cy='66' r='.6' opacity='.35'/%3E%3Ccircle cx='38' cy='58' r='.5' opacity='.35'/%3E%3Ccircle cx='112' cy='6' r='.5' opacity='.3'/%3E%3Ccircle cx='8' cy='104' r='.6' opacity='.3'/%3E%3Cpath d='M170 28.2l.55 1.95 1.95.55-1.95.55-.55 1.95-.55-1.95-1.95-.55 1.95-.55z' opacity='.75'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ── Zemin: gece göğü ───────────────────────────────────────────────── */
+/* Ufukta çivit bir aydınlık; sayfa kaydıkça yerinde durur */
+:root[data-skin="gece"] body {
+  background:
+    radial-gradient(120% 50% at 50% -6%, rgba(99, 102, 241, 0.14), transparent 64%),
+    radial-gradient(80% 36% at 100% 0%, rgba(94, 234, 212, 0.05), transparent 62%),
+    var(--floor);
+  background-attachment: fixed;
+}
+
+/* ── Yazı ───────────────────────────────────────────────────────────── */
+:root[data-skin="gece"][data-ui="block"] .font-medium { font-weight: 500; }
+:root[data-skin="gece"][data-ui="block"] .font-semibold { font-weight: 600; }
+:root[data-skin="gece"][data-ui="block"] .font-bold { font-weight: 700; }
+:root[data-skin="gece"][data-ui="block"] .font-extrabold { font-weight: 700; }
+:root[data-skin="gece"][data-ui="block"] .font-black { font-weight: 800; }
+:root[data-skin="gece"][data-ui="block"] :is(h1, h2) { font-weight: 800; letter-spacing: -0.025em; }
+
+/* ── Kıl çizgi ──────────────────────────────────────────────────────── */
+:root[data-skin="gece"][data-ui="block"] :is(.border, .border-2, .border-\[1\.5px\], .border-\[2\.5px\], .border-\[3px\]) { border-width: 1px; }
+:root[data-skin="gece"][data-ui="block"] :is(.border-t-2, .border-t-\[1\.5px\], .border-t-\[3px\]) { border-top-width: 1px; }
+:root[data-skin="gece"][data-ui="block"] :is(.border-b-2, .border-b-\[1\.5px\], .border-b-\[3px\]) { border-bottom-width: 1px; }
+:root[data-skin="gece"][data-ui="block"] :is(.border-l-2, .border-l-\[1\.5px\]) { border-left-width: 1px; }
+:root[data-skin="gece"][data-ui="block"] :is(.border-r-2, .border-r-\[1\.5px\]) { border-right-width: 1px; }
+/* Blok hücreleri arasındaki ortak çizgi */
+:root[data-skin="gece"][data-ui="block"] .gap-\[2px\] { gap: 1px; }
+:root[data-skin="gece"][data-ui="block"] .gap-\[3px\] { gap: 2px; }
+
+/* ── Yumuşak derinlik ───────────────────────────────────────────────── */
+/* Brütal'in sert gölge sınıfları yerine kademeli yumuşak gölge: büyük
+   bloklar (4–6 px) en yüksekte, kartlar (3 px) ortada, küçük karolar
+   yalnız camın kenar ışığı */
+:root[data-skin="gece"][data-ui="block"] :is(
+  [class~="shadow-[4px_4px_0_var(--shade)]"],
+  [class~="shadow-[5px_5px_0_var(--shade)]"],
+  [class~="shadow-[6px_6px_0_var(--shade)]"]
+) { box-shadow: var(--glass-hi), var(--lift-3); }
+:root[data-skin="gece"][data-ui="block"] [class~="shadow-[3px_3px_0_var(--shade)]"] { box-shadow: var(--glass-hi), var(--lift-2); }
+:root[data-skin="gece"][data-ui="block"] :is(
+  [class~="shadow-[2px_2px_0_var(--shade)]"],
+  [class~="shadow-[2.5px_2.5px_0_var(--shade)]"]
+) { box-shadow: var(--glass-hi), var(--lift-1); }
+:root[data-skin="gece"][data-ui="block"] :is(
+  [class~="shadow-[1.5px_1.5px_0_var(--shade)]"],
+  [class~="shadow-[1px_1px_0_var(--shade)]"]
+) { box-shadow: var(--glass-hi); }
+/* Basınca gölgesine oturmak yerine hafifçe küçülür */
+:root[data-skin="gece"][data-ui="block"] [class*="active:translate"]:active { translate: none !important; scale: 0.97; }
+:root[data-skin="gece"][data-ui="block"] :is(button, a, [role="button"]) { transition: scale 0.12s ease, filter 0.12s ease, background-color 0.2s, box-shadow 0.2s; }
+
+/* Pencereler: camdan, derin gölgeli; arkası buğulu */
+:root[data-skin="gece"][data-ui="block"] [role="dialog"] {
+  box-shadow: var(--glass-hi), 0 30px 80px -24px #000, 0 0 0 1px rgba(255, 255, 255, 0.07) !important;
+  border-color: transparent !important;
+}
+:root[data-skin="gece"][data-ui="block"] [data-dialog-overlay] { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+
+/* Yapışkan sayfa başının çevresi: düz döşeme yerine buğulu cam (kayan
+   içerik altından silik görünür) */
+:root[data-skin="gece"][data-ui="block"] [data-header-block] {
+  background: rgba(7, 8, 13, 0.72);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+
+/* ── Renkler ışık: bantlar ──────────────────────────────────────────── */
+/* Bölüm bandı (bandDots; --fc rengi): zemin rengin çok hafif tonu, sol üst
+   köşeden rengin ışığı yayılır, üstünde yıldızlar; alt kenarında rengin
+   kıl çizgisi yanar */
+:root[data-skin="gece"][data-ui="block"] [style*="--fc"][style*="radial-gradient"] {
+  background-color: color-mix(in oklab, var(--fc) 8%, var(--paper)) !important;
+  background-image:
+    var(--stars),
+    radial-gradient(120% 140% at 0% 0%, color-mix(in oklab, var(--fc) 34%, transparent) 0%, color-mix(in oklab, var(--fc) 10%, transparent) 42%, transparent 72%) !important;
+  background-size: 190px 120px, 100% 100% !important;
+  background-repeat: repeat, no-repeat !important;
+  box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--fc) 45%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+/* Künye, karo, düz renkli baş (fillStyle ya da bg-fill-[renk] sınıfı;
+   yıldızsız): eski Gece kartlarının çapraz renk sızıntısı */
+:root[data-skin="gece"][data-ui="block"] :is([style*="--fc"], [class*="bg-fill-"]):not([style*="radial-gradient"]) {
+  background: linear-gradient(135deg, color-mix(in oklab, var(--fc) 24%, var(--paper)) 0%, color-mix(in oklab, var(--fc) 9%, var(--paper)) 62%, color-mix(in oklab, var(--fc) 5%, var(--paper)) 100%) !important;
+  box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--fc) 38%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Şeritler (sayfanın kenardan kenara üst menüsü): gece ufku — buğulu
+   koyu cam, alttan bölümün rengi bir şehir ışığı gibi yükselir, alt
+   kenarı rengin kıl çizgisi; üstünde seyrek yıldızlar */
+:root[data-skin="gece"][data-ui="block"] [data-strip][data-strip][data-strip] {
+  background-color: rgba(8, 9, 14, 0.9) !important;
+  background-image:
+    linear-gradient(to top, color-mix(in oklab, var(--fc) 20%, transparent), color-mix(in oklab, var(--fc) 4%, transparent) 70%, transparent),
+    var(--stars) !important;
+  background-size: 100% 100%, 190px 120px !important;
+  background-repeat: no-repeat, repeat !important;
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border-bottom-color: color-mix(in oklab, var(--fc) 55%, transparent) !important;
+  box-shadow: 0 6px 18px -10px color-mix(in oklab, var(--fc) 55%, transparent) !important;
+}
+
+/* Hücrelerin tepesindeki renk çizgileri (sayılar, karolar): ince, kendi
+   renginde yanan bir ışık çubuğu; ışığı altındaki hücreye düşer */
+:root[data-skin="gece"][data-ui="block"] [data-glow-bar] {
+  height: 2px; box-shadow: 0 0 12px 1px color-mix(in oklab, var(--bc) 65%, transparent);
+  position: relative; z-index: 1;
+}
+
+/* Ana sayfanın kategori karolarındaki doluluk: düz renk sütunu yerine
+   karonun içinde yükselen ışık — üst kenarı rengin parlak çizgisi */
+:root[data-skin="gece"][data-ui="block"] [data-level] {
+  background: linear-gradient(to top, color-mix(in oklab, var(--lc) 34%, var(--paper)), color-mix(in oklab, var(--lc) 14%, var(--paper))) !important;
+  border-top-color: color-mix(in oklab, var(--lc) 80%, white 0%) !important;
+  box-shadow: 0 -4px 14px -6px color-mix(in oklab, var(--lc) 70%, transparent);
+}
+
+/* Ekleme düğmeleri (Ekle yeşili) Gece'de ana eylem: çivit ışığı */
+:root[data-skin="gece"][data-ui="block"] :is(button, a):is(.bg-fill-\[\#7ae582\], [style*="--fc:#7ae582"]),
+:root[data-skin="gece"][data-ui="block"] [data-sum-tile][style*="--fc:#7ae582"] { --fc: #8f92fb; }
+:root[data-skin="gece"][data-ui="block"] :is(button, a):is(.bg-fill-\[\#7ae582\], [style*="--fc:#7ae582"]) > span.bg-well:first-child,
+:root[data-skin="gece"][data-ui="block"] [data-sum-tile][style*="--fc:#7ae582"] > span:first-child { color: #e0e7ff !important; }
+/* Renkli hücrenin simge kuyusu (Ekle, Kategori yarat): rengin yanan küresi */
+:root[data-skin="gece"][data-ui="block"] :is([class*="bg-fill-"], [style*="--fc"]) > span.bg-well:first-child {
+  background: radial-gradient(circle at 50% 35%, color-mix(in oklab, var(--fc) 42%, #10121a), color-mix(in oklab, var(--fc) 16%, #0b0d13)) !important;
+  color: oklch(from var(--fc) 0.9 calc(c * 0.8) h) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fc) 55%, transparent), 0 0 18px -3px color-mix(in oklab, var(--fc) 75%, transparent) !important;
+  border-radius: 999px;
+}
+/* Rengi bilinmeyen öteki renkli yüzeyler (gece tonu): camın parlaması */
+:root[data-skin="gece"][data-ui="block"] [style*="--fill-k"]:not([style*="--fc"]) {
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 55%) !important;
+}
+
+/* Künyenin ve başların simge karosu: rengin camı, kenarı rengin ışığı */
+:root[data-skin="gece"][data-ui="block"] [style*="--fc"] > span:first-child:is(.bg-paper, .bg-well) {
+  background: color-mix(in oklab, var(--fc) 18%, #0b0d13) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fc) 42%, transparent) !important;
+  border-color: transparent !important;
+}
+/* Künyedeki saat: koyu cam hap */
+:root[data-skin="gece"][data-ui="block"] [style*="--fc"] :is(.bg-paper.font-mono, .rounded-\[6px\].bg-paper) {
+  background: rgba(0, 0, 0, 0.28) !important; border-color: rgba(255, 255, 255, 0.08) !important; color: #c3c7d6;
+}
+/* Başlık altındaki bağlam (kategori adı): eski Gece gibi rengin yanan tonunda */
+:root[data-skin="gece"][data-ui="block"] [data-sel-head="edge"] .uppercase {
+  color: oklch(from var(--fc) 0.84 calc(c * 0.9) h); opacity: 1;
+}
+
+/* Bloğun asıl işi (SummaryTile): rengin camı, ortada yanan bir küre */
+:root[data-skin="gece"][data-ui="block"] [data-sum-tile] > span:first-child {
+  background: radial-gradient(circle at 50% 35%, color-mix(in oklab, var(--fc) 40%, #10121a), color-mix(in oklab, var(--fc) 16%, #0b0d13)) !important;
+  color: oklch(from var(--fc) 0.9 calc(c * 0.8) h) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fc) 55%, transparent), 0 0 18px -3px color-mix(in oklab, var(--fc) 70%, transparent);
+  border-radius: 999px;
+}
+
+/* Kategori karoları ve özellik atomları: eski Gece karoları — rengin
+   camı, rengin kenarı, hafif hale */
+:root[data-skin="gece"][data-ui="block"] :is([data-cat-tile], [data-atom]) {
+  background: linear-gradient(160deg, color-mix(in oklab, var(--tile-c) 30%, #10121a), color-mix(in oklab, var(--tile-c) 12%, #0b0d13)) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tile-c) 45%, transparent), 0 8px 22px -12px color-mix(in oklab, var(--tile-c) 60%, transparent) !important;
+}
+:root[data-skin="gece"][data-ui="block"] [data-cat-tile] > *,
+:root[data-skin="gece"][data-ui="block"] [data-atom] > * { color: oklch(from var(--tile-c) 0.84 calc(c * 0.9) h) !important; }
+
+/* Girdi ekranının başı (kalemin rengi): bant gibi ışık ve yıldız */
+:root[data-skin="gece"][data-ui="block"] [data-entry-hero] {
+  background-color: color-mix(in oklab, var(--hero-c) 8%, var(--paper)) !important;
+  background-image:
+    var(--stars),
+    radial-gradient(120% 130% at 0% 0%, color-mix(in oklab, var(--hero-c) 34%, transparent), transparent 70%) !important;
+  background-size: 190px 120px, 100% 100%;
+  background-repeat: repeat, no-repeat;
+  border-bottom-color: color-mix(in oklab, var(--hero-c) 45%, transparent) !important;
+}
+:root[data-skin="gece"][data-ui="block"] [data-entry-hero] > div > :is(span.h-11, button.h-11) {
+  background: color-mix(in oklab, var(--hero-c) 18%, #0b0d13) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--hero-c) 45%, transparent), 0 0 18px -6px color-mix(in oklab, var(--hero-c) 70%, transparent) !important;
+}
+:root[data-skin="gece"][data-ui="block"] [data-entry-hero] > div > :is(span.h-11, button.h-11) * { color: oklch(from var(--hero-c) 0.86 calc(c * 0.9) h) !important; }
+
+/* ── Kapsüller: hap ─────────────────────────────────────────────────── */
+/* Eski Gece'nin değer hapları: rengin camında, sayı rengin yanan tonunda */
+:root[data-skin="gece"][data-ui="block"] [data-capsule] {
+  border-radius: 999px; padding-right: 9px !important;
+  background: color-mix(in oklab, var(--cap-c, #a5b4fc) 11%, var(--paper)) !important;
+  border-color: color-mix(in oklab, var(--cap-c, #a5b4fc) 30%, transparent) !important;
+  box-shadow: none !important;
+}
+:root[data-skin="gece"][data-ui="block"] [data-capsule] > span:first-child {
+  background: transparent !important; box-shadow: none !important; width: 22px; padding-left: 4px;
+}
+:root[data-skin="gece"][data-ui="block"] [data-capsule] > span:nth-child(2) { color: oklch(from var(--cap-c, #a5b4fc) 0.86 calc(c * 0.9) h) !important; }
+:root[data-skin="gece"][data-ui="block"] [data-capsule] > span:first-child svg,
+:root[data-skin="gece"][data-ui="block"] [data-capsule] > span:first-child svg * { color: oklch(from var(--cap-c, #a5b4fc) 0.84 calc(c * 0.9) h) !important; }
+:root[data-skin="gece"][data-ui="block"] [data-capsule]:has(> span:only-child) { padding: 0 !important; }
+:root[data-skin="gece"][data-ui="block"] [data-capsule] > span:only-child { padding-left: 0; width: 100%; }
+:root[data-skin="gece"][data-ui="block"] :is([data-note-capsule], [data-more]) { border-radius: 10px; box-shadow: inset 0 0 0 1px var(--line) !important; background: rgba(255, 255, 255, 0.03) !important; }
+:root[data-skin="gece"][data-ui="block"] [data-more] { border-radius: 999px; }
+
+/* ── Etiketler ──────────────────────────────────────────────────────── */
+/* Brütal'in siyah etiketi Gece'de soluk, geniş aralıklı büyük harf */
+:root[data-skin="gece"][data-ui="block"] :is(h2, h3).uppercase {
+  background: transparent; color: var(--muted-foreground) !important;
+  padding: 0; letter-spacing: 0.14em; font-weight: 700;
+}
+:root[data-skin="gece"][data-ui="block"] h3.uppercase * { color: inherit !important; }
+/* Kuyudaki küçük etiketler (BUGÜN gibi): çivit camı */
+:root[data-skin="gece"][data-ui="block"] .bg-well:is(.text-\[\#ffd23f\], .text-\[\#fff4dc\]) {
+  background: var(--sel-bg) !important; color: var(--indigo-hi) !important; box-shadow: var(--sel-ring);
+}
+/* Kuyunun kendisi: koyu cam */
+:root[data-skin="gece"][data-ui="block"] .bg-well { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
+
+/* ── Seçili durum: çivit camı ───────────────────────────────────────── */
+:root[data-skin="gece"][data-ui="block"] :is(.bg-primary\/10, .bg-primary\/15) {
+  background-color: var(--sel-bg) !important; color: var(--indigo-hi) !important; border-color: rgba(129, 140, 248, 0.5) !important;
+}
+:root[data-skin="gece"][data-ui="block"] :is(.bg-primary\/10, .bg-primary\/15) * { color: var(--indigo-hi) !important; }
+:root[data-skin="gece"][data-ui="block"] [data-brut-tabs] { background: rgba(255, 255, 255, 0.025); }
+:root[data-skin="gece"][data-ui="block"] [data-brut-tabs] a { color: var(--muted-foreground) !important; font-weight: 600; }
+:root[data-skin="gece"][data-ui="block"] [data-brut-tabs] a[data-active] {
+  background: var(--sel-bg); color: var(--indigo-hi) !important; box-shadow: var(--sel-ring);
+}
+:root[data-skin="gece"][data-ui="block"] [data-brut-tabs] a[data-active] > span:last-child { color: var(--indigo-hi); }
+:root[data-skin="gece"][data-ui="block"] :is([data-period-tabs] [role="tab"][aria-selected="true"], [data-period-tabs] > button[aria-pressed="true"]) {
+  background: var(--sel-bg); color: var(--indigo-hi); box-shadow: var(--sel-ring);
+}
+:root[data-skin="gece"][data-ui="block"] :is([data-rail-item], [data-rail-node])[aria-pressed="true"] {
+  background: var(--sel-bg) !important; box-shadow: var(--sel-ring) !important; border-color: transparent !important;
+}
+:root[data-skin="gece"][data-ui="block"] [data-ledger-field][data-vt="select"] button[aria-pressed="true"] {
+  box-shadow: var(--sel-ring) !important; color: var(--indigo-hi) !important;
+}
+
+/* ── Ana eylem: çivit ───────────────────────────────────────────────── */
+/* EKLE, KAYDET, OLUŞTUR ekranın tek parlak yüzeyi. Seçici ikilenmiş: Brütal
+   dalındaki dolu düğme kuralları daha özgül boyuyor */
+:root[data-skin="gece"][data-ui="block"] :is([data-entry-foot][data-entry-foot] button[style][style], [data-cta][data-cta][data-cta], button.bg-primary, a.bg-primary) {
+  background: var(--cta) !important; color: #fff !important;
+  box-shadow: var(--cta-glow) !important; border-color: transparent !important;
+}
+:root[data-skin="gece"][data-ui="block"] :is([data-entry-foot] button[style], [data-cta], button.bg-primary, a.bg-primary) :is(svg, svg *) { color: #fff !important; }
+:root[data-skin="gece"][data-ui="block"] [data-entry-foot] button[style] { letter-spacing: 0.08em; font-weight: 800; }
+:root[data-skin="gece"][data-ui="block"] [data-entry-foot] button:not([style]) {
+  background: rgba(255, 255, 255, 0.04) !important; box-shadow: var(--glass-hi), inset 0 0 0 1px var(--line);
+}
+:root[data-skin="gece"][data-ui="block"] [data-entry-foot] { background: rgba(7, 8, 13, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+:root[data-skin="gece"][data-ui="block"] [data-stay-toast] {
+  background: color-mix(in oklab, #7ae582 16%, var(--paper)); box-shadow: inset 0 0 0 1px rgba(122, 229, 130, 0.45), 0 14px 30px -12px #000;
+}
+
+/* ── Daire düğmeler ─────────────────────────────────────────────────── */
+:root[data-skin="gece"][data-ui="block"] :is([data-brut-sq], [data-brut-actions] button:not([data-brut-label]), [data-brut-actions] a:not([data-brut-label])) {
+  border-radius: 999px; background: rgba(255, 255, 255, 0.045);
+  box-shadow: var(--glass-hi), inset 0 0 0 1px var(--line); border-color: transparent !important;
+}
+:root[data-skin="gece"][data-ui="block"] [data-brut-actions] [data-brut-label] { border-radius: 999px; box-shadow: var(--glass-hi); }
+:root[data-skin="gece"][data-ui="block"] [data-brut-nav] { border-radius: 999px; background: rgba(255, 255, 255, 0.04); box-shadow: var(--glass-hi); }
+:root[data-skin="gece"][data-ui="block"] [data-hero-actions] :is(> button, > div > button),
+:root[data-skin="gece"][data-ui="block"] [data-entry-hero] .rounded-full.h-9 { border-radius: 999px; background: rgba(0, 0, 0, 0.3) !important; border-color: rgba(255, 255, 255, 0.1); }
+/* Düğme basılınca: kayma yerine küçülme (Brütal kuralları translate'i
+   değişkenle yapıyor, burada 0) */
+:root[data-skin="gece"][data-ui="block"] :is([data-brut-sq], [data-brut-actions] button, [data-pane-row], [data-entry-foot] button, [data-hero-actions] button):active { scale: 0.96; }
+
+/* ── Alt menü: buğulu cam ───────────────────────────────────────────── */
+:root[data-skin="gece"][data-ui="block"] [data-bottom-nav] {
+  background: rgba(9, 10, 16, 0.78);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border-top: 1px solid var(--line);
+}
+:root[data-skin="gece"][data-ui="block"] [data-bottom-nav] a[data-active] > svg {
+  background: color-mix(in oklab, var(--nav-c) 16%, transparent);
+  border-color: color-mix(in oklab, var(--nav-c) 45%, transparent);
+  box-shadow: 0 0 18px -4px color-mix(in oklab, var(--nav-c) 75%, transparent);
+  color: oklch(from var(--nav-c) 0.86 calc(c * 0.9) h);
+}
+:root[data-skin="gece"][data-ui="block"] [data-bottom-nav] .bg-primary {
+  background: var(--cta) !important; border: 0 !important; color: #fff;
+  box-shadow: 0 0 0 3px var(--floor), 0 6px 18px -4px rgba(99, 102, 241, 0.9) !important;
+}
+:root[data-skin="gece"][data-ui="block"] [data-bottom-nav] a[data-today][data-active] .bg-primary {
+  background: var(--cta) !important; color: #fff !important;
+  box-shadow: 0 0 0 3px var(--floor), 0 0 22px -2px rgba(129, 140, 248, 0.95) !important;
+}
+
+/* ── Takvim ─────────────────────────────────────────────────────────── */
+:root[data-skin="gece"][data-ui="block"] [data-cal-day][data-has] { background: rgba(255, 255, 255, 0.035); box-shadow: var(--glass-hi); }
+:root[data-skin="gece"][data-ui="block"] [data-cal-day][data-today] {
+  background: color-mix(in oklab, #ff9ecd 18%, var(--paper)) !important;
+  border-color: rgba(255, 158, 205, 0.55) !important;
+  box-shadow: 0 0 20px -6px rgba(255, 158, 205, 0.8) !important;
+}
+
+/* ── Yazı alanları ──────────────────────────────────────────────────── */
+:root[data-skin="gece"][data-ui="block"] :is(input.bg-input, textarea.bg-input) { background: var(--input); box-shadow: inset 0 0 0 1px var(--line); }
+:root[data-skin="gece"][data-ui="block"] :is(input, textarea):focus-visible {
+  outline: none; box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.75), 0 0 0 3px rgba(99, 102, 241, 0.22) !important;
+}
+:root[data-skin="gece"][data-ui="block"] [data-ledger-field] { box-shadow: var(--glass-hi), inset 0 0 0 1px var(--line) !important; }
+:root[data-skin="gece"][data-ui="block"] [data-ledger-field] [data-recent] {
+  background: rgba(255, 255, 255, 0.05) !important; box-shadow: none !important; border-radius: 999px;
+}
+:root[data-skin="gece"][data-ui="block"] [data-ledger-field] [data-recent][data-on] { background: var(--sel-bg) !important; box-shadow: var(--sel-ring) !important; color: var(--indigo-hi) !important; }
+:root[data-skin="gece"][data-ui="block"] [data-wheel-band] { background: var(--sel-bg) !important; box-shadow: var(--sel-ring) !important; }
+
+/* ── Grafikler: ince, ışıklı ────────────────────────────────────────── */
+:root[data-skin="gece"][data-ui="block"] .recharts-cartesian-axis-tick-value { fill: var(--muted-foreground) !important; font-weight: 600; }
+:root[data-skin="gece"][data-ui="block"] :is(.recharts-cartesian-axis-line, .recharts-cartesian-axis-tick-line) { stroke-width: 1px; }
+:root[data-skin="gece"][data-ui="block"] .recharts-cartesian-grid line { stroke-opacity: 1; }
+:root[data-skin="gece"][data-ui="block"] :is(.recharts-bar-rectangle path, .recharts-bar-rectangle rect) { stroke: none; }
+:root[data-skin="gece"][data-ui="block"] .recharts-line-curve { stroke-width: 2.25px; filter: drop-shadow(0 0 4px currentColor); }
+:root[data-skin="gece"][data-ui="block"] .recharts-dot { stroke: var(--paper); }
+
+/* ── Ayrıntılar ─────────────────────────────────────────────────────── */
+:root[data-skin="gece"][data-ui="block"] [data-menu-icon] {
+  background: color-mix(in oklab, #ffd23f 16%, var(--paper)) !important; box-shadow: inset 0 0 0 1px rgba(255, 210, 63, 0.4) !important;
+}
+:root[data-skin="gece"][data-ui="block"] [data-menu-icon] svg { color: #fde68a !important; }
+:root[data-skin="gece"][data-ui="block"] [data-settings] .h-10.w-10.rounded-xl {
+  background: color-mix(in oklab, #ffd23f 14%, var(--paper)) !important; box-shadow: inset 0 0 0 1px rgba(255, 210, 63, 0.35);
+}
+:root[data-skin="gece"][data-ui="block"] [data-settings] .h-10.w-10.rounded-xl :is(svg, svg *) { color: #fde68a !important; }
+:root[data-skin="gece"][data-ui="block"] [data-ledger-field] [data-locked] svg { color: #c4b5fd !important; }
+:root[data-skin="gece"][data-ui="block"] [data-dots] > span { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); }
+:root[data-skin="gece"][data-ui="block"] [data-dots] > span[data-on] { box-shadow: 0 0 6px -1px currentColor; }

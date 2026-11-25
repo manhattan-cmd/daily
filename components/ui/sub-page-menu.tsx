@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { blockFill } from "@/lib/fill";
+import { fillStyle } from "@/lib/fill";
 
 /** Ana Sayfa'nın rengi — başlığından açılan sayfalar (Ara, Ayarlar) da onun şeridinde */
 export const HOME_COLOR = "#a9b0ff";
@@ -40,9 +40,10 @@ export function SubPageMenu({
   return (
     <header
       data-sub-nav=""
+      data-strip=""
       // -mx-4: main'in kenar payını aşıp kenardan kenara (alt menü gibi)
       className="sticky top-0 z-30 -mx-4 border-b-[3px] border-line pt-[env(safe-area-inset-top,0px)]"
-      style={{ background: blockFill(color) }}
+      style={fillStyle(color)}
     >
       <div className="flex items-stretch px-1">
         <Link

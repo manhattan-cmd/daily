@@ -140,7 +140,7 @@ export function StatCell({
 }) {
   return (
     <span data-stat-cell="" className="flex h-full min-w-0 flex-col bg-paper text-left text-ink">
-      <span className="h-1.5 shrink-0" style={{ background: color }} />
+      <span className="h-1.5 shrink-0" data-glow-bar="" style={{ background: color, ["--bc" as string]: color }} />
       <span className="flex min-w-0 flex-1 flex-col px-2.5 pb-2 pt-1.5">
         <span
           className={cn(

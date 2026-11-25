@@ -21,7 +21,7 @@ import { useIsBrutal } from "@/components/structure/brutal";
 import type { Thing } from "@/types";
 import { matchesSearch, normalizeSearch } from "@/lib/search";
 import { StructureSearch } from "@/components/structure/structure-search";
-import { blockFill, blockInk } from "@/lib/fill";
+import { blockInk, fillStyle } from "@/lib/fill";
 
 /** Listenin bloğunda gösterilen nesne sayısı — fazlası "+N" */
 const THING_PREVIEW = 10;
@@ -176,7 +176,7 @@ export default function ObjectsPage() {
                 <span className="flex min-w-0 flex-1 items-center gap-3 p-3">
                   <span
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-[1.5px] border-line"
-                    style={{ background: blockFill(color) }}
+                    style={fillStyle(color)}
                   >
                     {c.icon ? (
                       <SymbolIcon name={c.icon} size={21} style={{ color: blockInk(color) }} />

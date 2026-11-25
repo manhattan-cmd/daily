@@ -18,7 +18,7 @@ import { useSkin, isBlockSkin } from "@/lib/skin";
 import { SmartText } from "@/components/ui/smart-text";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { blockFill } from "@/lib/fill";
+import { blockFill, fillStyle } from "@/lib/fill";
 
 /**
  * Brütal temada pencere ayrı bir düzenle çizilir (bkz. BrutalFormShell);
@@ -381,7 +381,7 @@ export function FormActions({
           disabled={disabled}
           data-cta=""
           className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl disabled:opacity-50"
-          style={{ background: blockFill("#ffd23f") }}
+          style={fillStyle("#ffd23f")}
         >
           <Check className="h-5 w-5 shrink-0" strokeWidth={2.75} />
           <span className="truncate">{submitLabel}</span>

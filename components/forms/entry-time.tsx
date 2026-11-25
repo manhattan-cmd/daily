@@ -6,7 +6,7 @@ import { cn, toLocalDateTimeValue } from "@/lib/utils";
 import { intlTag, useT } from "@/lib/i18n";
 import { useSkin, isBlockSkin } from "@/lib/skin";
 import { TimeWheel } from "@/components/ui/time-wheel";
-import { blockFill } from "@/lib/fill";
+import { blockFill, fillStyle } from "@/lib/fill";
 
 /** Şu an — çizimde değil açılışta/olayda okunur, saf kalsın diye modülde */
 const nowDate = () => new Date();
@@ -179,7 +179,7 @@ export function EntryTime({
                   "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold",
                   brutal ? "border-[1.5px] border-line bg-fill-[#FFD23F] text-ink" : "text-white"
                 )}
-                style={brutal ? undefined : { background: blockFill(accent) }}
+                style={brutal ? undefined : fillStyle(accent)}
               >
                 {relative(dDay)}
               </span>
@@ -239,7 +239,7 @@ export function EntryTime({
               <button
                 type="button"
                 className={quick(nowOn)}
-                style={!brutal && nowOn ? { background: blockFill(accent) } : undefined}
+                style={!brutal && nowOn ? fillStyle(accent) : undefined}
                 onClick={toNow}
               >
                 <span className="text-xs font-bold">{t("entry.timeAtNow")}</span>
@@ -281,7 +281,7 @@ export function EntryTime({
                     ? "border-2 border-line bg-fill-[#FFD23F] font-black text-ink shadow-[3px_3px_0_var(--shade)]"
                     : "font-semibold text-white"
                 )}
-                style={brutal ? undefined : { background: blockFill(accent) }}
+                style={brutal ? undefined : fillStyle(accent)}
               >
                 {t("action.ok")}
               </button>

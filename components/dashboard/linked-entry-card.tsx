@@ -21,7 +21,7 @@ import {
   selectedCardClass,
   type EntrySelection,
 } from "@/components/calendar/entry-selection";
-import { blockFill, blockInk } from "@/lib/fill";
+import { blockInk, fillStyle } from "@/lib/fill";
 
 /**
  * Paralel girdi kartı — aynı olayın birden çok kategorideki perspektifi.
@@ -142,7 +142,7 @@ export function LinkedEntryCard({
                 <div className="flex items-center gap-2">
                   <span
                     className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border-[1.5px] border-line"
-                    style={{ background: blockFill(entry.category.color) }}
+                    style={fillStyle(entry.category.color)}
                   >
                     {entry.category.icon && <SymbolIcon name={entry.category.icon} size={11} style={{ color: blockInk(entry.category.color) }} />}
                   </span>

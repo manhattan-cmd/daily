@@ -26,6 +26,12 @@
 //                          → blockFill(renk) / bg-fill-[#renk]   (lib/fill.ts)
 //   O yüzeyin içindeki simge (color var(--ink) ya da text-ink sınıfı)
 //                          → blockInk(renk)  (Gece'de rengin yanan tonu)
+//   style={{ background: blockFill(renk) }}
+//                          → style={fillStyle(renk)}  (rengi --fc'de: Gece
+//                            yüzeyi o renkle ışıtır, bkz. app/gece.css)
+//   globals.css blok kurallarında 2px solid var(--line), inset 0 0 0 2px …,
+//   translate(2px, 2px)    → var(--b2) …, translate(var(--p2), var(--p2))
+//                            (Gece kıl çizgi, basınca kaymaz)
 //   useSkin() === "brutal" → isBlockSkin(useSkin())
 //   globals.css :root[data-skin="brutal"] kuralları → :root[data-ui="block"]
 //
@@ -280,6 +286,13 @@ function astPass(src, file, stage) {
   return out;
 }
 
+// ── 2b. Renkli yüzeyin rengi Gece'ye (fillStyle) ─────────────────────────
+function fillStylePass(src) {
+  return src.replace(/\{ background: blockFill\(([^`(){}]*(?:\([^()]*\))?[^`(){}]*)\) \}/g, (m, arg) =>
+    arg.includes("#c8d4ff") ? m : `fillStyle(${arg})`
+  );
+}
+
 // ── İçe aktarmalar ──────────────────────────────────────────────────────────
 function ensureImport(s, name, from) {
   if (!new RegExp(`\\b${name}\\(`).test(s)) return s;
@@ -343,6 +356,16 @@ function cssValue(prop, v, sel, block) {
   }
   return v;
 }
+const BW = { "1": "--b1", "1.5": "--b15", "2": "--b2", "2.5": "--b25", "3": "--b3" };
+const PW = { "1.5": "--p15", "2": "--p2", "3": "--p3" };
+function widthTokens(block) {
+  return block
+    .replace(/(\d+(?:\.\d+)?)px (solid|dashed) var\(--line\)/g, (m, w, st) => (BW[w] ? `var(${BW[w]}) ${st} var(--line)` : m))
+    .replace(/inset 0 0 0 (\d+(?:\.\d+)?)px var\(--line\)/g, (m, w) => (BW[w] ? `inset 0 0 0 var(${BW[w]}) var(--line)` : m))
+    .replace(/inset -(\d+(?:\.\d+)?)px 0 0 var\(--line\)/g, (m, w) => (BW[w] ? `inset calc(-1 * var(${BW[w]})) 0 0 var(--line)` : m))
+    .replace(/translate\((\d+(?:\.\d+)?)px, ?(\d+(?:\.\d+)?)px\)/g, (m, a, b) => (PW[a] && PW[b] ? `translate(var(${PW[a]}), var(${PW[b]}))` : m))
+    .replace(/(border(?:-[a-z]+)?-width:\s*)([^;!}]+)/g, (m, k, v) => k + v.replace(/\b(\d+(?:\.\d+)?)px\b/g, (mm, w) => (BW[w] ? `var(${BW[w]})` : mm)));
+}
 function cssPass(css) {
   const start = css.indexOf("/* ── Brütal (deneme)");
   if (start < 0) return css;
@@ -369,7 +392,7 @@ function cssPass(css) {
     const newBlock = newSel.includes('[data-ui="block"]')
       ? block.replace(/(^|;|\{|\n)(\s*)([-a-zA-Z]+)\s*:([^;{}]*?)(?=;|$)/g, (m, lead, ws, prop, val) => `${lead}${ws}${prop}:${cssValue(prop, val, newSel, block)}`)
       : block;
-    out += newSel + "{" + newBlock + "}";
+    out += newSel + "{" + (newSel.includes('[data-ui="block"]') ? widthTokens(newBlock) : newBlock) + "}";
     i = close + 1;
   }
   return css.slice(0, start) + out;
@@ -381,10 +404,11 @@ let changed = 0;
 for (const f of files) {
   const src = readFileSync(f, "utf8");
   let out = textPass(src);
-  if (f.endsWith(".tsx")) out = astPass(astPass(out, f, "fill"), f, "ink");
+  if (f.endsWith(".tsx")) out = fillStylePass(astPass(astPass(out, f, "fill"), f, "ink"));
   out = ensureImport(out, "isBlockSkin", "@/lib/skin");
   out = ensureImport(out, "blockFill", "@/lib/fill");
   out = ensureImport(out, "blockInk", "@/lib/fill");
+  out = ensureImport(out, "fillStyle", "@/lib/fill");
   if (out !== src) {
     changed++;
     console.log((WRITE ? "yazıldı  " : "değişecek ") + relative(ROOT, f));

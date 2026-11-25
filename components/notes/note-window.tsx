@@ -11,7 +11,7 @@ import { OptionsMenu } from "@/components/forms/form-options";
 import { useNoteDraft } from "@/components/notes/use-note-draft";
 import { NOTE_COLOR } from "@/components/notes/note-card";
 import { cn } from "@/lib/utils";
-import { blockFill } from "@/lib/fill";
+import { blockFill, fillStyle } from "@/lib/fill";
 
 /** Notun günü, arayüzün dilinde: "31 Ekim Cumartesi" (eskiden ay ve gün adları elle İngilizceydi) */
 function dateLabel(date: string, tag: string): string {
@@ -208,7 +208,7 @@ function NoteWindowBody({
               onClick={() => void close()}
               disabled={embedded && !hasText}
               className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-50"
-              style={{ background: blockFill(c) }}
+              style={fillStyle(c)}
             >
               <Check className="h-5 w-5" strokeWidth={2.75} />
               {embedded ? t("action.add") : t("action.save")}

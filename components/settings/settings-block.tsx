@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Check, ChevronRight, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { blockFill } from "@/lib/fill";
+import { fillStyle } from "@/lib/fill";
 
 /**
  * Ayar bloğu (Brütal) — ana sayfanın ve Yapı listelerinin blok dili (bkz.
@@ -41,7 +41,7 @@ export function SettingsBlock({
   children?: ReactNode;
 }) {
   const head = (
-    <div className="flex min-h-[54px] items-center gap-2.5 px-3 py-2 text-ink" style={{ background: blockFill(color) }}>
+    <div className="flex min-h-[54px] items-center gap-2.5 px-3 py-2 text-ink" style={fillStyle(color)}>
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-line bg-paper">
         <Icon className="h-4 w-4" strokeWidth={2.5} />
       </span>
@@ -123,7 +123,7 @@ export function SettingsChoices<T extends string>({
               !on && "bg-paper active:bg-paper-2",
               wide && "col-span-2"
             )}
-            style={on ? { background: blockFill(color) } : undefined}
+            style={on ? fillStyle(color) : undefined}
           >
             <span className="min-w-0 flex-1 pr-5">{render(o)}</span>
             {on && (

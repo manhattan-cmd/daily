@@ -19,7 +19,7 @@ import { NoteWindow } from "@/components/notes/note-window";
 import { ThingEntrySheet } from "@/components/forms/thing-entry-sheet";
 import { QuickPicker } from "@/components/calendar/quick-picker";
 import { ADD_TABS, tabDef, type AddTab } from "@/components/calendar/add-tabs";
-import { blockFill } from "@/lib/fill";
+import { fillStyle } from "@/lib/fill";
 
 export type { AddTab };
 
@@ -181,8 +181,9 @@ function AddScreenBody({ date, open, onClose, tab: initialTab, entryOpts }: AddS
           {brutal ? (
             <header
               data-add-nav=""
+              data-strip=""
               className="shrink-0 border-b-[3px] border-line pt-[env(safe-area-inset-top,0px)] transition-colors duration-200"
-              style={{ background: blockFill(active.color) }}
+              style={fillStyle(active.color)}
             >
               <div className="flex h-11 items-center gap-2.5 pl-3 pr-4 pt-1.5">
                 <button

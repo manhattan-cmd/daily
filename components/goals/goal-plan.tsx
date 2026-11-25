@@ -19,7 +19,7 @@ import {
 } from "@/lib/goals";
 import { TimeWheel } from "@/components/ui/time-wheel";
 import { isNative } from "@/lib/native";
-import { blockFill } from "@/lib/fill";
+import { blockFill, fillStyle } from "@/lib/fill";
 
 /**
  * Hedefin zamanı: bir gün mü, tekrar mı; hatırlatma var mı.
@@ -346,7 +346,7 @@ export function GoalPlanFields({
               brutal ? "border-2 border-line" : "",
               !on && (brutal ? "bg-paper" : "bg-muted-foreground/30")
             )}
-            style={on ? { background: blockFill(accent) } : undefined}
+            style={on ? fillStyle(accent) : undefined}
           >
             <span
               className={cn(

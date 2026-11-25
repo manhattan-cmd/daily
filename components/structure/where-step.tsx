@@ -6,7 +6,7 @@ import { SymbolIcon } from "@/lib/icons";
 import { SmartText } from "@/components/ui/smart-text";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { blockFill, blockInk } from "@/lib/fill";
+import { blockFill, blockInk, fillStyle } from "@/lib/fill";
 
 export interface WhereRow {
   id: string;
@@ -138,7 +138,7 @@ export function BrutWhereStep({
             <div className="flex items-center gap-3 rounded-xl p-2 text-ink">
               <span
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border-[1.5px] border-line"
-                style={{ background: blockFill(color) }}
+                style={fillStyle(color)}
               >
                 {icon && <SymbolIcon name={icon} size={20} style={{ color: blockInk(color) }} />}
               </span>
@@ -238,7 +238,7 @@ export function BrutWhereStep({
           onClick={onConfirm}
           disabled={saving}
           className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl disabled:opacity-50"
-          style={{ background: blockFill("#ffd23f") }}
+          style={fillStyle("#ffd23f")}
         >
           <Check className="h-5 w-5 shrink-0" strokeWidth={2.75} />
           <span className="truncate">{t("action.add")}</span>

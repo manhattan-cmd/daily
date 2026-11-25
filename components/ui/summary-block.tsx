@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowRight, ChevronDown, ChevronRight, Plus, X, type LucideIcon } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import { blockFill, blockInk } from "@/lib/fill";
+import { blockFill, blockInk, fillStyle } from "@/lib/fill";
 
 /**
  * Sayfa özeti (Brütal) — gün, kategori, alt kategori sayfalarının ve ana
@@ -91,6 +91,7 @@ export type SummaryLink = {
 
 /** Bölüm bantlarının tram benekleri (bkz. globals.css "bolum bantlari") */
 const bandDots = (color: string) => ({
+  ["--fc" as string]: color,
   backgroundColor: blockFill(color),
   backgroundImage: "radial-gradient(var(--dot) 1.2px, transparent 1.5px)",
   backgroundSize: "11px 11px",
@@ -137,17 +138,17 @@ export function SummaryTile({
     if (!href && !onClick) {
       // Yalnız görünüş — dokunuşu dıştaki düğme alır (Analiz'in Grafik ekle menüsü)
       return (
-        <span title={label} className={c} style={{ background: blockFill(color) }}>
+        <span title={label} className={c} data-sum-tile="" style={fillStyle(color)}>
           {mark}
         </span>
       );
     }
     return href ? (
-      <Link href={href} aria-label={label} title={label} className={c} style={{ background: blockFill(color) }}>
+      <Link href={href} aria-label={label} title={label} className={c} data-sum-tile="" style={fillStyle(color)}>
         {mark}
       </Link>
     ) : (
-      <button type="button" onClick={onClick} aria-label={label} title={label} className={c} style={{ background: blockFill(color) }}>
+      <button type="button" onClick={onClick} aria-label={label} title={label} className={c} data-sum-tile="" style={fillStyle(color)}>
         {mark}
       </button>
     );
@@ -164,17 +165,17 @@ export function SummaryTile({
   if (!href && !onClick) {
     // Yalnız görünüş — dokunuşu dıştaki düğme alır (Analiz'in Grafik ekle menüsü)
     return (
-      <span className={cls} style={{ background: blockFill(color) }}>
+      <span className={cls} data-sum-tile="" style={fillStyle(color)}>
         {body}
       </span>
     );
   }
   return href ? (
-    <Link href={href} className={cls} style={{ background: blockFill(color) }}>
+    <Link href={href} className={cls} data-sum-tile="" style={fillStyle(color)}>
       {body}
     </Link>
   ) : (
-    <button type="button" onClick={onClick} className={cls} style={{ background: blockFill(color) }}>
+    <button type="button" onClick={onClick} className={cls} data-sum-tile="" style={fillStyle(color)}>
       {body}
     </button>
   );
@@ -202,7 +203,7 @@ export function SummaryEmpty({
           type="button"
           onClick={action.onClick}
           className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-[9px] border-[1.5px] border-line px-3 text-[12.5px] font-black shadow-[1.5px_1.5px_0_var(--shade)] active:translate-x-px active:translate-y-px active:shadow-none"
-          style={{ background: blockFill(action.color ?? "#7ae582") }}
+          style={fillStyle(action.color ?? "#7ae582")}
         >
           <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={3} />
           <span className="truncate">{action.label}</span>
@@ -264,7 +265,7 @@ function Lead({
     return (
       <div
         className="relative flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-ink"
-        style={banded ? bandDots(lead.color) : { background: blockFill(lead.color) }}
+        style={banded ? bandDots(lead.color) : fillStyle(lead.color)}
       >
         {lead.close && <CloseButton close={lead.close} />}
         <Overline text={lead.overline} />
@@ -277,7 +278,7 @@ function Lead({
     return (
       <div
         className="relative flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-ink"
-        style={banded ? bandDots(lead.color ?? "#ffd23f") : { background: blockFill(lead.color ?? "#ffd23f") }}
+        style={banded ? bandDots(lead.color ?? "#ffd23f") : fillStyle(lead.color ?? "#ffd23f")}
       >
         {lead.close && <CloseButton close={lead.close} />}
         <Overline text={lead.overline} />
@@ -316,7 +317,7 @@ function Lead({
   return (
     <div
       className="flex h-full min-w-0 items-center gap-3 px-3 py-2.5 text-ink"
-      style={banded ? bandDots(lead.color) : { background: blockFill(lead.color) }}
+      style={banded ? bandDots(lead.color) : fillStyle(lead.color)}
     >
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] border-2 border-line bg-paper">
         {lead.glyph ? (
@@ -382,7 +383,7 @@ function CompactLead({
         dense ? "min-h-[36px] gap-2 px-2 py-1" : "min-h-[50px] gap-2.5 px-3 py-2",
         close && "pr-9"
       )}
-      style={{ background: blockFill(color) }}
+      style={fillStyle(color)}
     >
       {close && <CloseButton close={close} />}
       {(Glyph || icon) && (
@@ -431,7 +432,7 @@ function CompactLead({
 function Stat({ s }: { s: SummaryStat }) {
   const body = (
     <>
-      <span className="h-1.5 shrink-0" style={{ background: s.color }} />
+      <span className="h-1.5 shrink-0" data-glow-bar="" style={{ background: s.color, ["--bc" as string]: s.color }} />
       <span className="min-w-0 px-2.5 pb-2 pt-1.5 text-left">
         <span className="block truncate text-[9.5px] font-black uppercase text-ink/60">{s.label}</span>
         <b className="block truncate font-mono text-[19px] font-bold leading-6 tabular-nums">

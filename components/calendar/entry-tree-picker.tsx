@@ -12,7 +12,7 @@ import { loadUsageCounts, USAGE_COUNTS_KEY, useCachedLiveQuery } from "@/lib/db/
 import { SummaryBlock, SummaryEmpty, SummaryTile } from "@/components/ui/summary-block";
 import { useEmbedded } from "@/components/ui/sheet-frame";
 import { setEntryLayout, type NetGroup } from "@/components/calendar/entry-picker";
-import { blockFill, blockInk } from "@/lib/fill";
+import { blockInk, fillStyle } from "@/lib/fill";
 
 const NO_COUNTS: ReadonlyMap<string, number> = new Map();
 /** Girinti bu katta durur; daha derinde adın önünde kat numarası (Yapı'daki ağaç gibi) */
@@ -331,7 +331,7 @@ function DirectRow({ cat, label, onClick }: { cat: Category; label: string; onCl
     >
       <span
         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] border-line"
-        style={{ background: blockFill(cat.color) }}
+        style={fillStyle(cat.color)}
       >
         {cat.icon && <SymbolIcon name={cat.icon} size={13} style={{ color: blockInk(cat.color) }} />}
       </span>

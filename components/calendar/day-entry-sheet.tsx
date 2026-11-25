@@ -74,7 +74,7 @@ import { entrySoundFor, playEntrySound } from "@/lib/sound";
 import { collectThings, ThingValuesContext, type ThingVals } from "@/components/forms/thing-ui";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { SheetFrame, useEmbedded } from "@/components/ui/sheet-frame";
-import { blockFill } from "@/lib/fill";
+import { blockFill, fillStyle } from "@/lib/fill";
 
 /** Değer state anahtarı: global mod id (legacy atamalarda atama id'si) */
 /** Sabit boş liste — her çizimde yeni [] bağımlılıkları boşuna tazeliyordu */
@@ -993,6 +993,8 @@ function GoalPickBand({
   return (
     <div
       data-goal-band=""
+      data-strip=""
+      style={{ ["--fc" as string]: "#ffd23f" }}
       className={cn(
         "flex shrink-0 flex-col gap-2.5 px-4 py-3",
         brutal ? "border-b-[3px] border-line bg-fill-[#ffd23f] text-ink" : "border-b border-[var(--ln-1)]"
@@ -1027,7 +1029,7 @@ function GoalPickBand({
                   "flex h-10 flex-1 items-center justify-center gap-2 rounded-full text-[14px] font-bold transition-transform active:scale-[0.97]",
                   brutal ? "border-2 border-line text-ink shadow-[2px_2px_0_var(--shade)]" : "bg-[var(--sf-2)]"
                 )}
-                style={brutal ? { background: blockFill(color) } : undefined}
+                style={brutal ? fillStyle(color) : undefined}
               >
                 <Icon className="h-4 w-4" strokeWidth={2.4} style={brutal ? undefined : { color }} />
                 {b.label}

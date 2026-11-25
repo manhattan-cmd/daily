@@ -38,7 +38,7 @@ import { toLocalDateValue, withUnit } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Mod } from "@/types";
 import { PageSheet } from "@/components/ui/layer";
-import { blockFill, blockInk } from "@/lib/fill";
+import { blockInk, fillStyle } from "@/lib/fill";
 
 const H2 = "mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
 
@@ -193,7 +193,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
               >
                 <span
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-[1.5px] border-line"
-                  style={{ background: blockFill(modColor(m)) }}
+                  style={fillStyle(modColor(m))}
                 >
                   {(() => {
                     const Icon = modAtomIcon({ name: m.name, entryType: measureOf(m) });

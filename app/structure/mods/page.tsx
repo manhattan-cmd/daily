@@ -58,7 +58,7 @@ import { cn } from "@/lib/utils";
 import { modColor } from "@/lib/mod-color";
 import { CATEGORY_COLORS, SCALE_PRESETS, type EntryValueType } from "@/types";
 import { SummaryBlock, SummaryEmpty, SummaryTile } from "@/components/ui/summary-block";
-import { blockFill, blockInk } from "@/lib/fill";
+import { blockFill, blockInk, fillStyle } from "@/lib/fill";
 
 /** Özelliklerin rengi — kategori sayfasındaki Özellikler bloğunun menekşesi */
 const FEATURES = "#c9b8ff";
@@ -394,7 +394,7 @@ function ModsHome() {
                     >
                       <span
                         className="flex h-[50px] w-[50px] items-center justify-center rounded-full border-2 border-line shadow-[2px_2px_0_var(--shade)] transition-transform group-active:translate-x-[2px] group-active:translate-y-[2px] group-active:shadow-none"
-                        style={{ background: blockFill(c) }}
+                        style={fillStyle(c)}
                       >
                         <Icon style={{ color: blockInk(c) }} className="h-5 w-5 text-ink" strokeWidth={2.4} />
                       </span>

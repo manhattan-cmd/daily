@@ -10,13 +10,14 @@ import { useT } from "@/lib/i18n";
 import { useRoutePath } from "@/lib/use-route-path";
 import { SummaryEmpty } from "@/components/ui/summary-block";
 import { STRUCTURE_TABS, structureTabIndex } from "./structure-tabs";
-import { blockFill } from "@/lib/fill";
+import { blockFill, fillStyle } from "@/lib/fill";
 
 /** Yapı'nın sarısı — şerit, sayfa başı ve sekmenin şekli */
 const YAPI = "#ffd23f";
 
 /** Bölüm bantlarının tram benekleri (bkz. SummaryBlock link, globals.css) */
 const BAND = {
+  ["--fc" as string]: YAPI,
   backgroundColor: blockFill(YAPI),
   backgroundImage: "radial-gradient(var(--dot) 1.2px, transparent 1.5px)",
   backgroundSize: "11px 11px",
@@ -151,7 +152,7 @@ export function StructureHead({
               aria-label={`${t("action.add")}: ${add.label}`}
               title={`${t("action.add")}: ${add.label}`}
               className={HEAD_BTN}
-              style={{ background: blockFill("#7ae582") }}
+              style={fillStyle("#7ae582")}
             >
               <Plus className="h-5 w-5" strokeWidth={3} />
             </button>

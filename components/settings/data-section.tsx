@@ -40,7 +40,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useSkin, isBlockSkin } from "@/lib/skin";
 import { SettingsBlock, SettingsCell, settingsButton } from "./settings-block";
-import { blockFill } from "@/lib/fill";
+import { blockFill, fillStyle } from "@/lib/fill";
 
 const fmt = (n: number) => n.toLocaleString(intlTag());
 
@@ -275,7 +275,7 @@ export function DataSection() {
               onClick={handleShare}
               disabled={exporting}
               className={`${settingsButton} flex-1`}
-              style={{ background: blockFill("#ffd23f") }}
+              style={fillStyle("#ffd23f")}
             >
               <Share2 className="h-4 w-4" strokeWidth={2.75} />
               {exporting ? t("backup.preparing") : t("backup.share")}

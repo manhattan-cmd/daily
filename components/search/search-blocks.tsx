@@ -35,7 +35,7 @@ import { measureSummary } from "@/lib/measure-kinds";
 import { modColor } from "@/lib/mod-color";
 import type { ModWithType } from "@/lib/db/queries";
 import type { Category, Collection, EntryWithContext, Note, SubCategory, Thing } from "@/types";
-import { blockFill, blockInk } from "@/lib/fill";
+import { blockInk, fillStyle } from "@/lib/fill";
 
 /**
  * Aramanın zaman süzgeci — Analiz'in dönem türleri, onunla aynı sırada:
@@ -444,7 +444,7 @@ function ResultRow({
             "flex h-8 w-8 shrink-0 items-center justify-center border-[1.5px] border-line",
             shape === "circle" ? "rounded-full" : "rounded-[9px]"
           )}
-          style={{ background: blockFill(color) }}
+          style={fillStyle(color)}
         >
           {icon ? (
             <SymbolIcon name={icon} size={17} style={{ color: blockInk(color) }} />

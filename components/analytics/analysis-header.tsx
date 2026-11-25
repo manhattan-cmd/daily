@@ -8,7 +8,7 @@ import { routes } from "@/lib/routes";
 import { useLocale, useT, type MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { PeriodTabs } from "./period-switcher";
-import { blockFill } from "@/lib/fill";
+import { fillStyle } from "@/lib/fill";
 
 /** Analiz'in rengi — alt menüdeki sekmesi, üst menüsü, durum çubuğu (bkz. statusBarColor) */
 export const ANALYSIS_COLOR = "#8ea6ff";
@@ -29,9 +29,10 @@ function Band({
   return (
     <header
       data-an-nav=""
+      data-strip=""
       // -mx-4: main'in kenar payını aşıp kenardan kenara (alt menü gibi)
       className={cn(sticky ? "sticky top-0 z-30" : "relative", "-mx-4 border-b-[3px] border-line pt-[env(safe-area-inset-top,0px)]", className)}
-      style={{ background: blockFill(ANALYSIS_COLOR) }}
+      style={fillStyle(ANALYSIS_COLOR)}
       {...rest}
     >
       {children}
@@ -214,7 +215,7 @@ export function AnalysisDeck({
               <PeriodTabs period={period} onPick={onPick} deck />
             </div>
           </Fold>
-          <div className="flex items-center gap-2 px-1.5 py-1.5" style={{ background: blockFill(PERIOD_TINT) }}>
+          <div className="flex items-center gap-2 px-1.5 py-1.5" style={fillStyle(PERIOD_TINT)}>
             <Arrow icon={ChevronLeft} label={t("insights.previousPeriod")} disabled={!prev} onClick={() => go(prev)} />
             {small ? (
               <button type="button" onClick={toggle} aria-label={t("an.deck.expand")} className="min-w-0 flex-1 text-center">

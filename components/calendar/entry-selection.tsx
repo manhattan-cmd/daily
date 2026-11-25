@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, CalendarDays, Check, Trash2, X } from "lucide-re
 import { cn } from "@/lib/utils";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { useSkin, isBlockSkin } from "@/lib/skin";
-import { blockFill } from "@/lib/fill";
+import { fillStyle } from "@/lib/fill";
 
 /**
  * Bir kartın toplu seçim durumu. Kart birden çok girdi taşıyorsa (paralel
@@ -266,7 +266,7 @@ function BrutalBar({
       {/* Bant */}
       <div
         className="flex min-h-[54px] items-center gap-2.5 border-b-2 border-line px-3 py-2"
-        style={{ background: blockFill(BAND[view]) }}
+        style={fillStyle(BAND[view])}
       >
         {view === "actions" ? (
           <BandSquare onClick={onCancel} label={t("selection.clear")}>
@@ -348,7 +348,7 @@ function BrutalBar({
 
             {/* Gün kutusu — dokununca telefonun takvimi (görünmez tarih girişi) */}
             <label className="relative flex h-14 cursor-pointer items-center gap-3 rounded-[14px] border-2 border-line bg-paper px-3.5 shadow-[3px_3px_0_var(--shade)]">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-2 border-line" style={{ background: blockFill(BAND.move) }}>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-2 border-line" style={fillStyle(BAND.move)}>
                 <CalendarDays className="h-4 w-4" strokeWidth={2.5} />
               </span>
               <span className="min-w-0 flex-1 leading-tight">
@@ -375,7 +375,7 @@ function BrutalBar({
               onClick={move}
               disabled={busy || !target || target === date}
               className={cn(BRUT_BTN, "w-full uppercase tracking-[0.04em]")}
-              style={{ background: blockFill("#ffd23f") }}
+              style={fillStyle("#ffd23f")}
             >
               <span className="truncate">
                 {busy

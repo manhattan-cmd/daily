@@ -14,7 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { useRepeatLabel } from "@/components/goals/goal-plan";
-import { blockFill } from "@/lib/fill";
+import { fillStyle } from "@/lib/fill";
 
 export type Row = { goal: GoalWithContext; doneDays: Set<string> };
 
@@ -136,7 +136,7 @@ export function GoalRow({ row, today, onOpen }: { row: Row; today: string; onOpe
     >
       <span
         className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]", brutal && "border-2 border-line")}
-        style={{ background: blockFill(color) }}
+        style={fillStyle(color)}
       >
         {goal.repeat ? (
           <Repeat className="h-5 w-5 text-white" strokeWidth={2.4} />

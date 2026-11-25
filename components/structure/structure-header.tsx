@@ -42,6 +42,8 @@ export function StructureHeader({
     return (
       <header
         data-yapi-nav=""
+        data-strip=""
+        style={{ ["--fc" as string]: "#ffd23f" }}
         // -mx-4: main'in kenar payını aşıp kenardan kenara (alt menü gibi)
         className="sticky top-0 z-30 -mx-4 border-b-[3px] border-line bg-fill-[#ffd23f] pt-[env(safe-area-inset-top,0px)]"
       >

@@ -48,7 +48,7 @@ import { intlTag, translate, useLocale, useT } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
 import { useSkin, isBlockSkin } from "@/lib/skin";
 import type { SubCategory } from "@/types";
-import { blockFill, blockInk } from "@/lib/fill";
+import { blockFill, blockInk, fillStyle } from "@/lib/fill";
 
 const WEEKDAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 /** Ana sayfadaki son kayıtlar (girdi + not) */
@@ -533,7 +533,7 @@ function FrequentBlock({ items, onPick }: { items: FrequentItem[]; onPick: (sub:
                 wide && "col-span-2"
               )}
             >
-              <span className="h-1.5 shrink-0" style={{ background: it.category.color }} />
+              <span className="h-1.5 shrink-0" data-glow-bar="" style={{ background: it.category.color, ["--bc" as string]: it.category.color }} />
               {/* flex-1: hücre sıradaki komşusu kadar uzar (adı iki satır
                   olan); içerik onun ortasında — eskiden tepeye yapışıyor,
                   aynı sırada sembolün biri yukarıda biri aşağıda kalıyordu */}
@@ -542,7 +542,7 @@ function FrequentBlock({ items, onPick }: { items: FrequentItem[]; onPick: (sub:
                     32 px'ini yiyor, uzun kelimeyi bölünmeye zorluyordu */}
                 <span
                   className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-line"
-                  style={{ background: blockFill(it.category.color) }}
+                  style={fillStyle(it.category.color)}
                 >
                   {icon && <SymbolIcon name={icon} size={17} style={{ color: blockInk(it.category.color) }} />}
                   <span className="absolute -bottom-[6px] -right-[6px] flex h-[15px] w-[15px] items-center justify-center rounded-full bg-well text-white ring-2 ring-white">
@@ -780,7 +780,8 @@ function CategoriesBlock({ snapshot, onNew }: { snapshot: HomeSnapshot; onNew: (
               <span className={cn(tileCls, "bg-paper")}>
                 <span
                   className="absolute inset-x-0 bottom-0 border-t-[1.5px] border-line transition-[height] duration-500"
-                  style={{ height: `${fill}%`, background: blockFill(c.color) }}
+                  data-level=""
+                  style={{ height: `${fill}%`, background: blockFill(c.color), ["--lc" as string]: c.color }}
                 />
                 <span className="absolute inset-0 flex items-center justify-center">
                   {c.icon && <SymbolIcon name={c.icon} size={22} style={{ color: blockInk(c.color) }} />}
@@ -910,9 +911,10 @@ function HomeMenu() {
   return (
     <header
       data-home-nav=""
+      data-strip=""
       // -mx-4: main'in kenar payını aşıp kenardan kenara (alt menü gibi)
       className="sticky top-0 z-30 -mx-4 border-b-[3px] border-line pt-[env(safe-area-inset-top,0px)]"
-      style={{ background: blockFill(HOME_MENU) }}
+      style={fillStyle(HOME_MENU)}
     >
       <div data-home-brand="" className="flex h-[68px] items-end gap-2.5 pb-[6px] pl-4 pr-3.5">
         <h1 className="min-w-0 flex-1">

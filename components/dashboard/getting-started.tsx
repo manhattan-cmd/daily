@@ -6,7 +6,7 @@ import { useT, type MessageKey } from "@/lib/i18n";
 import { useSkin, isBlockSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
 import { SummaryBlock } from "@/components/ui/summary-block";
-import { blockFill } from "@/lib/fill";
+import { fillStyle } from "@/lib/fill";
 
 /** Kapatılınca bir daha çıkmaz; Ayarlar → "Karşılamayı tekrar göster" geri getirir */
 export const WELCOME_DISMISSED = "routine:welcomeDismissed";
@@ -99,11 +99,11 @@ function BrutGettingStarted({ steps, onDismiss, onCreateCategory, onAddEntry, on
         }}
         action={
           cur === "backup" ? (
-            <Link href="/structure/backup" className={tileCls} style={{ background: blockFill(tile.color) }}>
+            <Link href="/structure/backup" className={tileCls} style={fillStyle(tile.color)}>
               {tileBody}
             </Link>
           ) : (
-            <button type="button" onClick={act(cur)} className={tileCls} style={{ background: blockFill(tile.color) }}>
+            <button type="button" onClick={act(cur)} className={tileCls} style={fillStyle(tile.color)}>
               {tileBody}
             </button>
           )

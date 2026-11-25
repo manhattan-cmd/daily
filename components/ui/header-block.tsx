@@ -8,6 +8,8 @@ import { blockFill } from "@/lib/fill";
 
 /** Bölüm bantlarının tram benekleri (bkz. globals.css "bolum bantlari") */
 export const bandDots = (color: string): CSSProperties => ({
+  // --fc: Gece bandı rengin ışığıyla boyar (bkz. app/gece.css "bantlar")
+  ["--fc" as string]: color,
   backgroundColor: blockFill(color),
   backgroundImage: "radial-gradient(var(--dot) 1.2px, transparent 1.5px)",
   backgroundSize: "11px 11px",
