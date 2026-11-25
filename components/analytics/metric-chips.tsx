@@ -5,6 +5,7 @@ import { useT } from "@/lib/i18n";
 import { isChoiceMod, type Metric, type MetricMod } from "@/lib/analytics";
 import { metricOf } from "./use-category-metrics";
 import { ChipRow } from "./chip-row";
+import { blockFill } from "@/lib/fill";
 
 /**
  * Metrik seçici satırı — modlar önce, "Girdi" (sayım) en sonda.
@@ -102,7 +103,7 @@ function MetricChip({
       )}
       style={
         active
-          ? { borderColor: `${color}70`, backgroundColor: `${color}18` }
+          ? { borderColor: `${color}70`, backgroundColor: blockFill(`${color}18`) }
           : undefined
       }
     >

@@ -46,8 +46,9 @@ import { useLastBackupAt } from "@/lib/storage-health";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import { intlTag, translate, useLocale, useT } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import type { SubCategory } from "@/types";
+import { blockFill, blockInk } from "@/lib/fill";
 
 const WEEKDAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 /** Ana sayfadaki son kayıtlar (girdi + not) */
@@ -72,7 +73,7 @@ export default function HomePage() {
   // Dil kancadan gelmeli: doğrudan getLocale() okumak sunucu çıktısıyla
   // istemci ilk çizimini ayrıştırıp hydration uyuşmazlığı yaratıyor
   const locale = useLocale();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const router = useRouter();
   const today = toLocalDateValue();
   // Gün sayfasıyla aynı Ekle menüsü ve pencereleri, bugün için
@@ -213,7 +214,7 @@ export default function HomePage() {
           <p
             className={cn(
               brutal
-                ? "mb-1.5 text-[12px] font-extrabold uppercase tracking-wider text-[#111]"
+                ? "mb-1.5 text-[12px] font-extrabold uppercase tracking-wider text-ink"
                 : "text-sm text-muted-foreground"
             )}
           >
@@ -283,7 +284,7 @@ export default function HomePage() {
               }}
               stats={[]}
             >
-              <div className="bg-white p-3">{todayGoals}</div>
+              <div className="bg-paper p-3">{todayGoals}</div>
             </SummaryBlock>
           )}
         </>
@@ -528,7 +529,7 @@ function FrequentBlock({ items, onPick }: { items: FrequentItem[]; onPick: (sub:
               onClick={() => onPick(it.sub)}
               aria-label={t("home.frequentAdd", { name })}
               className={cn(
-                "flex min-w-0 flex-col bg-white text-left text-[#111] active:bg-[#f5f1e8]",
+                "flex min-w-0 flex-col bg-paper text-left text-ink active:bg-paper-2",
                 wide && "col-span-2"
               )}
             >
@@ -540,11 +541,11 @@ function FrequentBlock({ items, onPick }: { items: FrequentItem[]; onPick: (sub:
                 {/* "+" sembolün köşesinde, adın yanında değil: ad satırının
                     32 px'ini yiyor, uzun kelimeyi bölünmeye zorluyordu */}
                 <span
-                  className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111]"
-                  style={{ background: it.category.color }}
+                  className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-line"
+                  style={{ background: blockFill(it.category.color) }}
                 >
-                  {icon && <SymbolIcon name={icon} size={17} style={{ color: "#111" }} />}
-                  <span className="absolute -bottom-[6px] -right-[6px] flex h-[15px] w-[15px] items-center justify-center rounded-full bg-[#111] text-white ring-2 ring-white">
+                  {icon && <SymbolIcon name={icon} size={17} style={{ color: blockInk(it.category.color) }} />}
+                  <span className="absolute -bottom-[6px] -right-[6px] flex h-[15px] w-[15px] items-center justify-center rounded-full bg-well text-white ring-2 ring-white">
                     <Plus className="h-[10px] w-[10px]" strokeWidth={3.5} />
                   </span>
                 </span>
@@ -554,7 +555,7 @@ function FrequentBlock({ items, onPick }: { items: FrequentItem[]; onPick: (sub:
                     Faturalar › Su ayrılsın) */}
                 <span className="min-w-0 flex-1">
                   <SmartText text={name} lines={2} minSize={11} interactive className="text-[13px] font-black leading-tight" />
-                  <span className="block truncate text-[10.5px] font-bold text-[#111]/50">
+                  <span className="block truncate text-[10.5px] font-bold text-ink/50">
                     {it.isRoot ? t("brut.category") : it.category.name}
                   </span>
                 </span>
@@ -590,9 +591,9 @@ function RecentBlock({ total, children }: { total: number | undefined; children:
         <Link
           href="/search"
           aria-label={t("search.title")}
-          className="flex h-full w-full flex-col items-center justify-center gap-1 bg-[#8ea6ff] py-2 text-[#111] active:brightness-95"
+          className="flex h-full w-full flex-col items-center justify-center gap-1 bg-fill-[#8ea6ff] py-2 text-ink active:brightness-95"
         >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[#111] text-[#8ea6ff]">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-well text-[#8ea6ff]">
             <Search className="h-4 w-4" strokeWidth={3} />
           </span>
           <span className="text-[12px] font-extrabold leading-none">{t("search.title")}</span>
@@ -600,7 +601,7 @@ function RecentBlock({ total, children }: { total: number | undefined; children:
       }
       stats={[]}
     >
-      <div className="flex flex-col gap-2 bg-white p-3">{children}</div>
+      <div className="flex flex-col gap-2 bg-paper p-3">{children}</div>
     </SummaryBlock>
   );
 }
@@ -634,7 +635,7 @@ function BrutWeek({ week, today }: { week: DayBar[]; today: string }) {
       // Takvim'in turkuazı — bölümün bandı gibi
       link={{ href: "/calendar", label: t("home.openCalendar"), color: "#5eead4", icon: CalendarRange }}
     >
-      <div className="flex items-end gap-1.5 bg-white px-3 pb-3 pt-3 text-[#111]">
+      <div className="flex items-end gap-1.5 bg-paper px-3 pb-3 pt-3 text-ink">
         {week.map((d) => {
           const [y, m, dd] = d.date.split("-").map(Number);
           const dt = new Date(y, m - 1, dd);
@@ -650,11 +651,11 @@ function BrutWeek({ week, today }: { week: DayBar[]; today: string }) {
             >
               <span className="flex h-[66px] w-full flex-col items-center justify-end gap-0.5">
                 {d.count > 0 && (
-                  <span className="font-mono text-[10px] font-bold leading-none tabular-nums text-[#111]/70">{d.count}</span>
+                  <span className="font-mono text-[10px] font-bold leading-none tabular-nums text-ink/70">{d.count}</span>
                 )}
                 {d.count > 0 ? (
                   <span
-                    className="flex w-full flex-col-reverse overflow-hidden rounded-[6px] border-[1.5px] border-[#111]"
+                    className="flex w-full flex-col-reverse overflow-hidden rounded-[6px] border-[1.5px] border-line"
                     style={{ height: 10 + Math.round((d.count / max) * 42) }}
                   >
                     {d.segments.map((s, i) => (
@@ -662,16 +663,16 @@ function BrutWeek({ week, today }: { week: DayBar[]; today: string }) {
                     ))}
                   </span>
                 ) : (
-                  <span className="h-[6px] w-full rounded-full border-[1.5px] border-dashed border-[#111]/30" />
+                  <span className="h-[6px] w-full rounded-full border-[1.5px] border-dashed border-ink/30" />
                 )}
               </span>
-              <span className="text-[9.5px] font-bold uppercase leading-none text-[#111]/45">
+              <span className="text-[9.5px] font-bold uppercase leading-none text-ink/45">
                 {dt.toLocaleDateString(intlTag(locale), { weekday: "short" })}
               </span>
               <span
                 className={cn(
                   "flex h-5 min-w-5 items-center justify-center rounded-md px-1 font-mono text-[11px] font-bold leading-none tabular-nums",
-                  isToday ? "bg-[#111] text-white" : "text-[#111]/70"
+                  isToday ? "bg-well text-white" : "text-ink/70"
                 )}
               >
                 {dt.getDate()}
@@ -728,7 +729,7 @@ function CategoriesBlock({ snapshot, onNew }: { snapshot: HomeSnapshot; onNew: (
   const overflow = cats.length > CATS_SHOWN;
   const shown = overflow ? cats.slice(0, CATS_SHOWN - 1) : cats;
   const max = Math.max(1, ...cats.map((c) => c.count));
-  const tileCls = "relative aspect-square w-full overflow-hidden rounded-[14px] border-2 border-[#111] shadow-[2px_2px_0_#111]";
+  const tileCls = "relative aspect-square w-full overflow-hidden rounded-[14px] border-2 border-line shadow-[2px_2px_0_var(--shade)]";
   const nameCls = "w-full truncate text-center text-[11px] font-extrabold leading-tight";
   return (
     <SummaryBlock
@@ -751,9 +752,9 @@ function CategoriesBlock({ snapshot, onNew }: { snapshot: HomeSnapshot; onNew: (
           type="button"
           onClick={onNew}
           aria-label={t("home.cats.newAria")}
-          className="flex h-full w-full flex-col items-center justify-center gap-1 bg-[#ffd23f] px-1 py-2 text-[#111] active:bg-[#f5c400]"
+          className="flex h-full w-full flex-col items-center justify-center gap-1 bg-fill-[#ffd23f] px-1 py-2 text-ink active:bg-fill-[#f5c400]"
         >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[#111] text-[#ffd23f]">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-well text-[#ffd23f]">
             <Plus className="h-5 w-5" strokeWidth={3} />
           </span>
           <span className="text-center text-[11.5px] font-extrabold leading-[1.1]">{t("home.cats.create")}</span>
@@ -763,7 +764,7 @@ function CategoriesBlock({ snapshot, onNew }: { snapshot: HomeSnapshot; onNew: (
       // Yapıya git — sayısız, yalnız düğme: Yapı bandının sarısı ve benekleri
       link={{ href: "/structure", label: t("home.cats.open"), color: "#ffd23f", icon: Layers }}
     >
-      <div className="grid grid-cols-4 gap-x-2 gap-y-2.5 bg-white p-3">
+      <div className="grid grid-cols-4 gap-x-2 gap-y-2.5 bg-paper p-3">
         {shown.map(({ category: c, count }) => {
           // Boş kategoride yalnız rengini gösteren taban; doluluk en çok
           // girdisi olana göre
@@ -774,18 +775,18 @@ function CategoriesBlock({ snapshot, onNew }: { snapshot: HomeSnapshot; onNew: (
               href={routes.structureCategory(c.id)}
               prefetch={false}
               aria-label={t("home.cats.tile", { name: c.name, n: count })}
-              className="flex min-w-0 flex-col items-center gap-1 text-[#111] active:opacity-70"
+              className="flex min-w-0 flex-col items-center gap-1 text-ink active:opacity-70"
             >
-              <span className={cn(tileCls, "bg-white")}>
+              <span className={cn(tileCls, "bg-paper")}>
                 <span
-                  className="absolute inset-x-0 bottom-0 border-t-[1.5px] border-[#111] transition-[height] duration-500"
-                  style={{ height: `${fill}%`, background: c.color }}
+                  className="absolute inset-x-0 bottom-0 border-t-[1.5px] border-line transition-[height] duration-500"
+                  style={{ height: `${fill}%`, background: blockFill(c.color) }}
                 />
                 <span className="absolute inset-0 flex items-center justify-center">
-                  {c.icon && <SymbolIcon name={c.icon} size={22} style={{ color: "#111" }} />}
+                  {c.icon && <SymbolIcon name={c.icon} size={22} style={{ color: blockInk(c.color) }} />}
                 </span>
                 {count > 0 && (
-                  <b className="absolute right-1 top-1 rounded-[5px] bg-[#111] px-1 py-px font-mono text-[9.5px] font-bold leading-tight text-white tabular-nums">
+                  <b className="absolute right-1 top-1 rounded-[5px] bg-well px-1 py-px font-mono text-[9.5px] font-bold leading-tight text-white tabular-nums">
                     {count}
                   </b>
                 )}
@@ -798,9 +799,9 @@ function CategoriesBlock({ snapshot, onNew }: { snapshot: HomeSnapshot; onNew: (
           <Link
             href="/structure"
             aria-label={t("home.cats.more", { n: cats.length - shown.length })}
-            className="flex min-w-0 flex-col items-center gap-1 text-[#111] active:opacity-70"
+            className="flex min-w-0 flex-col items-center gap-1 text-ink active:opacity-70"
           >
-            <span className={cn(tileCls, "flex items-center justify-center bg-white font-mono text-[16px] font-bold")}>
+            <span className={cn(tileCls, "flex items-center justify-center bg-paper font-mono text-[16px] font-bold")}>
               +{cats.length - shown.length}
             </span>
             <span className={nameCls}>{t("nav.structure")}</span>
@@ -905,13 +906,13 @@ function HomeMenu() {
   // Beyaz yuvarlak brütal düğme. Çerçeve rengi satır içi: katmansız
   // "* { border-color }" kuralı sınıfı eziyor (bkz. StructureTabs)
   const btn =
-    "flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full border-2 bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none";
+    "flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full border-2 bg-paper text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-px active:translate-y-px active:shadow-none";
   return (
     <header
       data-home-nav=""
       // -mx-4: main'in kenar payını aşıp kenardan kenara (alt menü gibi)
-      className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]"
-      style={{ background: HOME_MENU }}
+      className="sticky top-0 z-30 -mx-4 border-b-[3px] border-line pt-[env(safe-area-inset-top,0px)]"
+      style={{ background: blockFill(HOME_MENU) }}
     >
       <div data-home-brand="" className="flex h-[68px] items-end gap-2.5 pb-[6px] pl-4 pr-3.5">
         <h1 className="min-w-0 flex-1">
@@ -926,7 +927,7 @@ function HomeMenu() {
             aria-label={t("search.title")}
             title={t("search.title")}
             className={btn}
-            style={{ borderColor: "#111" }}
+            style={{ borderColor: "var(--line)" }}
           >
             <Search className="h-[19px] w-[19px]" strokeWidth={2.8} />
           </Link>
@@ -936,7 +937,7 @@ function HomeMenu() {
             aria-label={t("nav.settings")}
             title={t("nav.settings")}
             className={btn}
-            style={{ borderColor: "#111" }}
+            style={{ borderColor: "var(--line)" }}
           >
             <Settings className="h-[19px] w-[19px]" strokeWidth={2.5} />
           </Link>

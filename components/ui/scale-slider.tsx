@@ -5,7 +5,8 @@ import { ScanSearch } from "lucide-react";
 import type { ScaleLabels } from "@/types";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
+import { blockFill } from "@/lib/fill";
 
 /** Bundan az basamakta her basamağın raydaki noktası görünür */
 const TICK_EACH_MAX = 11;
@@ -62,7 +63,7 @@ export function ScaleSlider({
   endSlots?: { low: ReactNode; high: ReactNode };
 }) {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [fine, setFine] = useState<Fine | null>(null);
@@ -218,13 +219,13 @@ export function ScaleSlider({
                 aria-pressed={on}
                 onClick={() => onChange(on ? "" : c)}
                 className={cn(
-                  "flex h-10 min-w-0 items-center justify-center rounded-[9px] border-2 border-[#111] font-mono font-bold tabular-nums text-[#111] transition-transform",
+                  "flex h-10 min-w-0 items-center justify-center rounded-[9px] border-2 border-line font-mono font-bold tabular-nums text-ink transition-transform",
                   n > 7 ? "text-[12.5px]" : "text-[15px]"
                 )}
                 style={
                   on
-                    ? { background: color, color: "#fff", transform: "translate(2px, 2px)" }
-                    : { background: "#ffffff", boxShadow: "2px 2px 0 #111" }
+                    ? { background: blockFill(color), color: "#fff", transform: "translate(2px, 2px)" }
+                    : { background: "var(--paper)", boxShadow: "2px 2px 0 var(--shade)" }
                 }
               >
                 {signed(c)}
@@ -232,7 +233,7 @@ export function ScaleSlider({
             );
           })}
         </div>
-        <div className="flex justify-between gap-3 text-[10.5px] font-black uppercase tracking-wide text-[#111]">
+        <div className="flex justify-between gap-3 text-[10.5px] font-black uppercase tracking-wide text-ink">
           <span className="min-w-0">{signed(choices[0])}{labels?.low ? ` · ${labels.low}` : ""}</span>
           <span className="min-w-0 text-right">{labels?.high ? `${labels.high} · ` : ""}{signed(choices[n - 1])}</span>
         </div>
@@ -253,7 +254,7 @@ export function ScaleSlider({
             disabled={!has}
             onClick={() => onChange("")}
             aria-label={t("entry.clear")}
-            className="flex h-10 min-w-[64px] items-baseline justify-center gap-1 rounded-[10px] border-2 border-[#111] bg-white px-2.5 pt-1 text-[#111] shadow-[2px_2px_0_#111] enabled:active:translate-x-[2px] enabled:active:translate-y-[2px] enabled:active:shadow-none"
+            className="flex h-10 min-w-[64px] items-baseline justify-center gap-1 rounded-[10px] border-2 border-line bg-paper px-2.5 pt-1 text-ink shadow-[2px_2px_0_var(--shade)] enabled:active:translate-x-[2px] enabled:active:translate-y-[2px] enabled:active:shadow-none"
           >
             <span className="font-mono text-[22px] font-bold leading-7 tabular-nums">{has ? signed(value) : "–"}</span>
             {has && !bipolar && (
@@ -293,7 +294,7 @@ export function ScaleSlider({
           (fine ? (
             <span
               className="flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold"
-              style={{ color, background: `${color}24` }}
+              style={{ color, background: blockFill(`${color}24`) }}
             >
               <ScanSearch className="h-3.5 w-3.5" />
               {t("entry.fineMode")}
@@ -352,7 +353,7 @@ export function ScaleSlider({
           <div
             className={cn(
               "absolute -inset-x-[11px] top-1/2 -translate-y-1/2 rounded-full",
-              brutal ? "h-4 border-2 border-[#111] bg-white shadow-[2px_2px_0_#111]" : "h-2.5"
+              brutal ? "h-4 border-2 border-line bg-paper shadow-[2px_2px_0_var(--shade)]" : "h-2.5"
             )}
             style={brutal ? undefined : { background: `${color}24`, boxShadow: `inset 0 0 0 1px ${color}2e` }}
           />
@@ -361,7 +362,7 @@ export function ScaleSlider({
             <div
               className={cn(
                 "absolute top-1/2 -translate-y-1/2",
-                brutal ? "h-4 rounded-full border-2 border-[#111]" : "h-2.5 rounded-full"
+                brutal ? "h-4 rounded-full border-2 border-line" : "h-2.5 rounded-full"
               )}
               style={{
                 left: `${lo}%`,
@@ -386,7 +387,7 @@ export function ScaleSlider({
                   left: `${p}%`,
                   width: center ? 6 : 4,
                   height: center ? 6 : 4,
-                  background: brutal ? "#111" : lit ? "rgba(255,255,255,0.6)" : `${color}99`,
+                  background: brutal ? "var(--ink)" : lit ? "rgba(255,255,255,0.6)" : `${color}99`,
                   opacity: brutal && lit ? 0 : 1,
                 }}
               />
@@ -396,9 +397,9 @@ export function ScaleSlider({
           {has && (
             <span
               className={cn(
-                "pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white",
+                "pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2 bg-paper",
                 brutal
-                  ? "h-7 w-7 rounded-[8px] border-[3px] border-[#111] shadow-[2px_2px_0_#111]"
+                  ? "h-7 w-7 rounded-[8px] border-[3px] border-line shadow-[2px_2px_0_var(--shade)]"
                   : "h-[22px] w-[22px] rounded-full"
               )}
               style={{
@@ -416,7 +417,7 @@ export function ScaleSlider({
             aria-hidden
             className={cn(
               "animate-in fade-in pointer-events-none absolute -inset-x-[11px] inset-y-0 rounded-xl duration-150",
-              brutal && "border-2 border-[#111] bg-white"
+              brutal && "border-2 border-line bg-paper"
             )}
             style={{
               ...(brutal ? null : { background: `${color}14`, boxShadow: `inset 0 0 0 1px ${color}40` }),
@@ -433,13 +434,13 @@ export function ScaleSlider({
                       className="absolute bottom-0 w-[2px] -translate-x-1/2 rounded-full"
                       style={{
                         height: major ? 14 : 7,
-                        background: brutal ? (on ? color : "#111") : on ? color : `${color}70`,
+                        background: brutal ? (on ? color : "var(--ink)") : on ? color : `${color}70`,
                       }}
                     />
                     {major && (
                       <span
                         className="absolute bottom-[17px] -translate-x-1/2 text-[10px] font-semibold tabular-nums leading-none"
-                        style={{ color: brutal ? "#111" : k === idx ? color : "var(--muted-foreground)" }}
+                        style={{ color: brutal ? "var(--ink)" : k === idx ? color : "var(--muted-foreground)" }}
                       >
                         {signed(choices[k])}
                       </span>
@@ -452,7 +453,7 @@ export function ScaleSlider({
                 <span className="absolute inset-y-0" style={{ left: fineX }}>
                   <span
                     className="absolute bottom-1 top-1 w-[3px] -translate-x-1/2 rounded-full"
-                    style={brutal ? { background: "#111", width: 4, top: "auto", height: 20 } : { background: color, boxShadow: `0 0 10px ${color}` }}
+                    style={brutal ? { background: "var(--ink)", width: 4, top: "auto", height: 20 } : { background: color, boxShadow: `0 0 10px ${color}` }}
                   />
                 </span>
               )}
@@ -470,7 +471,7 @@ export function ScaleSlider({
           <span className="shrink-0 font-semibold tabular-nums text-foreground/70">{signed(choices[n - 1])}</span>
         </div>
       ) : brutal ? (
-        <div className="flex justify-between gap-3 text-[10.5px] font-black uppercase tracking-wide text-[#111]">
+        <div className="flex justify-between gap-3 text-[10.5px] font-black uppercase tracking-wide text-ink">
           <span className="min-w-0">{signed(choices[0])}{labels?.low ? ` · ${labels.low}` : ""}</span>
           <span className="min-w-0 text-right">{labels?.high ? `${labels.high} · ` : ""}{signed(choices[n - 1])}</span>
         </div>

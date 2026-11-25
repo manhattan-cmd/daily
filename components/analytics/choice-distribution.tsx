@@ -46,12 +46,12 @@ export function ChoiceDistribution({
     return (
       <>
         {selected && (
-          <div className="flex justify-end bg-white px-3 pt-2">
+          <div className="flex justify-end bg-paper px-3 pt-2">
             <button
               type="button"
               onClick={() => onSelect(null)}
-              className="rounded-lg border-[1.5px] bg-white px-2 py-1 text-[11px] font-extrabold text-[#111]"
-              style={{ borderColor: "#111" }}
+              className="rounded-lg border-[1.5px] bg-paper px-2 py-1 text-[11px] font-extrabold text-ink"
+              style={{ borderColor: "var(--line)" }}
             >
               {t("insights.allOptions")}
             </button>

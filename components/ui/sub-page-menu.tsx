@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import { blockFill } from "@/lib/fill";
 
 /** Ana Sayfa'nın rengi — başlığından açılan sayfalar (Ara, Ayarlar) da onun şeridinde */
 export const HOME_COLOR = "#a9b0ff";
@@ -40,8 +41,8 @@ export function SubPageMenu({
     <header
       data-sub-nav=""
       // -mx-4: main'in kenar payını aşıp kenardan kenara (alt menü gibi)
-      className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]"
-      style={{ background: color }}
+      className="sticky top-0 z-30 -mx-4 border-b-[3px] border-line pt-[env(safe-area-inset-top,0px)]"
+      style={{ background: blockFill(color) }}
     >
       <div className="flex items-stretch px-1">
         <Link
@@ -49,13 +50,13 @@ export function SubPageMenu({
           prefetch={false}
           aria-label={t("action.back")}
           title={t("action.back")}
-          className="flex w-10 shrink-0 items-center justify-center text-[#111]/70 active:text-[#111]"
+          className="flex w-10 shrink-0 items-center justify-center text-ink/70 active:text-ink"
         >
           <ArrowLeft className="h-5 w-5" strokeWidth={2.5} />
         </Link>
         <div className="flex min-w-0 flex-1 flex-col items-center justify-center pb-[11px] pt-3 text-center">
-          <h1 className="max-w-full truncate text-[20px] font-black leading-none tracking-[-0.02em] text-[#111]">{title}</h1>
-          {sub && <p className="mt-[6px] max-w-full truncate text-[11.5px] font-bold leading-none text-[#111]/65">{sub}</p>}
+          <h1 className="max-w-full truncate text-[20px] font-black leading-none tracking-[-0.02em] text-ink">{title}</h1>
+          {sub && <p className="mt-[6px] max-w-full truncate text-[11.5px] font-bold leading-none text-ink/65">{sub}</p>}
         </div>
         <span aria-hidden className="w-10 shrink-0" />
       </div>

@@ -12,6 +12,7 @@ import { loadUsageCounts, USAGE_COUNTS_KEY, useCachedLiveQuery } from "@/lib/db/
 import { SummaryBlock, SummaryEmpty, SummaryTile } from "@/components/ui/summary-block";
 import { useEmbedded } from "@/components/ui/sheet-frame";
 import { setEntryLayout, type NetGroup } from "@/components/calendar/entry-picker";
+import { blockFill, blockInk } from "@/lib/fill";
 
 const NO_COUNTS: ReadonlyMap<string, number> = new Map();
 /** Girinti bu katta durur; daha derinde adın önünde kat numarası (Yapı'daki ağaç gibi) */
@@ -20,7 +21,7 @@ const MAX_INDENT = 5;
 const SHOW_FIRST = 8;
 
 const norm = (s: string) => s.toLocaleLowerCase("tr").trim();
-const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, white)`;
+const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} calc(${pct}% * var(--fill-scale)), var(--paper))`;
 
 type Line =
   | { kind: "sub"; sub: SubCategory; depth: number }
@@ -138,7 +139,7 @@ export function EntryTreePicker({
   };
 
   const square =
-    "flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[11px] border-2 bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none";
+    "flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[11px] border-2 bg-paper text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-px active:translate-y-px active:shadow-none";
 
   // Sayfa zemini (bkz. PageSheet): krem döşemenin önünde beyaz yüzey — kalın
   // çerçeve, üst köşeleri yuvarlak, iki yanda 10 px döşeme; arama sabit,
@@ -147,17 +148,17 @@ export function EntryTreePicker({
     <div className="relative flex min-h-0 flex-1 flex-col">
       <div
         data-page-sheet=""
-        className="mx-2.5 mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[20px] border-2 border-b-0 bg-white"
-        style={{ borderColor: "#111" }}
+        className="mx-2.5 mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[20px] border-2 border-b-0 bg-paper"
+        style={{ borderColor: "var(--line)" }}
       >
         {/* Arama ve işlemler — sabit */}
         <div className="shrink-0 px-1.5 pb-3 pt-3">
           <div className="flex items-center gap-2">
             <label
-              className="flex h-[38px] min-w-0 flex-1 items-center gap-2 rounded-[11px] border-2 bg-white px-2.5 shadow-[2px_2px_0_#111]"
-              style={{ borderColor: "#111" }}
+              className="flex h-[38px] min-w-0 flex-1 items-center gap-2 rounded-[11px] border-2 bg-paper px-2.5 shadow-[2px_2px_0_var(--shade)]"
+              style={{ borderColor: "var(--line)" }}
             >
-              <Search className="h-4 w-4 shrink-0 text-[#111]/55" strokeWidth={2.5} />
+              <Search className="h-4 w-4 shrink-0 text-ink/55" strokeWidth={2.5} />
               <input
                 data-pick-search=""
                 value={query}
@@ -167,14 +168,14 @@ export function EntryTreePicker({
                 }}
                 placeholder={searchPlaceholder ?? t("pick.search")}
                 aria-label={t("entry.searchAll")}
-                className="h-full min-w-0 flex-1 bg-transparent text-[14px] font-semibold text-[#111] placeholder:font-medium placeholder:text-[#111]/45 focus:outline-none"
+                className="h-full min-w-0 flex-1 bg-transparent text-[14px] font-semibold text-ink placeholder:font-medium placeholder:text-ink/45 focus:outline-none"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery("")}
                   aria-label={t("action.close")}
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#111] text-white"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-well text-white"
                 >
                   <X className="h-3.5 w-3.5" strokeWidth={3} />
                 </button>
@@ -186,14 +187,14 @@ export function EntryTreePicker({
               aria-label={t("entry.moreActions")}
               aria-expanded={menuOpen}
               className={square}
-              style={{ borderColor: "#111" }}
+              style={{ borderColor: "var(--line)" }}
             >
               <MoreHorizontal className="h-[18px] w-[18px]" strokeWidth={2.5} />
             </button>
             {/* Tek başına pencerede (kategori sayfasının Girdi ekle'si) kapatma burada;
                 Ekle ekranında şeritte */}
             {!embedded && (
-              <button type="button" onClick={onClose} aria-label={t("action.close")} className={square} style={{ borderColor: "#111" }}>
+              <button type="button" onClick={onClose} aria-label={t("action.close")} className={square} style={{ borderColor: "var(--line)" }}>
                 <X className="h-[18px] w-[18px]" strokeWidth={2.75} />
               </button>
             )}
@@ -255,7 +256,7 @@ export function EntryTreePicker({
                       stats={[]}
                     >
                       {open && (
-                        <div data-pick-tree="" className="bg-white px-1.5 py-2">
+                        <div data-pick-tree="" className="bg-paper px-1.5 py-2">
                           {direct && (
                             <DirectRow cat={cat} label={t("pick.addTo", { name: cat.name })} onClick={() => onPickCategory(cat)} />
                           )}
@@ -284,8 +285,8 @@ export function EntryTreePicker({
         <>
           <div className="absolute inset-0 z-30" onClick={() => setMenuOpen(false)} />
           <div
-            className="animate-in fade-in zoom-in-95 absolute right-[18px] top-[70px] z-40 flex min-w-[230px] flex-col overflow-hidden rounded-[14px] border-2 bg-white p-1 text-[#111] shadow-[3px_3px_0_#111]"
-            style={{ borderColor: "#111" }}
+            className="animate-in fade-in zoom-in-95 absolute right-[18px] top-[70px] z-40 flex min-w-[230px] flex-col overflow-hidden rounded-[14px] border-2 bg-paper p-1 text-ink shadow-[3px_3px_0_var(--shade)]"
+            style={{ borderColor: "var(--line)" }}
           >
             <MenuRow
               icon={<LayoutList className="h-4 w-4" strokeWidth={2.5} />}
@@ -307,9 +308,9 @@ function MenuRow({ icon, label, onClick }: { icon: ReactNode; label: string; onC
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-[42px] items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[13.5px] font-bold hover:bg-[#111]/5 active:bg-[#111]/10"
+      className="flex min-h-[42px] items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[13.5px] font-bold hover:bg-ink/5 active:bg-ink/10"
     >
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] bg-[#fff4dc]" style={{ borderColor: "#111" }}>
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] bg-floor" style={{ borderColor: "var(--line)" }}>
         {icon}
       </span>
       {label}
@@ -326,13 +327,13 @@ function DirectRow({ cat, label, onClick }: { cat: Category; label: string; onCl
       data-pick-direct=""
       onClick={onClick}
       aria-label={label}
-      className="mb-0.5 flex min-h-[36px] w-full items-center gap-2.5 rounded-[10px] px-2 py-1 text-left text-[14px] font-extrabold text-[#111] hover:bg-[#111]/5 active:bg-[#111]/10"
+      className="mb-0.5 flex min-h-[36px] w-full items-center gap-2.5 rounded-[10px] px-2 py-1 text-left text-[14px] font-extrabold text-ink hover:bg-ink/5 active:bg-ink/10"
     >
       <span
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] border-[#111]"
-        style={{ background: cat.color }}
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] border-line"
+        style={{ background: blockFill(cat.color) }}
       >
-        {cat.icon && <SymbolIcon name={cat.icon} size={13} style={{ color: "#111" }} />}
+        {cat.icon && <SymbolIcon name={cat.icon} size={13} style={{ color: blockInk(cat.color) }} />}
       </span>
       <span className="min-w-0 flex-1 break-words leading-tight">{cat.name}</span>
     </button>
@@ -347,7 +348,7 @@ function Highlight({ text, q }: { text: string; q: string }) {
   return (
     <>
       {text.slice(0, i)}
-      <mark className="rounded-[3px] bg-[#ffd23f] px-px text-[#111]">{text.slice(i, i + q.length)}</mark>
+      <mark className="rounded-[3px] bg-fill-[#ffd23f] px-px text-ink">{text.slice(i, i + q.length)}</mark>
       {text.slice(i + q.length)}
     </>
   );
@@ -430,9 +431,9 @@ function PickRows({
                 type="button"
                 onClick={() => toggleBranch(line.key)}
                 aria-expanded={line.open}
-                className="ml-2 flex min-h-[34px] min-w-0 flex-1 items-center gap-2 rounded-[10px] px-2 py-1 text-left text-[12.5px] font-extrabold text-[#111]/70 hover:bg-[#111]/5 active:bg-[#111]/10"
+                className="ml-2 flex min-h-[34px] min-w-0 flex-1 items-center gap-2 rounded-[10px] px-2 py-1 text-left text-[12.5px] font-extrabold text-ink/70 hover:bg-ink/5 active:bg-ink/10"
               >
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-[1.5px] border-dashed border-[#111]/50">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-[1.5px] border-dashed border-ink/50">
                   <ChevronDown className={cn("h-3.5 w-3.5", line.open && "rotate-180")} strokeWidth={3} />
                 </span>
                 {line.open ? t("brut.showLess") : t("brut.showAll", { n: line.total })}
@@ -452,23 +453,23 @@ function PickRows({
                 data-pick-row={sub.id}
                 onClick={() => onRow(sub)}
                 className={cn(
-                  "ml-2 flex min-h-[36px] min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2 py-1 text-left text-[14px] text-[#111] hover:bg-[#111]/5 active:bg-[#111]/10",
+                  "ml-2 flex min-h-[36px] min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2 py-1 text-left text-[14px] text-ink hover:bg-ink/5 active:bg-ink/10",
                   depth === 1 ? "font-bold" : "font-medium"
                 )}
               >
                 <span
                   className={cn(
-                    "flex shrink-0 items-center justify-center border-[1.5px] border-[#111]",
+                    "flex shrink-0 items-center justify-center border-[1.5px] border-line",
                     depth === 1 ? "h-6 w-6 rounded-[7px]" : "h-5 w-5 rounded-md"
                   )}
                   style={{ background: tint(cat.color, 55) }}
                 >
-                  {icon && <SymbolIcon name={icon} size={depth === 1 ? 13 : 11} style={{ color: "#111" }} />}
+                  {icon && <SymbolIcon name={icon} size={depth === 1 ? 13 : 11} style={{ color: blockInk(cat.color) }} />}
                 </span>
                 {depth > MAX_INDENT && (
                   <span
                     aria-label={t("brut.level", { n: depth })}
-                    className="-mr-1 shrink-0 rounded-[5px] bg-[#111] px-1 font-mono text-[10px] font-extrabold leading-[16px] text-[#FFF4DC]"
+                    className="-mr-1 shrink-0 rounded-[5px] bg-well px-1 font-mono text-[10px] font-extrabold leading-[16px] text-[#FFF4DC]"
                   >
                     {depth}
                   </span>
@@ -479,7 +480,7 @@ function PickRows({
                 {n > 0 && (
                   <span
                     title={t("pick.recent", { n })}
-                    className="ml-auto shrink-0 rounded-full border-[1.5px] border-[#111]/20 px-2 py-px font-mono text-[11px] font-bold tabular-nums text-[#111]/70"
+                    className="ml-auto shrink-0 rounded-full border-[1.5px] border-ink/20 px-2 py-px font-mono text-[11px] font-bold tabular-nums text-ink/70"
                   >
                     {n}
                   </span>

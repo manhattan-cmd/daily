@@ -6,6 +6,7 @@ import { SymbolIcon } from "@/lib/icons";
 import { measureOf, type CategoryModifierWithType } from "@/lib/db/queries";
 import { cn, withUnit } from "@/lib/utils";
 import type { Mod } from "@/types";
+import { blockFill } from "@/lib/fill";
 
 export type ThingCurrent = Record<string, { value: string; at: number }>;
 
@@ -85,12 +86,12 @@ export function Diamond({
   return (
     <span className="relative flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
       <span
-        className={cn("absolute rotate-45 rounded-[7px]", brutal && "border-2 border-[#111]", muted && "opacity-45")}
+        className={cn("absolute rotate-45 rounded-[7px]", brutal && "border-2 border-line", muted && "opacity-45")}
         style={{ width: inner, height: inner, background: color }}
       />
       {icon && (
         <span className={cn("relative", muted && "opacity-60")}>
-          <SymbolIcon name={icon} size={Math.round(size * 0.42)} style={{ color: "#111" }} />
+          <SymbolIcon name={icon} size={Math.round(size * 0.42)} style={{ color: "var(--ink)" }} />
         </span>
       )}
     </span>
@@ -152,9 +153,9 @@ export function ThingHeader({
     <>
       <Diamond color={color} icon={icon} brutal={brutal} />
       <span className="min-w-0 flex-1 leading-tight">
-        <span className={cn("block truncate text-[15px] font-black", brutal ? "text-[#111]" : "text-foreground")}>{name}</span>
+        <span className={cn("block truncate text-[15px] font-black", brutal ? "text-ink" : "text-foreground")}>{name}</span>
         {listName && (
-          <span className={cn("block truncate text-[11px] font-semibold", brutal ? "text-[#111]/55" : "text-muted-foreground")}>
+          <span className={cn("block truncate text-[11px] font-semibold", brutal ? "text-ink/55" : "text-muted-foreground")}>
             {listName}
           </span>
         )}
@@ -166,10 +167,10 @@ export function ThingHeader({
       data-thing-head=""
       className={cn(
         "flex items-center gap-2.5 rounded-2xl py-1.5 pl-1.5 pr-1 transition-[transform,box-shadow]",
-        brutal ? "border-2 border-[#111] bg-white shadow-[3px_3px_0_#111]" : "ring-1 ring-inset",
+        brutal ? "border-2 border-line bg-paper shadow-[3px_3px_0_var(--shade)]" : "ring-1 ring-inset",
         pressed && (brutal ? "translate-x-[2px] translate-y-[2px] shadow-none" : "ring-2")
       )}
-      style={brutal ? undefined : { background: `${color}14`, ["--tw-ring-color" as string]: pressed ? color : `${color}55` }}
+      style={brutal ? undefined : { background: blockFill(`${color}14`), ["--tw-ring-color" as string]: pressed ? color : `${color}55` }}
     >
       {onPress ? (
         <button
@@ -193,7 +194,7 @@ export function ThingHeader({
           data-thing-remove=""
           className={cn(
             "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
-            brutal ? "text-[#111]/60 hover:bg-[#111]/5" : "text-muted-foreground hover:bg-[var(--sf-2)]"
+            brutal ? "text-ink/60 hover:bg-ink/5" : "text-muted-foreground hover:bg-[var(--sf-2)]"
           )}
         >
           <X className="h-4 w-4" />
@@ -218,7 +219,7 @@ export function ThingRail({
       <span
         aria-hidden
         className="absolute bottom-4 left-0 top-0 w-[2px] -translate-x-1/2 rounded-full"
-        style={{ background: brutal ? "#111" : `${color}80` }}
+        style={{ background: brutal ? "var(--ink)" : `${color}80` }}
       />
       {children}
     </div>

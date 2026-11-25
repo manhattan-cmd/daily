@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Palette } from "lucide-react";
-import { SKINS, SKIN_META, setSkin, useSkin } from "@/lib/skin";
+import { SKINS, SKIN_META, setSkin, useSkin, isBlockSkin } from "@/lib/skin";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { SmartText } from "@/components/ui/smart-text";
@@ -24,7 +24,7 @@ export function SkinSection() {
 
   // Brütal: blok — temalar iki sütun hücre; renk örneği, ad ve tek satır
   // tarif; seçili olan bloğun renginde
-  if (skin === "brutal") {
+  if (isBlockSkin(skin)) {
     return (
       <SettingsBlock color={COLOR} icon={Palette} title={t("settings.skin")} hint={t("settings.skinHint")}>
         <SettingsChoices
@@ -35,14 +35,14 @@ export function SkinSection() {
           color={COLOR}
           render={(id) => (
             <>
-              <span className="mb-1.5 flex w-max overflow-hidden rounded-[6px] border-[1.5px] border-[#111]">
+              <span className="mb-1.5 flex w-max overflow-hidden rounded-[6px] border-[1.5px] border-line">
                 {SKIN_META[id].swatch.map((c) => (
                   <span key={c} className="h-4 w-3.5" style={{ backgroundColor: c }} />
                 ))}
               </span>
               <span className="block truncate text-[13.5px] font-black leading-tight">{SKIN_META[id].name}</span>
               {/* Tarif iki satıra sarar, sığmazsa kelime sonunda … (bkz. SmartText) */}
-              <SmartText text={SKIN_META[id].hint} lines={2} interactive className="text-[10.5px] font-bold leading-[13px] text-[#111]/55" />
+              <SmartText text={SKIN_META[id].hint} lines={2} interactive className="text-[10.5px] font-bold leading-[13px] text-ink/55" />
             </>
           )}
         />

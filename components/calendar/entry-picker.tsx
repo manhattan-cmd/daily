@@ -9,7 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import Link from "next/link";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { useEmbedded } from "@/components/ui/sheet-frame";
 import {
   Check,
@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Category, SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
+import { blockFill } from "@/lib/fill";
 
 export type NetGroup = {
   category: Category;
@@ -313,7 +314,7 @@ export function EntryPicker({
   // hayatı göstermeli, arşivi değil.
   const entryCounts =
     useCachedLiveQuery(USAGE_COUNTS_KEY, loadUsageCounts) ?? NO_COUNTS;
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
 
   /**
    * Hızlı ekle — ağacın HER YERİNDEN, en çok kayıt alan kalemler. Önce
@@ -824,7 +825,7 @@ export function EntryPicker({
                               }}
                               aria-pressed={last}
                               className="entry-tile-pop relative flex flex-col items-center gap-0.5 rounded-xl px-0.5 pb-1 pt-1.5 transition-[background-color,transform] active:scale-95"
-                              style={last ? { background: `${c.color}29` } : undefined}
+                              style={last ? { background: blockFill(`${c.color}29`) } : undefined}
                             >
                               {compact && last && <RailMarker color={c.color} />}
                               <span data-tile className="shrink-0">
@@ -922,7 +923,7 @@ export function EntryPicker({
                       />
                       <span
                         className="absolute -bottom-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full ring-2 ring-background"
-                        style={{ background: selCat.color, color: inkOn(selCat.color) }}
+                        style={{ background: blockFill(selCat.color), color: inkOn(selCat.color) }}
                       >
                         <Plus className="h-3 w-3" strokeWidth={3.25} />
                       </span>
@@ -978,7 +979,7 @@ export function EntryPicker({
                     const bg = ["#ffd23f", "#ff9ecd", "#8ea6ff"];
                     return (
                       <div className="mb-3 px-1">
-                        <div className="mb-1.5 text-[10.5px] font-black uppercase tracking-wider text-[#111]">
+                        <div className="mb-1.5 text-[10.5px] font-black uppercase tracking-wider text-ink">
                           {t("brut.frequent")}
                         </div>
                         {/* Not genişliği ada göre: kısa adlar yan yana, uzun ad (tek
@@ -990,8 +991,8 @@ export function EntryPicker({
                               key={s.id}
                               type="button"
                               onClick={() => onPick(s)}
-                              className="min-w-[30%] max-w-full flex-auto rounded-lg border-2 border-[#111] px-2 py-1.5 text-left text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-                              style={{ background: bg[i] }}
+                              className="min-w-[30%] max-w-full flex-auto rounded-lg border-2 border-line px-2 py-1.5 text-left text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                              style={{ background: blockFill(bg[i]) }}
                             >
                               <SmartText text={s.name} className="text-[12px] font-black leading-[15px]" />
                               <span className="font-mono text-[11px] font-bold">{n}×</span>
@@ -1149,7 +1150,7 @@ export function EntryPicker({
                           "flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors",
                           on ? "text-white" : "bg-[var(--sf-2)] text-muted-foreground/50"
                         )}
-                        style={on ? { backgroundColor: c.color } : undefined}
+                        style={on ? { backgroundColor: blockFill(c.color) } : undefined}
                       >
                         {on ? (
                           <Check className="h-3.5 w-3.5" strokeWidth={3} />
@@ -1228,7 +1229,7 @@ function Tile({
         width: size,
         height: size,
         borderRadius: Math.round(size * 0.28),
-        backgroundColor: color,
+        backgroundColor: blockFill(color),
         // Üstten gelen ince ışık + koyu çeper: dolu renk yassı durmasın
         boxShadow:
           "inset 0 1px 0 rgba(255,255,255,0.25), inset 0 0 0 1px rgba(0,0,0,0.14)",
@@ -1642,7 +1643,7 @@ function RailItem({
         "relative flex shrink-0 flex-col items-center gap-1 rounded-2xl px-0.5 transition-[background-color,transform] active:scale-95",
         compact ? "py-1.5" : "pb-1.5 pt-2"
       )}
-      style={active ? { background: activeBg } : undefined}
+      style={active ? { background: blockFill(activeBg) } : undefined}
       data-rail-active={marker ? "" : undefined}
     >
       {marker && <RailMarker color={marker} />}

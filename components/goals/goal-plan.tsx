@@ -5,7 +5,7 @@ import { Bell, CalendarDays, Plus, Repeat, X } from "lucide-react";
 import type { Goal, GoalRepeat } from "@/types";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { builtInName } from "@/lib/i18n/built-in-names";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import {
   WEEKDAYS,
@@ -19,6 +19,7 @@ import {
 } from "@/lib/goals";
 import { TimeWheel } from "@/components/ui/time-wheel";
 import { isNative } from "@/lib/native";
+import { blockFill } from "@/lib/fill";
 
 /**
  * Hedefin zamanı: bir gün mü, tekrar mı; hatırlatma var mı.
@@ -134,7 +135,7 @@ export function GoalPlanFields({
 }) {
   const t = useT();
   const tag = intlTag(useLocale());
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   // Çarkta düzenlenen saatin sırası; null = çark kapalı
   const [wheelAt, setWheelAt] = useState<number | null>(null);
   const times = plan.times;
@@ -142,7 +143,7 @@ export function GoalPlanFields({
   const setTimes = (next: string[]) => set({ times: next });
   const set = (patch: Partial<GoalPlanState>) => onChange({ ...plan, ...patch });
   // Brütalde renkli zeminde yazı hep siyah (kategori bantlarıyla aynı)
-  const ink = brutal ? "#111" : inkOn(accent);
+  const ink = brutal ? "var(--ink)" : inkOn(accent);
 
   const dayLabel = (key: string) => {
     if (key === today) return t("datetime.today");
@@ -160,13 +161,13 @@ export function GoalPlanFields({
     cn(
       "flex h-10 items-center justify-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-[background-color,transform] active:scale-[0.97]",
       brutal
-        ? cn("border-2", on ? "shadow-[2px_2px_0_#111]" : "bg-white text-[#111]")
+        ? cn("border-2", on ? "shadow-[2px_2px_0_var(--shade)]" : "bg-paper text-ink")
         : on
           ? ""
           : "bg-[var(--sf-2)] text-foreground/80 hover:bg-[var(--sf-3)]"
     );
   const chipStyle = (on: boolean) =>
-    on ? { background: accent, color: ink, borderColor: "#111" } : brutal ? { borderColor: "#111" } : undefined;
+    on ? { background: accent, color: ink, borderColor: "var(--line)" } : brutal ? { borderColor: "var(--line)" } : undefined;
 
   const shape = plan.mode === "repeat" && plan.days.length ? repeatShape(repeatFromDays(plan.days)!) : null;
   const custom = plan.date !== today && plan.date !== addDays(today, 1);
@@ -180,7 +181,7 @@ export function GoalPlanFields({
           role="tablist"
           className={cn(
             "grid grid-cols-2 gap-1 p-1",
-            brutal ? "rounded-[14px] border-2 border-[#111] bg-white" : "rounded-2xl bg-[var(--sf-1)] ring-1 ring-inset ring-[var(--ln-1)]"
+            brutal ? "rounded-[14px] border-2 border-line bg-paper" : "rounded-2xl bg-[var(--sf-1)] ring-1 ring-inset ring-[var(--ln-1)]"
           )}
         >
           {(["once", "repeat"] as const).map((m) => {
@@ -205,7 +206,7 @@ export function GoalPlanFields({
                   brutal ? "rounded-[10px]" : "rounded-xl",
                   on ? (brutal ? "border-2" : "shadow-sm") : "text-muted-foreground"
                 )}
-                style={on ? { background: accent, color: ink, borderColor: "#111" } : undefined}
+                style={on ? { background: blockFill(accent), color: ink, borderColor: "var(--line)" } : undefined}
               >
                 <Icon className="h-4 w-4" strokeWidth={2.4} />
                 {t(m === "once" ? "goal.plan.once" : "goal.plan.repeat")}
@@ -284,9 +285,9 @@ export function GoalPlanFields({
                     )}
                     style={
                       on
-                        ? { background: accent, color: ink, borderColor: "#111" }
+                        ? { background: blockFill(accent), color: ink, borderColor: "var(--line)" }
                         : brutal
-                          ? { borderColor: "#111", background: "#fff", color: "#111" }
+                          ? { borderColor: "var(--line)", background: "var(--paper)", color: "var(--ink)" }
                           : undefined
                     }
                   >
@@ -310,13 +311,13 @@ export function GoalPlanFields({
       <div
         className={cn(
           "flex flex-col overflow-hidden",
-          brutal ? "rounded-[14px] border-2 border-[#111] bg-white" : "rounded-2xl bg-[var(--sf-1)] ring-1 ring-inset ring-[var(--ln-1)]"
+          brutal ? "rounded-[14px] border-2 border-line bg-paper" : "rounded-2xl bg-[var(--sf-1)] ring-1 ring-inset ring-[var(--ln-1)]"
         )}
       >
         <div className="flex min-h-[60px] items-center gap-3 px-3.5">
           <span
-            className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full", brutal && "border-2 border-[#111]")}
-            style={{ background: on ? accent : brutal ? "#fff" : "var(--sf-3)", color: on ? ink : undefined }}
+            className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full", brutal && "border-2 border-line")}
+            style={{ background: on ? blockFill(accent) : brutal ? "var(--paper)" : "var(--sf-3)", color: on ? ink : undefined }}
           >
             <Bell className="h-4 w-4" strokeWidth={2.4} />
           </span>
@@ -342,15 +343,15 @@ export function GoalPlanFields({
             }}
             className={cn(
               "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-              brutal ? "border-2 border-[#111]" : "",
-              !on && (brutal ? "bg-white" : "bg-muted-foreground/30")
+              brutal ? "border-2 border-line" : "",
+              !on && (brutal ? "bg-paper" : "bg-muted-foreground/30")
             )}
-            style={on ? { background: accent } : undefined}
+            style={on ? { background: blockFill(accent) } : undefined}
           >
             <span
               className={cn(
-                "absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow transition-all",
-                brutal && "border-2 border-[#111]",
+                "absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-paper shadow transition-all",
+                brutal && "border-2 border-line",
                 on ? "right-1" : "left-1"
               )}
             />
@@ -364,8 +365,8 @@ export function GoalPlanFields({
                 key={`${time}-${i}`}
                 className={cn(
                   "flex h-9 shrink-0 items-center overflow-hidden rounded-full",
-                  brutal ? "border-2 border-[#111] bg-white text-[#111]" : "bg-[var(--sf-3)]",
-                  wheelAt === i && (brutal ? "shadow-[2px_2px_0_#111]" : "ring-2 ring-inset")
+                  brutal ? "border-2 border-line bg-paper text-ink" : "bg-[var(--sf-3)]",
+                  wheelAt === i && (brutal ? "shadow-[2px_2px_0_var(--shade)]" : "ring-2 ring-inset")
                 )}
                 style={wheelAt === i && !brutal ? ({ "--tw-ring-color": accent } as React.CSSProperties) : undefined}
               >
@@ -405,7 +406,7 @@ export function GoalPlanFields({
                 }}
                 className={cn(
                   "flex h-9 shrink-0 items-center gap-1 rounded-full px-3 text-[13px] font-semibold",
-                  brutal ? "border-2 border-dashed border-[#111] bg-white text-[#111]" : "border border-dashed border-[var(--ln-3)] text-muted-foreground"
+                  brutal ? "border-2 border-dashed border-line bg-paper text-ink" : "border border-dashed border-[var(--ln-3)] text-muted-foreground"
                 )}
               >
                 <Plus className="h-3.5 w-3.5" strokeWidth={2.75} />
@@ -415,7 +416,7 @@ export function GoalPlanFields({
           </div>
         )}
         {on && wheelAt !== null && times[wheelAt] && (
-          <div className={cn("px-3 pb-3 pt-1", brutal ? "border-t-2 border-[#111]" : "border-t border-[var(--ln-1)]")}>
+          <div className={cn("px-3 pb-3 pt-1", brutal ? "border-t-2 border-line" : "border-t border-[var(--ln-1)]")}>
             <TimeWheel
               value={times[wheelAt]}
               onChange={(v) => setTimes(times.map((x, j) => (j === wheelAt ? v : x)))}
@@ -430,9 +431,9 @@ export function GoalPlanFields({
               }}
               className={cn(
                 "mt-2 h-10 w-full rounded-xl text-[14px] font-semibold",
-                brutal && "border-2 border-[#111]"
+                brutal && "border-2 border-line"
               )}
-              style={{ background: accent, color: ink }}
+              style={{ background: blockFill(accent), color: ink }}
             >
               {t("action.done")}
             </button>

@@ -21,6 +21,7 @@ import { ChoiceDistribution } from "./choice-distribution";
 import { ChoiceDonut } from "./choice-donut";
 import { ViewMenu } from "./view-menu";
 import { useIsBrutal } from "@/components/structure/brutal";
+import { blockFill } from "@/lib/fill";
 import type { ChartForm, ChartKind, Entry } from "@/types";
 
 /**
@@ -308,7 +309,7 @@ export function AnalysisCharts({
       }
       triggerClassName={
         brutal
-          ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] border-[#111] bg-white text-[#111] active:bg-[#111]/10"
+          ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] border-line bg-paper text-ink active:bg-ink/10"
           : "-mr-1 -mt-1 flex h-7 shrink-0 items-center gap-1 rounded-full bg-[var(--sf-2)] px-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-[var(--sf-3)] hover:text-foreground"
       }
     >
@@ -334,11 +335,11 @@ export function AnalysisCharts({
         title={t("explore.open")}
         className={
           brutal
-            ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] bg-[#111] text-white shadow-[1.5px_1.5px_0_rgba(17,17,17,0.35)] active:translate-x-px active:translate-y-px active:shadow-none"
+            ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] bg-well text-white shadow-[1.5px_1.5px_0_color-mix(in_srgb,var(--shade)_35%,transparent)] active:translate-x-px active:translate-y-px active:shadow-none"
             : "-mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--sf-2)] text-muted-foreground transition-colors hover:bg-[var(--sf-3)] hover:text-foreground"
         }
         // Çerçeve rengi satır içi: globals.css'teki katmansız "* { border-color }" kuralı sınıfı eziyor
-        style={brutal ? { borderColor: "#111" } : undefined}
+        style={brutal ? { borderColor: "var(--line)" } : undefined}
       >
         <Maximize2 className="h-3.5 w-3.5" strokeWidth={2.5} />
       </button>
@@ -362,7 +363,7 @@ export function AnalysisCharts({
         onPick={(k) => onPickForm(kind, k as ChartForm)}
         triggerClassName={
           brutal
-            ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] border-[#111] bg-white text-[#111] active:bg-[#111]/10"
+            ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] border-line bg-paper text-ink active:bg-ink/10"
             : "-mt-1 flex h-7 shrink-0 items-center gap-1 rounded-full bg-[var(--sf-2)] px-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-[var(--sf-3)] hover:text-foreground"
         }
       >
@@ -445,21 +446,21 @@ export function AnalysisCharts({
           return (
             <Fragment key={`${kind}-${slot}`}>
             {/* İki grafiğin arası: siyah çizgiler arasında mavi şerit */}
-            {slot > 0 && <div aria-hidden data-chart-gap="" className="h-2" style={{ background: "#c8d4ff" }} />}
-            <div data-chart-unit="" className="flex flex-col bg-white">
+            {slot > 0 && <div aria-hidden data-chart-gap="" className="h-2" style={{ background: blockFill("#c8d4ff") }} />}
+            <div data-chart-unit="" className="flex flex-col bg-paper">
               <div
                 data-chart-head=""
-                className="flex min-h-[40px] items-center gap-2 py-1.5 pl-3.5 pr-2 text-[#111]"
+                className="flex min-h-[40px] items-center gap-2 py-1.5 pl-3.5 pr-2 text-ink"
                 // Grafiğin renginin açık tonu — opak (bloğun ara çizgileri
                 // siyah); altında aynı rengin ince çizgisi
                 style={{
-                  backgroundColor: "#fff",
+                  backgroundColor: "var(--paper)",
                   backgroundImage: `linear-gradient(${color}2e, ${color}2e)`,
                   borderBottom: `1.5px solid ${color}66`,
                 }}
               >
                 <span className="min-w-0 truncate text-[13px] font-extrabold leading-tight tracking-tight">{head.main}</span>
-                <span className="flex h-5 min-w-0 shrink items-center truncate rounded-full border-[1px] bg-white px-2 text-[10.5px] font-bold text-[#111]/70" style={{ borderColor: "rgba(17,17,17,0.22)" }}>
+                <span className="flex h-5 min-w-0 shrink items-center truncate rounded-full border-[1px] bg-paper px-2 text-[10.5px] font-bold text-ink/70" style={{ borderColor: "color-mix(in srgb, var(--ink) 22%, transparent)" }}>
                   {t(CHART_LABEL[kind])}
                   {head.extra}
                 </span>
@@ -489,7 +490,7 @@ export function AnalysisCharts({
             <div data-chart-head="" className="flex items-end gap-2">
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
                 <h3 className="text-xs font-semibold uppercase tracking-wider">{head.main}</h3>
-                <span className="text-[11px] font-bold text-[#111]/60">
+                <span className="text-[11px] font-bold text-ink/60">
                   {t(CHART_LABEL[kind])}
                   {head.extra}
                 </span>

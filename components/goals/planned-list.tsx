@@ -6,7 +6,7 @@ import { Bell, CalendarDays, Repeat, Target } from "lucide-react";
 import { listAllGoals, goalTitle } from "@/lib/db/queries";
 import { goalTimes, occursOn, weekOf } from "@/lib/goals";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { matchesSearch, normalizeSearch } from "@/lib/search";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import type { GoalWithContext } from "@/types";
@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { DayEntrySheet } from "@/components/calendar/day-entry-sheet";
 import { useRepeatLabel } from "@/components/goals/goal-plan";
+import { blockFill } from "@/lib/fill";
 
 export type Row = { goal: GoalWithContext; doneDays: Set<string> };
 
@@ -29,7 +30,7 @@ const PLANNED = "#ff9ecd";
  */
 export function PlannedList({ query, onPlan }: { query: string; onPlan: () => void }) {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const today = toLocalDateValue();
   const rows = useLiveQuery(() => listAllGoals(), []);
   const [editing, setEditing] = useState<GoalWithContext | null>(null);
@@ -85,7 +86,7 @@ export function PlannedList({ query, onPlan }: { query: string; onPlan: () => vo
           lead={{ kind: "count", color: PLANNED, overline: s.title, value: String(s.rows.length), unit: "" }}
           stats={[]}
         >
-          <div className={cn("flex flex-col gap-2 bg-white p-3", s.dim && "opacity-75")}>{list(s.rows)}</div>
+          <div className={cn("flex flex-col gap-2 bg-paper p-3", s.dim && "opacity-75")}>{list(s.rows)}</div>
         </SummaryBlock>
       ) : (
         <section key={s.key} className="mb-6">
@@ -109,7 +110,7 @@ export function PlannedList({ query, onPlan }: { query: string; onPlan: () => vo
 export function GoalRow({ row, today, onOpen }: { row: Row; today: string; onOpen: () => void }) {
   const t = useT();
   const tag = intlTag(useLocale());
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const repeatLabel = useRepeatLabel();
   const { goal, doneDays } = row;
   const color =
@@ -134,8 +135,8 @@ export function GoalRow({ row, today, onOpen }: { row: Row; today: string; onOpe
       className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-3 py-3 text-left transition-colors hover:bg-[var(--sf-1)]"
     >
       <span
-        className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]", brutal && "border-2 border-[#111]")}
-        style={{ background: color }}
+        className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]", brutal && "border-2 border-line")}
+        style={{ background: blockFill(color) }}
       >
         {goal.repeat ? (
           <Repeat className="h-5 w-5 text-white" strokeWidth={2.4} />

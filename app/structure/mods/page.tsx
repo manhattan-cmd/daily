@@ -58,6 +58,7 @@ import { cn } from "@/lib/utils";
 import { modColor } from "@/lib/mod-color";
 import { CATEGORY_COLORS, SCALE_PRESETS, type EntryValueType } from "@/types";
 import { SummaryBlock, SummaryEmpty, SummaryTile } from "@/components/ui/summary-block";
+import { blockFill, blockInk } from "@/lib/fill";
 
 /** Özelliklerin rengi — kategori sayfasındaki Özellikler bloğunun menekşesi */
 const FEATURES = "#c9b8ff";
@@ -379,7 +380,7 @@ function ModsHome() {
               }
               stats={[]}
             >
-              <div data-feature-cell="" className="grid grid-cols-4 gap-x-1.5 gap-y-3 bg-white px-2 py-3">
+              <div data-feature-cell="" className="grid grid-cols-4 gap-x-1.5 gap-y-3 bg-paper px-2 py-3">
                 {g.items.map((mod) => {
                   const n = usage?.get(mod.id)?.valueCount ?? 0;
                   const c = modColor(mod);
@@ -389,13 +390,13 @@ function ModsHome() {
                       key={mod.id}
                       type="button"
                       onClick={() => openDetail(mod)}
-                      className="group flex min-w-0 flex-col items-center gap-1 text-[#111]"
+                      className="group flex min-w-0 flex-col items-center gap-1 text-ink"
                     >
                       <span
-                        className="flex h-[50px] w-[50px] items-center justify-center rounded-full border-2 border-[#111] shadow-[2px_2px_0_#111] transition-transform group-active:translate-x-[2px] group-active:translate-y-[2px] group-active:shadow-none"
-                        style={{ background: c }}
+                        className="flex h-[50px] w-[50px] items-center justify-center rounded-full border-2 border-line shadow-[2px_2px_0_var(--shade)] transition-transform group-active:translate-x-[2px] group-active:translate-y-[2px] group-active:shadow-none"
+                        style={{ background: blockFill(c) }}
                       >
-                        <Icon className="h-5 w-5 text-[#111]" strokeWidth={2.4} />
+                        <Icon style={{ color: blockInk(c) }} className="h-5 w-5 text-ink" strokeWidth={2.4} />
                       </span>
                       <span className="w-full truncate text-center text-[11px] font-extrabold leading-tight">{mod.name}</span>
                       <span className="font-mono text-[10px] font-bold leading-none opacity-60">{n}</span>
@@ -524,7 +525,7 @@ function ModsHome() {
                     style={{
                       color: modColor(selected),
                       borderColor: `${modColor(selected)}55`,
-                      backgroundColor: `${modColor(selected)}14`,
+                      backgroundColor: blockFill(`${modColor(selected)}14`),
                     }}
                   >
                     <SelectedKindIcon className="h-3 w-3" />
@@ -542,7 +543,7 @@ function ModsHome() {
                 className="flex flex-col gap-2 rounded-xl border px-3 py-3"
                 style={{
                   borderColor: `${selectedColor}33`,
-                  backgroundColor: `${selectedColor}0F`,
+                  backgroundColor: blockFill(`${selectedColor}0F`),
                 }}
               >
                 <div className="flex items-center gap-2">
@@ -574,7 +575,7 @@ function ModsHome() {
                           style={{
                             color: place.color || undefined,
                             borderColor: place.color ? `${place.color}59` : undefined,
-                            backgroundColor: place.color ? `${place.color}1A` : undefined,
+                            backgroundColor: place.color ? blockFill(`${place.color}1A`) : undefined,
                           }}
                         >
                           {place.name}
@@ -608,7 +609,7 @@ function ModsHome() {
                 className="flex items-center justify-between rounded-xl border px-3 py-2.5"
                 style={{
                   borderColor: `${selectedColor}33`,
-                  backgroundColor: `${selectedColor}0F`,
+                  backgroundColor: blockFill(`${selectedColor}0F`),
                 }}
               >
                 <span className="text-[10px] font-semibold uppercase tracking-[0.13em] text-muted-foreground/70">

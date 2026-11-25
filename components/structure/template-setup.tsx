@@ -8,6 +8,7 @@ import { createCategory } from "@/lib/db/queries";
 import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { blockFill } from "@/lib/fill";
 
 const PRESETS: { name: string; color: string; icon: string }[] = [
   { name: "Uyku",          color: "#6366f1", icon: "moon" },
@@ -84,7 +85,7 @@ export function TemplateSetup() {
                   ? "border-transparent text-white"
                   : "border-border bg-card text-foreground hover:bg-muted"
               )}
-              style={isSelected ? { backgroundColor: p.color } : undefined}
+              style={isSelected ? { backgroundColor: blockFill(p.color) } : undefined}
             >
               <SymbolIcon
                 name={p.icon}
@@ -111,7 +112,7 @@ export function TemplateSetup() {
               key={color}
               onClick={() => setCustomColor(color)}
               className="relative h-7 w-7 rounded-full transition-transform hover:scale-110 active:scale-95"
-              style={{ backgroundColor: color }}
+              style={{ backgroundColor: blockFill(color) }}
             >
               {customColor === color && (
                 <Check className="absolute inset-0 m-auto h-3.5 w-3.5 text-white" />

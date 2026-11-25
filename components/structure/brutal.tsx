@@ -5,7 +5,7 @@ import Link from "next/link";
 import { BarChart3, ChevronDown, Pencil, Plus, Square, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import type { StructureSummary } from "@/lib/db/queries";
 import type { Category, SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
@@ -13,6 +13,7 @@ import { SmartText } from "@/components/ui/smart-text";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { SummaryBlock, SummaryEmpty, SummaryTile, type SummaryStat } from "@/components/ui/summary-block";
+import { blockFill, blockInk } from "@/lib/fill";
 
 /**
  * BRÜTAL YAPI SAYFALARI — yalnız Brütal tema seçiliyken (deneme).
@@ -24,7 +25,7 @@ import { SummaryBlock, SummaryEmpty, SummaryTile, type SummaryStat } from "@/com
  * BrutThingSummary). Diğer temalarda bu parçalar hiç çizilmez.
  */
 export function useIsBrutal(): boolean {
-  return useSkin() === "brutal";
+  return isBlockSkin(useSkin());
 }
 
 const fmt = (n: number) => n.toLocaleString("tr-TR", { maximumFractionDigits: 0 });
@@ -102,7 +103,7 @@ function ToolCell({
   onClick?: () => void;
   color?: string;
 }) {
-  const cls = "flex h-10 items-center justify-center gap-1.5 text-[12.5px] font-black text-[#111] active:brightness-95";
+  const cls = "flex h-10 items-center justify-center gap-1.5 text-[12.5px] font-black text-ink active:brightness-95";
   const body = (
     <>
       <Icon className="h-4 w-4 shrink-0" strokeWidth={2.5} />
@@ -110,11 +111,11 @@ function ToolCell({
     </>
   );
   return href ? (
-    <Link href={href} prefetch={false} className={cls} style={{ background: color }}>
+    <Link href={href} prefetch={false} className={cls} style={{ background: blockFill(color) }}>
       {body}
     </Link>
   ) : (
-    <button type="button" onClick={onClick} className={cls} style={{ background: color }}>
+    <button type="button" onClick={onClick} className={cls} style={{ background: blockFill(color) }}>
       {body}
     </button>
   );
@@ -173,7 +174,7 @@ export function BrutSubsBlock({
       stats={[]}
     >
       {subs && total ? (
-        <div data-subs-cell="" className="bg-white px-1.5 py-2">
+        <div data-subs-cell="" className="bg-paper px-1.5 py-2">
           <BrutSubRows category={category} subs={subs} counts={counts} rootId={rootId} />
         </div>
       ) : total === 0 ? (
@@ -217,11 +218,11 @@ export function BrutCategoryCard({
     <Link
       href={href}
       prefetch={false}
-      className="flex min-h-[112px] flex-col gap-1 rounded-2xl border-2 border-[#111] p-3 text-[#111] shadow-[4px_4px_0_#111] transition-transform active:translate-x-[3px] active:translate-y-[3px] active:shadow-[1px_1px_0_#111]"
-      style={{ background: color }}
+      className="flex min-h-[112px] flex-col gap-1 rounded-2xl border-2 border-line p-3 text-ink shadow-[4px_4px_0_var(--shade)] transition-transform active:translate-x-[3px] active:translate-y-[3px] active:shadow-[1px_1px_0_var(--shade)]"
+      style={{ background: blockFill(color) }}
     >
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-[#111] bg-white">
-        {icon ? <SymbolIcon name={icon} size={18} style={{ color: "#111" }} /> : null}
+      <span className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-line bg-paper">
+        {icon ? <SymbolIcon name={icon} size={18} style={{ color: blockInk(color) }} /> : null}
       </span>
       <b className="mt-auto break-words text-[16px] font-black leading-tight">{name}</b>
       {subs !== undefined && (
@@ -240,7 +241,7 @@ export function BrutCta({ label, onClick }: { label: string; onClick: () => void
       <button
         type="button"
         onClick={onClick}
-        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-[#111] bg-[#ffd23f] text-[16px] font-black text-[#111] shadow-[4px_4px_0_#111] transition-transform active:translate-x-[3px] active:translate-y-[3px] active:shadow-[1px_1px_0_#111]"
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-line bg-fill-[#ffd23f] text-[16px] font-black text-ink shadow-[4px_4px_0_var(--shade)] transition-transform active:translate-x-[3px] active:translate-y-[3px] active:shadow-[1px_1px_0_var(--shade)]"
       >
         <Plus className="h-5 w-5" strokeWidth={3} />
         {label}
@@ -313,7 +314,7 @@ export function BrutCategoryTree({
           >
             {/* Alt kategorisi yoksa boş pencere: yazı ve ufak Oluştur */}
             {n > 0 ? (
-              <div data-subs-cell="" className="bg-white px-1.5 py-2">
+              <div data-subs-cell="" className="bg-paper px-1.5 py-2">
                 <BrutSubRows category={cat} subs={subs} counts={counts} />
               </div>
             ) : (
@@ -382,14 +383,14 @@ export function BrutSubRows({
   const pill = (n: number) => (
     <span
       className={cn(
-        "ml-auto shrink-0 rounded-full border-[1.5px] border-[#111]/20 px-2 py-px text-[11px] font-extrabold tabular-nums text-[#111]/70",
+        "ml-auto shrink-0 rounded-full border-[1.5px] border-ink/20 px-2 py-px text-[11px] font-extrabold tabular-nums text-ink/70",
         n === 0 && "opacity-40"
       )}
     >
       {n}
     </span>
   );
-  const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, white)`;
+  const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} calc(${pct}% * var(--fill-scale)), var(--paper))`;
 
   return (
     <>
@@ -411,9 +412,9 @@ export function BrutSubRows({
                 type="button"
                 onClick={() => toggleBranch(line.key)}
                 aria-expanded={line.open}
-                className="ml-2 flex min-h-[32px] min-w-0 flex-1 items-center gap-2 rounded-[10px] px-2 py-1 text-left text-[12.5px] font-extrabold text-[#111]/70 hover:bg-[#111]/5 active:bg-[#111]/10"
+                className="ml-2 flex min-h-[32px] min-w-0 flex-1 items-center gap-2 rounded-[10px] px-2 py-1 text-left text-[12.5px] font-extrabold text-ink/70 hover:bg-ink/5 active:bg-ink/10"
               >
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-[1.5px] border-dashed border-[#111]/50">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-[1.5px] border-dashed border-ink/50">
                   <ChevronDown className={cn("h-3.5 w-3.5", line.open && "rotate-180")} strokeWidth={3} />
                 </span>
                 {line.open ? t("brut.showLess") : t("brut.showAll", { n: line.total })}
@@ -430,25 +431,25 @@ export function BrutSubRows({
               href={routes.structureSub(cat.id, sub.id)}
               prefetch={false}
               className={cn(
-                "ml-2 flex min-h-[32px] min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2 py-1 text-[13.5px] text-[#111] hover:bg-[#111]/5 active:bg-[#111]/10",
+                "ml-2 flex min-h-[32px] min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2 py-1 text-[13.5px] text-ink hover:bg-ink/5 active:bg-ink/10",
                 depth === 1 ? "font-bold" : "font-medium"
               )}
             >
               <span
                 className={cn(
-                  "flex shrink-0 items-center justify-center border-[1.5px] border-[#111]",
+                  "flex shrink-0 items-center justify-center border-[1.5px] border-line",
                   depth === 1 ? "h-6 w-6 rounded-[7px]" : "h-5 w-5 rounded-md"
                 )}
                 style={{ background: tint(cat.color, 55) }}
               >
-                {icon && <SymbolIcon name={icon} size={depth === 1 ? 13 : 11} style={{ color: "#111" }} />}
+                {icon && <SymbolIcon name={icon} size={depth === 1 ? 13 : 11} style={{ color: blockInk(cat.color) }} />}
               </span>
               {/* Girinti durduktan sonra derinliği kat numarası söylüyor */}
               {depth > MAX_INDENT && (
                 <span
                   aria-label={t("brut.level", { n: depth })}
                   title={t("brut.level", { n: depth })}
-                  className="-mr-1 shrink-0 rounded-[5px] bg-[#111] px-1 font-mono text-[10px] font-extrabold leading-[16px] text-[#FFF4DC]"
+                  className="-mr-1 shrink-0 rounded-[5px] bg-well px-1 font-mono text-[10px] font-extrabold leading-[16px] text-[#FFF4DC]"
                 >
                   {depth}
                 </span>

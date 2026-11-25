@@ -13,7 +13,7 @@ import {
 import { cn, formatDateTime } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { useLongPress } from "@/lib/use-long-press";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { SymbolIcon } from "@/lib/icons";
 import { ENTRY_BLOCK_CLS, EntryBlockCell, EntryBlockHead, EntryBlockTime } from "@/components/dashboard/entry-block";
 import {
@@ -21,6 +21,7 @@ import {
   selectedCardClass,
   type EntrySelection,
 } from "@/components/calendar/entry-selection";
+import { blockFill, blockInk } from "@/lib/fill";
 
 /**
  * Paralel girdi kartı — aynı olayın birden çok kategorideki perspektifi.
@@ -51,7 +52,7 @@ export function LinkedEntryCard({
   const t = useT();
   const [editingEntry, setEditingEntry] = useState<EntryWithContext | null>(null);
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const shared = entries[0];
 
   // Ortak değer: aynı özellik ≥2 perspektifte varsa. Anahtar özelliğin
@@ -115,7 +116,7 @@ export function LinkedEntryCard({
         >
           <EntryBlockHead
             color={VIOLET}
-            icon={icon && <SymbolIcon name={icon} size={14} style={{ color: "#111" }} />}
+            icon={icon && <SymbolIcon name={icon} size={14} style={{ color: blockInk(VIOLET) }} />}
             title={
               <span className="flex items-center gap-1.5">
                 {shared.subcategory.name}
@@ -140,10 +141,10 @@ export function LinkedEntryCard({
               <EntryBlockCell key={entry.id} color={entry.category.color}>
                 <div className="flex items-center gap-2">
                   <span
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border-[1.5px] border-[#111]"
-                    style={{ background: entry.category.color }}
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border-[1.5px] border-line"
+                    style={{ background: blockFill(entry.category.color) }}
                   >
-                    {entry.category.icon && <SymbolIcon name={entry.category.icon} size={11} style={{ color: "#111" }} />}
+                    {entry.category.icon && <SymbolIcon name={entry.category.icon} size={11} style={{ color: blockInk(entry.category.color) }} />}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-[11.5px] font-extrabold">{entry.category.name}</span>
                   <button
@@ -153,7 +154,7 @@ export function LinkedEntryCard({
                       e.stopPropagation();
                       setEditingEntry(entry);
                     }}
-                    className="-mr-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] active:bg-[#111]/10"
+                    className="-mr-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] active:bg-ink/10"
                   >
                     <Pencil className="h-3.5 w-3.5" strokeWidth={2.5} />
                   </button>
@@ -166,7 +167,7 @@ export function LinkedEntryCard({
                 {entry.notes && (
                   <div className="mt-1.5 flex items-start gap-1.5">
                     <NotebookPen className="mt-[1px] h-3 w-3 shrink-0" strokeWidth={2.25} />
-                    <p className="line-clamp-3 min-w-0 text-[11px] font-medium leading-snug text-[#111]/75">{entry.notes}</p>
+                    <p className="line-clamp-3 min-w-0 text-[11px] font-medium leading-snug text-ink/75">{entry.notes}</p>
                   </div>
                 )}
               </EntryBlockCell>

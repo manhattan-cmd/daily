@@ -417,13 +417,13 @@ export function SubCategoryForm({
                       aria-hidden
                       className={cn(
                         "flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors",
-                        brutal && "border-[1.5px] border-[#111]"
+                        brutal && "border-[1.5px] border-line"
                       )}
                       style={
                         on
                           ? { backgroundColor: c }
                           : brutal
-                            ? { backgroundColor: "#fff" }
+                            ? { backgroundColor: "var(--paper)" }
                             : { boxShadow: "inset 0 0 0 1.5px var(--muted-foreground)" }
                       }
                     >
@@ -431,7 +431,7 @@ export function SubCategoryForm({
                         <Check
                           className="h-3 w-3"
                           strokeWidth={3.5}
-                          style={{ color: brutal ? "#111" : "#fff" }}
+                          style={{ color: brutal ? "var(--ink)" : "#fff" }}
                         />
                       )}
                     </span>

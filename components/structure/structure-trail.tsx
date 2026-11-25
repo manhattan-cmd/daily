@@ -10,6 +10,7 @@ import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import type { Collection, SubCategory } from "@/types";
 import { HeadTrailRow } from "./structure-head";
+import { blockFill } from "@/lib/fill";
 
 export type TrailStep = { key: string; label: string; href: string; fill: string };
 
@@ -51,7 +52,7 @@ export function StructureTrail({ categoryId, subId }: { categoryId: string; subI
     const out: TrailStep[] = [{ key: cat.id, label: cat.name, href: routes.structureCategory(cat.id), fill: cat.color }];
     chain.forEach((s, i) => {
       // Derinleştikçe açılan ton: 1. kat %55, sonra %42, %30…
-      const tone = `color-mix(in srgb, ${cat.color} ${Math.max(20, 55 - i * 13)}%, white)`;
+      const tone = `color-mix(in srgb, ${cat.color} calc(${Math.max(20, 55 - i * 13)}% * var(--fill-scale)), var(--paper))`;
       out.push({ key: s.id, label: s.name, href: routes.structureSub(cat.id, s.id), fill: tone });
     });
     return out;
@@ -64,7 +65,7 @@ export function ObjectTrail({ collection, thing }: { collection: Collection | un
   const color = collection?.color ?? "#94a3b8";
   const steps: TrailStep[] = [];
   if (collection) steps.push({ key: collection.id, label: collection.name, href: routes.structureCollection(collection.id), fill: color });
-  if (thing) steps.push({ key: thing.id, label: thing.name, href: routes.structureThing(thing.id), fill: `color-mix(in srgb, ${color} 55%, white)` });
+  if (thing) steps.push({ key: thing.id, label: thing.name, href: routes.structureThing(thing.id), fill: `color-mix(in srgb, ${color} calc(55% * var(--fill-scale)), var(--paper))` });
   return <TrailRow steps={steps} />;
 }
 
@@ -96,7 +97,7 @@ export function TrailRow({ steps }: { steps: TrailStep[] }) {
 
   return (
     <HeadTrailRow>
-      <nav aria-label={t("structure.title")} className="relative min-w-0 bg-white">
+      <nav aria-label={t("structure.title")} className="relative min-w-0 bg-paper">
         <ol
           ref={rowRef}
           data-structure-trail=""
@@ -108,12 +109,12 @@ export function TrailRow({ steps }: { steps: TrailStep[] }) {
               <Link
                 href={s.href}
                 prefetch={false}
-                className="flex h-7 items-center whitespace-nowrap rounded-[8px] border-[1.5px] px-2.5 text-[12.5px] font-extrabold leading-none text-[#111] active:brightness-90"
-                style={{ background: s.fill, borderColor: "#111" }}
+                className="flex h-7 items-center whitespace-nowrap rounded-[8px] border-[1.5px] px-2.5 text-[12.5px] font-extrabold leading-none text-ink active:brightness-90"
+                style={{ background: blockFill(s.fill), borderColor: "var(--line)" }}
               >
                 {s.label}
               </Link>
-              <ChevronRight aria-hidden className="h-3.5 w-3.5 shrink-0 text-[#111]/45" strokeWidth={3} />
+              <ChevronRight aria-hidden className="h-3.5 w-3.5 shrink-0 text-ink/45" strokeWidth={3} />
             </li>
           ))}
           {/* Bulunulan yer — kısa yolda satırın kalanını doldurur, uzunsa kendi boyunda */}
@@ -121,12 +122,12 @@ export function TrailRow({ steps }: { steps: TrailStep[] }) {
             <li key={here.key} className="crumb-in flex items-center" style={{ flex: "1 0 auto" }}>
               <span
                 aria-current="page"
-                className="flex flex-1 items-center gap-2 whitespace-nowrap pl-1 pr-1.5 text-[13.5px] font-black leading-none text-[#111]"
+                className="flex flex-1 items-center gap-2 whitespace-nowrap pl-1 pr-1.5 text-[13.5px] font-black leading-none text-ink"
               >
                 <span
                   aria-hidden
                   className="h-3 w-3 shrink-0 rounded-[3px] border-[1.5px]"
-                  style={{ background: here.fill, borderColor: "#111" }}
+                  style={{ background: here.fill, borderColor: "var(--line)" }}
                 />
                 {here.label}
               </span>

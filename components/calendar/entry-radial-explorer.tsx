@@ -7,6 +7,7 @@ import { CategoryTileCore } from "@/components/structure/category-tile";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Category, SubCategory } from "@/types";
+import { blockFill } from "@/lib/fill";
 
 type Focus =
   | { type: "sub"; sub: SubCategory }
@@ -195,7 +196,7 @@ export function RadialExplorer({
               />
               <span
                 className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-background text-white"
-                style={{ backgroundColor: color }}
+                style={{ backgroundColor: blockFill(color) }}
               >
                 <Plus className="h-3.5 w-3.5" strokeWidth={2.75} />
               </span>

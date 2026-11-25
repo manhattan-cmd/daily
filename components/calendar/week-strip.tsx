@@ -44,7 +44,7 @@ export function WeekStrip({ date }: { date: string }) {
     <header
       data-day-nav=""
       // -mx-4: main'in kenar payını aşıp kenardan kenara (alt menü gibi)
-      className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] bg-[#5eead4] pt-[env(safe-area-inset-top,0px)]"
+      className="sticky top-0 z-30 -mx-4 border-b-[3px] border-line bg-fill-[#5eead4] pt-[env(safe-area-inset-top,0px)]"
     >
       <nav data-week-strip="" aria-label={t("nav.calendar")} className="flex items-stretch px-1">
         <Arrow icon={ChevronLeft} date={shift(-1)} label={t("day.prev")} />
@@ -65,14 +65,14 @@ export function WeekStrip({ date }: { date: string }) {
                 aria-current={on ? "date" : undefined}
                 aria-label={x.toLocaleDateString(tag, { weekday: "long", day: "numeric", month: "long" })}
                 className={cn(
-                  "flex min-w-0 flex-col items-center gap-[3px] pb-[7px] pt-2 text-[#111]",
+                  "flex min-w-0 flex-col items-center gap-[3px] pb-[7px] pt-2 text-ink",
                   future && !on && "opacity-35"
                 )}
               >
                 <span
                   className={cn(
                     "text-[10px] font-bold uppercase leading-none tracking-wide",
-                    on ? "text-[#111]" : "text-[#111]/60"
+                    on ? "text-ink" : "text-ink/60"
                   )}
                 >
                   {x.toLocaleDateString(tag, { weekday: "short" }).replace(".", "")}
@@ -80,11 +80,11 @@ export function WeekStrip({ date }: { date: string }) {
                 <span
                   className={cn(
                     "rounded-full border-[1.5px] px-[7px] font-mono text-[14px] font-bold leading-[19px] tabular-nums transition-transform",
-                    on ? "-translate-y-px bg-white shadow-[2px_2px_0_#111]" : !isToday && "text-[#111]/80"
+                    on ? "-translate-y-px bg-paper shadow-[2px_2px_0_var(--shade)]" : !isToday && "text-ink/80"
                   )}
                   // Çerçeve rengi satır içi: globals.css'teki katmansız
                   // "* { border-color }" kuralı border-transparent'ı eziyor
-                  style={{ borderColor: on || isToday ? "#111" : "transparent" }}
+                  style={{ borderColor: on || isToday ? "var(--line)" : "transparent" }}
                 >
                   {x.getDate()}
                 </span>
@@ -92,7 +92,7 @@ export function WeekStrip({ date }: { date: string }) {
                     şeridin renginde bir kategori zeminde kaybolmasın diye siyah halkalı */}
                 <span className="flex h-[6px] items-center gap-[2px]">
                   {colors.map((c, i) => (
-                    <span key={i} className="h-[6px] w-[6px] rounded-full border" style={{ background: c, borderColor: "#111" }} />
+                    <span key={i} className="h-[6px] w-[6px] rounded-full border" style={{ background: c, borderColor: "var(--line)" }} />
                   ))}
                 </span>
               </Link>
@@ -114,7 +114,7 @@ function Arrow({ icon: Icon, date, label }: { icon: LucideIcon; date: string; la
       {...prefetchDayOnPress(date)}
       aria-label={label}
       title={label}
-      className="flex w-9 shrink-0 items-center justify-center text-[#111]/60 active:text-[#111]"
+      className="flex w-9 shrink-0 items-center justify-center text-ink/60 active:text-ink"
     >
       <Icon className="h-5 w-5" strokeWidth={2.5} />
     </Link>

@@ -9,7 +9,7 @@ import { searchEntries } from "@/lib/db/queries";
 import { searchEverything } from "@/lib/db/search-all";
 import { intlTag, useLocale, useT, type MessageKey } from "@/lib/i18n";
 import { dayPeriod, monthPeriod, parsePeriodKey, periodLabel, weekPeriod, yearPeriod, type Period } from "@/lib/period";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { PageHeader } from "@/components/layout/page-header";
 import { EntryListSection, type EntryListRow } from "@/components/analytics/entry-list";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -103,7 +103,7 @@ const appMain = () => document.querySelector<HTMLElement>("[data-app-main]");
 
 function SearchPageContent() {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const params = useSearchParams();
   const [query, setQuery] = useState(() => params.get("q") ?? "");
   const [categoryId, setCategoryId] = useState<string | null>(() => params.get("cat"));
@@ -258,24 +258,24 @@ function SearchPageContent() {
             <div className="px-2.5 pb-2.5">
               <div
                 data-search-box=""
-                className="relative flex items-center rounded-[12px] border-2 bg-white shadow-[2px_2px_0_#111]"
-                style={{ borderColor: "#111" }}
+                className="relative flex items-center rounded-[12px] border-2 bg-paper shadow-[2px_2px_0_var(--shade)]"
+                style={{ borderColor: "var(--line)" }}
               >
-                <Search className="pointer-events-none absolute left-3 h-4 w-4 text-[#111]/50" strokeWidth={2.75} />
+                <Search className="pointer-events-none absolute left-3 h-4 w-4 text-ink/50" strokeWidth={2.75} />
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={t("search.placeholderAll")}
                   aria-label={t("search.title")}
                   enterKeyHint="search"
-                  className="h-11 w-full rounded-[10px] bg-transparent pl-9 pr-10 text-[15px] font-bold text-[#111] placeholder:font-semibold placeholder:text-[#111]/40 focus:outline-none"
+                  className="h-11 w-full rounded-[10px] bg-transparent pl-9 pr-10 text-[15px] font-bold text-ink placeholder:font-semibold placeholder:text-ink/40 focus:outline-none"
                 />
                 {query && (
                   <button
                     type="button"
                     onClick={() => setQuery("")}
                     aria-label={t("features.clearSearch")}
-                    className="absolute right-1.5 flex h-8 w-8 items-center justify-center rounded-lg text-[#111] active:bg-[#111]/10"
+                    className="absolute right-1.5 flex h-8 w-8 items-center justify-center rounded-lg text-ink active:bg-ink/10"
                   >
                     <X className="h-4 w-4" strokeWidth={2.75} />
                   </button>
@@ -320,7 +320,7 @@ function SearchPageContent() {
                   onOpenDay={rememberScroll}
                 />
                 {entriesFull && !preview && (
-                  <p className="-mt-2 mb-4 px-1 text-[11px] font-bold text-[#111]/55">
+                  <p className="-mt-2 mb-4 px-1 text-[11px] font-bold text-ink/55">
                     {t("search.limitNote", { n: LIMIT })}
                   </p>
                 )}

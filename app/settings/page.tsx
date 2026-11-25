@@ -16,7 +16,7 @@ import { ReminderSection } from "@/components/settings/reminder-section";
 import { PageSheet } from "@/components/ui/layer";
 import { SubPageMenu } from "@/components/ui/sub-page-menu";
 import { SettingsBlock, SettingsCell } from "@/components/settings/settings-block";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 
 const APP_VERSION = "0.1.0";
 
@@ -37,7 +37,7 @@ export default function SettingsPage() {
   }, []);
 
   const heading = "mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
 
   /*
    * Brütal: üst menü şerit (bkz. SubPageMenu), altında ayarlar ana sayfanın
@@ -77,7 +77,7 @@ export default function SettingsPage() {
             hint={t("settings.showWelcomeHint")}
             onClick={() => setLocalFlag(WELCOME_DISMISSED, false)}
           >
-            <SettingsCell className="text-[11.5px] font-bold leading-snug text-[#111]/55">
+            <SettingsCell className="text-[11.5px] font-bold leading-snug text-ink/55">
               {t("settings.about", { version: APP_VERSION })}
             </SettingsCell>
           </SettingsBlock>

@@ -11,7 +11,7 @@ import { db } from "@/lib/db";
 import { usageSince } from "@/lib/usage";
 import { useT } from "@/lib/i18n";
 import { routes } from "@/lib/routes";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
 
 /**
@@ -240,7 +240,7 @@ function lug(ctx: CanvasRenderingContext2D, { p: [x, y], d: [dx, dy] }: Pin, lon
 export function TechTree({ groups }: { groups: MapGroup[] }) {
   const t = useT();
   const router = useRouter();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const data = useMapGraph(groups);
 
   const [panel, setPanel] = useState(false);
@@ -1145,10 +1145,10 @@ export function TechTree({ groups }: { groups: MapGroup[] }) {
   const kids = sel ? tree.cards.get(sel.id)?.kids.length ?? 0 : 0;
 
   const box = brutal
-    ? "rounded-xl border-2 border-[#111] bg-white text-[#111] shadow-[3px_3px_0_#111]"
+    ? "rounded-xl border-2 border-line bg-paper text-ink shadow-[3px_3px_0_var(--shade)]"
     : "rounded-2xl border border-border bg-card/95 text-foreground shadow-lg backdrop-blur";
   const iconBtn = brutal
-    ? "flex h-9 w-9 items-center justify-center rounded-lg border-2 border-[#111] bg-white text-[#111] shadow-[2px_2px_0_#111]"
+    ? "flex h-9 w-9 items-center justify-center rounded-lg border-2 border-line bg-paper text-ink shadow-[2px_2px_0_var(--shade)]"
     : "flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card/90 text-muted-foreground backdrop-blur hover:text-foreground";
 
   return (
@@ -1218,7 +1218,7 @@ export function TechTree({ groups }: { groups: MapGroup[] }) {
             placeholder={t("graph.search")}
             className={cn(
               "mb-2 w-full px-2 py-1.5 text-xs outline-none",
-              brutal ? "rounded-md border-2 border-[#111] bg-white" : "rounded-lg border border-border bg-background"
+              brutal ? "rounded-md border-2 border-line bg-paper" : "rounded-lg border border-border bg-background"
             )}
           />
           <button onClick={() => setUnused(!unused)} className="mb-2 flex w-full items-center justify-between py-1 font-semibold">
@@ -1256,7 +1256,7 @@ export function TechTree({ groups }: { groups: MapGroup[] }) {
           </button>
           {/* Akışın sayım penceresi — noktalar hangi girdilere göre bölünsün */}
           {flow && (
-            <div className={cn("mb-2 grid grid-cols-2 gap-1 p-0.5", brutal ? "rounded-md border-2 border-[#111]" : "rounded-lg bg-[var(--sf-2)]")}>
+            <div className={cn("mb-2 grid grid-cols-2 gap-1 p-0.5", brutal ? "rounded-md border-2 border-line" : "rounded-lg bg-[var(--sf-2)]")}>
               {[false, true].map((all) => (
                 <button
                   key={String(all)}
@@ -1265,7 +1265,7 @@ export function TechTree({ groups }: { groups: MapGroup[] }) {
                   onClick={() => setFlowAll(all)}
                   className={cn(
                     "rounded py-1 text-[11px] font-bold",
-                    flowAll === all ? (brutal ? "bg-[#111] text-[#fff4dc]" : "bg-primary text-primary-foreground") : "opacity-60"
+                    flowAll === all ? (brutal ? "bg-well text-[#fff4dc]" : "bg-primary text-primary-foreground") : "opacity-60"
                   )}
                 >
                   {t(all ? "graph.flowAll" : "graph.flow30")}
@@ -1277,7 +1277,7 @@ export function TechTree({ groups }: { groups: MapGroup[] }) {
             onClick={animate}
             className={cn(
               "mb-2 flex w-full items-center justify-center gap-1.5 py-1.5 font-bold",
-              brutal ? "rounded-md border-2 border-[#111] bg-[#ffd23f]" : "rounded-lg bg-primary text-primary-foreground"
+              brutal ? "rounded-md border-2 border-line bg-fill-[#ffd23f]" : "rounded-lg bg-primary text-primary-foreground"
             )}
           >
             <Play className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -1289,7 +1289,7 @@ export function TechTree({ groups }: { groups: MapGroup[] }) {
 
       {sel && !panel && (
         <div className={cn(box, "absolute bottom-10 left-3 right-3 flex items-center gap-3 px-3 py-2.5")}>
-          <span className={cn("h-3.5 w-3.5 shrink-0 rounded-[4px]", brutal && "border-[1.5px] border-[#111]")} style={{ background: sel.color }} />
+          <span className={cn("h-3.5 w-3.5 shrink-0 rounded-[4px]", brutal && "border-[1.5px] border-line")} style={{ background: sel.color }} />
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-extrabold">{sel.label}</div>
             <div className="truncate text-[11px] opacity-70">

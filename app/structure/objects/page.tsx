@@ -21,6 +21,7 @@ import { useIsBrutal } from "@/components/structure/brutal";
 import type { Thing } from "@/types";
 import { matchesSearch, normalizeSearch } from "@/lib/search";
 import { StructureSearch } from "@/components/structure/structure-search";
+import { blockFill, blockInk } from "@/lib/fill";
 
 /** Listenin bloğunda gösterilen nesne sayısı — fazlası "+N" */
 const THING_PREVIEW = 10;
@@ -124,19 +125,19 @@ export default function ObjectsPage() {
                     />
                   )}
                   {live.length > 0 && (
-                    <div data-thing-chips="" className="flex flex-wrap gap-1.5 bg-white p-2.5">
+                    <div data-thing-chips="" className="flex flex-wrap gap-1.5 bg-paper p-2.5">
                       {live.slice(0, THING_PREVIEW).map((th) => (
                         <Link
                           key={th.id}
                           href={routes.structureThing(th.id)}
                           prefetch={false}
-                          className="flex max-w-full items-center gap-1.5 rounded-[9px] border-[1.5px] border-[#111] bg-white px-2 py-[5px] text-[12.5px] font-extrabold leading-none text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
+                          className="flex max-w-full items-center gap-1.5 rounded-[9px] border-[1.5px] border-line bg-paper px-2 py-[5px] text-[12.5px] font-extrabold leading-none text-ink shadow-[1.5px_1.5px_0_var(--shade)] active:translate-x-px active:translate-y-px active:shadow-none"
                         >
                           {/* Baklava — şekil dilinde nesne */}
                           <span
                             aria-hidden
                             className="h-2 w-2 shrink-0 rotate-45 border-[1.5px]"
-                            style={{ background: color, borderColor: "#111" }}
+                            style={{ background: color, borderColor: "var(--line)" }}
                           />
                           <span className="truncate">{th.name}</span>
                         </Link>
@@ -145,7 +146,7 @@ export default function ObjectsPage() {
                         <Link
                           href={routes.structureCollection(c.id)}
                           prefetch={false}
-                          className="flex items-center rounded-[9px] border-[1.5px] border-dashed border-[#111]/60 px-2 py-[5px] font-mono text-[12px] font-bold leading-none text-[#111]/70"
+                          className="flex items-center rounded-[9px] border-[1.5px] border-dashed border-ink/60 px-2 py-[5px] font-mono text-[12px] font-bold leading-none text-ink/70"
                         >
                           +{more}
                         </Link>
@@ -169,23 +170,23 @@ export default function ObjectsPage() {
                 href={routes.structureCollection(c.id)}
                 prefetch={false}
                 data-collection-card=""
-                className="flex overflow-hidden rounded-2xl border-2 border-[#111] bg-white text-[#111] shadow-[4px_4px_0_#111] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_#111]"
+                className="flex overflow-hidden rounded-2xl border-2 border-line bg-paper text-ink shadow-[4px_4px_0_var(--shade)] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_var(--shade)]"
               >
-                <span className="w-3.5 shrink-0 border-r-2 border-[#111]" style={{ background: color }} />
+                <span className="w-3.5 shrink-0 border-r-2 border-line" style={{ background: color }} />
                 <span className="flex min-w-0 flex-1 items-center gap-3 p-3">
                   <span
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-[1.5px] border-[#111]"
-                    style={{ background: color }}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-[1.5px] border-line"
+                    style={{ background: blockFill(color) }}
                   >
                     {c.icon ? (
-                      <SymbolIcon name={c.icon} size={21} style={{ color: "#111" }} />
+                      <SymbolIcon name={c.icon} size={21} style={{ color: blockInk(color) }} />
                     ) : (
                       <Boxes className="h-5 w-5" strokeWidth={2.4} />
                     )}
                   </span>
                   <span className="min-w-0 flex-1">
                     <SmartText text={c.name} className="block text-[17px] font-black leading-tight tracking-tight" />
-                    <span className="block text-[11.5px] font-semibold text-[#111]/55">
+                    <span className="block text-[11.5px] font-semibold text-ink/55">
                       {t("objects.count", { n: total, active })}
                     </span>
                   </span>

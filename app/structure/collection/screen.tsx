@@ -96,15 +96,15 @@ export function CollectionScreen({ collectionId }: { collectionId: string }) {
         href={routes.structureThing(th.id)}
         prefetch={false}
         data-thing-row=""
-        className="flex min-h-[48px] items-center gap-3 rounded-xl border-2 border-[#111] bg-white px-3 py-2 text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+        className="flex min-h-[48px] items-center gap-3 rounded-xl border-2 border-line bg-paper px-3 py-2 text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
       >
         <span
-          className={cn("h-3.5 w-3.5 shrink-0 rounded-full border-[1.5px] border-[#111]", th.archivedAt && "opacity-40")}
+          className={cn("h-3.5 w-3.5 shrink-0 rounded-full border-[1.5px] border-line", th.archivedAt && "opacity-40")}
           style={{ background: color }}
         />
         <span className="min-w-0 flex-1">
           <SmartText text={th.name} className={cn("block text-[15px] font-extrabold leading-5", th.archivedAt && "opacity-60")} />
-          <span className="block text-[11px] font-semibold text-[#111]/55">
+          <span className="block text-[11px] font-semibold text-ink/55">
             {u ? t("objects.usedIn", { n: u.count }) : t("objects.never")}
           </span>
         </span>
@@ -177,13 +177,13 @@ export function CollectionScreen({ collectionId }: { collectionId: string }) {
             onChange={(e) => setDraft(e.target.value)}
             placeholder={t("objects.add")}
             aria-label={t("objects.add")}
-            className="h-11 min-w-0 flex-1 rounded-xl border-2 border-[#111] bg-white px-3 text-[15px] text-[#111] outline-none placeholder:text-[#111]/40"
+            className="h-11 min-w-0 flex-1 rounded-xl border-2 border-line bg-paper px-3 text-[15px] text-ink outline-none placeholder:text-ink/40"
           />
           <button
             type="submit"
             disabled={!draft.trim()}
             aria-label={t("objects.add")}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-[#111] bg-[#7ae582] text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-40"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-line bg-fill-[#7ae582] text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-40"
           >
             <Plus className="h-5 w-5" strokeWidth={3} />
           </button>

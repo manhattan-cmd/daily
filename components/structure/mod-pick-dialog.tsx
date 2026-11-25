@@ -51,8 +51,9 @@ import {
 import { cn } from "@/lib/utils";
 import { SCALE_PRESETS, type EntryValueType } from "@/types";
 import { useT } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { BrutWhereStep, type WhereRow } from "@/components/structure/where-step";
+import { blockFill, blockInk } from "@/lib/fill";
 
 /** Özelliklerin rengi — Yapı › Özellikler'deki tür bloklarının menekşesi */
 const FEATURES = "#c9b8ff";
@@ -106,7 +107,7 @@ export function ModPickDialog({
   contextLabel?: string;
 }) {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const [mode, setMode] = useState<"pick" | "create" | "where">("pick");
   // "Nereye eklensin?" adımı: hangi görünümden gelindi, hangi özellikler
   // bekliyor (yaratmada boş — özellik onayda yaratılır), hangi alt
@@ -468,7 +469,7 @@ export function ModPickDialog({
         type="submit"
         disabled={disabled}
         className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl disabled:opacity-50"
-        style={{ background: "#ffd23f" }}
+        style={{ background: blockFill("#ffd23f") }}
       >
         <Check className="h-5 w-5 shrink-0" strokeWidth={2.75} />
         <span className="truncate">{label}</span>
@@ -636,7 +637,7 @@ export function ModPickDialog({
                   }
                   stats={[]}
                 >
-                  <div className="grid grid-cols-4 gap-x-1.5 gap-y-3 bg-white px-2 py-3">
+                  <div className="grid grid-cols-4 gap-x-1.5 gap-y-3 bg-paper px-2 py-3">
                     {g.items.map((m) => {
                       const c = modColor(m);
                       const on = selected.includes(m.id);
@@ -649,26 +650,26 @@ export function ModPickDialog({
                           onClick={() => toggle(m.id)}
                           aria-pressed={on}
                           disabled={saving}
-                          className="flex min-w-0 flex-col items-center gap-1 text-[#111] disabled:opacity-50"
+                          className="flex min-w-0 flex-col items-center gap-1 text-ink disabled:opacity-50"
                         >
                           <span
                             className={cn(
-                              "relative flex h-[50px] w-[50px] items-center justify-center rounded-full border-2 border-[#111] transition-transform",
-                              on ? "translate-x-[2px] translate-y-[2px]" : "shadow-[2px_2px_0_#111]"
+                              "relative flex h-[50px] w-[50px] items-center justify-center rounded-full border-2 border-line transition-transform",
+                              on ? "translate-x-[2px] translate-y-[2px]" : "shadow-[2px_2px_0_var(--shade)]"
                             )}
-                            style={{ background: c }}
+                            style={{ background: blockFill(c) }}
                           >
-                            <Icon className="h-5 w-5 text-[#111]" strokeWidth={2.4} />
+                            <Icon style={{ color: blockInk(c) }} className="h-5 w-5 text-ink" strokeWidth={2.4} />
                             {on && (
-                              <span className="entry-tile-pop absolute -right-1.5 -top-1.5 flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 border-[#111] bg-[#ffd23f]">
-                                <Check className="h-3 w-3 text-[#111]" strokeWidth={3.5} />
+                              <span className="entry-tile-pop absolute -right-1.5 -top-1.5 flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 border-line bg-fill-[#ffd23f]">
+                                <Check style={{ color: blockInk(c) }} className="h-3 w-3 text-ink" strokeWidth={3.5} />
                               </span>
                             )}
                           </span>
                           <span
                             className={cn(
                               "max-w-full truncate rounded-[5px] px-1 text-center text-[11px] font-extrabold leading-4",
-                              on && "bg-[#111] text-[#fff4dc]"
+                              on && "bg-well text-[#fff4dc]"
                             )}
                           >
                             {m.name}
@@ -777,7 +778,7 @@ export function ModPickDialog({
                     }}
                     className="flex h-7 items-center gap-1 rounded-full pl-2 pr-2.5 text-[12px] font-semibold transition-opacity hover:opacity-85"
                     style={{
-                      background: `${accent}2e`,
+                      background: blockFill(`${accent}2e`),
                       color: accent,
                       boxShadow: `inset 0 0 0 1px ${accent}55`,
                     }}
@@ -829,8 +830,8 @@ export function ModPickDialog({
                             "flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-bold transition-colors",
                             brutal
                               ? cn(
-                                  "border-[1.5px] border-[#111]",
-                                  on ? "bg-[#111] text-[#fff4dc]" : "bg-white text-[#111]"
+                                  "border-[1.5px] border-line",
+                                  on ? "bg-well text-[#fff4dc]" : "bg-paper text-ink"
                                 )
                               : on
                                 ? "bg-foreground text-background"
@@ -853,17 +854,17 @@ export function ModPickDialog({
                 {groups.map((g) => (
                   <div key={g.kind} className="flex flex-col gap-1.5 pt-1">
                     <div data-group-head="" className="flex items-center gap-2 px-0.5">
-                      <g.icon className={cn("h-3 w-3", brutal ? "text-[#111]/60" : "text-muted-foreground/50")} />
+                      <g.icon className={cn("h-3 w-3", brutal ? "text-ink/60" : "text-muted-foreground/50")} />
                       <span
                         className={cn(
                           "text-[10.5px] font-bold uppercase tracking-[0.13em]",
-                          brutal ? "text-[#111]/70" : "text-muted-foreground/65"
+                          brutal ? "text-ink/70" : "text-muted-foreground/65"
                         )}
                       >
                         {g.label}
                       </span>
-                      <span className={cn("h-px flex-1", brutal ? "bg-[#111]/20" : "bg-border/50")} />
-                      <span className={cn("text-[10.5px] tabular-nums", brutal ? "text-[#111]/45" : "text-muted-foreground/40")}>
+                      <span className={cn("h-px flex-1", brutal ? "bg-ink/20" : "bg-border/50")} />
+                      <span className={cn("text-[10.5px] tabular-nums", brutal ? "text-ink/45" : "text-muted-foreground/40")}>
                         {g.items.length}
                       </span>
                     </div>
@@ -882,11 +883,11 @@ export function ModPickDialog({
                               style={
                                 on
                                   ? {
-                                      background: `${c}29`,
+                                      background: blockFill(`${c}29`),
                                       boxShadow: `inset 0 0 0 1.5px ${c}`,
                                     }
                                   : {
-                                      background: `${c}0f`,
+                                      background: blockFill(`${c}0f`),
                                       boxShadow: `inset 0 0 0 1px ${c}2e`,
                                     }
                               }
@@ -894,7 +895,7 @@ export function ModPickDialog({
                               {on && (
                                 <span
                                   className="entry-tile-pop absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-white"
-                                  style={{ background: c }}
+                                  style={{ background: blockFill(c) }}
                                 >
                                   <Check className="h-3 w-3" strokeWidth={3} />
                                 </span>
@@ -969,7 +970,7 @@ export function ModPickDialog({
                         className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white"
                         style={
                           on
-                            ? { backgroundColor: accent }
+                            ? { backgroundColor: blockFill(accent) }
                             : { boxShadow: `inset 0 0 0 1.5px ${accent}` }
                         }
                       >
@@ -1052,7 +1053,7 @@ export function ModPickDialog({
               onClick={handleAttachSelected}
               disabled={saving || selected.length === 0}
               className="text-white"
-              style={{ backgroundColor: accent }}
+              style={{ backgroundColor: blockFill(accent) }}
             >
               {hasBelow
                 ? t("action.continue")
@@ -1066,7 +1067,7 @@ export function ModPickDialog({
               onClick={confirmWhere}
               disabled={saving}
               className="text-white"
-              style={{ backgroundColor: accent }}
+              style={{ backgroundColor: blockFill(accent) }}
             >
               {t("action.add")}
             </Button>
@@ -1076,7 +1077,7 @@ export function ModPickDialog({
               onClick={handleCreate}
               disabled={saving || !finalName || !isMeasureComplete(measure)}
               className="text-white"
-              style={{ backgroundColor: accent }}
+              style={{ backgroundColor: blockFill(accent) }}
             >
               {hasBelow ? t("action.continue") : t("features.createAndAttach")}
             </Button>

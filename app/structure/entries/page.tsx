@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { useT } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { routes } from "@/lib/routes";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import { PageSheet } from "@/components/ui/layer";
@@ -42,7 +42,7 @@ function EntriesScreen() {
 
 function EntriesView({ view }: { view: View }) {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const [query, setQuery] = useState("");
   const add = useDayAdd(toLocalDateValue());
   const counts = useLiveQuery(async () => ({ entries: await db.entries.count(), planned: await db.goals.count() }), []);
@@ -106,7 +106,7 @@ function EntriesView({ view }: { view: View }) {
  */
 function ViewSwitch({ view }: { view: View }) {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const items: { key: View; label: string; href: string }[] = [
     { key: "all", label: t("entries.view.all"), href: routes.structureEntries() },
     { key: "planned", label: t("entries.view.planned"), href: routes.structureEntries("planned") },
@@ -124,7 +124,7 @@ function ViewSwitch({ view }: { view: View }) {
               aria-current={on ? "page" : undefined}
               className={cn(
                 "flex h-10 items-center justify-center text-[13.5px] font-extrabold transition-colors",
-                on ? "bg-[#ffd23f] font-black text-[#111]" : "bg-white text-[#111]/60 active:bg-[#f5f1e8]"
+                on ? "bg-fill-[#ffd23f] font-black text-ink" : "bg-paper text-ink/60 active:bg-paper-2"
               )}
             >
               {it.label}
@@ -140,7 +140,7 @@ function ViewSwitch({ view }: { view: View }) {
       data-entries-switch=""
       className={cn(
         "mb-3 mt-1 grid grid-cols-2 overflow-hidden",
-        brutal ? "rounded-[14px] border-2 border-[#111] bg-white shadow-[2px_2px_0_#111]" : "rounded-2xl bg-[var(--sf-1)] p-1 ring-1 ring-inset ring-[var(--ln-1)]"
+        brutal ? "rounded-[14px] border-2 border-line bg-paper shadow-[2px_2px_0_var(--shade)]" : "rounded-2xl bg-[var(--sf-1)] p-1 ring-1 ring-inset ring-[var(--ln-1)]"
       )}
     >
       {items.map((it, i) => {
@@ -154,7 +154,7 @@ function ViewSwitch({ view }: { view: View }) {
             className={cn(
               "flex h-10 items-center justify-center text-[14px] transition-colors",
               brutal
-                ? cn("font-extrabold text-[#111]", i > 0 && "border-l-2 border-[#111]", on ? "bg-[#ffd23f]" : "bg-white text-[#111]/60")
+                ? cn("font-extrabold text-ink", i > 0 && "border-l-2 border-line", on ? "bg-fill-[#ffd23f]" : "bg-paper text-ink/60")
                 : cn("rounded-xl font-semibold", on ? "bg-background text-foreground shadow-sm" : "text-muted-foreground")
             )}
           >

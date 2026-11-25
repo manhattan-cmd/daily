@@ -25,7 +25,7 @@ import {
   type ThingCurrent,
 } from "@/components/forms/thing-ui";
 import { modColor } from "@/lib/mod-color";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Mod } from "@/types";
@@ -57,7 +57,7 @@ export function ThingField({
   color: string;
 }) {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const ctx = useThingValues();
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
@@ -107,8 +107,8 @@ export function ThingField({
   const featureIds = coll?.modIds ?? [];
   const exact = (data.things ?? []).some((th) => th.name.toLocaleLowerCase("tr") === q);
   const pickerOpen = selected.length === 0 || (multiple && adding) || (!!replacing && selected.includes(replacing));
-  const ink = brutal ? "text-[#111]" : "text-foreground";
-  const sub = brutal ? "text-[#111]/55" : "text-muted-foreground";
+  const ink = brutal ? "text-ink" : "text-foreground";
+  const sub = brutal ? "text-ink/55" : "text-muted-foreground";
 
   const closePicker = () => {
     setQuery("");
@@ -188,13 +188,13 @@ export function ThingField({
               className={cn(
                 "flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg px-2.5",
                 brutal
-                  ? "border-[1.5px] border-[#111] bg-white"
+                  ? "border-[1.5px] border-line bg-paper"
                   : "bg-[var(--sf-2)] ring-1 ring-inset ring-[var(--ln-1)] focus-within:ring-primary/50"
               )}
               style={
                 naming
                   ? brutal
-                    ? { background: `color-mix(in srgb, ${listColor} 14%, white)` }
+                    ? { background: `color-mix(in srgb, ${listColor} calc(14% * var(--fill-scale)), var(--paper))` }
                     : { boxShadow: `inset 0 0 0 1.5px ${listColor}` }
                   : undefined
               }
@@ -222,7 +222,7 @@ export function ThingField({
                 }}
                 placeholder={naming ? t("objects.newNamePh") : t("objects.searchIn", { list: coll?.name ?? "" })}
                 aria-label={naming ? t("objects.addToList", { list: coll?.name ?? "" }) : t("action.search")}
-                className={cn("h-full min-w-0 flex-1 bg-transparent text-[13px] font-semibold outline-none", ink, brutal ? "placeholder:text-[#111]/40" : "placeholder:text-muted-foreground/50")}
+                className={cn("h-full min-w-0 flex-1 bg-transparent text-[13px] font-semibold outline-none", ink, brutal ? "placeholder:text-ink/40" : "placeholder:text-muted-foreground/50")}
               />
               {(query || naming) && (
                 <button
@@ -246,11 +246,11 @@ export function ThingField({
                 aria-label={t("objects.addToList", { list: coll?.name ?? "" })}
                 className={cn(
                   "flex h-9 shrink-0 items-center gap-1 rounded-lg pl-2 pr-2.5 text-[13px]",
-                  brutal ? "border-[1.5px] border-[#111] font-black text-[#111] active:translate-y-px" : "font-bold"
+                  brutal ? "border-[1.5px] border-line font-black text-ink active:translate-y-px" : "font-bold"
                 )}
                 style={
                   brutal
-                    ? { background: `color-mix(in srgb, ${listColor} 30%, white)` }
+                    ? { background: `color-mix(in srgb, ${listColor} calc(30% * var(--fill-scale)), var(--paper))` }
                     : {
                         background: `color-mix(in srgb, ${listColor} 16%, transparent)`,
                         color: listColor,
@@ -275,10 +275,10 @@ export function ThingField({
                 data-thing-create=""
                 onClick={() => void addNew()}
                 className={cn(
-                  "flex min-h-11 shrink-0 items-center gap-2.5 rounded-xl px-2 text-left text-[#111]",
-                  brutal && "border-2 border-[#111] shadow-[2px_2px_0_#111]"
+                  "flex min-h-11 shrink-0 items-center gap-2.5 rounded-xl px-2 text-left text-ink",
+                  brutal && "border-2 border-line shadow-[2px_2px_0_var(--shade)]"
                 )}
-                style={{ background: `color-mix(in srgb, ${listColor} 30%, white)` }}
+                style={{ background: `color-mix(in srgb, ${listColor} calc(30% * var(--fill-scale)), var(--paper))` }}
               >
                 <Plus className="mx-1.5 h-5 w-5 shrink-0" strokeWidth={3} />
                 <span className="min-w-0 flex-1 leading-tight">
@@ -303,7 +303,7 @@ export function ThingField({
                   onClick={() => pick(th.id)}
                   className={cn(
                     "flex min-h-11 shrink-0 items-center gap-2.5 rounded-xl px-1.5 py-1 text-left transition-colors",
-                    brutal ? "border-2 border-[#111] bg-white hover:bg-[#111]/5" : "bg-black/20 hover:bg-[var(--sf-2)]"
+                    brutal ? "border-2 border-line bg-paper hover:bg-ink/5" : "bg-black/20 hover:bg-[var(--sf-2)]"
                   )}
                 >
                   <Diamond color={listColor} icon={coll?.icon} size={28} muted={!!th.archivedAt} brutal={brutal} />
@@ -340,7 +340,7 @@ export function ThingFieldFeatures({
   collectionId?: string;
   value: string;
 }) {
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const ctx = useThingValues();
   const selected = splitThingIds(value);
   const key = selected.join(",");
@@ -372,7 +372,7 @@ export function ThingFieldFeatures({
       {blocks.map(({ th, mods }) => (
         <div key={th.id} className="flex flex-col gap-2" data-thing-features="">
           {blocks.length > 1 && (
-            <span className={cn("px-1 text-[12px] font-black", brutal ? "text-[#111]/70" : "text-muted-foreground")}>
+            <span className={cn("px-1 text-[12px] font-black", brutal ? "text-ink/70" : "text-muted-foreground")}>
               {th.name}
             </span>
           )}

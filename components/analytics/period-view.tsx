@@ -86,6 +86,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HoldHeight } from "@/components/ui/hold-height";
 import { routes } from "@/lib/routes";
+import { blockFill } from "@/lib/fill";
 
 /**
  * Dönem özeti — girdi sayısı / aktif gün / kategori kutuları ve dönemin
@@ -106,12 +107,12 @@ export const ANALYSIS_HEADER =
  */
 function HeadInfo({ label, value, sub, mark }: { label: string; value: string; sub?: string; mark: ReactNode }) {
   return (
-    <div className="flex min-w-0 items-center gap-2 bg-white px-2.5 py-2 text-[#111]">
+    <div className="flex min-w-0 items-center gap-2 bg-paper px-2.5 py-2 text-ink">
       {mark}
       <div className="min-w-0 flex-1">
-        <span className="block truncate text-[9.5px] font-black uppercase leading-none tracking-[0.1em] text-[#111]/55">{label}</span>
+        <span className="block truncate text-[9.5px] font-black uppercase leading-none tracking-[0.1em] text-ink/55">{label}</span>
         <span className="mt-[3px] block truncate text-[13px] font-black leading-tight">{value}</span>
-        {sub && <span className="mt-px block truncate text-[10.5px] font-bold leading-tight text-[#111]/55">{sub}</span>}
+        {sub && <span className="mt-px block truncate text-[10.5px] font-bold leading-tight text-ink/55">{sub}</span>}
       </div>
     </div>
   );
@@ -680,7 +681,7 @@ export function PeriodView({
   const featureMark = (
     <span
       className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2"
-      style={{ background: metricMod && !moodAll ? modColor(metricMod) : ANALYSIS_COLOR, borderColor: "#111" }}
+      style={{ background: metricMod && !moodAll ? blockFill(modColor(metricMod)) : blockFill(ANALYSIS_COLOR), borderColor: "var(--line)" }}
     >
       {createElement(
         metricMod && !moodAll ? modAtomIcon({ name: metricMod.name, entryType: { valueType: metricMod.valueType } as never }) : ListOrdered,
@@ -715,7 +716,7 @@ export function PeriodView({
           mark={
             <span
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-2"
-              style={{ background: "#e4e9ff", borderColor: "#111" }}
+              style={{ background: blockFill("#e4e9ff"), borderColor: "var(--line)" }}
             >
               <CalendarDays className="h-4 w-4" strokeWidth={2.5} />
             </span>
@@ -766,7 +767,7 @@ export function PeriodView({
             </>
           )}
         </div>
-        <div data-an-head-bars="" className="flex h-2.5 bg-white">
+        <div data-an-head-bars="" className="flex h-2.5 bg-paper">
           {[...catRows]
             .sort((a, b) => b.value - a.value)
             .map((r, i) => (
@@ -774,7 +775,7 @@ export function PeriodView({
                 key={r.id}
                 title={`${r.name} · ${r.value}`}
                 className={i ? "border-l-[1.5px]" : undefined}
-                style={{ background: r.color, flex: r.value, borderLeftColor: "#111" }}
+                style={{ background: r.color, flex: r.value, borderLeftColor: "var(--line)" }}
               />
             ))}
         </div>
@@ -823,7 +824,7 @@ export function PeriodView({
                     action={
                       period.kind === "all"
                         ? undefined
-                        : { label: t("an.seeAll"), icon: ArrowRight, color: "#fff", onClick: () => router.push(routes.period("all"), { scroll: false }) }
+                        : { label: t("an.seeAll"), icon: ArrowRight, color: "var(--paper)", onClick: () => router.push(routes.period("all"), { scroll: false }) }
                     }
                   />
                 )}

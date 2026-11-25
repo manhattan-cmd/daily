@@ -127,7 +127,7 @@ export function AnalysisSection({
   const { rows, names } = data;
 
   const card = brutal
-    ? "rounded-2xl border-2 border-[#111] bg-white shadow-[4px_4px_0_#111]"
+    ? "rounded-2xl border-2 border-line bg-paper shadow-[4px_4px_0_var(--shade)]"
     : "rounded-2xl bg-[var(--sf-2)]";
 
   const cardOf = (r: Row, cls: string) => (
@@ -172,11 +172,11 @@ export function AnalysisSection({
           const GIcon = MEASURE_KIND_META[GROUP_ICON[g]].icon;
           return (
             <Fragment key={g}>
-              <div className="flex items-center gap-1.5 bg-[#f5f1e8] px-3.5 py-1.5 text-[10.5px] font-black uppercase tracking-[0.08em] text-[#111]">
+              <div className="flex items-center gap-1.5 bg-paper-2 px-3.5 py-1.5 text-[10.5px] font-black uppercase tracking-[0.08em] text-ink">
                 <GIcon className="h-3.5 w-3.5" strokeWidth={2.5} />
                 {t(`an.group.${g}` as MessageKey)}
               </div>
-              {list.map((r) => cardOf(r, "bg-white"))}
+              {list.map((r) => cardOf(r, "bg-paper"))}
             </Fragment>
           );
         })}
@@ -192,7 +192,7 @@ export function AnalysisSection({
         {t("an.section")}
       </h2>
       )}
-      <p className={cn("mb-3 px-1 text-[13px] leading-snug", brutal ? "text-[#111]/70" : "text-muted-foreground")}>
+      <p className={cn("mb-3 px-1 text-[13px] leading-snug", brutal ? "text-ink/70" : "text-muted-foreground")}>
         {t(subcategoryId ? "an.sectionHintSub" : "an.sectionHint")}
       </p>
 
@@ -212,7 +212,7 @@ export function AnalysisSection({
               <div
                 className={cn(
                   "mb-1.5 flex items-center gap-1.5 px-1 text-[11px] font-bold uppercase tracking-[0.08em]",
-                  brutal ? "text-[#111]" : "text-muted-foreground"
+                  brutal ? "text-ink" : "text-muted-foreground"
                 )}
               >
                 <GIcon className="h-3.5 w-3.5" />
@@ -300,8 +300,8 @@ function ModAnalysisCard({
       "rounded-full px-2.5 py-1 text-[12px] font-semibold transition-colors",
       brutal
         ? on
-          ? "border-2 border-[#111] bg-[#111] text-white"
-          : "border-2 border-[#111] bg-white text-[#111]"
+          ? "border-2 border-line bg-well text-white"
+          : "border-2 border-line bg-paper text-ink"
         : on
           ? "bg-foreground text-background"
           : "bg-muted text-muted-foreground"
@@ -318,7 +318,7 @@ function ModAnalysisCard({
         <ModAtomCore icon={modAtomIcon({ name: mod.name, entryType: measureOf(mod) })} size="sm" color={color} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[15px] font-bold leading-tight">{mod.name}</span>
-          <span className={cn("block text-[12px] leading-tight", brutal ? "text-[#111]/60" : "text-muted-foreground")}>
+          <span className={cn("block text-[12px] leading-tight", brutal ? "text-ink/60" : "text-muted-foreground")}>
             {count ? t("an.values", { n: count }) : t("an.noValues")}
             {resolved.emptyAsZero && ` · ${t("an.emptyAsZeroBadge")}`}
             {sourceName && ` · ${t("an.inherited", { name: sourceName })}`}
@@ -327,7 +327,7 @@ function ModAnalysisCard({
         <span
           className={cn(
             "shrink-0 rounded-lg px-2 py-1 text-[12px] font-bold",
-            brutal ? "border-2 border-[#111] bg-[#ffd23f] text-[#111]" : "bg-muted text-foreground"
+            brutal ? "border-2 border-line bg-fill-[#ffd23f] text-ink" : "bg-muted text-foreground"
           )}
         >
           {current.custom ? t("an.custom") : t(currentOpt.label)}
@@ -336,7 +336,7 @@ function ModAnalysisCard({
       </button>
 
       {expanded && (
-        <div className={cn("px-3 pb-3", brutal ? "border-t-2 border-[#111] pt-3" : "pt-1")}>
+        <div className={cn("px-3 pb-3", brutal ? "border-t-2 border-line pt-3" : "pt-1")}>
           <div role="radiogroup" className="flex flex-col gap-2">
             {options.map((o) => {
               const on = !current.custom && o.key === current.key;
@@ -351,8 +351,8 @@ function ModAnalysisCard({
                     "flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors",
                     brutal
                       ? on
-                        ? "border-2 border-[#111] bg-[#ffd23f] shadow-[2px_2px_0_#111]"
-                        : "border-2 border-[#111]/15 bg-[#f5f1e8]"
+                        ? "border-2 border-line bg-fill-[#ffd23f] shadow-[2px_2px_0_var(--shade)]"
+                        : "border-2 border-ink/15 bg-paper-2"
                       : on
                         ? "bg-foreground/10 ring-1 ring-foreground/30"
                         : "bg-muted/50"
@@ -361,19 +361,19 @@ function ModAnalysisCard({
                   <span
                     className={cn(
                       "mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2",
-                      brutal ? "border-[#111]" : "border-foreground/40",
-                      on && (brutal ? "bg-[#111]" : "border-foreground bg-foreground")
+                      brutal ? "border-line" : "border-foreground/40",
+                      on && (brutal ? "bg-well" : "border-foreground bg-foreground")
                     )}
                   >
                     {on && <Check className={cn("h-3 w-3", brutal ? "text-[#ffd23f]" : "text-background")} strokeWidth={3.5} />}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[14px] font-bold leading-tight">{t(o.label)}</span>
-                    <span className={cn("mt-0.5 block text-[12px] leading-snug", brutal ? "text-[#111]/70" : "text-muted-foreground")}>
+                    <span className={cn("mt-0.5 block text-[12px] leading-snug", brutal ? "text-ink/70" : "text-muted-foreground")}>
                       {t(o.hint)}
                     </span>
                     {/* Neyin çıkacağı: kutular ve grafik */}
-                    <span className={cn("mt-1.5 flex flex-wrap items-center gap-x-1.5 text-[11px] font-semibold leading-snug", brutal ? "text-[#111]/55" : "text-muted-foreground/70")}>
+                    <span className={cn("mt-1.5 flex flex-wrap items-center gap-x-1.5 text-[11px] font-semibold leading-snug", brutal ? "text-ink/55" : "text-muted-foreground/70")}>
                       <span>{o.stats.map((k) => t(STAT_LABEL[k])).join(" · ")}</span>
                       <span className="inline-flex items-center gap-1">
                         <BarChart3 className="h-3 w-3" />
@@ -387,7 +387,7 @@ function ModAnalysisCard({
           </div>
 
           {current.custom && (
-            <p className={cn("mt-2 px-1 text-[12px]", brutal ? "text-[#111]/70" : "text-muted-foreground")}>
+            <p className={cn("mt-2 px-1 text-[12px]", brutal ? "text-ink/70" : "text-muted-foreground")}>
               {t("an.customHint")}
             </p>
           )}
@@ -399,7 +399,7 @@ function ModAnalysisCard({
               aria-expanded={tune}
               className={cn(
                 "flex items-center gap-1.5 rounded-lg px-2 py-1 text-[13px] font-bold",
-                brutal ? "text-[#111]" : "text-muted-foreground"
+                brutal ? "text-ink" : "text-muted-foreground"
               )}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -412,7 +412,7 @@ function ModAnalysisCard({
                 onClick={() => void clearAnalysisView(scopeType, scopeId, mod.id)}
                 className={cn(
                   "flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-semibold",
-                  brutal ? "text-[#111]/70" : "text-muted-foreground"
+                  brutal ? "text-ink/70" : "text-muted-foreground"
                 )}
               >
                 <RotateCcw className="h-3 w-3" />
@@ -426,7 +426,7 @@ function ModAnalysisCard({
               {/* Ayarlar — özelliğin bu kalemde nasıl hesaplanacağı (türe göre) */}
               {zeroFill && (
                 <div>
-                  <div className={cn("mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em]", brutal ? "text-[#111]/70" : "text-muted-foreground")}>
+                  <div className={cn("mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em]", brutal ? "text-ink/70" : "text-muted-foreground")}>
                     {t("an.settings")}
                   </div>
                   <button
@@ -436,26 +436,26 @@ function ModAnalysisCard({
                     onClick={() => void save({ stats: resolved.stats, charts: resolved.charts, emptyAsZero: !resolved.emptyAsZero })}
                     className={cn(
                       "flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left",
-                      brutal ? "border-2 border-[#111] bg-[#f5f1e8]" : "bg-muted/50"
+                      brutal ? "border-2 border-line bg-paper-2" : "bg-muted/50"
                     )}
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block text-[14px] font-bold leading-tight">{t("an.emptyAsZero")}</span>
-                      <span className={cn("mt-0.5 block text-[12px] leading-snug", brutal ? "text-[#111]/70" : "text-muted-foreground")}>
+                      <span className={cn("mt-0.5 block text-[12px] leading-snug", brutal ? "text-ink/70" : "text-muted-foreground")}>
                         {t("an.emptyAsZeroHint")}
                       </span>
                     </span>
                     <span
                       className={cn(
                         "relative mt-0.5 h-6 w-10 shrink-0 rounded-full transition-colors",
-                        brutal ? "border-2 border-[#111]" : "",
-                        resolved.emptyAsZero ? (brutal ? "bg-[#7be08a]" : "bg-foreground") : brutal ? "bg-white" : "bg-muted-foreground/30"
+                        brutal ? "border-2 border-line" : "",
+                        resolved.emptyAsZero ? (brutal ? "bg-fill-[#7be08a]" : "bg-foreground") : brutal ? "bg-paper" : "bg-muted-foreground/30"
                       )}
                     >
                       <span
                         className={cn(
                           "absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full transition-all",
-                          brutal ? "border-2 border-[#111] bg-white" : "bg-background",
+                          brutal ? "border-2 border-line bg-paper" : "bg-background",
                           resolved.emptyAsZero ? "right-0.5" : "left-0.5"
                         )}
                       />
@@ -464,7 +464,7 @@ function ModAnalysisCard({
                 </div>
               )}
               <div>
-                <div className={cn("mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em]", brutal ? "text-[#111]/70" : "text-muted-foreground")}>
+                <div className={cn("mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em]", brutal ? "text-ink/70" : "text-muted-foreground")}>
                   {t("an.tiles")} <span className="font-mono">{resolved.stats.length}/{MAX_STATS}</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -476,7 +476,7 @@ function ModAnalysisCard({
                 </div>
               </div>
               <div>
-                <div className={cn("mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em]", brutal ? "text-[#111]/70" : "text-muted-foreground")}>
+                <div className={cn("mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em]", brutal ? "text-ink/70" : "text-muted-foreground")}>
                   {t("an.charts")} <span className="font-mono">{resolved.charts.length}/{MAX_CHARTS}</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { LayoutGrid, ChevronRight } from "lucide-react";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
 
 export interface TrailStep {
@@ -32,7 +32,7 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
   const root = steps.find((s) => s.root);
   const rest = steps.filter((s) => !s.root);
   const placeKey = steps[steps.length - 1]?.key;
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const sep = <span className="shrink-0 px-1 text-muted-foreground/35">/</span>;
 
   // Yolun kayan kısmı — kendi kaydırması: ok YOK (genel kaydırma bileşeninin
@@ -66,7 +66,7 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
             onClick={root.onClick}
             aria-current={root.key === placeKey ? "location" : undefined}
             className={cn(
-              "flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-1.5 text-[12.5px] font-bold text-[#3a5bff] transition-colors",
+              "flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-1.5 text-[12.5px] font-bold text-[var(--blue-ink)] transition-colors",
               root.key === placeKey ? "bg-[#3a5bff]/10" : "hover:bg-[#3a5bff]/10"
             )}
           >
@@ -78,20 +78,20 @@ export function AnalysisTrail({ steps }: { steps: TrailStep[] }) {
           const isPlace = s.key === placeKey;
           return (
             <span key={s.key} className="flex shrink-0 items-center gap-0.5">
-              <ChevronRight className="h-3 w-3 shrink-0 text-[#111]/50" strokeWidth={2.75} />
+              <ChevronRight className="h-3 w-3 shrink-0 text-ink/50" strokeWidth={2.75} />
               <button
                 type="button"
                 onClick={s.onClick}
                 aria-current={isPlace ? "location" : undefined}
                 className={cn(
-                  "flex h-7 max-w-[170px] items-center gap-1.5 rounded-lg px-1.5 text-[12.5px] text-[#111]",
-                  isPlace ? "border-[1.5px] border-[#111] font-bold" : "font-semibold opacity-75 hover:opacity-100"
+                  "flex h-7 max-w-[170px] items-center gap-1.5 rounded-lg px-1.5 text-[12.5px] text-ink",
+                  isPlace ? "border-[1.5px] border-line font-bold" : "font-semibold opacity-75 hover:opacity-100"
                 )}
-                style={isPlace ? { background: `color-mix(in srgb, ${s.color ?? "#ffd23f"} 22%, #ffffff)` } : undefined}
+                style={isPlace ? { background: `color-mix(in srgb, ${s.color ?? "#ffd23f"} calc(22% * var(--fill-scale)), var(--paper))` } : undefined}
               >
                 {isPlace && (
                   <span
-                    className="h-2 w-2 shrink-0 rounded-full ring-1 ring-[#111]"
+                    className="h-2 w-2 shrink-0 rounded-full ring-1 ring-line"
                     style={{ background: s.color ?? "#ffd23f" }}
                   />
                 )}

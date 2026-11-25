@@ -43,7 +43,7 @@ function Anchor({ children }: { children: ReactNode }) {
 function OBit() {
   return (
     <span
-      className="absolute h-[0.6em] w-[0.6em] -translate-x-1/2 rounded-full border-[0.06em] border-[#111]"
+      className="absolute h-[0.6em] w-[0.6em] -translate-x-1/2 rounded-full border-[0.06em] border-line"
       style={{ left: `${O_CENTER}em`, bottom: "-0.015em", background: MARK.bit, boxShadow: `0.05em 0.05em 0 ${MARK.ink}` }}
     />
   );
@@ -75,7 +75,7 @@ function MascotBehindO() {
 function Hand({ at }: { at: number }) {
   return (
     <span
-      className="absolute h-[0.17em] w-[0.17em] -translate-x-1/2 rounded-full border-[0.045em] border-[#111] bg-white"
+      className="absolute h-[0.17em] w-[0.17em] -translate-x-1/2 rounded-full border-[0.045em] border-line bg-paper"
       style={{ left: `${at}em`, bottom: "0.2em" }}
     />
   );
@@ -114,7 +114,7 @@ export function LogbitWordmark({ className, mascot = false }: { className?: stri
         gb
         <Anchor>
           <span
-            className="absolute h-[0.32em] w-[0.32em] -translate-x-1/2 rounded-full border-[0.06em] border-[#111]"
+            className="absolute h-[0.32em] w-[0.32em] -translate-x-1/2 rounded-full border-[0.06em] border-line"
             style={{ left: `${I_STEM}em`, bottom: `${I_TOP + 0.08}em`, background: MARK.bit }}
           />
         </Anchor>

@@ -8,6 +8,7 @@ import { routes } from "@/lib/routes";
 import { useLocale, useT, type MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { PeriodTabs } from "./period-switcher";
+import { blockFill } from "@/lib/fill";
 
 /** Analiz'in rengi — alt menüdeki sekmesi, üst menüsü, durum çubuğu (bkz. statusBarColor) */
 export const ANALYSIS_COLOR = "#8ea6ff";
@@ -29,8 +30,8 @@ function Band({
     <header
       data-an-nav=""
       // -mx-4: main'in kenar payını aşıp kenardan kenara (alt menü gibi)
-      className={cn(sticky ? "sticky top-0 z-30" : "relative", "-mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]", className)}
-      style={{ background: ANALYSIS_COLOR }}
+      className={cn(sticky ? "sticky top-0 z-30" : "relative", "-mx-4 border-b-[3px] border-line pt-[env(safe-area-inset-top,0px)]", className)}
+      style={{ background: blockFill(ANALYSIS_COLOR) }}
       {...rest}
     >
       {children}
@@ -43,7 +44,7 @@ export function AnalysisMenu({ title }: { title: string }) {
   return (
     <Band>
       <div className="flex items-center justify-center pb-[13px] pt-3.5">
-        <h1 className="truncate text-[20px] font-black leading-none tracking-[-0.02em] text-[#111]">{title}</h1>
+        <h1 className="truncate text-[20px] font-black leading-none tracking-[-0.02em] text-ink">{title}</h1>
       </div>
     </Band>
   );
@@ -177,7 +178,7 @@ export function AnalysisDeck({
   // özellik) — düz "Ay · Harcamalar · Para" yazısıydı
   const summary = (
     <span className="flex min-w-0 items-center justify-center gap-1">
-      <span className="shrink-0 rounded-[5px] bg-[#111] px-1.5 py-[3px] text-[10px] font-black leading-none text-white">
+      <span className="shrink-0 rounded-[5px] bg-well px-1.5 py-[3px] text-[10px] font-black leading-none text-white">
         {t(KIND_LABEL[period.kind])}
       </span>
       {scope && <ScopeChip name={scope.place.name} color={scope.place.color} shape="square" />}
@@ -193,7 +194,7 @@ export function AnalysisDeck({
           {summary}
         </div>
       ) : (
-        <p className="h-[14px] truncate text-[11px] font-bold leading-[14px] text-[#111]/60">{sub}</p>
+        <p className="h-[14px] truncate text-[11px] font-bold leading-[14px] text-ink/60">{sub}</p>
       )}
     </>
   );
@@ -206,14 +207,14 @@ export function AnalysisDeck({
           data-an-deck=""
           data-small={small ? "" : undefined}
           aria-label={t("insights.period")}
-          className="flex flex-col overflow-hidden rounded-[16px] border-2 border-[#111] bg-white text-[#111] shadow-[3px_3px_0_#111]"
+          className="flex flex-col overflow-hidden rounded-[16px] border-2 border-line bg-paper text-ink shadow-[3px_3px_0_var(--shade)]"
         >
           <Fold open={!small}>
-            <div className="border-b-2 border-[#111] bg-white p-1.5">
+            <div className="border-b-2 border-line bg-paper p-1.5">
               <PeriodTabs period={period} onPick={onPick} deck />
             </div>
           </Fold>
-          <div className="flex items-center gap-2 px-1.5 py-1.5" style={{ background: PERIOD_TINT }}>
+          <div className="flex items-center gap-2 px-1.5 py-1.5" style={{ background: blockFill(PERIOD_TINT) }}>
             <Arrow icon={ChevronLeft} label={t("insights.previousPeriod")} disabled={!prev} onClick={() => go(prev)} />
             {small ? (
               <button type="button" onClick={toggle} aria-label={t("an.deck.expand")} className="min-w-0 flex-1 text-center">
@@ -225,7 +226,7 @@ export function AnalysisDeck({
             <Arrow icon={ChevronRight} label={t("insights.nextPeriod")} disabled={nextDisabled} onClick={() => go(next)} />
           </div>
           <Fold open={!small}>
-            <div className="border-t-2 border-[#111]">{children ?? <div className="h-[48px] bg-white" />}</div>
+            <div className="border-t-2 border-line">{children ?? <div className="h-[48px] bg-paper" />}</div>
           </Fold>
         </section>
       </div>
@@ -240,7 +241,7 @@ export function AnalysisDeck({
         data-an-deck-toggle=""
         className="group mx-auto flex h-[18px] w-16 items-center justify-center"
       >
-        <span className="h-[5px] w-9 rounded-full bg-[#111]/35 transition-colors group-active:bg-[#111]/60" />
+        <span className="h-[5px] w-9 rounded-full bg-ink/35 transition-colors group-active:bg-ink/60" />
       </button>
     </Band>
   );
@@ -256,13 +257,13 @@ export type DeckScope = {
 function ScopeChip({ name, color, shape }: { name: string; color: string; shape: "square" | "circle" }) {
   return (
     <span
-      className="flex min-w-0 items-center gap-1 rounded-full border-[1.5px] py-[1px] pl-1 pr-1.5 text-[11px] font-extrabold leading-[14px] text-[#111]"
-      style={{ borderColor: "#111", background: `color-mix(in srgb, ${color} 38%, white)` }}
+      className="flex min-w-0 items-center gap-1 rounded-full border-[1.5px] py-[1px] pl-1 pr-1.5 text-[11px] font-extrabold leading-[14px] text-ink"
+      style={{ borderColor: "var(--line)", background: `color-mix(in srgb, ${color} calc(38% * var(--fill-scale)), var(--paper))` }}
     >
       <span
         aria-hidden
         className={cn("h-2.5 w-2.5 shrink-0 border-[1.5px]", shape === "circle" ? "rounded-full" : "rounded-[3px]")}
-        style={{ background: color, borderColor: "#111" }}
+        style={{ background: color, borderColor: "var(--line)" }}
       />
       <span className="truncate">{name}</span>
     </span>
@@ -301,7 +302,7 @@ function Arrow({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border-[1.5px] border-[#111] bg-white text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none disabled:opacity-25 disabled:shadow-none"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border-[1.5px] border-line bg-paper text-ink shadow-[1.5px_1.5px_0_var(--shade)] active:translate-x-px active:translate-y-px active:shadow-none disabled:opacity-25 disabled:shadow-none"
     >
       <Icon className="h-[18px] w-[18px]" strokeWidth={2.75} />
     </button>

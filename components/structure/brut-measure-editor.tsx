@@ -14,18 +14,19 @@ import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { isMeasureComplete, useMeasureEditor } from "./measure-editor-state";
 import type { MeasureEditorProps } from "./measure-editor";
+import { blockFill } from "@/lib/fill";
 
 /** Kutu biçimli yazı alanı — beyaz, kalın çerçeve, odakta sarı hale */
 const FIELD =
-  "h-11 w-full min-w-0 rounded-[11px] border-2 border-[#111] bg-white px-3 text-[15px] font-bold text-[#111] outline-none placeholder:font-semibold placeholder:text-[#111]/35 focus:shadow-[0_0_0_3px_#ffd23f]";
+  "h-11 w-full min-w-0 rounded-[11px] border-2 border-line bg-paper px-3 text-[15px] font-bold text-ink outline-none placeholder:font-semibold placeholder:text-ink/35 focus:shadow-[0_0_0_3px_#ffd23f]";
 
 /** Tek dokunuşluk seçenek — seçili olan siyah, gölgesine oturmuş */
 const chip = (on: boolean) =>
   cn(
-    "inline-flex h-8 max-w-full items-center gap-1.5 rounded-[9px] border-[1.5px] border-[#111] px-2.5 text-[12.5px] font-extrabold transition-transform",
+    "inline-flex h-8 max-w-full items-center gap-1.5 rounded-[9px] border-[1.5px] border-line px-2.5 text-[12.5px] font-extrabold transition-transform",
     on
-      ? "translate-x-[1.5px] translate-y-[1.5px] bg-[#111] text-[#fff4dc]"
-      : "bg-white text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-[1.5px] active:translate-y-[1.5px] active:shadow-none"
+      ? "translate-x-[1.5px] translate-y-[1.5px] bg-well text-[#fff4dc]"
+      : "bg-paper text-ink shadow-[1.5px_1.5px_0_var(--shade)] active:translate-x-[1.5px] active:translate-y-[1.5px] active:shadow-none"
   );
 
 /**
@@ -68,10 +69,10 @@ export function BrutMeasureEditor({
               onClick={() => s.pickKind(k)}
               aria-pressed={on}
               className={cn(
-                "flex h-[62px] w-[calc((100%-18px)/4)] flex-col items-center justify-center gap-1 rounded-[12px] border-2 border-[#111] px-1 text-center text-[10.5px] font-extrabold leading-[1.15] transition-transform",
+                "flex h-[62px] w-[calc((100%-18px)/4)] flex-col items-center justify-center gap-1 rounded-[12px] border-2 border-line px-1 text-center text-[10.5px] font-extrabold leading-[1.15] transition-transform",
                 on
-                  ? "translate-x-[2px] translate-y-[2px] bg-[#111] text-[#fff4dc]"
-                  : "bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                  ? "translate-x-[2px] translate-y-[2px] bg-well text-[#fff4dc]"
+                  : "bg-paper text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
               )}
             >
               <Icon
@@ -87,17 +88,17 @@ export function BrutMeasureEditor({
       {/* Seçilen türün ayarı — key={kind}: tür değişince içeri süzülür */}
       <div
         key={kind}
-        className="animate-in flex flex-col gap-3.5 border-t-[1.5px] border-dashed border-[#111]/30 pt-3.5"
+        className="animate-in flex flex-col gap-3.5 border-t-[1.5px] border-dashed border-ink/30 pt-3.5"
       >
-        <p className="px-0.5 text-[12.5px] font-bold leading-snug text-[#111]/60">
+        <p className="px-0.5 text-[12.5px] font-bold leading-snug text-ink/60">
           {t(meta.hintKey)}
         </p>
 
         {/* Sayı — birim yazıldıkça örnek değer onunla okunur: "12 kg" */}
         {kind === "number" && (
           <Field label={t("measure.unit")} hint={t("measure.optional")}>
-            <label className="flex h-12 items-center gap-2.5 rounded-[12px] border-2 border-[#111] bg-white px-3.5 focus-within:shadow-[0_0_0_3px_#ffd23f]">
-              <span className="font-mono text-[22px] font-bold leading-none tabular-nums text-[#111]/25">
+            <label className="flex h-12 items-center gap-2.5 rounded-[12px] border-2 border-line bg-paper px-3.5 focus-within:shadow-[0_0_0_3px_#ffd23f]">
+              <span className="font-mono text-[22px] font-bold leading-none tabular-nums text-ink/25">
                 12
               </span>
               <input
@@ -107,14 +108,14 @@ export function BrutMeasureEditor({
                 placeholder={t("measure.unitPlaceholder")}
                 aria-label={t("measure.unit")}
                 size={1}
-                className="h-full w-0 min-w-0 flex-1 bg-transparent text-[18px] font-extrabold text-[#111] outline-none placeholder:font-bold placeholder:text-[#111]/30"
+                className="h-full w-0 min-w-0 flex-1 bg-transparent text-[18px] font-extrabold text-ink outline-none placeholder:font-bold placeholder:text-ink/30"
               />
               {value.unit && (
                 <button
                   type="button"
                   onClick={() => onChange({ ...value, unit: "" })}
                   aria-label={t("action.remove")}
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#111]/[0.07]"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink/[0.07]"
                 >
                   <X className="h-3 w-3" strokeWidth={2.6} />
                 </button>
@@ -191,7 +192,7 @@ export function BrutMeasureEditor({
             {/* Girdi ekranında görülecek ölçeğin kendisi; uç adları altında
                 yerinde yazılır */}
             <Field label={t("measure.sample")}>
-              <div className="rounded-[12px] border-2 border-[#111] bg-white px-2.5 pb-2.5 pt-2">
+              <div className="rounded-[12px] border-2 border-line bg-paper px-2.5 pb-2.5 pt-2">
                 <ScaleSlider
                   choices={choices}
                   value={s.demo}
@@ -227,14 +228,14 @@ export function BrutMeasureEditor({
                 {choices.map((c) => (
                   <span
                     key={c}
-                    className="inline-flex h-8 max-w-full items-center gap-0.5 rounded-[9px] border-[1.5px] border-[#111] bg-white pl-2.5 pr-1 text-[12.5px] font-extrabold text-[#111] shadow-[1.5px_1.5px_0_#111]"
+                    className="inline-flex h-8 max-w-full items-center gap-0.5 rounded-[9px] border-[1.5px] border-line bg-paper pl-2.5 pr-1 text-[12.5px] font-extrabold text-ink shadow-[1.5px_1.5px_0_var(--shade)]"
                   >
                     <span className="truncate">{c}</span>
                     <button
                       type="button"
                       onClick={() => s.removeChoice(c)}
                       aria-label={t("measure.removeOption", { name: c })}
-                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] text-[#111]/55 hover:bg-[#111]/10 hover:text-[#111]"
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] text-ink/55 hover:bg-ink/10 hover:text-ink"
                     >
                       <X className="h-3 w-3" strokeWidth={2.6} />
                     </button>
@@ -261,7 +262,7 @@ export function BrutMeasureEditor({
                 onClick={s.addChoice}
                 disabled={!s.choiceDraft.trim()}
                 aria-label={t("measure.addOption")}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-[#ffd23f] text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:bg-white disabled:opacity-40 disabled:shadow-none"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] border-2 border-line bg-fill-[#ffd23f] text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:bg-paper disabled:opacity-40 disabled:shadow-none"
               >
                 <Plus className="h-5 w-5" strokeWidth={3} />
               </button>
@@ -284,10 +285,10 @@ export function BrutMeasureEditor({
                     aria-pressed={on}
                     onClick={() => s.setDemo(on ? "" : v)}
                     className={cn(
-                      "flex h-11 items-center justify-center gap-1.5 rounded-[11px] border-2 border-[#111] text-[14px] font-extrabold text-[#111] transition-transform",
-                      on ? "translate-x-[2px] translate-y-[2px]" : "bg-white shadow-[2px_2px_0_#111]"
+                      "flex h-11 items-center justify-center gap-1.5 rounded-[11px] border-2 border-line text-[14px] font-extrabold text-ink transition-transform",
+                      on ? "translate-x-[2px] translate-y-[2px]" : "bg-paper shadow-[2px_2px_0_var(--shade)]"
                     )}
-                    style={on ? { background: color } : undefined}
+                    style={on ? { background: blockFill(color) } : undefined}
                   >
                     <Icon className="h-4 w-4" strokeWidth={3} />
                     {t(v === "true" ? "entry.yes" : "entry.no")}
@@ -301,15 +302,15 @@ export function BrutMeasureEditor({
         {/* Ayarı yok — girdi ekranında görülecek alanın kendisi */}
         {kind === "datetime-range" && (
           <Field label={t("measure.sample")}>
-            <div className="flex flex-wrap items-center justify-center gap-2 rounded-[12px] border-2 border-[#111] bg-white px-3 py-3">
-              <span className="rounded-[8px] border-[1.5px] border-[#111] px-2 py-1 font-mono text-[15px] font-bold tabular-nums text-[#111]">
+            <div className="flex flex-wrap items-center justify-center gap-2 rounded-[12px] border-2 border-line bg-paper px-3 py-3">
+              <span className="rounded-[8px] border-[1.5px] border-line px-2 py-1 font-mono text-[15px] font-bold tabular-nums text-ink">
                 22:30
               </span>
-              <ArrowRight className="h-4 w-4 shrink-0 text-[#111]/50" strokeWidth={2.6} />
-              <span className="rounded-[8px] border-[1.5px] border-[#111] px-2 py-1 font-mono text-[15px] font-bold tabular-nums text-[#111]">
+              <ArrowRight className="h-4 w-4 shrink-0 text-ink/50" strokeWidth={2.6} />
+              <span className="rounded-[8px] border-[1.5px] border-line px-2 py-1 font-mono text-[15px] font-bold tabular-nums text-ink">
                 07:15
               </span>
-              <span className="rounded-full bg-[#111] px-2.5 py-1 text-[11px] font-extrabold tabular-nums text-[#fff4dc]">
+              <span className="rounded-full bg-well px-2.5 py-1 text-[11px] font-extrabold tabular-nums text-[#fff4dc]">
                 {t("measure.sampleDuration")}
               </span>
             </div>
@@ -348,7 +349,7 @@ export function BrutMeasureEditor({
                         className={chip(on)}
                       >
                         <span
-                          className="h-2.5 w-2.5 shrink-0 rotate-45 rounded-[2px] border border-[#111]"
+                          className="h-2.5 w-2.5 shrink-0 rotate-45 rounded-[2px] border border-line"
                           style={{ background: c.color ?? color }}
                         />
                         <span className="truncate">{c.name}</span>
@@ -388,7 +389,7 @@ export function BrutMeasureEditor({
                 />
               )}
               {value.newCollection?.trim() && !value.collectionId && (
-                <p className="px-0.5 text-[11.5px] font-semibold leading-snug text-[#111]/55">
+                <p className="px-0.5 text-[11.5px] font-semibold leading-snug text-ink/55">
                   {t("measure.newCollectionHint", { name: value.newCollection.trim() })}
                 </p>
               )}
@@ -398,19 +399,19 @@ export function BrutMeasureEditor({
               role="switch"
               aria-checked={!!value.multiple}
               onClick={() => onChange({ ...value, multiple: !value.multiple })}
-              className="flex items-center justify-between gap-3 rounded-[12px] border-2 border-[#111] bg-white px-3.5 py-2.5 text-left text-[13px] font-bold text-[#111]"
+              className="flex items-center justify-between gap-3 rounded-[12px] border-2 border-line bg-paper px-3.5 py-2.5 text-left text-[13px] font-bold text-ink"
             >
               <span>{t("measure.multiple")}</span>
               <span
                 className={cn(
-                  "relative h-6 w-10 shrink-0 rounded-full border-2 border-[#111] transition-colors",
-                  value.multiple ? "bg-[#111]" : "bg-white"
+                  "relative h-6 w-10 shrink-0 rounded-full border-2 border-line transition-colors",
+                  value.multiple ? "bg-well" : "bg-paper"
                 )}
               >
                 <span
                   className={cn(
                     "absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full transition-all",
-                    value.multiple ? "left-[19px] bg-[#ffd23f]" : "left-[3px] bg-[#111]"
+                    value.multiple ? "left-[19px] bg-[#ffd23f]" : "left-[3px] bg-well"
                   )}
                 />
               </span>
@@ -436,10 +437,10 @@ function Field({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline gap-1.5 px-0.5">
-        <span className="text-[10.5px] font-black uppercase tracking-[0.08em] text-[#111]">
+        <span className="text-[10.5px] font-black uppercase tracking-[0.08em] text-ink">
           {label}
         </span>
-        {hint && <span className="text-[11px] font-semibold text-[#111]/45">{hint}</span>}
+        {hint && <span className="text-[11px] font-semibold text-ink/45">{hint}</span>}
       </div>
       {children}
     </div>
@@ -449,7 +450,7 @@ function Field({
 /** Kaydet neden kapalı — koyu turuncu, kalın */
 function Warn({ children }: { children: ReactNode }) {
   return (
-    <p className="px-0.5 text-[11.5px] font-bold leading-snug text-[#b45309]">{children}</p>
+    <p className="px-0.5 text-[11.5px] font-bold leading-snug text-[var(--warn-ink)]">{children}</p>
   );
 }
 
@@ -475,8 +476,8 @@ function EndLabel({
       // yana taşırmasın (bkz. MeasureEditor'daki EndLabel)
       size={1}
       className={cn(
-        "h-9 w-0 min-w-0 flex-1 rounded-[9px] border-[1.5px] border-[#111] px-2.5 text-[12.5px] font-bold text-[#111] outline-none placeholder:font-semibold placeholder:text-[#111]/40 focus:bg-white focus:shadow-[0_0_0_2px_#ffd23f]",
-        value ? "bg-white" : "bg-[#fff4dc]",
+        "h-9 w-0 min-w-0 flex-1 rounded-[9px] border-[1.5px] border-line px-2.5 text-[12.5px] font-bold text-ink outline-none placeholder:font-semibold placeholder:text-ink/40 focus:bg-paper focus:shadow-[0_0_0_2px_#ffd23f]",
+        value ? "bg-paper" : "bg-floor",
         align === "right" && "text-right"
       )}
     />
@@ -498,7 +499,7 @@ function BrutStepper({
   label: string;
 }) {
   const btn =
-    "flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] border-[#111] bg-white text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-[1.5px] active:translate-y-[1.5px] active:shadow-none disabled:opacity-25 disabled:shadow-none";
+    "flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border-[1.5px] border-line bg-paper text-ink shadow-[1.5px_1.5px_0_var(--shade)] active:translate-x-[1.5px] active:translate-y-[1.5px] active:shadow-none disabled:opacity-25 disabled:shadow-none";
   // Yazılan değer bırakılınca (ya da Enter) uygulanır; geçersizse eskiye döner
   const [draft, setDraft] = useState(String(value));
   const [shown, setShown] = useState(value);
@@ -512,8 +513,8 @@ function BrutStepper({
     else setDraft(String(value));
   };
   return (
-    <div className="flex flex-col gap-1.5 rounded-[12px] border-2 border-[#111] bg-white px-2 pb-2 pt-1.5">
-      <span className="text-center text-[10px] font-black uppercase tracking-[0.08em] text-[#111]/55">
+    <div className="flex flex-col gap-1.5 rounded-[12px] border-2 border-line bg-paper px-2 pb-2 pt-1.5">
+      <span className="text-center text-[10px] font-black uppercase tracking-[0.08em] text-ink/55">
         {label}
       </span>
       <div className="flex items-center gap-1">
@@ -537,7 +538,7 @@ function BrutStepper({
           onKeyDown={(e) => {
             if (e.key === "Enter") e.currentTarget.blur();
           }}
-          className="min-w-0 flex-1 bg-transparent text-center font-mono text-[18px] font-bold tabular-nums text-[#111] outline-none"
+          className="min-w-0 flex-1 bg-transparent text-center font-mono text-[18px] font-bold tabular-nums text-ink outline-none"
         />
         <button
           type="button"

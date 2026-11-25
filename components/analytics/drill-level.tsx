@@ -7,6 +7,7 @@ import { modColor } from "@/lib/mod-color";
 import type { Category, Entry, SubCategory } from "@/types";
 import { ShareBars, type ShareRow } from "./share-bars";
 import { useCategoryMetrics } from "./use-category-metrics";
+import { blockFill } from "@/lib/fill";
 
 /**
  * Kademe kartı — bir düğümün (kategori ya da alt kategori) ALT KALEMLERİNİN
@@ -148,7 +149,7 @@ export function DrillLevel({
         {metricLabel && (
           <span
             className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
-            style={{ background: `${share!.barColor}1f`, color: share!.barColor }}
+            style={{ background: blockFill(`${share!.barColor}1f`), color: share!.barColor }}
           >
             <span
               className="mr-1 inline-block h-1.5 w-1.5 rotate-45 rounded-[1px] align-middle"

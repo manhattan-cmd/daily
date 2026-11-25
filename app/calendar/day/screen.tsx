@@ -40,7 +40,7 @@ import {
 } from "@/components/calendar/entry-selection";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { toLocalDateValue } from "@/lib/utils";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { routes } from "@/lib/routes";
 
 type EntryItem =
@@ -130,7 +130,7 @@ export function CalendarDayPage({
   const t = useT();
   const tag = intlTag(useLocale());
   // Brütal tema: özet bloğu (tarih, Ekle, sayılar, dağılım), saat damgalı akış
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const router = useRouter();
   // Ekle menüsü ve açtığı pencereler — ana sayfayla ortak (bkz. useDayAdd)
   const add = useDayAdd(date);
@@ -371,10 +371,10 @@ export function CalendarDayPage({
     if (brutal && stamp && stamp !== lastStamp)
       flowNodes.push(
         <span key={`h-${stamp}`} className="mt-2 flex items-center gap-2">
-          <span className="rounded-md border-2 border-[#111] bg-white px-2 py-0.5 font-mono text-[12.5px] font-bold text-[#111] shadow-[2px_2px_0_#111]">
+          <span className="rounded-md border-2 border-line bg-paper px-2 py-0.5 font-mono text-[12.5px] font-bold text-ink shadow-[2px_2px_0_var(--shade)]">
             {stamp}
           </span>
-          <span className="h-[2px] flex-1 bg-[#111]" />
+          <span className="h-[2px] flex-1 bg-line" />
         </span>
       );
     lastStamp = stamp;
@@ -564,7 +564,7 @@ export function CalendarDayPage({
             }}
             stats={[]}
           >
-            <div className="bg-white p-3">
+            <div className="bg-paper p-3">
               {entriesSlot}
             </div>
           </SummaryBlock>
@@ -592,7 +592,7 @@ export function CalendarDayPage({
               }
               stats={[]}
             >
-              <div className="flex flex-col gap-2 bg-white p-3">
+              <div className="flex flex-col gap-2 bg-paper p-3">
                 {notes.map((note) => (
                   <NoteCard key={note.id} note={note} selection={selectionFor([`note:${note.id}`])} />
                 ))}

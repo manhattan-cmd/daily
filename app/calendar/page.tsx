@@ -10,9 +10,10 @@ import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { swallowNextClick } from "@/lib/use-long-press";
 import { routes } from "@/lib/routes";
 import { prefetchDayOnPress } from "@/lib/db/day-cache";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { Layer, PageSheet } from "@/components/ui/layer";
 import { TodayMascot } from "@/components/calendar/today-mascot";
+import { blockFill } from "@/lib/fill";
 
 /** Takvim'in rengi — alt menüdeki sekmesi, üst menüsü, durum çubuğu (bkz.
  *  statusBarColor); gün sayfasının şeridi (WeekStrip) ve ana sayfadaki Son 7
@@ -38,7 +39,7 @@ function MonthArrow({ icon: Icon, label, onClick }: { icon: LucideIcon; label: s
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="flex w-10 shrink-0 items-center justify-center text-[#111]/60 active:text-[#111]"
+      className="flex w-10 shrink-0 items-center justify-center text-ink/60 active:text-ink"
     >
       <Icon className="h-5 w-5" strokeWidth={2.5} />
     </button>
@@ -55,7 +56,7 @@ export default function CalendarPage() {
   // Dil telefonda sonradan okunuyor; kancaya bağlı ki adlar onunla yenilensin
   const tag = intlTag(useLocale());
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -228,16 +229,16 @@ export default function CalendarPage() {
         <header
           data-cal-nav=""
           // -mx-4: kabın kenar payını aşıp kenardan kenara (alt menü gibi)
-          className="sticky top-0 z-30 -mx-4 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)]"
-          style={{ background: CAL_COLOR }}
+          className="sticky top-0 z-30 -mx-4 border-b-[3px] border-line pt-[env(safe-area-inset-top,0px)]"
+          style={{ background: blockFill(CAL_COLOR) }}
         >
           <div className="flex items-stretch px-1">
             <MonthArrow icon={ChevronLeft} label={t("period.prevMonth")} onClick={prevMonth} />
             <div className="flex min-w-0 flex-1 flex-col items-center justify-center pb-[11px] pt-3 text-center" style={glideStyle}>
-              <h1 className="max-w-full truncate text-[20px] font-black leading-none tracking-[-0.02em] text-[#111]">
+              <h1 className="max-w-full truncate text-[20px] font-black leading-none tracking-[-0.02em] text-ink">
                 {monthYear(year, month, tag)}
               </h1>
-              <p className="mt-[6px] max-w-full truncate text-[11.5px] font-bold leading-none text-[#111]/65">
+              <p className="mt-[6px] max-w-full truncate text-[11.5px] font-bold leading-none text-ink/65">
                 {summary === undefined
                   ? " "
                   : summary.size
@@ -275,7 +276,7 @@ export default function CalendarPage() {
           <p
             className={cn(
               "tabular-nums",
-              brutal ? "mt-1.5 text-[13px] font-extrabold tracking-wider text-[#111]" : "text-sm text-muted-foreground"
+              brutal ? "mt-1.5 text-[13px] font-extrabold tracking-wider text-ink" : "text-sm text-muted-foreground"
             )}
           >
             {year}
@@ -305,15 +306,15 @@ export default function CalendarPage() {
       {brutal && (
         <div
           data-cal-head=""
-          className="-mx-1.5 -mt-3 mb-3 grid grid-cols-7 gap-x-[5px] rounded-t-[18px] border-b-[3px] border-[#111] px-1.5"
+          className="-mx-1.5 -mt-3 mb-3 grid grid-cols-7 gap-x-[5px] rounded-t-[18px] border-b-[3px] border-line px-1.5"
           style={{
-            backgroundColor: CAL_COLOR,
-            backgroundImage: "radial-gradient(rgba(17, 17, 17, 0.16) 1.2px, transparent 1.5px)",
+            backgroundColor: blockFill(CAL_COLOR),
+            backgroundImage: "radial-gradient(var(--dot) 1.2px, transparent 1.5px)",
             backgroundSize: "11px 11px",
           }}
         >
           {weekdaysShort(tag).map((d, i) => (
-            <div key={i} className="flex items-center justify-center py-3 text-[11.5px] font-black uppercase tracking-wider text-[#111]">
+            <div key={i} className="flex items-center justify-center py-3 text-[11.5px] font-black uppercase tracking-wider text-ink">
               {d}
             </div>
           ))}

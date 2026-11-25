@@ -6,6 +6,7 @@ import {
   FIELD_TONES,
   type FieldTone,
 } from "@/components/forms/field-tone";
+import { blockFill } from "@/lib/fill";
 
 /**
  * Alan penceresi — yerleşik akışların ortak çerçevesi: üstte küçük başlık
@@ -43,7 +44,7 @@ export function FieldWindow({
       )}
       style={{
         borderColor: cs ? cs.shellBorder : skin.shellBorder,
-        background: cs ? cs.shellBg : undefined,
+        background: cs ? blockFill(cs.shellBg) : undefined,
       }}
     >
       {caption && (
@@ -66,7 +67,7 @@ export function FieldWindow({
           )}
           style={{
             borderTopColor: cs ? cs.lineBorder : skin.lineBorder,
-            background: cs ? cs.stripBg : undefined,
+            background: cs ? blockFill(cs.stripBg) : undefined,
           }}
         >
           {footer}

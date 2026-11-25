@@ -10,20 +10,21 @@ import { useT } from "@/lib/i18n";
 import { useRoutePath } from "@/lib/use-route-path";
 import { SummaryEmpty } from "@/components/ui/summary-block";
 import { STRUCTURE_TABS, structureTabIndex } from "./structure-tabs";
+import { blockFill } from "@/lib/fill";
 
 /** Yapı'nın sarısı — şerit, sayfa başı ve sekmenin şekli */
 const YAPI = "#ffd23f";
 
 /** Bölüm bantlarının tram benekleri (bkz. SummaryBlock link, globals.css) */
 const BAND = {
-  backgroundColor: YAPI,
-  backgroundImage: "radial-gradient(rgba(17, 17, 17, 0.16) 1.2px, transparent 1.5px)",
+  backgroundColor: blockFill(YAPI),
+  backgroundImage: "radial-gradient(var(--dot) 1.2px, transparent 1.5px)",
   backgroundSize: "11px 11px",
 };
 
 /** Bantta duran kare düğme — Ara ve Ekle aynı boyda */
 const HEAD_BTN =
-  "flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none";
+  "flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-line text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none";
 
 /**
  * Yapı sayfalarının başı (Brütal) — Harita dışındaki bütün Yapı sayfalarında
@@ -98,7 +99,7 @@ export function StructureHead({
   const name = (
     <>
       {upHref && <ChevronLeft aria-hidden className="-ml-1 -mr-1.5 h-4 w-4 shrink-0 opacity-60" strokeWidth={3} />}
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] border-2 border-line bg-paper">
         {tab && <tab.icon aria-hidden className="h-5 w-5" strokeWidth={2.6} fill={YAPI} />}
       </span>
       <span className="min-w-0 flex-1">
@@ -115,15 +116,15 @@ export function StructureHead({
         data-structure-head=""
         aria-label={title}
         // Pencerenin iç payını (yanlarda 6, üstte 12 px) aşıp kenardan kenara
-        className="-mx-1.5 -mt-3 mb-4 grid grid-cols-1 gap-[2px] overflow-hidden rounded-t-[18px] border-b-[3px] border-[#111] bg-[#111]"
+        className="-mx-1.5 -mt-3 mb-4 grid grid-cols-1 gap-[2px] overflow-hidden rounded-t-[18px] border-b-[3px] border-line bg-line"
       >
-        <div className="flex min-h-[66px] items-center gap-2 py-2.5 pl-3 pr-2.5 text-[#111]" style={BAND}>
+        <div className="flex min-h-[66px] items-center gap-2 py-2.5 pl-3 pr-2.5 text-ink" style={BAND}>
           {upHref ? (
             <Link
               href={upHref}
               prefetch={false}
               aria-label={title}
-              className="-my-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-[12px] py-1 active:bg-[#111]/[0.06]"
+              className="-my-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-[12px] py-1 active:bg-ink/[0.06]"
             >
               {name}
             </Link>
@@ -138,7 +139,7 @@ export function StructureHead({
               title={searching ? t("action.close") : t("action.search")}
               aria-pressed={searching}
               className={HEAD_BTN}
-              style={{ background: searching ? "#111" : "#ffffff", color: searching ? "#ffffff" : "#111" }}
+              style={{ background: searching ? "var(--well)" : "var(--paper)", color: searching ? "#ffffff" : "var(--ink)" }}
             >
               {searching ? <X className="h-[18px] w-[18px]" strokeWidth={2.75} /> : <Search className="h-[18px] w-[18px]" strokeWidth={2.75} />}
             </button>
@@ -150,7 +151,7 @@ export function StructureHead({
               aria-label={`${t("action.add")}: ${add.label}`}
               title={`${t("action.add")}: ${add.label}`}
               className={HEAD_BTN}
-              style={{ background: "#7ae582" }}
+              style={{ background: blockFill("#7ae582") }}
             >
               <Plus className="h-5 w-5" strokeWidth={3} />
             </button>
@@ -165,7 +166,7 @@ export function StructureHead({
           ))}
       </section>
       {empty && (
-        <div className="mb-4 overflow-hidden rounded-[18px] border-2 border-[#111] shadow-[4px_4px_0_#111]">
+        <div className="mb-4 overflow-hidden rounded-[18px] border-2 border-line shadow-[4px_4px_0_var(--shade)]">
           <SummaryEmpty text={empty.text} action={empty.action} />
         </div>
       )}
@@ -187,8 +188,8 @@ function HeadSearch({
 }) {
   const t = useT();
   return (
-    <label data-structure-search="" className="relative flex h-11 items-center bg-white">
-      <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-[#111]/45" strokeWidth={2.4} />
+    <label data-structure-search="" className="relative flex h-11 items-center bg-paper">
+      <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-ink/45" strokeWidth={2.4} />
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -196,13 +197,13 @@ function HeadSearch({
         aria-label={placeholder}
         autoFocus={autoFocus}
         enterKeyHint="search"
-        className="h-full w-full bg-transparent pl-10 pr-10 text-[14.5px] font-bold text-[#111] outline-none placeholder:font-semibold placeholder:text-[#111]/40"
+        className="h-full w-full bg-transparent pl-10 pr-10 text-[14.5px] font-bold text-ink outline-none placeholder:font-semibold placeholder:text-ink/40"
       />
       {value && (
         <button
           type="button"
           onClick={() => onChange("")}
-          className="absolute right-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#111]/[0.07] text-[#111]/70"
+          className="absolute right-2 flex h-7 w-7 items-center justify-center rounded-full bg-ink/[0.07] text-ink/70"
           aria-label={t("features.clearSearch")}
         >
           <X className="h-3.5 w-3.5" strokeWidth={2.6} />
@@ -231,8 +232,8 @@ export function useRootCount(root: "categories" | "objects"): string | undefined
 /** Konum yolu satırı — baş satırının altında; önünde ↳: "bunun içinde" */
 export function HeadTrailRow({ children }: { children: ReactNode }) {
   return (
-    <div data-structure-trail-row="" className="flex min-w-0 items-center bg-white pl-2.5">
-      <CornerDownRight aria-hidden className="h-4 w-4 shrink-0 text-[#111]/45" strokeWidth={2.6} />
+    <div data-structure-trail-row="" className="flex min-w-0 items-center bg-paper pl-2.5">
+      <CornerDownRight aria-hidden className="h-4 w-4 shrink-0 text-ink/45" strokeWidth={2.6} />
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   );

@@ -12,13 +12,14 @@ import {
 } from "lucide-react";
 import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
 import { intlTag, useT, type MessageKey } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import {
   colorSkin,
   FIELD_TONES,
   type FieldTone,
   type FieldToneSkin,
 } from "@/components/forms/field-tone";
+import { blockFill } from "@/lib/fill";
 
 function shortDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
@@ -145,7 +146,7 @@ export function DateTimeRangeInput({
   color,
 }: DateTimeRangeInputProps) {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const skin = FIELD_TONES[tone];
   const cs = color ? colorSkin(color) : null;
   const parsed = useMemo(() => parseDTR(value), [value]);
@@ -207,7 +208,7 @@ export function DateTimeRangeInput({
           {/* İki fişi bağlayan ok — aralığın yönü */}
           <span
             aria-hidden
-            className="pointer-events-none absolute left-1/2 top-[41px] z-10 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full border-2 border-[#111] bg-white text-[#111]"
+            className="pointer-events-none absolute left-1/2 top-[41px] z-10 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full border-2 border-line bg-paper text-ink"
           >
             <ArrowRight className="h-3 w-3" strokeWidth={3} />
           </span>
@@ -227,7 +228,7 @@ export function DateTimeRangeInput({
         {durText && (
           <span
             data-dtr-duration=""
-            className="inline-flex items-center gap-1.5 self-center rounded-lg border-2 border-[#111] bg-[#111] px-2.5 py-1 text-[12.5px] font-black uppercase leading-4 tracking-wide text-white"
+            className="inline-flex items-center gap-1.5 self-center rounded-lg border-2 border-line bg-well px-2.5 py-1 text-[12.5px] font-black uppercase leading-4 tracking-wide text-white"
           >
             <Clock className="h-3.5 w-3.5" strokeWidth={2.75} />
             {durText}
@@ -242,7 +243,7 @@ export function DateTimeRangeInput({
       className={cn("overflow-hidden rounded-2xl border", !cs && skin.shell)}
       style={{
         borderColor: cs ? cs.shellBorder : skin.shellBorder,
-        background: cs ? cs.shellBg : undefined,
+        background: cs ? blockFill(cs.shellBg) : undefined,
       }}
     >
       <div className={cn("grid grid-cols-2 divide-x", skin.divide)}>
@@ -291,7 +292,7 @@ export function DateTimeRangeInput({
           )}
           style={{
             borderTopColor: cs ? cs.lineBorder : skin.lineBorder,
-            background: cs ? cs.stripBg : undefined,
+            background: cs ? blockFill(cs.stripBg) : undefined,
           }}
         >
           <div
@@ -444,19 +445,19 @@ function BrutalSide({
 
   const step = (delta: number) => onChange(stepped(value, side, entryDate, delta));
   const stepBtn =
-    "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-[1.5px] border-[#111] bg-white text-[#111] active:translate-x-px active:translate-y-px disabled:cursor-not-allowed";
+    "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-[1.5px] border-line bg-paper text-ink active:translate-x-px active:translate-y-px disabled:cursor-not-allowed";
 
   return (
     <div
       data-dtr-side={side}
       className={cn(
-        "min-w-0 overflow-hidden rounded-[14px] border-2 border-[#111] bg-white text-[#111] transition-[transform,box-shadow] duration-150",
-        open ? "translate-x-[2px] translate-y-[2px] shadow-none" : "shadow-[3px_3px_0_#111]"
+        "min-w-0 overflow-hidden rounded-[14px] border-2 border-line bg-paper text-ink transition-[transform,box-shadow] duration-150",
+        open ? "translate-x-[2px] translate-y-[2px] shadow-none" : "shadow-[3px_3px_0_var(--shade)]"
       )}
     >
       <div
-        className="flex items-center gap-1.5 border-b-2 border-[#111] px-2 py-[3px]"
-        style={{ background: BRUT_HEAD[side] }}
+        className="flex items-center gap-1.5 border-b-2 border-line px-2 py-[3px]"
+        style={{ background: blockFill(BRUT_HEAD[side]) }}
       >
         <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.6} />
         <span className="truncate text-[10.5px] font-black uppercase leading-4 tracking-[0.08em]">
@@ -473,9 +474,9 @@ function BrutalSide({
         aria-expanded={open}
         className={cn(
           "block w-full py-1.5 text-center text-[30px] font-black leading-[38px] tabular-nums tracking-tight outline-none transition-colors disabled:cursor-not-allowed",
-          !timePart && "text-[#111]/25"
+          !timePart && "text-ink/25"
         )}
-        style={{ background: open ? "#ffd23f" : "#ffffff" }}
+        style={{ background: open ? blockFill("#ffd23f") : "var(--paper)" }}
       >
         {timePart || "--:--"}
       </button>
@@ -484,7 +485,7 @@ function BrutalSide({
       <div
         role="group"
         aria-label={t("datetime.pickDate")}
-        className="flex items-center gap-1 border-t-2 border-dashed border-[#111] px-1.5 py-1.5"
+        className="flex items-center gap-1 border-t-2 border-dashed border-line px-1.5 py-1.5"
       >
         <button
           type="button"
@@ -498,7 +499,7 @@ function BrutalSide({
         <span
           className={cn(
             "min-w-0 flex-1 truncate text-center text-[12px] font-extrabold leading-4 tabular-nums",
-            !datePart && "text-[#111]/40"
+            !datePart && "text-ink/40"
           )}
         >
           {shown}
@@ -728,7 +729,7 @@ function TimeWheel({
       className={cn(
         "px-4 pb-3 pt-2.5",
         brutal
-          ? "rounded-[14px] border-2 border-[#111] bg-white shadow-[3px_3px_0_#111]"
+          ? "rounded-[14px] border-2 border-line bg-paper shadow-[3px_3px_0_var(--shade)]"
           : cn("border-t", skin.strip)
       )}
       style={brutal ? undefined : { borderTopColor: skin.lineBorder }}
@@ -737,7 +738,7 @@ function TimeWheel({
         <span
           className={
             brutal
-              ? "text-[10.5px] font-black uppercase tracking-[0.08em] text-[#111]"
+              ? "text-[10.5px] font-black uppercase tracking-[0.08em] text-ink"
               : "text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50"
           }
         >
@@ -748,7 +749,7 @@ function TimeWheel({
           onClick={onClose}
           className={
             brutal
-              ? "rounded-lg border-2 border-[#111] bg-white px-2.5 py-0.5 text-[11px] font-black uppercase text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+              ? "rounded-lg border-2 border-line bg-paper px-2.5 py-0.5 text-[11px] font-black uppercase text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
               : "rounded-full bg-[var(--sf-3)] px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-[var(--sf-4)] hover:text-foreground"
           }
         >

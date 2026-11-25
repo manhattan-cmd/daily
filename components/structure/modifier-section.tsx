@@ -31,6 +31,7 @@ import { SummaryBlock, SummaryEmpty, SummaryTile } from "@/components/ui/summary
 import { useIsBrutal } from "@/components/structure/brutal";
 import { measureSummary } from "@/lib/measure-kinds";
 import { modColor } from "@/lib/mod-color";
+import { blockFill } from "@/lib/fill";
 
 interface ModifierSectionProps {
   targetType: "category" | "subcategory";
@@ -120,7 +121,7 @@ export function ModifierSection({
                   <span
                     data-kind-badge=""
                     className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium"
-                    style={{ color: selectedColor, borderColor: `${selectedColor}55`, backgroundColor: `${selectedColor}14` }}
+                    style={{ color: selectedColor, borderColor: `${selectedColor}55`, backgroundColor: blockFill(`${selectedColor}14`) }}
                   >
                     {measureSummary(selected.entryType)}
                   </span>
@@ -243,7 +244,7 @@ export function ModifierSection({
           stats={[]}
         >
           {mods && mods.length > 0 && (
-            <div data-feature-cell="" className="grid grid-cols-4 gap-x-1.5 gap-y-1 bg-white p-2">
+            <div data-feature-cell="" className="grid grid-cols-4 gap-x-1.5 gap-y-1 bg-paper p-2">
               {atoms}
             </div>
           )}

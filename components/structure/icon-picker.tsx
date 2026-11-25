@@ -4,6 +4,7 @@ import { ICON_GROUPS, LifeIcon } from "@/lib/icons";
 import type { IconName } from "@/lib/icons/vocabulary";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { blockFill } from "@/lib/fill";
 
 /** Grup başlıkları — sıra gün nasıl geçiyorsa öyle (bkz. LIFE_ICON_GROUPS) */
 const GROUP_LABEL: Record<string, MessageKey> = {
@@ -69,7 +70,7 @@ export function IconGrid({
                       ? "ring-2 ring-inset ring-white/60"
                       : "bg-[var(--sf-2)] hover:bg-[var(--sf-3)]"
                   )}
-                  style={selected ? { backgroundColor: color } : undefined}
+                  style={selected ? { backgroundColor: blockFill(color) } : undefined}
                 >
                   <LifeIcon
                     name={n}

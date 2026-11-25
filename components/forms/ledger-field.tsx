@@ -14,8 +14,9 @@ import type { CategoryModifierWithType } from "@/lib/db/queries";
 import { isScaleChoices, type EntryValueType } from "@/types";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { ThingField, ThingFieldFeatures } from "@/components/forms/thing-field";
+import { blockFill } from "@/lib/fill";
 
 /** Alan dolu mu — evet/hayırda yalnız "evet" dolu sayılır (varsayılan "hayır") */
 export function isFieldFilled(vt: EntryValueType, value: string): boolean {
@@ -44,7 +45,7 @@ const SUGGEST_SLOTS = 3;
 /** Brütal köşe düğmesi — ad sekmesiyle aynı boyda (18 px) beyaz kare; dokunma
  *  alanı görünenden geniş (before ile her yana 8 px) */
 const BRUT_CORNER =
-  "relative flex h-[18px] w-[18px] items-center justify-center rounded-md border-[1.5px] border-[#111] bg-white text-[#111] before:absolute before:-inset-2 before:content-[''] active:translate-x-px active:translate-y-px";
+  "relative flex h-[18px] w-[18px] items-center justify-center rounded-md border-[1.5px] border-line bg-paper text-ink before:absolute before:-inset-2 before:content-[''] active:translate-x-px active:translate-y-px";
 
 /** Sayıyı okunur yaz — 104181.75 → 104.181,75 (yalnız gösterim) */
 function fmtNum(v: string): string {
@@ -142,7 +143,7 @@ export function LedgerField({
 }) {
   const t = useT();
   // Brütal tema: ad kutunun üst kenarında sekme, evet/hayır iki büyük yarım
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const vt = mod.entryType.valueType ?? "number";
   const label = labelProp || (mod.name ?? mod.entryType.name);
   const unit = mod.entryType.unit;
@@ -241,8 +242,8 @@ export function LedgerField({
       )}
       style={
         filled
-          ? { background: `${color}24`, boxShadow: `inset 0 0 0 1.5px ${color}8c` }
-          : { background: `${color}0f`, boxShadow: `inset 0 0 0 1px ${color}2e` }
+          ? { background: blockFill(`${color}24`), boxShadow: `inset 0 0 0 1.5px ${color}8c` }
+          : { background: blockFill(`${color}0f`), boxShadow: `inset 0 0 0 1px ${color}2e` }
       }
     >
       {/* Köşe — aç/kapa ve kaldır: sağ üstte, yazı hizasının üstünde.
@@ -289,9 +290,9 @@ export function LedgerField({
       {brutal && (
         <div
           data-ledger-tab=""
-          className="absolute -top-[11px] left-2.5 z-[1] flex items-center gap-1 rounded-md border-[1.5px] border-[#111] px-1.5 py-px text-[#111]"
+          className="absolute -top-[11px] left-2.5 z-[1] flex items-center gap-1 rounded-md border-[1.5px] border-line px-1.5 py-px text-ink"
           style={{
-            background: `color-mix(in srgb, ${color} 45%, #ffffff)`,
+            background: `color-mix(in srgb, ${color} calc(45% * var(--fill-scale)), var(--paper))`,
             // Ad, sağ üstte gerçekten duran düğmeler kadar yer bıraksın: sabit
             // 70px dar formda "Yüz nemlendirme"yi "YÜZ…"e indiriyordu
             // (kenar payı 10 + kare 18 + ara 4/6 px)
@@ -300,7 +301,7 @@ export function LedgerField({
         >
           <Icon className="h-3 w-3 shrink-0" strokeWidth={2.6} />
           <SmartText text={label} className="min-w-0 text-[10.5px] font-black uppercase leading-[14px] tracking-wide" />
-          {entryOnly && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#111]" />}
+          {entryOnly && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink" />}
         </div>
       )}
 
@@ -322,7 +323,7 @@ export function LedgerField({
             aria-label={label}
             aria-expanded={hasMenu ? menuOpen : undefined}
             className="flex h-7 w-7 items-center justify-center rounded-full transition-[background-color,transform] enabled:active:scale-90"
-            style={filled ? { background: color, color: "#fff" } : { background: `${color}33`, color }}
+            style={filled ? { background: blockFill(color), color: "#fff" } : { background: blockFill(`${color}33`), color }}
           >
             <Icon className="h-[15px] w-[15px]" strokeWidth={2.2} />
           </button>
@@ -436,7 +437,7 @@ export function LedgerField({
         </label>
       ) : isBool && brutal ? (
         // Brütal: iki büyük yarım — seçilen dolu
-        <div className="grid grid-cols-2 overflow-hidden rounded-xl border-2 border-[#111] shadow-[2px_2px_0_#111]">
+        <div className="grid grid-cols-2 overflow-hidden rounded-xl border-2 border-line shadow-[2px_2px_0_var(--shade)]">
           {(["true", "false"] as const).map((v) => {
             // Boş değer (henüz seçilmedi — planlı girdiyi tamamlarken) hiçbirini seçmez
             const on = value !== "" && (value === "true") === (v === "true");
@@ -446,8 +447,8 @@ export function LedgerField({
                 type="button"
                 aria-pressed={on}
                 onClick={() => onChange(v)}
-                className="h-11 text-[15px] font-black uppercase tracking-wide text-[#111] [&+&]:border-l-2 [&+&]:border-[#111]"
-                style={{ background: on ? color : "#ffffff", color: on ? "#111" : "#111" }}
+                className="h-11 text-[15px] font-black uppercase tracking-wide text-ink [&+&]:border-l-2 [&+&]:border-line"
+                style={{ background: on ? blockFill(color) : "var(--paper)", color: on ? "var(--ink)" : "var(--ink)" }}
               >
                 {v === "true" ? t("entry.yes") : t("entry.no")}
               </button>
@@ -578,8 +579,8 @@ export function LedgerField({
                   className="flex min-h-8 min-w-0 items-center justify-center break-words rounded-lg px-1.5 py-1 font-mono text-[12.5px] font-semibold leading-4 transition-colors"
                   style={
                     on
-                      ? { background: color, color: "#fff" }
-                      : { background: `${color}1a`, color, boxShadow: `inset 0 0 0 1px ${color}38` }
+                      ? { background: blockFill(color), color: "#fff" }
+                      : { background: blockFill(`${color}1a`), color, boxShadow: `inset 0 0 0 1px ${color}38` }
                   }
                 >
                   {text}

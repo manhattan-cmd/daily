@@ -586,7 +586,7 @@ export function PeriodCategoryPanel({
     const headBody = (
         <>
           {data.hasRegular && (
-            <div className="bg-white px-3 py-2.5">
+            <div className="bg-paper px-3 py-2.5">
               <RegularToggle
                 active={excludeRegular}
                 onChange={setExcludeRegular}
@@ -600,7 +600,7 @@ export function PeriodCategoryPanel({
             <SummaryEmpty
               text={emptyText}
               action={
-                all ? undefined : { label: t("an.seeAll"), icon: ArrowRight, color: "#fff", onClick: () => router.push(routes.period("all"), { scroll: false }) }
+                all ? undefined : { label: t("an.seeAll"), icon: ArrowRight, color: "var(--paper)", onClick: () => router.push(routes.period("all"), { scroll: false }) }
               }
             />
           ) : metric.type === "count" ? (
@@ -652,7 +652,7 @@ export function PeriodCategoryPanel({
               }}
             />
           )}
-          {!empty && weekLine && <p className="bg-white px-3.5 py-2.5 text-[12px] font-bold text-[#111]/70">{weekLine}</p>}
+          {!empty && weekLine && <p className="bg-paper px-3.5 py-2.5 text-[12px] font-bold text-ink/70">{weekLine}</p>}
         </>
     );
     return (
@@ -766,7 +766,7 @@ export function PeriodCategoryPanel({
           className={cn(
             "ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors",
             brutal
-              ? "border-[1.5px] border-[#111] bg-white text-[#111] shadow-[2px_2px_0_#111]"
+              ? "border-[1.5px] border-line bg-paper text-ink shadow-[2px_2px_0_var(--shade)]"
               : "bg-[var(--sf-2)] text-muted-foreground hover:text-foreground"
           )}
         >

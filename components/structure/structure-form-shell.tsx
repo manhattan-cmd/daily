@@ -14,10 +14,11 @@ import {
 } from "@/components/ui/entry-window";
 import { Button } from "@/components/ui/button";
 import { SymbolIcon } from "@/lib/icons";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { SmartText } from "@/components/ui/smart-text";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { blockFill } from "@/lib/fill";
 
 /**
  * Brütal temada pencere ayrı bir düzenle çizilir (bkz. BrutalFormShell);
@@ -60,7 +61,7 @@ export function StructureFormShell({
   footer: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   if (brutal) {
     return (
       <BrutalFormShell
@@ -268,18 +269,18 @@ export function FormSection({
       <section
         data-struct-section=""
         className={cn(
-          "relative mt-3 flex flex-col gap-2.5 rounded-2xl border-2 border-[#111] bg-white px-3 pb-3 pt-6 shadow-[3px_3px_0_#111]",
+          "relative mt-3 flex flex-col gap-2.5 rounded-2xl border-2 border-line bg-paper px-3 pb-3 pt-6 shadow-[3px_3px_0_var(--shade)]",
           className
         )}
       >
         <div className="absolute -top-[13px] left-2.5 right-2.5 flex items-center gap-2">
           <span
-            className="rounded-lg border-2 border-[#111] px-2 py-px text-[11.5px] font-black uppercase tracking-wide text-[#111]"
-            style={{ background: "color-mix(in srgb, var(--form-c) 45%, #ffffff)" }}
+            className="rounded-lg border-2 border-line px-2 py-px text-[11.5px] font-black uppercase tracking-wide text-ink"
+            style={{ background: "color-mix(in srgb, var(--form-c) calc(45% * var(--fill-scale)), var(--paper))" }}
           >
             {label}
           </span>
-          {hint && <span className="text-[11px] font-semibold text-[#111]/60">{hint}</span>}
+          {hint && <span className="text-[11px] font-semibold text-ink/60">{hint}</span>}
           {action && <div className="ml-auto">{action}</div>}
         </div>
         {children}
@@ -334,7 +335,7 @@ export function PreviewTile({
         width: size,
         height: size,
         borderRadius: Atom ? "9999px" : Math.round(size * 0.28),
-        backgroundColor: color,
+        backgroundColor: blockFill(color),
         boxShadow:
           "inset 0 1px 0 rgba(255,255,255,0.25), inset 0 0 0 1px rgba(0,0,0,0.14)",
       }}
@@ -378,8 +379,9 @@ export function FormActions({
         <button
           type="submit"
           disabled={disabled}
+          data-cta=""
           className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl disabled:opacity-50"
-          style={{ background: "#ffd23f" }}
+          style={{ background: blockFill("#ffd23f") }}
         >
           <Check className="h-5 w-5 shrink-0" strokeWidth={2.75} />
           <span className="truncate">{submitLabel}</span>

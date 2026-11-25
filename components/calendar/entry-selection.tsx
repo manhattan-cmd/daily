@@ -4,7 +4,8 @@ import { useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, CalendarDays, Check, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
+import { blockFill } from "@/lib/fill";
 
 /**
  * Bir kartın toplu seçim durumu. Kart birden çok girdi taşıyorsa (paralel
@@ -121,7 +122,7 @@ type BarProps = {
 export function EntrySelectionBar(props: BarProps) {
   const { date } = props;
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const [view, setView] = useState<View>("actions");
   const [target, setTarget] = useState(date);
   const [busy, setBusy] = useState(false);
@@ -193,7 +194,7 @@ const BAND: Record<View, string> = {
 
 /** Fiş düğmesi — kalın çerçeve, sert gölge, basınca gölgesine oturur */
 const BRUT_BTN =
-  "flex h-12 items-center justify-center gap-2 rounded-[14px] border-2 border-[#111] text-[14px] font-extrabold text-[#111] shadow-[3px_3px_0_#111] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0_#111] disabled:opacity-50";
+  "flex h-12 items-center justify-center gap-2 rounded-[14px] border-2 border-line text-[14px] font-extrabold text-ink shadow-[3px_3px_0_var(--shade)] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0_var(--shade)] disabled:opacity-50";
 
 /** Bandın sol ucundaki kare düğme (kapat / geri) */
 function BandSquare({
@@ -210,7 +211,7 @@ function BandSquare({
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] border-2 border-[#111] bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+      className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] border-2 border-line bg-paper text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
     >
       {children}
     </button>
@@ -260,12 +261,12 @@ function BrutalBar({
   return (
     <div
       data-sel-bar=""
-      className="sel-bar-up fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[390px] overflow-hidden rounded-t-[20px] border-2 border-b-0 border-[#111] bg-[var(--background)] text-[#111]"
+      className="sel-bar-up fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[390px] overflow-hidden rounded-t-[20px] border-2 border-b-0 border-line bg-[var(--background)] text-ink"
     >
       {/* Bant */}
       <div
-        className="flex min-h-[54px] items-center gap-2.5 border-b-2 border-[#111] px-3 py-2"
-        style={{ background: BAND[view] }}
+        className="flex min-h-[54px] items-center gap-2.5 border-b-2 border-line px-3 py-2"
+        style={{ background: blockFill(BAND[view]) }}
       >
         {view === "actions" ? (
           <BandSquare onClick={onCancel} label={t("selection.clear")}>
@@ -288,7 +289,7 @@ function BrutalBar({
           <button
             type="button"
             onClick={onSelectAll}
-            className="shrink-0 rounded-[9px] border-2 border-[#111] bg-white px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.04em] text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+            className="shrink-0 rounded-[9px] border-2 border-line bg-paper px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.04em] text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
           >
             {allSelected ? t("selection.clear") : t("selection.selectAll")}
           </button>
@@ -302,7 +303,7 @@ function BrutalBar({
       >
         {view === "actions" && (
           <div className="flex gap-2.5">
-            <button type="button" onClick={openMove} className={cn(BRUT_BTN, "min-w-0 flex-1 bg-white")}>
+            <button type="button" onClick={openMove} className={cn(BRUT_BTN, "min-w-0 flex-1 bg-paper")}>
               <CalendarDays className="h-[18px] w-[18px] shrink-0" strokeWidth={2.5} />
               <span className="truncate">{t("selection.move")}</span>
             </button>
@@ -332,10 +333,10 @@ function BrutalBar({
                       onClick={() => setTarget(q.value)}
                       aria-pressed={on}
                       className={cn(
-                        "rounded-[10px] border-2 border-[#111] px-3 py-1.5 text-[12.5px] font-extrabold transition-transform",
+                        "rounded-[10px] border-2 border-line px-3 py-1.5 text-[12.5px] font-extrabold transition-transform",
                         on
-                          ? "translate-x-[1.5px] translate-y-[1.5px] bg-[#111] text-[#fff4dc]"
-                          : "bg-white text-[#111] shadow-[1.5px_1.5px_0_#111]"
+                          ? "translate-x-[1.5px] translate-y-[1.5px] bg-well text-[#fff4dc]"
+                          : "bg-paper text-ink shadow-[1.5px_1.5px_0_var(--shade)]"
                       )}
                     >
                       {q.label}
@@ -346,8 +347,8 @@ function BrutalBar({
             )}
 
             {/* Gün kutusu — dokununca telefonun takvimi (görünmez tarih girişi) */}
-            <label className="relative flex h-14 cursor-pointer items-center gap-3 rounded-[14px] border-2 border-[#111] bg-white px-3.5 shadow-[3px_3px_0_#111]">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-2 border-[#111]" style={{ background: BAND.move }}>
+            <label className="relative flex h-14 cursor-pointer items-center gap-3 rounded-[14px] border-2 border-line bg-paper px-3.5 shadow-[3px_3px_0_var(--shade)]">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-2 border-line" style={{ background: blockFill(BAND.move) }}>
                 <CalendarDays className="h-4 w-4" strokeWidth={2.5} />
               </span>
               <span className="min-w-0 flex-1 leading-tight">
@@ -374,7 +375,7 @@ function BrutalBar({
               onClick={move}
               disabled={busy || !target || target === date}
               className={cn(BRUT_BTN, "w-full uppercase tracking-[0.04em]")}
-              style={{ background: "#ffd23f" }}
+              style={{ background: blockFill("#ffd23f") }}
             >
               <span className="truncate">
                 {busy
@@ -394,7 +395,7 @@ function BrutalBar({
               type="button"
               onClick={() => setView("actions")}
               disabled={busy}
-              className={cn(BRUT_BTN, "flex-1 bg-white")}
+              className={cn(BRUT_BTN, "flex-1 bg-paper")}
             >
               {t("action.cancel")}
             </button>

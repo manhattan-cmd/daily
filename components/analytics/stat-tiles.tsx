@@ -139,13 +139,13 @@ export function StatCell({
   pickable?: boolean;
 }) {
   return (
-    <span data-stat-cell="" className="flex h-full min-w-0 flex-col bg-white text-left text-[#111]">
+    <span data-stat-cell="" className="flex h-full min-w-0 flex-col bg-paper text-left text-ink">
       <span className="h-1.5 shrink-0" style={{ background: color }} />
       <span className="flex min-w-0 flex-1 flex-col px-2.5 pb-2 pt-1.5">
         <span
           className={cn(
-            "line-clamp-2 h-[22px] text-[9.5px] font-black uppercase leading-[11px] text-[#111]/60",
-            pickable && "underline decoration-dotted decoration-[#111]/40 underline-offset-2"
+            "line-clamp-2 h-[22px] text-[9.5px] font-black uppercase leading-[11px] text-ink/60",
+            pickable && "underline decoration-dotted decoration-ink/40 underline-offset-2"
           )}
         >
           {label}
@@ -161,7 +161,7 @@ export function StatCell({
           {value}
           {unit && <span className="ml-1 font-sans text-[11px] font-extrabold opacity-70">{unit}</span>}
         </b>
-        {sub && <span className="block truncate text-[10px] font-bold leading-tight text-[#111]/55">{sub}</span>}
+        {sub && <span className="block truncate text-[10px] font-bold leading-tight text-ink/55">{sub}</span>}
       </span>
     </span>
   );
@@ -372,8 +372,8 @@ export function StatTiles({
         {canEdit && shown.length < MAX_STATS && (
           <div className="w-[44px] shrink-0">
             <ViewMenu label={t("board.addBox")} value="" options={addOptions()} onPick={(k) => onPick!(-1, k as StatKey)} pickSingle>
-              <span className="flex h-full min-h-[70px] items-center justify-center bg-[#7ae582] text-[#111]">
-                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#111] text-[#7ae582]">
+              <span className="flex h-full min-h-[70px] items-center justify-center bg-fill-[#7ae582] text-ink">
+                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-well text-[#7ae582]">
                   <Plus className="h-4 w-4" strokeWidth={3} />
                 </span>
               </span>

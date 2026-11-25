@@ -18,7 +18,7 @@ export function TodayMascot({ day }: { day: number }) {
       </svg>
       <span
         className={cn(
-          "absolute bottom-px left-1/2 flex aspect-square h-[62%] -translate-x-1/2 items-center justify-center rounded-full border-2 border-[#111] font-black leading-none",
+          "absolute bottom-px left-1/2 flex aspect-square h-[62%] -translate-x-1/2 items-center justify-center rounded-full border-2 border-line font-black leading-none",
           // iki haneli gün bitin içine sıkışıp çerçeveye değiyordu
           day < 10 ? "text-[13px]" : "text-[11.5px] tracking-[-0.02em]"
         )}
@@ -31,7 +31,7 @@ export function TodayMascot({ day }: { day: number }) {
         <span
           key={left}
           aria-hidden
-          className="absolute h-[7px] w-[7px] -translate-x-1/2 translate-y-1/2 rounded-full border-[1.5px] border-[#111] bg-white"
+          className="absolute h-[7px] w-[7px] -translate-x-1/2 translate-y-1/2 rounded-full border-[1.5px] border-line bg-paper"
           style={{ left, bottom: "calc(1px + 31%)" }}
         />
       ))}

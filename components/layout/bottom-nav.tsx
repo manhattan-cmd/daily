@@ -75,7 +75,7 @@ function NavMascot() {
       {[-16, 16].map((dx) => (
         <span
           key={dx}
-          className="absolute top-[20px] z-20 h-[9px] w-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-[#111] bg-white"
+          className="absolute top-[20px] z-20 h-[9px] w-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-line bg-paper"
           style={{ left: `calc(50% + ${dx}px)` }}
         />
       ))}

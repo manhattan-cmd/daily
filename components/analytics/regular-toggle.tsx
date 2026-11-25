@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { CircleSlash } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fmtNum } from "@/lib/analytics";
+import { blockFill } from "@/lib/fill";
 
 /**
  * "Sabitler hariç" anahtarı — düzenli/sabit işaretli alt kategorilerin (kira,
@@ -71,7 +72,7 @@ export function RegularToggle({
         )}
         style={
           active
-            ? { borderColor: `${color}70`, backgroundColor: `${color}18` }
+            ? { borderColor: `${color}70`, backgroundColor: blockFill(`${color}18`) }
             : undefined
         }
       >

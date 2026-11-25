@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Battery, Wifi, Signal } from "lucide-react";
+import { blockFill } from "@/lib/fill";
 
 export function StatusBar({ color }: { color?: string }) {
   const [time, setTime] = useState("");
@@ -23,7 +24,7 @@ export function StatusBar({ color }: { color?: string }) {
   return (
     <div
       className="hidden md:flex shrink-0 items-center justify-between px-7 pt-4 pb-1"
-      style={color ? { background: color, color: "#111" } : undefined}
+      style={color ? { background: blockFill(color), color: "var(--ink)" } : undefined}
     >
       <span className="text-[13px] font-semibold tabular-nums text-foreground">
         {time}

@@ -5,7 +5,7 @@ import { Circle, Diamond, Map as MapIcon, Rows3, Square, StickyNote, type Lucide
 import { useRoutePath } from "@/lib/use-route-path";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 
 export const STRUCTURE_TABS: { href: string; key: MessageKey; icon: LucideIcon }[] = [
   // Simgeler şekil dilinden: kare = kategori, daire = özellik, baklava = nesne
@@ -52,7 +52,7 @@ export function StructureTabs() {
   const t = useT();
   const pathname = useRoutePath();
   const activeIndex = structureTabIndex(pathname);
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
 
   // Brütal: şeridin sekmeleri (bkz. StructureHeader) — alt menünün aynası:
   // simge ve altında ad, çerçevesiz; seçili olanın simgesi kalkık beyaz
@@ -69,15 +69,15 @@ export function StructureTabs() {
                 key={tab.href}
                 href={tab.href}
                 aria-current={on ? "page" : undefined}
-                className="flex flex-auto flex-col items-center gap-[5px] pt-1 text-[#111]"
+                className="flex flex-auto flex-col items-center gap-[5px] pt-1 text-ink"
               >
                 <span
                   className={cn(
                     "box-content flex h-[18px] w-[18px] items-center justify-center rounded-full border-[1.5px] px-[10px] py-[2px] transition-transform",
-                    on ? "-translate-y-0.5 bg-white shadow-[2px_2px_0_#111]" : "text-[#111]/60"
+                    on ? "-translate-y-0.5 bg-paper shadow-[2px_2px_0_var(--shade)]" : "text-ink/60"
                   )}
                   // Çerçeve rengi satır içi: katmansız "* { border-color }" kuralı border-transparent'ı eziyor
-                  style={{ borderColor: on ? "#111" : "transparent" }}
+                  style={{ borderColor: on ? "var(--line)" : "transparent" }}
                 >
                   <tab.icon
                     className={cn("shrink-0", tab.icon === Diamond ? "h-[15px] w-[15px]" : "h-3.5 w-3.5")}
@@ -94,7 +94,7 @@ export function StructureTabs() {
                   <span
                     className={cn(
                       "col-start-1 row-start-1",
-                      on ? "font-black" : "font-bold text-[#111]/65"
+                      on ? "font-black" : "font-bold text-ink/65"
                     )}
                   >
                     {t(tab.key)}

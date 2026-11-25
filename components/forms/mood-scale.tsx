@@ -11,6 +11,7 @@ import {
   scaleLabelsAreDefault,
 } from "@/lib/icons/emotions";
 import { FIELD_TONES, type FieldTone } from "@/components/forms/field-tone";
+import { blockFill } from "@/lib/fill";
 
 /**
  * Mutluluk skalası — basamaklar rakamla değil yüzle.
@@ -71,7 +72,7 @@ export function MoodScale({
               style={
                 on
                   ? {
-                      background: `${color}47`,
+                      background: blockFill(`${color}47`),
                       borderColor: color,
                       boxShadow: `inset 0 0 0 1px ${color}`,
                     }

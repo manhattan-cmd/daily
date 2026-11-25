@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { blockFill } from "@/lib/fill";
 
 /** Bundan az basamakta her basamak bir nokta; fazlasında ince ray */
 const DOTS_MAX = 10;
@@ -62,7 +63,7 @@ export function ScaleMeter({
           })}
         </span>
       ) : (
-        <span aria-hidden className="relative h-1.5 w-8 overflow-hidden rounded-full" style={{ background: `${color}38` }}>
+        <span aria-hidden className="relative h-1.5 w-8 overflow-hidden rounded-full" style={{ background: blockFill(`${color}38`) }}>
           <span
             className="absolute inset-y-0 rounded-full"
             style={{

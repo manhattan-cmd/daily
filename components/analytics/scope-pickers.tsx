@@ -29,7 +29,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { loadCommonModIds } from "@/lib/db/queries";
 import { SymbolIcon } from "@/lib/icons";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
 import { translate, useLocale, useT } from "@/lib/i18n";
 import { modColor } from "@/lib/mod-color";
@@ -38,6 +38,7 @@ import { isMoodModName } from "@/lib/mood-analytics";
 import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Category, Entry, Mod, SubCategory } from "@/types";
+import { blockFill, blockInk } from "@/lib/fill";
 
 type Props = {
   cats: Category[];
@@ -70,7 +71,7 @@ const atomIcon = (m: Mod) => modAtomIcon({ name: m.name, entryType: { valueType:
 
 export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId, onPlace, onMetric }: Props) {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const [open, setOpen] = useState<"ne" | "yer" | null>(null);
   // Yer listesinde özellik süzgecini kaldır
   const [allPlaces, setAllPlaces] = useState(false);
@@ -204,34 +205,34 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
   const curPathKey = selectedCat ? [selectedCat.id, ...path.map((s) => s.id)].join("/") : "";
 
   // ── Görünüm parçaları ──
-  const fieldLabel = cn("block text-[9.5px] font-bold uppercase leading-none tracking-[0.12em]", brutal ? "text-[#111]/55" : "text-muted-foreground");
-  const fieldValue = cn("block truncate text-[13.5px] font-bold leading-tight", brutal ? "text-[#111]" : "text-foreground");
+  const fieldLabel = cn("block text-[9.5px] font-bold uppercase leading-none tracking-[0.12em]", brutal ? "text-ink/55" : "text-muted-foreground");
+  const fieldValue = cn("block truncate text-[13.5px] font-bold leading-tight", brutal ? "text-ink" : "text-foreground");
   const pill = (on: boolean) =>
     cn(
       "ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums",
-      on ? (brutal ? "bg-[#FFD23F] text-[#111]" : "bg-white/15") : brutal ? "border-[1.5px] border-[#111]/20 text-[#111]/70" : "bg-[var(--sf-2)] text-muted-foreground"
+      on ? (brutal ? "bg-[#FFD23F] text-ink" : "bg-white/15") : brutal ? "border-[1.5px] border-ink/20 text-ink/70" : "bg-[var(--sf-2)] text-muted-foreground"
     );
   const rowCls = (on: boolean) =>
     cn(
       "flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors",
       on
         ? brutal
-          ? "bg-[#111] text-[#FFF4DC]"
+          ? "bg-well text-[#FFF4DC]"
           : "bg-[var(--sf-3)] ring-1 ring-inset ring-[var(--ln-2)]"
         : brutal
-          ? "hover:bg-[#111]/5"
+          ? "hover:bg-ink/5"
           : "hover:bg-[var(--sf-2)]"
     );
   const tile = (color: string, icon: string | undefined, size: number, round = 9) => (
     <span
-      className={cn("flex shrink-0 items-center justify-center", brutal && "border-[1.5px] border-[#111]")}
-      style={{ width: size, height: size, borderRadius: round, background: brutal ? color : `${color}26` }}
+      className={cn("flex shrink-0 items-center justify-center", brutal && "border-[1.5px] border-line")}
+      style={{ width: size, height: size, borderRadius: round, background: brutal ? blockFill(color) : blockFill(`${color}26`) }}
     >
-      {icon && <SymbolIcon name={icon} size={Math.round(size * 0.55)} style={{ color: brutal ? "#111" : color }} />}
+      {icon && <SymbolIcon name={icon} size={Math.round(size * 0.55)} style={{ color: brutal ? "var(--ink)" : color }} />}
     </span>
   );
   const atom = (m: Mod) => (
-    <span className={cn("shrink-0 rounded-full", brutal && "border-[1.5px] border-[#111] bg-white")}>
+    <span className={cn("shrink-0 rounded-full", brutal && "border-[1.5px] border-line bg-paper")}>
       <ModAtomCore icon={atomIcon(m)} size="sm" color={modColor(m)} />
     </span>
   );
@@ -245,7 +246,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
            seçimsizken Analiz'in mavisinde */
         <div
           data-scope-cells=""
-          className={cn("grid bg-white", hideMetric ? "grid-cols-1" : "grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)]")}
+          className={cn("grid bg-paper", hideMetric ? "grid-cols-1" : "grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)]")}
         >
           <button
             type="button"
@@ -254,14 +255,14 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
               setOpen("yer");
             }}
             aria-label="Yer seç"
-            className="flex min-w-0 items-center gap-2 px-2.5 py-2 text-left text-[#111] active:bg-[#f5f1e8]"
+            className="flex min-w-0 items-center gap-2 px-2.5 py-2 text-left text-ink active:bg-paper-2"
           >
             <span
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border-2"
-              style={{ background: selectedCat?.color ?? "#8ea6ff", borderColor: "#111" }}
+              style={{ background: blockFill(selectedCat?.color ?? "#8ea6ff"), borderColor: "var(--line)" }}
             >
               {selectedCat ? (
-                placeIcon && <SymbolIcon name={placeIcon} size={16} style={{ color: "#111" }} />
+                placeIcon && <SymbolIcon name={placeIcon} size={16} style={{ color: blockInk(selectedCat?.color ?? "#8ea6ff") }} />
               ) : (
                 <LayoutGrid className="h-4 w-4" strokeWidth={2.5} />
               )}
@@ -269,7 +270,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
             <span className="min-w-0 flex-1">
               {/* İnildiyse üstü etikette, bulunulan yer kalın — dar hücrede
                   "Harcamalar › Ulaşım" sığmayıp "Harcamalar › …" oluyordu */}
-              <span className="block truncate text-[9.5px] font-black uppercase leading-none tracking-[0.1em] text-[#111]/55">
+              <span className="block truncate text-[9.5px] font-black uppercase leading-none tracking-[0.1em] text-ink/55">
                 {focus && selectedCat
                   ? `Yer · ${local(path.length > 1 ? path[path.length - 2].name : selectedCat.name, selectedCat.id)}`
                   : "Yer"}
@@ -285,17 +286,17 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
             type="button"
             onClick={() => setOpen("ne")}
             aria-label="Özellik seç"
-            className="flex min-w-0 items-center gap-2 border-l-2 px-2.5 py-2 text-left text-[#111] active:bg-[#f5f1e8]"
-            style={{ borderLeftColor: "#111" }}
+            className="flex min-w-0 items-center gap-2 border-l-2 px-2.5 py-2 text-left text-ink active:bg-paper-2"
+            style={{ borderLeftColor: "var(--line)" }}
           >
             <span
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2"
-              style={{ background: cellMod ? modColor(cellMod) : "#8ea6ff", borderColor: "#111" }}
+              style={{ background: cellMod ? blockFill(modColor(cellMod)) : blockFill("#8ea6ff"), borderColor: "var(--line)" }}
             >
               {createElement(cellMod ? atomIcon(cellMod) : ListOrdered, { className: "h-4 w-4", strokeWidth: 2.5 })}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[9.5px] font-black uppercase leading-none tracking-[0.1em] text-[#111]/55">Özellik</span>
+              <span className="block text-[9.5px] font-black uppercase leading-none tracking-[0.1em] text-ink/55">Özellik</span>
               <span className="mt-[3px] block truncate text-[13.5px] font-black leading-tight">{cellMod ? modName(cellMod) : noMetric}</span>
             </span>
             <ChevronDown className="h-4 w-4 shrink-0" strokeWidth={2.75} />
@@ -309,7 +310,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
         className={cn(
           "flex items-stretch overflow-hidden",
           brutal
-            ? "rounded-[13px] border-2 border-[#111] bg-white shadow-[2.5px_2.5px_0_#111]"
+            ? "rounded-[13px] border-2 border-line bg-paper shadow-[2.5px_2.5px_0_var(--shade)]"
             : "rounded-2xl bg-[var(--sf-2)] ring-1 ring-inset ring-[var(--ln-1)]"
         )}
       >
@@ -322,13 +323,13 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
           aria-label="Yer seç"
           className={cn(
             "flex min-w-0 flex-1 items-center gap-2 px-2.5 py-1.5 text-left",
-            brutal ? "active:bg-[#111]/5" : "active:bg-[var(--sf-3)]"
+            brutal ? "active:bg-ink/5" : "active:bg-[var(--sf-3)]"
           )}
         >
           {selectedCat ? (
             tile(selectedCat.color, placeIcon, 24, 7)
           ) : (
-            <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px]", brutal ? "border-[1.5px] border-[#111] bg-[#6366f1] text-white" : "bg-[var(--sf-3)]")}>
+            <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px]", brutal ? "border-[1.5px] border-line bg-[#6366f1] text-white" : "bg-[var(--sf-3)]")}>
               <LayoutGrid className="h-3.5 w-3.5" />
             </span>
           )}
@@ -344,13 +345,13 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
           aria-label="Özellik seç"
           className={cn(
             "flex w-[44%] min-w-0 items-center gap-2 px-2.5 py-1.5 text-left",
-            brutal ? "border-l-2 border-[#111] active:bg-[#111]/5" : "border-l border-[var(--ln-1)] active:bg-[var(--sf-3)]"
+            brutal ? "border-l-2 border-line active:bg-ink/5" : "border-l border-[var(--ln-1)] active:bg-[var(--sf-3)]"
           )}
         >
           {currentMod ? (
-            <span className="h-6 w-6 shrink-0 rounded-full border-[1.5px] border-[#111]/80" style={{ background: modColor(currentMod) }} />
+            <span className="h-6 w-6 shrink-0 rounded-full border-[1.5px] border-ink/80" style={{ background: modColor(currentMod) }} />
           ) : (
-            <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full", brutal ? "border-[1.5px] border-[#111] bg-[#6366f1] text-white" : "bg-[var(--sf-3)]")}>
+            <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full", brutal ? "border-[1.5px] border-line bg-[#6366f1] text-white" : "bg-[var(--sf-3)]")}>
               <ListOrdered className="h-3.5 w-3.5" />
             </span>
           )}
@@ -370,7 +371,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
               <DialogHeader className="text-left">
                 <DialogTitle className="text-[17px]">Özellik</DialogTitle>
                 {commonOn && !moodMenu && (
-                  <p data-common-hint="" className={cn("text-[12px] leading-snug", brutal ? "text-[#111]/60" : "text-muted-foreground")}>
+                  <p data-common-hint="" className={cn("text-[12px] leading-snug", brutal ? "text-ink/60" : "text-muted-foreground")}>
                     {t("an.commonOnly", { place: selectedCat ? local(focus?.name ?? selectedCat.name, selectedCat.id) : "" })}
                   </p>
                 )}
@@ -385,7 +386,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
                       onMetric(selectedCat.id, "count");
                     }}
                   >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-[1.5px] border-[#111] bg-[#8ea6ff] text-[#111]">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-[1.5px] border-line bg-fill-[#8ea6ff] text-ink">
                       <ListOrdered className="h-4 w-4" strokeWidth={2.5} />
                     </span>
                     <span className="min-w-0">
@@ -428,7 +429,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
                 <DialogTitle className="text-[17px]">Yer</DialogTitle>
               </DialogHeader>
               {currentMod && (
-                <div className={cn("flex gap-1 rounded-xl p-[3px]", brutal ? "border-[1.5px] border-[#111] bg-white" : "bg-[var(--sf-2)]")}>
+                <div className={cn("flex gap-1 rounded-xl p-[3px]", brutal ? "border-[1.5px] border-line bg-paper" : "bg-[var(--sf-2)]")}>
                   {[
                     { on: !allPlaces, label: `${modName(currentMod)} geçen yerler`, set: false },
                     { on: allPlaces, label: "Tüm yerler", set: true },
@@ -439,10 +440,10 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
                       onClick={() => setAllPlaces(o.set)}
                       className={cn(
                         "flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 truncate rounded-lg px-2 text-[12px] font-bold",
-                        o.on ? (brutal ? "bg-[#111] text-[#FFF4DC]" : "bg-card shadow-sm") : brutal ? "text-[#111]" : "text-muted-foreground"
+                        o.on ? (brutal ? "bg-well text-[#FFF4DC]" : "bg-card shadow-sm") : brutal ? "text-ink" : "text-muted-foreground"
                       )}
                     >
-                      {!o.set && <span className="h-2.5 w-2.5 shrink-0 rounded-full border border-[#111]/60" style={{ background: modColor(currentMod) }} />}
+                      {!o.set && <span className="h-2.5 w-2.5 shrink-0 rounded-full border border-ink/60" style={{ background: modColor(currentMod) }} />}
                       <span className="truncate">{o.label}</span>
                     </button>
                   ))}
@@ -457,7 +458,7 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
                     onPlace(null, []);
                   }}
                 >
-                  <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]", brutal ? "border-[1.5px] border-[#111] bg-[#FFF4DC] text-[#111]" : "bg-[var(--sf-2)]")}>
+                  <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]", brutal ? "border-[1.5px] border-line bg-floor text-ink" : "bg-[var(--sf-2)]")}>
                     <LayoutGrid className="h-4 w-4" />
                   </span>
                   <span className="text-[14px] font-semibold">{t("structure.categories")}</span>

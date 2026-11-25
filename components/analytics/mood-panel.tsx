@@ -76,6 +76,7 @@ import { StatCell } from "./stat-tiles";
 import { EntryListBlock, type EntryListRow } from "./entry-list";
 import { PeriodCategoryPanel } from "./period-category-panel";
 import type { Category, Mod, SubCategory } from "@/types";
+import { blockFill } from "@/lib/fill";
 
 /**
  * Ruh hali analizi — Analiz'de yer olarak Ruh hali seçilince genel panelin
@@ -228,9 +229,9 @@ function Section({
 }
 
 /** Hücrenin küçük etiketi — StatCell'in etiketiyle aynı */
-const LABEL = "block text-[9.5px] font-black uppercase leading-[11px] text-[#111]/60";
+const LABEL = "block text-[9.5px] font-black uppercase leading-[11px] text-ink/60";
 /** Kayıtsız günün kesik çerçevesi (brütalde border-color sınıfı ezilir, satır içi) */
-const DASHED = { borderStyle: "dashed", borderColor: "rgba(17,17,17,0.32)" } as const;
+const DASHED = { borderStyle: "dashed", borderColor: "color-mix(in srgb, var(--ink) 32%, transparent)" } as const;
 
 function MoodBody({
   category,
@@ -400,11 +401,11 @@ function MoodBody({
       {empty ? (
         <SummaryEmpty
           text={t(all ? "brut.noEntries" : "insights.noEntriesInPeriod")}
-          action={all ? undefined : { label: t("an.seeAll"), icon: ArrowRight, color: "#fff", onClick: () => go("all") }}
+          action={all ? undefined : { label: t("an.seeAll"), icon: ArrowRight, color: "var(--paper)", onClick: () => go("all") }}
         />
       ) : (
         <>
-          <div className="flex items-center gap-3 bg-white px-3.5 py-3 text-[#111]">
+          <div className="flex items-center gap-3 bg-paper px-3.5 py-3 text-ink">
             {avg !== null ? (
               face(avg, 52)
             ) : (
@@ -415,21 +416,21 @@ function MoodBody({
               {avg !== null ? (
                 <div className="mt-1 flex min-w-0 items-baseline gap-1">
                   <b className="font-mono text-[28px] font-bold leading-none tabular-nums">{nf1.format(avg)}</b>
-                  <span className="font-mono text-[13px] font-bold text-[#111]/55">/{scale.max}</span>
+                  <span className="font-mono text-[13px] font-bold text-ink/55">/{scale.max}</span>
                   {stepName(avg) && <span className="ml-1.5 min-w-0 truncate text-[14px] font-extrabold">{stepName(avg)}</span>}
                 </div>
               ) : (
-                <div className="mt-1 text-[14px] font-extrabold text-[#111]/55">{t("moodan.noLevel")}</div>
+                <div className="mt-1 text-[14px] font-extrabold text-ink/55">{t("moodan.noLevel")}</div>
               )}
               {delta !== null && (
                 <div className="mt-1.5 flex min-w-0 items-center gap-1.5">
                   <span
                     className="shrink-0 rounded-full border-[1.5px] px-2 py-px font-mono text-[11px] font-bold leading-[16px] tabular-nums"
-                    style={{ borderColor: "#111", background: delta > 0.05 ? "#d9f6e2" : delta < -0.05 ? "#e7e2ff" : "#f1ede4" }}
+                    style={{ borderColor: "var(--line)", background: delta > 0.05 ? blockFill("#d9f6e2") : delta < -0.05 ? blockFill("#e7e2ff") : blockFill("#f1ede4") }}
                   >
                     {delta > 0.05 ? "▲" : delta < -0.05 ? "▼" : "="} {nf1.format(Math.abs(delta))}
                   </span>
-                  <span className="min-w-0 truncate text-[11px] font-bold text-[#111]/55">{refText}</span>
+                  <span className="min-w-0 truncate text-[11px] font-bold text-ink/55">{refText}</span>
                 </div>
               )}
             </div>
@@ -494,15 +495,15 @@ function MoodBody({
   if (isDay) {
     timeMap = (
       <Section color={LEAD.map} glyph={CalendarDays} title={t("moodan.dayFlow")} hint={t("moodan.recordsN", { n: cur.length })}>
-        <div className="bg-white px-3 pb-1 pt-3">
+        <div className="bg-paper px-3 pb-1 pt-3">
           <DayFlowChart records={cur} scale={scale} />
         </div>
-        <div className="flex flex-col bg-white">
+        <div className="flex flex-col bg-paper">
           {cur.map((r, i) => (
             <div
               key={r.id}
-              className={cn("grid grid-cols-[46px_minmax(0,1fr)] gap-2 px-3 py-2.5 text-[#111]", i > 0 && "border-t-[1.5px]")}
-              style={i > 0 ? { borderTopColor: "#111" } : undefined}
+              className={cn("grid grid-cols-[46px_minmax(0,1fr)] gap-2 px-3 py-2.5 text-ink", i > 0 && "border-t-[1.5px]")}
+              style={i > 0 ? { borderTopColor: "var(--line)" } : undefined}
             >
               <span className="pt-1 font-mono text-[12px] font-bold tabular-nums">{timeOf(r.at)}</span>
               <div className="flex min-w-0 flex-col gap-1.5">
@@ -520,7 +521,7 @@ function MoodBody({
                     <EmotionCapsule key={n} name={n} level={null} />
                   ))}
                 </div>
-                {r.notes && <p className="line-clamp-3 text-[12px] font-semibold leading-snug text-[#111]/60">“{r.notes}”</p>}
+                {r.notes && <p className="line-clamp-3 text-[12px] font-semibold leading-snug text-ink/60">“{r.notes}”</p>}
               </div>
             </div>
           ))}
@@ -530,7 +531,7 @@ function MoodBody({
   } else if (period.kind === "week") {
     timeMap = (
       <Section color={LEAD.map} glyph={CalendarDays} title={t("moodan.weekStrip")} hint={t("moodan.calendarHint")}>
-        <div className="grid grid-cols-7 gap-1 bg-white p-2.5">
+        <div className="grid grid-cols-7 gap-1 bg-paper p-2.5">
           {Array.from({ length: 7 }, (_, i) => {
             const s0 = new Date(period.start);
             const ms = new Date(s0.getFullYear(), s0.getMonth(), s0.getDate() + i).getTime();
@@ -538,15 +539,15 @@ function MoodBody({
             const future = dayKey(ms) > todayKey;
             const body = (
               <>
-                <span className="text-[9.5px] font-black uppercase tracking-wide text-[#111]/60">{weekdayShort(ms)}</span>
+                <span className="text-[9.5px] font-black uppercase tracking-wide text-ink/60">{weekdayShort(ms)}</span>
                 {d?.avg != null ? face(d.avg, 28) : <span className="h-7 w-7 rounded-full border-2" style={DASHED} />}
                 <span className="font-mono text-[11.5px] font-bold tabular-nums">{d?.avg != null ? nf1.format(d.avg) : "–"}</span>
-                <span className="text-[9px] font-bold text-[#111]/55">{d ? t("moodan.recordsN", { n: d.records.length }) : " "}</span>
+                <span className="text-[9px] font-bold text-ink/55">{d ? t("moodan.recordsN", { n: d.records.length }) : " "}</span>
               </>
             );
-            const cls = "flex min-w-0 flex-col items-center gap-1 rounded-[11px] border-2 px-0.5 py-1.5 text-[#111]";
+            const cls = "flex min-w-0 flex-col items-center gap-1 rounded-[11px] border-2 px-0.5 py-1.5 text-ink";
             return d ? (
-              <button key={i} type="button" onClick={() => go(dayPeriod(ms).key)} className={cn(cls, "bg-white active:bg-[#f5f1e8]")} style={{ borderColor: "#111" }}>
+              <button key={i} type="button" onClick={() => go(dayPeriod(ms).key)} className={cn(cls, "bg-paper active:bg-paper-2")} style={{ borderColor: "var(--line)" }}>
                 {body}
               </button>
             ) : (
@@ -564,9 +565,9 @@ function MoodBody({
     const nd = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
     timeMap = (
       <Section color={LEAD.map} glyph={CalendarDays} title={t("moodan.calendar")} hint={t("moodan.calendarHint")}>
-        <div className="grid grid-cols-7 gap-1 bg-white p-2.5">
+        <div className="grid grid-cols-7 gap-1 bg-paper p-2.5">
           {Array.from({ length: 7 }, (_, i) => (
-            <span key={`h${i}`} className="pb-0.5 text-center text-[9.5px] font-black uppercase tracking-wide text-[#111]/60">
+            <span key={`h${i}`} className="pb-0.5 text-center text-[9.5px] font-black uppercase tracking-wide text-ink/60">
               {weekdayShort(MONDAY + i * 86400000)}
             </span>
           ))}
@@ -577,11 +578,11 @@ function MoodBody({
             const ms = new Date(first.getFullYear(), first.getMonth(), i + 1).getTime();
             const key = dayKey(ms);
             const d = dayMap.get(key);
-            const num = <span className="absolute left-1 top-0.5 font-mono text-[8.5px] font-bold text-[#111]/60">{i + 1}</span>;
+            const num = <span className="absolute left-1 top-0.5 font-mono text-[8.5px] font-bold text-ink/60">{i + 1}</span>;
             if (!d) {
               const future = key > todayKey;
               return (
-                <div key={key} className="relative aspect-square rounded-[9px] border-2" style={future ? { borderColor: "rgba(17,17,17,0.08)" } : DASHED}>
+                <div key={key} className="relative aspect-square rounded-[9px] border-2" style={future ? { borderColor: "color-mix(in srgb, var(--ink) 8%, transparent)" } : DASHED}>
                   {num}
                 </div>
               );
@@ -592,8 +593,8 @@ function MoodBody({
                 type="button"
                 onClick={() => go(dayPeriod(ms).key)}
                 title={d.avg != null ? `${i + 1} · ${nf1.format(d.avg)}` : undefined}
-                className={cn("relative grid aspect-square place-items-center rounded-[9px] border-2 bg-white active:bg-[#f5f1e8]", key === todayKey && "shadow-[2px_2px_0_#111]")}
-                style={{ borderColor: "#111" }}
+                className={cn("relative grid aspect-square place-items-center rounded-[9px] border-2 bg-paper active:bg-paper-2", key === todayKey && "shadow-[2px_2px_0_var(--shade)]")}
+                style={{ borderColor: "var(--line)" }}
               >
                 {num}
                 {d.avg != null ? face(d.avg, 22) : d.records[0]?.emotions[0] ? <EmotionFace name={d.records[0].emotions[0]} size={18} /> : null}
@@ -614,7 +615,7 @@ function MoodBody({
     const multiYear = months.some((m) => m.getFullYear() !== months[0].getFullYear());
     timeMap = (
       <Section color={LEAD.map} glyph={CalendarDays} title={t("moodan.pixels")} hint={t("moodan.pixelsHint")}>
-        <div className="flex flex-col gap-2 bg-white p-3">
+        <div className="flex flex-col gap-2 bg-paper p-3">
           <div className="grid items-center gap-[2px]" style={{ gridTemplateColumns: "34px repeat(31, minmax(0, 1fr))" }}>
             {months.map((m) => {
               const nd = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
@@ -628,20 +629,20 @@ function MoodBody({
                     const key = dayKey(new Date(m.getFullYear(), m.getMonth(), i + 1).getTime());
                     if (key > todayKey || key < dayKey(period.start)) return null;
                     const d = dayMap.get(key);
-                    return { key, color: d ? (d.avg != null ? colorOf(d.avg) : "#e9e4d8") : undefined, title: d?.avg != null ? `${i + 1} · ${nf1.format(d.avg)}` : undefined };
+                    return { key, color: d ? (d.avg != null ? colorOf(d.avg) : "color-mix(in srgb, #e9e4d8 var(--fill-k), var(--line))") : undefined, title: d?.avg != null ? `${i + 1} · ${nf1.format(d.avg)}` : undefined };
                   })}
                 />
               );
             })}
           </div>
-          <div className="flex flex-wrap gap-x-2.5 gap-y-1 text-[10.5px] font-bold text-[#111]">
+          <div className="flex flex-wrap gap-x-2.5 gap-y-1 text-[10.5px] font-bold text-ink">
             {scale.values.map((v) => (
               <span key={v} className="inline-flex items-center gap-1">
-                <i className="inline-block h-2.5 w-2.5 rounded-[3px] border-[1.5px]" style={{ background: colorOf(v), borderColor: "#111" }} />
+                <i className="inline-block h-2.5 w-2.5 rounded-[3px] border-[1.5px]" style={{ background: colorOf(v), borderColor: "var(--line)" }} />
                 {stepName(v) ?? v}
               </span>
             ))}
-            <span className="inline-flex items-center gap-1 text-[#111]/60">
+            <span className="inline-flex items-center gap-1 text-ink/60">
               <i className="inline-block h-2.5 w-2.5 rounded-[3px] border-[1.5px]" style={DASHED} />
               {t("moodan.noRecord")}
             </span>
@@ -682,7 +683,7 @@ function MoodBody({
         title={t("moodan.trend")}
         hint={t(g === "day" ? "moodan.dailyAvg" : g === "week" ? "moodan.weeklyAvg" : "moodan.monthlyAvg")}
       >
-        <div className="bg-white px-3 pb-2.5 pt-3">
+        <div className="bg-paper px-3 pb-2.5 pt-3">
           <TrendChart
             points={points}
             labels={axisLabels(buckets, g, tag, end)}
@@ -692,7 +693,7 @@ function MoodBody({
             colorOf={colorOf}
             fmt={(v) => nf1.format(v)}
           />
-          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] font-bold text-[#111]/70">
+          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] font-bold text-ink/70">
             <span>● {t(g === "day" ? "moodan.dailyAvg" : g === "week" ? "moodan.weeklyAvg" : "moodan.monthlyAvg")}</span>
             {g === "day" && <span>▮ {t("moodan.dayRange")}</span>}
             <span>– – {t("moodan.periodAvg", { n: nf1.format(avg) })}</span>
@@ -712,7 +713,7 @@ function MoodBody({
     const low = view.dist.slice(0, Math.floor(n / 2)).reduce((s, x) => s + x, 0);
     distribution = (
       <Section color={LEAD.dist} glyph={BarChart3} title={t("moodan.dist")} hint={t("moodan.recordsN", { n: rated })}>
-        <div className="flex flex-col gap-3 bg-white px-3 py-3 text-[#111]">
+        <div className="flex flex-col gap-3 bg-paper px-3 py-3 text-ink">
           <div className="flex h-[22px] gap-[2px]">
             {view.dist.map((c, i) =>
               c ? (
@@ -720,7 +721,7 @@ function MoodBody({
                   key={i}
                   title={`${stepName(scale.values[i]) ?? scale.values[i]}: ${c}`}
                   className="min-w-[6px] rounded-[5px] border-[1.5px]"
-                  style={{ flex: c, background: colorOf(scale.values[i]), borderColor: "#111" }}
+                  style={{ flex: c, background: colorOf(scale.values[i]), borderColor: "var(--line)" }}
                 />
               ) : null
             )}
@@ -730,16 +731,16 @@ function MoodBody({
               <div key={v} className="flex min-w-0 flex-col items-center gap-0.5">
                 {face(v, 20)}
                 {named && <span className="w-full truncate text-center text-[10px] font-extrabold">{stepName(v)}</span>}
-                <span className="font-mono text-[10.5px] font-bold tabular-nums text-[#111]/60">{pctFmt.format(view.dist[i] / rated)}</span>
+                <span className="font-mono text-[10.5px] font-bold tabular-nums text-ink/60">{pctFmt.format(view.dist[i] / rated)}</span>
               </div>
             ))}
           </div>
           {named && (
-            <div className="flex flex-wrap gap-x-3 gap-y-1 border-t-[1.5px] pt-2 text-[11.5px] font-bold" style={{ borderTopColor: "rgba(17,17,17,0.15)" }}>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 border-t-[1.5px] pt-2 text-[11.5px] font-bold" style={{ borderTopColor: "color-mix(in srgb, var(--ink) 15%, transparent)" }}>
               <span>
                 {t("moodan.distHigh")}: <b className="font-mono">{pctFmt.format(high / rated)}</b>
               </span>
-              <span className="text-[#111]/70">
+              <span className="text-ink/70">
                 {t("moodan.distLow")}: <b className="font-mono">{pctFmt.format(low / rated)}</b>
               </span>
             </div>
@@ -762,15 +763,15 @@ function MoodBody({
       hint={picks ? t("moodan.picks", { n: picks, k: counts.length }) : undefined}
     >
       {!picks ? (
-        <p className="bg-white px-3.5 py-4 text-center text-[12.5px] font-bold text-[#111]/55">{t("moodan.noEmotions")}</p>
+        <p className="bg-paper px-3.5 py-4 text-center text-[12.5px] font-bold text-ink/55">{t("moodan.noEmotions")}</p>
       ) : isDay ? (
-        <div className="flex flex-wrap gap-1.5 bg-white p-3">
+        <div className="flex flex-wrap gap-1.5 bg-paper p-3">
           {counts.map(([n]) => (
             <EmotionCapsule key={n} name={n} level={null} />
           ))}
         </div>
       ) : (
-        <div className="flex flex-col bg-white">
+        <div className="flex flex-col bg-paper">
           {shownEmotions.map(([name, n], i) => {
             const share = n / picks;
             const p = view.prevShares?.get(name) ?? 0;
@@ -779,31 +780,31 @@ function MoodBody({
             return (
               <div
                 key={name}
-                className={cn("flex min-w-0 items-center gap-2.5 px-3 py-2 text-[#111]", i > 0 && "border-t-[1.5px]")}
-                style={i > 0 ? { borderTopColor: "#111" } : undefined}
+                className={cn("flex min-w-0 items-center gap-2.5 px-3 py-2 text-ink", i > 0 && "border-t-[1.5px]")}
+                style={i > 0 ? { borderTopColor: "var(--line)" } : undefined}
               >
                 <EmotionFace name={name} size={30} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline gap-2">
                     <span className="min-w-0 flex-1 truncate text-[13.5px] font-black leading-tight">{emotionName(name, t)}</span>
                     <b className="shrink-0 font-mono text-[13px] font-bold leading-tight tabular-nums">{n}</b>
-                    <span className="w-9 shrink-0 text-right font-mono text-[10.5px] font-bold leading-tight text-[#111]/55">
+                    <span className="w-9 shrink-0 text-right font-mono text-[10.5px] font-bold leading-tight text-ink/55">
                       {pctFmt.format(share)}
                     </span>
                     {view.prevShares && (
                       <span
                         className="w-11 shrink-0 rounded-full border-[1.5px] py-px text-center font-mono text-[10px] font-bold leading-[14px]"
-                        style={{ borderColor: "#111", background: p === 0 ? "#d9f6e2" : d > 0 ? "#d9f6e2" : d < 0 ? "#e7e2ff" : "#f1ede4" }}
+                        style={{ borderColor: "var(--line)", background: p === 0 ? blockFill("#d9f6e2") : d > 0 ? blockFill("#d9f6e2") : d < 0 ? blockFill("#e7e2ff") : blockFill("#f1ede4") }}
                         title={ref ? `${ref.label}: ${pctFmt.format(p)} → ${pctFmt.format(share)}` : undefined}
                       >
                         {p === 0 ? t("moodan.new") : d > 0 ? `▲${d}` : d < 0 ? `▼${-d}` : "="}
                       </span>
                     )}
                   </span>
-                  <span className="mt-1.5 block h-[9px] overflow-hidden rounded-full border-[1.5px] bg-[#f5f1e8]" style={{ borderColor: "#111" }}>
+                  <span className="mt-1.5 block h-[9px] overflow-hidden rounded-full border-[1.5px] bg-paper-2" style={{ borderColor: "var(--line)" }}>
                     <span
                       className="block h-full border-r-[1.5px]"
-                      style={{ width: `${(n / maxCount) * 100}%`, background: emotionLook(name).color, borderRightColor: "#111" }}
+                      style={{ width: `${(n / maxCount) * 100}%`, background: emotionLook(name).color, borderRightColor: "var(--line)" }}
                     />
                   </span>
                 </span>
@@ -814,8 +815,8 @@ function MoodBody({
             <button
               type="button"
               onClick={() => setAllEmotions((v) => !v)}
-              className="border-t-[1.5px] px-3 py-2.5 text-center text-[12.5px] font-black text-[#111] active:bg-[#f5f1e8]"
-              style={{ borderTopColor: "#111" }}
+              className="border-t-[1.5px] px-3 py-2.5 text-center text-[12.5px] font-black text-ink active:bg-paper-2"
+              style={{ borderTopColor: "var(--line)" }}
             >
               {allEmotions ? t("moodan.showLess") : t("moodan.showAll", { n: counts.length })}
             </button>
@@ -839,8 +840,8 @@ function MoodBody({
         <div
           key={name}
           title={`${emotionName(name, t)}: ${n}`}
-          className="flex min-w-0 flex-col items-center gap-px rounded-[9px] border-[1.5px] px-0.5 pb-1 pt-1.5 text-[#111]"
-          style={n ? { background: `${look.color}${alpha}`, borderColor: "#111" } : DASHED}
+          className="flex min-w-0 flex-col items-center gap-px rounded-[9px] border-[1.5px] px-0.5 pb-1 pt-1.5 text-ink"
+          style={n ? { background: blockFill(`${look.color}${alpha}`), borderColor: "var(--line)" } : DASHED}
         >
           <span className={n ? undefined : "opacity-30"}>
             <EmotionFace name={name} size={20} />
@@ -854,7 +855,7 @@ function MoodBody({
       <div className="flex min-w-0 flex-col gap-1">
         <div className="flex items-baseline justify-between gap-1 px-0.5">
           <span className="truncate text-[9.5px] font-black uppercase tracking-wide">{t(`moodan.q.${quad}` as const)}</span>
-          <span className="font-mono text-[10.5px] font-bold tabular-nums text-[#111]/60">{pctFmt.format(onMap ? q[quad] / onMap : 0)}</span>
+          <span className="font-mono text-[10.5px] font-bold tabular-nums text-ink/60">{pctFmt.format(onMap ? q[quad] / onMap : 0)}</span>
         </div>
         <div className="grid grid-cols-2 gap-1">{rows.flatMap((r) => cols.map((c) => cell(EMOTION_GRID[r][c])))}</div>
       </div>
@@ -862,7 +863,7 @@ function MoodBody({
     const others = counts.filter(([n]) => !(n in EMOTION_LOOKS));
     emoMap = (
       <Section color={LEAD.emoMap} glyph={LayoutGrid} title={t("moodan.map")} hint={t("moodan.mapHint")}>
-        <div className="flex flex-col gap-2.5 bg-white p-2.5">
+        <div className="flex flex-col gap-2.5 bg-paper p-2.5">
           <div className="grid grid-cols-2 gap-x-2 gap-y-2.5">
             {block("tense", [0, 1, 2], [0, 1])}
             {block("lively", [0, 1, 2], [2, 3])}
@@ -891,8 +892,8 @@ function MoodBody({
         <button
           type="button"
           onClick={() => go(dayPeriod(ms).key)}
-          className="flex min-w-0 flex-col items-start gap-1.5 px-3 py-2.5 text-left text-[#111] active:brightness-95"
-          style={{ background: best ? "#fff3cf" : "#ece8ff" }}
+          className="flex min-w-0 flex-col items-start gap-1.5 px-3 py-2.5 text-left text-ink active:brightness-95"
+          style={{ background: best ? blockFill("#fff3cf") : blockFill("#ece8ff") }}
         >
           <span className={LABEL}>{t(best ? "moodan.best" : "moodan.worst")}</span>
           <span className="text-[13.5px] font-extrabold leading-tight">
@@ -909,7 +910,7 @@ function MoodBody({
               ))}
             </span>
           )}
-          <span className="line-clamp-3 text-[11.5px] font-semibold leading-snug text-[#111]/60">
+          <span className="line-clamp-3 text-[11.5px] font-semibold leading-snug text-ink/60">
             {note ? `“${note}”` : t("moodan.noNote")}
           </span>
         </button>
@@ -983,16 +984,16 @@ function MoodBody({
           title={t("moodan.flow")}
           hint={t(fg === "day" ? "moodan.byDay" : fg === "week" ? "moodan.byWeek" : "moodan.byMonth")}
         >
-          <div className="bg-white px-3 pb-2.5 pt-2.5">
+          <div className="bg-paper px-3 pb-2.5 pt-2.5">
             <FlowChart cols={cols} showShare={showShare} pct={(v) => pctFmt.format(v)} qName={(q) => t(`moodan.q.${q}` as const)} onPick={go} />
-            <div className="mt-2 flex flex-wrap gap-x-2.5 gap-y-1 text-[10.5px] font-bold text-[#111]">
+            <div className="mt-2 flex flex-wrap gap-x-2.5 gap-y-1 text-[10.5px] font-bold text-ink">
               {[...QUAD_STACK].reverse().map((q) => (
                 <span key={q} className="inline-flex items-center gap-1">
-                  <i className="inline-block h-2.5 w-2.5 rounded-[3px] border-[1.5px]" style={{ background: QUAD_COLOR[q], borderColor: "#111" }} />
+                  <i className="inline-block h-2.5 w-2.5 rounded-[3px] border-[1.5px]" style={{ background: QUAD_COLOR[q], borderColor: "var(--line)" }} />
                   {t(`moodan.q.${q}` as const)}
                 </span>
               ))}
-              {showShare && <span className="text-[#111]/60">{t("moodan.pleasantTop")}</span>}
+              {showShare && <span className="text-ink/60">{t("moodan.pleasantTop")}</span>}
             </div>
           </div>
         </Section>
@@ -1012,15 +1013,15 @@ function MoodBody({
           thin(t("moodan.emoHapThin", { k: MIN, n: levels.length }))
         ) : (
           <>
-            <div className="flex flex-col bg-white">
+            <div className="flex flex-col bg-paper">
               {list.map((x, i) =>
                 x === null ? (
                   <button
                     key="gap"
                     type="button"
                     onClick={() => setAllLevels(true)}
-                    className="border-t-[1.5px] py-1.5 text-center text-[12px] font-black text-[#111]/70 active:bg-[#f5f1e8]"
-                    style={{ borderTopColor: "#111" }}
+                    className="border-t-[1.5px] py-1.5 text-center text-[12px] font-black text-ink/70 active:bg-paper-2"
+                    style={{ borderTopColor: "var(--line)" }}
                   >
                     ⋯ {t("moodan.showAll", { n: levels.length })}
                   </button>
@@ -1028,16 +1029,16 @@ function MoodBody({
                   <div
                     key={x.name}
                     className={cn(
-                      "grid grid-cols-[24px_minmax(0,0.9fr)_minmax(0,1fr)_30px] items-center gap-2 px-3 py-2 text-[#111]",
+                      "grid grid-cols-[24px_minmax(0,0.9fr)_minmax(0,1fr)_30px] items-center gap-2 px-3 py-2 text-ink",
                       i > 0 && "border-t-[1.5px]"
                     )}
-                    style={i > 0 ? { borderTopColor: "#111" } : undefined}
+                    style={i > 0 ? { borderTopColor: "var(--line)" } : undefined}
                     title={`${emotionName(x.name, t)}: ${nf1.format(x.avg)}`}
                   >
                     <EmotionFace name={x.name} size={24} />
                     <span className="min-w-0">
                       <span className="block truncate text-[13px] font-black leading-tight">{emotionName(x.name, t)}</span>
-                      <span className="block font-mono text-[10px] font-bold leading-tight text-[#111]/55">{t("moodan.recordsN", { n: x.n })}</span>
+                      <span className="block font-mono text-[10px] font-bold leading-tight text-ink/55">{t("moodan.recordsN", { n: x.n })}</span>
                     </span>
                     <ScaleTrack value={x.avg} mean={avg} scale={scale} colorOf={colorOf} />
                     <b className="text-right font-mono text-[13px] font-bold tabular-nums">{nf1.format(x.avg)}</b>
@@ -1048,8 +1049,8 @@ function MoodBody({
                 <button
                   type="button"
                   onClick={() => setAllLevels(false)}
-                  className="border-t-[1.5px] px-3 py-2 text-center text-[12.5px] font-black text-[#111] active:bg-[#f5f1e8]"
-                  style={{ borderTopColor: "#111" }}
+                  className="border-t-[1.5px] px-3 py-2 text-center text-[12.5px] font-black text-ink active:bg-paper-2"
+                  style={{ borderTopColor: "var(--line)" }}
                 >
                   {t("moodan.showLess")}
                 </button>
@@ -1080,12 +1081,12 @@ function MoodBody({
           thin(t("moodan.pairsThin"))
         ) : (
           <>
-            <div className="flex flex-col bg-white">
+            <div className="flex flex-col bg-paper">
               {top.map((p, i) => (
                 <div
                   key={`${p.a}+${p.b}`}
-                  className={cn("flex min-w-0 items-center gap-2.5 px-3 py-2 text-[#111]", i > 0 && "border-t-[1.5px]")}
-                  style={i > 0 ? { borderTopColor: "#111" } : undefined}
+                  className={cn("flex min-w-0 items-center gap-2.5 px-3 py-2 text-ink", i > 0 && "border-t-[1.5px]")}
+                  style={i > 0 ? { borderTopColor: "var(--line)" } : undefined}
                 >
                   <span className="flex shrink-0">
                     <EmotionFace name={p.a} size={24} />
@@ -1126,7 +1127,7 @@ function MoodBody({
           thin(t("moodan.weekdaysThin", { n: ok.length }))
         ) : (
           <>
-            <div className="bg-white px-3 pb-2 pt-2.5">
+            <div className="bg-paper px-3 pb-2 pt-2.5">
               <WeekdayChart
                 stats={wd}
                 mean={avg}
@@ -1135,7 +1136,7 @@ function MoodBody({
                 signed={signed}
                 daysLabel={(n) => t("moodan.daysN", { n })}
               />
-              {wd.some((w) => w.n > 0 && w.n < 3) && <p className="mt-1 text-[10.5px] font-bold text-[#111]/60">○ {t("moodan.hollow")}</p>}
+              {wd.some((w) => w.n > 0 && w.n < 3) && <p className="mt-1 text-[10.5px] font-bold text-ink/60">○ {t("moodan.hollow")}</p>}
             </div>
             {best.i !== worst.i && (
               <ReadLine
@@ -1177,19 +1178,19 @@ function MoodBody({
                 const s = ps[p];
                 const qt = QUAD_STACK.reduce((a, q) => a + s.quad[q], 0);
                 return (
-                  <div key={p} className="flex min-w-0 flex-col items-center gap-1 bg-white px-1 pb-2 pt-2 text-[#111]">
+                  <div key={p} className="flex min-w-0 flex-col items-center gap-1 bg-paper px-1 pb-2 pt-2 text-ink">
                     <span className={cn(LABEL, "max-w-full truncate")}>{partName(p)}</span>
-                    <span className="font-mono text-[9px] font-bold leading-none text-[#111]/55">{DAY_PART_HOURS[p]}</span>
+                    <span className="font-mono text-[9px] font-bold leading-none text-ink/55">{DAY_PART_HOURS[p]}</span>
                     <span className={s.n < 3 ? "opacity-45" : undefined}>
                       {s.avg !== null ? face(s.avg, 26) : <span className="block h-[26px] w-[26px] rounded-full border-2" style={DASHED} />}
                     </span>
-                    <b className={cn("font-mono text-[14px] font-bold leading-none tabular-nums", s.n < 3 && "text-[#111]/45")}>
+                    <b className={cn("font-mono text-[14px] font-bold leading-none tabular-nums", s.n < 3 && "text-ink/45")}>
                       {s.avg !== null ? nf1.format(s.avg) : "–"}
                     </b>
-                    <span className="text-[9.5px] font-bold leading-none text-[#111]/55">{s.n ? t("moodan.recordsN", { n: s.n }) : t("moodan.noRecord")}</span>
+                    <span className="text-[9.5px] font-bold leading-none text-ink/55">{s.n ? t("moodan.recordsN", { n: s.n }) : t("moodan.noRecord")}</span>
                     <span
-                      className="mt-0.5 flex h-[8px] w-full gap-px overflow-hidden rounded-full border-[1.5px] bg-[#f5f1e8]"
-                      style={{ borderColor: qt ? "#111" : "rgba(17,17,17,0.2)" }}
+                      className="mt-0.5 flex h-[8px] w-full gap-px overflow-hidden rounded-full border-[1.5px] bg-paper-2"
+                      style={{ borderColor: qt ? "var(--line)" : "color-mix(in srgb, var(--ink) 20%, transparent)" }}
                     >
                       {QUAD_STACK.map((q) =>
                         s.quad[q] ? (
@@ -1242,21 +1243,21 @@ function MoodBody({
       const dayLong = (d: string) => new Date(d + "T12:00:00").toLocaleDateString(tag, { day: "numeric", month: "long" });
       vol = (
         <Section color={LEAD.vol} glyph={Activity} title={t("moodan.vol")}>
-          <div className="flex flex-col gap-2 bg-white px-3 pb-2.5 pt-3 text-[#111]">
+          <div className="flex flex-col gap-2 bg-paper px-3 pb-2.5 pt-3 text-ink">
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
               <b className="font-mono text-[28px] font-bold leading-none tabular-nums">{nf1.format(v)}</b>
-              <span className="text-[12px] font-bold text-[#111]/60">{t("moodan.volUnit")}</span>
+              <span className="text-[12px] font-bold text-ink/60">{t("moodan.volUnit")}</span>
               {prevV !== null && ref && (
                 <span
                   className="ml-auto rounded-full border-[1.5px] px-2 py-px font-mono text-[11px] font-bold leading-[16px] tabular-nums"
-                  style={{ borderColor: "#111", background: "#f1ede4" }}
+                  style={{ borderColor: "var(--line)", background: blockFill("#f1ede4") }}
                 >
                   {ref.label} · {nf1.format(prevV)}
                 </span>
               )}
             </div>
             <VolBars bars={sums.map((x, i) => (x.n ? { v: x.s / x.n, big: x.big, title: `${vb[i].full}: ${nf1.format(x.s / x.n)}` } : null))} />
-            <span className="text-[10.5px] font-bold text-[#111]/60">
+            <span className="text-[10.5px] font-bold text-ink/60">
               ▮ {t(vg === "day" ? "moodan.volDaily" : vg === "week" ? "moodan.volWeekly" : "moodan.volMonthly")}
             </span>
           </div>
@@ -1277,9 +1278,9 @@ function MoodBody({
     const m = Math.round(h * 60);
     return t("sleep.durHM", { h: Math.floor(m / 60), m: String(m % 60).padStart(2, "0") });
   };
-  const rowLine = (i: number) => (i > 0 ? { borderTopColor: "#111" } : undefined);
+  const rowLine = (i: number) => (i > 0 ? { borderTopColor: "var(--line)" } : undefined);
   const groupLabel = (text: string, first: boolean) => (
-    <span className={cn(LABEL, "bg-[#f5f1e8] px-3 py-1.5", !first && "border-t-[1.5px]")} style={first ? undefined : { borderTopColor: "#111" }}>
+    <span className={cn(LABEL, "bg-paper-2 px-3 py-1.5", !first && "border-t-[1.5px]")} style={first ? undefined : { borderTopColor: "var(--line)" }}>
       {text}
     </span>
   );
@@ -1294,12 +1295,12 @@ function MoodBody({
       <div
         key={key}
         className={cn(
-          "grid grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_30px_50px] items-center gap-2 px-3 py-2 text-[#111]",
+          "grid grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_30px_50px] items-center gap-2 px-3 py-2 text-ink",
           i > 0 && "border-t-[1.5px]"
         )}
         style={rowLine(i)}
       >
-        <span className={cn("truncate text-[12.5px] font-black", x.n < 3 && "text-[#111]/45")}>{label}</span>
+        <span className={cn("truncate text-[12.5px] font-black", x.n < 3 && "text-ink/45")}>{label}</span>
         {x.avg !== null ? (
           <span className={x.n < 3 ? "opacity-40" : undefined}>
             <ScaleTrack value={x.avg} mean={avg} scale={scale} colorOf={colorOf} />
@@ -1307,10 +1308,10 @@ function MoodBody({
         ) : (
           <span />
         )}
-        <b className={cn("text-right font-mono text-[12.5px] font-bold tabular-nums", x.n < 3 && "text-[#111]/45")}>
+        <b className={cn("text-right font-mono text-[12.5px] font-bold tabular-nums", x.n < 3 && "text-ink/45")}>
           {x.avg !== null ? nf1.format(x.avg) : "–"}
         </b>
-        <span className="whitespace-nowrap text-right font-mono text-[10px] font-bold text-[#111]/55">
+        <span className="whitespace-nowrap text-right font-mono text-[10px] font-bold text-ink/55">
           {x.n ? t("moodan.nightsN", { n: x.n }) : t("moodan.noNights")}
         </span>
       </div>
@@ -1323,7 +1324,7 @@ function MoodBody({
           thin(t("moodan.sleepThin", { n: okDur }))
         ) : (
           <>
-            <div className="flex flex-col bg-white">
+            <div className="flex flex-col bg-paper">
               {groupLabel(t("moodan.byDuration"), true)}
               {sv.duration.map((x, i) => row(x.bucket, t(`moodan.sl.${x.bucket}` as const), x, i))}
               {okQual >= 2 && (
@@ -1358,31 +1359,31 @@ function MoodBody({
           thin(t("moodan.linksThin"))
         ) : (
           <>
-            <div className="flex flex-col bg-white">
+            <div className="flex flex-col bg-paper">
               {list.map((r, i) =>
                 r === null ? (
                   <button
                     key="gap"
                     type="button"
                     onClick={() => setAllLinks(true)}
-                    className="border-t-[1.5px] py-1.5 text-center text-[12px] font-black text-[#111]/70 active:bg-[#f5f1e8]"
-                    style={{ borderTopColor: "#111" }}
+                    className="border-t-[1.5px] py-1.5 text-center text-[12px] font-black text-ink/70 active:bg-paper-2"
+                    style={{ borderTopColor: "var(--line)" }}
                   >
                     ⋯ {t("moodan.showAll", { n: ok.length })}
                   </button>
                 ) : (
                   <div
                     key={r.id}
-                    className={cn("grid grid-cols-[minmax(0,1fr)_88px_36px] items-center gap-2 px-3 py-2 text-[#111]", i > 0 && "border-t-[1.5px]")}
+                    className={cn("grid grid-cols-[minmax(0,1fr)_88px_36px] items-center gap-2 px-3 py-2 text-ink", i > 0 && "border-t-[1.5px]")}
                     style={rowLine(i)}
                     title={`${r.item.name}: ${t("moodan.linkDays", { w: r.withN, o: r.withoutN })}`}
                   >
                     <span className="min-w-0">
                       <span className="flex min-w-0 items-center gap-1.5">
-                        <i className="h-2.5 w-2.5 shrink-0 rounded-[3px] border-[1.5px]" style={{ background: r.item.color, borderColor: "#111" }} />
+                        <i className="h-2.5 w-2.5 shrink-0 rounded-[3px] border-[1.5px]" style={{ background: r.item.color, borderColor: "var(--line)" }} />
                         <span className="truncate text-[13px] font-black leading-tight">{r.item.name}</span>
                       </span>
-                      <span className="block truncate text-[10px] font-bold leading-tight text-[#111]/55">
+                      <span className="block truncate text-[10px] font-bold leading-tight text-ink/55">
                         {r.item.cat ? `${r.item.cat} · ` : ""}
                         {t("moodan.linkDays", { w: r.withN, o: r.withoutN })}
                         {r.withN < 14 || r.withoutN < 14 ? ` · ${t("moodan.early")}` : ""}
@@ -1397,14 +1398,14 @@ function MoodBody({
                 <button
                   type="button"
                   onClick={() => setAllLinks(false)}
-                  className="border-t-[1.5px] px-3 py-2 text-center text-[12.5px] font-black text-[#111] active:bg-[#f5f1e8]"
-                  style={{ borderTopColor: "#111" }}
+                  className="border-t-[1.5px] px-3 py-2 text-center text-[12.5px] font-black text-ink active:bg-paper-2"
+                  style={{ borderTopColor: "var(--line)" }}
                 >
                   {t("moodan.showLess")}
                 </button>
               )}
               {out > 0 && (
-                <p className="border-t-[1.5px] px-3 py-2 text-[11px] font-bold text-[#111]/55" style={{ borderTopColor: "#111" }}>
+                <p className="border-t-[1.5px] px-3 py-2 text-[11px] font-bold text-ink/55" style={{ borderTopColor: "var(--line)" }}>
                   {t("moodan.linksOut", { n: out })}
                 </p>
               )}
@@ -1434,15 +1435,15 @@ function MoodBody({
       const sv = sleepVsMood(view.recentDays, context.nights);
       lastNight = (
         <Section color={LEAD.sleep} glyph={Moon} title={t("moodan.lastNight")}>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-white px-3.5 py-3 text-[#111]">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-paper px-3.5 py-3 text-ink">
             <b className="font-mono text-[24px] font-bold leading-none tabular-nums">{durText(night.hours)}</b>
-            <span className="font-mono text-[12px] font-bold tabular-nums text-[#111]/60">
+            <span className="font-mono text-[12px] font-bold tabular-nums text-ink/60">
               {timeOf(night.start)} → {timeOf(night.end)}
             </span>
             {night.quality !== null && (
               <span
                 className="rounded-full border-[1.5px] px-2 py-px font-mono text-[11px] font-bold leading-[16px] tabular-nums"
-                style={{ borderColor: "#111", background: "#eef0fb" }}
+                style={{ borderColor: "var(--line)", background: blockFill("#eef0fb") }}
               >
                 {t("moodan.quality", { n: night.quality, m: context.qualityMax })}
               </span>
@@ -1457,14 +1458,14 @@ function MoodBody({
     if (context.dayOthers.length) {
       dayOthers = (
         <Section color={LEAD.links} glyph={Shapes} title={t("moodan.dayOthers")}>
-          <div className="flex flex-wrap gap-1.5 bg-white p-3">
+          <div className="flex flex-wrap gap-1.5 bg-paper p-3">
             {context.dayOthers.map((o) => (
               <span
                 key={o.key}
-                className="inline-flex max-w-full items-center gap-1.5 rounded-full border-2 bg-white px-2.5 py-1 text-[12px] font-black text-[#111]"
-                style={{ borderColor: "#111" }}
+                className="inline-flex max-w-full items-center gap-1.5 rounded-full border-2 bg-paper px-2.5 py-1 text-[12px] font-black text-ink"
+                style={{ borderColor: "var(--line)" }}
               >
-                <i className="h-2.5 w-2.5 shrink-0 rounded-[3px] border-[1.5px]" style={{ background: o.color, borderColor: "#111" }} />
+                <i className="h-2.5 w-2.5 shrink-0 rounded-[3px] border-[1.5px]" style={{ background: o.color, borderColor: "var(--line)" }} />
                 <span className="truncate">{o.name}</span>
                 {o.n > 1 && <b className="font-mono text-[11px]">×{o.n}</b>}
               </span>
@@ -1526,7 +1527,7 @@ function MonthPixels({
 }) {
   return (
     <>
-      <button type="button" onClick={onLabel} className="truncate text-left font-mono text-[9px] font-bold text-[#111]/70 underline-offset-2 active:underline">
+      <button type="button" onClick={onLabel} className="truncate text-left font-mono text-[9px] font-bold text-ink/70 underline-offset-2 active:underline">
         {label}
       </button>
       {cells.map((c, i) =>
@@ -1535,7 +1536,7 @@ function MonthPixels({
             key={c.key}
             title={c.title}
             className="block aspect-square rounded-[2px]"
-            style={c.color ? { background: c.color } : { boxShadow: "inset 0 0 0 1px rgba(17,17,17,0.22)" }}
+            style={c.color ? { background: c.color } : { boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--shade) 22%, transparent)" }}
           />
         ) : (
           <span key={i} />
@@ -1590,7 +1591,7 @@ function TrendChart({
     <div className="relative">
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="trend" className="block">
         {ticks.map((v) => (
-          <line key={v} x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke="rgba(17,17,17,0.1)" strokeWidth={1} />
+          <line key={v} x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke="color-mix(in srgb, var(--ink) 10%, transparent)" strokeWidth={1} />
         ))}
         {points.map((p, i) =>
           p && p.min !== null && p.max !== null && p.max > p.min ? (
@@ -1600,25 +1601,25 @@ function TrendChart({
               x2={x(i)}
               y1={y(p.min)}
               y2={y(p.max)}
-              stroke="rgba(17,17,17,0.16)"
+              stroke="color-mix(in srgb, var(--ink) 16%, transparent)"
               strokeWidth={Math.max(2, Math.min(7, (iw / n) * 0.55))}
               strokeLinecap="round"
             />
           ) : null
         )}
         {segs.map((d, i) => (
-          <path key={`s${i}`} d={d} fill="none" stroke="#111" strokeWidth={2} strokeLinejoin="round" />
+          <path key={`s${i}`} d={d} fill="none" stroke="var(--ink)" strokeWidth={2} strokeLinejoin="round" />
         ))}
-        <line x1={L} x2={W - R} y1={y(mean)} y2={y(mean)} stroke="#111" strokeWidth={1.2} strokeDasharray="4 3" opacity={0.55} />
+        <line x1={L} x2={W - R} y1={y(mean)} y2={y(mean)} stroke="var(--ink)" strokeWidth={1.2} strokeDasharray="4 3" opacity={0.55} />
         {points.map((p, i) =>
           p ? (
-            <circle key={`p${i}`} cx={x(i)} cy={y(p.avg)} r={r} fill={colorOf(p.avg)} stroke="#111" strokeWidth={1.5}>
+            <circle key={`p${i}`} cx={x(i)} cy={y(p.avg)} r={r} fill={colorOf(p.avg)} stroke="var(--ink)" strokeWidth={1.5}>
               <title>{`${titles[i]}: ${fmt(p.avg)}`}</title>
             </circle>
           ) : null
         )}
         {labels.map(([i, text]) => (
-          <text key={`l${i}`} x={x(i)} y={H - 5} textAnchor="middle" fontSize={9} fontWeight={700} fill="rgba(17,17,17,0.6)" fontFamily="var(--font-mono), monospace">
+          <text key={`l${i}`} x={x(i)} y={H - 5} textAnchor="middle" fontSize={9} fontWeight={700} fill="color-mix(in srgb, var(--ink) 60%, transparent)" fontFamily="var(--font-mono), monospace">
             {text}
           </text>
         ))}
@@ -1706,18 +1707,18 @@ function DayFlowChart({ records, scale }: { records: MoodRecord[]; scale: MoodSc
     <div className="relative">
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="day" className="block">
         {scale.values.length <= 7 &&
-          scale.values.map((v) => <line key={v} x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke="rgba(17,17,17,0.1)" strokeWidth={1} />)}
+          scale.values.map((v) => <line key={v} x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke="color-mix(in srgb, var(--ink) 10%, transparent)" strokeWidth={1} />)}
         {rated.length > 1 && (
           <path
             d={"M" + rated.map((r) => `${x(hourOf(r.at)).toFixed(1)},${y(r.level!).toFixed(1)}`).join("L")}
             fill="none"
-            stroke="#111"
+            stroke="var(--ink)"
             strokeWidth={2}
             strokeLinejoin="round"
           />
         )}
         {ticks.map((h) => (
-          <text key={h} x={x(h)} y={H - 5} textAnchor="middle" fontSize={9} fontWeight={700} fill="rgba(17,17,17,0.6)" fontFamily="var(--font-mono), monospace">
+          <text key={h} x={x(h)} y={H - 5} textAnchor="middle" fontSize={9} fontWeight={700} fill="color-mix(in srgb, var(--ink) 60%, transparent)" fontFamily="var(--font-mono), monospace">
             {String(h % 24 === 0 && h ? 24 : h).padStart(2, "0")}
           </text>
         ))}
@@ -1741,10 +1742,10 @@ function DayFlowChart({ records, scale }: { records: MoodRecord[]; scale: MoodSc
 /** Bloğun altındaki okuma cümlesi — **iki yıldız** arası kalın; eşiğin altındaki not soluk */
 function ReadLine({ text, muted = false }: { text: string; muted?: boolean }) {
   return (
-    <p className={cn("bg-white px-3.5 py-2.5 text-[12px] font-semibold leading-snug", muted ? "text-[#111]/55" : "text-[#111]/75")}>
+    <p className={cn("bg-paper px-3.5 py-2.5 text-[12px] font-semibold leading-snug", muted ? "text-ink/55" : "text-ink/75")}>
       {text.split("**").map((p, i) =>
         i % 2 ? (
-          <b key={i} className="font-black text-[#111]">
+          <b key={i} className="font-black text-ink">
             {p}
           </b>
         ) : (
@@ -1780,7 +1781,7 @@ function FlowChart({
                 <span
                   key={q}
                   className="min-h-[4px] rounded-[4px] border-[1.5px]"
-                  style={{ flex: c.q[q], background: QUAD_COLOR[q], borderColor: "#111" }}
+                  style={{ flex: c.q[q], background: QUAD_COLOR[q], borderColor: "var(--line)" }}
                   title={`${c.title} · ${qName(q)}: ${pct(c.q[q] / tot)}`}
                 />
               ) : null
@@ -1788,7 +1789,7 @@ function FlowChart({
           </span>
         ) : c.future ? null : (
           // Kayıtsız dilim yerini korur — kesik taban
-          <span className="mt-auto block h-0 w-full max-w-[34px] border-t-2" style={{ borderTopStyle: "dashed", borderTopColor: "rgba(17,17,17,0.35)" }} />
+          <span className="mt-auto block h-0 w-full max-w-[34px] border-t-2" style={{ borderTopStyle: "dashed", borderTopColor: "color-mix(in srgb, var(--ink) 35%, transparent)" }} />
         );
         return (
           <div key={c.key} className="flex min-w-0 flex-1 flex-col items-center">
@@ -1802,7 +1803,7 @@ function FlowChart({
             ) : (
               <span className="flex h-[118px] w-full justify-center">{bar}</span>
             )}
-            <span className="h-[15px] whitespace-nowrap pt-1 font-mono text-[9px] font-bold leading-none text-[#111]/60">{c.label}</span>
+            <span className="h-[15px] whitespace-nowrap pt-1 font-mono text-[9px] font-bold leading-none text-ink/60">{c.label}</span>
           </div>
         );
       })}
@@ -1825,24 +1826,24 @@ function ScaleTrack({
   const pos = (v: number) => `${((v - scale.min) / Math.max(1, scale.max - scale.min)) * 100}%`;
   return (
     <span className="relative mx-[7px] block h-[18px]">
-      <span className="absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-[#111]/20" />
+      <span className="absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-ink/20" />
       {scale.values.length <= 7 &&
         scale.values.map((v) => (
           <span
             key={v}
             className="absolute top-1/2 h-[6px] w-[6px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1px]"
-            style={{ left: pos(v), background: colorOf(v), borderColor: "#111" }}
+            style={{ left: pos(v), background: colorOf(v), borderColor: "var(--line)" }}
           />
         ))}
       {mean !== null && (
         <span
           className="absolute top-0 h-full w-0 border-l-[1.5px]"
-          style={{ left: pos(mean), borderLeftStyle: "dashed", borderLeftColor: "rgba(17,17,17,0.55)" }}
+          style={{ left: pos(mean), borderLeftStyle: "dashed", borderLeftColor: "color-mix(in srgb, var(--ink) 55%, transparent)" }}
         />
       )}
       <span
         className="absolute top-1/2 h-[13px] w-[13px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2"
-        style={{ left: pos(value), background: colorOf(value), borderColor: "#111" }}
+        style={{ left: pos(value), background: colorOf(value), borderColor: "var(--line)" }}
       />
     </span>
   );
@@ -1875,7 +1876,7 @@ function WeekdayChart({
   const mono = "var(--font-mono), monospace";
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="weekdays" className="block">
-      <line x1={0} x2={W} y1={y(mean)} y2={y(mean)} stroke="#111" strokeWidth={1.2} strokeDasharray="4 3" opacity={0.55} />
+      <line x1={0} x2={W} y1={y(mean)} y2={y(mean)} stroke="var(--ink)" strokeWidth={1.2} strokeDasharray="4 3" opacity={0.55} />
       {stats.map((s, i) => {
         const cx = slot * (i + 0.5);
         const few = s.n < 3;
@@ -1883,13 +1884,13 @@ function WeekdayChart({
           <g key={i}>
             {s.avg !== null && (
               <>
-                <line x1={cx} x2={cx} y1={y(mean)} y2={y(s.avg)} stroke="#111" strokeWidth={2} opacity={few ? 0.35 : 1} />
+                <line x1={cx} x2={cx} y1={y(mean)} y2={y(s.avg)} stroke="var(--ink)" strokeWidth={2} opacity={few ? 0.35 : 1} />
                 <circle
                   cx={cx}
                   cy={y(s.avg)}
                   r={7}
-                  fill={few ? "#fff" : colorOf(s.avg)}
-                  stroke="#111"
+                  fill={few ? "var(--paper)" : colorOf(s.avg)}
+                  stroke="var(--ink)"
                   strokeWidth={2}
                   strokeDasharray={few ? "2 2" : undefined}
                 >
@@ -1902,7 +1903,7 @@ function WeekdayChart({
                     textAnchor="middle"
                     fontSize={9.5}
                     fontWeight={800}
-                    fill="#111"
+                    fill="var(--ink)"
                     fontFamily={mono}
                   >
                     {signed(s.avg - mean)}
@@ -1910,10 +1911,10 @@ function WeekdayChart({
                 )}
               </>
             )}
-            <text x={cx} y={H - 18} textAnchor="middle" fontSize={10.5} fontWeight={800} fill="#111">
+            <text x={cx} y={H - 18} textAnchor="middle" fontSize={10.5} fontWeight={800} fill="var(--ink)">
               {names[i]}
             </text>
-            <text x={cx} y={H - 5} textAnchor="middle" fontSize={8.5} fontWeight={700} fill="rgba(17,17,17,0.55)" fontFamily={mono}>
+            <text x={cx} y={H - 5} textAnchor="middle" fontSize={8.5} fontWeight={700} fill="color-mix(in srgb, var(--ink) 55%, transparent)" fontFamily={mono}>
               {daysLabel(s.n)}
             </text>
           </g>
@@ -1932,7 +1933,7 @@ function VolBars({ bars }: { bars: ({ v: number; big: boolean; title: string } |
   const mx = Math.max(1, ...bars.map((b) => b?.v ?? 0));
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="changes" className="block">
-      <line x1={0} x2={W} y1={H - 0.75} y2={H - 0.75} stroke="rgba(17,17,17,0.25)" strokeWidth={1.5} />
+      <line x1={0} x2={W} y1={H - 0.75} y2={H - 0.75} stroke="color-mix(in srgb, var(--ink) 25%, transparent)" strokeWidth={1.5} />
       {bars.map((b, i) => {
         if (!b) return null;
         const h = Math.max(2, (b.v / mx) * (H - 6));
@@ -1944,7 +1945,7 @@ function VolBars({ bars }: { bars: ({ v: number; big: boolean; title: string } |
             width={Math.max(1.5, bw * 0.7)}
             height={h}
             rx={Math.min(2, bw * 0.3)}
-            fill={b.big ? "#111" : "rgba(17,17,17,0.35)"}
+            fill={b.big ? "var(--ink)" : "color-mix(in srgb, var(--ink) 35%, transparent)"}
           >
             <title>{b.title}</title>
           </rect>
@@ -1959,7 +1960,7 @@ function DiffBar({ diff, max }: { diff: number; max: number }) {
   const w = (Math.min(Math.abs(diff), max) / max) * 50;
   return (
     <span className="relative block h-[14px]">
-      <span className="absolute inset-y-[-2px] left-1/2 w-[2px] -translate-x-1/2 bg-[#111]" />
+      <span className="absolute inset-y-[-2px] left-1/2 w-[2px] -translate-x-1/2 bg-line" />
       {w > 0 && (
         <span
           className="absolute top-[1px] h-[12px] rounded-[3px] border-[1.5px]"
@@ -1967,7 +1968,7 @@ function DiffBar({ diff, max }: { diff: number; max: number }) {
             width: `${w}%`,
             ...(diff >= 0 ? { left: "50%" } : { right: "50%" }),
             background: diff >= 0 ? "#5fcf86" : "#8b7cf6",
-            borderColor: "#111",
+            borderColor: "var(--line)",
           }}
         />
       )}

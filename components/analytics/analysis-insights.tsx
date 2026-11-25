@@ -11,6 +11,7 @@ import { useIsBrutal } from "@/components/structure/brutal";
 import type { InsightKey } from "@/types";
 import type { InsightData, Pt, StripDay } from "./insight-data";
 import { ViewMenu } from "./view-menu";
+import { blockFill } from "@/lib/fill";
 
 /**
  * İstatistikler — grafiklerin altında, dönemin rakamlarının bağlamı:
@@ -120,13 +121,13 @@ export function AnalysisInsights({
   const brutal = useIsBrutal();
 
   // Renk ve zeminler — brütalde siyah mürekkep, sade temada temanın tonları
-  const soft = brutal ? "text-[#111]/60" : "text-muted-foreground";
-  const ink = brutal ? "text-[#111]" : "text-foreground";
-  const track = brutal ? "rgba(17,17,17,0.08)" : "var(--sf-2)";
-  const gray = brutal ? "rgba(17,17,17,0.24)" : "color-mix(in srgb, var(--muted-foreground) 40%, transparent)";
+  const soft = brutal ? "text-ink/60" : "text-muted-foreground";
+  const ink = brutal ? "text-ink" : "text-foreground";
+  const track = brutal ? "color-mix(in srgb, var(--ink) 8%, transparent)" : "var(--sf-2)";
+  const gray = brutal ? "color-mix(in srgb, var(--ink) 24%, transparent)" : "color-mix(in srgb, var(--muted-foreground) 40%, transparent)";
   /** Rengin açık tonları — sıralı paylar, öteki seri günleri */
   const tint = (pct: number) =>
-    brutal ? `color-mix(in srgb, ${color} ${pct}%, #fff)` : `color-mix(in srgb, ${color} ${pct}%, transparent)`;
+    brutal ? `color-mix(in srgb, ${color} calc(${pct}% * var(--fill-scale)), var(--paper))` : `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
   /** Sayılar uygulamanın dilinde (bkz. fmtNum) — Türkçede 3.957 ve 1,3 */
   const num = fmtNum;
@@ -151,7 +152,7 @@ export function AnalysisInsights({
     return (
       <span
         aria-hidden
-        className={cn("flex shrink-0 items-center justify-center rounded-[7px]", brutal && "border-[1.5px] border-[#111] text-[#111]")}
+        className={cn("flex shrink-0 items-center justify-center rounded-[7px]", brutal && "border-[1.5px] border-line text-ink")}
         style={{
           width: size,
           height: size,
@@ -174,8 +175,8 @@ export function AnalysisInsights({
       {cells.map((c, i) => (
         <div
           key={i}
-          className={cn("min-w-0 rounded-[10px] px-2.5 pb-2 pt-1.5", brutal ? "border-[1.5px] border-[#111]" : "border border-border")}
-          style={c.accent ? { background: tint(brutal ? 20 : 10) } : brutal ? { background: "#fff" } : undefined}
+          className={cn("min-w-0 rounded-[10px] px-2.5 pb-2 pt-1.5", brutal ? "border-[1.5px] border-line" : "border border-border")}
+          style={c.accent ? { background: tint(brutal ? 20 : 10) } : brutal ? { background: "var(--paper)" } : undefined}
         >
           <div className={cn("flex min-w-0 items-center gap-1 text-[10.5px] font-bold", soft)}>{c.label}</div>
           <div className="truncate text-[17px] font-extrabold leading-tight tracking-tight tabular-nums">{c.value}</div>
@@ -224,7 +225,7 @@ export function AnalysisInsights({
           {values.map((v, i) => (
             <span
               key={i}
-              className={cn("block min-w-0 flex-1 rounded-t-[3px]", brutal && v !== null && accent(i) && "outline outline-[1.5px] outline-[#111]")}
+              className={cn("block min-w-0 flex-1 rounded-t-[3px]", brutal && v !== null && accent(i) && "outline outline-[1.5px] outline-line")}
               style={{
                 height: v === null ? 2 : `max(2px, ${h(v)}%)`,
                 background: v === null ? track : accent(i) ? color : gray,
@@ -235,7 +236,7 @@ export function AnalysisInsights({
             <span
               aria-hidden
               className="pointer-events-none absolute inset-x-0 border-t-[1.5px] border-dashed"
-              style={{ bottom: `${h(avg)}%`, borderColor: brutal ? "#111" : "var(--foreground)", opacity: 0.55 }}
+              style={{ bottom: `${h(avg)}%`, borderColor: brutal ? "var(--line)" : "var(--foreground)", opacity: 0.55 }}
             />
           )}
           {tops?.map((tp) => (
@@ -244,7 +245,7 @@ export function AnalysisInsights({
               className={cn(
                 // Zemin: kesik ortalama çizgisi yazının üstünden geçmesin
                 "absolute -translate-x-1/2 whitespace-nowrap rounded-[3px] px-0.5 text-[9.5px] tabular-nums leading-none",
-                brutal ? "bg-white" : "bg-card",
+                brutal ? "bg-paper" : "bg-card",
                 tp.strong ? cn("font-extrabold", ink) : cn("font-bold", soft)
               )}
               style={{ left: at(tp.at), bottom: `calc(${h(values[tp.at] ?? 0)}% + 4px)` }}
@@ -318,10 +319,10 @@ export function AnalysisInsights({
     const at = new Map(d.pts.map((p) => [p.x, p.y]));
     const skip = new Map(d.skipped.map((p) => [p.x, p.y]));
 
-    const line = brutal ? "#111" : color;
+    const line = brutal ? "var(--ink)" : color;
     const fill = tint(brutal ? 42 : 30);
     const pill = brutal
-      ? "border-[1.5px] border-[#111] bg-white text-[#111]"
+      ? "border-[1.5px] border-line bg-paper text-ink"
       : "border border-border bg-card text-foreground";
 
     /** Doğrunun ucu: halka ve değeri — üst kısımdaysa altında, değilse üstünde */
@@ -332,7 +333,7 @@ export function AnalysisInsights({
         <>
           <span
             aria-hidden
-            className={cn("absolute h-2.5 w-2.5 -translate-x-1/2 translate-y-1/2 rounded-full", brutal ? "border-[1.5px] border-[#111] bg-white" : "border-2 bg-card")}
+            className={cn("absolute h-2.5 w-2.5 -translate-x-1/2 translate-y-1/2 rounded-full", brutal ? "border-[1.5px] border-line bg-paper" : "border-2 bg-card")}
             style={{ left: `${X(x)}%`, bottom: `${y}%`, borderColor: brutal ? undefined : color }}
           />
           <span
@@ -372,7 +373,7 @@ export function AnalysisInsights({
           <div
             className={cn(
               "relative h-full min-w-0 flex-1",
-              d.bars && (brutal ? "border-b-[1.5px] border-[#111]" : "border-b border-border"),
+              d.bars && (brutal ? "border-b-[1.5px] border-line" : "border-b border-border"),
               d.range && "border-y border-dashed"
             )}
             style={d.range ? { borderColor: gray } : undefined}
@@ -389,7 +390,7 @@ export function AnalysisInsights({
                       style={{
                         height: half !== undefined ? `max(3px, ${Y(half)}%)` : v === undefined ? 0 : `max(2px, ${Y(v)}%)`,
                         background: half !== undefined ? "transparent" : fill,
-                        borderColor: half !== undefined ? (brutal ? "#111" : color) : undefined,
+                        borderColor: half !== undefined ? (brutal ? "var(--line)" : color) : undefined,
                         opacity: half !== undefined ? 0.7 : 1,
                       }}
                     />
@@ -447,7 +448,7 @@ export function AnalysisInsights({
                 <span
                   key={p.x}
                   aria-hidden
-                  className={cn("absolute h-[7px] w-[7px] -translate-x-1/2 translate-y-1/2 rounded-full", brutal && "border border-[#111]")}
+                  className={cn("absolute h-[7px] w-[7px] -translate-x-1/2 translate-y-1/2 rounded-full", brutal && "border border-line")}
                   style={{ left: `${X(p.x)}%`, bottom: `${Y(p.y)}%`, background: brutal ? fill : tint(55) }}
                 />
               ))}
@@ -479,7 +480,7 @@ export function AnalysisInsights({
             mark: (
               <span
                 aria-hidden
-                className={cn(d.bars ? "h-2.5 w-2 rounded-[2px]" : "h-[7px] w-[7px] rounded-full", brutal && !d.bars && "border border-[#111]")}
+                className={cn(d.bars ? "h-2.5 w-2 rounded-[2px]" : "h-[7px] w-[7px] rounded-full", brutal && !d.bars && "border border-line")}
                 style={{ background: d.bars || brutal ? fill : tint(55) }}
               />
             ),
@@ -489,7 +490,7 @@ export function AnalysisInsights({
           {d.skipped.length > 0 &&
             Key({
               mark: (
-                <span aria-hidden className="h-2.5 w-2 rounded-t-[2px] border-[1.5px] border-b-0 border-dashed" style={{ borderColor: brutal ? "#111" : color }} />
+                <span aria-hidden className="h-2.5 w-2 rounded-t-[2px] border-[1.5px] border-b-0 border-dashed" style={{ borderColor: brutal ? "var(--line)" : color }} />
               ),
               children: t("ins.trendOpen"),
             })}
@@ -504,17 +505,17 @@ export function AnalysisInsights({
     const max = Math.max(d.projected, d.prevFull ?? 0) || 1;
     const pc = (v: number) => (v / max) * 100;
     const hatch = `repeating-linear-gradient(135deg, ${tint(brutal ? 70 : 55)} 0 3px, transparent 3px 6px)`;
-    const tick = brutal ? "#111" : "var(--foreground)";
+    const tick = brutal ? "var(--ink)" : "var(--foreground)";
     return (
       <div>
         <div className="relative py-1">
           <div
-            className={cn("relative h-4 overflow-hidden rounded-[6px]", brutal && "border-[1.5px] border-[#111]")}
-            style={{ background: brutal ? "#fff" : track }}
+            className={cn("relative h-4 overflow-hidden rounded-[6px]", brutal && "border-[1.5px] border-line")}
+            style={{ background: brutal ? "var(--paper)" : track }}
           >
             <span className="absolute inset-y-0 left-0" style={{ width: `${pc(d.cur)}%`, background: color }} />
             <span
-              className={cn("absolute inset-y-0", brutal && "border-l-[1.5px] border-[#111]")}
+              className={cn("absolute inset-y-0", brutal && "border-l-[1.5px] border-line")}
               style={{ left: `${pc(d.cur)}%`, width: `${Math.max(0, pc(d.projected) - pc(d.cur))}%`, background: hatch }}
             />
           </div>
@@ -530,7 +531,7 @@ export function AnalysisInsights({
           {[
             { mark: <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: color }} />, label: t("ins.now"), v: d.cur },
             {
-              mark: <span className={cn("h-2.5 w-2.5 rounded-[3px]", brutal && "border border-[#111]")} style={{ background: hatch }} />,
+              mark: <span className={cn("h-2.5 w-2.5 rounded-[3px]", brutal && "border border-line")} style={{ background: hatch }} />,
               label: t("ins.projected"),
               v: d.projected,
             },
@@ -563,7 +564,7 @@ export function AnalysisInsights({
         <div className="relative h-6">
           <span className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full" style={{ background: gray }} />
           <span
-            className={cn("absolute top-1/2 h-4 -translate-y-1/2 rounded-[5px]", brutal && "border-[1.5px] border-[#111]")}
+            className={cn("absolute top-1/2 h-4 -translate-y-1/2 rounded-[5px]", brutal && "border-[1.5px] border-line")}
             style={{
               left: `${at(q.q1)}%`,
               width: `max(6px, ${at(q.q3) - at(q.q1)}%)`,
@@ -572,7 +573,7 @@ export function AnalysisInsights({
           />
           <span
             className="absolute top-0 h-6 w-[3px] -translate-x-1/2 rounded-full"
-            style={{ left: `${at(q.median)}%`, background: brutal ? "#111" : "var(--foreground)" }}
+            style={{ left: `${at(q.median)}%`, background: brutal ? "var(--ink)" : "var(--foreground)" }}
           />
         </div>
         <div className="relative mt-1.5 h-2.5" aria-hidden>
@@ -582,7 +583,7 @@ export function AnalysisInsights({
               className="absolute inset-y-0 w-[2px] -translate-x-1/2 rounded-full"
               style={{
                 left: `${at(v)}%`,
-                background: v >= q.q1 && v <= q.q3 ? color : brutal ? "#111" : "var(--foreground)",
+                background: v >= q.q1 && v <= q.q3 ? color : brutal ? "var(--ink)" : "var(--foreground)",
                 opacity: v >= q.q1 && v <= q.q3 ? 0.85 : 0.35,
               }}
             />
@@ -636,11 +637,11 @@ export function AnalysisInsights({
                 key={s.start}
                 className={cn(
                   "flex h-4 items-center justify-center overflow-hidden rounded-[4px] text-[9.5px] font-black tabular-nums leading-none",
-                  s.on && cur && brutal && "border-[1.5px] border-[#111]",
-                  !s.on && s.today && (brutal ? "border-[1.5px] border-dashed border-[#111]" : "border border-dashed border-foreground/60"),
-                  s.on && cur ? (brutal ? "text-[#111]" : "text-white") : soft
+                  s.on && cur && brutal && "border-[1.5px] border-line",
+                  !s.on && s.today && (brutal ? "border-[1.5px] border-dashed border-line" : "border border-dashed border-foreground/60"),
+                  s.on && cur ? (brutal ? "text-ink" : "text-white") : soft
                 )}
-                style={{ gridColumn: `span ${s.len}`, background: !s.on ? track : cur ? color : tint(brutal ? 40 : 35) }}
+                style={{ gridColumn: `span ${s.len}`, background: !s.on ? track : cur ? blockFill(color) : tint(brutal ? 40 : 35) }}
               >
                 {s.head && s.run >= 2 && s.len >= 2 ? s.run : null}
               </span>
@@ -664,13 +665,13 @@ export function AnalysisInsights({
     return (
       <div>
         <div
-          className={cn("flex h-4 overflow-hidden rounded-[6px]", brutal && "border-[1.5px] border-[#111]")}
+          className={cn("flex h-4 overflow-hidden rounded-[6px]", brutal && "border-[1.5px] border-line")}
           style={{ background: track }}
         >
           {all.map((r, i) => (
             <span
               key={r.label}
-              className={cn("block h-full", brutal && i > 0 && "border-l-[1.5px] border-[#111]")}
+              className={cn("block h-full", brutal && i > 0 && "border-l-[1.5px] border-line")}
               style={{ width: `${(r.count / (total || 1)) * 100}%`, background: r.fill }}
             />
           ))}
@@ -680,7 +681,7 @@ export function AnalysisInsights({
             <div key={r.label} className="flex min-w-0 items-center gap-2">
               <span
                 aria-hidden
-                className={cn("h-2.5 w-2.5 shrink-0 rounded-[3px]", brutal && "border border-[#111]")}
+                className={cn("h-2.5 w-2.5 shrink-0 rounded-[3px]", brutal && "border border-line")}
                 style={{ background: r.fill }}
               />
               <span className={cn("min-w-0 flex-1 truncate text-[12.5px]", i === 0 ? "font-extrabold" : "font-bold")}>{r.label}</span>
@@ -700,7 +701,7 @@ export function AnalysisInsights({
           key={c.label}
           className={cn(
             "inline-flex max-w-full items-center gap-1 truncate rounded-full px-2.5 py-0.5 text-[11.5px] font-bold",
-            brutal ? "border-[1.5px] border-[#111]" : "border border-border",
+            brutal ? "border-[1.5px] border-line" : "border border-border",
             c.dashed && "border-dashed opacity-70"
           )}
           style={c.dashed ? undefined : { background: tint(brutal ? 30 : 15) }}
@@ -733,11 +734,11 @@ export function AnalysisInsights({
           <span className="absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full" style={{ background: track }} />
           <span className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full" style={{ left: `${a}%`, width: `${b - a}%`, background: color }} />
           <span
-            className={cn("absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2", brutal ? "border-[#111] bg-white" : "bg-card")}
+            className={cn("absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2", brutal ? "border-line bg-paper" : "bg-card")}
             style={{ left: `${pc(x.prev)}%`, borderColor: brutal ? undefined : gray }}
           />
           <span
-            className={cn("absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full", brutal && "border-[1.5px] border-[#111]")}
+            className={cn("absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full", brutal && "border-[1.5px] border-line")}
             style={{ left: `${pc(x.cur)}%`, background: color }}
           />
         </span>
@@ -834,7 +835,7 @@ export function AnalysisInsights({
               })}
               <div className={cn("mt-1.5", legend)}>
                 {Key({
-                  mark: <span aria-hidden className="w-3.5 border-t-[1.5px] border-dashed" style={{ borderColor: brutal ? "#111" : "var(--foreground)", opacity: 0.7 }} />,
+                  mark: <span aria-hidden className="w-3.5 border-t-[1.5px] border-dashed" style={{ borderColor: brutal ? "var(--line)" : "var(--foreground)", opacity: 0.7 }} />,
                   children: t("ins.avgLine", { v: fv(d.avg) }),
                 })}
               </div>
@@ -990,14 +991,14 @@ export function AnalysisInsights({
                   mark: (
                     <span
                       aria-hidden
-                      className={cn("h-2.5 w-2.5 rounded-full border-2", brutal ? "border-[#111] bg-white" : "bg-card")}
+                      className={cn("h-2.5 w-2.5 rounded-full border-2", brutal ? "border-line bg-paper" : "bg-card")}
                       style={{ borderColor: brutal ? undefined : gray }}
                     />
                   ),
                   children: d.prevLabel,
                 })}
                 {Key({
-                  mark: <span aria-hidden className={cn("h-2.5 w-2.5 rounded-full", brutal && "border border-[#111]")} style={{ background: color }} />,
+                  mark: <span aria-hidden className={cn("h-2.5 w-2.5 rounded-full", brutal && "border border-line")} style={{ background: color }} />,
                   children: d.curLabel,
                 })}
               </div>
@@ -1061,7 +1062,7 @@ export function AnalysisInsights({
                       key={p.from}
                       className={cn(
                         "flex h-[18px] items-center justify-center overflow-hidden whitespace-nowrap rounded-[4px] text-[9.5px] leading-none",
-                        on ? cn("font-extrabold", ink, brutal && "border-[1.5px] border-[#111]") : cn("font-bold", soft)
+                        on ? cn("font-extrabold", ink, brutal && "border-[1.5px] border-line") : cn("font-bold", soft)
                       )}
                       style={{ gridColumn: `${p.from + 1} / ${p.to + 1}`, background: on ? tint(brutal ? 45 : 25) : track }}
                     >
@@ -1113,7 +1114,7 @@ export function AnalysisInsights({
 
   const tagCls = cn(
     "mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[11.5px] font-extrabold tabular-nums leading-[16px]",
-    brutal ? "border-[1.5px] border-[#111] bg-white text-[#111]" : "bg-[var(--sf-2)] text-foreground"
+    brutal ? "border-[1.5px] border-line bg-paper text-ink" : "bg-[var(--sf-2)] text-foreground"
   );
 
   const Item = ({ k, row }: { k: InsightKey; row: Row }) =>
@@ -1121,7 +1122,7 @@ export function AnalysisInsights({
       <div
         key={k}
         data-insight={k}
-        className={cn("flex min-w-0 items-baseline gap-2", brutal ? "bg-white px-3.5 py-2.5 text-[#111]" : "px-4 py-2.5")}
+        className={cn("flex min-w-0 items-baseline gap-2", brutal ? "bg-paper px-3.5 py-2.5 text-ink" : "px-4 py-2.5")}
       >
         <span className={cn("shrink-0 text-[10.5px] font-black uppercase tracking-wide", soft)}>{t(INSIGHT_LABEL[k])}</span>
         <span className="min-w-0 flex-1 truncate text-right text-[12px] font-bold">
@@ -1130,7 +1131,7 @@ export function AnalysisInsights({
         </span>
       </div>
     ) : (
-      <div key={k} data-insight={k} className={cn("flex min-w-0 flex-col", brutal ? "bg-white px-3.5 py-3 text-[#111]" : "px-4 py-3.5")}>
+      <div key={k} data-insight={k} className={cn("flex min-w-0 flex-col", brutal ? "bg-paper px-3.5 py-3 text-ink" : "px-4 py-3.5")}>
         <div className="flex min-w-0 items-baseline gap-1.5">
           <span className={cn("shrink-0 text-[10.5px] font-black uppercase tracking-wide", soft)}>{t(INSIGHT_LABEL[k])}</span>
           {row.basis && <span className={cn("min-w-0 truncate text-[10.5px] font-bold opacity-75", soft)}>· {row.basis}</span>}
@@ -1150,7 +1151,7 @@ export function AnalysisInsights({
     );
 
   const empty = (
-    <div className={cn("text-center text-[12px] font-semibold", soft, brutal ? "bg-white px-3.5 py-4" : "px-4 py-5")}>
+    <div className={cn("text-center text-[12px] font-semibold", soft, brutal ? "bg-paper px-3.5 py-4" : "px-4 py-5")}>
       {keys.length ? t("ins.empty") : t("ins.noneSelected")}
     </div>
   );
@@ -1173,7 +1174,7 @@ export function AnalysisInsights({
       <SummaryBlock
         compact
         lead={{ kind: "title", color: LEAD, glyph: Sigma, overline: t("ins.title"), title: t("ins.title") }}
-        action={menu(<SummaryTile compact color="#ffffff" icon={Pencil} label={t("action.edit")} />)}
+        action={menu(<SummaryTile compact color="var(--paper)" icon={Pencil} label={t("action.edit")} />)}
         stats={[]}
       >
         {rows.length ? rows.map((r) => Item({ k: r.key, row: r.row })) : empty}

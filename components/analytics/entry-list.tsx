@@ -11,6 +11,7 @@ import { matchesSearch, normalizeSearch } from "@/lib/search";
 import { cn } from "@/lib/utils";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
+import { blockFill } from "@/lib/fill";
 
 export type EntryListRow = {
   id: string;
@@ -99,7 +100,7 @@ export function EntryListSection({
           {rows.length > 0 && (
             <span
               className="rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums"
-              style={{ backgroundColor: `${accent}1f`, color: `${accent}dd` }}
+              style={{ backgroundColor: blockFill(`${accent}1f`), color: `${accent}dd` }}
             >
               {/* Süzgeç açıkken kaçta kaç: toplamın kaybolmadığı belli olsun */}
               {needle ? `${shown.length}/${rows.length}` : rows.length}
@@ -233,29 +234,29 @@ export function EntryListBlock({
       stats={[]}
     >
       {canSearch && open && (
-        <div className="relative bg-white p-2">
-          <Search className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#111]/50" strokeWidth={2.5} />
+        <div className="relative bg-paper p-2">
+          <Search className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/50" strokeWidth={2.5} />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("list.searchPlaceholder")}
             aria-label={t("list.searchInList")}
             autoFocus
-            className="h-10 w-full rounded-[10px] border-2 border-[#111] bg-white pl-9 pr-9 text-[14px] font-bold text-[#111] placeholder:font-semibold placeholder:text-[#111]/40 focus:outline-none"
+            className="h-10 w-full rounded-[10px] border-2 border-line bg-paper pl-9 pr-9 text-[14px] font-bold text-ink placeholder:font-semibold placeholder:text-ink/40 focus:outline-none"
           />
           {query && (
             <button
               type="button"
               onClick={() => setQuery("")}
               aria-label={t("features.clearSearch")}
-              className="absolute right-4 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg active:bg-[#111]/10"
+              className="absolute right-4 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg active:bg-ink/10"
             >
               <X className="h-4 w-4" strokeWidth={2.75} />
             </button>
           )}
         </div>
       )}
-      <div data-entry-list="" className="bg-white px-3.5 py-1">
+      <div data-entry-list="" className="bg-paper px-3.5 py-1">
         <EntryList rows={shown} emptyText={needle ? t("search.empty") : emptyText} accent={`${accent}e6`} />
       </div>
     </SummaryBlock>

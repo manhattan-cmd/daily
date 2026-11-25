@@ -4,6 +4,7 @@ import { fmtNum, fmtPct } from "@/lib/analytics";
 import { ChevronRight } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+import { blockFill, blockInk } from "@/lib/fill";
 
 export type ShareRow = {
   id: string;
@@ -85,7 +86,7 @@ export function ShareBars({
 
   if (cells) {
     return (
-      <div data-share-cells="" className="flex flex-col bg-white">
+      <div data-share-cells="" className="flex flex-col bg-paper">
         {sorted.map((r, i) => {
           const pct = isRate ? ratioOf(r) * 100 : isLevel ? levelOf(r) * 100 : (r.value / total) * 100;
           const canDrill = !!onSelect && r.drillable !== false;
@@ -97,18 +98,18 @@ export function ShareBars({
               onClick={canDrill ? () => onSelect!(r.id) : undefined}
               aria-pressed={selectedId !== null ? r.id === selectedId : undefined}
               className={cn(
-                "flex w-full min-w-0 items-center gap-2.5 px-3 py-2.5 text-left text-[#111] transition-opacity",
+                "flex w-full min-w-0 items-center gap-2.5 px-3 py-2.5 text-left text-ink transition-opacity",
                 i > 0 && "border-t-[1.5px]",
-                canDrill ? "active:bg-[#f5f1e8]" : "cursor-default",
+                canDrill ? "active:bg-paper-2" : "cursor-default",
                 dimmed && "opacity-40"
               )}
-              style={i > 0 ? { borderTopColor: "#111" } : undefined}
+              style={i > 0 ? { borderTopColor: "var(--line)" } : undefined}
             >
               <span
                 className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] border-2"
-                style={{ background: r.color, borderColor: "#111" }}
+                style={{ background: blockFill(r.color), borderColor: "var(--line)" }}
               >
-                {r.icon && <SymbolIcon name={r.icon} size={16} style={{ color: "#111" }} />}
+                {r.icon && <SymbolIcon name={r.icon} size={16} style={{ color: blockInk(r.color) }} />}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-baseline gap-2">
@@ -116,7 +117,7 @@ export function ShareBars({
                   <b className="shrink-0 font-mono text-[13px] font-bold leading-tight tabular-nums">
                     {isRate ? fmtPct(ratioOf(r)) : (r.display ?? fmtNum(r.value))}
                   </b>
-                  <span className="w-10 shrink-0 text-right font-mono text-[10.5px] font-bold leading-tight text-[#111]/55">
+                  <span className="w-10 shrink-0 text-right font-mono text-[10.5px] font-bold leading-tight text-ink/55">
                     {isRate
                       ? `${fmtNum(r.value)}/${fmtNum(r.outOf ?? 0)}`
                       : isLevel
@@ -125,15 +126,15 @@ export function ShareBars({
                   </span>
                 </span>
                 <span
-                  className="mt-1.5 block h-[9px] overflow-hidden rounded-full border-[1.5px] bg-[#f5f1e8]"
-                  style={{ borderColor: "#111" }}
+                  className="mt-1.5 block h-[9px] overflow-hidden rounded-full border-[1.5px] bg-paper-2"
+                  style={{ borderColor: "var(--line)" }}
                 >
                   <span
                     className="block h-full border-r-[1.5px] transition-[width] duration-300"
                     style={{
                       width: `${isRate || isLevel ? pct : Math.max(pct, 1.5)}%`,
                       background: r.color,
-                      borderRightColor: pct > 0 ? "#111" : "transparent",
+                      borderRightColor: pct > 0 ? "var(--line)" : "transparent",
                     }}
                   />
                 </span>
@@ -187,7 +188,7 @@ export function ShareBars({
             style={
               canDrill && selectedId === r.id
                 ? {
-                    background: `${r.color}1a`,
+                    background: blockFill(`${r.color}1a`),
                     boxShadow: `inset 0 0 0 1px ${r.color}80`,
                   }
                 : undefined

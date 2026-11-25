@@ -22,8 +22,17 @@ export type Skin = (typeof SKINS)[number];
 
 export const SKIN_STORAGE_KEY = "routine:skin";
 export const DEFAULT_SKIN: Skin = "brutal";
-/** CSS'in temel (`:root`) tonları Gece'ninki; ona özel `data-skin` yok */
-export const BASE_SKIN: Skin = "gece";
+
+/**
+ * Blok dilindeki temalar: Brütal ve onun gece hali Gece. İkisi aynı
+ * yerleşimi çiziyor (bloklar, şeritler, bilet kartlar — bileşenlerdeki
+ * `brutal` dalları); ayrıldıkları yer yalnız renk değişkenleri (bkz.
+ * app/globals.css "Blok dili renkleri"). Kök öğede `data-ui="block"`.
+ * Öteki temalar eski sade düzende.
+ */
+export const BLOCK_SKINS: readonly Skin[] = ["brutal", "gece"];
+export const isBlockSkin = (skin: string | null | undefined): boolean =>
+  skin === "brutal" || skin === "gece";
 
 /**
  * Telefonun durum çubuğunun rengi (<meta name="theme-color">) — Brütal'de
@@ -37,19 +46,24 @@ export const BASE_SKIN: Skin = "gece";
  * Eskiden sayfanın bandının rengiydi (Ana Sayfa mor, Takvim yeşil…);
  * bantlar bloğa dönünce renkli şerit krem döşemenin üstünde asılı kaldı.
  *
+ * Gece'de aynı şeritlerin gece tonları (lib/fill nightTone ile hesaplandı:
+ * #a9b0ff → #2f3252, #5eead4 → #004037, #8ea6ff → #293357, #ffd23f →
+ * #453300), ötekilerde gece döşemesi.
+ *
  * Kendi içinde kapalı olmalı (dışarıdan değişken yok): açılış betiğine
  * kaynağıyla gömülüyor.
  */
 export function statusBarColor(path: string, skin: string): string | null {
-  if (skin !== "brutal") return null;
+  if (skin !== "brutal" && skin !== "gece") return null;
+  const night = skin === "gece";
   const p = path.replace(/\/+$/, "") || "/";
   // Ara ve Ayarlar ana sayfanın başlığından açılır, onun şeridinde (bkz. SubPageMenu)
-  if (p === "/" || p === "/search" || p === "/settings") return "#a9b0ff";
+  if (p === "/" || p === "/search" || p === "/settings") return night ? "#2f3252" : "#a9b0ff";
   // Takvim ve gün sayfası aynı turkuaz (gün sayfası Takvim sekmesinin altında)
-  if (p === "/calendar" || p === "/calendar/day") return "#5eead4";
-  if (p === "/analytics") return "#8ea6ff";
-  if (p === "/structure" || p.indexOf("/structure/") === 0) return "#ffd23f";
-  return "#fff4dc";
+  if (p === "/calendar" || p === "/calendar/day") return night ? "#004037" : "#5eead4";
+  if (p === "/analytics") return night ? "#293357" : "#8ea6ff";
+  if (p === "/structure" || p.indexOf("/structure/") === 0) return night ? "#453300" : "#ffd23f";
+  return night ? "#0d0f15" : "#fff4dc";
 }
 
 /**
@@ -77,15 +91,17 @@ export function applyStatusBarColor(color: string): void {
  * görüyordu. Betik kayıtlı temayı okuyup kök öğeye yazıyor — renkler ilk
  * karede doğru.
  *
- * Ama bazı bileşenler Brütal'de başka DÜZEN çiziyor (useSkin) ve sunucu
- * HTML'i o düzende. Tema Brütal değilse sayfa `data-skin-pending` ile gizli
- * kalıyor; AppShell kendini gerçek temayla çizince kaldırıyor. JS hiç
- * çalışmazsa sayfa boş kalmasın diye 2,5 sn sonra betik kendisi de kaldırıyor.
+ * Ama bazı bileşenler blok dilinde başka DÜZEN çiziyor (useSkin) ve sunucu
+ * HTML'i o düzende. Tema blok dilinde değilse (Brütal ya da Gece değilse)
+ * sayfa `data-skin-pending` ile gizli kalıyor; AppShell kendini gerçek
+ * temayla çizince kaldırıyor. Gece aynı düzeni çizdiği için beklemiyor,
+ * yalnız renkleri değişiyor. JS hiç çalışmazsa sayfa boş kalmasın diye
+ * 2,5 sn sonra betik kendisi de kaldırıyor.
  */
 export const SKIN_BOOT_SCRIPT = `(function(){var d=document.documentElement;try{var s=localStorage.getItem(${JSON.stringify(
   SKIN_STORAGE_KEY
 )});if(${JSON.stringify(SKINS)}.indexOf(s)<0)s=${JSON.stringify(
   DEFAULT_SKIN
-)};if(s!==${JSON.stringify(DEFAULT_SKIN)}){if(s===${JSON.stringify(
-  BASE_SKIN
-)})d.removeAttribute("data-skin");else d.setAttribute("data-skin",s);d.setAttribute("data-skin-pending","");setTimeout(function(){d.removeAttribute("data-skin-pending")},2500)}var c=(${statusBarColor.toString()})(location.pathname,s)||getComputedStyle(d).getPropertyValue("--background").trim()||"#09090b";var m=document.createElement("meta");m.name="theme-color";m.content=c;document.head.appendChild(m)}catch(e){}})()`;
+)};if(s!==${JSON.stringify(DEFAULT_SKIN)}){d.setAttribute("data-skin",s);if(${JSON.stringify(
+  BLOCK_SKINS
+)}.indexOf(s)<0){d.removeAttribute("data-ui");d.setAttribute("data-skin-pending","");setTimeout(function(){d.removeAttribute("data-skin-pending")},2500)}}var c=(${statusBarColor.toString()})(location.pathname,s)||getComputedStyle(d).getPropertyValue("--background").trim()||"#09090b";var m=document.createElement("meta");m.name="theme-color";m.content=c;document.head.appendChild(m)}catch(e){}})()`;

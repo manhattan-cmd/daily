@@ -69,21 +69,21 @@ export function DayCell({
 }) {
   const t = useT();
   return (
-    <section aria-label={label} className="flex flex-col gap-2 bg-white px-2.5 pb-2.5 pt-2 text-[#111]">
+    <section aria-label={label} className="flex flex-col gap-2 bg-paper px-2.5 pb-2.5 pt-2 text-ink">
       <Link
         href={routes.day(day)}
         prefetch={false}
         data-day-link={day}
         onClick={onOpen}
         aria-label={t("search.openDay", { day: label })}
-        className="-mx-1.5 -my-1 flex items-center gap-2 rounded-[12px] px-1.5 py-1 active:bg-[#111]/[0.06]"
+        className="-mx-1.5 -my-1 flex items-center gap-2 rounded-[12px] px-1.5 py-1 active:bg-ink/[0.06]"
       >
-        <span className="flex shrink-0 items-center gap-0.5 rounded-full bg-[#111] py-[5px] pl-2.5 pr-1.5 text-[11.5px] font-black leading-none text-[#fff4dc]">
+        <span className="flex shrink-0 items-center gap-0.5 rounded-full bg-well py-[5px] pl-2.5 pr-1.5 text-[11.5px] font-black leading-none text-[#fff4dc]">
           {label}
           <ChevronRight aria-hidden className="h-3 w-3" strokeWidth={3} />
         </span>
-        <span aria-hidden className="h-[1.5px] min-w-0 flex-1 rounded-full bg-[#111]/12" />
-        <span className="shrink-0 font-mono text-[11px] font-bold text-[#111]/45">{count}</span>
+        <span aria-hidden className="h-[1.5px] min-w-0 flex-1 rounded-full bg-ink/12" />
+        <span className="shrink-0 font-mono text-[11px] font-bold text-ink/45">{count}</span>
       </Link>
       {children}
     </section>

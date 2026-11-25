@@ -15,11 +15,12 @@ import {
 } from "@/lib/goal-reminders";
 import { isNative } from "@/lib/native";
 import { routes } from "@/lib/routes";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { useT } from "@/lib/i18n";
 import { cn, toLocalDateValue } from "@/lib/utils";
 import { goalTimes } from "@/lib/goals";
 import { SettingsBlock, SettingsCell, settingsPill } from "./settings-block";
+import { blockFill } from "@/lib/fill";
 
 /**
  * Hedef hatırlatmaları: izin durumu, deneme bildirimi ve hedeflere geçit.
@@ -28,7 +29,7 @@ import { SettingsBlock, SettingsCell, settingsPill } from "./settings-block";
  */
 export function ReminderSection() {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const [permission, setPermission] = useState<ReminderPermission | null>(null);
   const [tested, setTested] = useState<"ok" | "fail" | null>(null);
   const withReminder = useLiveQuery(
@@ -70,7 +71,7 @@ export function ReminderSection() {
   const pill = cn(
     "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
     brutal
-      ? "border-2 border-[#111] bg-white text-[#111] active:translate-x-px active:translate-y-px"
+      ? "border-2 border-line bg-paper text-ink active:translate-x-px active:translate-y-px"
       : "bg-[var(--sf-2)] hover:bg-[var(--sf-3)]"
   );
 
@@ -86,7 +87,7 @@ export function ReminderSection() {
       >
         <SettingsCell className="flex flex-wrap items-center gap-1.5">
           {permission === "prompt" && (
-            <button type="button" onClick={ask} className={settingsPill} style={{ background: "#7ae582" }}>
+            <button type="button" onClick={ask} className={settingsPill} style={{ background: blockFill("#7ae582") }}>
               {t("settings.remind.allow")}
             </button>
           )}
@@ -99,10 +100,10 @@ export function ReminderSection() {
             {t("goal.pageTitle")}
             <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.75} />
           </Link>
-          {tested === "fail" && <span className="text-[12px] font-bold text-[#b42318]">{t("settings.remind.testFail")}</span>}
+          {tested === "fail" && <span className="text-[12px] font-bold text-[var(--danger-ink)]">{t("settings.remind.testFail")}</span>}
         </SettingsCell>
         {!isNative() && (
-          <SettingsCell className="bg-[#fff4dc] text-[11.5px] font-bold leading-snug text-[#111]/65">
+          <SettingsCell className="bg-floor text-[11.5px] font-bold leading-snug text-ink/65">
             {t("goal.plan.webHint")}
           </SettingsCell>
         )}

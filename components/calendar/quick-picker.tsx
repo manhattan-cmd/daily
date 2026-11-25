@@ -6,11 +6,12 @@ import { Check, LayoutGrid } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { loadQuickAdd, type QuickCell } from "@/lib/db/quick";
 import type { Category, SubCategory } from "@/types";
 import { SummaryBlock, SummaryEmpty } from "@/components/ui/summary-block";
 import { tabDef, type AddTab } from "@/components/calendar/add-tabs";
+import { blockFill, blockInk } from "@/lib/fill";
 
 /** Kategoriler bloğunun rengi — ana sayfanın Kategorilerin'i gibi pembe */
 const CATEGORIES_COLOR = "#ff9ecd";
@@ -38,7 +39,7 @@ export function QuickPicker({
   onCategory: (c: Category) => void;
 }) {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const data = useLiveQuery(() => loadQuickAdd(date), [date]);
 
   const cellProps = (c: QuickCell) => {
@@ -143,8 +144,8 @@ export function QuickPicker({
     <div className="relative flex min-h-0 flex-1 flex-col">
       <div
         data-page-sheet=""
-        className="mx-2.5 mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[20px] border-2 border-b-0 bg-white"
-        style={{ borderColor: "#111" }}
+        className="mx-2.5 mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[20px] border-2 border-b-0 bg-paper"
+        style={{ borderColor: "var(--line)" }}
       >
         <div
           data-quick-list=""
@@ -170,7 +171,7 @@ export function QuickPicker({
                           key={p.key}
                           kind={p.kind}
                           color={p.color}
-                          icon={p.icon("#111")}
+                          icon={p.icon("var(--ink)")}
                           name={p.name}
                           sub={p.sub}
                           done={p.done}
@@ -196,7 +197,7 @@ export function QuickPicker({
                         key={category.id}
                         kind="category"
                         color={category.color}
-                        icon={category.icon && <SymbolIcon name={category.icon} size={17} style={{ color: "#111" }} />}
+                        icon={category.icon && <SymbolIcon name={category.icon} size={17} style={{ color: blockInk(category.color) }} />}
                         name={category.name}
                         sub={t("quick.catCount", { n: count })}
                         label={t("quick.openCat", { name: category.name })}
@@ -243,20 +244,20 @@ function BrutCell({
       data-quick-cell={kind}
       onClick={onClick}
       aria-label={label}
-      className={cn("flex min-w-0 flex-col bg-white text-left text-[#111] active:bg-[#f5f1e8]", wide && "col-span-2")}
+      className={cn("flex min-w-0 flex-col bg-paper text-left text-ink active:bg-paper-2", wide && "col-span-2")}
     >
       <span className="h-1.5 shrink-0" style={{ background: color }} />
       <span className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-2">
         <span
-          className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111]"
-          style={{ background: color }}
+          className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-line"
+          style={{ background: blockFill(color) }}
         >
           {icon}
           {done && <DoneBadge brutal />}
         </span>
         <span className="min-w-0 flex-1">
           <span className="line-clamp-2 break-words text-[13px] font-extrabold leading-tight">{name}</span>
-          <span className="block truncate text-[10.5px] font-bold text-[#111]/50">{sub}</span>
+          <span className="block truncate text-[10.5px] font-bold text-ink/50">{sub}</span>
         </span>
       </span>
     </button>
@@ -274,7 +275,7 @@ function DoneBadge({ brutal }: { brutal: boolean }) {
       data-quick-done=""
       className={cn(
         "absolute -right-1.5 -top-1.5 flex h-[18px] w-[18px] items-center justify-center rounded-full",
-        brutal ? "border-[1.5px] border-[#111] bg-[#7ae582] text-[#111]" : "bg-emerald-500 text-white"
+        brutal ? "border-[1.5px] border-line bg-fill-[#7ae582] text-ink" : "bg-emerald-500 text-white"
       )}
     >
       <Check className="h-2.5 w-2.5" strokeWidth={4} />
@@ -318,7 +319,7 @@ function SadeCell({
       aria-label={label}
       className="flex min-w-0 items-center gap-2.5 rounded-2xl bg-[var(--sf-1)] px-3 py-2.5 text-left ring-1 ring-inset ring-[var(--ln-1)] transition-colors hover:bg-[var(--sf-2)]"
     >
-      <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl" style={{ background: `${color}26` }}>
+      <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl" style={{ background: blockFill(`${color}26`) }}>
         {icon}
         {done && <DoneBadge brutal={false} />}
       </span>

@@ -14,6 +14,7 @@ import { isScaleChoices } from "@/types";
 import { thingLabel, useThingNames } from "@/lib/db/thing-names";
 import { SymbolIcon } from "@/lib/icons";
 import { EMOTION_LOOKS, EmotionFace, emotionLook, emotionName } from "@/lib/icons/emotions";
+import { blockFill } from "@/lib/fill";
 
 /**
  * Girdi kartlarının ortak parçaları — hem tek girdi kartı hem paralel girdi
@@ -190,7 +191,7 @@ export function ValueCapsule({
           >
             <span
               className="flex h-3.5 w-3.5 items-center justify-center rounded-[4px]"
-              style={yes ? { background: c } : { boxShadow: `inset 0 0 0 1.5px ${c}99` }}
+              style={yes ? { background: blockFill(c) } : { boxShadow: `inset 0 0 0 1.5px ${c}99` }}
             >
               {yes ? (
                 <Check className="h-2.5 w-2.5" strokeWidth={3.5} style={{ color: "#fff" }} />
@@ -326,7 +327,7 @@ function Cap({
       )}
       style={{
         ["--cap-c" as string]: c,
-        background: `${c}14`,
+        background: blockFill(`${c}14`),
         boxShadow: `inset 0 0 0 1px ${c}33`,
       }}
     >
@@ -340,7 +341,7 @@ function IconSlot({ color: c, children }: { color: string; children: React.React
   return (
     <span
       className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-      style={{ background: `${c}33` }}
+      style={{ background: blockFill(`${c}33`) }}
     >
       {children}
     </span>
@@ -411,7 +412,7 @@ export function LevelCapsule({
         data-track=""
         aria-hidden
         className="relative h-2 w-8 shrink-0 overflow-hidden rounded-full"
-        style={{ background: `${c}33` }}
+        style={{ background: blockFill(`${c}33`) }}
       >
         <span
           data-gauge=""
@@ -500,7 +501,7 @@ export function ThingCapsuleRow({
             style={{
               ["--cap-c" as string]: c,
               ["--dia-c" as string]: dc,
-              background: `${c}14`,
+              background: blockFill(`${c}14`),
               boxShadow: `inset 0 0 0 1px ${c}33`,
             }}
           >

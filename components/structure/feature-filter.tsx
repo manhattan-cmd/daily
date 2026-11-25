@@ -65,18 +65,18 @@ export function FeatureFilter({
   }, [open]);
 
   return (
-    <div data-feature-filter="" className={inline ? "relative bg-white" : "relative mb-5 mt-1"}>
+    <div data-feature-filter="" className={inline ? "relative bg-paper" : "relative mb-5 mt-1"}>
       {/* Gölge yalnız aramaya yazarken: focus-within tür düğmesine
           dokununca da yakıyordu, menü her açılışta bar büyüyüp seçince
           küçülüyor gibi görünüyordu */}
       <div
         className={cn(
-          "flex h-11 items-stretch overflow-hidden bg-white",
-          !inline && "rounded-full border-[1.5px] border-[#111] transition-shadow has-[input:focus]:shadow-[2px_2px_0_#111]"
+          "flex h-11 items-stretch overflow-hidden bg-paper",
+          !inline && "rounded-full border-[1.5px] border-line transition-shadow has-[input:focus]:shadow-[2px_2px_0_var(--shade)]"
         )}
       >
         <label className="relative flex min-w-0 flex-1 items-center">
-          <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-[#111]/45" strokeWidth={2} />
+          <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-ink/45" strokeWidth={2} />
           <input
             value={search}
             onChange={(e) => onSearch(e.target.value)}
@@ -85,7 +85,7 @@ export function FeatureFilter({
             autoFocus={autoFocus}
             enterKeyHint="search"
             className={cn(
-              "h-full w-full bg-transparent pl-10 pr-10 text-[#111] outline-none placeholder:text-[#111]/40",
+              "h-full w-full bg-transparent pl-10 pr-10 text-ink outline-none placeholder:text-ink/40",
               inline ? "text-[14.5px] font-bold placeholder:font-semibold" : "text-[14px] font-medium placeholder:font-normal"
             )}
           />
@@ -93,7 +93,7 @@ export function FeatureFilter({
             <button
               type="button"
               onClick={() => onSearch("")}
-              className="absolute right-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#111]/[0.07] text-[#111]/70"
+              className="absolute right-2 flex h-6 w-6 items-center justify-center rounded-full bg-ink/[0.07] text-ink/70"
               aria-label={t("features.clearSearch")}
             >
               <X className="h-3 w-3" strokeWidth={2.4} />
@@ -111,8 +111,8 @@ export function FeatureFilter({
           // genişliyordu. Tümü yazıyla, seçili tür yalnız simgesiyle (adı
           // menüde ve altındaki katmanın başında zaten yazıyor).
           className={cn(
-            "flex w-[84px] shrink-0 items-center justify-center gap-1 border-l-[1.5px] border-[#111] text-[13px] font-extrabold",
-            active ? "bg-[#111] text-[#fff4dc]" : "bg-[#fff4dc] text-[#111]"
+            "flex w-[84px] shrink-0 items-center justify-center gap-1 border-l-[1.5px] border-line text-[13px] font-extrabold",
+            active ? "bg-well text-[#fff4dc]" : "bg-floor text-ink"
           )}
         >
           {active ? (
@@ -124,7 +124,7 @@ export function FeatureFilter({
         </button>
       </div>
       {open && inline && (
-        <div role="menu" aria-label={t("features.filterByKind")} className="flex flex-wrap gap-1.5 border-t-2 border-[#111] bg-white p-2">
+        <div role="menu" aria-label={t("features.filterByKind")} className="flex flex-wrap gap-1.5 border-t-2 border-line bg-paper p-2">
           {kinds.map((k) => {
             const on = active === k.kind;
             return (
@@ -138,13 +138,13 @@ export function FeatureFilter({
                   setOpen(false);
                 }}
                 className={cn(
-                  "inline-flex h-8 items-center gap-1.5 rounded-full border-[1.5px] border-[#111] px-2.5 text-[12.5px] font-extrabold",
-                  on ? "bg-[#111] text-[#fff4dc]" : "bg-white text-[#111]"
+                  "inline-flex h-8 items-center gap-1.5 rounded-full border-[1.5px] border-line px-2.5 text-[12.5px] font-extrabold",
+                  on ? "bg-well text-[#fff4dc]" : "bg-paper text-ink"
                 )}
               >
-                <KindIcon kind={k.kind} className={cn("h-3.5 w-3.5 shrink-0", on ? "text-[#ffd23f]" : "text-[#111]/60")} />
+                <KindIcon kind={k.kind} className={cn("h-3.5 w-3.5 shrink-0", on ? "text-[#ffd23f]" : "text-ink/60")} />
                 {k.label}
-                <span className={cn("font-mono text-[11px] font-bold", on ? "text-[#ffd23f]" : "text-[#111]/40")}>{k.n}</span>
+                <span className={cn("font-mono text-[11px] font-bold", on ? "text-[#ffd23f]" : "text-ink/40")}>{k.n}</span>
               </button>
             );
           })}
@@ -157,7 +157,7 @@ export function FeatureFilter({
           <div
             role="menu"
             aria-label={t("features.filterByKind")}
-            className="absolute right-0 top-[calc(100%+8px)] z-40 flex w-[236px] flex-col gap-0.5 rounded-2xl border-2 border-[#111] bg-white p-1.5 shadow-[4px_4px_0_#111]"
+            className="absolute right-0 top-[calc(100%+8px)] z-40 flex w-[236px] flex-col gap-0.5 rounded-2xl border-2 border-line bg-paper p-1.5 shadow-[4px_4px_0_var(--shade)]"
           >
             {kinds.map((k) => {
               const on = active === k.kind;
@@ -173,12 +173,12 @@ export function FeatureFilter({
                   }}
                   className={cn(
                     "flex h-10 items-center gap-2.5 rounded-xl px-2.5 text-left text-[13.5px] font-extrabold",
-                    on ? "bg-[#111] text-[#fff4dc]" : "text-[#111]"
+                    on ? "bg-well text-[#fff4dc]" : "text-ink"
                   )}
                 >
-                  <KindIcon kind={k.kind} className={cn("h-4 w-4 shrink-0", on ? "text-[#ffd23f]" : "text-[#111]/60")} />
+                  <KindIcon kind={k.kind} className={cn("h-4 w-4 shrink-0", on ? "text-[#ffd23f]" : "text-ink/60")} />
                   <span className="min-w-0 flex-1 truncate">{k.label}</span>
-                  <span className={cn("font-mono text-[11px] font-bold", on ? "text-[#ffd23f]" : "text-[#111]/40")}>{k.n}</span>
+                  <span className={cn("font-mono text-[11px] font-bold", on ? "text-[#ffd23f]" : "text-ink/40")}>{k.n}</span>
                   {on && <Check className="h-3.5 w-3.5 shrink-0" strokeWidth={3} />}
                 </button>
               );

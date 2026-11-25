@@ -38,8 +38,9 @@ import {
   type StorageHealth,
 } from "@/lib/storage-health";
 import { Button } from "@/components/ui/button";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { SettingsBlock, SettingsCell, settingsButton } from "./settings-block";
+import { blockFill } from "@/lib/fill";
 
 const fmt = (n: number) => n.toLocaleString(intlTag());
 
@@ -55,7 +56,7 @@ export function DataSection() {
   const [health, setHealth] = useState<StorageHealth | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastBackupAt = useLastBackupAt();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
 
   useEffect(() => {
     let alive = true;
@@ -220,7 +221,7 @@ export function DataSection() {
   if (brutal) {
     return (
       <SettingsBlock color="#ffb38a" icon={HardDrive} title={t("settings.dataSection")}>
-        <SettingsCell className="text-[12.5px] font-bold leading-snug text-[#111]/65">{t("backup.intro")}</SettingsCell>
+        <SettingsCell className="text-[12.5px] font-bold leading-snug text-ink/65">{t("backup.intro")}</SettingsCell>
 
         {/* Depolama sağlığı — verinin cihazda ne kadar güvende durduğu */}
         <SettingsCell>
@@ -228,28 +229,28 @@ export function DataSection() {
             <span className="min-w-0 flex-1 text-[14px] font-black leading-tight">{t("backup.deviceStorage")}</span>
             {health && (
               <span
-                className="shrink-0 rounded-full border-[1.5px] border-[#111] px-2 py-[3px] text-[10.5px] font-black leading-none"
-                style={{ background: health.persisted ? "#7ae582" : "#ffd23f" }}
+                className="shrink-0 rounded-full border-[1.5px] border-line px-2 py-[3px] text-[10.5px] font-black leading-none"
+                style={{ background: health.persisted ? blockFill("#7ae582") : blockFill("#ffd23f") }}
               >
                 {health.persisted ? t("backup.persistent") : t("backup.notPersistent")}
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-[11.5px] font-bold text-[#111]/55">
+          <p className="mt-0.5 text-[11.5px] font-bold text-ink/55">
             {health
               ? t("backup.usage", { used: formatBytes(health.usage) }) +
                 (health.quota ? ` · ${t("backup.quota", { quota: formatBytes(health.quota) })}` : "")
               : t("backup.measuring")}
           </p>
-          <div className="mt-2 flex items-center justify-between gap-2 border-t-[1.5px] border-dashed border-[#111]/20 pt-2 text-[12px] font-bold">
-            <span className="text-[#111]/55">{t("backup.lastBackup")}</span>
-            <span className={backupOld ? "font-black text-[#b45309]" : "font-black"}>
+          <div className="mt-2 flex items-center justify-between gap-2 border-t-[1.5px] border-dashed border-ink/20 pt-2 text-[12px] font-bold">
+            <span className="text-ink/55">{t("backup.lastBackup")}</span>
+            <span className={backupOld ? "font-black text-[var(--warn-ink)]" : "font-black"}>
               {lastBackupAt === null ? t("backup.never") : agoLabel(lastBackupAt)}
             </span>
           </div>
         </SettingsCell>
         {health && !health.persisted && (
-          <SettingsCell className="bg-[#fff1c2] text-[11.5px] font-bold leading-snug text-[#7a4a00]">
+          <SettingsCell className="bg-fill-[#fff1c2] text-[11.5px] font-bold leading-snug text-[var(--warn-ink-2)]">
             {t("backup.evictWarn")} {!health.standalone && `${t("backup.addToHome")} `}
             {t("backup.backupAnyway")}
           </SettingsCell>
@@ -258,7 +259,7 @@ export function DataSection() {
         {/* Yedek al — paylaş menüsü (Drive, iCloud, mesaj) ya da dosya */}
         <SettingsCell>
           <div className="text-[14px] font-black leading-tight">{t("backup.download")}</div>
-          <p className="mt-0.5 text-[11.5px] font-bold text-[#111]/55">
+          <p className="mt-0.5 text-[11.5px] font-bold text-ink/55">
             {counts
               ? t("backup.counts", {
                   c: fmt(counts.categories),
@@ -274,7 +275,7 @@ export function DataSection() {
               onClick={handleShare}
               disabled={exporting}
               className={`${settingsButton} flex-1`}
-              style={{ background: "#ffd23f" }}
+              style={{ background: blockFill("#ffd23f") }}
             >
               <Share2 className="h-4 w-4" strokeWidth={2.75} />
               {exporting ? t("backup.preparing") : t("backup.share")}
@@ -285,23 +286,23 @@ export function DataSection() {
               disabled={exporting}
               aria-label={t("backup.downloadJson")}
               title={t("backup.downloadJson")}
-              className={`${settingsButton} w-11 bg-white px-0`}
+              className={`${settingsButton} w-11 bg-paper px-0`}
             >
               <Download className="h-4 w-4" strokeWidth={2.75} />
             </button>
           </div>
-          <p className="mt-2 text-[11px] font-semibold leading-snug text-[#111]/55">{t("backup.shareHint")}</p>
+          <p className="mt-2 text-[11px] font-semibold leading-snug text-ink/55">{t("backup.shareHint")}</p>
         </SettingsCell>
 
         {/* Geri yükle */}
         <SettingsCell>
           <div className="text-[14px] font-black leading-tight">{t("backup.restore")}</div>
-          <p className="mt-0.5 text-[11.5px] font-bold text-[#111]/55">{t("backup.pickHint")}</p>
+          <p className="mt-0.5 text-[11.5px] font-bold text-ink/55">{t("backup.pickHint")}</p>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={importing}
-            className={`${settingsButton} mt-2.5 w-full bg-white`}
+            className={`${settingsButton} mt-2.5 w-full bg-paper`}
           >
             <Upload className="h-4 w-4" strokeWidth={2.75} />
             {t("backup.chooseFile")}
@@ -312,11 +313,11 @@ export function DataSection() {
         {/* Seçilen yedek — ne geldiği ve nasıl yükleneceği */}
         {summary && pending && (
           <>
-            <SettingsCell className="bg-[#fff4dc]">
+            <SettingsCell className="bg-floor">
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
                   <div className="text-[14px] font-black leading-tight">{t("backup.loaded")}</div>
-                  <div className="mt-0.5 text-[11.5px] font-bold text-[#111]/55">
+                  <div className="mt-0.5 text-[11.5px] font-bold text-ink/55">
                     {new Date(pending.exportedAt).toLocaleString(intlTag(), { dateStyle: "long", timeStyle: "short" })} · v
                     {pending.version}
                   </div>
@@ -326,7 +327,7 @@ export function DataSection() {
                   onClick={() => setPending(null)}
                   aria-label={t("action.cancel")}
                   disabled={importing}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg active:bg-[#111]/10"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg active:bg-ink/10"
                 >
                   <X className="h-4 w-4" strokeWidth={2.75} />
                 </button>
@@ -345,13 +346,13 @@ export function DataSection() {
                   ] as const
                 ).map(([label, n]) => (
                   <div key={label} className="flex justify-between gap-2">
-                    <dt className="text-[#111]/55">{label}</dt>
+                    <dt className="text-ink/55">{label}</dt>
                     <dd className="font-mono tabular-nums">{fmt(n)}</dd>
                   </div>
                 ))}
               </dl>
               {pending.version < 2 && (
-                <p className="mt-2 text-[11.5px] font-bold leading-snug text-[#7a4a00]">
+                <p className="mt-2 text-[11.5px] font-bold leading-snug text-[var(--warn-ink-2)]">
                   This is an older backup (version {pending.version}) — notes weren&rsquo;t included back then. Replacing will
                   delete the notes on this device.
                 </p>
@@ -361,29 +362,29 @@ export function DataSection() {
               type="button"
               onClick={() => runRestore("merge")}
               disabled={importing}
-              className="flex items-start gap-2.5 bg-[#dff7e3] px-3 py-2.5 text-left text-[#111] active:brightness-95 disabled:opacity-60"
+              className="flex items-start gap-2.5 bg-fill-[#dff7e3] px-3 py-2.5 text-left text-ink active:brightness-95 disabled:opacity-60"
             >
               <GitMerge className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2.75} />
               <span className="min-w-0">
                 <span className="block text-[13.5px] font-black leading-tight">
-                  {t("backup.merge")} <span className="text-[11px] font-bold text-[#111]/55">{t("backup.recommended")}</span>
+                  {t("backup.merge")} <span className="text-[11px] font-bold text-ink/55">{t("backup.recommended")}</span>
                 </span>
-                <span className="mt-0.5 block text-[11.5px] font-bold leading-snug text-[#111]/60">{t("backup.mergeBody")}</span>
+                <span className="mt-0.5 block text-[11.5px] font-bold leading-snug text-ink/60">{t("backup.mergeBody")}</span>
               </span>
             </button>
             <button
               type="button"
               onClick={() => runRestore("replace")}
               disabled={importing}
-              className="flex items-start gap-2.5 bg-[#ffe1de] px-3 py-2.5 text-left text-[#111] active:brightness-95 disabled:opacity-60"
+              className="flex items-start gap-2.5 bg-fill-[#ffe1de] px-3 py-2.5 text-left text-ink active:brightness-95 disabled:opacity-60"
             >
-              <Replace className="mt-0.5 h-4 w-4 shrink-0 text-[#b42318]" strokeWidth={2.75} />
+              <Replace className="mt-0.5 h-4 w-4 shrink-0 text-[var(--danger-ink)]" strokeWidth={2.75} />
               <span className="min-w-0">
-                <span className="block text-[13.5px] font-black leading-tight text-[#b42318]">{t("backup.replace")}</span>
-                <span className="mt-0.5 block text-[11.5px] font-bold leading-snug text-[#111]/60">{t("backup.replaceBody")}</span>
+                <span className="block text-[13.5px] font-black leading-tight text-[var(--danger-ink)]">{t("backup.replace")}</span>
+                <span className="mt-0.5 block text-[11.5px] font-bold leading-snug text-ink/60">{t("backup.replaceBody")}</span>
               </span>
             </button>
-            {importing && <SettingsCell className="text-center text-[12px] font-bold text-[#111]/55">Loading…</SettingsCell>}
+            {importing && <SettingsCell className="text-center text-[12px] font-bold text-ink/55">Loading…</SettingsCell>}
           </>
         )}
 
@@ -391,7 +392,7 @@ export function DataSection() {
           <SettingsCell
             className={
               "flex items-start gap-2 text-[12.5px] font-bold leading-snug " +
-              (message.type === "ok" ? "bg-[#dff7e3]" : "bg-[#ffe1de] text-[#b42318]")
+              (message.type === "ok" ? "bg-fill-[#dff7e3]" : "bg-fill-[#ffe1de] text-[var(--danger-ink)]")
             }
           >
             {message.type === "ok" ? (

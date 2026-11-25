@@ -35,6 +35,7 @@ import { measureSummary } from "@/lib/measure-kinds";
 import { modColor } from "@/lib/mod-color";
 import type { ModWithType } from "@/lib/db/queries";
 import type { Category, Collection, EntryWithContext, Note, SubCategory, Thing } from "@/types";
+import { blockFill, blockInk } from "@/lib/fill";
 
 /**
  * Aramanın zaman süzgeci — Analiz'in dönem türleri, onunla aynı sırada:
@@ -65,7 +66,7 @@ const SUGGEST_LIMIT = 8;
 
 /** Kategori karesi — şekil dili: kare = kategori (bkz. design-modular-boxes) */
 export function CategorySquare({ color }: { color: string }) {
-  return <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-[3px] border-[1.5px] border-[#111]" style={{ background: color }} />;
+  return <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-[3px] border-[1.5px] border-line" style={{ background: color }} />;
 }
 
 /**
@@ -91,12 +92,12 @@ export function FilterChip({
       aria-pressed={on}
       className={
         "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border-[1.5px] px-3 text-[12.5px] font-extrabold transition-transform " +
-        (on ? "-translate-y-px shadow-[2px_2px_0_#111]" : "bg-white active:bg-[#f5f1e8]")
+        (on ? "-translate-y-px shadow-[2px_2px_0_var(--shade)]" : "bg-paper active:bg-paper-2")
       }
       style={{
-        borderColor: "#111",
-        background: on ? color ?? "#111" : undefined,
-        color: on && !color ? "#fff" : "#111",
+        borderColor: "var(--line)",
+        background: on ? color ?? "var(--well)" : undefined,
+        color: on && !color ? "#fff" : "var(--ink)",
       }}
     >
       {children}
@@ -141,18 +142,18 @@ export function SearchFilters({
   const next = period ? shiftPeriod(period, 1) : null;
   const nextOff = !next || next.start > nowMs();
   const arrow =
-    "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111] bg-white text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none disabled:opacity-25 disabled:shadow-none";
+    "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-line bg-paper text-ink shadow-[1.5px_1.5px_0_var(--shade)] active:translate-x-px active:translate-y-px active:shadow-none disabled:opacity-25 disabled:shadow-none";
   return (
     <section
       data-search-filters=""
       aria-label={t("search.filters")}
-      className="mb-4 grid grid-cols-1 gap-[2px] overflow-hidden rounded-[18px] border-2 border-[#111] bg-[#111] shadow-[4px_4px_0_#111]"
+      className="mb-4 grid grid-cols-1 gap-[2px] overflow-hidden rounded-[18px] border-2 border-line bg-line shadow-[4px_4px_0_var(--shade)]"
     >
-      <div className="bg-white p-2">
+      <div className="bg-paper p-2">
         <div
           role="tablist"
           aria-label={t("insights.period")}
-          className="grid grid-cols-5 overflow-hidden rounded-[11px] border-[1.5px] border-[#111]"
+          className="grid grid-cols-5 overflow-hidden rounded-[11px] border-[1.5px] border-line"
         >
           {TIME_KINDS.map((k, i) => {
             const on = kind === k.kind;
@@ -165,8 +166,8 @@ export function SearchFilters({
                 onClick={() => onKind(k.kind)}
                 className={cn(
                   "h-9 min-w-0 truncate px-1 text-[13px] font-extrabold transition-colors",
-                  i > 0 && "border-l-[1.5px] border-[#111]",
-                  on ? "bg-[#111] text-white" : "bg-white text-[#111]/70 active:bg-[#f5f1e8]"
+                  i > 0 && "border-l-[1.5px] border-line",
+                  on ? "bg-well text-white" : "bg-paper text-ink/70 active:bg-paper-2"
                 )}
               >
                 {t(k.label)}
@@ -176,7 +177,7 @@ export function SearchFilters({
         </div>
       </div>
       {period && (
-        <div className="flex items-center gap-2 bg-[#ffe7d6] px-2 py-1.5 text-[#111]">
+        <div className="flex items-center gap-2 bg-fill-[#ffe7d6] px-2 py-1.5 text-ink">
           <button
             type="button"
             onClick={() => prev && onPeriod(prev)}
@@ -202,7 +203,7 @@ export function SearchFilters({
           </button>
         </div>
       )}
-      <nav aria-label={t("structure.categories")} className="bg-white">
+      <nav aria-label={t("structure.categories")} className="bg-paper">
         <HScroll className="gap-1.5 px-2 py-2">
           <FilterChip on={categoryId === null} onClick={() => onCategory(null)}>
             {t("search.allCategories")}
@@ -262,8 +263,8 @@ export function SearchStart({ onPick }: { onPick: (q: string) => void }) {
       stats={[]}
     >
       {suggestions && suggestions.length > 0 ? (
-        <div className="bg-white px-3 pb-3 pt-2.5">
-          <p className="mb-2 text-[11.5px] font-bold text-[#111]/55">{t("home.frequentTitle")}</p>
+        <div className="bg-paper px-3 pb-3 pt-2.5">
+          <p className="mb-2 text-[11.5px] font-bold text-ink/55">{t("home.frequentTitle")}</p>
           <div className="flex flex-wrap gap-1.5">
             {suggestions.map((s) => (
               <FilterChip key={s.key} onClick={() => onPick(s.name)}>
@@ -292,7 +293,7 @@ export function SearchNoResults({ onWiden }: { onWiden?: () => void }) {
     >
       <SummaryEmpty
         text={t("search.emptyHint")}
-        action={onWiden ? { label: t("search.rangeAll"), onClick: onWiden, icon: CalendarRange, color: "#ffffff" } : undefined}
+        action={onWiden ? { label: t("search.rangeAll"), onClick: onWiden, icon: CalendarRange, color: "var(--paper)" } : undefined}
       />
     </SummaryBlock>
   );
@@ -338,7 +339,7 @@ export function SearchTypeBar({
     <nav
       data-search-types=""
       aria-label={t("search.types")}
-      className="mb-4 overflow-hidden rounded-[14px] border-2 border-[#111] bg-white shadow-[3px_3px_0_#111]"
+      className="mb-4 overflow-hidden rounded-[14px] border-2 border-line bg-paper shadow-[3px_3px_0_var(--shade)]"
     >
       <HScroll className="gap-1.5 p-2">
         <FilterChip on={value === "all"} onClick={() => onPick("all")}>
@@ -380,7 +381,7 @@ function SeeAll({ n, onClick }: { n: string; onClick?: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex h-11 items-center justify-center gap-1 bg-white text-[13px] font-black text-[#111] active:bg-[#f5f1e8]"
+      className="flex h-11 items-center justify-center gap-1 bg-paper text-[13px] font-black text-ink active:bg-paper-2"
     >
       {t("search.seeAll", { n })}
       <ChevronRight className="h-4 w-4" strokeWidth={2.75} />
@@ -395,7 +396,7 @@ function ShowMore({ n, onClick }: { n: string; onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex h-11 items-center justify-center bg-white text-[13px] font-black text-[#111] active:bg-[#f5f1e8]"
+      className="flex h-11 items-center justify-center bg-paper text-[13px] font-black text-ink active:bg-paper-2"
     >
       {t("list.showMore")} ({n})
     </button>
@@ -430,33 +431,33 @@ function ResultRow({
       href={href}
       prefetch={false}
       data-search-row=""
-      className="flex min-h-[54px] items-center gap-3 bg-white px-3 py-2 text-[#111] active:bg-[#f5f1e8]"
+      className="flex min-h-[54px] items-center gap-3 bg-paper px-3 py-2 text-ink active:bg-paper-2"
     >
       {shape === "diamond" ? (
         <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center">
-          <span className="h-[21px] w-[21px] rotate-45 rounded-[4px] border-[1.5px] border-[#111]" style={{ background: color }} />
+          <span className="h-[21px] w-[21px] rotate-45 rounded-[4px] border-[1.5px] border-line" style={{ background: color }} />
         </span>
       ) : (
         <span
           aria-hidden
           className={cn(
-            "flex h-8 w-8 shrink-0 items-center justify-center border-[1.5px] border-[#111]",
+            "flex h-8 w-8 shrink-0 items-center justify-center border-[1.5px] border-line",
             shape === "circle" ? "rounded-full" : "rounded-[9px]"
           )}
-          style={{ background: color }}
+          style={{ background: blockFill(color) }}
         >
           {icon ? (
-            <SymbolIcon name={icon} size={17} style={{ color: "#111" }} />
+            <SymbolIcon name={icon} size={17} style={{ color: blockInk(color) }} />
           ) : Glyph ? (
-            <Glyph className="h-4 w-4 text-[#111]" strokeWidth={2.5} />
+            <Glyph style={{ color: blockInk(color) }} className="h-4 w-4 text-ink" strokeWidth={2.5} />
           ) : null}
         </span>
       )}
       <span className="min-w-0 flex-1 leading-tight">
         <span className="block truncate text-[14.5px] font-extrabold">{title}</span>
-        {hint && <span className="mt-0.5 block truncate text-[11.5px] font-bold text-[#111]/55">{hint}</span>}
+        {hint && <span className="mt-0.5 block truncate text-[11.5px] font-bold text-ink/55">{hint}</span>}
       </span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-[#111]/45" strokeWidth={2.75} />
+      <ChevronRight className="h-4 w-4 shrink-0 text-ink/45" strokeWidth={2.75} />
     </Link>
   );
 }
@@ -567,7 +568,7 @@ export function SearchPlanned({ rows, cap, onAll }: { rows: GoalRowData[]; cap?:
   const n = new Intl.NumberFormat(tag).format(rows.length);
   return (
     <KindBlock kind="planned" count={n}>
-      <div className="flex flex-col gap-2 bg-white p-2.5">
+      <div className="flex flex-col gap-2 bg-paper p-2.5">
         {shown.map((r) => (
           <GoalRow key={r.goal.id} row={r} today={today} onOpen={() => setEditing(r.goal)} />
         ))}

@@ -1,7 +1,7 @@
 "use client";
 
 import { createElement, useContext, useState, useMemo, useRef } from "react";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import {
   collectThings,
   ThingHeader,
@@ -95,6 +95,7 @@ import { EntryTime } from "@/components/forms/entry-time";
 import { SmartText } from "@/components/ui/smart-text";
 import { SymbolIcon } from "@/lib/icons";
 import { modColor } from "@/lib/mod-color";
+import { blockFill } from "@/lib/fill";
 
 interface EditEntryModalProps {
   entry: EntryWithContext;
@@ -780,7 +781,7 @@ export function EditEntryModal({
                   <span
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px]"
                     style={{
-                      backgroundColor: PARALLEL_C,
+                      backgroundColor: blockFill(PARALLEL_C),
                       boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25), inset 0 0 0 1px rgba(0,0,0,0.14)",
                     }}
                   >
@@ -850,7 +851,7 @@ export function EditEntryModal({
                   onClick={handleParallelStepSave}
                   disabled={pSaving}
                   className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-60"
-                  style={{ background: PARALLEL_C }}
+                  style={{ background: blockFill(PARALLEL_C) }}
                 >
                   {!pSaving && <Check className="h-5 w-5" strokeWidth={2.75} />}
                   {pSaving
@@ -954,7 +955,7 @@ export function EditEntryModal({
                   aria-label={`${structureName} yapı sayfasına git`}
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] transition-transform active:scale-95"
                   style={{
-                    backgroundColor: accent,
+                    backgroundColor: blockFill(accent),
                     boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25), inset 0 0 0 1px rgba(0,0,0,0.14)",
                   }}
                 >
@@ -1141,7 +1142,7 @@ export function EditEntryModal({
                   onClick={handleSave}
                   disabled={saving}
                   className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-60"
-                  style={{ background: accent }}
+                  style={{ background: blockFill(accent) }}
                 >
                   {!saving && <Check className="h-5 w-5" strokeWidth={2.75} />}
                   {saving
@@ -1297,11 +1298,11 @@ export function EditEntryModal({
                   type="button"
                   onClick={() => setAddModOpen(true)}
                   className="flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm font-medium text-foreground transition-all hover:brightness-125 active:scale-[0.99]"
-                  style={{ background: `${accent}14`, borderColor: `${accent}40` }}
+                  style={{ background: blockFill(`${accent}14`), borderColor: `${accent}40` }}
                 >
                   <span
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                    style={{ background: `${accent}2e`, color: accent }}
+                    style={{ background: blockFill(`${accent}2e`), color: accent }}
                   >
                     <Plus className="h-4 w-4" strokeWidth={2.5} />
                   </span>
@@ -1510,13 +1511,13 @@ function ModInput({
         ref={scrollOnMount}
         className="flex items-center gap-3 rounded-2xl py-2.5 pl-3 pr-2 transition-colors"
         style={{
-          background: `${fieldColor}${on ? "1a" : "0d"}`,
+          background: blockFill(`${fieldColor}${on ? "1a" : "0d"}`),
           boxShadow: `inset 0 0 0 1px ${fieldColor}${on ? "59" : "2e"}`,
         }}
       >
         <span
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-          style={{ background: `${fieldColor}26`, color: fieldColor }}
+          style={{ background: blockFill(`${fieldColor}26`), color: fieldColor }}
         >
           {createElement(modAtomIcon({ name: label, entryType }), {
             className: "h-4 w-4",
@@ -1754,7 +1755,7 @@ function ChoiceButtons({
                 ? on
                   ? {
                       borderColor: cs.shellBorder,
-                      background: cs.fieldBg,
+                      background: blockFill(cs.fieldBg),
                       color: color,
                     }
                   : { borderColor: cs.fieldBorder }
@@ -1776,7 +1777,7 @@ function ChoiceButtons({
 /** Nesne girdisinin nesneleri — başlık ve ipe asılı özellik alanları */
 function ThingEntryBlocks({ entry, entryDate }: { entry: EntryWithContext; entryDate: string }) {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const data = useLiveQuery(async () => {
     const things = (await db.things.bulkGet(entry.thingIds ?? [])).filter((x): x is Thing => !!x);
     const colls = await db.collections.bulkGet([...new Set(things.map((x) => x.collectionId))]);

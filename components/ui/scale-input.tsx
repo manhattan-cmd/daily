@@ -1,6 +1,7 @@
 "use client";
 
 import type { ScaleLabels } from "@/types";
+import { blockFill } from "@/lib/fill";
 
 /**
  * Skala girişi — TEK PARÇA bir şerit.
@@ -36,7 +37,7 @@ export function ScaleInput({
         // Testler biçime değil bu kancaya baksın
         data-scale-strip=""
         className="flex h-11 overflow-hidden rounded-xl"
-        style={{ boxShadow: `inset 0 0 0 1px ${color}40`, background: `${color}0f` }}
+        style={{ boxShadow: `inset 0 0 0 1px ${color}40`, background: blockFill(`${color}0f`) }}
       >
         {choices.map((c, i) => {
           const active = i === sel;
@@ -50,7 +51,7 @@ export function ScaleInput({
               aria-label={c}
               className="relative flex min-w-0 flex-1 items-center justify-center text-[13px] font-semibold tabular-nums transition-colors duration-200"
               style={{
-                background: active ? color : filled ? `${color}38` : undefined,
+                background: active ? blockFill(color) : filled ? blockFill(`${color}38`) : undefined,
                 color: active ? "#fff" : filled ? color : "var(--muted-foreground)",
                 // İnce ayraç — dilimler ayrı okunsun ama tek ray kalsın
                 boxShadow:
@@ -101,10 +102,10 @@ export function ToggleSwitch({
       aria-label={label}
       onClick={() => onChange(!checked)}
       className="relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200"
-      style={{ background: checked ? color : "var(--sf-3)" }}
+      style={{ background: checked ? blockFill(color) : "var(--sf-3)" }}
     >
       <span
-        className="absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-[left] duration-200"
+        className="absolute top-0.5 h-6 w-6 rounded-full bg-paper shadow transition-[left] duration-200"
         style={{ left: checked ? 22 : 2 }}
       />
     </button>

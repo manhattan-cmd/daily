@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 import { db } from "@/lib/db";
 import { createNote } from "@/lib/db/queries";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { useSheetPresence } from "@/lib/use-sheet-presence";
 import { cn } from "@/lib/utils";
 import type { BuiltInCategoryKey, SubCategory } from "@/types";
@@ -19,6 +19,7 @@ import { NoteWindow } from "@/components/notes/note-window";
 import { ThingEntrySheet } from "@/components/forms/thing-entry-sheet";
 import { QuickPicker } from "@/components/calendar/quick-picker";
 import { ADD_TABS, tabDef, type AddTab } from "@/components/calendar/add-tabs";
+import { blockFill } from "@/lib/fill";
 
 export type { AddTab };
 
@@ -65,7 +66,7 @@ export function AddScreen(props: AddScreenProps) {
 function AddScreenBody({ date, open, onClose, tab: initialTab, entryOpts }: AddScreenProps) {
   const t = useT();
   const tag = intlTag(useLocale());
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const [tab, setTab] = useState<AddTab>(initialTab);
   // Açılmış sekmeler — ekran kapanana kadar kurulu kalır
   const [visited, setVisited] = useState<AddTab[]>([initialTab]);
@@ -180,22 +181,22 @@ function AddScreenBody({ date, open, onClose, tab: initialTab, entryOpts }: AddS
           {brutal ? (
             <header
               data-add-nav=""
-              className="shrink-0 border-b-[3px] border-[#111] pt-[env(safe-area-inset-top,0px)] transition-colors duration-200"
-              style={{ background: active.color }}
+              className="shrink-0 border-b-[3px] border-line pt-[env(safe-area-inset-top,0px)] transition-colors duration-200"
+              style={{ background: blockFill(active.color) }}
             >
               <div className="flex h-11 items-center gap-2.5 pl-3 pr-4 pt-1.5">
                 <button
                   type="button"
                   onClick={onClose}
                   aria-label={t("action.close")}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border-2 bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
-                  style={{ borderColor: "#111" }}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border-2 bg-paper text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-px active:translate-y-px active:shadow-none"
+                  style={{ borderColor: "var(--line)" }}
                 >
                   <X className="h-4 w-4" strokeWidth={2.75} />
                 </button>
                 <div className="min-w-0 flex-1 leading-none">
-                  <div className="text-[17px] font-extrabold tracking-[-0.02em] text-[#111]">{t("day.add")}</div>
-                  <div className="mt-1 truncate text-[11px] font-bold text-[#111]/60">{dayLabel}</div>
+                  <div className="text-[17px] font-extrabold tracking-[-0.02em] text-ink">{t("day.add")}</div>
+                  <div className="mt-1 truncate text-[11px] font-bold text-ink/60">{dayLabel}</div>
                 </div>
               </div>
               <nav
@@ -211,22 +212,22 @@ function AddScreenBody({ date, open, onClose, tab: initialTab, entryOpts }: AddS
                       type="button"
                       onClick={() => pick(d.key)}
                       aria-current={on ? "page" : undefined}
-                      className="flex min-w-0 flex-col items-center gap-[5px] pt-1 text-[#111]"
+                      className="flex min-w-0 flex-col items-center gap-[5px] pt-1 text-ink"
                     >
                       <span
                         className={cn(
                           "box-content flex h-[18px] w-[18px] items-center justify-center rounded-full border-[1.5px] px-[8px] py-[2px] transition-transform",
-                          on ? "-translate-y-0.5 bg-white shadow-[2px_2px_0_#111]" : "text-[#111]/60"
+                          on ? "-translate-y-0.5 bg-paper shadow-[2px_2px_0_var(--shade)]" : "text-ink/60"
                         )}
                         // Çerçeve rengi satır içi: katmansız "* { border-color }" kuralı border-transparent'ı eziyor
-                        style={{ borderColor: on ? "#111" : "transparent" }}
+                        style={{ borderColor: on ? "var(--line)" : "transparent" }}
                       >
                         <d.icon className="h-4 w-4 shrink-0" strokeWidth={2.4} />
                       </span>
                       <span
                         className={cn(
                           "w-full truncate text-center text-[10.5px] leading-none tracking-[-0.01em]",
-                          on ? "font-black" : "font-bold text-[#111]/65"
+                          on ? "font-black" : "font-bold text-ink/65"
                         )}
                       >
                         {t(d.label)}

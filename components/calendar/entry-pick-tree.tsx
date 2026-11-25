@@ -23,6 +23,7 @@ import { RadialExplorer } from "@/components/calendar/entry-radial-explorer";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Category, SubCategory } from "@/types";
+import { blockFill } from "@/lib/fill";
 
 export type PickGroup = {
   category: Category;
@@ -285,7 +286,7 @@ export function EntryPickTree({
             <div
               className="flex items-center gap-2 rounded-xl px-2.5 py-1.5 shadow-2xl"
               style={{
-                backgroundColor: `${drag.color}26`,
+                backgroundColor: blockFill(`${drag.color}26`),
                 outline: `2px solid ${drag.color}`,
                 backdropFilter: "blur(4px)",
               }}
@@ -525,7 +526,7 @@ function CategorySection({
         style={
           isCatDrop
             ? {
-                background: `${color}1f`,
+                background: blockFill(`${color}1f`),
                 // @ts-expect-error CSS custom property
                 "--tw-ring-color": color,
               }
@@ -663,7 +664,7 @@ function SubTile({
         {hasChildren && (
           <span
             className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-background"
-            style={{ backgroundColor: color }}
+            style={{ backgroundColor: blockFill(color) }}
           >
             <ChevronDown
               className={cn(

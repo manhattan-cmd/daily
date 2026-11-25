@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { HeaderBlock, HeaderLead, HeaderTile, HeaderTitle, bandColor } from "@/components/ui/header-block";
 
 interface PageHeaderProps {
@@ -63,7 +63,7 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
 
   // Brütal tema: ana sayfanın blok dili başlıkta (bkz. HeaderBlock) — ortada
   // bölümün rengindeki benekli hücrede simge karosu, siyah etiket ve düz
@@ -89,7 +89,7 @@ export function PageHeader({
             title={title}
             badge={
               badge !== undefined && badge !== null ? (
-                <span data-brut-badge="" className="shrink-0 rounded-lg bg-[#111] px-2 py-0.5 text-[13px] font-black tabular-nums text-[#FFF4DC]">
+                <span data-brut-badge="" className="shrink-0 rounded-lg bg-well px-2 py-0.5 text-[13px] font-black tabular-nums text-[#FFF4DC]">
                   {badge}
                 </span>
               ) : undefined
@@ -101,7 +101,7 @@ export function PageHeader({
     return (
       <HeaderBlock
         color={color}
-        rows={nav ? <div data-header-row="" className="bg-white px-2 pt-2">{nav}</div> : undefined}
+        rows={nav ? <div data-header-row="" className="bg-paper px-2 pt-2">{nav}</div> : undefined}
       >
         {titleSlot ?? <HeaderTitle size={20}>{title}</HeaderTitle>}
       </HeaderBlock>

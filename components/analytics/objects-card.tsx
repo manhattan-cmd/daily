@@ -10,6 +10,7 @@ import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { Layer } from "@/components/ui/layer";
 import { SummaryBlock } from "@/components/ui/summary-block";
 import { useIsBrutal } from "@/components/structure/brutal";
+import { blockFill, blockInk } from "@/lib/fill";
 
 /** Nesneler bloğunun rengi (Brütal) */
 const OBJECTS = "#ffd23f";
@@ -59,28 +60,28 @@ export function ObjectsCard({ start, end }: { start: number; end: number }) {
         }}
         stats={[]}
       >
-        <div data-objects-card="" className="flex flex-col bg-white">
+        <div data-objects-card="" className="flex flex-col bg-paper">
           {rows.map(({ c, things, entries }, i) => (
             <Link
               key={c.id}
               href={routes.analyticsCollection(c.id)}
               prefetch={false}
-              className={i > 0 ? "flex items-center gap-2.5 border-t-[1.5px] px-3 py-2.5 text-[#111] active:bg-[#f5f1e8]" : "flex items-center gap-2.5 px-3 py-2.5 text-[#111] active:bg-[#f5f1e8]"}
-              style={i > 0 ? { borderTopColor: "#111" } : undefined}
+              className={i > 0 ? "flex items-center gap-2.5 border-t-[1.5px] px-3 py-2.5 text-ink active:bg-paper-2" : "flex items-center gap-2.5 px-3 py-2.5 text-ink active:bg-paper-2"}
+              style={i > 0 ? { borderTopColor: "var(--line)" } : undefined}
             >
               <span
                 className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] border-2"
-                style={{ background: c.color ?? "#94a3b8", borderColor: "#111" }}
+                style={{ background: blockFill(c.color ?? "#94a3b8"), borderColor: "var(--line)" }}
               >
                 {c.icon ? (
-                  <SymbolIcon name={c.icon} size={16} style={{ color: "#111" }} />
+                  <SymbolIcon name={c.icon} size={16} style={{ color: blockInk(c.color ?? "#94a3b8") }} />
                 ) : (
                   <Boxes className="h-4 w-4" strokeWidth={2.5} />
                 )}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13.5px] font-black leading-tight">{c.name}</span>
-                <span className="mt-0.5 block truncate text-[11px] font-bold leading-tight text-[#111]/60">
+                <span className="mt-0.5 block truncate text-[11px] font-bold leading-tight text-ink/60">
                   {t("objects.an.cardLine", { things, entries })}
                 </span>
               </span>
@@ -110,12 +111,12 @@ export function ObjectsCard({ start, end }: { start: number; end: number }) {
           >
             <span
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-              style={{ background: c.color ?? "#94a3b8" }}
+              style={{ background: blockFill(c.color ?? "#94a3b8") }}
             >
               {c.icon ? (
-                <SymbolIcon name={c.icon} size={16} style={{ color: "#111" }} />
+                <SymbolIcon name={c.icon} size={16} style={{ color: blockInk(c.color ?? "#94a3b8") }} />
               ) : (
-                <Boxes className="h-4 w-4 text-[#111]" />
+                <Boxes style={{ color: blockInk(c.color ?? "#94a3b8") }} className="h-4 w-4 text-ink" />
               )}
             </span>
             <span className="min-w-0 flex-1">

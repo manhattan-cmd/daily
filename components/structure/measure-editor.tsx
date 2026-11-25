@@ -16,7 +16,7 @@ import type { ModMeasure } from "@/lib/db/queries";
 import { Label } from "@/components/ui/label";
 import { ScaleSlider } from "@/components/ui/scale-slider";
 import { useT } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
 import { isMeasureComplete, useMeasureEditor } from "./measure-editor-state";
 import { BrutMeasureEditor } from "./brut-measure-editor";
@@ -56,7 +56,7 @@ export type MeasureEditorProps = {
 
 /** Brütalde kendi düzeni (bkz. BrutMeasureEditor); durum ikisinde ortak */
 export function MeasureEditor(props: MeasureEditorProps) {
-  return useSkin() === "brutal" ? (
+  return isBlockSkin(useSkin()) ? (
     <BrutMeasureEditor {...props} />
   ) : (
     <SadeMeasureEditor {...props} />

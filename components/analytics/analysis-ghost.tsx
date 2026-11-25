@@ -2,6 +2,7 @@
 
 import { ArrowUp } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import { blockFill } from "@/lib/fill";
 
 /**
  * Henüz kategori seçilmemişken kademe yığınının YERİNİ tutan hayalet kart.
@@ -66,7 +67,7 @@ export function AnalysisGhost({
         <span
           data-ghost-arrow=""
           className="ghost-arrow flex h-9 w-9 items-center justify-center rounded-full"
-          style={{ background: `${color}22`, color, boxShadow: `inset 0 0 0 1px ${color}55` }}
+          style={{ background: blockFill(`${color}22`), color, boxShadow: `inset 0 0 0 1px ${color}55` }}
         >
           <ArrowUp className="h-4 w-4" />
         </span>

@@ -3,7 +3,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Check, Heading, NotebookPen, PenLine, Trash2, X, type LucideIcon } from "lucide-react";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { SheetFrame, SheetTitle } from "@/components/ui/sheet-frame";
 import { SmartText } from "@/components/ui/smart-text";
 import { ENTRY_WINDOW_LARGE } from "@/components/ui/entry-window";
@@ -11,6 +11,7 @@ import { OptionsMenu } from "@/components/forms/form-options";
 import { useNoteDraft } from "@/components/notes/use-note-draft";
 import { NOTE_COLOR } from "@/components/notes/note-card";
 import { cn } from "@/lib/utils";
+import { blockFill } from "@/lib/fill";
 
 /** Notun günü, arayüzün dilinde: "31 Ekim Cumartesi" (eskiden ay ve gün adları elle İngilizceydi) */
 function dateLabel(date: string, tag: string): string {
@@ -59,7 +60,7 @@ function NoteWindowBody({
 }) {
   const t = useT();
   const tag = intlTag(useLocale());
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const d = useNoteDraft(noteId);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const c = NOTE_COLOR;
@@ -129,7 +130,7 @@ function NoteWindowBody({
               <span
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px]"
                 style={{
-                  backgroundColor: c,
+                  backgroundColor: blockFill(c),
                   boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25), inset 0 0 0 1px rgba(0,0,0,0.14)",
                 }}
               >
@@ -207,7 +208,7 @@ function NoteWindowBody({
               onClick={() => void close()}
               disabled={embedded && !hasText}
               className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-50"
-              style={{ background: c }}
+              style={{ background: blockFill(c) }}
             >
               <Check className="h-5 w-5" strokeWidth={2.75} />
               {embedded ? t("action.add") : t("action.save")}
@@ -250,20 +251,20 @@ function NoteBox({
         brutal && "mt-3 pt-5",
         grow && "min-h-[240px] flex-1"
       )}
-      style={{ background: `${color}0f`, boxShadow: `inset 0 0 0 1px ${color}2e` }}
+      style={{ background: blockFill(`${color}0f`), boxShadow: `inset 0 0 0 1px ${color}2e` }}
     >
       {brutal ? (
         <div
           data-ledger-tab=""
-          className="absolute -top-[11px] left-2.5 z-[1] flex max-w-[calc(100%-16px)] items-center gap-1 rounded-md border-[1.5px] border-[#111] px-1.5 py-px text-[#111]"
-          style={{ background: `color-mix(in srgb, ${color} 45%, #ffffff)` }}
+          className="absolute -top-[11px] left-2.5 z-[1] flex max-w-[calc(100%-16px)] items-center gap-1 rounded-md border-[1.5px] border-line px-1.5 py-px text-ink"
+          style={{ background: `color-mix(in srgb, ${color} calc(45% * var(--fill-scale)), var(--paper))` }}
         >
           <Icon className="h-3 w-3 shrink-0" strokeWidth={2.6} />
           <SmartText text={label} className="min-w-0 text-[10.5px] font-black uppercase leading-[14px] tracking-wide" />
         </div>
       ) : (
         <div className="flex items-center gap-2 text-[12px] font-semibold text-muted-foreground">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full" style={{ background: `${color}33`, color }}>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full" style={{ background: blockFill(`${color}33`), color }}>
             <Icon className="h-3.5 w-3.5" strokeWidth={2.2} />
           </span>
           {label}

@@ -61,14 +61,14 @@ export function ChoiceDonut({
 
   if (!total) {
     return (
-      <div className={cn("py-6 text-center text-xs text-muted-foreground", cells && "bg-white")}>
+      <div className={cn("py-6 text-center text-xs text-muted-foreground", cells && "bg-paper")}>
         {t("stat.noData")}
       </div>
     );
   }
 
   return (
-    <div data-donut="" className={cn("flex items-center gap-4", cells && "bg-white px-3.5 py-3")}>
+    <div data-donut="" className={cn("flex items-center gap-4", cells && "bg-paper px-3.5 py-3")}>
       <div className="relative shrink-0" style={{ width: SIZE, height: SIZE }}>
         <PieChart width={SIZE} height={SIZE} accessibilityLayer={false}>
           <Pie
@@ -79,7 +79,7 @@ export function ChoiceDonut({
             outerRadius={62}
             startAngle={90}
             endAngle={-270}
-            stroke={brutal ? "#111" : "var(--card)"}
+            stroke={brutal ? "var(--ink)" : "var(--card)"}
             strokeWidth={brutal ? 1.5 : 2}
             isAnimationActive={false}
           >
@@ -90,10 +90,10 @@ export function ChoiceDonut({
         </PieChart>
         {/* Halkanın ortasında bütünün kendisi */}
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className={cn("text-[19px] font-extrabold leading-none tabular-nums", brutal && "text-[#111]")}>
+          <span className={cn("text-[19px] font-extrabold leading-none tabular-nums", brutal && "text-ink")}>
             {fmtNum(total)}
           </span>
-          <span className={cn("mt-1 text-[10px] font-semibold leading-none", brutal ? "text-[#111]/60" : "text-muted-foreground")}>
+          <span className={cn("mt-1 text-[10px] font-semibold leading-none", brutal ? "text-ink/60" : "text-muted-foreground")}>
             {t("chart.donutTotal")}
           </span>
         </div>
@@ -110,19 +110,19 @@ export function ChoiceDonut({
                 onClick={() => onSelect(on ? null : s.choice)}
                 className={cn(
                   "flex w-full min-w-0 items-center gap-2 rounded-lg px-1.5 py-1 text-left",
-                  on && (brutal ? "bg-[#111]/[0.07]" : "bg-[var(--sf-2)]"),
+                  on && (brutal ? "bg-ink/[0.07]" : "bg-[var(--sf-2)]"),
                   s.other && "cursor-default"
                 )}
               >
                 <span
                   aria-hidden
-                  className={cn("h-3 w-3 shrink-0 rounded-[3px]", brutal && "border-[1.5px] border-[#111]")}
+                  className={cn("h-3 w-3 shrink-0 rounded-[3px]", brutal && "border-[1.5px] border-line")}
                   style={{
                     backgroundColor: fillOf(s.other),
                     opacity: brutal ? 1 : shadeOf(i, s.choice, s.other),
                     // Brütalde kare çerçeveli; tonu rengin kendisinden
                     ...(brutal
-                      ? { backgroundColor: `color-mix(in srgb, ${fillOf(s.other)} ${Math.round(shadeOf(i, s.choice, s.other) * 100)}%, #fff)` }
+                      ? { backgroundColor: `color-mix(in srgb, ${fillOf(s.other)} calc(${Math.round(shadeOf(i, s.choice, s.other) * 100)}% * var(--fill-scale)), var(--paper))` }
                       : {}),
                   }}
                 />
@@ -130,12 +130,12 @@ export function ChoiceDonut({
                   className={cn(
                     "min-w-0 flex-1 truncate text-[12.5px] leading-tight",
                     on ? "font-extrabold" : "font-semibold",
-                    brutal ? "text-[#111]" : "text-foreground"
+                    brutal ? "text-ink" : "text-foreground"
                   )}
                 >
                   {s.choice}
                 </span>
-                <span className={cn("shrink-0 text-[11.5px] font-bold tabular-nums", brutal ? "text-[#111]/70" : "text-muted-foreground")}>
+                <span className={cn("shrink-0 text-[11.5px] font-bold tabular-nums", brutal ? "text-ink/70" : "text-muted-foreground")}>
                   {fmtPct(s.count / total)}
                 </span>
               </button>

@@ -5,7 +5,7 @@ import { Info, X } from "lucide-react";
 import { db } from "@/lib/db";
 import { useLocalFlag } from "@/lib/local-flag";
 import { useT } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { SummaryBlock } from "@/components/ui/summary-block";
 
 const HINT_DISMISSED = "routine:exampleHintDismissed";
@@ -19,7 +19,7 @@ export function ExampleHint() {
   const t = useT();
   const [dismissed, dismiss] = useLocalFlag(HINT_DISMISSED);
   const entryCount = useLiveQuery(() => db.entries.count(), []);
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
 
   if (dismissed || entryCount === undefined || entryCount > 0) return null;
 
@@ -38,7 +38,7 @@ export function ExampleHint() {
         }}
         stats={[]}
       >
-        <p className="bg-white px-3.5 py-3 text-[12.5px] font-semibold leading-snug text-[#111]/70">
+        <p className="bg-paper px-3.5 py-3 text-[12.5px] font-semibold leading-snug text-ink/70">
           {t("structure.sample.body")}
         </p>
       </SummaryBlock>

@@ -24,10 +24,11 @@ import { modAtomIcon } from "@/components/structure/mod-atom";
 import { asThingField, Diamond, summaryOf, type ThingCurrent } from "@/components/forms/thing-ui";
 import { SymbolIcon } from "@/lib/icons";
 import { modColor } from "@/lib/mod-color";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { cn, toLocalDateTimeValue, toLocalDateValue } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Mod } from "@/types";
+import { blockFill, blockInk } from "@/lib/fill";
 
 const ACCENT = "#14b8a6";
 
@@ -79,7 +80,7 @@ export function ThingEntrySheet({
   thingId?: string;
 }) {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   // Bugün — açılışta bir kez okunur (çizimde saat okumak saf değil)
   const [today] = useState(() => toLocalDateValue(Date.now()));
   const baseDate = date ?? today;
@@ -165,8 +166,8 @@ export function ThingEntrySheet({
     }
   }
 
-  const ink = brutal ? "text-[#111]" : "text-foreground";
-  const sub = brutal ? "text-[#111]/55" : "text-muted-foreground";
+  const ink = brutal ? "text-ink" : "text-foreground";
+  const sub = brutal ? "text-ink/55" : "text-muted-foreground";
 
   // Seçim alanının başlığı — girdi formundaki kutularla aynı (LedgerField custom)
   const pickerMod = {
@@ -229,11 +230,11 @@ export function ThingEntrySheet({
                               }}
                               className={cn(
                                 "flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-extrabold",
-                                brutal ? "border-2 border-[#111] text-[#111]" : on ? "text-[#111]" : "text-muted-foreground ring-1 ring-inset ring-[var(--ln-2)]"
+                                brutal ? "border-2 border-line text-ink" : on ? "text-ink" : "text-muted-foreground ring-1 ring-inset ring-[var(--ln-2)]"
                               )}
-                              style={on ? { background: c.color ?? "#94a3b8" } : brutal ? { background: "#fff" } : undefined}
+                              style={on ? { background: blockFill(c.color ?? "#94a3b8") } : brutal ? { background: "var(--paper)" } : undefined}
                             >
-                              {c.icon && <SymbolIcon name={c.icon} size={13} style={{ color: "#111" }} />}
+                              {c.icon && <SymbolIcon name={c.icon} size={13} style={{ color: blockInk(c.color ?? "#94a3b8") }} />}
                               {c.name}
                             </button>
                           );
@@ -242,7 +243,7 @@ export function ThingEntrySheet({
                       <label
                         className={cn(
                           "flex h-9 items-center gap-2 rounded-lg px-2.5",
-                          brutal ? "border-[1.5px] border-[#111] bg-white" : "bg-[var(--sf-2)] ring-1 ring-inset ring-[var(--ln-1)]"
+                          brutal ? "border-[1.5px] border-line bg-paper" : "bg-[var(--sf-2)] ring-1 ring-inset ring-[var(--ln-1)]"
                         )}
                       >
                         <Search className={cn("h-3.5 w-3.5 shrink-0", sub)} strokeWidth={2.4} />
@@ -271,7 +272,7 @@ export function ThingEntrySheet({
                               onClick={() => setThingId(x.id)}
                               className={cn(
                                 "flex min-h-12 shrink-0 items-center gap-2.5 rounded-xl px-1.5 py-1 text-left transition-colors",
-                                brutal ? "border-2 border-[#111] bg-white hover:bg-[#111]/5" : "bg-black/20 hover:bg-[var(--sf-2)]"
+                                brutal ? "border-2 border-line bg-paper hover:bg-ink/5" : "bg-black/20 hover:bg-[var(--sf-2)]"
                               )}
                             >
                               <Diamond color={c?.color ?? "#94a3b8"} icon={c?.icon} size={30} brutal={brutal} />

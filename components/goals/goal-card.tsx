@@ -9,7 +9,7 @@ import {
   type GoalOccurrence,
 } from "@/lib/db/queries";
 import { daysBetween, occursOn, shiftRange, weekOf } from "@/lib/goals";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { SymbolIcon } from "@/lib/icons";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
 import { cn, toLocalDateValue } from "@/lib/utils";
@@ -31,6 +31,7 @@ import { MoodSheet } from "@/components/calendar/mood-sheet";
 import { SleepSheet } from "@/components/calendar/sleep-sheet";
 import { inkOn, useRepeatLabel } from "./goal-plan";
 import { GoalBurst } from "./goal-burst";
+import { blockFill, blockInk } from "@/lib/fill";
 
 /** Uyku / ruh hali / sıradan */
 function builtInOf(goal: GoalWithContext): "sleep" | "mood" | undefined {
@@ -104,9 +105,9 @@ function GoalCheck({
         "before:absolute before:-inset-2 before:content-['']"
       )}
       style={{
-        borderColor: brutal ? "#111" : color,
-        background: done ? (brutal ? "#111" : color) : brutal ? "#fff" : "transparent",
-        boxShadow: brutal ? "1.5px 1.5px 0 #111" : undefined,
+        borderColor: brutal ? "var(--line)" : color,
+        background: done ? (brutal ? "var(--well)" : blockFill(color)) : brutal ? "var(--paper)" : "transparent",
+        boxShadow: brutal ? "1.5px 1.5px 0 var(--shade)" : undefined,
       }}
     >
       {done ? (
@@ -117,7 +118,7 @@ function GoalCheck({
           style={{ color: brutal ? "#fff" : inkOn(color) }}
         />
       ) : (
-        <Check className="h-3.5 w-3.5 opacity-30" strokeWidth={3} style={{ color: brutal ? "#111" : color }} />
+        <Check className="h-3.5 w-3.5 opacity-30" strokeWidth={3} style={{ color: brutal ? "var(--ink)" : color }} />
       )}
     </button>
   );
@@ -164,7 +165,7 @@ function WeekRow({ occ, color, brutal }: { occ: GoalOccurrence; color: string; b
   const done = new Set(occ.weekDone ?? []);
   const part = new Set(occ.weekPart ?? []);
   const scheduled = days.filter((d) => occursOn(occ.goal, d));
-  const line = brutal ? "#111" : color;
+  const line = brutal ? "var(--ink)" : color;
   return (
     <div data-goal-week="" className="flex items-center gap-3">
       <div className="flex shrink-0 items-center gap-[3px]">
@@ -186,19 +187,19 @@ function WeekRow({ occ, color, brutal }: { occ: GoalOccurrence; color: string; b
                 !on
                   ? { color: "var(--muted-foreground)", opacity: 0.45 }
                   : isDone
-                    ? { background: color, color: brutal ? "#111" : inkOn(color), boxShadow: brutal ? "inset 0 0 0 1.5px #111" : undefined }
+                    ? { background: blockFill(color), color: brutal ? "var(--ink)" : inkOn(color), boxShadow: brutal ? "inset 0 0 0 1.5px var(--shade)" : undefined }
                     : isPart
                       ? {
                           // Yarım: alt yarısı dolu
-                          background: `linear-gradient(to top, ${color} 50%, ${brutal ? "#fff" : "transparent"} 50%)`,
-                          color: brutal ? "#111" : undefined,
-                          boxShadow: `inset 0 0 0 ${isThis ? 2 : 1.5}px ${brutal ? "#111" : color}`,
+                          background: `linear-gradient(to top, ${color} 50%, ${brutal ? "var(--paper)" : "transparent"} 50%)`,
+                          color: brutal ? "var(--ink)" : undefined,
+                          boxShadow: `inset 0 0 0 ${isThis ? 2 : 1.5}px ${brutal ? "var(--shade)" : color}`,
                         }
                     : isThis
-                      ? { background: brutal ? "#fff" : "transparent", color: brutal ? "#111" : color, boxShadow: `inset 0 0 0 2px ${line}` }
+                      ? { background: brutal ? "var(--paper)" : "transparent", color: brutal ? "var(--ink)" : color, boxShadow: `inset 0 0 0 2px ${line}` }
                       : past
                         ? { color: "var(--muted-foreground)", boxShadow: "inset 0 0 0 1.5px currentColor", opacity: 0.4 }
-                        : { color: brutal ? "#111" : "var(--muted-foreground)", boxShadow: `inset 0 0 0 1.5px ${brutal ? "#111" : "currentColor"}`, opacity: brutal ? 0.55 : 0.7 }
+                        : { color: brutal ? "var(--ink)" : "var(--muted-foreground)", boxShadow: `inset 0 0 0 1.5px ${brutal ? "var(--shade)" : "currentColor"}`, opacity: brutal ? 0.55 : 0.7 }
               }
             >
               {letter}
@@ -275,14 +276,14 @@ function PendingCard({
   );
 
   if (brutal) {
-    const stripe = `color-mix(in srgb, ${color} 34%, #fff)`;
+    const stripe = `color-mix(in srgb, ${color} calc(34% * var(--fill-scale)), var(--paper))`;
     const icon =
       builtIn === "sleep" ? (
         <MoonStar className="h-3.5 w-3.5" strokeWidth={2.25} />
       ) : builtIn === "mood" ? (
         <Smile className="h-3.5 w-3.5" strokeWidth={2.25} />
       ) : goal.subcategory.icon || goal.category.icon ? (
-        <SymbolIcon name={(goal.subcategory.icon || goal.category.icon)!} size={14} style={{ color: "#111" }} />
+        <SymbolIcon name={(goal.subcategory.icon || goal.category.icon)!} size={14} style={{ color: blockInk(color) }} />
       ) : (
         <Target className="h-3.5 w-3.5" strokeWidth={2.25} />
       );
@@ -311,7 +312,7 @@ function PendingCard({
         {note && (
           <EntryBlockCell className="flex items-start gap-1.5">
             <NotebookPen className="mt-[1px] h-3 w-3 shrink-0" strokeWidth={2.25} />
-            <p className="line-clamp-3 min-w-0 text-[11px] font-medium leading-snug text-[#111]/75">{note}</p>
+            <p className="line-clamp-3 min-w-0 text-[11px] font-medium leading-snug text-ink/75">{note}</p>
           </EntryBlockCell>
         )}
         {week && <EntryBlockCell>{week}</EntryBlockCell>}
@@ -335,7 +336,7 @@ function PendingCard({
     >
       <div data-sel-head="" className="flex items-center gap-2">
         {builtIn ? (
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl" style={{ background: `${color}33` }}>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl" style={{ background: blockFill(`${color}33`) }}>
             {builtIn === "sleep" ? (
               <MoonStar className="h-[17px] w-[17px]" style={{ color }} strokeWidth={1.75} />
             ) : (
@@ -412,7 +413,7 @@ export function GoalCard({
   highlight?: boolean;
 }) {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const { goal, entry, date, slot } = occ;
   const color = colorOf(goal);
   const builtIn = builtInOf(goal);

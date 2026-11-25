@@ -2,7 +2,7 @@
 
 import { Volume2 } from "lucide-react";
 import { playEntrySound, setSoundOn, useSoundOn, type EntrySoundKind } from "@/lib/sound";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { useT } from "@/lib/i18n";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,7 @@ const PREVIEWS: { kind: EntrySoundKind; label: MessageKey }[] = [
 export function SoundSection() {
   const t = useT();
   const on = useSoundOn();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
 
   // Brütal: blok — anahtar başın yanındaki karoda; açıkken altında sesleri
   // dinleme kapsülleri
@@ -38,7 +38,7 @@ export function SoundSection() {
       >
         {on && (
           <SettingsCell className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-[12px] font-bold text-[#111]/55">{t("settings.soundTry")}</span>
+            <span className="mr-1 text-[12px] font-bold text-ink/55">{t("settings.soundTry")}</span>
             {PREVIEWS.map((p) => (
               <button key={p.kind} type="button" onClick={() => playEntrySound(p.kind)} className={settingsPill}>
                 {t(p.label)}
@@ -69,14 +69,14 @@ export function SoundSection() {
         <span
           className={cn(
             "relative h-6 w-10 shrink-0 rounded-full transition-colors",
-            brutal ? "border-2 border-[#111]" : "",
-            on ? (brutal ? "bg-[#7be08a]" : "bg-foreground") : brutal ? "bg-white" : "bg-muted-foreground/30"
+            brutal ? "border-2 border-line" : "",
+            on ? (brutal ? "bg-fill-[#7be08a]" : "bg-foreground") : brutal ? "bg-paper" : "bg-muted-foreground/30"
           )}
         >
           <span
             className={cn(
               "absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full transition-all",
-              brutal ? "border-2 border-[#111] bg-white" : "bg-background",
+              brutal ? "border-2 border-line bg-paper" : "bg-background",
               on ? "right-0.5" : "left-0.5"
             )}
           />
@@ -94,7 +94,7 @@ export function SoundSection() {
               className={cn(
                 "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
                 brutal
-                  ? "border-2 border-[#111] bg-white text-[#111] active:translate-x-px active:translate-y-px"
+                  ? "border-2 border-line bg-paper text-ink active:translate-x-px active:translate-y-px"
                   : "bg-[var(--sf-2)] hover:bg-[var(--sf-3)]"
               )}
             >

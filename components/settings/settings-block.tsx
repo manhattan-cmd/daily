@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Check, ChevronRight, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { blockFill } from "@/lib/fill";
 
 /**
  * Ayar bloğu (Brütal) — ana sayfanın ve Yapı listelerinin blok dili (bkz.
@@ -40,8 +41,8 @@ export function SettingsBlock({
   children?: ReactNode;
 }) {
   const head = (
-    <div className="flex min-h-[54px] items-center gap-2.5 px-3 py-2 text-[#111]" style={{ background: color }}>
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111] bg-white">
+    <div className="flex min-h-[54px] items-center gap-2.5 px-3 py-2 text-ink" style={{ background: blockFill(color) }}>
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-line bg-paper">
         <Icon className="h-4 w-4" strokeWidth={2.5} />
       </span>
       <div className="min-w-0 flex-1">
@@ -54,7 +55,7 @@ export function SettingsBlock({
   return (
     <section
       data-settings-block=""
-      className="mb-4 grid grid-cols-1 gap-[2px] overflow-hidden rounded-[18px] border-2 border-[#111] bg-[#111] shadow-[4px_4px_0_#111]"
+      className="mb-4 grid grid-cols-1 gap-[2px] overflow-hidden rounded-[18px] border-2 border-line bg-line shadow-[4px_4px_0_var(--shade)]"
     >
       <div className="flex gap-[2px]">
         <div className="min-w-0 flex-1">
@@ -79,7 +80,7 @@ export function SettingsBlock({
 
 /** Beyaz hücre — bloğun gövdesi */
 export function SettingsCell({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("bg-white px-3 py-2.5 text-[#111]", className)}>{children}</div>;
+  return <div className={cn("bg-paper px-3 py-2.5 text-ink", className)}>{children}</div>;
 }
 
 /**
@@ -117,16 +118,16 @@ export function SettingsChoices<T extends string>({
             onClick={() => onPick(o)}
             aria-pressed={on}
             className={cn(
-              "relative flex min-h-[46px] min-w-0 px-3 py-2.5 text-left text-[#111]",
+              "relative flex min-h-[46px] min-w-0 px-3 py-2.5 text-left text-ink",
               top ? "items-start" : "items-center",
-              !on && "bg-white active:bg-[#f5f1e8]",
+              !on && "bg-paper active:bg-paper-2",
               wide && "col-span-2"
             )}
-            style={on ? { background: color } : undefined}
+            style={on ? { background: blockFill(color) } : undefined}
           >
             <span className="min-w-0 flex-1 pr-5">{render(o)}</span>
             {on && (
-              <span className="absolute right-2.5 top-1/2 flex h-[18px] w-[18px] -translate-y-1/2 items-center justify-center rounded-full bg-[#111] text-white">
+              <span className="absolute right-2.5 top-1/2 flex h-[18px] w-[18px] -translate-y-1/2 items-center justify-center rounded-full bg-well text-white">
                 <Check className="h-3 w-3" strokeWidth={3.5} />
               </span>
             )}
@@ -139,11 +140,11 @@ export function SettingsChoices<T extends string>({
 
 /** Hücre içi küçük düğme — çerçeveli kapsül, basınca gölgesi iner */
 export const settingsPill =
-  "inline-flex h-8 items-center gap-1 rounded-full border-[1.5px] border-[#111] bg-white px-3 text-[12.5px] font-black text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none disabled:opacity-50";
+  "inline-flex h-8 items-center gap-1 rounded-full border-[1.5px] border-line bg-paper px-3 text-[12.5px] font-black text-ink shadow-[1.5px_1.5px_0_var(--shade)] active:translate-x-px active:translate-y-px active:shadow-none disabled:opacity-50";
 
 /** Hücre içi asıl düğme — iri, köşeli; zemin rengini çağıran verir */
 export const settingsButton =
-  "inline-flex h-10 items-center justify-center gap-2 rounded-[11px] border-2 border-[#111] px-3.5 text-[13.5px] font-black text-[#111] shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none disabled:opacity-50";
+  "inline-flex h-10 items-center justify-center gap-2 rounded-[11px] border-2 border-line px-3.5 text-[13.5px] font-black text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-px active:translate-y-px active:shadow-none disabled:opacity-50";
 
 /** Aç/kapa anahtarı — Sesler bloğunun başındaki karoda */
 export function SettingsSwitch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -154,12 +155,12 @@ export function SettingsSwitch({ on, onChange, label }: { on: boolean; onChange:
       aria-checked={on}
       aria-label={label}
       onClick={() => onChange(!on)}
-      className="flex flex-1 items-center justify-center bg-white active:bg-[#f5f1e8]"
+      className="flex flex-1 items-center justify-center bg-paper active:bg-paper-2"
     >
-      <span className={cn("relative h-6 w-10 rounded-full border-2 border-[#111] transition-colors", on ? "bg-[#7ae582]" : "bg-[#e7e1d4]")}>
+      <span className={cn("relative h-6 w-10 rounded-full border-2 border-line transition-colors", on ? "bg-fill-[#7ae582]" : "bg-fill-[#e7e1d4]")}>
         <span
           className={cn(
-            "absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-[#111] bg-white transition-all",
+            "absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-line bg-paper transition-all",
             on ? "right-0.5" : "left-0.5"
           )}
         />

@@ -81,8 +81,8 @@ export function TopBarButton({
   const props = {
     "aria-label": label,
     title: label,
-    style: { background: tone ? TONE[tone] : "#ffffff" } as CSSProperties,
-    className: "flex w-[48px] shrink-0 items-center justify-center text-[#111] active:brightness-95",
+    style: { background: tone ? TONE[tone] : "var(--paper)" } as CSSProperties,
+    className: "flex w-[48px] shrink-0 items-center justify-center text-ink active:brightness-95",
   };
   const icon = <Icon className="h-5 w-5" strokeWidth={tone === "add" ? 3 : 2.5} />;
   return href ? (

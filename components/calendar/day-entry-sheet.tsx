@@ -35,7 +35,7 @@ import { ParallelPickDialog } from "@/components/forms/parallel-pick-dialog";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
 import { EntryPicker, useEntryLayout } from "@/components/calendar/entry-picker";
 import { EntryTreePicker } from "@/components/calendar/entry-tree-picker";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { SideFormWindow } from "@/components/calendar/side-form-window";
 import { CategoryForm } from "@/components/structure/category-form";
 import {
@@ -74,6 +74,7 @@ import { entrySoundFor, playEntrySound } from "@/lib/sound";
 import { collectThings, ThingValuesContext, type ThingVals } from "@/components/forms/thing-ui";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { SheetFrame, useEmbedded } from "@/components/ui/sheet-frame";
+import { blockFill } from "@/lib/fill";
 
 /** Değer state anahtarı: global mod id (legacy atamalarda atama id'si) */
 /** Sabit boş liste — her çizimde yeni [] bağımlılıkları boşuna tazeliyordu */
@@ -988,27 +989,27 @@ function GoalPickBand({
   builtIns: { key: "sleep" | "mood"; label: string; onPick: () => void }[];
 }) {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   return (
     <div
       data-goal-band=""
       className={cn(
         "flex shrink-0 flex-col gap-2.5 px-4 py-3",
-        brutal ? "border-b-[3px] border-[#111] bg-[#ffd23f] text-[#111]" : "border-b border-[var(--ln-1)]"
+        brutal ? "border-b-[3px] border-line bg-fill-[#ffd23f] text-ink" : "border-b border-[var(--ln-1)]"
       )}
     >
     <div className="flex items-center gap-3">
       <span
         className={cn(
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
-          brutal ? "border-2 border-[#111] bg-white" : "bg-amber-400/15 text-amber-400"
+          brutal ? "border-2 border-line bg-paper" : "bg-amber-400/15 text-amber-400"
         )}
       >
         <Target className="h-[18px] w-[18px]" strokeWidth={2.4} />
       </span>
       <div className="min-w-0 flex-1 leading-tight">
         <div className="text-[16px] font-bold tracking-tight">{t("goal.pickTitle")}</div>
-        <div className={cn("text-[12px]", brutal ? "text-[#111]/70" : "text-muted-foreground")}>{t("goal.pickHint")}</div>
+        <div className={cn("text-[12px]", brutal ? "text-ink/70" : "text-muted-foreground")}>{t("goal.pickHint")}</div>
       </div>
     </div>
       {builtIns.length > 0 && (
@@ -1024,9 +1025,9 @@ function GoalPickBand({
                 onClick={b.onPick}
                 className={cn(
                   "flex h-10 flex-1 items-center justify-center gap-2 rounded-full text-[14px] font-bold transition-transform active:scale-[0.97]",
-                  brutal ? "border-2 border-[#111] text-[#111] shadow-[2px_2px_0_#111]" : "bg-[var(--sf-2)]"
+                  brutal ? "border-2 border-line text-ink shadow-[2px_2px_0_var(--shade)]" : "bg-[var(--sf-2)]"
                 )}
-                style={brutal ? { background: color } : undefined}
+                style={brutal ? { background: blockFill(color) } : undefined}
               >
                 <Icon className="h-4 w-4" strokeWidth={2.4} style={brutal ? undefined : { color }} />
                 {b.label}
@@ -1075,7 +1076,7 @@ function PickStep({
   // Brütalde raf düzeni Yapı'nın ağacıyla (bkz. EntryTreePicker); ray ve sade temalar eskisi
   const skin = useSkin();
   const layout = useEntryLayout();
-  const tree = skin === "brutal" && layout === "raf";
+  const tree = isBlockSkin(skin) && layout === "raf";
 
   return (
     <>
@@ -1342,7 +1343,7 @@ function FormStep({
         <span
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px]"
           style={{
-            backgroundColor: accent,
+            backgroundColor: blockFill(accent),
             boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25), inset 0 0 0 1px rgba(0,0,0,0.14)",
           }}
         >
@@ -1379,7 +1380,7 @@ function FormStep({
                 <span
                   data-goal-badge=""
                   className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-bold"
-                  style={{ background: accent, color: skin === "brutal" ? "#111" : inkOn(accent) }}
+                  style={{ background: blockFill(accent), color: isBlockSkin(skin) ? "var(--ink)" : inkOn(accent) }}
                 >
                   <Target className="h-4 w-4" strokeWidth={2.5} />
                   {t(goal.editing ? "goal.edit" : "goal.badge")}
@@ -1434,7 +1435,7 @@ function FormStep({
             data-goal-mood=""
             className="flex items-start gap-3 rounded-2xl border border-[var(--ln-2)] bg-[var(--sf-1)] px-4 py-3.5"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: `${accent}26`, color: accent }}>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: blockFill(`${accent}26`), color: accent }}>
               <Smile className="h-5 w-5" />
             </span>
             <p className="text-[13px] leading-5 text-muted-foreground">{t("goal.moodHint")}</p>
@@ -1447,7 +1448,7 @@ function FormStep({
           >
             <span
               className="flex h-10 w-10 items-center justify-center rounded-full"
-              style={{ background: `${accent}26`, color: accent }}
+              style={{ background: blockFill(`${accent}26`), color: accent }}
             >
               <Plus className="h-5 w-5" strokeWidth={2.5} />
             </span>
@@ -1572,7 +1573,7 @@ function FormStep({
           disabled={saveDisabled}
           data-save=""
           className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-60"
-          style={{ backgroundColor: accent }}
+          style={{ backgroundColor: blockFill(accent) }}
         >
           {!saving && (goal ? <Target className="h-5 w-5" strokeWidth={2.5} /> : <Check className="h-5 w-5" strokeWidth={2.75} />)}
           {saveLabel}

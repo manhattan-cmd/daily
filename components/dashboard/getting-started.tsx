@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { ArrowRight, Check, Layers, Plus, ShieldCheck, Target, X, type LucideIcon } from "lucide-react";
 import { useT, type MessageKey } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
 import { SummaryBlock } from "@/components/ui/summary-block";
+import { blockFill } from "@/lib/fill";
 
 /** Kapatılınca bir daha çıkmaz; Ayarlar → "Karşılamayı tekrar göster" geri getirir */
 export const WELCOME_DISMISSED = "routine:welcomeDismissed";
@@ -55,7 +56,7 @@ type StartProps = {
  * temalarda aşağıdaki liste.
  */
 export function GettingStarted(props: StartProps) {
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   return brutal ? <BrutGettingStarted {...props} /> : <ListGettingStarted {...props} />;
 }
 
@@ -77,13 +78,13 @@ function BrutGettingStarted({ steps, onDismiss, onCreateCategory, onAddEntry, on
   const tile = TILE[cur];
   const tileBody = (
     <>
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[#111]" style={{ color: tile.color }}>
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-well" style={{ color: tile.color }}>
         <tile.icon className="h-5 w-5" strokeWidth={3} />
       </span>
       <span className="text-center text-[11.5px] font-extrabold leading-[1.1]">{t(tile.label)}</span>
     </>
   );
-  const tileCls = "flex h-full w-full flex-col items-center justify-center gap-1 px-1 py-2 text-[#111] active:brightness-95";
+  const tileCls = "flex h-full w-full flex-col items-center justify-center gap-1 px-1 py-2 text-ink active:brightness-95";
   return (
     <div data-getting-started="">
       <SummaryBlock
@@ -98,11 +99,11 @@ function BrutGettingStarted({ steps, onDismiss, onCreateCategory, onAddEntry, on
         }}
         action={
           cur === "backup" ? (
-            <Link href="/structure/backup" className={tileCls} style={{ background: tile.color }}>
+            <Link href="/structure/backup" className={tileCls} style={{ background: blockFill(tile.color) }}>
               {tileBody}
             </Link>
           ) : (
-            <button type="button" onClick={act(cur)} className={tileCls} style={{ background: tile.color }}>
+            <button type="button" onClick={act(cur)} className={tileCls} style={{ background: blockFill(tile.color) }}>
               {tileBody}
             </button>
           )
@@ -120,16 +121,16 @@ function BrutGettingStarted({ steps, onDismiss, onCreateCategory, onAddEntry, on
             : undefined
         }
       >
-        <div className="bg-white px-3.5 py-3 text-[#111]">
+        <div className="bg-paper px-3.5 py-3 text-ink">
           <p className="text-[15px] font-black leading-tight">{t(TITLE[cur])}</p>
-          <p className="mt-1 text-[12.5px] font-semibold leading-snug text-[#111]/70">{t(HINT[cur])}</p>
+          <p className="mt-1 text-[12.5px] font-semibold leading-snug text-ink/70">{t(HINT[cur])}</p>
           {/* Yapının üç halkası, şekil diliyle: kare kategori, daire özellik */}
           {cur === "category" && (
             <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11.5px] font-extrabold">
               {(["welcome.category", "welcome.subcategory", "welcome.feature"] as const).map((k, j) => (
                 <span key={k} className="flex items-center gap-1.5">
                   {j > 0 && <span className="opacity-40">›</span>}
-                  <span className="flex items-center gap-1 rounded-md border-[1.5px] border-[#111] bg-white px-1.5 py-0.5">
+                  <span className="flex items-center gap-1 rounded-md border-[1.5px] border-line bg-paper px-1.5 py-0.5">
                     <span
                       className={cn(
                         "h-2.5 w-2.5 border-[1.5px] border-current",
@@ -167,7 +168,7 @@ function ListGettingStarted({
   onAddGoal,
 }: StartProps) {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const done = steps.filter((s) => s.done).length;
   const current = steps.findIndex((s) => !s.done);
 
@@ -182,7 +183,7 @@ function ListGettingStarted({
             ? t("home.start.goal.action")
             : t("backup.reminder.action");
     const cls = brutal
-      ? "flex h-10 items-center gap-1.5 rounded-xl border-2 border-[#111] bg-[#ffd23f] px-2.5 text-[13px] font-black text-[#111] shadow-[3px_3px_0_#111] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+      ? "flex h-10 items-center gap-1.5 rounded-xl border-2 border-line bg-[#ffd23f] px-2.5 text-[13px] font-black text-ink shadow-[3px_3px_0_var(--shade)] transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
       : "flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground";
     const body = (
       <>
@@ -216,14 +217,14 @@ function ListGettingStarted({
       className={cn(
         "mb-4 overflow-hidden",
         brutal
-          ? "rounded-[18px] border-2 border-[#111] bg-white text-[#111] shadow-[4px_4px_0_#111]"
+          ? "rounded-[18px] border-2 border-line bg-paper text-ink shadow-[4px_4px_0_var(--shade)]"
           : "rounded-2xl border border-primary/25 bg-card"
       )}
     >
       <div
         className={cn(
           "flex items-center gap-2 px-3.5 py-2.5",
-          brutal ? "border-b-2 border-[#111] bg-[#8ea6ff]" : "border-b border-border"
+          brutal ? "border-b-2 border-line bg-fill-[#8ea6ff]" : "border-b border-border"
         )}
       >
         <span className={cn(brutal ? "text-[12px] font-black uppercase tracking-[0.09em]" : "text-sm font-semibold")}>
@@ -232,7 +233,7 @@ function ListGettingStarted({
         <b
           className={cn(
             "font-mono text-[11px] font-bold tabular-nums",
-            brutal ? "rounded-full border-[1.5px] border-[#111] bg-white px-2 py-px" : "text-muted-foreground"
+            brutal ? "rounded-full border-[1.5px] border-line bg-paper px-2 py-px" : "text-muted-foreground"
           )}
         >
           {done}/{steps.length}
@@ -244,8 +245,8 @@ function ListGettingStarted({
               key={s.key}
               className={cn(
                 "h-2 w-5 rounded-full",
-                brutal ? "border-[1.5px] border-[#111]" : "",
-                s.done ? (brutal ? "bg-[#7ae582]" : "bg-primary") : brutal ? "bg-white" : "bg-[var(--sf-3)]"
+                brutal ? "border-[1.5px] border-line" : "",
+                s.done ? (brutal ? "bg-[#7ae582]" : "bg-primary") : brutal ? "bg-paper" : "bg-[var(--sf-3)]"
               )}
             />
           ))}
@@ -256,7 +257,7 @@ function ListGettingStarted({
           aria-label={t("home.start.dismiss")}
           className={cn(
             "-mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
-            brutal ? "text-[#111] active:bg-[#111]/10" : "text-muted-foreground hover:text-foreground"
+            brutal ? "text-ink active:bg-ink/10" : "text-muted-foreground hover:text-foreground"
           )}
         >
           <X className="h-4 w-4" strokeWidth={2.5} />
@@ -270,32 +271,32 @@ function ListGettingStarted({
             <span
               className={cn(
                 "flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-bold",
-                brutal ? "border-[1.5px] border-[#111]" : "",
+                brutal ? "border-[1.5px] border-line" : "",
                 s.done
                   ? brutal
-                    ? "bg-[#7ae582]"
+                    ? "bg-fill-[#7ae582]"
                     : "bg-primary text-primary-foreground"
                   : open
                     ? brutal
-                      ? "bg-[#ffd23f]"
+                      ? "bg-fill-[#ffd23f]"
                       : "bg-primary/15 text-primary"
                     : brutal
-                      ? "bg-white"
+                      ? "bg-paper"
                       : "bg-[var(--sf-2)] text-muted-foreground"
               )}
             >
               {s.done ? <Check className="h-3.5 w-3.5" strokeWidth={3.25} /> : i + 1}
             </span>
           );
-          const divider = i > 0 && (brutal ? "border-t-2 border-[#111]" : "border-t border-border");
+          const divider = i > 0 && (brutal ? "border-t-2 border-line" : "border-t border-border");
           if (open) {
             return (
-              <li key={s.key} className={cn("px-3.5 pb-3.5 pt-3", divider, brutal && "bg-[#fff4dc]")}>
+              <li key={s.key} className={cn("px-3.5 pb-3.5 pt-3", divider, brutal && "bg-floor")}>
                 <div className="flex items-center gap-2.5">
                   {mark}
                   <span className={cn(brutal ? "text-[15px] font-black" : "text-sm font-semibold")}>{t(TITLE[s.key])}</span>
                 </div>
-                <p className={cn("mt-1.5 pl-[34px] text-[12.5px] leading-snug", brutal ? "font-semibold text-[#111]/70" : "text-muted-foreground")}>
+                <p className={cn("mt-1.5 pl-[34px] text-[12.5px] leading-snug", brutal ? "font-semibold text-ink/70" : "text-muted-foreground")}>
                   {t(HINT[s.key])}
                 </p>
                 {/* Yapının üç halkası, şekil diliyle: kare kategori, daire özellik */}
@@ -307,7 +308,7 @@ function ListGettingStarted({
                         <span
                           className={cn(
                             "flex items-center gap-1 rounded-md px-1.5 py-0.5",
-                            brutal ? "border-[1.5px] border-[#111] bg-white" : "bg-[var(--sf-2)]"
+                            brutal ? "border-[1.5px] border-line bg-paper" : "bg-[var(--sf-2)]"
                           )}
                         >
                           <span
@@ -329,7 +330,7 @@ function ListGettingStarted({
                       href="/structure"
                       className={cn(
                         "flex h-10 items-center gap-1 px-1 text-[12.5px] font-extrabold",
-                        brutal ? "text-[#111] underline decoration-2 underline-offset-4" : "text-primary"
+                        brutal ? "text-ink underline decoration-2 underline-offset-4" : "text-primary"
                       )}
                     >
                       {t("home.start.category.explore")}
@@ -362,11 +363,11 @@ function ListGettingStarted({
               {s.done ? (
                 <div className={rowCls}>{inner}</div>
               ) : act ? (
-                <button type="button" onClick={act} className={cn(rowCls, brutal ? "active:bg-[#111]/5" : "hover:bg-[var(--sf-1)]")}>
+                <button type="button" onClick={act} className={cn(rowCls, brutal ? "active:bg-ink/5" : "hover:bg-[var(--sf-1)]")}>
                   {inner}
                 </button>
               ) : (
-                <Link href="/structure/backup" className={cn(rowCls, brutal ? "active:bg-[#111]/5" : "hover:bg-[var(--sf-1)]")}>
+                <Link href="/structure/backup" className={cn(rowCls, brutal ? "active:bg-ink/5" : "hover:bg-[var(--sf-1)]")}>
                   {inner}
                 </Link>
               )}

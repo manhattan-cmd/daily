@@ -99,7 +99,7 @@ export function PeriodTabs({
         data-period-deck=""
         className="grid overflow-hidden rounded-[11px] border-[1.5px]"
         style={{
-          borderColor: "#111",
+          borderColor: "var(--line)",
           gridTemplateColumns: `repeat(${KINDS.length}, minmax(0, 1fr))${onPick ? "" : " 42px"}`,
         }}
       >
@@ -115,9 +115,9 @@ export function PeriodTabs({
               className={cn(
                 "h-9 min-w-0 truncate px-1 text-[13px] font-extrabold transition-colors",
                 i > 0 && "border-l-[1.5px]",
-                on ? "bg-[#111] text-white" : "bg-white text-[#111]/70 active:bg-[#f5f1e8]"
+                on ? "bg-well text-white" : "bg-paper text-ink/70 active:bg-paper-2"
               )}
-              style={i > 0 ? { borderLeftColor: "#111" } : undefined}
+              style={i > 0 ? { borderLeftColor: "var(--line)" } : undefined}
             >
               {t(label)}
             </button>
@@ -151,11 +151,11 @@ export function PeriodTabs({
               <span
                 className={cn(
                   "rounded-full border-[1.5px] px-2.5 py-[6px] text-[12.5px] font-extrabold leading-none transition-transform",
-                  on ? "-translate-y-px bg-white text-[#111] shadow-[2px_2px_0_#111]" : "text-[#111]/65 active:text-[#111]"
+                  on ? "-translate-y-px bg-paper text-ink shadow-[2px_2px_0_var(--shade)]" : "text-ink/65 active:text-ink"
                 )}
                 // Çerçeve rengi satır içi: globals.css'teki katmansız
                 // "* { border-color }" kuralı border-transparent'ı eziyor
-                style={{ borderColor: on ? "#111" : "transparent" }}
+                style={{ borderColor: on ? "var(--line)" : "transparent" }}
               >
                 {t(label)}
               </span>

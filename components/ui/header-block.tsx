@@ -4,11 +4,12 @@ import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { blockFill } from "@/lib/fill";
 
 /** Bölüm bantlarının tram benekleri (bkz. globals.css "bolum bantlari") */
 export const bandDots = (color: string): CSSProperties => ({
-  backgroundColor: color,
-  backgroundImage: "radial-gradient(rgba(17, 17, 17, 0.16) 1.2px, transparent 1.5px)",
+  backgroundColor: blockFill(color),
+  backgroundImage: "radial-gradient(var(--dot) 1.2px, transparent 1.5px)",
   backgroundSize: "11px 11px",
 });
 
@@ -73,7 +74,7 @@ export function HeaderBlock({
         className
       )}
     >
-      <div className="grid gap-[2px] overflow-hidden rounded-[18px] border-2 border-[#111] bg-[#111] text-[#111] shadow-[4px_4px_0_#111]">
+      <div className="grid gap-[2px] overflow-hidden rounded-[18px] border-2 border-line bg-line text-ink shadow-[4px_4px_0_var(--shade)]">
         {/* Ana satır yalnız içeriği varsa — gün sayfasının üst menüsü tek satır (rows) */}
         {(children || leading || trailing) && (
         <div className="flex min-h-[64px] gap-[2px]">
@@ -125,7 +126,7 @@ export function HeaderTitle({
   return (
     <h1
       className={cn(
-        "max-w-full break-words font-black leading-[1.02] tracking-[-0.02em] text-[#111]",
+        "max-w-full break-words font-black leading-[1.02] tracking-[-0.02em] text-ink",
         center ? "self-center text-center" : "self-start"
       )}
       style={{ fontSize: size }}
@@ -157,7 +158,7 @@ export function HeaderOverline({
   return (
     <span
       className={cn(
-        "mb-1.5 inline-flex max-w-full items-center gap-1 rounded-md bg-[#111] px-1.5 py-[2px] text-[10px] font-black uppercase leading-tight tracking-wider",
+        "mb-1.5 inline-flex max-w-full items-center gap-1 rounded-md bg-well px-1.5 py-[2px] text-[10px] font-black uppercase leading-tight tracking-wider",
         center ? "self-center" : "self-start",
         className
       )}
@@ -172,7 +173,7 @@ export function HeaderOverline({
 /** Başlığın yanındaki beyaz kare simge — blokların kalem karosu gibi (bkz. SummaryLead "thing") */
 export function HeaderIcon({ icon: Icon, fill }: { icon: LucideIcon; /** Şekli bandın renginde doldur (Yapı: seçili sekmenin şekli gibi) */ fill?: string }) {
   return (
-    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white text-[#111] shadow-[2px_2px_0_#111]">
+    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] border-2 border-line bg-paper text-ink shadow-[2px_2px_0_var(--shade)]">
       <Icon className="h-[22px] w-[22px]" strokeWidth={2.5} fill={fill ?? "none"} />
     </span>
   );
@@ -221,7 +222,7 @@ export function HeaderLead({
           <HeaderTitle size={size}>{title}</HeaderTitle>
           {badge}
         </div>
-        {sub && <p className="mt-1 truncate text-[12px] font-bold leading-tight text-[#111]/80">{sub}</p>}
+        {sub && <p className="mt-1 truncate text-[12px] font-bold leading-tight text-ink/80">{sub}</p>}
       </div>
     </div>
   );
@@ -253,7 +254,7 @@ export function HeaderTile({
   const cls = cn(
     // Pasifken hücre beyaz kalır, yalnız içi soluk — bütün karo soluklaşınca
     // altındaki siyah zemin görünüp gri bir blok oluyordu (Analiz'de sonraki dönem)
-    "flex shrink-0 flex-col items-center justify-center gap-1 text-[#111] active:brightness-95 disabled:text-[#111]/20 disabled:active:brightness-100",
+    "flex shrink-0 flex-col items-center justify-center gap-1 text-ink active:brightness-95 disabled:text-ink/20 disabled:active:brightness-100",
     label && "px-2"
   );
   const st: CSSProperties = { background: color, minWidth: width };

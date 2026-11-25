@@ -14,7 +14,7 @@ import {
 } from "@/components/dashboard/entry-parts";
 import { NotebookPen } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { ENTRY_BLOCK_CLS, EntryBlockCell, EntryBlockHead, EntryBlockTime } from "@/components/dashboard/entry-block";
 import {
   SelectionLayer,
@@ -23,6 +23,7 @@ import {
 } from "@/components/calendar/entry-selection";
 import { SleepCard } from "@/components/calendar/sleep-card";
 import { MoodCard } from "@/components/calendar/mood-card";
+import { blockInk } from "@/lib/fill";
 
 /**
  * Girdi kartı — yerleşik akışların kendi biçimi vardır. Uyku ve ruh hali düz
@@ -114,7 +115,7 @@ function PlainEntryCard({
   footer?: ReactNode;
 }) {
   const [editOpen, setEditOpen] = useState(false);
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const color = entry.category.color;
   const isRoot = !!entry.subcategory.isCategoryRoot;
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
@@ -301,7 +302,7 @@ function BrutEntryCard({
     >
       <EntryBlockHead
         color={color}
-        icon={icon && <SymbolIcon name={icon} size={14} style={{ color: "#111" }} />}
+        icon={icon && <SymbolIcon name={icon} size={14} style={{ color: blockInk(color) }} />}
         title={title}
         sub={!isRoot ? catName : undefined}
         right={
@@ -324,7 +325,7 @@ function BrutEntryCard({
       {entry.notes && (
         <EntryBlockCell color={color} className="flex items-start gap-1.5">
           <NotebookPen className="mt-[1px] h-3 w-3 shrink-0" strokeWidth={2.25} />
-          <p className="line-clamp-3 min-w-0 text-[11px] font-medium leading-snug text-[#111]/75">{entry.notes}</p>
+          <p className="line-clamp-3 min-w-0 text-[11px] font-medium leading-snug text-ink/75">{entry.notes}</p>
         </EntryBlockCell>
       )}
       {footer && <EntryBlockCell color={color}>{footer}</EntryBlockCell>}

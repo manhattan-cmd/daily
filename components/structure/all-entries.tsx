@@ -5,7 +5,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { Rows3 } from "lucide-react";
 import { searchEntries } from "@/lib/db/queries";
 import { intlTag, useLocale, useT } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { toLocalDateValue } from "@/lib/utils";
 import type { EntryWithContext } from "@/types";
 import { EntryCard } from "@/components/dashboard/entry-card";
@@ -28,7 +28,7 @@ const ENTRIES = "#ffb38a";
 export function AllEntries({ query, onAdd }: { query: string; onAdd: () => void }) {
   const t = useT();
   const tag = intlTag(useLocale());
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const [limit, setLimit] = useState(PAGE);
   const q = query.trim();
   const entries = useLiveQuery(() => searchEntries({ query: q, limit }), [q, limit]);
@@ -46,7 +46,7 @@ export function AllEntries({ query, onAdd }: { query: string; onAdd: () => void 
       onClick={() => setLimit((n) => n + PAGE)}
       className={
         brutal
-          ? "mt-3 h-11 w-full rounded-[12px] border-2 border-[#111] bg-white text-[14px] font-extrabold text-[#111] shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px"
+          ? "mt-3 h-11 w-full rounded-[12px] border-2 border-line bg-paper text-[14px] font-extrabold text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-px active:translate-y-px"
           : "mt-3 h-10 w-full rounded-xl bg-[var(--sf-2)] text-[13px] font-semibold text-foreground/80"
       }
     >

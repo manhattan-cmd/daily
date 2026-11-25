@@ -91,7 +91,7 @@ export function CollectionForm({
                 onClick={() => setColor(c)}
                 className={cn(
                   "h-8 w-8 rounded-full border-2 transition-transform active:scale-90",
-                  color === c ? "border-[#111] scale-110" : "border-transparent"
+                  color === c ? "border-line scale-110" : "border-transparent"
                 )}
                 style={{ background: c }}
               />

@@ -33,10 +33,11 @@ import {
   type EntrySelection,
 } from "@/components/calendar/entry-selection";
 import { routes } from "@/lib/routes";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { SymbolIcon } from "@/lib/icons";
 import { ValueCapsuleRow } from "@/components/dashboard/entry-parts";
 import { ENTRY_BLOCK_CLS, blockTint, EntryBlockCell, EntryBlockHead, EntryBlockTime } from "@/components/dashboard/entry-block";
+import { blockFill, blockInk } from "@/lib/fill";
 
 /** Aktivitenin rengi — kategorisi yok, kendi camgöbeği */
 const ACT = "#06b6d4";
@@ -67,7 +68,7 @@ export function ActivityCard({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
 
   const name = activity?.name ?? "Aktivite";
 
@@ -203,7 +204,7 @@ export function ActivityCard({
                     {cats.map((c) => (
                       <span
                         key={c.id}
-                        className="h-[7px] w-[7px] rounded-full border border-[#111]"
+                        className="h-[7px] w-[7px] rounded-full border border-line"
                         style={{ backgroundColor: c.color }}
                       />
                     ))}
@@ -227,9 +228,9 @@ export function ActivityCard({
                   key={`${x.name}:${x.subName}`}
                   data-capsule=""
                   className="inline-flex items-center gap-1 rounded-full py-0.5 pl-0.5 pr-2"
-                  style={{ ["--cap-c" as string]: ACT, background: `${ACT}14`, boxShadow: `inset 0 0 0 1px ${ACT}33` }}
+                  style={{ ["--cap-c" as string]: ACT, background: blockFill(`${ACT}14`), boxShadow: `inset 0 0 0 1px ${ACT}33` }}
                 >
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: `${ACT}33` }}>
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: blockFill(`${ACT}33`) }}>
                     <Sigma className="h-3 w-3" strokeWidth={2.25} />
                   </span>
                   <span className="text-[13px] font-semibold leading-none tabular-nums">{fmtNum(x.total)}</span>
@@ -257,7 +258,7 @@ export function ActivityCard({
                   type="button"
                   onClick={() => setDeleteOpen(true)}
                   aria-label={t("activity.deleteOrUnpack")}
-                  className="flex items-center gap-1 text-[#c0262d] active:opacity-60"
+                  className="flex items-center gap-1 text-[var(--danger-ink-2)] active:opacity-60"
                 >
                   <Trash2 className="h-3.5 w-3.5" strokeWidth={2.5} />
                   {t("action.delete")}
@@ -277,10 +278,10 @@ export function ActivityCard({
                   >
                     <span className="flex min-w-0 items-center gap-2">
                       <span
-                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] border-[#111]"
-                        style={{ background: e.category.color }}
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] border-line"
+                        style={{ background: blockFill(e.category.color) }}
                       >
-                        {icon && <SymbolIcon name={icon} size={13} style={{ color: "#111" }} />}
+                        {icon && <SymbolIcon name={icon} size={13} style={{ color: blockInk(e.category.color) }} />}
                       </span>
                       <span className="min-w-0 flex-1 truncate text-[12.5px] font-bold">
                         {e.subcategory.isCategoryRoot ? e.category.name : e.subcategory.name}

@@ -38,6 +38,7 @@ import { toLocalDateValue, withUnit } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { Mod } from "@/types";
 import { PageSheet } from "@/components/ui/layer";
+import { blockFill, blockInk } from "@/lib/fill";
 
 const H2 = "mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
 
@@ -155,7 +156,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
         <button
           type="button"
           onClick={() => setThingArchived(thingId, !th.archivedAt)}
-          className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl border-2 border-[#111] bg-white px-3 text-[13.5px] font-extrabold text-[#111] shadow-[2px_2px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl border-2 border-line bg-paper px-3 text-[13.5px] font-extrabold text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
         >
           {th.archivedAt ? (
             <ArchiveRestore className="h-4 w-4" strokeWidth={2.6} />
@@ -188,23 +189,23 @@ export function ThingScreen({ thingId }: { thingId: string }) {
               <div
                 key={m.id}
                 data-thing-state=""
-                className="flex items-center gap-3 rounded-xl border-2 border-[#111] bg-white px-3 py-2.5 text-[#111]"
+                className="flex items-center gap-3 rounded-xl border-2 border-line bg-paper px-3 py-2.5 text-ink"
               >
                 <span
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-[1.5px] border-[#111]"
-                  style={{ background: modColor(m) }}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-[1.5px] border-line"
+                  style={{ background: blockFill(modColor(m)) }}
                 >
                   {(() => {
                     const Icon = modAtomIcon({ name: m.name, entryType: measureOf(m) });
-                    return <Icon className="h-4 w-4 text-[#111]" strokeWidth={2.4} />;
+                    return <Icon style={{ color: blockInk(modColor(m)) }} className="h-4 w-4 text-ink" strokeWidth={2.4} />;
                   })()}
                 </span>
                 <span className="min-w-0 flex-1 leading-tight">
-                  <span className="block truncate text-[12px] font-bold text-[#111]/60">{m.name}</span>
+                  <span className="block truncate text-[12px] font-bold text-ink/60">{m.name}</span>
                   <span className="block truncate text-[17px] font-black">{shown}</span>
                 </span>
                 {cur && (
-                  <span className="shrink-0 text-[11px] font-semibold text-[#111]/50">
+                  <span className="shrink-0 text-[11px] font-semibold text-ink/50">
                     {new Date(cur.at).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}
                   </span>
                 )}
@@ -213,7 +214,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
                     type="button"
                     onClick={() => removeThingExtraMod(thingId, m.id)}
                     aria-label={t("entry.removeFromEntry")}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#111]/50 hover:bg-[#111]/5"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink/50 hover:bg-ink/5"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -226,7 +227,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
               type="button"
               onClick={() => setLogOpen(true)}
               data-log-state=""
-              className="flex h-12 items-center justify-center gap-2 rounded-2xl border-2 border-[#111] bg-[#ffd23f] text-[15px] font-black text-[#111] shadow-[3px_3px_0_#111] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+              className="flex h-12 items-center justify-center gap-2 rounded-2xl border-2 border-line bg-fill-[#ffd23f] text-[15px] font-black text-ink shadow-[3px_3px_0_var(--shade)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
             >
               <Plus className="h-5 w-5" strokeWidth={3} />
               {t("objects.logState")}
@@ -263,7 +264,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
                   href={routes.day(date)}
                   prefetch={false}
                   data-thing-entry=""
-                  className="flex items-center gap-3 rounded-xl border-2 border-[#111] bg-white px-3 py-2 text-[#111]"
+                  className="flex items-center gap-3 rounded-xl border-2 border-line bg-paper px-3 py-2 text-ink"
                 >
                   <span
                     className="h-8 w-1.5 shrink-0 rounded-full"
@@ -271,7 +272,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
                   />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[14px] font-extrabold leading-5">{path}</span>
-                    <span className="block text-[11px] font-semibold tabular-nums text-[#111]/55">
+                    <span className="block text-[11px] font-semibold tabular-nums text-ink/55">
                       {new Date(e.occurredAt).toLocaleDateString("tr-TR", {
                         day: "numeric",
                         month: "short",
@@ -280,7 +281,7 @@ export function ThingScreen({ thingId }: { thingId: string }) {
                       {e.notes ? ` · ${e.notes}` : ""}
                     </span>
                     {facts.get(e.id) && (
-                      <span className="block truncate text-[12px] font-bold text-[#111]/80">
+                      <span className="block truncate text-[12px] font-bold text-ink/80">
                         {facts.get(e.id)!.join(" · ")}
                       </span>
                     )}

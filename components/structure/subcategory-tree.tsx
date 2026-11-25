@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import type { EntryType, SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
+import { blockFill, blockInk } from "@/lib/fill";
 
 type SubMods = { name?: string; entryType: EntryType }[];
 /** Brütal satırın özellik daireleri: kendi + üstlerinden + kategoriden gelenler */
@@ -324,7 +325,7 @@ export function SubCategoryTree({
 
       {roots.length === 0 && !drag && (
         <div data-brut-only="" className="w-full">
-          <div className="w-full rounded-2xl border-2 border-dashed border-[#111] bg-white/60 px-4 py-4 text-center text-[#111]">
+          <div className="w-full rounded-2xl border-2 border-dashed border-line bg-white/60 px-4 py-4 text-center text-ink">
             <b className="block text-[14px] font-black">{t("brut.noSubs")}</b>
             <span className="text-[12px] font-semibold opacity-70">{t("brut.noSubsHint")}</span>
           </div>
@@ -368,7 +369,7 @@ export function SubCategoryTree({
             <div
               className="flex items-center gap-2 rounded-xl px-2.5 py-1.5 shadow-2xl"
               style={{
-                backgroundColor: `${color}26`,
+                backgroundColor: blockFill(`${color}26`),
                 outline: `2px solid ${color}`,
                 backdropFilter: "blur(4px)",
               }}
@@ -564,7 +565,7 @@ function TreeNode({
             <span
               data-brut-hide=""
               className="shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums"
-              style={{ backgroundColor: `${color}1f`, color: `${color}dd` }}
+              style={{ backgroundColor: blockFill(`${color}1f`), color: `${color}dd` }}
             >
               {kids.length}
             </span>
@@ -581,24 +582,24 @@ function TreeNode({
                     key={m.key}
                     title={m.name}
                     className={cn(
-                      "flex h-[22px] w-[22px] items-center justify-center rounded-full border-[1.5px] border-[#111]",
+                      "flex h-[22px] w-[22px] items-center justify-center rounded-full border-[1.5px] border-line",
                       i > 0 && "-ml-[7px]"
                     )}
-                    style={{ background: m.color, zIndex: 3 - i }}
+                    style={{ background: blockFill(m.color), zIndex: 3 - i }}
                   >
-                    <MIcon className="h-[11px] w-[11px] text-[#111]" strokeWidth={2.6} />
+                    <MIcon style={{ color: blockInk(m.color) }} className="h-[11px] w-[11px] text-ink" strokeWidth={2.6} />
                   </span>
                 );
               })}
               {(data.effModsBySub.get(sub.id) ?? []).length > 3 && (
-                <span className="-ml-[7px] flex h-[22px] min-w-[22px] items-center justify-center rounded-full border-[1.5px] border-[#111] bg-[#111] px-1 font-mono text-[10px] font-bold text-[#fff4dc]">
+                <span className="-ml-[7px] flex h-[22px] min-w-[22px] items-center justify-center rounded-full border-[1.5px] border-line bg-well px-1 font-mono text-[10px] font-bold text-[#fff4dc]">
                   +{(data.effModsBySub.get(sub.id) ?? []).length - 3}
                 </span>
               )}
             </span>
           </span>
           <span data-brut-only="" className="w-9 shrink-0 text-right">
-            <span className="inline-block min-w-[26px] rounded-full border-[1.5px] border-[#111] bg-[#ffd23f] px-1.5 text-center font-mono text-[11px] font-bold tabular-nums text-[#111]">
+            <span className="inline-block min-w-[26px] rounded-full border-[1.5px] border-line bg-fill-[#ffd23f] px-1.5 text-center font-mono text-[11px] font-bold tabular-nums text-ink">
               {data.entriesBySub.get(sub.id) ?? 0}
             </span>
           </span>

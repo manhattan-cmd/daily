@@ -15,9 +15,9 @@ import type { Category, Mod, SubCategory } from "@/types";
 
 /** Kartın genişliği — telefon çerçevesine birebir sığıyor */
 const W = 360;
-const INK = "#111";
-const INK_OFF = "rgba(17,17,17,.22)";
-const INK_SOFT = "rgba(17,17,17,.55)";
+const INK = "var(--ink)";
+const INK_OFF = "color-mix(in srgb, var(--ink) 22%, transparent)";
+const INK_SOFT = "color-mix(in srgb, var(--ink) 55%, transparent)";
 const MONO = "ui-monospace, 'IBM Plex Mono', monospace";
 /** Ağaçtaki alt kalem kutusu, sütun arası (tarak izi bu boşlukta), satır */
 const BW = 96;
@@ -64,7 +64,7 @@ const LIT = 0.12;
 const NO_COUNTS: ReadonlyMap<string, number> = new Map();
 
 const mix = (hex: string, pct: number) =>
-  `color-mix(in srgb, ${hex} ${Math.round(pct)}%, #fff)`;
+  `color-mix(in srgb, ${hex} calc(${Math.round(pct)}% * var(--fill-scale)), var(--paper))`;
 const short = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
 /** Etiket genişliği tahmini — tek aralıklı yazıda harf başına ~5.4px */
 const tagW = (s: string, per = 5.4) => 8 + s.length * per;
@@ -656,18 +656,18 @@ export function CircuitMap({ groups }: { groups: MapGroup[] }) {
               return (
                 <span key={i} className="flex shrink-0 items-center gap-1">
                   {i > 0 && (
-                    <ChevronRight className="h-3 w-3 shrink-0 text-[#111]/50" strokeWidth={3} />
+                    <ChevronRight className="h-3 w-3 shrink-0 text-ink/50" strokeWidth={3} />
                   )}
                   <button
                     onClick={() => setFocus(tr.focus)}
                     aria-current={last ? "page" : undefined}
                     className={
-                      "flex max-w-[140px] shrink-0 items-center rounded-lg border-2 border-[#111] px-2.5 py-1 text-xs text-[#111] " +
-                      (last ? "font-black shadow-[2px_2px_0_#111]" : "bg-white font-bold")
+                      "flex max-w-[140px] shrink-0 items-center rounded-lg border-2 border-line px-2.5 py-1 text-xs text-ink " +
+                      (last ? "font-black shadow-[2px_2px_0_var(--shade)]" : "bg-paper font-bold")
                     }
                     style={
                       last && fCat
-                        ? { background: `color-mix(in srgb, ${fCat.color} 55%, #fff)` }
+                        ? { background: `color-mix(in srgb, ${fCat.color} calc(55% * var(--fill-scale)), var(--paper))` }
                         : undefined
                     }
                   >

@@ -1,7 +1,7 @@
 "use client";
 
 import { type CSSProperties, type ReactNode } from "react";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
 
 /**
@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
  * kaydırıyordu. Katmanın içinde eskisi gibi 1rem.
  */
 export function PageSheet({ top, fit = false, children }: { top?: ReactNode; fit?: boolean; children?: ReactNode }) {
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   if (!brutal) {
     return (
       <>
@@ -46,7 +46,7 @@ export function PageSheet({ top, fit = false, children }: { top?: ReactNode; fit
       <div
         data-page-sheet=""
         className={cn(
-          "-ml-[6px] -mr-[12px] border-2 border-[#111] bg-white px-1.5 pt-3 [--bleed:6px]",
+          "-ml-[6px] -mr-[12px] border-2 border-line bg-paper px-1.5 pt-3 [--bleed:6px]",
           fit ? "rounded-[20px] pb-1" : "-mb-4 flex-1 rounded-t-[20px] border-b-0 pb-8"
         )}
       >
@@ -86,7 +86,7 @@ export function Layer({
   style?: CSSProperties;
   children: ReactNode;
 }) {
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   if (!brutal) return <div className={className} style={style}>{children}</div>;
   if (bare) return <div className={cn("mb-4", className?.replace(/mb-6/, "mb-4"))} style={style}>{children}</div>;
   return (
@@ -94,17 +94,17 @@ export function Layer({
       data-layer=""
       style={style}
       className={cn(
-        "mb-4 rounded-[22px] border-2 border-[#111] bg-[#f5f1e8] p-3.5 shadow-[4px_4px_0_#111] [--bleed:1rem]",
+        "mb-4 rounded-[22px] border-2 border-line bg-paper-2 p-3.5 shadow-[4px_4px_0_var(--shade)] [--bleed:1rem]",
         // Pencereler arası brütalde hep aynı, sıkı aralık (diğer temalardaki mb-6 burada geçmez)
         className?.replace(/mb-6/, "mb-4")
       )}
     >
       {label && (
-        <div className="mb-3 ml-0.5 flex items-center gap-2 text-[12px] font-black uppercase leading-none tracking-[0.09em] text-[#111]">
+        <div className="mb-3 ml-0.5 flex items-center gap-2 text-[12px] font-black uppercase leading-none tracking-[0.09em] text-ink">
           {label}
-          {extra && <span className="-ml-1 font-bold normal-case tracking-normal text-[#111]/60">{extra}</span>}
+          {extra && <span className="-ml-1 font-bold normal-case tracking-normal text-ink/60">{extra}</span>}
           {count != null && count > 0 && (
-            <b className="rounded-full border-[1.5px] border-[#111] bg-white px-2 py-[2px] font-mono font-bold tracking-normal text-[#111]">
+            <b className="rounded-full border-[1.5px] border-line bg-paper px-2 py-[2px] font-mono font-bold tracking-normal text-ink">
               {count}
             </b>
           )}

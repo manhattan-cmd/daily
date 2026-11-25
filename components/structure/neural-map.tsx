@@ -16,9 +16,10 @@ import { SymbolIcon } from "@/lib/icons";
 import { usageIntensity, usageRate, usageSince } from "@/lib/usage";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import type { Category, SubCategory } from "@/types";
 import { routes } from "@/lib/routes";
+import { blockFill } from "@/lib/fill";
 
 export type MapGroup = {
   category: Category;
@@ -138,7 +139,7 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
   // Brütal: aynı harita kâğıt üstüne basılmış gibi — düz renkli kare
   // düğümler (kare = kategori/alt kategori), siyah çerçeve ve sert gölge,
   // siyah hatlar. Kullanım ışımayla değil dolgunun koyuluğuyla anlatılıyor.
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   const [focus, setFocus] = useState<MapFocus>(null);
 
   // Sürükleme: basılı tut → serbest taşı → bırakınca en yakın yuvaya oturur
@@ -518,9 +519,9 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
     ? {
         borderRadius: "28%",
         // Kökte bulunulan bir kalem yok: siyah gövde, sarı simge
-        background: focusObj == null ? "#111" : centerColor,
-        border: "2.5px solid #111",
-        boxShadow: "3px 3px 0 #111",
+        background: focusObj == null ? "var(--well)" : centerColor,
+        border: "2.5px solid var(--line)",
+        boxShadow: "3px 3px 0 var(--shade)",
       }
     : {
     borderRadius: "9999px",
@@ -553,7 +554,7 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
                   <ChevronRight
                     className={cn(
                       "h-3 w-3 shrink-0",
-                      brutal ? "text-[#111]/50" : "text-muted-foreground/30"
+                      brutal ? "text-ink/50" : "text-muted-foreground/30"
                     )}
                     strokeWidth={brutal ? 3 : 2}
                   />
@@ -565,8 +566,8 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
                     "flex max-w-[140px] shrink-0 items-center gap-1.5 px-2.5 py-1 text-xs transition-colors",
                     brutal
                       ? cn(
-                          "rounded-lg border-2 border-[#111] text-[#111]",
-                          last ? "font-black shadow-[2px_2px_0_#111]" : "bg-white font-bold"
+                          "rounded-lg border-2 border-line text-ink",
+                          last ? "font-black shadow-[2px_2px_0_var(--shade)]" : "bg-paper font-bold"
                         )
                       : cn(
                           "rounded-full",
@@ -578,11 +579,11 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
                   style={
                     brutal
                       ? last
-                        ? { background: `color-mix(in srgb, ${centerColor} 55%, #fff)` }
+                        ? { background: `color-mix(in srgb, ${centerColor} calc(55% * var(--fill-scale)), var(--paper))` }
                         : undefined
                       : last
                       ? {
-                          background: `${centerColor}22`,
+                          background: blockFill(`${centerColor}22`),
                           boxShadow: `inset 0 0 0 1px ${centerColor}66`,
                         }
                       : { background: "var(--map-empty)" }
@@ -632,7 +633,7 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
                   <path
                     key={l.id}
                     d={l.d}
-                    stroke={`#111111${hexA(0.2 + 0.7 * l.glow)}`}
+                    stroke={`var(--ink)${hexA(0.2 + 0.7 * l.glow)}`}
                     strokeWidth={l.w * (1.1 + 0.9 * l.glow)}
                   />
                 ))}
@@ -681,7 +682,7 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
                 cy={positions[targetSlot].y}
                 r={(graph.byId.get(nodeId(nodes[targetSlot]))?.r ?? 12) + 4}
                 fill="none"
-                stroke={brutal ? "#111" : centerColor}
+                stroke={brutal ? "var(--ink)" : centerColor}
                 strokeWidth={2}
                 strokeDasharray="5 4"
               />
@@ -735,12 +736,12 @@ export function NeuralMap({ groups }: { groups: MapGroup[] | undefined }) {
                   <SymbolIcon
                     name={focusIcon}
                     size={brutal ? 20 : 18}
-                    style={{ color: brutal ? "#111" : "#fff" }}
+                    style={{ color: brutal ? "var(--ink)" : "#fff" }}
                   />
                 ) : (
                   <Layers
                   className="h-[18px] w-[18px]"
-                  style={{ color: brutal ? "#111" : "var(--primary-foreground)" }}
+                  style={{ color: brutal ? "var(--ink)" : "var(--primary-foreground)" }}
                   strokeWidth={brutal ? 2.5 : 1.75}
                 />
                 )}
@@ -834,8 +835,8 @@ export function MapLegend({ brutal }: { brutal: boolean }) {
   const dot = (used: boolean) =>
     brutal ? (
       <span
-        className="h-2.5 w-2.5 shrink-0 rounded-[3px] border-[1.5px] border-[#111]"
-        style={{ background: used ? "#111" : "#fff" }}
+        className="h-2.5 w-2.5 shrink-0 rounded-[3px] border-[1.5px] border-line"
+        style={{ background: used ? "var(--ink)" : "var(--paper)" }}
       />
     ) : (
       <span
@@ -854,7 +855,7 @@ export function MapLegend({ brutal }: { brutal: boolean }) {
         // açıklama onun hizasının üstünde dursun
         "pointer-events-none absolute bottom-8 left-3 flex items-center gap-2.5 text-[10px]",
         brutal
-          ? "rounded-lg border-2 border-[#111] bg-white px-2 py-1 font-bold text-[#111] shadow-[2px_2px_0_#111]"
+          ? "rounded-lg border-2 border-line bg-paper px-2 py-1 font-bold text-ink shadow-[2px_2px_0_var(--shade)]"
           : "text-muted-foreground"
       )}
     >
@@ -949,7 +950,7 @@ function CoreLabel({
     // Brütal: siyah ters etiket — hatların ve noktaların arasında okunuyor
     return (
       <span className="pointer-events-none absolute left-1/2 top-full flex w-[120px] -translate-x-1/2 justify-center pt-2">
-        <span className="rounded-md bg-[#111] px-1.5 py-0.5 text-center text-[11px] font-extrabold leading-tight text-white">
+        <span className="rounded-md bg-well px-1.5 py-0.5 text-center text-[11px] font-extrabold leading-tight text-white">
           {children}
         </span>
       </span>
@@ -1012,10 +1013,10 @@ function GraphCell({
         width: r * 2,
         height: r * 2,
         borderRadius: Math.max(2, r * 0.45),
-        background: `color-mix(in srgb, ${color} ${Math.round(22 + 78 * glow)}%, #fff)`,
-        border: `${r >= 9 ? 2 : r >= 5 ? 1.5 : 1}px solid #111`,
-        boxShadow: r >= 9 ? "2px 2px 0 #111" : undefined,
-        outline: isDragging ? "2px dashed #111" : undefined,
+        background: `color-mix(in srgb, ${color} calc(${Math.round(22 + 78 * glow)}% * var(--fill-scale)), var(--paper))`,
+        border: `${r >= 9 ? 2 : r >= 5 ? 1.5 : 1}px solid var(--line)`,
+        boxShadow: r >= 9 ? "2px 2px 0 var(--shade)" : undefined,
+        outline: isDragging ? "2px dashed var(--line)" : undefined,
         outlineOffset: 3,
       }}
     />
@@ -1048,8 +1049,8 @@ function GraphCell({
           : cn("w-[68px] text-[9px] leading-[12px]", brutal ? "font-bold" : "font-medium"),
         brutal
           ? glow > 0.15
-            ? "text-[#111]"
-            : "text-[#111]/60"
+            ? "text-ink"
+            : "text-ink/60"
           : glow > 0.5
           ? "text-foreground"
           : glow > 0.15
@@ -1070,7 +1071,7 @@ function GraphCell({
         <SymbolIcon
           name={icon}
           size={Math.round(r * (brutal ? 1.15 : 1.3))}
-          style={{ color: brutal ? "#111" : "#fff" }}
+          style={{ color: brutal ? "var(--ink)" : "#fff" }}
         />
       </span>
     ) : null;

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, ChevronDown, ChevronRight, Plus, X, type LucideIcon } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+import { blockFill, blockInk } from "@/lib/fill";
 
 /**
  * Sayfa özeti (Brütal) — gün, kategori, alt kategori sayfalarının ve ana
@@ -90,12 +91,12 @@ export type SummaryLink = {
 
 /** Bölüm bantlarının tram benekleri (bkz. globals.css "bolum bantlari") */
 const bandDots = (color: string) => ({
-  backgroundColor: color,
-  backgroundImage: "radial-gradient(rgba(17, 17, 17, 0.16) 1.2px, transparent 1.5px)",
+  backgroundColor: blockFill(color),
+  backgroundImage: "radial-gradient(var(--dot) 1.2px, transparent 1.5px)",
   backgroundSize: "11px 11px",
 });
 /** Bandın karoları (simge ve ok) */
-const SQ_SM = "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-[#111] bg-white shadow-[1.5px_1.5px_0_#111]";
+const SQ_SM = "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-line bg-paper shadow-[1.5px_1.5px_0_var(--shade)]";
 
 /**
  * Başlığın yanındaki kare karo — gün sayfasının Ekle karosunun dili: kendi
@@ -124,10 +125,10 @@ export function SummaryTile({
   // py: ad hücresi kısa kalınca (boş Alt kategoriler) üç satırlık ad ve simge
   // kenara, bloğun yuvarlak köşesine yapışıp kesiliyordu — satır gerekirse uzar
   if (compact) {
-    const c = "flex h-full w-full items-center justify-center text-[#111] active:brightness-95";
+    const c = "flex h-full w-full items-center justify-center text-ink active:brightness-95";
     const mark = (
       <span
-        className={cn("flex items-center justify-center bg-[#111]", dense ? "h-6 w-6 rounded-[7px]" : "h-8 w-8 rounded-[9px]")}
+        className={cn("flex items-center justify-center bg-well", dense ? "h-6 w-6 rounded-[7px]" : "h-8 w-8 rounded-[9px]")}
         style={{ color }}
       >
         <Icon className={dense ? "h-3 w-3" : "h-4 w-4"} strokeWidth={3} />
@@ -136,25 +137,25 @@ export function SummaryTile({
     if (!href && !onClick) {
       // Yalnız görünüş — dokunuşu dıştaki düğme alır (Analiz'in Grafik ekle menüsü)
       return (
-        <span title={label} className={c} style={{ background: color }}>
+        <span title={label} className={c} style={{ background: blockFill(color) }}>
           {mark}
         </span>
       );
     }
     return href ? (
-      <Link href={href} aria-label={label} title={label} className={c} style={{ background: color }}>
+      <Link href={href} aria-label={label} title={label} className={c} style={{ background: blockFill(color) }}>
         {mark}
       </Link>
     ) : (
-      <button type="button" onClick={onClick} aria-label={label} title={label} className={c} style={{ background: color }}>
+      <button type="button" onClick={onClick} aria-label={label} title={label} className={c} style={{ background: blockFill(color) }}>
         {mark}
       </button>
     );
   }
-  const cls = "flex h-full w-full flex-col items-center justify-center gap-1 px-1 py-2 text-[#111] active:brightness-95";
+  const cls = "flex h-full w-full flex-col items-center justify-center gap-1 px-1 py-2 text-ink active:brightness-95";
   const body = (
     <>
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[#111]" style={{ color }}>
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-well" style={{ color }}>
         <Icon className="h-4 w-4" strokeWidth={3} />
       </span>
       <span className="text-center text-[11.5px] font-extrabold leading-[1.1]">{label}</span>
@@ -163,17 +164,17 @@ export function SummaryTile({
   if (!href && !onClick) {
     // Yalnız görünüş — dokunuşu dıştaki düğme alır (Analiz'in Grafik ekle menüsü)
     return (
-      <span className={cls} style={{ background: color }}>
+      <span className={cls} style={{ background: blockFill(color) }}>
         {body}
       </span>
     );
   }
   return href ? (
-    <Link href={href} className={cls} style={{ background: color }}>
+    <Link href={href} className={cls} style={{ background: blockFill(color) }}>
       {body}
     </Link>
   ) : (
-    <button type="button" onClick={onClick} className={cls} style={{ background: color }}>
+    <button type="button" onClick={onClick} className={cls} style={{ background: blockFill(color) }}>
       {body}
     </button>
   );
@@ -194,14 +195,14 @@ export function SummaryEmpty({
 }) {
   const Icon = action?.icon ?? Plus;
   return (
-    <div data-summary-empty="" className="flex min-h-[124px] flex-col items-center justify-center gap-3 bg-white px-4 py-5 text-center text-[#111]">
-      <p className="text-[13px] font-bold leading-snug text-[#111]/55">{text}</p>
+    <div data-summary-empty="" className="flex min-h-[124px] flex-col items-center justify-center gap-3 bg-paper px-4 py-5 text-center text-ink">
+      <p className="text-[13px] font-bold leading-snug text-ink/55">{text}</p>
       {action && (
         <button
           type="button"
           onClick={action.onClick}
-          className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-[9px] border-[1.5px] border-[#111] px-3 text-[12.5px] font-black shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
-          style={{ background: action.color ?? "#7ae582" }}
+          className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-[9px] border-[1.5px] border-line px-3 text-[12.5px] font-black shadow-[1.5px_1.5px_0_var(--shade)] active:translate-x-px active:translate-y-px active:shadow-none"
+          style={{ background: blockFill(action.color ?? "#7ae582") }}
         >
           <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={3} />
           <span className="truncate">{action.label}</span>
@@ -222,7 +223,7 @@ function CloseButton({ close }: { close: { label: string; onClick: () => void } 
       type="button"
       onClick={close.onClick}
       aria-label={close.label}
-      className="absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-lg active:bg-[#111]/10"
+      className="absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-lg active:bg-ink/10"
     >
       <X className="h-4 w-4" strokeWidth={2.75} />
     </button>
@@ -262,8 +263,8 @@ function Lead({
   if (lead.kind === "title") {
     return (
       <div
-        className="relative flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-[#111]"
-        style={banded ? bandDots(lead.color) : { background: lead.color }}
+        className="relative flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-ink"
+        style={banded ? bandDots(lead.color) : { background: blockFill(lead.color) }}
       >
         {lead.close && <CloseButton close={lead.close} />}
         <Overline text={lead.overline} />
@@ -275,8 +276,8 @@ function Lead({
   if (lead.kind === "count") {
     return (
       <div
-        className="relative flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-[#111]"
-        style={banded ? bandDots(lead.color ?? "#ffd23f") : { background: lead.color ?? "#ffd23f" }}
+        className="relative flex h-full min-w-0 flex-col justify-center px-3.5 py-2.5 text-ink"
+        style={banded ? bandDots(lead.color ?? "#ffd23f") : { background: blockFill(lead.color ?? "#ffd23f") }}
       >
         {lead.close && <CloseButton close={lead.close} />}
         <Overline text={lead.overline} />
@@ -291,13 +292,13 @@ function Lead({
   if (lead.kind === "date") {
     return (
       <div
-        className="flex h-full min-w-0 flex-col justify-center bg-[#ffd23f] px-3.5 py-2.5 text-[#111]"
+        className="flex h-full min-w-0 flex-col justify-center bg-fill-[#ffd23f] px-3.5 py-2.5 text-ink"
         style={banded ? bandDots("#ffd23f") : undefined}
       >
         <div className="flex items-center gap-1.5">
           <span className="text-[11px] font-black uppercase tracking-wider">{lead.weekday}</span>
           {lead.today && (
-            <span className="rounded-md bg-[#111] px-1.5 py-px text-[9.5px] font-black uppercase tracking-wider text-[#ffd23f]">
+            <span className="rounded-md bg-well px-1.5 py-px text-[9.5px] font-black uppercase tracking-wider text-[#ffd23f]">
               {lead.today}
             </span>
           )}
@@ -314,14 +315,14 @@ function Lead({
   const Title = linked ? "h2" : "h1";
   return (
     <div
-      className="flex h-full min-w-0 items-center gap-3 px-3 py-2.5 text-[#111]"
-      style={banded ? bandDots(lead.color) : { background: lead.color }}
+      className="flex h-full min-w-0 items-center gap-3 px-3 py-2.5 text-ink"
+      style={banded ? bandDots(lead.color) : { background: blockFill(lead.color) }}
     >
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] border-2 border-[#111] bg-white">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] border-2 border-line bg-paper">
         {lead.glyph ? (
           <lead.glyph className="h-[22px] w-[22px]" strokeWidth={2.5} />
         ) : (
-          lead.icon && <SymbolIcon name={lead.icon} size={22} style={{ color: "#111" }} />
+          lead.icon && <SymbolIcon name={lead.icon} size={22} style={{ color: blockInk(lead.color) }} />
         )}
       </span>
       <div className="min-w-0 flex-1">
@@ -377,24 +378,24 @@ function CompactLead({
   return (
     <div
       className={cn(
-        "relative flex h-full min-w-0 items-center text-[#111]",
+        "relative flex h-full min-w-0 items-center text-ink",
         dense ? "min-h-[36px] gap-2 px-2 py-1" : "min-h-[50px] gap-2.5 px-3 py-2",
         close && "pr-9"
       )}
-      style={{ background: color }}
+      style={{ background: blockFill(color) }}
     >
       {close && <CloseButton close={close} />}
       {(Glyph || icon) && (
         <span
           className={cn(
-            "flex shrink-0 items-center justify-center border-[1.5px] border-[#111] bg-white",
+            "flex shrink-0 items-center justify-center border-[1.5px] border-line bg-paper",
             dense ? "h-6 w-6 rounded-[7px]" : "h-8 w-8 rounded-[9px]"
           )}
         >
           {Glyph ? (
             <Glyph className={dense ? "h-3 w-3" : "h-4 w-4"} strokeWidth={2.5} />
           ) : (
-            <SymbolIcon name={icon} size={dense ? 13 : 17} style={{ color: "#111" }} />
+            <SymbolIcon name={icon} size={dense ? 13 : 17} style={{ color: blockInk(color) }} />
           )}
         </span>
       )}
@@ -405,7 +406,7 @@ function CompactLead({
       {countTag && (
         <span
           title={lead.kind === "count" ? `${lead.value} ${lead.unit}` : undefined}
-          className="shrink-0 rounded-[6px] border-[1.5px] border-[#111] bg-white px-1.5 py-[3px] font-mono text-[11px] font-bold leading-none tabular-nums"
+          className="shrink-0 rounded-[6px] border-[1.5px] border-line bg-paper px-1.5 py-[3px] font-mono text-[11px] font-bold leading-none tabular-nums"
         >
           {countTag}
         </span>
@@ -432,7 +433,7 @@ function Stat({ s }: { s: SummaryStat }) {
     <>
       <span className="h-1.5 shrink-0" style={{ background: s.color }} />
       <span className="min-w-0 px-2.5 pb-2 pt-1.5 text-left">
-        <span className="block truncate text-[9.5px] font-black uppercase text-[#111]/60">{s.label}</span>
+        <span className="block truncate text-[9.5px] font-black uppercase text-ink/60">{s.label}</span>
         <b className="block truncate font-mono text-[19px] font-bold leading-6 tabular-nums">
           {s.value}
           {s.unit && <span className="ml-1 font-sans text-[11px] font-extrabold opacity-70">{s.unit}</span>}
@@ -440,9 +441,9 @@ function Stat({ s }: { s: SummaryStat }) {
       </span>
     </>
   );
-  const cls = "flex min-w-0 flex-col bg-white text-[#111]";
+  const cls = "flex min-w-0 flex-col bg-paper text-ink";
   return s.onClick ? (
-    <button type="button" onClick={s.onClick} aria-label={`${s.label}: ${s.value} ${s.unit ?? ""}`} className={cn(cls, "active:bg-[#f5f1e8]")}>
+    <button type="button" onClick={s.onClick} aria-label={`${s.label}: ${s.value} ${s.unit ?? ""}`} className={cn(cls, "active:bg-paper-2")}>
       {body}
     </button>
   ) : (
@@ -515,11 +516,11 @@ export function SummaryBlock({
       data-summary=""
       data-summary-head={head ? "" : undefined}
       className={cn(
-        "grid grid-cols-1 gap-[2px] overflow-hidden bg-[#111]",
+        "grid grid-cols-1 gap-[2px] overflow-hidden bg-line",
         head
           ? // Zeminin iç payını (yanlarda 6, üstte 12 px) aşıp kenardan kenara
-            "-mx-1.5 -mt-3 mb-4 rounded-t-[18px] border-b-[3px] border-[#111]"
-          : cn("border-2 border-[#111]", dense ? "rounded-[13px] shadow-[3px_3px_0_#111]" : "rounded-[18px] shadow-[4px_4px_0_#111]"),
+            "-mx-1.5 -mt-3 mb-4 rounded-t-[18px] border-b-[3px] border-line"
+          : cn("border-2 border-line", dense ? "rounded-[13px] shadow-[3px_3px_0_var(--shade)]" : "rounded-[18px] shadow-[4px_4px_0_var(--shade)]"),
         className
       )}
     >
@@ -563,8 +564,8 @@ export function SummaryBlock({
           href={link.href}
           prefetch={false}
           className={cn(
-            "flex min-w-0 flex-col text-[#111]",
-            link.color ? "active:brightness-95" : "bg-white active:bg-[#f5f1e8]"
+            "flex min-w-0 flex-col text-ink",
+            link.color ? "active:brightness-95" : "bg-paper active:bg-paper-2"
           )}
           style={link.color ? bandDots(link.color) : undefined}
         >
@@ -579,7 +580,7 @@ export function SummaryBlock({
                 {link.label}
               </span>
               {link.badge && (
-                <span className="shrink-0 rounded-md bg-white px-1.5 py-px font-mono text-[11px] font-bold">{link.badge}</span>
+                <span className="shrink-0 rounded-md bg-paper px-1.5 py-px font-mono text-[11px] font-bold">{link.badge}</span>
               )}
               <span className={cn(SQ_SM, "ml-auto")}>
                 <ArrowRight className="h-4 w-4" strokeWidth={2.75} />
@@ -589,7 +590,7 @@ export function SummaryBlock({
           <span className="flex h-10 items-center gap-2 px-3">
             <span className="min-w-0 flex-1 truncate text-[12.5px] font-black uppercase tracking-wide">{link.label}</span>
             {link.badge && (
-              <span className="shrink-0 rounded-md bg-[#111] px-1.5 py-px font-mono text-[11px] font-bold text-[#fff4dc]">
+              <span className="shrink-0 rounded-md bg-well px-1.5 py-px font-mono text-[11px] font-bold text-[#fff4dc]">
                 {link.badge}
               </span>
             )}
@@ -597,12 +598,12 @@ export function SummaryBlock({
           </span>
           )}
           {link.bars && link.bars.length > 0 && (
-            <span className="flex h-2.5 border-t-2 border-[#111]">
+            <span className="flex h-2.5 border-t-2 border-line">
               {link.bars.map((b, i) => (
                 <span
                   key={b.key}
                   title={b.title}
-                  className={i ? "border-l-[1.5px] border-[#111]" : undefined}
+                  className={i ? "border-l-[1.5px] border-line" : undefined}
                   style={{ background: b.color, flex: b.weight }}
                 />
               ))}

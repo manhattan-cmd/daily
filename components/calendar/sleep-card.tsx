@@ -9,13 +9,14 @@ import { EditEntryModal } from "@/components/forms/edit-entry-modal";
 import { cn, formatDateTime } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { useLongPress } from "@/lib/use-long-press";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { ENTRY_BLOCK_CLS, EntryBlockCell, EntryBlockHead, EntryBlockTime } from "@/components/dashboard/entry-block";
 import {
   SelectionLayer,
   selectedCardClass,
   type EntrySelection,
 } from "@/components/calendar/entry-selection";
+import { blockFill } from "@/lib/fill";
 
 /**
  * Yerleşik uyku kartı — süre aralığı + kalite.
@@ -49,7 +50,7 @@ export function SleepCard({
   const t = useT();
   const [editOpen, setEditOpen] = useState(false);
   const longPress = useLongPress({ onLongPress: () => selection?.onStart() });
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
 
   const rangeValue = entry.values.find(
     (v) => (v.entryType?.valueType ?? "") === "datetime-range"
@@ -86,12 +87,12 @@ export function SleepCard({
             className="inline-flex min-w-0 items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2.5"
             style={{
               ["--cap-c" as string]: color,
-              background: `${color}1f`,
+              background: blockFill(`${color}1f`),
               boxShadow: `inset 0 0 0 1px ${color}47`,
             }}
           >
             <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-              style={{ background: `${color}3d` }}>
+              style={{ background: blockFill(`${color}3d`) }}>
               <Clock className="h-3 w-3" style={{ color }} strokeWidth={1.9} />
             </span>
             {startTime || endTime ? (
@@ -201,7 +202,7 @@ export function SleepCard({
         {/* Künye — sembol, başlık, sağda tarih */}
         <div data-entry-head="" data-sel-head="" className="flex items-center gap-2">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
-            style={{ background: `${color}33` }}>
+            style={{ background: blockFill(`${color}33`) }}>
             <MoonStar
               className="h-[17px] w-[17px]"
               style={{ color }}

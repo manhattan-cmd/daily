@@ -13,20 +13,20 @@ import { useSyncExternalStore } from "react";
 
 // Liste, anahtar ve varsayılanlar açılış betiğiyle ortak (bkz. lib/skin-boot)
 import {
-  BASE_SKIN,
   DEFAULT_SKIN,
   SKIN_STORAGE_KEY as STORAGE_KEY,
   SKINS,
+  isBlockSkin,
   type Skin,
 } from "./skin-boot";
-export { SKINS, type Skin };
+export { SKINS, isBlockSkin, type Skin };
 
 /** Seçicide görünen adlar ve bir satırlık karakterleri */
 export const SKIN_META: Record<Skin, { name: string; hint: string; swatch: string[] }> = {
   gece: {
     name: "Gece",
-    hint: "Koyu zemin, indigo vurgu",
-    swatch: ["#09090B", "#131316", "#6366F1", "#FAFAFA"],
+    hint: "Brütal'in gece hali: gece mavisi, renkler ışık",
+    swatch: ["#0D0F15", "#161A23", "#A9B0FF", "#EDEFF5"],
   },
   pastel: {
     name: "Pastel",
@@ -84,11 +84,14 @@ export function getSkin(): Skin {
   return current;
 }
 
-/** Kök öğeye yazar — CSS değişkenleri buradan devralıyor */
+/** Kök öğeye yazar — CSS değişkenleri buradan devralıyor. Blok dilindeki
+ *  temalarda (Brütal, Gece) ortak kurallar için `data-ui="block"` de. */
 export function applySkin(skin: Skin): void {
   if (typeof document === "undefined") return;
-  if (skin === BASE_SKIN) delete document.documentElement.dataset.skin;
-  else document.documentElement.dataset.skin = skin;
+  const root = document.documentElement;
+  root.dataset.skin = skin;
+  if (isBlockSkin(skin)) root.dataset.ui = "block";
+  else delete root.dataset.ui;
 }
 
 export function setSkin(next: Skin): void {

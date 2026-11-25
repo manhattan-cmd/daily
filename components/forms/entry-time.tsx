@@ -4,8 +4,9 @@ import { useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, Clock, RotateCcw } from "lucide-react";
 import { cn, toLocalDateTimeValue } from "@/lib/utils";
 import { intlTag, useT } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { TimeWheel } from "@/components/ui/time-wheel";
+import { blockFill } from "@/lib/fill";
 
 /** Şu an — çizimde değil açılışta/olayda okunur, saf kalsın diye modülde */
 const nowDate = () => new Date();
@@ -68,7 +69,7 @@ export function EntryTime({
   accent: string;
 }) {
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
   // Bugün — açılışta okunur; pencere her açılışta tazeler (gece yarısı geçtiyse)
   const [todayMs, setTodayMs] = useState(todayStartMs);
   const [draft, setDraft] = useState<string | null>(null);
@@ -121,8 +122,8 @@ export function EntryTime({
       "relative flex h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-xl px-1.5 leading-none transition-[background-color,transform] active:scale-[0.97]",
       brutal
         ? on
-          ? "border-2 border-[#111] bg-[#111] text-[#FFF4DC]"
-          : "border-2 border-[#111] bg-white text-[#111] shadow-[2px_2px_0_#111]"
+          ? "border-2 border-line bg-well text-[#FFF4DC]"
+          : "border-2 border-line bg-paper text-ink shadow-[2px_2px_0_var(--shade)]"
         : on
           ? "text-white"
           : "bg-[var(--sf-2)] text-foreground hover:bg-[var(--sf-3)]"
@@ -142,7 +143,7 @@ export function EntryTime({
         aria-haspopup="dialog"
         data-time-stamp=""
         className="mt-1 flex h-7 w-fit max-w-full items-center gap-1.5 rounded-full pl-2 pr-2.5 text-[12.5px] font-semibold transition-[background-color,transform] active:scale-95"
-        style={{ background: `${accent}26`, color: accent }}
+        style={{ background: blockFill(`${accent}26`), color: accent }}
       >
         <Clock className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate font-mono">{summary}</span>
@@ -164,21 +165,21 @@ export function EntryTime({
             className={cn(
               "zoom-in-95 animate-in flex w-full max-w-[330px] flex-col gap-3 p-4",
               brutal
-                ? "rounded-[20px] border-[3px] border-[#111] bg-[#FFF4DC] text-[#111] shadow-[6px_6px_0_#111]"
+                ? "rounded-[20px] border-[3px] border-line bg-floor text-ink shadow-[6px_6px_0_var(--shade)]"
                 : "rounded-3xl bg-card shadow-[0_24px_60px_-16px_rgba(0,0,0,0.9)] ring-1 ring-[var(--ln-2)]"
             )}
           >
             {/* Başlık: etiket ve göreli gün */}
             <div className="flex items-center justify-between gap-2">
-              <span className={cn("text-[11px] font-bold uppercase tracking-[0.12em]", brutal ? "text-[#111]/60" : "text-muted-foreground")}>
+              <span className={cn("text-[11px] font-bold uppercase tracking-[0.12em]", brutal ? "text-ink/60" : "text-muted-foreground")}>
                 {t("entry.time")}
               </span>
               <span
                 className={cn(
                   "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold",
-                  brutal ? "border-[1.5px] border-[#111] bg-[#FFD23F] text-[#111]" : "text-white"
+                  brutal ? "border-[1.5px] border-line bg-fill-[#FFD23F] text-ink" : "text-white"
                 )}
-                style={brutal ? undefined : { background: accent }}
+                style={brutal ? undefined : { background: blockFill(accent) }}
               >
                 {relative(dDay)}
               </span>
@@ -201,7 +202,7 @@ export function EntryTime({
                 aynı yerde geri dönüş düğmesi (pencere büyüyüp küçülmesin) */}
             <div className="-mt-2.5 flex h-7 items-center">
               {onPage ? (
-                <span className={cn("text-xs", brutal ? "font-semibold text-[#111]/60" : "text-muted-foreground")}>
+                <span className={cn("text-xs", brutal ? "font-semibold text-ink/60" : "text-muted-foreground")}>
                   {t("entry.timePickDay")}
                 </span>
               ) : (
@@ -210,7 +211,7 @@ export function EntryTime({
                   onClick={() => setDraft(`${baseDate}T${timeOf(draft)}`)}
                   className={cn(
                     "flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs font-bold",
-                    brutal ? "border-[1.5px] border-[#111] bg-white text-[#111]" : "bg-[var(--sf-2)] text-foreground"
+                    brutal ? "border-[1.5px] border-line bg-paper text-ink" : "bg-[var(--sf-2)] text-foreground"
                   )}
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
@@ -238,7 +239,7 @@ export function EntryTime({
               <button
                 type="button"
                 className={quick(nowOn)}
-                style={!brutal && nowOn ? { background: accent } : undefined}
+                style={!brutal && nowOn ? { background: blockFill(accent) } : undefined}
                 onClick={toNow}
               >
                 <span className="text-xs font-bold">{t("entry.timeAtNow")}</span>
@@ -265,7 +266,7 @@ export function EntryTime({
                 className={cn(
                   "h-11 rounded-2xl text-[14px]",
                   brutal
-                    ? "border-2 border-[#111] bg-white font-black text-[#111] shadow-[3px_3px_0_#111]"
+                    ? "border-2 border-line bg-paper font-black text-ink shadow-[3px_3px_0_var(--shade)]"
                     : "bg-[var(--sf-2)] font-semibold text-foreground/85 hover:bg-[var(--sf-3)]"
                 )}
               >
@@ -277,10 +278,10 @@ export function EntryTime({
                 className={cn(
                   "h-11 rounded-2xl text-[14px] transition-opacity active:opacity-85",
                   brutal
-                    ? "border-2 border-[#111] bg-[#FFD23F] font-black text-[#111] shadow-[3px_3px_0_#111]"
+                    ? "border-2 border-line bg-fill-[#FFD23F] font-black text-ink shadow-[3px_3px_0_var(--shade)]"
                     : "font-semibold text-white"
                 )}
-                style={brutal ? undefined : { background: accent }}
+                style={brutal ? undefined : { background: blockFill(accent) }}
               >
                 {t("action.ok")}
               </button>

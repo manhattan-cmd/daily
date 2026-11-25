@@ -18,6 +18,7 @@ import { useIsBrutal } from "@/components/structure/brutal";
 import { fmtNum, type DayBucket, type Granularity, type ScaleRange } from "@/lib/analytics";
 import { intlTag, useLocale, useT, type MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { blockFill } from "@/lib/fill";
 
 /**
  * Grafik inceleme ekranı — grafiğin köşesindeki düğmeyle açılan tam ekran.
@@ -89,11 +90,11 @@ const SLOP_PX = 8;
 const STAT_COLORS = ["#8ea6ff", "#7ae582", "#ff9ecd"];
 /** Analiz satırının küçük kare karoları (simge ve ok) — SummaryBlock bağlantı satırı gibi */
 const LINK_SQ =
-  "flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] bg-white text-[#111] shadow-[1.5px_1.5px_0_#111]";
+  "flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] bg-paper text-ink shadow-[1.5px_1.5px_0_var(--shade)]";
 /** Bölüm bantlarının tram benekleri (bkz. summary-block bandDots) */
 const bandDots = (c: string) => ({
-  backgroundColor: c,
-  backgroundImage: "radial-gradient(rgba(17, 17, 17, 0.16) 1.2px, transparent 1.5px)",
+  backgroundColor: blockFill(c),
+  backgroundImage: "radial-gradient(var(--dot) 1.2px, transparent 1.5px)",
   backgroundSize: "11px 11px",
 });
 
@@ -271,7 +272,7 @@ export function ChartExplorer({
   const t = useT();
   const brutal = useIsBrutal();
   const [menu, setMenu] = useState<"reading" | "chart" | null>(null);
-  const line = brutal ? { borderColor: "#111" } : undefined;
+  const line = brutal ? { borderColor: "var(--line)" } : undefined;
 
   /** Seçici düğmesi — karo, küçük etiket, seçili olanın adı, ok */
   const picker = (which: "reading" | "chart", label: string, opts: ExplorerOptionDef[], cur: string) => {
@@ -290,16 +291,16 @@ export function ChartExplorer({
           "flex h-10 min-w-0 flex-1 items-center gap-2 pl-1.5 pr-2 text-left transition-colors",
           brutal
             ? cn(
-                "rounded-[11px] border-2 shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none",
-                isOpen ? "bg-[#111] text-[#fff4dc]" : "bg-white text-[#111]"
+                "rounded-[11px] border-2 shadow-[2px_2px_0_var(--shade)] active:translate-x-px active:translate-y-px active:shadow-none",
+                isOpen ? "bg-well text-[#fff4dc]" : "bg-paper text-ink"
               )
             : cn("rounded-xl border border-border", isOpen ? "bg-[var(--sf-3)]" : "bg-card")
         )}
         style={line}
       >
         <span
-          className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] text-[#111]", brutal && "border-[1.5px]")}
-          style={{ background: which === "reading" ? color : "#fff", borderColor: brutal ? "#111" : undefined }}
+          className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] text-ink", brutal && "border-[1.5px]")}
+          style={{ background: which === "reading" ? blockFill(color) : "var(--paper)", borderColor: brutal ? "var(--line)" : undefined }}
         >
           {Icon && <Icon className="h-4 w-4" strokeWidth={2.5} />}
         </span>
@@ -337,7 +338,7 @@ export function ChartExplorer({
               grafiğin lejantında (sol üst köşe) */}
           <header
             className={cn("relative z-20 shrink-0 pt-[env(safe-area-inset-top,0px)]", brutal ? "border-b-[3px]" : "border-b")}
-            style={brutal ? { borderColor: "#111", ...bandDots("#8ea6ff") } : undefined}
+            style={brutal ? { borderColor: "var(--line)", ...bandDots("#8ea6ff") } : undefined}
           >
             <div className="flex items-center gap-2 px-3 py-2">
               <button
@@ -347,7 +348,7 @@ export function ChartExplorer({
                 className={cn(
                   "flex h-10 w-10 shrink-0 items-center justify-center",
                   brutal
-                    ? "rounded-[11px] border-2 bg-white text-[#111] shadow-[2px_2px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
+                    ? "rounded-[11px] border-2 bg-paper text-ink shadow-[2px_2px_0_var(--shade)] active:translate-x-px active:translate-y-px active:shadow-none"
                     : "rounded-full bg-[var(--sf-2)] text-foreground"
                 )}
                 style={line}
@@ -370,11 +371,11 @@ export function ChartExplorer({
                 className={cn(
                   "animate-in absolute top-full z-30 mt-2 w-[min(320px,calc(100%-24px))] p-1.5",
                   menu === "reading" ? "left-3" : "right-3",
-                  brutal ? "rounded-[14px] border-2 bg-white text-[#111] shadow-[3px_3px_0_#111]" : "rounded-2xl border border-border bg-card shadow-lg"
+                  brutal ? "rounded-[14px] border-2 bg-paper text-ink shadow-[3px_3px_0_var(--shade)]" : "rounded-2xl border border-border bg-card shadow-lg"
                 )}
                 style={line}
               >
-                <div className={cn("px-2 pb-1.5 pt-1 text-[10px] font-black uppercase tracking-[0.1em]", brutal ? "text-[#111]/55" : "text-muted-foreground")}>
+                <div className={cn("px-2 pb-1.5 pt-1 text-[10px] font-black uppercase tracking-[0.1em]", brutal ? "text-ink/55" : "text-muted-foreground")}>
                   {t(menu === "reading" ? "board.chartType" : "board.chartForm")}
                 </div>
                 <div className="flex flex-col gap-0.5">
@@ -394,12 +395,12 @@ export function ChartExplorer({
                         }}
                         className={cn(
                           "flex w-full items-center gap-2.5 rounded-[10px] px-2 py-2 text-left transition-colors",
-                          on ? (brutal ? "bg-[#111] text-[#fff4dc]" : "bg-[var(--sf-3)]") : brutal ? "active:bg-[#111]/[0.06]" : "active:bg-[var(--sf-2)]"
+                          on ? (brutal ? "bg-well text-[#fff4dc]" : "bg-[var(--sf-3)]") : brutal ? "active:bg-ink/[0.06]" : "active:bg-[var(--sf-2)]"
                         )}
                       >
                         <span
-                          className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-[#111]", brutal && "border-[1.5px]")}
-                          style={{ background: menu === "reading" ? color : "#fff", borderColor: brutal ? "#111" : undefined }}
+                          className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-ink", brutal && "border-[1.5px]")}
+                          style={{ background: menu === "reading" ? blockFill(color) : "var(--paper)", borderColor: brutal ? "var(--line)" : undefined }}
                         >
                           <Icon className="h-4 w-4" strokeWidth={2.5} />
                         </span>
@@ -447,13 +448,13 @@ export function ExplorerTag({ color, shape, label }: { color: string; shape: "sq
   const brutal = useIsBrutal();
   return (
     <span
-      className="flex min-w-0 items-center gap-1.5 rounded-full border-[1.5px] py-[2px] pl-1.5 pr-2 text-[11.5px] font-extrabold leading-[15px] text-[#111]"
-      style={{ borderColor: brutal ? "#111" : "var(--border)", background: `color-mix(in srgb, ${color} 38%, white)` }}
+      className="flex min-w-0 items-center gap-1.5 rounded-full border-[1.5px] py-[2px] pl-1.5 pr-2 text-[11.5px] font-extrabold leading-[15px] text-ink"
+      style={{ borderColor: brutal ? "var(--line)" : "var(--border)", background: `color-mix(in srgb, ${color} calc(38% * var(--fill-scale)), var(--paper))` }}
     >
       <span
         aria-hidden
         className={cn("h-3 w-3 shrink-0 border-[1.5px]", shape === "circle" ? "rounded-full" : "rounded-[3px]")}
-        style={{ background: color, borderColor: "#111" }}
+        style={{ background: color, borderColor: "var(--line)" }}
       />
       <span className="truncate">{label}</span>
     </span>
@@ -489,8 +490,8 @@ function ExplorerBody({
   const tag = intlTag(useLocale());
   const clipId = `xc${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   /** Temanın mürekkebi — brütalde siyah, ötekilerde yazı rengi */
-  const INK = brutal ? "#111111" : "var(--foreground)";
-  const PAPER = brutal ? "#ffffff" : "var(--background)";
+  const INK = brutal ? "var(--ink)" : "var(--foreground)";
+  const PAPER = brutal ? "var(--paper)" : "var(--background)";
 
   const [view, setView] = useState<View>(() => initView(series, initial));
   // Hareketler bir sonraki çizimi beklemeden en son pencereyi okusun
@@ -1167,11 +1168,11 @@ function ExplorerBody({
     );
   };
 
-  const line = brutal ? { borderColor: "#111" } : undefined;
+  const line = brutal ? { borderColor: "var(--line)" } : undefined;
   const segBtn = (on: boolean) =>
     cn(
       "font-extrabold transition-colors",
-      on ? (brutal ? "bg-[#111] text-white" : "bg-foreground text-background") : brutal ? "text-[#111]/65 active:bg-[#111]/5" : "text-muted-foreground"
+      on ? (brutal ? "bg-well text-white" : "bg-foreground text-background") : brutal ? "text-ink/65 active:bg-ink/5" : "text-muted-foreground"
     );
 
   return (
@@ -1185,13 +1186,13 @@ function ExplorerBody({
         data-explore-readout=""
         className={cn(
           "grid shrink-0 grid-cols-1 overflow-hidden",
-          brutal ? "gap-[2px] rounded-[16px] border-2 bg-[#111] shadow-[3px_3px_0_#111]" : "gap-px rounded-2xl border border-border bg-border"
+          brutal ? "gap-[2px] rounded-[16px] border-2 bg-line shadow-[3px_3px_0_var(--shade)]" : "gap-px rounded-2xl border border-border bg-border"
         )}
         style={line}
       >
         <div className="flex h-[52px] gap-[2px]">
           <div
-            className={cn("flex min-w-0 flex-1 items-center gap-2 px-2", brutal ? "text-[#111]" : "bg-card")}
+            className={cn("flex min-w-0 flex-1 items-center gap-2 px-2", brutal ? "text-ink" : "bg-card")}
             style={brutal ? bandDots(color) : undefined}
           >
             <StepArrow brutal={brutal} dir={-1} disabled={prevEntry < 0} label={t("explore.prevEntry")} onClick={() => stepEntry(-1)} />
@@ -1205,7 +1206,7 @@ function ExplorerBody({
                     aria-label={t("explore.clear")}
                     className={cn(
                       "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full",
-                      brutal ? "bg-[#111] text-white" : "bg-foreground text-background"
+                      brutal ? "bg-well text-white" : "bg-foreground text-background"
                     )}
                   >
                     <X className="h-2.5 w-2.5" strokeWidth={3.5} />
@@ -1229,7 +1230,7 @@ function ExplorerBody({
         {cells.length > 0 && (
           <div className={cn("grid", brutal ? "gap-[2px]" : "gap-px")} style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }}>
             {cells.map((c, k) => (
-              <div key={k} className={cn("flex h-[42px] min-w-0 flex-col", brutal ? "bg-white text-[#111]" : "bg-card")}>
+              <div key={k} className={cn("flex h-[42px] min-w-0 flex-col", brutal ? "bg-paper text-ink" : "bg-card")}>
                 <span className="h-1 shrink-0" style={{ background: STAT_COLORS[k % STAT_COLORS.length] }} />
                 {/* Sabit boy: etiket kısa ve tek satır; tarih gibi değişen ek
                     rakamın yanında küçük. "En yüksek · 2 Eylül" iki satıra inip
@@ -1238,14 +1239,14 @@ function ExplorerBody({
                   <span
                     className={cn(
                       "block truncate whitespace-nowrap text-[9px] font-black uppercase leading-[12px] tracking-[0.02em]",
-                      brutal ? "text-[#111]/60" : "text-muted-foreground"
+                      brutal ? "text-ink/60" : "text-muted-foreground"
                     )}
                   >
                     {c.l}
                   </span>
                   <span className="mt-px flex min-w-0 items-baseline gap-1">
                     <b className="truncate font-mono text-[14px] font-bold leading-[18px] tabular-nums">{c.v}</b>
-                    {c.s && <span className={cn("shrink-0 text-[10.5px] font-bold", brutal ? "text-[#111]/55" : "text-muted-foreground")}>{c.s}</span>}
+                    {c.s && <span className={cn("shrink-0 text-[10.5px] font-bold", brutal ? "text-ink/55" : "text-muted-foreground")}>{c.s}</span>}
                   </span>
                 </span>
               </div>
@@ -1271,14 +1272,14 @@ function ExplorerBody({
                 disabled={!openRow}
                 tabIndex={openRow ? 0 : -1}
                 data-explore-open=""
-                className={cn("flex h-[38px] w-full min-w-0 items-center gap-2.5 px-3 text-left", brutal ? "text-[#111] active:brightness-95" : "bg-[var(--sf-2)]")}
+                className={cn("flex h-[38px] w-full min-w-0 items-center gap-2.5 px-3 text-left", brutal ? "text-ink active:brightness-95" : "bg-[var(--sf-2)]")}
                 style={brutal ? bandDots("#8ea6ff") : undefined}
               >
-                <span className={LINK_SQ} style={brutal ? { borderColor: "#111" } : undefined}>
+                <span className={LINK_SQ} style={brutal ? { borderColor: "var(--line)" } : undefined}>
                   <BarChart3 className="h-4 w-4" strokeWidth={2.5} />
                 </span>
                 <span className="min-w-0 flex-1 truncate text-[14px] font-extrabold leading-[18px] tracking-tight">{t(OPEN_KEY[v.g])}</span>
-                <span className={LINK_SQ} style={brutal ? { borderColor: "#111" } : undefined}>
+                <span className={LINK_SQ} style={brutal ? { borderColor: "var(--line)" } : undefined}>
                   <ArrowRight className="h-4 w-4" strokeWidth={2.75} />
                 </span>
               </button>
@@ -1289,7 +1290,7 @@ function ExplorerBody({
 
       {/* Grafik penceresi — yalnız çizim; ne gösterdiği ve kova yukarıdaki kontrol bloğunda */}
       <div
-        className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", brutal ? "rounded-[16px] border-2 bg-white" : "rounded-2xl border border-border bg-card")}
+        className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", brutal ? "rounded-[16px] border-2 bg-paper" : "rounded-2xl border border-border bg-card")}
         style={line}
       >
         <div
@@ -1392,7 +1393,7 @@ function ExplorerBody({
         )}
         {toast && (
           <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center">
-            <span className={cn("rounded-full px-3 py-1 text-[12px] font-extrabold", brutal ? "border-[1.5px] bg-[#ffd23f] text-[#111]" : "bg-foreground text-background")} style={line}>
+            <span className={cn("rounded-full px-3 py-1 text-[12px] font-extrabold", brutal ? "border-[1.5px] bg-fill-[#ffd23f] text-ink" : "bg-foreground text-background")} style={line}>
               {toast}
             </span>
           </div>
@@ -1404,7 +1405,7 @@ function ExplorerBody({
       <div
         role="group"
         aria-label={t("explore.range")}
-        className={cn("flex h-9 shrink-0 overflow-hidden rounded-[11px]", brutal ? "border-2 bg-white shadow-[2px_2px_0_#111]" : "border border-border bg-card")}
+        className={cn("flex h-9 shrink-0 overflow-hidden rounded-[11px]", brutal ? "border-2 bg-paper shadow-[2px_2px_0_var(--shade)]" : "border border-border bg-card")}
         style={line}
       >
         {PRESETS.map((p, k) => (
@@ -1414,7 +1415,7 @@ function ExplorerBody({
             aria-pressed={v.preset === p.key}
             onClick={() => applyPreset(p)}
             className={cn(segBtn(v.preset === p.key), "flex-1 text-[12.5px]", k > 0 && "border-l-[1.5px]")}
-            style={k > 0 ? { borderLeftColor: brutal ? "#111" : "var(--border)" } : undefined}
+            style={k > 0 ? { borderLeftColor: brutal ? "var(--line)" : "var(--border)" } : undefined}
           >
             {t(p.label)}
           </button>
@@ -1449,10 +1450,10 @@ function StepArrow({
       className={cn(
         "flex h-8 w-8 shrink-0 items-center justify-center disabled:opacity-25 disabled:shadow-none",
         brutal
-          ? "rounded-[10px] border-[1.5px] bg-white text-[#111] shadow-[1.5px_1.5px_0_#111] active:translate-x-px active:translate-y-px active:shadow-none"
+          ? "rounded-[10px] border-[1.5px] bg-paper text-ink shadow-[1.5px_1.5px_0_var(--shade)] active:translate-x-px active:translate-y-px active:shadow-none"
           : "rounded-full bg-[var(--sf-2)] text-foreground"
       )}
-      style={brutal ? { borderColor: "#111" } : undefined}
+      style={brutal ? { borderColor: "var(--line)" } : undefined}
     >
       <Icon className="h-[18px] w-[18px]" strokeWidth={2.75} />
     </button>

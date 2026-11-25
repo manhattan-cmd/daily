@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { blockFill } from "@/lib/fill";
 
 /**
  * Brütal girdi kartlarının ortak çerçevesi — ana sayfanın blok dili küçük
@@ -19,7 +20,7 @@ import { cn } from "@/lib/utils";
  * taşırıp künyedeki saati ekran dışına itiyordu.
  */
 export const ENTRY_BLOCK_CLS =
-  "relative grid w-full grid-cols-[minmax(0,1fr)] select-none touch-manipulation gap-[2px] overflow-hidden rounded-[14px] border-2 border-[#111] bg-[#111] text-left text-[#111] shadow-[3px_3px_0_#111]";
+  "relative grid w-full grid-cols-[minmax(0,1fr)] select-none touch-manipulation gap-[2px] overflow-hidden rounded-[14px] border-2 border-line bg-line text-left text-ink shadow-[3px_3px_0_var(--shade)]";
 
 /** Künye — renkli hücre: beyaz kare karoda simge, ad, altında bağlam, sağda saat */
 export function EntryBlockHead({
@@ -37,8 +38,8 @@ export function EntryBlockHead({
 }) {
   return (
     // data-sel-head: seçim modunda sağında daireye yer açılır (bkz. SelectionLayer)
-    <div data-sel-head="edge" className="flex items-center gap-2 px-2.5 py-1.5" style={{ background: color }}>
-      <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[8px] bg-white text-[#111] shadow-[inset_0_0_0_2px_#111,1.5px_1.5px_0_#111]">
+    <div data-sel-head="edge" className="flex items-center gap-2 px-2.5 py-1.5" style={{ background: blockFill(color) }}>
+      <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[8px] bg-paper text-ink shadow-[inset_0_0_0_2px_var(--shade),1.5px_1.5px_0_var(--shade)]">
         {icon}
       </span>
       <div className="min-w-0 flex-1">
@@ -57,7 +58,7 @@ export function EntryBlockHead({
 /** Künyenin sağındaki saat / tarih — beyaz, çerçeveli küçük etiket */
 export function EntryBlockTime({ children }: { children: ReactNode }) {
   return (
-    <span className="shrink-0 whitespace-nowrap rounded-[6px] border-[1.5px] border-[#111] bg-white px-1.5 py-[3px] font-mono text-[9.5px] font-bold leading-none tabular-nums">
+    <span className="shrink-0 whitespace-nowrap rounded-[6px] border-[1.5px] border-line bg-paper px-1.5 py-[3px] font-mono text-[9.5px] font-bold leading-none tabular-nums">
       {children}
     </span>
   );
@@ -72,7 +73,7 @@ const TINT = 20;
  * Beyaz kapsüller tonlu zeminde daha iyi seçiliyor. Renk yoksa beyaz.
  */
 export function blockTint(color?: string): string {
-  return color ? `color-mix(in srgb, ${color} ${TINT}%, #ffffff)` : "#ffffff";
+  return color ? `color-mix(in srgb, ${color} calc(${TINT}% * var(--fill-scale)), var(--paper))` : "var(--paper)";
 }
 
 /** Hücre — kapsüller, not, satırlar; `color` verilirse onun hafif tonunda */

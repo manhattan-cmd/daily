@@ -8,7 +8,7 @@ import {
   useLocale,
   useT,
 } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { cn } from "@/lib/utils";
 import { SettingsBlock, SettingsChoices } from "./settings-block";
 
@@ -23,7 +23,7 @@ const COLOR = "#8ea6ff";
 export function LanguageSection() {
   const locale = useLocale();
   const t = useT();
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
 
   // Brütal: blok — diller yan yana iki hücre, seçili olan bloğun renginde
   if (brutal) {

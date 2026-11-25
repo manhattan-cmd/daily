@@ -11,7 +11,7 @@ import {
   useLastBackupAt,
 } from "@/lib/storage-health";
 import { useT } from "@/lib/i18n";
-import { useSkin } from "@/lib/skin";
+import { useSkin, isBlockSkin } from "@/lib/skin";
 import { SummaryBlock } from "@/components/ui/summary-block";
 
 /**
@@ -26,7 +26,7 @@ export function BackupReminder() {
   // Kaybedilecek bir şey yoksa hatırlatma anlamsız
   const entryCount = useLiveQuery(() => db.entries.count(), []);
   const noteCount = useLiveQuery(() => db.notes.count(), []);
-  const brutal = useSkin() === "brutal";
+  const brutal = isBlockSkin(useSkin());
 
   const worthProtecting = (entryCount ?? 0) + (noteCount ?? 0) >= 5;
   if (state === "hidden" || !worthProtecting) return null;

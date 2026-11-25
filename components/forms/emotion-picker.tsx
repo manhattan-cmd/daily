@@ -14,6 +14,7 @@ import {
 import { HScroll } from "@/components/ui/h-scroll";
 import { FIELD_TONES, type FieldTone } from "@/components/forms/field-tone";
 import { packChoiceLevel, splitChoiceLevel } from "@/lib/choice-level";
+import { blockFill } from "@/lib/fill";
 
 /** Çeyreğin ızgaradaki hücreleri: üst çeyrekler 0–2. satırlar, sol çeyrekler 0–1. sütunlar */
 function quadrantCells(q: EmotionQuadrant): string[] {
@@ -149,7 +150,7 @@ export function EmotionPicker({
           on
             ? {
                 borderColor: look.color,
-                background: `${look.color}4d`,
+                background: blockFill(`${look.color}4d`),
                 boxShadow: `inset 0 0 0 1px ${look.color}`,
               }
             : undefined
@@ -185,7 +186,7 @@ export function EmotionPicker({
                   className="flex shrink-0 items-center rounded-full border p-0.5 transition-transform active:scale-95"
                   style={{
                     borderColor: `${look.color}80`,
-                    background: `${look.color}26`,
+                    background: blockFill(`${look.color}26`),
                   }}
                 >
                   <EmotionFace name={c} size={20} />

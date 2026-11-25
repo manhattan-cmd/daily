@@ -191,12 +191,12 @@ export function PeriodJump({
           deck
             ? cn(
                 "flex h-9 items-center justify-center border-l-[1.5px] transition-colors",
-                current ? "bg-[#111] text-white" : "bg-white text-[#111]/70 active:bg-[#f5f1e8]"
+                current ? "bg-well text-white" : "bg-paper text-ink/70 active:bg-paper-2"
               )
             : strip
             ? cn(
                 "flex h-[27px] w-[34px] items-center justify-center justify-self-center rounded-full border-[1.5px] transition-transform",
-                current ? "-translate-y-px bg-white text-[#111] shadow-[2px_2px_0_#111]" : "text-[#111]/65 active:text-[#111]"
+                current ? "-translate-y-px bg-paper text-ink shadow-[2px_2px_0_var(--shade)]" : "text-ink/65 active:text-ink"
               )
             : segment
             ? cn(
@@ -211,7 +211,7 @@ export function PeriodJump({
         aria-current={current ? "page" : undefined}
         aria-label={segment || strip || deck ? t("period.custom") : undefined}
         title={segment || strip || deck ? t("period.custom") : undefined}
-        style={deck ? { borderLeftColor: "#111" } : strip ? { borderColor: current ? "#111" : "transparent" } : undefined}
+        style={deck ? { borderLeftColor: "var(--line)" } : strip ? { borderColor: current ? "var(--line)" : "transparent" } : undefined}
       >
         <CalendarRange className={strip || deck ? "h-4 w-4" : "h-3.5 w-3.5"} strokeWidth={strip || deck ? 2.5 : 2} />
         {!segment && !strip && !deck && t("period.custom")}
