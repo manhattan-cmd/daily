@@ -8,6 +8,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { CATEGORY_COLORS, type Category } from "@/types";
 import { createCategory, updateCategory } from "@/lib/db/queries";
 import { IconGrid } from "@/components/structure/icon-picker";
+import { TagField } from "@/components/structure/tag-field";
+import { settleTagIds } from "@/lib/db/tags";
 import {
   FormActions,
   FormSection,
@@ -64,6 +66,8 @@ export function CategoryForm({
   const [name, setName] = useState(category?.name ?? "");
   const [color, setColor] = useState<string>(category?.color ?? CATEGORY_COLORS[0]);
   const [icon, setIcon] = useState<string | undefined>(category?.icon);
+  // Kategorinin etiketleri — bütün kalemlerine iner (yeni yazılanlar new:<ad>)
+  const [tagIds, setTagIds] = useState<string[]>(category?.tagIds ?? []);
   const [saving, setSaving] = useState(false);
   // Aynı adda kategori uyarısı
   const [duplicateName, setDuplicateName] = useState<string | null>(null);
@@ -78,6 +82,7 @@ export function CategoryForm({
       setName(category?.name ?? "");
       setColor(category?.color ?? CATEGORY_COLORS[0]);
       setIcon(category?.icon);
+      setTagIds(category?.tagIds ?? []);
       setDuplicateName(null);
     }
   }
@@ -107,9 +112,10 @@ export function CategoryForm({
     try {
       let created: Category | undefined;
       if (isEdit && category) {
-        await updateCategory(category.id, { name: name.trim(), color, icon });
+        await updateCategory(category.id, { name: name.trim(), color, icon, tagIds: await settleTagIds(tagIds) });
       } else {
         created = await createCategory({ name: name.trim(), color, icon });
+        if (tagIds.length) await updateCategory(created.id, { tagIds: await settleTagIds(tagIds) });
       }
       onSaved?.(created);
       onOpenChange(false);
@@ -189,6 +195,9 @@ export function CategoryForm({
             </div>
           </FormSection>
         )}
+
+        {/* Etiketler — kategoriye takılan bütün kalemlerine ve girdilerine iner */}
+        {!category?.isBuiltIn && <TagField value={tagIds} onChange={setTagIds} />}
 
         <FormSection label={t("tree.colour")}>
           <div className="grid grid-cols-5 justify-items-center gap-3">

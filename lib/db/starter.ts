@@ -181,11 +181,20 @@ export const STARTER_FEATURES: StarterFeature[] = Object.values(F);
 export type StarterSub = {
   name: Text;
   icon?: string;
-  /** Sabit/düzenli kalem — analizde "düzenlileri hariç tut" anahtarını görünür kılar */
-  regular?: boolean;
+  /** Etiketler (ada göre açılır) — analizde süzgeç: yalnız bunlar / bunlar hariç */
+  tags?: Text[];
   mods?: StarterFeature[];
   subs?: StarterSub[];
 };
+
+/**
+ * Başlangıç etiketleri — farklı kategorilerdeki kalemleri tek bir türde
+ * toplar; iki örnek etiketin ne işe yaradığını açıklamasız anlatsın diye.
+ */
+const TAG = {
+  fixed: { en: "Fixed costs", tr: "Sabit ödemeler" },
+  routine: { en: "Routine", tr: "Rutin" },
+} satisfies Record<string, Text>;
 
 export type StarterCategory = {
   name: Text;
@@ -230,7 +239,7 @@ export const STARTER_CATEGORIES: StarterCategory[] = [
       {
         name: { en: "Bills", tr: "Faturalar" },
         icon: "bill",
-        regular: true,
+        tags: [TAG.fixed],
         subs: [
           { name: { en: "Electricity", tr: "Elektrik" }, icon: "lamp" },
           { name: { en: "Water", tr: "Su" }, icon: "water" },
@@ -238,8 +247,8 @@ export const STARTER_CATEGORIES: StarterCategory[] = [
           { name: { en: "Phone", tr: "Telefon" }, icon: "call" },
         ],
       },
-      { name: { en: "Rent", tr: "Kira" }, icon: "home", regular: true },
-      { name: { en: "Subscriptions", tr: "Abonelikler" }, icon: "card", regular: true },
+      { name: { en: "Rent", tr: "Kira" }, icon: "home", tags: [TAG.fixed] },
+      { name: { en: "Subscriptions", tr: "Abonelikler" }, icon: "card", tags: [TAG.fixed] },
       {
         name: { en: "Shopping", tr: "Alışveriş" },
         icon: "bag",
@@ -324,7 +333,7 @@ export const STARTER_CATEGORIES: StarterCategory[] = [
       {
         name: { en: "Medication / Vitamins", tr: "İlaç / vitamin" },
         icon: "pill",
-        regular: true,
+        tags: [TAG.routine],
         mods: [F.done],
       },
       {

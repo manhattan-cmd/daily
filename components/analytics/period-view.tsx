@@ -68,7 +68,9 @@ import {
   panelWindow,
 } from "@/components/analytics/period-category-panel";
 import { prefetchCategoryMetrics } from "@/components/analytics/use-category-metrics";
-import { useExcludeRegular } from "@/components/analytics/regular-toggle";
+import { setTagFilter, useTagFilter, useTaggedSubIds } from "@/components/analytics/tag-filter";
+import { filterEntriesByTag, subsWithTag } from "@/lib/tags";
+import { TagGlyph } from "@/components/ui/tag-glyph";
 import {
   getAnalysisSelection,
   selectAnalysisCategory,
@@ -152,6 +154,24 @@ export function PeriodView({
   // geçilir — iskelet ya da karışık bir ara görüntü yok (bkz. period-data).
   const data = usePeriodData(requestedPeriod);
   const period = data?.period ?? requestedPeriod;
+  // Etiket süzgeci (seçimi üst menüde, bkz. ScopePickers): dönemin girdileri
+  // ondan geçer — ilk ekranın sayıları, dağılımı, yer listesi, girdiler
+  const { filter: tagFilter, tag: filterTag, tags } = useTagFilter();
+  const tagged = useTaggedSubIds(tagFilter, data?.cats, data?.subs);
+  const periodEntries = useMemo(
+    () => (data ? filterEntriesByTag(data.entries, tagFilter, tagged) : []),
+    [data, tagFilter, tagged]
+  );
+  // Etiket listesindeki sayılar — dönemde etiket başına girdi (süzgeçsiz)
+  const tagCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    if (!data || !tags?.length) return m;
+    for (const tg of tags) {
+      const ids = subsWithTag(tg.id, data.cats, data.subs);
+      m.set(tg.id, data.entries.filter((e) => ids.has(e.subcategoryId)).length);
+    }
+    return m;
+  }, [data, tags]);
   // Başka dönemden gelindiyse orada bakılan kategori taşınır (bkz.
   // analysis-selection); URL'deki ?cat her zaman önce gelir
   const [selectedCatId, setSelectedCatId] = useState<string | null>(
@@ -230,7 +250,8 @@ export function PeriodView({
 
   const computed = useMemo(() => {
     if (!data) return null;
-    const { cats, subs, entries } = data;
+    const { cats, subs } = data;
+    const entries = periodEntries;
     const now = new Date();
     const subById = new Map(subs.map((s) => [s.id, s]));
     const catById = new Map(cats.map((c) => [c.id, c]));
@@ -345,7 +366,7 @@ export function PeriodView({
       catShare,
       entryRows,
     };
-  }, [period, data]);
+  }, [period, data, periodEntries]);
 
   const prev = shiftPeriod(period, -1);
   const nextP = shiftPeriod(period, 1);
@@ -451,6 +472,7 @@ export function PeriodView({
     place: { name: placeName, color: selectedCat?.color ?? ANALYSIS_COLOR },
     feature:
       metricMod && selectedCat?.builtInKey !== "mood" ? { name: metricMod.name, color: modColor(metricMod) } : undefined,
+    tag: filterTag && tagFilter ? { name: filterTag.name, color: filterTag.color, mode: tagFilter.mode } : undefined,
   };
   /** Seçim değişince içerik baştan değişir — sayfa başına, kaydırma animasyonu yok */
   const toTop = () => {
@@ -480,6 +502,11 @@ export function PeriodView({
     }
     toTop();
   };
+  /** Üst seçiciden etiket süzgeci */
+  const pickTagFilter = (f: Parameters<typeof setTagFilter>[0]) => {
+    setTagFilter(f);
+    toTop();
+  };
   /** Üst seçiciden özellik: başka kategorideyse önce oraya geçer */
   const pickMetric = (catId: string, id: string) => {
     if (catId !== selectedCat?.id) {
@@ -503,13 +530,12 @@ export function PeriodView({
   // Kategori panelinin verisi: dönemde girdisi olan kategoriler boşta, dokunulan
   // kategori parmak değdiği an önden okunur — kategoriler arasında gezerken
   // panel boşalıp yeniden dolmasın (bkz. use-category-metrics önbelleği)
-  const [excludeRegular] = useExcludeRegular();
   const win = panelWindow(period);
   const panelParams = (categoryId: string) => ({
     categoryId,
     fetchStart: win.start,
     fetchEnd: win.end,
-    excludeRegular,
+    tagFilter,
   });
   const activeCatIds = (computed?.catShare ?? [])
     .filter((r) => r.value > 0)
@@ -524,7 +550,7 @@ export function PeriodView({
       }),
     // panelParams yalnız bu üçüne bağlı
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeCatIds, win.start, win.end, excludeRegular]
+    [activeCatIds, win.start, win.end, tagFilter]
   );
 
 
@@ -635,12 +661,16 @@ export function PeriodView({
     <ScopePickers
       cats={data.cats}
       subs={data.subs}
-      entries={data.entries}
+      entries={periodEntries}
       selectedCat={selectedCat}
       path={path}
       metricId={metricId}
       onPlace={pickPlace}
       onMetric={pickMetric}
+      tags={tags}
+      tagFilter={tagFilter}
+      tagCounts={tagCounts}
+      onTagFilter={pickTagFilter}
     />
   );
 
@@ -695,6 +725,30 @@ export function PeriodView({
   ]
     .filter(Boolean)
     .join(" · ");
+  // Süzgecin bu yerde dışarıda bıraktığı (hariçte) ya da içeri aldığı
+  // (yalnızda) girdi — dönemin girdilerinden, bulunulan yerin içinde
+  let tagHead: { value: string; sub: string } | null = null;
+  if (filterTag && tagFilter) {
+    const subById = new Map(data.subs.map((x) => [x.id, x]));
+    const inPlace = (subId: string) => {
+      const sub = subById.get(subId);
+      if (!sub || (selectedCat && sub.categoryId !== selectedCat.id)) return false;
+      if (!focusSub) return true;
+      for (let cur: SubCategory | undefined = sub; cur; cur = cur.parentId ? subById.get(cur.parentId) : undefined) {
+        if (cur.id === focusSub.id) return true;
+      }
+      return false;
+    };
+    const all = data.entries.filter((e) => inPlace(e.subcategoryId)).length;
+    const kept = periodEntries.filter((e) => inPlace(e.subcategoryId)).length;
+    tagHead = {
+      value: t(tagFilter.mode === "only" ? "an.tag.headOnly" : "an.tag.headExclude", { name: filterTag.name }),
+      sub:
+        tagFilter.mode === "only"
+          ? t("an.tag.inCount", { n: fmtNum(kept) })
+          : t("an.tag.outCount", { n: fmtNum(all - kept) }),
+    };
+  }
   const structureHref = selectedCat
     ? focusSub
       ? routes.structureSub(selectedCat.id, focusSub.id)
@@ -723,6 +777,20 @@ export function PeriodView({
           }
         />
         <HeadInfo label={t("an.head.feature")} value={featureName} mark={featureMark} />
+        {tagHead && filterTag && (
+          <div data-an-head-tag="" className="col-span-2 grid">
+            <HeadInfo
+              label={t("an.head.tag")}
+              value={tagHead.value}
+              sub={tagHead.sub}
+              mark={
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center">
+                  <TagGlyph color={filterTag.color} size={18} />
+                </span>
+              }
+            />
+          </div>
+        )}
       </div>
       {body}
     </SummaryBlock>
@@ -913,12 +981,16 @@ export function PeriodView({
           <ScopePickers
             cats={data.cats}
             subs={data.subs}
-            entries={data.entries}
+            entries={periodEntries}
             selectedCat={selectedCat}
             path={path}
             metricId={metricId}
             onPlace={pickPlace}
             onMetric={pickMetric}
+            tags={tags}
+            tagFilter={tagFilter}
+            tagCounts={tagCounts}
+            onTagFilter={pickTagFilter}
           />
           </div>
           </div>

@@ -34,8 +34,10 @@ import { SymbolIcon } from "@/lib/icons";
 import { measureSummary } from "@/lib/measure-kinds";
 import { modColor } from "@/lib/mod-color";
 import type { ModWithType } from "@/lib/db/queries";
-import type { Category, Collection, EntryWithContext, Note, SubCategory, Thing } from "@/types";
-import { blockInk, fillStyle } from "@/lib/fill";
+import type { Category, Collection, EntryWithContext, Note, SubCategory, Tag, Thing } from "@/types";
+import { blockFillTint, blockInk, fillStyle } from "@/lib/fill";
+import type { TagFilter } from "@/lib/tags";
+import { TagGlyph } from "@/components/ui/tag-glyph";
 
 /**
  * Aramanın zaman süzgeci — Analiz'in dönem türleri, onunla aynı sırada:
@@ -118,6 +120,9 @@ export function FilterChip({
  *  3. Kategoriler — çipler hücrenin İÇİNDE kayar; bloğun çerçevesi keser.
  *     Eskiden sıra sayfa zemininin kenarına taşıyordu, kaydırınca çipler
  *     pencerenin dışına çıkıyor gibi görünüyordu.
+ *  4. Etiketler (varsa) — çipler etiketin şekliyle; birine dokununca
+ *     "yalnız" süzgeci, satırın başında Yalnız | Hariç anahtarı belirir.
+ *     Seçiliye yeniden dokunmak süzgeci kaldırır.
  */
 export function SearchFilters({
   kind,
@@ -127,6 +132,9 @@ export function SearchFilters({
   categories,
   categoryId,
   onCategory,
+  tags = [],
+  tagFilter = null,
+  onTagFilter,
 }: {
   kind: TimeKind;
   period: Period | null;
@@ -135,6 +143,9 @@ export function SearchFilters({
   categories: Category[];
   categoryId: string | null;
   onCategory: (id: string | null) => void;
+  tags?: Tag[];
+  tagFilter?: TagFilter | null;
+  onTagFilter?: (f: TagFilter | null) => void;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -221,6 +232,48 @@ export function SearchFilters({
           ))}
         </HScroll>
       </nav>
+      {tags.length > 0 && onTagFilter && (
+        <nav aria-label={t("tags.title")} data-search-tags="" className="bg-paper">
+          <HScroll className="items-center gap-1.5 px-2 py-2">
+            {tagFilter ? (
+              /* Kip — yalnız bu etiketli yerler ya da onlar hariç */
+              <div data-tag-mode="" className="flex h-8 shrink-0 overflow-hidden rounded-full border-[1.5px] border-line">
+                {(["only", "exclude"] as const).map((m, i) => (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={tagFilter.mode === m}
+                    onClick={() => onTagFilter({ tagId: tagFilter.tagId, mode: m })}
+                    className={cn(
+                      "px-2.5 text-[12px] font-extrabold capitalize",
+                      i > 0 && "border-l-[1.5px] border-line",
+                      tagFilter.mode === m ? "bg-well text-white" : "bg-paper text-ink/70 active:bg-paper-2"
+                    )}
+                  >
+                    {t(m === "only" ? "an.tag.modeShortOnly" : "an.tag.modeShortExclude")}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <span className="shrink-0 pl-1 pr-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-ink/50">{t("an.tag.cell")}</span>
+            )}
+            {tags.map((tg) => {
+              const on = tagFilter?.tagId === tg.id;
+              return (
+                <FilterChip
+                  key={tg.id}
+                  on={on}
+                  color={blockFillTint(tg.color, 100)}
+                  onClick={() => onTagFilter(on ? null : { tagId: tg.id, mode: tagFilter?.mode ?? "only" })}
+                >
+                  <TagGlyph color={tg.color} size={12} />
+                  {tg.name}
+                </FilterChip>
+              );
+            })}
+          </HScroll>
+        </nav>
+      )}
     </section>
   );
 }

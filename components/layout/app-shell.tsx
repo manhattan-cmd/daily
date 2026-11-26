@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useLayoutEffect, useRef } from "react";
 import { migrateThingAttachments } from "@/lib/db/things";
+import { migrateRegularToTags } from "@/lib/db/tags";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ensureBuiltInDimensions,
@@ -80,6 +81,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       await ensureBuiltInCategories();
       // Nesnelerin ilk sürümündeki iliştirmeler → Nesne türünde özellik
       await migrateThingAttachments();
+      // Eski "Düzenli / sabit" işaretleri → "Sabitler" etiketi
+      await migrateRegularToTags();
       // En son: yerleşikler kurulduktan sonra ilk açılış örnekleri
       await ensureStarterData();
       // Süresi dolmuş silme günlüğü satırları (payload'lar yer kaplar)

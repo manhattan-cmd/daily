@@ -9,6 +9,7 @@ import { useLocale, useT, type MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { PeriodTabs } from "./period-switcher";
 import { fillStyle } from "@/lib/fill";
+import { TagGlyph } from "@/components/ui/tag-glyph";
 
 /** Analiz'in rengi — alt menüdeki sekmesi, üst menüsü, durum çubuğu (bkz. statusBarColor) */
 export const ANALYSIS_COLOR = "#8ea6ff";
@@ -184,6 +185,13 @@ export function AnalysisDeck({
       </span>
       {scope && <ScopeChip name={scope.place.name} color={scope.place.color} shape="square" />}
       {scope?.feature && <ScopeChip name={scope.feature.name} color={scope.feature.color} shape="circle" />}
+      {scope?.tag && (
+        <ScopeChip
+          name={t(scope.tag.mode === "exclude" ? "an.tag.modeShortExclude" : "an.tag.modeShortOnly")}
+          color={scope.tag.color}
+          shape="tag"
+        />
+      )}
     </span>
   );
 
@@ -252,20 +260,26 @@ export function AnalysisDeck({
 export type DeckScope = {
   place: { name: string; color: string };
   feature?: { name: string; color: string };
+  /** Etiket süzgeci açıksa */
+  tag?: { name: string; color: string; mode: "only" | "exclude" };
 };
 
 /** Özetin kapsülü — rengin açık tonunda zemin, önünde rengin kendisiyle şekli */
-function ScopeChip({ name, color, shape }: { name: string; color: string; shape: "square" | "circle" }) {
+function ScopeChip({ name, color, shape }: { name: string; color: string; shape: "square" | "circle" | "tag" }) {
   return (
     <span
       className="flex min-w-0 items-center gap-1 rounded-full border-[1.5px] py-[1px] pl-1 pr-1.5 text-[11px] font-extrabold leading-[14px] text-ink"
       style={{ borderColor: "var(--line)", background: `color-mix(in srgb, ${color} calc(38% * var(--fill-scale)), var(--paper))` }}
     >
-      <span
-        aria-hidden
-        className={cn("h-2.5 w-2.5 shrink-0 border-[1.5px]", shape === "circle" ? "rounded-full" : "rounded-[3px]")}
-        style={{ background: color, borderColor: "var(--line)" }}
-      />
+      {shape === "tag" ? (
+        <TagGlyph color={color} size={10} />
+      ) : (
+        <span
+          aria-hidden
+          className={cn("h-2.5 w-2.5 shrink-0 border-[1.5px]", shape === "circle" ? "rounded-full" : "rounded-[3px]")}
+          style={{ background: color, borderColor: "var(--line)" }}
+        />
+      )}
       <span className="truncate">{name}</span>
     </span>
   );

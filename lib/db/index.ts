@@ -18,6 +18,7 @@ import type {
   Thing,
   ThingValue,
   StructureThing,
+  Tag,
 } from "@/types";
 
 export class RoutineDB extends Dexie {
@@ -39,6 +40,7 @@ export class RoutineDB extends Dexie {
   things!: Table<Thing, string>;
   thingValues!: Table<ThingValue, string>;
   structureThings!: Table<StructureThing, string>;
+  tags!: Table<Tag, string>;
 
   constructor() {
     // ad Logbit oldu ama veritabanının adı değişmez — değişirse cihazdaki veri görünmez
@@ -463,6 +465,15 @@ export class RoutineDB extends Dexie {
           if (e && !e.goalId) await entries.update(e.id, { goalId: g.id });
         }
       });
+
+    // v25 — Etiketler: kategori ağacının dışında "ne tür" ekseni. Kategori ve
+    // alt kategori tagIds taşır (indekssiz — analizde bütün ağaç zaten
+    // okunuyor). Eski isRegular işaretinin çevrilmesi açılışta, sürüm
+    // yükseltmesinde değil: eski yedek geri yüklenince de çalışmalı
+    // (bkz. migrateRegularToTags).
+    this.version(25).stores({
+      tags: "id, name, order, createdAt, updatedAt",
+    });
 
     this.stampTimestamps();
   }

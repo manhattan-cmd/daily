@@ -20,7 +20,9 @@ import type {
   Thing,
   ThingValue,
   StructureThing,
+  Tag,
 } from "@/types";
+import { migrateRegularToTags } from "./tags";
 
 /**
  * Yedek biçimi sürümü.
@@ -57,6 +59,7 @@ export const BACKUP_TABLES = [
   "things",
   "thingValues",
   "structureThings",
+  "tags",
 ] as const;
 
 export type BackupTable = (typeof BACKUP_TABLES)[number];
@@ -106,6 +109,8 @@ export interface BackupData {
   things?: Thing[];
   thingValues?: ThingValue[];
   structureThings?: StructureThing[];
+  /** v25+ — etiketler (kategori ve kalemlerin tagIds'i bunlara bakar) */
+  tags?: Tag[];
 }
 
 export interface BackupPayload {
@@ -292,6 +297,8 @@ export async function restoreBackup(
   await backfillAfterRestore(data);
   // Eski yedekteki nesne iliştirmeleri → Nesne türünde özellik
   await migrateThingAttachments();
+  // Eski yedekteki "Düzenli / sabit" işaretleri → etiket
+  await migrateRegularToTags();
 
   return { mode, written, skipped, matched };
 }
@@ -307,7 +314,7 @@ export async function restoreBackup(
  */
 /** Eşleştirme için cihazdaki yapının anlık görüntüsü */
 async function readDeviceStructure(): Promise<DeviceStructure> {
-  const [categories, subcategories, mods, entryTypes, globalDimensions, categoryModifiers] =
+  const [categories, subcategories, mods, entryTypes, globalDimensions, categoryModifiers, tags] =
     await Promise.all([
       db.categories.toArray(),
       db.subcategories.toArray(),
@@ -315,8 +322,9 @@ async function readDeviceStructure(): Promise<DeviceStructure> {
       db.entryTypes.toArray(),
       db.globalDimensions.toArray(),
       db.categoryModifiers.toArray(),
+      db.tags.toArray(),
     ]);
-  return { categories, subcategories, mods, entryTypes, globalDimensions, categoryModifiers };
+  return { categories, subcategories, mods, entryTypes, globalDimensions, categoryModifiers, tags };
 }
 
 async function backfillAfterRestore(data: BackupPayload["data"]): Promise<void> {

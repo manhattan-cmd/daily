@@ -33,6 +33,8 @@ import type {
 import { SCALE_1_5, isScaleChoices } from "@/types";
 import { getLocale, translate, type Locale } from "@/lib/i18n";
 import { commonModIds } from "@/lib/analytics";
+import { ensureTag } from "./tags";
+import { subsWithTag, type TagFilter } from "@/lib/tags";
 import {
   STARTER_CATEGORIES,
   STARTER_FEATURES,
@@ -552,8 +554,10 @@ async function seedStarterSubs(
       name: pickText(s.name, locale),
       icon: s.icon,
     });
-    if (s.regular) {
-      await db.subcategories.update(sub.id, { isRegular: true });
+    if (s.tags?.length) {
+      const tagIds: string[] = [];
+      for (const name of s.tags) tagIds.push((await ensureTag(pickText(name, locale))).id);
+      await db.subcategories.update(sub.id, { tagIds });
     }
     // Kaleme özel özellikler — çocuklar bunları da devralsın diye onlardan önce
     for (const ref of s.mods ?? []) {
@@ -607,7 +611,7 @@ export async function createCategory(input: {
 
 export async function updateCategory(
   catId: string,
-  patch: Partial<Pick<Category, "name" | "color" | "icon">>
+  patch: Partial<Pick<Category, "name" | "color" | "icon" | "tagIds">>
 ): Promise<void> {
   await db.categories.update(catId, { ...patch, updatedAt: now() });
   // Kök alt kategori kategorinin adını/ikonunu yansıtır — senkron tut
@@ -742,7 +746,7 @@ export async function createSubCategory(input: {
 
 export async function updateSubCategory(
   subId: string,
-  patch: Partial<Pick<SubCategory, "name" | "icon" | "isRegular">>
+  patch: Partial<Pick<SubCategory, "name" | "icon" | "tagIds">>
 ): Promise<void> {
   await db.subcategories.update(subId, { ...patch, updatedAt: now() });
 }
@@ -2762,6 +2766,8 @@ export interface SearchFilters {
   from?: number;
   to?: number;
   limit?: number;
+  /** Etiket süzgeci — yalnız bu etiketli kalemlerin girdileri ya da onlar hariç */
+  tagFilter?: TagFilter | null;
 }
 
 /**
@@ -2797,6 +2803,10 @@ export async function searchEntries(
     );
   }
 
+  // Etiket: etiketi kendisinde, atasında ya da kategorisinde taşıyan kalemler
+  const tagged = filters.tagFilter ? subsWithTag(filters.tagFilter.tagId, cats, subs) : null;
+  const tagOnly = filters.tagFilter?.mode === "only";
+
   // Adı sorguyla eşleşen kalemler — bu kalemlerin TÜM girdileri sonuçtadır
   const nameMatched = new Set<string>();
   if (q) {
@@ -2823,6 +2833,7 @@ export async function searchEntries(
   await coll.until(() => found.length >= limit).each((e) => {
     if (found.length >= limit) return;
     if (scopeIds && !scopeIds.has(e.subcategoryId)) return;
+    if (tagged && tagged.has(e.subcategoryId) !== tagOnly) return;
     if (q && !nameMatched.has(e.subcategoryId) && !matchesSearch(textOf(e), q))
       return;
     found.push(e);

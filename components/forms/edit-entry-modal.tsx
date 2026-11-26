@@ -22,7 +22,7 @@ import {
   Link2,
   NotebookPen,
   Plus,
-  Repeat,
+  Tag as TagIcon,
   Trash2,
   X,
 } from "lucide-react";
@@ -54,6 +54,7 @@ import {
   listEntryTypes,
   listMods,
   listRecentModValues,
+  updateCategory,
   updateSubCategory,
   type CategoryModifierWithType,
   type ModWithType,
@@ -61,7 +62,10 @@ import {
   measureOf,
 } from "@/lib/db/queries";
 import { playEntrySound } from "@/lib/sound";
-import { Switch } from "@/components/ui/switch";
+import { TagPicker } from "@/components/structure/tag-field";
+import { settleTagIds } from "@/lib/db/tags";
+import { inheritedTags } from "@/lib/tags";
+import { useTags } from "@/components/analytics/tag-filter";
 import { OptionsMenu, PanelBlock } from "@/components/forms/form-options";
 import { isNumericChoiceSet, shortMonth } from "@/lib/analytics";
 import { modAtomIcon } from "@/components/structure/mod-atom";
@@ -106,7 +110,7 @@ interface EditEntryModalProps {
 const NO_RECENT: Record<string, string[]> = {};
 
 /** Başlık menüsünden açılan bölümler — aynı anda yalnız biri açık kalır */
-type Panel = "time" | "parallel" | "regular" | "delete";
+type Panel = "time" | "parallel" | "tags" | "delete";
 
 /** Paralel perspektifin rengi — ekleme akışındakiyle aynı mor (bkz. FormStep) */
 const PARALLEL_C = "#7c3aed";
@@ -365,15 +369,38 @@ export function EditEntryModal({
   const [deleting, setDeleting] = useState(false);
   const togglePanel = (p: Panel) => setPanel((cur) => (cur === p ? null : p));
 
-  // t("entry.regular") alt kategori özelliğidir; canlı okunur ve anında yazılır
-  const liveSub = useLiveQuery(
-    () => db.subcategories.get(entry.subcategoryId),
-    [entry.subcategoryId]
-  );
-  const isRegular = !!(liveSub ?? entry.subcategory).isRegular;
-  const regularScopeName = entry.subcategory.isCategoryRoot
-    ? entry.category.name
-    : entry.subcategory.name;
+  // Etiketler girdinin değil YERİN (alt kategori; kök girdide kategori)
+  // özelliğidir — canlı okunur, anında yazılır. Eski "Düzenli / sabit"
+  // anahtarının yerinde
+  const tagPlace = useLiveQuery(async () => {
+    const [cat, subs] = await Promise.all([
+      db.categories.get(entry.category.id),
+      db.subcategories.where("categoryId").equals(entry.category.id).toArray(),
+    ]);
+    return { cat, subs };
+  }, [entry.category.id]);
+  const allTags = useTags();
+  const tagAtRoot = !!entry.subcategory.isCategoryRoot;
+  const liveSub = tagPlace?.subs.find((s) => s.id === entry.subcategoryId);
+  const ownTagIds = (tagAtRoot ? tagPlace?.cat?.tagIds : liveSub?.tagIds) ?? [];
+  const placeInherited =
+    tagPlace?.cat && liveSub && !tagAtRoot
+      ? inheritedTags(
+          entry.category.id,
+          liveSub.parentId,
+          new Map(tagPlace.subs.map((s) => [s.id, s])),
+          new Map([[tagPlace.cat.id, tagPlace.cat]])
+        )
+      : [];
+  const placeTagNames = [...placeInherited.map((x) => x.id), ...ownTagIds]
+    .map((id) => allTags?.find((x) => x.id === id)?.name)
+    .filter((x): x is string => !!x);
+  const tagScopeName = tagAtRoot ? entry.category.name : entry.subcategory.name;
+  const saveTags = async (ids: string[]) => {
+    const settled = await settleTagIds(ids);
+    if (tagAtRoot) await updateCategory(entry.category.id, { tagIds: settled });
+    else await updateSubCategory(entry.subcategoryId, { tagIds: settled });
+  };
   /** Mevcut kardeş perspektifler + bu oturumda eklenenler */
   const totalParallels = siblings.length + newParallels.length;
 
@@ -654,32 +681,18 @@ export function EditEntryModal({
               </PanelBlock>
             )}
 
-            {panel === "regular" && (
+            {panel === "tags" && (
               <PanelBlock
-                icon={Repeat}
-                title={t("entry.regular")}
+                icon={TagIcon}
+                title={t("tags.title")}
                 onClose={() => setPanel(null)}
               >
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-input px-3 py-2.5">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">
-                      {regularScopeName} düzenli kalem
-                    </p>
-                    <p className="text-[11px] leading-snug text-muted-foreground">
-                      Kira, fatura gibi sabit kalemler analizlerde tek dokunuşla
-                      hariç tutulabilir. Bu ayar tek girdiye değil,{" "}
-                      <span className="text-foreground/80">
-                        {regularScopeName}
-                      </span>{" "}
-                      altındaki tüm girdilere işler.
-                    </p>
-                  </div>
-                  <Switch
-                    checked={isRegular}
-                    onCheckedChange={(v) =>
-                      updateSubCategory(entry.subcategoryId, { isRegular: v })
-                    }
-                  />
+                <div data-entry-tags="" className="flex flex-col gap-2">
+                  <TagPicker value={ownTagIds} onChange={(ids) => void saveTags(ids)} inherited={placeInherited} />
+                  {/* Etiket tek girdiye değil, yerin bütün girdilerine işler */}
+                  <p className="text-[11px] leading-snug text-muted-foreground">
+                    {t("tags.entryHint", { name: tagScopeName })}
+                  </p>
                 </div>
               </PanelBlock>
             )}
@@ -986,7 +999,7 @@ export function EditEntryModal({
                     </div>
                     <div data-hero-actions="" className="ml-auto flex shrink-0 items-center gap-1.5">
                       <OptionsMenu
-                        touched={totalParallels > 0 || isRegular}
+                        touched={totalParallels > 0 || placeTagNames.length > 0}
                         items={[
                           {
                             key: "parallel",
@@ -999,12 +1012,12 @@ export function EditEntryModal({
                             onSelect: () => togglePanel("parallel"),
                           },
                           {
-                            key: "regular",
-                            icon: Repeat,
-                            title: t("entry.regular"),
-                            subtitle: isRegular ? t("entry.regularOn") : t("entry.regularOff"),
-                            active: panel === "regular",
-                            onSelect: () => togglePanel("regular"),
+                            key: "tags",
+                            icon: TagIcon,
+                            title: t("tags.title"),
+                            subtitle: placeTagNames.length ? placeTagNames.join(", ") : t("tags.none"),
+                            active: panel === "tags",
+                            onSelect: () => togglePanel("tags"),
                           },
                           {
                             key: "delete",
@@ -1209,7 +1222,7 @@ export function EditEntryModal({
                 touched={
                   occurredAt.slice(0, 10) !== entryDate ||
                   totalParallels > 0 ||
-                  isRegular
+                  placeTagNames.length > 0
                 }
                 items={[
                   {
@@ -1231,14 +1244,12 @@ export function EditEntryModal({
                     onSelect: () => togglePanel("parallel"),
                   },
                   {
-                    key: "regular",
-                    icon: Repeat,
-                    title: t("entry.regular"),
-                    subtitle: isRegular
-                      ? t("entry.regularOn")
-                      : t("entry.regularOff"),
-                    active: panel === "regular",
-                    onSelect: () => togglePanel("regular"),
+                    key: "tags",
+                    icon: TagIcon,
+                    title: t("tags.title"),
+                    subtitle: placeTagNames.length ? placeTagNames.join(", ") : t("tags.none"),
+                    active: panel === "tags",
+                    onSelect: () => togglePanel("tags"),
                   },
                   {
                     key: "delete",

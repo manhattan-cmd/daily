@@ -39,7 +39,7 @@ import { AnalysisCharts } from "./analysis-chart";
 import { CategoryChartExplorer } from "./category-chart-explorer";
 import { EntryListBlock, EntryListSection, type EntryListRow } from "./entry-list";
 import { SummaryBlock, SummaryEmpty, SummaryTile } from "@/components/ui/summary-block";
-import { RegularToggle, useExcludeRegular } from "./regular-toggle";
+import { useTagFilter } from "./tag-filter";
 import { useCategoryMetrics } from "./use-category-metrics";
 import { modColor } from "@/lib/mod-color";
 import type { Category, ChartForm, ChartKind, Entry, InsightKey, StatKey, SubCategory } from "@/types";
@@ -104,7 +104,7 @@ export function PeriodCategoryPanel({
     [period.kind, period.start]
   );
 
-  const [excludeRegular, setExcludeRegular] = useExcludeRegular();
+  const { filter: tagFilter } = useTagFilter();
   // Tam ekranda incelenen grafik (köşedeki düğme) — kapanınca panel olduğu yerde
   const [exploring, setExploring] = useState<ChartKind | null>(null);
   const {
@@ -130,7 +130,7 @@ export function PeriodCategoryPanel({
     // "Girdi sayısı" seçici listesinde yok: seçim yoksa yerin en çok
     // kullanılan özelliği açılır (özelliği olmayan yerde kayıt sayısına düşer)
     initialMetricId: undefined,
-    excludeRegular,
+    tagFilter,
   });
 
   // Mercek rengi — özellik seçiliyken kutular ve grafikler o özelliğin
@@ -161,7 +161,7 @@ export function PeriodCategoryPanel({
     resetKey: category.id,
     preferredMetricId: shownMetric === "count" ? undefined : shownMetric,
     initialMetricId: shownMetric === "count" ? "count" : undefined,
-    excludeRegular,
+    tagFilter,
   });
   // Seçenek süzgeci açıkken geçmiş de o seçeneğin adedini saysın
   const setPrevChoice = prevMetrics.setChoiceFilter;
@@ -506,7 +506,7 @@ export function PeriodCategoryPanel({
       category={category}
       focus={focus}
       metricId={shownMetric}
-      excludeRegular={excludeRegular}
+      tagFilter={tagFilter}
       choiceFilter={choiceFilter}
       kind={exploring}
       form={formOf(exploring, compute.chartForms, { ...compute.formCtx, slices: computed.distribution.length })}
@@ -585,17 +585,6 @@ export function PeriodCategoryPanel({
     // verilmezse (başka yerde kullanılırsa) kendi bloğunda
     const headBody = (
         <>
-          {data.hasRegular && (
-            <div className="bg-paper px-3 py-2.5">
-              <RegularToggle
-                active={excludeRegular}
-                onChange={setExcludeRegular}
-                color={category.color}
-                regularSubNames={data.regularSubNames}
-                excludedEntryCount={data.excludedEntryCount}
-              />
-            </div>
-          )}
           {empty ? (
             <SummaryEmpty
               text={emptyText}
@@ -774,15 +763,6 @@ export function PeriodCategoryPanel({
         </Link>
       </div>
 
-      {data.hasRegular && (
-        <RegularToggle
-          active={excludeRegular}
-          onChange={setExcludeRegular}
-          color={category.color}
-          regularSubNames={data.regularSubNames}
-          excludedEntryCount={data.excludedEntryCount}
-        />
-      )}
 
       {/* Dönem KPI'ları — gün dışındaki pencerelerde günlük ortalama geçen güne bölünür */}
       {metric.type === "count" ? (

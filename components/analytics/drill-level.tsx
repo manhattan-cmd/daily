@@ -1,5 +1,6 @@
 "use client";
 
+import type { TagFilter } from "@/lib/tags";
 import { useMemo } from "react";
 import { bucketAncestorId, fmtNum } from "@/lib/analytics";
 import { useT } from "@/lib/i18n";
@@ -29,7 +30,7 @@ export function DrillLevel({
   parent,
   fetchStart,
   fetchEnd,
-  excludeRegular,
+  tagFilter,
   metricId,
   selectedId,
   onPick,
@@ -42,7 +43,7 @@ export function DrillLevel({
     parent?: SubCategory;
     fetchStart: number;
     fetchEnd: number;
-    excludeRegular: boolean;
+    tagFilter: TagFilter | null;
     metricId: string;
     /** Bu kademede seçili kalem — vurgulu, diğerleri soluk */
     selectedId: string | null;
@@ -59,7 +60,7 @@ export function DrillLevel({
     resetKey: category.id,
     preferredMetricId: metricId,
     initialMetricId: "count",
-    excludeRegular,
+    tagFilter,
   });
 
   const share = useMemo(() => {

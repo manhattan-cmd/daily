@@ -21,6 +21,10 @@
  * Ruh halinde (brütal) Mutluluk ve Duygular özel sayfada birlikte okunuyor;
  * özellik hücresi yalnız kişinin Ruh hali kategorisine kendi eklediği bir
  * özellik varsa görünür ve listede onlarla birlikte "Hepsi" (özel sayfa) durur.
+ *
+ * Etiket varsa sonda dar bir ETİKET hücresi: süzgeç (yalnız bu etiketli
+ * yerler ya da onlar hariç). Süzgeç açıkken hücre etiketin renginde ve
+ * altında kipi yazar (YALNIZ / HARİÇ); bkz. tag-filter.
  */
 
 import { createElement, useCallback, useMemo, useState } from "react";
@@ -37,8 +41,10 @@ import { moodText } from "@/lib/icons/emotions";
 import { isMoodModName } from "@/lib/mood-analytics";
 import { ModAtomCore, modAtomIcon } from "@/components/structure/mod-atom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { Category, Entry, Mod, SubCategory } from "@/types";
-import { blockFill, blockInk } from "@/lib/fill";
+import type { Category, Entry, Mod, SubCategory, Tag } from "@/types";
+import { blockFill, blockInk, fillStyle } from "@/lib/fill";
+import type { TagFilter } from "@/lib/tags";
+import { TagGlyph } from "@/components/ui/tag-glyph";
 
 type Props = {
   cats: Category[];
@@ -53,6 +59,12 @@ type Props = {
   onPlace: (catId: string | null, pathIds: string[]) => void;
   /** Özellik seçildi — kategori seçili değilse en çok kullanıldığı kategoriyle */
   onMetric: (catId: string, metricId: string) => void;
+  /** Etiketler — boşsa etiket hücresi yok */
+  tags?: Tag[];
+  tagFilter?: TagFilter | null;
+  /** Dönemde etiket başına girdi (süzgeçsiz) */
+  tagCounts?: Map<string, number>;
+  onTagFilter?: (f: TagFilter | null) => void;
 };
 
 type TreeRow = {
@@ -69,10 +81,22 @@ type TreeRow = {
 
 const atomIcon = (m: Mod) => modAtomIcon({ name: m.name, entryType: { valueType: m.valueType } as never });
 
-export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId, onPlace, onMetric }: Props) {
+export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId, onPlace, onMetric, tags, tagFilter, tagCounts, onTagFilter }: Props) {
   const t = useT();
   const brutal = isBlockSkin(useSkin());
-  const [open, setOpen] = useState<"ne" | "yer" | null>(null);
+  const [open, setOpen] = useState<"ne" | "yer" | "etiket" | null>(null);
+  // Etiket listesinde seçilecek kip — açılışta süzgecinki
+  const [tagMode, setTagMode] = useState<TagFilter["mode"]>("only");
+  const showTags = !!onTagFilter && (tags?.length ?? 0) > 0;
+  const activeTag = tagFilter ? tags?.find((x) => x.id === tagFilter.tagId) : undefined;
+  const modeShort = tagFilter?.mode === "exclude" ? t("an.tag.modeShortExclude") : t("an.tag.modeShortOnly");
+  // Sade temada etiket hücresinin zemini: koyu zeminde rengin saydamı (blok
+  // dilinin renk değişkenleri orada yok — bilerek JSX dışında)
+  const plainTagStyle = activeTag ? { backgroundColor: activeTag.color + "2e" } : undefined;
+  const openTags = () => {
+    setTagMode(tagFilter?.mode ?? "only");
+    setOpen("etiket");
+  };
   // Yer listesinde özellik süzgecini kaldır
   const [allPlaces, setAllPlaces] = useState(false);
 
@@ -246,7 +270,16 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
            seçimsizken Analiz'in mavisinde */
         <div
           data-scope-cells=""
-          className={cn("grid bg-paper", hideMetric ? "grid-cols-1" : "grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)]")}
+          className={cn(
+            "grid bg-paper",
+            hideMetric
+              ? showTags
+                ? "grid-cols-[minmax(0,1fr)_auto]"
+                : "grid-cols-1"
+              : showTags
+                ? "grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)_auto]"
+                : "grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)]"
+          )}
         >
           <button
             type="button"
@@ -301,6 +334,23 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
             </span>
             <ChevronDown className="h-4 w-4 shrink-0" strokeWidth={2.75} />
           </button>
+          )}
+          {showTags && (
+            <button
+              type="button"
+              onClick={openTags}
+              aria-label={t("an.tag.pick")}
+              title={activeTag ? t(tagFilter!.mode === "only" ? "an.tag.headOnly" : "an.tag.headExclude", { name: activeTag.name }) : t("an.tag.pick")}
+              data-tag-cell=""
+              data-on={activeTag ? "" : undefined}
+              className="flex w-[54px] flex-col items-center justify-center gap-[5px] border-l-2 px-1 py-2 text-ink active:bg-paper-2"
+              style={{ borderLeftColor: "var(--line)", ...(activeTag ? fillStyle(activeTag.color) : {}) }}
+            >
+              <TagGlyph color={activeTag?.color ?? "#8ea6ff"} size={15} hollow={!activeTag} />
+              <span className="text-[8.5px] font-black uppercase leading-none tracking-[0.08em]">
+                {activeTag ? modeShort : t("an.tag.cell")}
+              </span>
+            </button>
           )}
         </div>
       ) : (
@@ -361,12 +411,94 @@ export function ScopePickers({ cats, subs, entries, selectedCat, path, metricId,
           </span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
         </button>
+        {showTags && (
+          <button
+            type="button"
+            onClick={openTags}
+            aria-label={t("an.tag.pick")}
+            data-tag-cell=""
+            className="flex w-12 shrink-0 flex-col items-center justify-center gap-1 border-l border-[var(--ln-1)] px-1 active:bg-[var(--sf-3)]"
+            style={plainTagStyle}
+          >
+            <TagGlyph color={activeTag?.color ?? "#8ea6ff"} size={14} hollow={!activeTag} className={activeTag ? undefined : "text-muted-foreground"} />
+            <span className="text-[8.5px] font-bold uppercase leading-none tracking-[0.08em] text-muted-foreground">
+              {activeTag ? modeShort : t("an.tag.cell")}
+            </span>
+          </button>
+        )}
       </div>
       )}
 
       <Dialog open={open !== null} onOpenChange={(o) => !o && setOpen(null)}>
         <DialogContent data-scope-dialog="" className="max-h-[82vh] max-w-[370px] gap-3 overflow-y-auto p-5">
-          {open === "ne" ? (
+          {open === "etiket" ? (
+            <>
+              <DialogHeader className="text-left">
+                <DialogTitle className="text-[17px]">{t("an.tag.cell")}</DialogTitle>
+                <p className={cn("text-[12px] leading-snug", brutal ? "text-ink/60" : "text-muted-foreground")}>{t("an.tag.howto")}</p>
+              </DialogHeader>
+              {/* Kip: yalnız bu etiketli yerler ya da onlar hariç; süzgeç açıksa anında işler */}
+              <div data-tag-mode="" className={cn("flex gap-1 rounded-xl p-[3px]", brutal ? "border-[1.5px] border-line bg-paper" : "bg-[var(--sf-2)]")}>
+                {(["only", "exclude"] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={tagMode === m}
+                    onClick={() => {
+                      setTagMode(m);
+                      if (tagFilter && tagFilter.mode !== m) onTagFilter?.({ tagId: tagFilter.tagId, mode: m });
+                    }}
+                    className={cn(
+                      "flex h-8 min-w-0 flex-1 items-center justify-center truncate rounded-lg px-2 text-[12.5px] font-bold",
+                      tagMode === m ? (brutal ? "bg-well text-[#FFF4DC]" : "bg-card shadow-sm") : brutal ? "text-ink" : "text-muted-foreground"
+                    )}
+                  >
+                    {t(m === "only" ? "an.tag.only" : "an.tag.exclude")}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-col gap-1">
+                <button
+                  type="button"
+                  className={rowCls(!activeTag)}
+                  onClick={() => {
+                    setOpen(null);
+                    if (tagFilter) onTagFilter?.(null);
+                  }}
+                >
+                  <span className={cn("flex h-7 w-9 shrink-0 items-center justify-center rounded-[9px]", brutal ? "border-[1.5px] border-line bg-floor text-ink" : "bg-[var(--sf-2)]")}>
+                    <LayoutGrid className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[14px] font-semibold">{t("an.tag.all")}</span>
+                    <span className="block truncate text-[11.5px] opacity-60">{t("an.tag.allHint")}</span>
+                  </span>
+                  {!activeTag && <Check className="ml-auto h-4 w-4 shrink-0" />}
+                </button>
+                {(tags ?? []).map((tag) => {
+                  const on = activeTag?.id === tag.id;
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      data-tag-option=""
+                      className={rowCls(on)}
+                      onClick={() => {
+                        setOpen(null);
+                        onTagFilter?.({ tagId: tag.id, mode: tagMode });
+                      }}
+                    >
+                      <span className="flex w-9 shrink-0 justify-center">
+                        <TagGlyph color={tag.color} size={18} />
+                      </span>
+                      <span className="truncate text-[14px] font-semibold">{tag.name}</span>
+                      {on ? <Check className="ml-auto h-4 w-4 shrink-0" /> : <span className={pill(false)}>{tagCounts?.get(tag.id) ?? 0}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          ) : open === "ne" ? (
             <>
               <DialogHeader className="text-left">
                 <DialogTitle className="text-[17px]">Özellik</DialogTitle>

@@ -51,6 +51,7 @@ export type StatBag = {
 };
 import { translate, useLocale, type MessageKey } from "@/lib/i18n";
 import type { Category, Entry, EntryValue, Mod, SubCategory } from "@/types";
+import { filterEntriesByTag, subsWithTag, type TagFilter } from "@/lib/tags";
 
 export interface CategoryMetricsData {
   /** Kategorinin TÜM alt kategorileri (kapsam dışındakiler de — atalar için gerekir) */
@@ -60,19 +61,13 @@ export interface CategoryMetricsData {
   /** rootSubId verilmişse onun doğrudan çocukları (order sıralı) */
   children: SubCategory[];
   /** Kapsam + [fetchStart, fetchEnd) penceresindeki girdiler
-   * (excludeRegular açıksa düzenli/sabit alt ağaçların girdileri çıkarılmış) */
+   * (etiket süzgeci varsa ondan geçenler — bkz. tagFilter) */
   entries: Entry[];
   values: EntryValue[];
   mods: MetricMod[];
   /** Havuzdaki ham kayıtlar — seçenek listeleri ölçüden çıkıyor */
   rawMods: Map<string, Mod>;
-  /** Kapsamda düzenli/sabit işaretli alt kategori var mı ("hariç tut" anahtarı
-   * yalnızca varsa gösterilir; kök alt kategorinin kendisi düzenliyse false —
-   * onu doğrudan analiz eden sayfayı boşaltmak anlamsız) */
-  hasRegular: boolean;
-  /** Kapsamdaki, kendisi doğrudan işaretli alt kategorilerin adları (şeffaflık satırı) */
-  regularSubNames: string[];
-  /** excludeRegular açıkken pencereden çıkarılan girdi sayısı */
+  /** Etiket süzgecinin pencereden çıkardığı girdi sayısı (sayfa başı söyler) */
   excludedEntryCount: number;
   /** İstatistikler seçimi, özelliğe göre (girdi sayısı COUNT_VIEW'da) —
    *  yerin ya da üstünün tercihi; yoksa türün varsayılanı (bkz. lib/insights) */
@@ -189,11 +184,12 @@ export interface CategoryMetricsParams {
   rootSubId?: string;
   fetchStart: number;
   fetchEnd?: number;
-  excludeRegular: boolean;
+  /** Etiket süzgeci — yalnız bu etiketli kalemler ya da onlar hariç */
+  tagFilter?: TagFilter | null;
 }
 
 const metricsKeyOf = (p: CategoryMetricsParams) =>
-  `${p.categoryId}|${p.rootSubId ?? ""}|${p.fetchStart}|${p.fetchEnd ?? ""}|${p.excludeRegular ? 1 : 0}`;
+  `${p.categoryId}|${p.rootSubId ?? ""}|${p.fetchStart}|${p.fetchEnd ?? ""}|${p.tagFilter ? `${p.tagFilter.mode}:${p.tagFilter.tagId}` : ""}`;
 
 /**
  * Kapsamın son bilinen verisi — kategori değişince panel boşalmasın diye.
@@ -216,7 +212,7 @@ export async function loadCategoryMetrics({
   rootSubId,
   fetchStart,
   fetchEnd,
-  excludeRegular,
+  tagFilter,
 }: CategoryMetricsParams): Promise<CategoryMetricsData | null> {
     const allSubs = await db.subcategories
       .where("categoryId")
@@ -250,29 +246,12 @@ export async function loadCategoryMetrics({
       scopeSubIds = allSubs.map((s) => s.id);
     }
 
-    // Düzenli/sabit kapsama: kendisi ya da bir atası isRegular olan alt kategoriler
-    const regularIds = new Set<string>();
-    for (const s of allSubs) {
-      let cur: SubCategory | undefined = s;
-      let hops = 0;
-      while (cur && hops++ < 20) {
-        if (cur.isRegular) {
-          regularIds.add(s.id);
-          break;
-        }
-        cur = cur.parentId ? subById.get(cur.parentId) : undefined;
-      }
-    }
-    // Kökün kendisi düzenliyse anahtar sunulmaz — sayfayı boşaltmak anlamsız
-    const rootIsRegular = rootSubId ? regularIds.has(rootSubId) : false;
-    const hasRegular =
-      !rootIsRegular && scopeSubIds.some((id) => regularIds.has(id));
-    const regularSubNames = hasRegular
-      ? allSubs
-          .filter((s) => s.isRegular && scopeSubIds.includes(s.id))
-          .map((s) => s.name)
-      : [];
-    const applyExclude = hasRegular && excludeRegular;
+    // Etiket süzgeci: etiketi kendisinde, atasında ya da kategorisinde
+    // taşıyan kalemler (bkz. lib/tags). Etiket silinmişse süzgeç yok.
+    const filterTag = tagFilter ? await db.tags.get(tagFilter.tagId) : undefined;
+    const tagged = filterTag
+      ? subsWithTag(filterTag.id, [(await db.categories.get(categoryId)) ?? { id: categoryId }], allSubs)
+      : null;
     // Yerin doğrudan alt kategorileri — kategoride üst düzey kalemler,
     // alt kategoride kendi çocukları; hepsinde ortak olan özellik varsayılan
     const kidIds = (rootSubId ? children : allSubs.filter((s) => !s.parentId))
@@ -289,8 +268,6 @@ export async function loadCategoryMetrics({
         values: [],
         mods: [],
         rawMods: new Map(),
-        hasRegular,
-        regularSubNames,
         excludedEntryCount: 0,
         insightPrefs: insightPrefsOf(await resolveAnalysisViews(categoryId, rootSubId)),
         commonModIds: common,
@@ -306,9 +283,7 @@ export async function loadCategoryMetrics({
           (fetchEnd === undefined || e.occurredAt < fetchEnd)
       )
       .toArray();
-    const entries = applyExclude
-      ? fetched.filter((e) => !regularIds.has(e.subcategoryId))
-      : fetched;
+    const entries = filterEntriesByTag(fetched, filterTag ? tagFilter! : null, tagged);
     const excludedEntryCount = fetched.length - entries.length;
     let values = entries.length
       ? (
@@ -361,8 +336,6 @@ export async function loadCategoryMetrics({
       values,
       mods,
       rawMods: new Map(allMods.map((m) => [m.id, m])),
-      hasRegular,
-      regularSubNames,
       excludedEntryCount,
       insightPrefs: insightPrefsOf(views),
       commonModIds: common,
@@ -391,7 +364,7 @@ export function useCategoryMetrics({
   initialMetricId,
   preferredMetricId,
   resetKey,
-  excludeRegular = false,
+  tagFilter = null,
 }: {
   category: Category;
   /** Verilirse kapsam bu alt kategorinin alt ağacı; yoksa tüm kategori */
@@ -407,8 +380,8 @@ export function useCategoryMetrics({
   preferredMetricId?: string;
   /** Değiştiğinde metrik seçimi sıfırlanır (örn. kategori değişimi) */
   resetKey: string;
-  /** Düzenli/sabit işaretli alt ağaçların girdilerini pencereden çıkar */
-  excludeRegular?: boolean;
+  /** Etiket süzgeci (bkz. tag-filter) */
+  tagFilter?: TagFilter | null;
 }) {
   // Dile bağlı SABİT çeviri: useT her çizimde yeni fonksiyon veriyor, compute
   // (bağımlılığında t var) her çizimde baştan kuruluyordu. Grafik inceleme
@@ -452,7 +425,7 @@ export function useCategoryMetrics({
     rootSubId,
     fetchStart,
     fetchEnd,
-    excludeRegular,
+    tagFilter,
   };
   const metricsKey = metricsKeyOf(metricsParams);
   const data = useLiveQuery(

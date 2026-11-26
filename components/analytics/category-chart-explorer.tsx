@@ -1,5 +1,6 @@
 "use client";
 
+import type { TagFilter } from "@/lib/tags";
 import { useEffect, useMemo, useState } from "react";
 import { CircleDot, Divide, Sigma, TrendingUp, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -64,7 +65,7 @@ export function CategoryChartExplorer({
   category,
   focus,
   metricId,
-  excludeRegular,
+  tagFilter,
   choiceFilter,
   kind,
   form,
@@ -76,7 +77,7 @@ export function CategoryChartExplorer({
   focus?: SubCategory;
   /** Panelin gösterdiği özellik ("count" = girdi sayısı) */
   metricId: string;
-  excludeRegular: boolean;
+  tagFilter: TagFilter | null;
   choiceFilter: string | null;
   kind: ChartKind;
   form: ChartForm;
@@ -95,7 +96,7 @@ export function CategoryChartExplorer({
     fetchStart: 0,
     resetKey: category.id,
     preferredMetricId: metricId,
-    excludeRegular,
+    tagFilter,
   });
   const { data, compute, metric } = metrics;
   // Seçenek süzgeci açıksa inceleme de o seçeneği saysın

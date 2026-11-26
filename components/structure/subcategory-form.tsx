@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Check, ChevronDown, CornerDownRight } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 import { useIsBrutal } from "@/components/structure/brutal";
 import { Dialog } from "@/components/ui/dialog";
 import {
@@ -22,6 +21,9 @@ import {
   updateSubCategory,
 } from "@/lib/db/queries";
 import { IconGrid } from "@/components/structure/icon-picker";
+import { TagField } from "@/components/structure/tag-field";
+import { settleTagIds } from "@/lib/db/tags";
+import { inheritedTags } from "@/lib/tags";
 import { modColor } from "@/lib/mod-color";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
@@ -93,7 +95,8 @@ export function SubCategoryForm({
   const brutal = useIsBrutal();
   const [name, setName] = useState(subcategory?.name ?? "");
   const [icon, setIcon] = useState<string | undefined>(subcategory?.icon);
-  const [isRegular, setIsRegular] = useState(!!subcategory?.isRegular);
+  // Bu yerin kendi etiketleri (yeni yazılanlar new:<ad>, kayıtta açılır)
+  const [tagIds, setTagIds] = useState<string[]>(subcategory?.tagIds ?? []);
   const [saving, setSaving] = useState(false);
   // Aynı adda alt kategori uyarısı — var olan dal (kategori genelinde aranır)
   const [duplicate, setDuplicate] = useState<SubCategory | null>(null);
@@ -113,7 +116,7 @@ export function SubCategoryForm({
     if (open) {
       setName(subcategory?.name ?? "");
       setIcon(subcategory?.icon);
-      setIsRegular(!!subcategory?.isRegular);
+      setTagIds(subcategory?.tagIds ?? []);
       setDuplicate(null);
       setLocation(
         subcategory
@@ -186,6 +189,17 @@ export function SubCategoryForm({
     return set;
   }, [subcategory, tree]);
 
+  // Üstünden gelen etiketler — düzenlemede (taşınıyorsa yeni) konumun,
+  // yeni kalemde eklendiği yerin üstleri
+  const parentTags = useMemo(() => {
+    const cats = isEdit ? tree?.cats : context?.cat ? [context.cat] : undefined;
+    const subs = isEdit ? tree?.subs : context?.subs;
+    if (!cats || !subs) return [];
+    const catId = isEdit ? (location?.categoryId ?? subcategory!.categoryId) : categoryId;
+    const parentId = isEdit ? (location ? location.parentId : subcategory!.parentId) : parentSubcategoryId;
+    return inheritedTags(catId, parentId, new Map(subs.map((x) => [x.id, x])), new Map(cats.map((c) => [c.id, c])));
+  }, [isEdit, tree, context, location, subcategory, categoryId, parentSubcategoryId]);
+
   const locationChanged =
     !!subcategory &&
     !!location &&
@@ -254,7 +268,7 @@ export function SubCategoryForm({
         await updateSubCategory(subcategory.id, {
           name: nameToSave.trim(),
           icon,
-          isRegular,
+          tagIds: await settleTagIds(tagIds),
         });
         if (locationChanged && location) {
           await moveSubCategory(subcategory.id, location);
@@ -268,12 +282,14 @@ export function SubCategoryForm({
           icon,
           skipInherit: [...skipInherit],
         });
+        if (tagIds.length) await updateSubCategory(sub.id, { tagIds: await settleTagIds(tagIds) });
         onSaved?.(sub);
       }
       onOpenChange(false);
       if (!isEdit) {
         setName("");
         setIcon(undefined);
+        setTagIds([]);
       }
     } finally {
       setSaving(false);
@@ -443,19 +459,9 @@ export function SubCategoryForm({
           </FormSection>
         )}
 
-        {/* Düzenli/sabit işareti — analizlerde tek dokunuşla hariç tutulabilir */}
-        {isEdit && (
-          <div data-struct-box="" className="flex items-center justify-between gap-3 rounded-2xl bg-[var(--sf-1)] px-4 py-3 ring-1 ring-inset ring-[var(--ln-1)]">
-            <div className="min-w-0">
-              <p className="text-sm font-medium">{t("entry.regular")}</p>
-              <p className="text-[11px] text-muted-foreground">
-                Kira, fatura gibi düzenli kalemler — analizlerde tek dokunuşla
-                hariç tutulabilir
-              </p>
-            </div>
-            <Switch checked={isRegular} onCheckedChange={setIsRegular} />
-          </div>
-        )}
+        {/* Etiketler — eski "Düzenli / sabit" anahtarının genel hali; üstünden
+            gelenler kesik çerçeveli (bkz. TagField) */}
+        <TagField value={tagIds} onChange={setTagIds} inherited={parentTags} />
 
         {/* Konum — başka bir kategorinin/alt kategorinin altına taşı */}
         {isEdit && location && tree && (

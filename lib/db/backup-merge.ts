@@ -10,6 +10,7 @@ import type {
   Goal,
   Mod,
   SubCategory,
+  Tag,
 } from "@/types";
 import type { BackupData } from "./backup";
 
@@ -52,6 +53,8 @@ export interface DeviceStructure {
     CategoryModifier,
     "id" | "targetType" | "targetId" | "modId"
   >[];
+  /** Etiketler — ad tekil, ada göre eşlenir */
+  tags?: Pick<Tag, "id" | "name">[];
 }
 
 /**
@@ -137,6 +140,8 @@ export function reconcileBackup(
     }
   };
   matchByName((data.entryTypes ?? []) as EntryType[], device.entryTypes);
+  // Etiketler: ad tekil — başka cihazın "Sabit ödemeler"i buradakine bağlanır
+  matchByName((data.tags ?? []) as Tag[], device.tags ?? []);
   matchByName(
     (data.globalDimensions ?? []) as GlobalDimension[],
     device.globalDimensions
@@ -198,15 +203,18 @@ export function reconcileBackup(
   }
 
   // ——— Yeniden adresleme
+  const tagIdsAt = (ids: string[] | undefined) => (ids ? { tagIds: ids.map((x) => at(x)!) } : {});
   const out: BackupData = {
     ...data,
-    categories: catsIn.map((c) => ({ ...c, id: at(c.id)! })),
+    categories: catsIn.map((c) => ({ ...c, id: at(c.id)!, ...tagIdsAt(c.tagIds) })),
     subcategories: subsIn.map((s) => ({
       ...s,
       id: at(s.id)!,
       categoryId: at(s.categoryId)!,
       ...(s.parentId ? { parentId: at(s.parentId)! } : {}),
+      ...tagIdsAt(s.tagIds),
     })),
+    ...(data.tags ? { tags: data.tags.map((tg) => ({ ...tg, id: at(tg.id)! })) } : {}),
     mods: ((data.mods ?? []) as Mod[]).map((m) => ({ ...m, id: at(m.id)! })),
     entryTypes: ((data.entryTypes ?? []) as EntryType[]).map((t) => ({
       ...t,

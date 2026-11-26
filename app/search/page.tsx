@@ -35,6 +35,9 @@ import {
 } from "@/components/search/search-blocks";
 import { cn } from "@/lib/utils";
 import { PageSheet } from "@/components/ui/layer";
+import { useTags } from "@/components/analytics/tag-filter";
+import { TagGlyph } from "@/components/ui/tag-glyph";
+import type { TagFilter } from "@/lib/tags";
 
 const LIMIT = 100;
 
@@ -63,6 +66,10 @@ function rangeStart(key: RangeKey): number | undefined {
  * Arama kutusu açılışta odaklanmaz: telefonda klavye kendiliğinden açılıp
  * ekranın yarısını kapatıyordu, süzgeçler ve sonuçlar görünmüyordu.
  * Kullanıcı kutuya dokununca açılır.
+ *
+ * Etiket süzgeci (?tag=…&tm=x): yalnız o etiketli yerlerin girdileri ya da
+ * onlar hariç (bkz. lib/tags). Sorgu yazmadan "yalnız Sabit ödemeler" de
+ * bir aramadır — kategori seçmek gibi.
  *
  * Arama adreste de durur (?q=…&cat=…&t=d-2026-11-21): sonuçtaki tarihe
  * dokunup gün sayfasına gidince geri tuşu aramayı silinmiş bulmasın. Adres
@@ -113,6 +120,13 @@ function SearchPageContent() {
   const [kind, setKind] = useState<TimeKind>(() => (period ? (period.kind as TimeKind) : "all"));
   // Sonuç türü (bkz. SearchTypeBar) — Hepsi ya da tek tür
   const [type, setType] = useState<ResultKind | "all">(() => initialType(params.get("type")));
+  const [tagFilter, setTagFilter] = useState<TagFilter | null>(() => {
+    const id = params.get("tag");
+    return id ? { tagId: id, mode: params.get("tm") === "x" ? "exclude" : "only" } : null;
+  });
+  const tags = useTags();
+  const activeTag = tagFilter ? tags?.find((x) => x.id === tagFilter.tagId) : undefined;
+  const tagKey = tagFilter ? `${tagFilter.mode}:${tagFilter.tagId}` : "";
   const locale = useLocale();
 
   // Aramanın adres sorgusu — adrese yazılır, kaydırma hafızasının da anahtarı
@@ -122,8 +136,12 @@ function SearchPageContent() {
     if (categoryId) p.set("cat", categoryId);
     if (period) p.set("t", period.key);
     if (type !== "all") p.set("type", type);
+    if (tagFilter) {
+      p.set("tag", tagFilter.tagId);
+      if (tagFilter.mode === "exclude") p.set("tm", "x");
+    }
     return p.toString();
-  }, [query, categoryId, period, type]);
+  }, [query, categoryId, period, type, tagFilter]);
 
   // Durum → adres (bkz. üstteki not). Next'in kendi geçmiş kaydı korunur
   useEffect(() => {
@@ -164,18 +182,23 @@ function SearchPageContent() {
   const to = brutal ? period?.end : undefined;
 
   // Boş sorguda arama yapılmaz — tüm girdileri listelemek arama değil
+  // "Yalnız etiketli" bir kapsam — kategori gibi sorgusuz da arar; "hariç"
+  // tek başına arama değil (her şeyi listelemek olurdu)
+  const tagScoped = tagFilter?.mode === "only";
   const results = useLiveQuery(
     () =>
-      trimmed || categoryId
+      trimmed || categoryId || tagScoped
         ? searchEntries({
             query: trimmed,
             categoryId: categoryId ?? undefined,
             from,
             to,
             limit: LIMIT,
+            tagFilter,
           })
         : Promise.resolve(undefined),
-    [trimmed, categoryId, from, to]
+    // tagFilter nesnesi her seçimde yeni — anahtarı yeter
+    [trimmed, categoryId, from, to, tagKey]
   );
 
   // Girdilerden başka her şey — notlar, planlı girdiler, nesneler, yapı,
@@ -183,13 +206,16 @@ function SearchPageContent() {
   // sayfalarının kendi aramaları var, burası hepsini birden arıyor
   const everything = useLiveQuery(
     () =>
-      brutal && (trimmed || categoryId)
-        ? searchEverything({ query: trimmed, categoryId: categoryId ?? undefined, from, to })
+      brutal && (trimmed || categoryId || tagScoped)
+        ? searchEverything({ query: trimmed, categoryId: categoryId ?? undefined, from, to, tagFilter })
         : Promise.resolve(undefined),
-    [brutal, trimmed, categoryId, from, to]
+    [brutal, trimmed, categoryId, from, to, tagKey]
   );
 
-  const searching = !!(trimmed || categoryId);
+  const searching = !!(trimmed || categoryId || tagScoped);
+  const tagLabel = activeTag
+    ? t(tagFilter!.mode === "only" ? "an.tag.headOnly" : "an.tag.headExclude", { name: activeTag.name })
+    : undefined;
 
   // Sonuçlar çizilince kaldığı yere — sonuçlar veritabanından sonra geliyor,
   // ilk çizimde liste yok; kare sonrası: kartlar yerleşsin
@@ -250,7 +276,7 @@ function SearchPageContent() {
         ? t("search.foundAll", { n: entriesFull ? `${fmt(total)}+` : fmt(total) })
         : t("search.leadAll");
     // Süzgeç değişince sayfalama baştan
-    const listKey = `${trimmed}|${categoryId}|${period?.key ?? "all"}|${shownType}`;
+    const listKey = `${trimmed}|${categoryId}|${period?.key ?? "all"}|${shownType}|${tagKey}`;
     return (
       <PageSheet
         top={
@@ -293,6 +319,9 @@ function SearchPageContent() {
           categories={categories ?? []}
           categoryId={categoryId}
           onCategory={setCategoryId}
+          tags={tags ?? []}
+          tagFilter={activeTag ? tagFilter : null}
+          onTagFilter={setTagFilter}
         />
         {!searching ? (
           <SearchStart onPick={setQuery} />
@@ -313,7 +342,7 @@ function SearchPageContent() {
                   key={listKey}
                   entries={results}
                   count={countLabel("entries")}
-                  hint={[timeLabel, catLabel].filter(Boolean).join(" · ")}
+                  hint={[timeLabel, catLabel, tagLabel].filter(Boolean).join(" · ")}
                   cap={preview ? PREVIEW_ENTRIES : undefined}
                   onAll={() => pickType("entries")}
                   initialVisible={restore?.visible}
@@ -430,6 +459,35 @@ function SearchPageContent() {
           </button>
         ))}
       </SectionNav>
+
+      {/* Etiketler — seçiliye yeniden dokunmak kaldırır; baştaki çip kipi çevirir */}
+      {(tags?.length ?? 0) > 0 && (
+        <SectionNav label={t("tags.title")}>
+          {tagFilter && activeTag && (
+            <button
+              type="button"
+              onClick={() => setTagFilter({ tagId: tagFilter.tagId, mode: tagFilter.mode === "only" ? "exclude" : "only" })}
+              className={cn(chipClass(true), "capitalize")}
+            >
+              {t(tagFilter.mode === "only" ? "an.tag.modeShortOnly" : "an.tag.modeShortExclude")}
+            </button>
+          )}
+          {(tags ?? []).map((tg) => {
+            const on = tagFilter?.tagId === tg.id;
+            return (
+              <button
+                key={tg.id}
+                type="button"
+                onClick={() => setTagFilter(on ? null : { tagId: tg.id, mode: tagFilter?.mode ?? "only" })}
+                className={cn(chipClass(on), "inline-flex items-center gap-1.5")}
+              >
+                <TagGlyph color={tg.color} size={11} />
+                {tg.name}
+              </button>
+            );
+          })}
+        </SectionNav>
+      )}
 
       <div className="mb-4 flex gap-1.5">
         {RANGES.map((r) => (

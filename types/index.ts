@@ -125,6 +125,26 @@ export interface Category {
    * alan: göç gerektirmez, açılışta eski kayıtlara doldurulur.
    */
   builtInKey?: BuiltInCategoryKey;
+  /** Etiketler (bkz. Tag) — bütün alt kategorilere ve girdilere miras iner */
+  tagIds?: string[];
+  order: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * Etiket — kategori ağacının dışında ikinci bir eksen: kalemin NE TÜR
+ * olduğu ("Sabit ödemeler", "Sosyal"). Ağaç yeri söyler, etiket türü;
+ * farklı kategorilerdeki kalemler aynı etiketi taşıyabilir. Kategoriye ya
+ * da alt kategoriye takılır, altındaki bütün kalemlere ve girdilere miras
+ * iner — girdi eklerken hiçbir şey sorulmaz. Analizde süzgeç (yalnız
+ * bunlar / bunlar hariç). Eski "Düzenli / sabit" işaretinin (isRegular)
+ * genel hali; o işaret açılışta etikete çevrilir (bkz. migrateRegularToTags).
+ */
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
   order: number;
   createdAt: number;
   updatedAt: number;
@@ -138,9 +158,11 @@ export interface SubCategory {
   icon?: string;
   /** Kategorinin kendisini temsil eden gizli kök — girdi/hedef doğrudan kategoriye eklenirken kullanılır, listelerde görünmez */
   isCategoryRoot?: boolean;
-  /** Düzenli/sabit kalem (kira, fatura gibi) — analizlerde tek dokunuşla hariç
-   * tutulabilir; işaret alt ağaca miras iner. İndekssiz opsiyonel alan (migration yok). */
+  /** ESKİ: düzenli/sabit kalem işareti. Artık etiket (tagIds); açılışta ve
+   * eski yedek geri yüklenince etikete çevrilip silinir (bkz. migrateRegularToTags). */
   isRegular?: boolean;
+  /** Etiketler (bkz. Tag) — kendi alt ağacına miras iner; kategorininkiler de bu kaleme */
+  tagIds?: string[];
   order: number;
   createdAt: number;
   updatedAt: number;
