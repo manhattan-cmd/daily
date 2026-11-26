@@ -168,7 +168,6 @@ export function SubCategoryDetailPage({
         <BrutSubsBlock
           category={category}
           subs={tree?.subs}
-          counts={tree?.counts}
           rootId={subcategoryId}
           onAdd={() => {
             setEditingSelf(false);

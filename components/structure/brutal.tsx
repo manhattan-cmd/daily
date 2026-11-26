@@ -55,13 +55,11 @@ export function summaryStats(summary: StructureSummary | undefined, t: ReturnTyp
 export function BrutSubsBlock({
   category,
   subs,
-  counts,
   rootId,
   onAdd,
 }: {
   category: Category;
   subs?: SubCategory[];
-  counts?: Map<string, number>;
   /** Alt kategori sayfasında kendisi — yalnız altı */
   rootId?: string;
   onAdd: () => void;
@@ -89,14 +87,13 @@ export function BrutSubsBlock({
         overline: t("structure.subcategories"),
         value: total === undefined ? "–" : String(total),
         unit: t("struct.subs.unit"),
-        hint: total ? t("struct.subs.hint") : undefined,
       }}
       action={total ? <SummaryTile compact color="#7ae582" icon={Plus} label={t("entry.addSub")} onClick={onAdd} /> : undefined}
       stats={[]}
     >
       {subs && total ? (
         <SubsCell>
-          <BrutSubRows category={category} subs={subs} counts={counts} rootId={rootId} />
+          <BrutSubRows category={category} subs={subs} rootId={rootId} />
         </SubsCell>
       ) : total === 0 ? (
         <SummaryEmpty text={t("brut.noSubs")} action={{ label: t("action.create"), onClick: onAdd }} />
@@ -223,7 +220,7 @@ export function BrutCategoryTree({
             {/* Alt kategorisi yoksa boş pencere: yazı ve ufak Oluştur */}
             {n > 0 ? (
               <SubsCell>
-                <BrutSubRows category={cat} subs={subs} counts={counts} />
+                <BrutSubRows category={cat} subs={subs} />
               </SubsCell>
             ) : (
               <SummaryEmpty text={t("brut.noSubs")} action={{ label: t("action.create"), onClick: () => onAddSub(cat) }} />
@@ -282,12 +279,10 @@ const railX = (j: number) => PAD + iconSize(j) / 2 - 1;
 export function BrutSubRows({
   category: cat,
   subs,
-  counts,
   rootId,
 }: {
   category: Category;
   subs: SubCategory[];
-  counts?: Map<string, number>;
   /** Verilirse yalnız bu alt kategorinin altı çizilir */
   rootId?: string;
 }) {
@@ -304,7 +299,7 @@ export function BrutSubRows({
 
   // Düzleştirilmiş ağaç; kalabalık dalın gizlenen kardeşleri alt ağaçlarıyla
   // birlikte düşer. rails[j]: (j+1). sütunun dik çizgisi bu satırdan geçiyor mu
-  const { rows, max } = useMemo(() => {
+  const rows = useMemo(() => {
     const kids = new Map<string, SubCategory[]>();
     for (const s of subs) {
       if (s.categoryId !== cat.id) continue;
@@ -328,37 +323,9 @@ export function BrutSubRows({
       if (crowded) acc.push({ kind: "more", key, depth, rails, last: true, kids: false, total: list.length, open });
     };
     walk(rootId, 1, []);
-    // Çubukların ölçeği: en kalabalık 1. kat (sayılar alt dalları da içeriyor;
-    // kalabalık dalın gizli kardeşleri dahil — açınca ölçek değişmesin)
-    const max = Math.max(1, ...(kids.get(rootId ?? "") ?? []).map((s) => counts?.get(s.id) ?? 0));
-    return { rows: acc, max };
-  }, [cat.id, subs, expanded, rootId, counts]);
+    return acc;
+  }, [cat.id, subs, expanded, rootId]);
 
-  /** Sağdaki okuma — ana sayfanın kategori karoları gibi girdi payı: ince
-   *  oluğu kategorinin renginde dolan çubuk ve yanında sayı (1. katta koyu,
-   *  derinde soluk). Çubuklar sağda bir sütun olur, en çok kullanılan dal bir
-   *  bakışta görünür; girdisi olmayanda oluk boş, sayı silik. Küçük işaret:
-   *  gecede de rengin kendisi (bkz. lib/fill). */
-  const meter = (n: number, depth: number) => (
-    <span className="ml-auto flex shrink-0 items-center gap-2">
-      <span aria-hidden data-sub-meter="" className="h-[6px] w-11 overflow-hidden rounded-full bg-ink/[0.09]">
-        {n > 0 && (
-          <span
-            className="block h-full rounded-full"
-            style={{ width: `${Math.max(10, Math.round((n / max) * 100))}%`, background: cat.color }}
-          />
-        )}
-      </span>
-      <span
-        className={cn(
-          "min-w-[20px] text-right font-mono text-[11.5px] font-bold leading-none tabular-nums",
-          n === 0 ? "text-ink/30" : depth === 1 ? "text-ink" : "text-ink/65"
-        )}
-      >
-        {n}
-      </span>
-    </span>
-  );
   /** Ana dal grupları arasındaki ince çizgi — renk satırda: Brütal'in genel
    *  `* { border-color }` kuralı katmansız, Tailwind'in renk sınıfını eziyor */
   const divider = { borderTopColor: "color-mix(in srgb, var(--ink) 12%, transparent)" };
@@ -470,7 +437,6 @@ export function BrutSubRows({
                 </span>
               )}
               <SmartText text={sub.name} className="min-w-0 flex-1" />
-              {meter(counts?.get(sub.id) ?? 0, depth)}
             </Link>
           </div>
         );

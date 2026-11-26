@@ -160,7 +160,6 @@ export function CategoryDetailPage({
         <BrutSubsBlock
           category={category}
           subs={tree?.subs}
-          counts={tree?.counts}
           onAdd={() => {
             setNewParentId(undefined);
             setSubFormOpen(true);
