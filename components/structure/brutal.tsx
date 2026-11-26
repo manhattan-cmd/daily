@@ -304,7 +304,7 @@ export function BrutSubRows({
 
   // Düzleştirilmiş ağaç; kalabalık dalın gizlenen kardeşleri alt ağaçlarıyla
   // birlikte düşer. rails[j]: (j+1). sütunun dik çizgisi bu satırdan geçiyor mu
-  const rows = useMemo(() => {
+  const { rows, max } = useMemo(() => {
     const kids = new Map<string, SubCategory[]>();
     for (const s of subs) {
       if (s.categoryId !== cat.id) continue;
@@ -328,19 +328,40 @@ export function BrutSubRows({
       if (crowded) acc.push({ kind: "more", key, depth, rails, last: true, kids: false, total: list.length, open });
     };
     walk(rootId, 1, []);
-    return acc;
-  }, [cat.id, subs, expanded, rootId]);
+    // Çubukların ölçeği: en kalabalık 1. kat (sayılar alt dalları da içeriyor;
+    // kalabalık dalın gizli kardeşleri dahil — açınca ölçek değişmesin)
+    const max = Math.max(1, ...(kids.get(rootId ?? "") ?? []).map((s) => counts?.get(s.id) ?? 0));
+    return { rows: acc, max };
+  }, [cat.id, subs, expanded, rootId, counts]);
 
-  const pill = (n: number) => (
-    <span
-      className={cn(
-        "ml-auto shrink-0 rounded-full border-[1.5px] border-ink/20 px-2 py-px text-[11px] font-extrabold tabular-nums text-ink/70",
-        n === 0 && "opacity-40"
-      )}
-    >
-      {n}
+  /** Sağdaki okuma — ana sayfanın kategori karoları gibi girdi payı: ince
+   *  oluğu kategorinin renginde dolan çubuk ve yanında sayı (1. katta koyu,
+   *  derinde soluk). Çubuklar sağda bir sütun olur, en çok kullanılan dal bir
+   *  bakışta görünür; girdisi olmayanda oluk boş, sayı silik. Küçük işaret:
+   *  gecede de rengin kendisi (bkz. lib/fill). */
+  const meter = (n: number, depth: number) => (
+    <span className="ml-auto flex shrink-0 items-center gap-2">
+      <span aria-hidden data-sub-meter="" className="h-[6px] w-11 overflow-hidden rounded-full bg-ink/[0.09]">
+        {n > 0 && (
+          <span
+            className="block h-full rounded-full"
+            style={{ width: `${Math.max(10, Math.round((n / max) * 100))}%`, background: cat.color }}
+          />
+        )}
+      </span>
+      <span
+        className={cn(
+          "min-w-[20px] text-right font-mono text-[11.5px] font-bold leading-none tabular-nums",
+          n === 0 ? "text-ink/30" : depth === 1 ? "text-ink" : "text-ink/65"
+        )}
+      >
+        {n}
+      </span>
     </span>
   );
+  /** Ana dal grupları arasındaki ince çizgi — renk satırda: Brütal'in genel
+   *  `* { border-color }` kuralı katmansız, Tailwind'in renk sınıfını eziyor */
+  const divider = { borderTopColor: "color-mix(in srgb, var(--ink) 12%, transparent)" };
   const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} calc(${pct}% * var(--fill-scale)), var(--paper))`;
   const ink = cat.color;
 
@@ -374,7 +395,7 @@ export function BrutSubRows({
   };
   /** Karonun altından inen çizgi — altında görünen dal varsa (derinde girinti
    *  durduğu için yok) */
-  const stem = (line: TreeLine) => {
+  const stem = (line: TreeLine, divided: boolean) => {
     if (!line.kids || line.depth >= MAX_INDENT) return null;
     let left = PAD + iconSize(line.depth) / 2 - 1;
     for (let j = 1; j < line.depth; j++) left += railW(j);
@@ -382,7 +403,8 @@ export function BrutSubRows({
       <span
         aria-hidden
         className="absolute bottom-0 w-[2px]"
-        style={{ left, top: `calc(50% + ${iconSize(line.depth) / 2}px)`, background: ink }}
+        // Ayırıcının üst boşluğu (pt-1) satırın ortasını 2 px yukarı alıyor
+        style={{ left, top: `calc(50% + ${iconSize(line.depth) / 2 + (divided ? 2 : 0)}px)`, background: ink }}
       />
     );
   };
@@ -394,7 +416,7 @@ export function BrutSubRows({
         const top = depth === 1 && i > 0;
         if (line.kind === "more") {
           return (
-            <div key={`more:${line.key}`} className={cn("relative flex", top && "mt-1")}>
+            <div key={`more:${line.key}`} className={cn("relative flex", top && "mt-1 border-t pt-1")} style={top ? divider : undefined}>
               {railsFor(line)}
               <button
                 type="button"
@@ -417,9 +439,9 @@ export function BrutSubRows({
         const icon = sub.icon ?? cat.icon;
         const first = depth === 1;
         return (
-          <div key={sub.id} data-sub-row={depth} className={cn("relative flex", top && "mt-1")}>
+          <div key={sub.id} data-sub-row={depth} className={cn("relative flex", top && "mt-1 border-t pt-1")} style={top ? divider : undefined}>
             {railsFor(line)}
-            {stem(line)}
+            {stem(line, top)}
             <Link
               href={routes.structureSub(cat.id, sub.id)}
               prefetch={false}
@@ -448,7 +470,7 @@ export function BrutSubRows({
                 </span>
               )}
               <SmartText text={sub.name} className="min-w-0 flex-1" />
-              {pill(counts?.get(sub.id) ?? 0)}
+              {meter(counts?.get(sub.id) ?? 0, depth)}
             </Link>
           </div>
         );
