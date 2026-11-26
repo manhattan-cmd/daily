@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronDown, Plus, Square } from "lucide-react";
 import { SymbolIcon } from "@/lib/icons";
@@ -95,9 +95,9 @@ export function BrutSubsBlock({
       stats={[]}
     >
       {subs && total ? (
-        <div data-subs-cell="" className="bg-paper px-1.5 py-2">
+        <SubsCell>
           <BrutSubRows category={category} subs={subs} counts={counts} rootId={rootId} />
-        </div>
+        </SubsCell>
       ) : total === 0 ? (
         <SummaryEmpty text={t("brut.noSubs")} action={{ label: t("action.create"), onClick: onAdd }} />
       ) : null}
@@ -176,25 +176,12 @@ export function BrutCta({ label, onClick }: { label: string; onClick: () => void
  * kategori bir blok. Üstte kategorinin renginde ad hücresi (beyaz karoda
  * simgesi, adı, altında alt kategori · girdi sayısı; dokununca kategorinin
  * sayfası), yanında yeşil + Alt kategori karosu, altında beyaz hücrede
- * analizdeki yer ağacının dallanması — kategorinin renginde kılavuz çizgisi,
- * 1. kat kalın, derinler ince; karolar hep kategori renginin açık tonu. Her
- * satır kendi alt kategori sayfasına gider.
+ * alt kategorilerin dalları (bkz. BrutSubRows). Her satır kendi alt kategori
+ * sayfasına gider.
  *
  * Önceki hali "B2 · Sırt Şeridi" (Kartlı Dal denemelerinden seçilmişti):
  * solda kategorinin renginde dik şeritli, gölgeli beyaz kart.
- *
- * Derin ve kalabalık yapılar (bkz. "Derin Yapı Testi"): girinti MAX_INDENT
- * katta durur, daha derin satırlarda adın önünde kat numarası çıkar — 15. kattan
- * sonra adın yeri kalmıyor, sayı kartın dışına taşıyordu. Bir dalda SHOW_FIRST'ten
- * fazla kardeş varsa ilki görünür, altında "Tümünü göster (n)" satırı.
  */
-type TreeLine =
-  | { kind: "sub"; sub: SubCategory; depth: number }
-  | { kind: "more"; key: string; depth: number; total: number; open: boolean };
-
-const MAX_INDENT = 5;
-const SHOW_FIRST = 8;
-
 export function BrutCategoryTree({
   categories,
   subs,
@@ -235,9 +222,9 @@ export function BrutCategoryTree({
           >
             {/* Alt kategorisi yoksa boş pencere: yazı ve ufak Oluştur */}
             {n > 0 ? (
-              <div data-subs-cell="" className="bg-paper px-1.5 py-2">
+              <SubsCell>
                 <BrutSubRows category={cat} subs={subs} counts={counts} />
-              </div>
+              </SubsCell>
             ) : (
               <SummaryEmpty text={t("brut.noSubs")} action={{ label: t("action.create"), onClick: () => onAddSub(cat) }} />
             )}
@@ -248,11 +235,50 @@ export function BrutCategoryTree({
   );
 }
 
+/** Dalların beyaz hücresi — 1. kat karoları başın simge karosuyla aynı
+ *  hizadan başlıyor (bkz. BrutSubRows) */
+function SubsCell({ children }: { children: ReactNode }) {
+  return (
+    <div data-subs-cell="" className="bg-paper px-2 py-2">
+      {children}
+    </div>
+  );
+}
+
 /**
- * Bir kategorinin (ya da bir alt kategorinin altındaki) hiyerarşisi — kılavuz
- * çizgili, küçük simgeli ince satırlar. Yapı → Kategoriler kartlarında ve alt
- * kategori sayfasının Alt kategoriler bölümünde aynı biçim.
+ * Bir kategorinin (ya da bir alt kategorinin altındaki) dalları. Yapı →
+ * Kategoriler bloklarında ve kategori / alt kategori sayfasının Alt
+ * kategoriler bölümünde aynı biçim.
+ *
+ *  - 1. kat hücrenin solundan başlar; karosu kategorinin dolgusunda, adı kalın.
+ *    Kat grupları arasında 4 px boşluk.
+ *  - Alt katlar üst katın karosunun ortasından inen çizgiye kıvrık bir dirsekle
+ *    (├ / └) bağlanır; çizgi karonun altından çıkar, son kardeşte biter.
+ *    Karolar kategori renginin açık tonu, adlar normal kalınlıkta.
+ *  - Girinti MAX_INDENT katta durur; daha derin satırlar o hizada kalır, adın
+ *    önünde kat numarası çıkar (bkz. "Derin Yapı Testi": 15. kattan sonra adın
+ *    yeri kalmıyordu).
+ *  - Bir dalda SHOW_FIRST'ten fazla kardeş varsa ilki görünür, son dirsekte
+ *    "Tümünü göster (n)".
+ *
+ * Önceki hali (2026-10 → 2026-11-25): her satırın solunda kendi katının
+ * hizasında dik kılavuz çizgisi; 1. kat bile 15 px girinti + çizgi + 8 px
+ * boşlukla başlıyor, adlar bloğun kenarından ~67 px içeride kalıyordu.
+ * Kullanıcı dalların daha soldan başlamasını istedi (2026-11-26).
  */
+type TreeLine =
+  | { kind: "sub"; sub: SubCategory; depth: number; rails: boolean[]; last: boolean; kids: boolean }
+  | { kind: "more"; key: string; depth: number; rails: boolean[]; last: true; kids: false; total: number; open: boolean };
+
+const MAX_INDENT = 5;
+const SHOW_FIRST = 8;
+/** Bağlantının sol iç boşluğu ve karo ölçüleri (1. kat / derin) */
+const PAD = 4;
+const iconSize = (depth: number) => (depth === 1 ? 26 : 22);
+/** j. katın altındaki dal sütunu: genişliği ve çizginin yeri (karonun ortası) */
+const railW = (j: number) => (j === 1 ? 24 : 22);
+const railX = (j: number) => PAD + iconSize(j) / 2 - 1;
+
 export function BrutSubRows({
   category: cat,
   subs,
@@ -276,7 +302,8 @@ export function BrutSubRows({
       return next;
     });
 
-  // Düzleştirilmiş ağaç; kalabalık dalın gizlenen kardeşleri alt ağaçlarıyla birlikte düşer
+  // Düzleştirilmiş ağaç; kalabalık dalın gizlenen kardeşleri alt ağaçlarıyla
+  // birlikte düşer. rails[j]: (j+1). sütunun dik çizgisi bu satırdan geçiyor mu
   const rows = useMemo(() => {
     const kids = new Map<string, SubCategory[]>();
     for (const s of subs) {
@@ -285,19 +312,22 @@ export function BrutSubRows({
       kids.set(k, [...(kids.get(k) ?? []), s]);
     }
     const acc: TreeLine[] = [];
-    const walk = (parentId: string | undefined, depth: number) => {
+    const walk = (parentId: string | undefined, depth: number, rails: boolean[]) => {
       const key = `${cat.id}/${parentId ?? ""}`;
       const list = (kids.get(parentId ?? "") ?? []).sort((a, b) => a.order - b.order);
       const crowded = list.length > SHOW_FIRST;
       const open = expanded.has(key);
       const shown = crowded && !open ? list.slice(0, SHOW_FIRST) : list;
-      for (const s of shown) {
-        acc.push({ kind: "sub", sub: s, depth });
-        walk(s.id, depth + 1);
-      }
-      if (crowded) acc.push({ kind: "more", key, depth, total: list.length, open });
+      shown.forEach((s, i) => {
+        const last = !crowded && i === shown.length - 1;
+        const at = acc.push({ kind: "sub", sub: s, depth, rails, last, kids: false }) - 1;
+        const before = acc.length;
+        walk(s.id, depth + 1, depth === 1 ? [] : [...rails, !last]);
+        if (acc.length > before) (acc[at] as { kids: boolean }).kids = true;
+      });
+      if (crowded) acc.push({ kind: "more", key, depth, rails, last: true, kids: false, total: list.length, open });
     };
-    walk(rootId, 1);
+    walk(rootId, 1, []);
     return acc;
   }, [cat.id, subs, expanded, rootId]);
 
@@ -312,30 +342,70 @@ export function BrutSubRows({
     </span>
   );
   const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} calc(${pct}% * var(--fill-scale)), var(--paper))`;
+  const ink = cat.color;
+
+  /** Satırın solundaki dal sütunları: geçen çizgiler ve kendi dirseği */
+  const railsFor = (line: TreeLine) => {
+    const { depth } = line;
+    if (depth === 1) return null;
+    const deep = depth > MAX_INDENT;
+    const cols = Math.min(depth - 1, MAX_INDENT - 1);
+    return Array.from({ length: cols }, (_, i) => {
+      const j = i + 1;
+      const x = railX(j);
+      const elbow = !deep && j === cols;
+      return (
+        <span key={j} aria-hidden className="relative shrink-0 self-stretch" style={{ width: railW(j) }}>
+          {elbow ? (
+            <>
+              <span
+                className="absolute top-0 rounded-bl-[8px] border-b-2 border-l-2"
+                style={{ left: x, height: "calc(50% + 1px)", width: railW(j) + PAD - x, borderColor: ink }}
+              />
+              {/* Kardeşi varsa çizgi kesintisiz iner, dirsek ondan ayrılır */}
+              {!line.last && <span className="absolute inset-y-0 w-[2px]" style={{ left: x, background: ink }} />}
+            </>
+          ) : (
+            line.rails[i] && <span className="absolute inset-y-0 w-[2px]" style={{ left: x, background: ink }} />
+          )}
+        </span>
+      );
+    });
+  };
+  /** Karonun altından inen çizgi — altında görünen dal varsa (derinde girinti
+   *  durduğu için yok) */
+  const stem = (line: TreeLine) => {
+    if (!line.kids || line.depth >= MAX_INDENT) return null;
+    let left = PAD + iconSize(line.depth) / 2 - 1;
+    for (let j = 1; j < line.depth; j++) left += railW(j);
+    return (
+      <span
+        aria-hidden
+        className="absolute bottom-0 w-[2px]"
+        style={{ left, top: `calc(50% + ${iconSize(line.depth) / 2}px)`, background: ink }}
+      />
+    );
+  };
 
   return (
     <>
-      {rows.map((line) => {
+      {rows.map((line, i) => {
         const { depth } = line;
-        const indent = 15 + (Math.min(depth, MAX_INDENT) - 1) * 16;
-        // Kılavuz çizgisi — kategorinin renginde
-        const guide = (
-          <span
-            className="w-[2px] shrink-0 rounded-full"
-            style={{ background: depth === 1 ? cat.color : tint(cat.color, 50) }}
-          />
-        );
+        const top = depth === 1 && i > 0;
         if (line.kind === "more") {
           return (
-            <div key={`more:${line.key}`} className="flex" style={{ paddingLeft: indent }}>
-              {guide}
+            <div key={`more:${line.key}`} className={cn("relative flex", top && "mt-1")}>
+              {railsFor(line)}
               <button
                 type="button"
                 onClick={() => toggleBranch(line.key)}
                 aria-expanded={line.open}
-                className="ml-2 flex min-h-[32px] min-w-0 flex-1 items-center gap-2 rounded-[10px] px-2 py-1 text-left text-[12.5px] font-extrabold text-ink/70 hover:bg-ink/5 active:bg-ink/10"
+                className="flex min-h-[32px] min-w-0 flex-1 items-center gap-2 rounded-[10px] py-1 pl-1 pr-2 text-left text-[12.5px] font-extrabold text-ink/70 hover:bg-ink/5 active:bg-ink/10"
               >
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-[1.5px] border-dashed border-ink/50">
+                <span
+                  className="flex shrink-0 items-center justify-center rounded-md border-[1.5px] border-dashed border-ink/50"
+                  style={{ width: iconSize(depth), height: iconSize(depth) }}
+                >
                   <ChevronDown className={cn("h-3.5 w-3.5", line.open && "rotate-180")} strokeWidth={3} />
                 </span>
                 {line.open ? t("brut.showLess") : t("brut.showAll", { n: line.total })}
@@ -345,25 +415,27 @@ export function BrutSubRows({
         }
         const { sub } = line;
         const icon = sub.icon ?? cat.icon;
+        const first = depth === 1;
         return (
-          <div key={sub.id} className="flex" style={{ paddingLeft: indent }}>
-            {guide}
+          <div key={sub.id} data-sub-row={depth} className={cn("relative flex", top && "mt-1")}>
+            {railsFor(line)}
+            {stem(line)}
             <Link
               href={routes.structureSub(cat.id, sub.id)}
               prefetch={false}
               className={cn(
-                "ml-2 flex min-h-[32px] min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2 py-1 text-[13.5px] text-ink hover:bg-ink/5 active:bg-ink/10",
-                depth === 1 ? "font-bold" : "font-medium"
+                "flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] py-1 pl-1 pr-1.5 text-ink hover:bg-ink/5 active:bg-ink/10",
+                first ? "min-h-[36px] text-[14px] font-extrabold" : "min-h-[32px] text-[13.5px] font-medium"
               )}
             >
               <span
                 className={cn(
                   "flex shrink-0 items-center justify-center border-[1.5px] border-line",
-                  depth === 1 ? "h-6 w-6 rounded-[7px]" : "h-5 w-5 rounded-md"
+                  first ? "h-[26px] w-[26px] rounded-[8px]" : "h-[22px] w-[22px] rounded-[7px]"
                 )}
-                style={{ background: tint(cat.color, 55) }}
+                style={first ? fillStyle(cat.color) : { background: tint(cat.color, 40) }}
               >
-                {icon && <SymbolIcon name={icon} size={depth === 1 ? 13 : 11} style={{ color: blockInk(cat.color) }} />}
+                {icon && <SymbolIcon name={icon} size={first ? 14 : 12} style={{ color: blockInk(cat.color) }} />}
               </span>
               {/* Girinti durduktan sonra derinliği kat numarası söylüyor */}
               {depth > MAX_INDENT && (

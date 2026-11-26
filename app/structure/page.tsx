@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { BarChart3, Layers } from "lucide-react";
+import { Layers } from "lucide-react";
 import { listCategoryTree, listUserCategories } from "@/lib/db/queries";
 import { db } from "@/lib/db";
 import { matchesSearch, normalizeSearch } from "@/lib/search";
@@ -91,23 +91,8 @@ export default function StructurePage() {
                 ]
               : []
           }
-          // Analiz'in mavisi; şeritte kategorilerin girdi payı — ana sayfanın
-          // Bugün şeridi ve gün sayfasının Gün Analizi gibi
-          link={
-            categories?.length
-              ? {
-                  href: "/analytics",
-                  label: t("yhead.insights.categories"),
-                  color: "#8ea6ff",
-                  icon: BarChart3,
-                  bars: tree
-                    ? categories
-                        .map((c) => ({ key: c.id, color: c.color, title: c.name, weight: tree.counts.get(`c:${c.id}`) ?? 0 }))
-                        .filter((b) => b.weight > 0)
-                    : undefined,
-                }
-              : undefined
-          }
+          // Şerit yok: "Kategorilerin analizi" bandı ve altındaki girdi payı
+          // çizgisi kullanıcıya göre gereksizdi (2026-11-26)
           add={{ label: t("yhead.add.category"), onClick: () => setAddOpen(true) }}
           search={
             categories?.length
